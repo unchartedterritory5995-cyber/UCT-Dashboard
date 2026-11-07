@@ -348,14 +348,14 @@ export const DEFAULT_DOT_SIZE = 'medium'
  * Default is byte-for-byte what it was before a member ever touched the control.
  *
  * ⚠️ WHAT THE FLOOR AND CEILING DO TO IT, so nobody promises more than the
- * renderer draws. For UCT RS's gold dot (declared 2.0, a circle, coefficient 0.8):
- *   · Default (× 1 → 2.0): 15 px at bar spacing ≤ 12, 23 px from 15 — unchanged.
- *   · Large (× 1.4 → 2.8): 23 px at EVERY spacing — larger than Default on a
- *     phone, in a grid cell and zoomed out (23 vs 15), and EQUAL to Default from
- *     bar spacing 15, because 23 is the biggest circle LWC draws (`size()` clamps
- *     the multiplied height to 30, × 0.8 → 24, ceiled odd → 23) and Default is
- *     already there at the desktop daily zoom.
- *   · Small (× 0.6 → 1.2): 9 / 13 / 17 / 23 px at spacing ≤ 12 / 15 / 20 / 30.
+ * renderer draws. For UCT RS's gold dot (declared 1.6 since decision L1,
+ * 2026-11-07; a circle, coefficient 0.8):
+ *   · Default (× 1 → 1.6): 13 / 17 / 23 px at bar spacing ≤ 12 / 15 / 20+.
+ *   · Large (× 1.4 → 2.24): 17 px at spacing ≤ 12, then 23 px — larger than
+ *     Default up to the desktop daily zoom, and EQUAL to it from bar spacing 20,
+ *     because 23 is the biggest circle LWC draws (`size()` clamps the multiplied
+ *     height to 30, × 0.8 → 24, ceiled odd → 23).
+ *   · Small (× 0.6 → 0.96): 9 / 11 / 13 / 21 px at spacing ≤ 12 / 15 / 20 / 30.
  */
 export const DOT_GLYPH_SCALE = Object.freeze({ small: 0.6, medium: 1, large: 1.4 })
 

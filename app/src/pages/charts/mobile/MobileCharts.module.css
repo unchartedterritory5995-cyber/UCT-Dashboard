@@ -480,7 +480,13 @@
   -webkit-tap-highlight-color: transparent;
   transition: background var(--duration-fast) var(--ease-out);
 }
-.switchOn { background: var(--gain); }
+/* ⭐ THE MUTED GOLD TRACK (owner-delegated decision B5, 2026-11-07), the same
+   switch as desktop Chart Settings' `.toggle`: on is a `--ut-gold-dim` fill and a
+   `--ut-gold` knob edge; off stays neutral. It was `--gain`, and green means money
+   going up, never "on". The tint is LAYERED over the neutral track rather than
+   replacing it: `--ut-gold-dim` alone is 8% gold, which on this sheet would paint
+   the ON track darker than the OFF one. */
+.switchOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--bg-hover); }
 
 .knob {
   width: 24px;
@@ -489,9 +495,13 @@
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   transform: translateX(0);
-  transition: transform var(--duration-fast) var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
-.switchOn .knob { transform: translateX(18px); }
+/* The edge is an inset ring, so the knob keeps its 24 px box and its throw. */
+.switchOn .knob {
+  transform: translateX(18px);
+  box-shadow: inset 0 0 0 2px var(--ut-gold), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
 
 /* ── Symbol search sheet (fullscreen) ──────────────────────────────────── */
 
@@ -1003,7 +1013,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 .chipOpt:active { background: var(--bg-hover); }
+/* ⭐ A SELECTED ENUM CHIP IS NEUTRAL (owner-delegated decision B7, 2026-11-07):
+   `--text-bright` text, a 1 px border one step brighter than the resting chip's,
+   and the `--bg-hover` fill. Gold is rationed to ONE look-here element per
+   surface, and on the study editor that is the matched preset, so only
+   `.chipPresetOn` (below) wears it. */
 .chipOptOn {
+  color: var(--text-bright);
+  border-color: var(--text-muted);
+  background: var(--bg-hover);
+}
+/* The preset row's one gold chip (the matched preset, or "Custom" when none). */
+.chipPresetOn {
   color: var(--ut-gold);
   border-color: var(--ut-gold);
   background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
@@ -1095,7 +1116,9 @@
   background: none;
   color: var(--text-dim);
   font-family: inherit;
-  font-size: 10.5px;
+  /* 10.5 → 11 px (decision B11, 2026-11-07): the label floor the desktop
+     inspector and editor group heads now share. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;

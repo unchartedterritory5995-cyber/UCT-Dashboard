@@ -301,7 +301,12 @@
   cursor: pointer;
   flex: 0 0 auto;
 }
-.toggleOn { background: var(--border-accent); }
+/* ⭐ THE MUTED GOLD TRACK (decision B5, 2026-11-07): on is a `--ut-gold-dim`
+   fill and a `--ut-gold` knob edge (an inset ring, so the knob's box and travel
+   do not move); off stays neutral. Never full gold, never green. The same switch
+   look as Chart Settings' `.toggle` and the phone sheet's `.switch`. */
+/* Layered over the neutral track: 8% gold alone would paint ON darker than OFF. */
+.toggleOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--bg-surface); }
 .toggle:disabled { opacity: 0.4; cursor: not-allowed; }
 .toggleKnob {
   position: absolute;
@@ -309,9 +314,9 @@
   width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--text-bright);
-  transition: transform 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
-.toggleOn .toggleKnob { transform: translateX(16px); }
+.toggleOn .toggleKnob { transform: translateX(16px); box-shadow: inset 0 0 0 1.5px var(--ut-gold); }
 
 /* The clamp announcement. It is a `role="status"` line, not a colour change: a
    control that silently changed the number the user typed is the defect. */

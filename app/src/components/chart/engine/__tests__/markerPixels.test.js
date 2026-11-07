@@ -11,8 +11,8 @@
 //
 // The fix draws the two small dots as the series' own POINT MARKERS (a `markers`
 // plot with NO `marker` block: `pointMarkersRadius` from `width`, no floor) and
-// keeps the gold before-price dot as a glyph at size 2.0, which the floor can only
-// make LARGER. This file MIRRORS LWC's arithmetic from the installed source
+// keeps the gold before-price dot as a glyph (size 2.0 at Phase 1, 1.6 since
+// decision L1 on 2026-11-07), which the floor can only make LARGER. This file MIRRORS LWC's arithmetic from the installed source
 // (`node_modules/lightweight-charts/dist/lightweight-charts.development.mjs`:
 // `ceiledEven`, `ceiledOdd`, `size`, `shapeSize`, `calculateShapeHeight`,
 // `fillSizeAndY`, `drawCircle`, `drawSeriesPointMarkers`) and asserts small < large
@@ -148,22 +148,28 @@ describe('the small dots are the series\' own point markers — radius 2, no flo
   })
 })
 
-describe('the gold before-price dot is a glyph at size 2.0 — the floor can only make it larger', () => {
-  it('is the circle glyph, inBar, size 2.0', () => {
+// ⭐ Decision L1 (owner-delegated, 2026-11-07): the glyph went from size 2.0 to
+// 1.6, so the floor case (phone, grid cell, zoomed out) draws 13 px, not 15. The
+// pins below moved with it; the ORDER rails (small < gold at every spacing, gold
+// never under the old 9 px dots) are unchanged in kind.
+describe('the gold before-price dot is a glyph at size 1.6 — the floor can only make it larger', () => {
+  it('is the circle glyph, inBar, size 1.6', () => {
     const p = plot('dotNHbeforePx')
     expect(p.style).toBe('markers')
-    expect(p.marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0 })
+    expect(p.marker).toEqual({ shape: 'circle', position: 'inBar', size: 1.6 })
   })
 
-  it('15 px at the floor (bar spacing ≤ 12), 23 px from bar spacing 15 — the table', () => {
-    const table = Object.fromEntries(BAR_SPACINGS.map((bs) => [bs, glyphCircleSize(2.0, bs)]))
-    expect(table).toEqual({ 4: 15, 6: 15, 8: 15, 12: 15, 15: 23, 20: 23, 30: 23 })
+  it('13 px at the floor (bar spacing ≤ 12), 17 px at 15, 23 px from 20 — the table', () => {
+    const table = Object.fromEntries(BAR_SPACINGS.map((bs) => [bs, glyphCircleSize(1.6, bs)]))
+    expect(table).toEqual({ 4: 13, 6: 13, 8: 13, 12: 13, 15: 17, 20: 23, 30: 23 })
+    // ⛔ CONTROL: the Phase 1 size drew 15 px at the floor — the look L1 retired.
+    expect(glyphCircleSize(2.0, 12)).toBe(15)
   })
 
   it('markersFor hands LWC exactly that spec; a plain plot never reaches the glyph layer', () => {
     const times = [1, 2, 3]
     const gold = markersFor({ column: [NaN, 1.3, NaN], times, marker: plot('dotNHbeforePx').marker, color: '#c9a84c' })
-    expect(gold).toEqual([{ time: 2, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2 }])
+    expect(gold).toEqual([{ time: 2, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 1.6 }])
     expect(markersFor({ column: [1.2, 1.3, 1.4], times, marker: plot('dotNH').marker, color: '#6ba3be' })).toEqual([])
   })
 })
@@ -176,18 +182,20 @@ describe('⭐ small < large at bar spacings 4, 6, 8, 12, 15, 20, 30', () => {
   const gold = plot('dotNHbeforePx').marker.size
 
   for (const bs of BAR_SPACINGS) {
-    it(`bar spacing ${bs}: 4 px small dot, ${glyphDiameterPx(gold, bs)} px gold disc (≥ 3.5×)`, () => {
+    // L1 (2026-11-07): the 1.6 glyph paints a 12 px disc at the floor, so the
+    // ratio bar is 3× (it was 3.5× at 2.0's 14 px) and the floor pin is 12 px.
+    it(`bar spacing ${bs}: 4 px small dot, ${glyphDiameterPx(gold, bs)} px gold disc (≥ 3×)`, () => {
       const smallPx = pointDiameterPx(small)
       const goldPx = glyphDiameterPx(gold, bs)
       expect(pointDiameterPx(partial)).toBe(smallPx)
       expect(smallPx).toBeLessThan(goldPx)
-      expect(goldPx / smallPx).toBeGreaterThanOrEqual(3.5)
+      expect(goldPx / smallPx).toBeGreaterThanOrEqual(3)
       // The gold disc is never smaller than the 9 px the old dots drew, at any zoom.
-      expect(goldPx).toBeGreaterThanOrEqual(14)
+      expect(goldPx).toBeGreaterThanOrEqual(12)
     })
   }
 
-  it('…and a member\'s Dot size keeps the order: even Large (radius 4 → 8 px) sits under the gold 14 px floor', () => {
+  it('…and a member\'s Dot size keeps the order: even Large (radius 4 → 8 px) sits under the gold 12 px floor', () => {
     const large = presentedPlot(plot('dotNH'), { presentation: { dotSize: 'large' } })
     expect(large.width).toBe(DOT_SIZES.large)
     for (const bs of BAR_SPACINGS) {
@@ -248,11 +256,14 @@ describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading bec
     expect(DOT_GLYPH_SCALE).toEqual({ small: 0.6, medium: 1, large: 1.4 })
     expect(Object.isFrozen(DOT_GLYPH_SCALE)).toBe(true)
     expect(Object.keys(DOT_GLYPH_SCALE)).toEqual(Object.keys(DOT_SIZES))
-    expect(scaledMarker(gold.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
-    expect(scaledMarker(gold.marker, 'small')).toEqual({ shape: 'circle', position: 'inBar', size: 1.2 })
+    // 1.6 × 1.4 and 1.6 × 0.6 are not exact in binary, so the size is matched close
+    expect(scaledMarker(gold.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: expect.closeTo(2.24, 10) })
+    expect(scaledMarker(gold.marker, 'small')).toEqual({ shape: 'circle', position: 'inBar', size: expect.closeTo(0.96, 10) })
     expect(scaledMarker(gold.marker, 'medium')).toEqual(gold.marker)
-    // the red-day glyph is the same text-free circle (visual round A3) and scales the same way
-    expect(scaledMarker(red.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
+    // the red-day glyph is the same text-free circle (visual round A3), the same
+    // declared size (L1), and scales the same way
+    expect(red.marker).toEqual(gold.marker)
+    expect(scaledMarker(red.marker, 'large')).toEqual({ shape: 'circle', position: 'inBar', size: expect.closeTo(2.24, 10) })
     // a block with no declared size is at LWC's multiplier 1 and scales from there
     expect(scaledMarker({ shape: 'square', position: 'aboveBar' }, 'large').size).toBeCloseTo(1.4)
     // an unknown word, or no block, is a no-op
@@ -262,13 +273,13 @@ describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading bec
 
   it('presentedPlot: a per-output or instance-level word scales `marker.size`; `width` is left alone', () => {
     const perOutput = presentedPlot(gold, { presentation: { plots: { dotNHbeforePx: { dotSize: 'large' } } } })
-    expect(perOutput.marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.8 })
+    expect(perOutput.marker).toEqual({ shape: 'circle', position: 'inBar', size: expect.closeTo(2.24, 10) })
     expect(perOutput.width, 'the glyph reads marker.size, not width').toBe(gold.width)
     expect(perOutput.style).toBe('markers')
     const instanceLevel = presentedPlot(gold, { presentation: { dotSize: 'small' } })
-    expect(instanceLevel.marker.size).toBeCloseTo(1.2)
+    expect(instanceLevel.marker.size).toBeCloseTo(0.96)
     // per-output outranks the instance level, as it does for the plain dots
-    expect(presentedPlot(gold, { presentation: { dotSize: 'small', plots: { dotNHbeforePx: { dotSize: 'large' } } } }).marker.size).toBe(2.8)
+    expect(presentedPlot(gold, { presentation: { dotSize: 'small', plots: { dotNHbeforePx: { dotSize: 'large' } } } }).marker.size).toBeCloseTo(2.24)
     // a stored `medium` is a stored choice: the plot is re-made, the glyph is the declared one
     expect(presentedPlot(gold, { presentation: { dotSize: 'medium' } }).marker).toEqual(gold.marker)
   })
@@ -277,22 +288,22 @@ describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading bec
     expect(presentedPlot(gold, {})).toBe(gold)
     expect(presentedPlot(gold, { presentation: {} })).toBe(gold)
     expect(presentedPlot(gold, { presentation: { plots: { dotNH: { dotSize: 'large' } } } })).toBe(gold)
-    expect(gold.marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0 })
+    expect(gold.marker).toEqual({ shape: 'circle', position: 'inBar', size: 1.6 })
     // the glyph plot never takes the point-radius path: a Large word does not touch `width`
     expect(presentedPlot(gold, { presentation: { dotSize: 'large' } }).width).toBe(1)
   })
 
-  it('the pixel table: Default unchanged at 15 / 23; Large 23 at EVERY spacing; Small 9 / 13 / 17 / 23', () => {
+  it('the pixel table (L1, size 1.6): Default 13 / 17 / 23; Large 17 then 23; Small 9 / 11 / 13 / 21', () => {
     const at = (word) => Object.fromEntries(BAR_SPACINGS.map((bs) => [bs, glyphCircleSize(scaledMarker(gold.marker, word).size, bs)]))
-    expect(at('medium')).toEqual({ 4: 15, 6: 15, 8: 15, 12: 15, 15: 23, 20: 23, 30: 23 })
-    expect(at('large')).toEqual({ 4: 23, 6: 23, 8: 23, 12: 23, 15: 23, 20: 23, 30: 23 })
-    expect(at('small')).toEqual({ 4: 9, 6: 9, 8: 9, 12: 9, 15: 13, 20: 17, 30: 23 })
+    expect(at('medium')).toEqual({ 4: 13, 6: 13, 8: 13, 12: 13, 15: 17, 20: 23, 30: 23 })
+    expect(at('large')).toEqual({ 4: 17, 6: 17, 8: 17, 12: 17, 15: 23, 20: 23, 30: 23 })
+    expect(at('small')).toEqual({ 4: 9, 6: 9, 8: 9, 12: 9, 15: 11, 20: 13, 30: 21 })
     // Stress's Large dot renders at a LARGER circle than Default wherever Default is
-    // under the ceiling (phone, grid cell, zoomed out: bar spacing ≤ 12)…
-    for (const bs of [4, 6, 8, 12]) expect(at('large')[bs], `bs ${bs}`).toBeGreaterThan(at('medium')[bs])
-    // …and EQUAL to it from the desktop daily zoom (bar spacing 15), because 23 is the
-    // largest circle LWC draws: `size()` clamps the multiplied height to 30, × 0.8 = 24,
-    // ceiled odd = 23, and Default (14 × 2 = 28 → 22.4 → 23) is already there.
+    // under the ceiling (phone, grid cell, zoomed out, desktop daily: spacing ≤ 15)…
+    for (const bs of [4, 6, 8, 12, 15]) expect(at('large')[bs], `bs ${bs}`).toBeGreaterThan(at('medium')[bs])
+    // …and EQUAL to it from bar spacing 20, because 23 is the largest circle LWC
+    // draws: `size()` clamps the multiplied height to 30, × 0.8 = 24, ceiled odd = 23,
+    // and Default (18 × 1.6 = 28.8 → 23.04 → 23) is already there.
     for (const bs of [15, 20, 30]) expect(at('large')[bs], `bs ${bs}`).toBe(23)
     expect(glyphCircleSize(100, 15), 'the ceiling, whatever the multiplier').toBe(23)
     expect(glyphCircleSize(100, 4), 'at any spacing').toBe(23)
@@ -313,8 +324,8 @@ describe('⭐ a stored dot size SCALES the gold glyph — the Stress reading bec
     const inst = findInstance(cs, a)
     expect(inst.presentation).toMatchObject({ plots: { dotNHred: { dotSize: 'large' } } })
     // …and the plan's plot for that instance carries the scaled glyph
-    expect(presentedPlot(red, inst).marker.size).toBe(2.8)
-    // the before-price glyph is NOT named by Stress (and is switched off there), so it keeps the declared 2.0
+    expect(presentedPlot(red, inst).marker.size).toBeCloseTo(2.24)
+    // the before-price glyph is NOT named by Stress (and is switched off there), so it keeps the declared 1.6
     expect(presentedPlot(gold, inst)).toBe(gold)
   })
 })
@@ -384,7 +395,7 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     expect(glyphs.some((g) => g.series === dot), 'a plain dot never reaches createSeriesMarkers').toBe(false)
   })
 
-  it('dotNHbeforePx: ONE glyph, inBar, size 2, on the event bar — above a series that holds the value and draws NOTHING itself', () => {
+  it('dotNHbeforePx: ONE glyph, inBar, size 1.6, on the event bar — above a series that holds the value and draws NOTHING itself', () => {
     const { fake, glyphs, byColour } = drive()
     // ⭐ 2a-13: the glyph's host series draws no point marker (there used to be a 2 px
     // disc under every gold circle) and no line — `byColour(…, false)` is the proof.
@@ -398,26 +409,26 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     }
     const mine = glyphs.filter((g) => g.series === gold)
     expect(mine.length).toBe(1)
-    expect(mine[0].markers).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 2 }])
+    expect(mine[0].markers).toEqual([{ time: BARS[4].t, position: 'inBar', shape: 'circle', color: '#c9a84c', size: 1.6 }])
   })
 
-  it('⭐ a Stress-shaped instance (dotSize large on dotNHred) hands the glyph lane size 2.8, and ONLY that glyph', () => {
+  it('⭐ a Stress-shaped instance (dotSize large on dotNHred) hands the glyph lane size 2.24 (1.6 × 1.4), and ONLY that glyph', () => {
     const { glyphs } = drive({ showRedDay: true }, { plots: { dotNHred: { dotSize: 'large' } } })
     const all = glyphs.flatMap((g) => g.markers)
-    expect(all.filter((mk) => mk.time === BARS[6].t).map((mk) => mk.size)).toEqual([2.8])
-    // the before-price glyph is not named by Stress's dotSize: declared 2.0
-    expect(all.filter((mk) => mk.time === BARS[4].t).map((mk) => mk.size)).toEqual([2])
+    expect(all.filter((mk) => mk.time === BARS[6].t).map((mk) => mk.size)).toEqual([expect.closeTo(2.24, 10)])
+    // the before-price glyph is not named by Stress's dotSize: declared 1.6
+    expect(all.filter((mk) => mk.time === BARS[4].t).map((mk) => mk.size)).toEqual([1.6])
     // and an instance-level word reaches BOTH glyphs
     const both = drive({ showRedDay: true }, { dotSize: 'small' }).glyphs.flatMap((g) => g.markers)
     expect(both.length).toBe(2)
-    for (const mk of both) expect(mk.size).toBeCloseTo(1.2)
+    for (const mk of both) expect(mk.size).toBeCloseTo(0.96)
   })
 
   it('dotNHred (visual round A3): ONE text-free glyph on its event bar, the info blue by default, gold under Stress', () => {
     const { glyphs } = drive({ showRedDay: true })
     const all = glyphs.flatMap((g) => g.markers)
     const red = all.filter((mk) => mk.time === BARS[6].t)
-    expect(red).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: IND_TOKENS.classic.info, size: 2 }])
+    expect(red).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: IND_TOKENS.classic.info, size: 1.6 }])
     // ⛔ no glyph carries text: platform §7 keeps text off the canvas
     expect(all.some((mk) => 'text' in mk)).toBe(false)
     // the default is the info blue (never the bear red: plan §3, red is for losses)…
@@ -425,7 +436,7 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
     // …and the Stress preset makes it the preset's one gold mark
     const stress = rs.meta.presets.find((p) => p.id === 'stress')
     const gold = drive(stress.inputs).glyphs.flatMap((g) => g.markers)
-    expect(gold.filter((mk) => mk.time === BARS[6].t)).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: IND_TOKENS.classic.premium, size: 2 }])
+    expect(gold.filter((mk) => mk.time === BARS[6].t)).toEqual([{ time: BARS[6].t, position: 'inBar', shape: 'circle', color: IND_TOKENS.classic.premium, size: 1.6 }])
   })
 
   it('dotMansfieldCross (2a-14): a point of its own series at a NEGATIVE Mansfield value — a glyph could not draw it', () => {

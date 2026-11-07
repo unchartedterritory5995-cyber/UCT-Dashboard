@@ -462,10 +462,22 @@
   height: 15px;
   border-radius: 50%;
   background: var(--menu-text-dim, #9a9a9a);
-  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms;
+  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms, box-shadow 140ms;
 }
-.toggleOn { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.22)); border-color: var(--menu-accent, #dcbb5e); }
-.toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
+/* ⭐ THE MUTED GOLD TRACK (owner-delegated decision B5, 2026-11-07). On is a
+   `--ut-gold-dim` fill and a bright knob with a `--ut-gold` edge; off stays the
+   neutral track above. Never a full-gold track (gold is rationed to one look-here
+   mark per surface) and never green (green means money going up). The edge is an
+   INSET ring so the knob keeps its 15 px box and its travel. The same look is
+   written in `IndicatorSettingsDialog.module.css` (.toggle) and the phone sheet's
+   `MobileCharts.module.css` (.switch): three stylesheets, one switch. The tint
+   is LAYERED over the neutral track, so ON can never read darker than OFF. */
+.toggleOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--menu-input-bg, #161618); }
+.toggleOn .toggleKnob {
+  transform: translateX(17px);
+  background: var(--menu-text, #ededed);
+  box-shadow: inset 0 0 0 1.5px var(--ut-gold);
+}
 /* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
    — matches .indNum:disabled / .indSelect:disabled so inert reads the same
    everywhere in this tab. The reason rides the row's title. */
@@ -1082,7 +1094,10 @@
 .insLeftTitle {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 9.5px;
+  /* 9.5 → 11 px (owner-delegated decision B11, 2026-11-07): the plan's floor for
+     inspector section and group labels. The column's own name rises with the
+     group and section labels so it never reads smaller than what it heads. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1176,7 +1191,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 .insGroupHead {
-  font-size: 9.5px;
+  font-size: 11px;   /* B11 (2026-11-07): 9.5 → 11, the label floor */
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1620,7 +1635,9 @@
    by the amount of air between them and by the weight of their labels. */
 .insSection + .insSection { margin-top: 18px; }
 .insSectionLabel {
-  font-size: 9.5px;
+  /* B11 (owner-delegated, 2026-11-07): 9.5 → 11 px, the plan's floor. CORE and
+     APPEARANCE were the smallest words on the inspector while naming its parts. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;

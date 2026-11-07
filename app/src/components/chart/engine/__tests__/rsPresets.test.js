@@ -280,7 +280,8 @@ describe('A3 — the Stress preset and the red-day mark', () => {
   const preset = (id) => RS.meta.presets.find((p) => p.id === id)
 
   it('the red-day mark is a large circle with NO text, declared before the before-price glyph', () => {
-    expect(plot('dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 2.0 })
+    // L1 (2026-11-07): both large glyphs are size 1.6 (13 px at the floor), was 2.0
+    expect(plot('dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 1.6 })
     for (const p of RS.plots) if (p.marker) expect('text' in p.marker, p.key).toBe(false)
     const keys = RS.plots.map((p) => p.key)
     expect(keys.indexOf('dotNHred')).toBeLessThan(keys.indexOf('dotNHbeforePx'))

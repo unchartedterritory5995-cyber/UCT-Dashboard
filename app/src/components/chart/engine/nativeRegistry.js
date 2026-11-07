@@ -3961,9 +3961,12 @@ const RS_LINE_RAW = {
     ],
   },
   // ⭐ A4 (owner decision D6): no price axis beside the RS pane — no ticks, no
-  // last-value tag. The ratio's level means nothing on its own, an 87 px pane
+  // last-value tag. The ratio's level means nothing on its own, a ~97 px pane
   // fits three ticks, and the value is read in the pane label.
-  placement: { target: 'pane', pane: { height: 0.18 }, axis: 'hidden' },
+  // ⭐ 0.20 of the candle frame, not 0.18 (owner-delegated decision L2,
+  // 2026-11-07): at 0.18 (87 px on a 900 px chart) the legend half-hid the
+  // newest dot.
+  placement: { target: 'pane', pane: { height: 0.20 }, axis: 'hidden' },
   inputs: [
     // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
     // SECTOR and INDUSTRY are enum values the SERVER resolves from the universe
@@ -4078,9 +4081,15 @@ const RS_LINE_RAW = {
     //     binder draws them as the series' own POINT MARKERS (`pool`:
     //     `pointMarkersVisible`, radius = `width`, no floor — SAR's shape), at the
     //     plotted value by construction, honouring the member's Dot size;
-    //   · the two LARGE dots (before price, red day) keep the glyph at size 2.0,
-    //     which the floor can only make LARGER (15 px at the floor, 23 px from bar
-    //     spacing 15) and which paints ABOVE every series. Neither carries text
+    //   · the two LARGE dots (before price, red day) keep the glyph at size 1.6,
+    //     which the floor can only make LARGER (13 px at the floor, 17 px at bar
+    //     spacing 15, 23 px from 20) and which paints ABOVE every series.
+    //     ⭐ 1.6, not 2.0 (owner-delegated decision L1, 2026-11-07): 15 px read
+    //     as chunky on a phone and crowded the line; 13 px is still the largest
+    //     mark on the pane, so it stays the one look-here mark. The red-day glyph
+    //     moves with it: it is the gold mark under Stress (C1), and a larger red
+    //     ring would otherwise frame the gold dot on a bar where both fire.
+    //     Neither carries text
     //     (visual round A3; platform §7: text on chips, never raw over the canvas).
     //     The red-day plot is declared BEFORE the before-price plot, so on a bar
     //     where both fire (Classic with red-day highs on) the gold before-price
@@ -4092,9 +4101,9 @@ const RS_LINE_RAW = {
     { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
       restyle: false, legend: { hide: true } },
     { key: 'dotNHred', label: 'RS high on a red day', style: 'markers', color: '$dotRedColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 2.0 }, restyle: false, legend: { hide: true } },
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
     { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
-      marker: { shape: 'circle', position: 'inBar', size: 2.0 }, restyle: false, legend: { hide: true } },
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
     { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 2, role: 'context',
       restyle: false, legend: { hide: true } },
     { key: 'dotNL', label: 'RS new low', style: 'markers', color: '$dotLowColor', width: 2, role: 'context',
