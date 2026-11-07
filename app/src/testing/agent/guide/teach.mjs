@@ -46,7 +46,7 @@ if (!process.env.TEACH_CASE) {
 // ── one case ──
 const { startRelay, open, sleep } = await import('../acceptance/lib.mjs')
 const c = CASES[Number(process.env.TEACH_CASE)]
-const { givenFor, boardFor } = await import('./given.mjs')
+const { givenFor, boardFor, fixturesFor, queryFor } = await import('./given.mjs')
 const given = givenFor(c)
 
 // widget data the harness does not serve as a fixed route (the price alerts are the page's own simulated route: see `given`)
@@ -73,7 +73,9 @@ const STATE = `(async () => {
   const next = [...document.querySelectorAll('[data-testid="guide-card"] button')].find(x => /^(Next|Skip|Done)/.test(x.textContent.trim()))
   const met = !!(step.waitFor && T.findTarget(step.waitFor, st))
   const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
-  return { pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text), chartRef: st.chartRef || null }
+  // the ringed control's own parts: a row's handlers sit on one of its cells (a list row's menu is on its symbol cell)
+  const kids = el ? [...el.children].slice(0, 8).map(k => k.getBoundingClientRect()).filter(b => b.width > 4 && b.height > 4).map(b => ({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) })) : []
+  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
 
 // ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart
@@ -108,7 +110,7 @@ const REGIONS = `((ref, text) => {
 })`
 async function rightClickRegion(s) {
   // a right-click on a control that is not the chart (a list's row, a layout on the bar) lands on that control
-  const pts = s.onChart ? await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`) : [s.ring, ...(s.rr ? [{ x: s.rr[0] + 18, y: s.ring.y }, { x: s.rr[0] + 40, y: s.ring.y }] : [])]
+  const pts = s.onChart ? await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`) : [s.ring, ...(s.kids || [])]
   rec.tried = (rec.tried || []).concat([pts.slice(0, 4)])
   for (const pt of (pts.length ? pts : [s.ring])) {
     // a person's pointer arrives first: the drawing layer takes the click only once it has seen the pointer over a drawing
@@ -127,7 +129,7 @@ async function rightClickRegion(s) {
 }
 
 try {
-  p = await open(R, { prefs: boardFor(given), query: 'layouts=1', width: 1600, height: 950 })
+  p = await open(R, { prefs: boardFor(given), fixtures: fixturesFor(given), query: queryFor(given), width: 1600, height: 950 })
   // a desktop member has a mouse: headless Chrome reports no hover, and the drawing layer only hit-tests under a hovering pointer
   // (ChartDrawingOverlay's matchMedia('(hover: hover)')). Emulated, then the page loads again with it
   // (CDP's media emulation has no hover feature, so the page is told what a desktop with a mouse answers)

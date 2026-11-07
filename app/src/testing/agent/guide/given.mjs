@@ -4,6 +4,11 @@
 //   prefs      any other preference the app reads on load (Multi Chart's `multichart_state`)
 //   drawing    a drawing of that type on the chart, added through the app's own drawings store, on the chart's own bars
 //   alerts     price alerts, created through the app's own (here simulated) /api/watchlist-alerts route
+//   themes     Theme Tracker data, answered on the widget's own route (/api/theme-performance) through the rig's fixtures
+//   news       News & Catalysts events, on its own route (/api/news-catalysts/<sym>), shaped as its capture test reads them
+//   breadth    Breadth history and its live row, on the widget's own routes (/api/breadth-monitor, …/live)
+//   savedGrids a saved Multi Chart grid in the layout library (the harness's own ?multichart fixture)
+//   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
 // walkthrough they reach (a rule) or by id (an override). A case with no given runs on the plain board.
@@ -38,12 +43,48 @@ export function givenFor(c) {
   const g = {}
   if (NEEDS_DRAWING(c)) g.drawing = drawingFor(c)
   if (NEEDS_ALERTS(c)) g.alerts = [{ sym: 'SPY', target_price: 200, direction: 'above' }, { sym: 'NVDA', target_price: 150, direction: 'below' }]
-  if (c.feature === 'gridAction' && !/^(Opening|Saving|Deleting) a (saved )?grid|prebuilt grid|Groups/i.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify(MULTI) }
+  // every Multi Chart row: the grid's own flyout shows its saved-grid controls only while the board IS a grid
+  if (/^(Pausing|Deleting|Seeing your) an? ?indicator alerts?$|indicator alert/i.test(c.title || '') && c.feature === 'alertAction') g.indicatorAlerts = [{ sym: 'SPY', indicator: 'rsi', condition: 'crosses_above', threshold: 70, tf: 'D' }]
+  if (/Theme Tracker|Opening a theme|Theme presets|Ranking themes|Searching themes/.test(c.title || '')) g.themes = true
+  if (/Sending News & Catalysts|Filtering catalysts|symbol’s headlines|A headline on the chart/.test(c.title || '')) g.news = true
+  if (/Sending Breadth|breadth tiles|Adding or removing a reading/.test(c.title || '')) g.breadth = true
+  if (/^(Opening a saved grid|Deleting a saved grid)$/.test(c.title || '')) g.savedGrids = true
+  if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
   g.setup = setupScript(g)
   if (!g.setup) delete g.setup
   return g
 }
+
+// the Theme Tracker's own response shape (pages/ThemeTrackerPage.jsx, captures/themesCapture.js groupReturn)
+const PERIODS = ['1d', '1w', '1m', '3m', '1y', 'ytd', '1D', '1W', '1M', '3M', '1Y', 'YTD']
+const ret = (v) => Object.fromEntries(PERIODS.map(k => [k, v]))
+const THEMES = { themes: [
+  { name: 'Semiconductors', ticker: 'SMH', theme_id: 101, sector: 'Technology', group_return: ret(2.4), holdings: [{ sym: 'NVDA', name: 'NVIDIA', returns: ret(3.1) }, { sym: 'AMD', name: 'AMD', returns: ret(1.7) }] },
+  { name: 'Software', ticker: 'IGV', theme_id: 102, sector: 'Technology', group_return: ret(-0.8), holdings: [{ sym: 'MSFT', name: 'Microsoft', returns: ret(-0.8) }] },
+] }
+/** The rig's fixture routes a given needs (lib.mjs: matched on "METHOD /path" before the harness answers). */
+export function fixturesFor(g) {
+  const routes = []
+  if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  // hooks/useThemeSets.js: the preset picker shows only when the server says sets are on (C3-174)
+  if (g.themes) routes.push({ match: '^GET /api/theme-sets' + '$', body: { enabled: true, sets: [{ id: 1, name: 'My Momentum' }] } })
+  // BreadthWidget: rows[] from its history route; hooks/useLiveBreadth.js isLiveRowUsable: { ok, row }
+  if (g.breadth) {
+    const row = { date: '2026-11-06', pct_above_20: 41, pct_above_50: 46, pct_above_200: 58, up_4pct: 210, down_4pct: 95, nh: 40, nl: 22 }
+    routes.push({ match: '^GET /api/breadth-monitor/live', body: { ok: true, row: { ...row, date: '2026-11-07' }, as_of: '2026-11-07T15:00:00Z', market_open: true } })
+    routes.push({ match: '^GET /api/breadth-monitor([?]|' + '$)', body: { rows: [row, { ...row, date: '2026-11-05', pct_above_50: 44 }] } })
+  }
+  // pages/charts/widgets/captures/newsCapture.test.jsx EVENTS: the route's own shape
+  if (g.news) routes.push({ match: '^GET /api/news-catalysts/', body: { status: 'ready', events: [
+    { date: '2026-10-14', type: 'earnings', direction: 'up', title: 'Q3 earnings beat', description: 'EPS 1.20 vs 1.10', move_pct: 8.8, source: 'earnings' },
+    { date: '2026-09-02', type: 'catalyst', direction: 'down', title: 'Guidance cut', description: null, move_pct: -6.1, source: '@DeItaone' },
+  ] } })
+  return routes.length ? { routes } : null
+}
+
+/** Harness query flags a given needs (agentHarness.jsx reads them on load). */
+export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : ''].filter(Boolean).join('&')
 
 export function boardFor(g) {
   const widgets = BOARDS[g.board || 'plain']
@@ -52,10 +93,11 @@ export function boardFor(g) {
 
 // in the page: the app's own routes and stores, after the board has loaded
 function setupScript(g) {
-  if (!g.drawing && !g.alerts) return null
+  if (!g.drawing && !g.alerts && !g.indicatorAlerts) return null
   return `(async () => {
     const said = []
     ${g.alerts ? `for (const a of ${JSON.stringify(g.alerts)}) { await fetch('/api/watchlist-alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(a) }) } said.push('alerts ${g.alerts.length}')` : ''}
+    ${g.indicatorAlerts ? `for (const a of ${JSON.stringify(g.indicatorAlerts)}) { await fetch('/api/indicator-alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(a) }) } said.push('indicator alerts ${g.indicatorAlerts.length}')` : ''}
     ${g.drawing ? `
     // the chart's own bars: the request the chart itself made (agent harness records it), asked again
     let req = null

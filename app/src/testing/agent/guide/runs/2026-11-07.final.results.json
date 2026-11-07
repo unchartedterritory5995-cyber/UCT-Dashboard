@@ -1,7 +1,7 @@
 {
  "mode": "BROWSER-MOCK-MODEL",
  "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
- "at": "2026-11-07T12:07:10.581Z",
+ "at": "2026-11-07T20:47:47.071Z",
  "base": "http://127.0.0.1:5302",
  "results": [
   {
@@ -425,13 +425,13 @@
      "text": "These buttons switch between regular hours and extended hours. Pre-market and post-market buttons turn on while those sessions run.",
      "onPrimary": true,
      "pr": [
-      412,
+      413,
       109,
       263,
       19
      ],
      "rr": [
-      408,
+      409,
       105,
       271,
       27
@@ -453,13 +453,13 @@
      "text": "These buttons switch between regular hours and extended hours. Pre-market and post-market buttons turn on while those sessions run.",
      "onPrimary": true,
      "pr": [
-      412,
+      413,
       109,
       263,
       19
      ],
      "rr": [
-      408,
+      409,
       105,
       271,
       27
@@ -3080,13 +3080,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      511,
+      515,
       167,
       18
      ],
      "rr": [
       504,
-      507,
+      511,
       175,
       26
      ]
@@ -3097,15 +3097,15 @@
      "onPrimary": true,
      "pr": [
       718,
-      367,
+      370,
       393,
-      28
+      32
      ],
      "rr": [
       714,
-      363,
+      366,
       401,
-      36
+      40
      ]
     }
    ],
@@ -3207,13 +3207,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      511,
+      515,
       167,
       18
      ],
      "rr": [
       504,
-      507,
+      511,
       175,
       26
      ]
@@ -3224,15 +3224,15 @@
      "onPrimary": true,
      "pr": [
       718,
-      367,
+      370,
       393,
-      28
+      32
      ],
      "rr": [
       714,
-      363,
+      366,
       401,
-      36
+      40
      ]
     }
    ],
@@ -3306,13 +3306,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      511,
+      515,
       167,
       18
      ],
      "rr": [
       504,
-      507,
+      511,
       175,
       26
      ]
@@ -3323,15 +3323,15 @@
      "onPrimary": true,
      "pr": [
       718,
-      367,
+      370,
       393,
-      28
+      32
      ],
      "rr": [
       714,
-      363,
+      366,
       401,
-      36
+      40
      ]
     }
    ],
@@ -4087,13 +4087,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      360,
+      369,
       167,
       18
      ],
      "rr": [
       504,
-      356,
+      365,
       175,
       26
      ]
@@ -4104,13 +4104,13 @@
      "onPrimary": true,
      "pr": [
       718,
-      382,
+      384,
       393,
       28
      ],
      "rr": [
       714,
-      378,
+      380,
       401,
       36
      ]
@@ -5083,14 +5083,14 @@
      "text": "Click Lock to stop it moving. Click Unlock to free it.",
      "onPrimary": true,
      "pr": [
-      63,
-      720,
+      108,
+      687,
       198,
       33
      ],
      "rr": [
-      59,
-      716,
+      104,
+      683,
       206,
       41
      ]
@@ -5101,19 +5101,19 @@
     [
      {
       "x": 15,
-      "y": 489
+      "y": 456
      },
      {
-      "x": 57,
-      "y": 489
+      "x": 102,
+      "y": 456
      },
      {
-      "x": 99,
-      "y": 489
+      "x": 189,
+      "y": 456
      },
      {
-      "x": 141,
-      "y": 489
+      "x": 276,
+      "y": 456
      }
     ]
    ],
@@ -5627,13 +5627,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      585,
+      583,
       167,
       18
      ],
      "rr": [
       504,
-      581,
+      579,
       175,
       26
      ]
@@ -5751,13 +5751,13 @@
      "onPrimary": true,
      "pr": [
       1081,
-      586,
+      588,
       22,
       22
      ],
      "rr": [
       1077,
-      582,
+      584,
       30,
       30
      ]
@@ -5768,13 +5768,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      464,
+      473,
       167,
       18
      ],
      "rr": [
       504,
-      460,
+      469,
       175,
       26
      ]
@@ -5830,13 +5830,13 @@
      "onPrimary": true,
      "pr": [
       1081,
-      586,
+      588,
       22,
       22
      ],
      "rr": [
       1077,
-      582,
+      584,
       30,
       30
      ]
@@ -6248,13 +6248,13 @@
      "onPrimary": true,
      "pr": [
       508,
-      360,
+      369,
       167,
       18
      ],
      "rr": [
       504,
-      356,
+      365,
       175,
       26
      ]
@@ -6311,7 +6311,7 @@
      "pr": null,
      "rr": [
       504,
-      356,
+      365,
       175,
       26
      ]
@@ -6322,13 +6322,13 @@
      "onPrimary": true,
      "pr": [
       718,
-      382,
+      384,
       393,
       28
      ],
      "rr": [
       714,
-      378,
+      380,
       401,
       36
      ]
@@ -7401,127 +7401,9 @@
       793,
       749
      ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
-    },
-    {
-     "i": 0,
-     "text": "This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.",
-     "onPrimary": true,
-     "pr": [
-      13,
-      168,
-      785,
-      741
-     ],
-     "rr": [
-      9,
-      164,
-      793,
-      749
-     ]
     }
    ],
+   "why": "the walkthrough ended before its last step",
    "consoleErrors": []
   },
   {
@@ -8560,7 +8442,7 @@
    ],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n6:46 AM\nhow do I change a chart tab's link colour // UCT Agent\n6:46 AM\n\nI can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled",
+   "why": "no walkthrough: Harness\n3:29 PM\nhow do I change a chart tab's link colour // UCT Agent\n3:29 PM\n\nI can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled",
    "consoleErrors": []
   },
   {
@@ -9641,9 +9523,10 @@
    "feature": "gridAction",
    "title": "Opening a saved grid",
    "given": [
+    "savedGrids",
     "prefs"
    ],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -9681,18 +9564,22 @@
     },
     {
      "i": 2,
-     "text": "You have no saved grids yet. Save one here first.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "Your saved grids are listed here: click one to open it.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      313,
+      244,
+      22
+     ],
      "rr": [
-      131,
-      336,
-      228,
-      34
+      119,
+      309,
+      252,
+      30
      ]
     }
    ],
-   "why": "last step shows its fallback: You have no saved grids yet. Save one here first.",
    "consoleErrors": []
   },
   {
@@ -9829,9 +9716,10 @@
    "feature": "gridAction",
    "title": "Deleting a saved grid",
    "given": [
+    "savedGrids",
     "prefs"
    ],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -9869,18 +9757,22 @@
     },
     {
      "i": 2,
-     "text": "You have no saved grids yet. Save one here first.",
-     "onPrimary": false,
-     "pr": null,
-     "rr": [
-      131,
+     "text": "Click this ✕ to delete that saved grid.",
+     "onPrimary": true,
+     "pr": [
+      338,
       336,
-      228,
-      34
+      29,
+      27
+     ],
+     "rr": [
+      334,
+      332,
+      37,
+      35
      ]
     }
    ],
-   "why": "last step shows its fallback: You have no saved grids yet. Save one here first.",
    "consoleErrors": []
   },
   {
@@ -12292,7 +12184,9 @@
    "say": "how do I filter catalysts up, down or all",
    "feature": "widgetAction",
    "title": "Filtering catalysts",
-   "given": [],
+   "given": [
+    "news"
+   ],
    "pass": true,
    "steps": [
     {
@@ -12371,7 +12265,9 @@
    "say": "how do I read stored headlines for a symbol",
    "feature": "widgetAction",
    "title": "Reading a symbol’s headlines",
-   "given": [],
+   "given": [
+    "news"
+   ],
    "pass": true,
    "steps": [
     {
@@ -12693,8 +12589,10 @@
    "say": "how do I send the feed to Journal",
    "feature": "control",
    "title": "Sending News & Catalysts to the Journal",
-   "given": [],
-   "pass": false,
+   "given": [
+    "news"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -12749,18 +12647,22 @@
     },
     {
      "i": 3,
-     "text": "Send to Journal shows in this widget’s top bar once it has something to send.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "This sends the News & Catalysts widget to your Journal. The arrow beside it chooses where it goes.",
+     "onPrimary": true,
+     "pr": [
+      1064,
+      531,
+      19,
+      19
+     ],
      "rr": [
-      801,
-      490,
-      399,
-      424
+      1060,
+      527,
+      27,
+      27
      ]
     }
    ],
-   "why": "last step shows its fallback: Send to Journal shows in this widget’s top bar once it has something to send.",
    "consoleErrors": []
   },
   {
@@ -12768,7 +12670,9 @@
    "say": "how do I search headlines",
    "feature": "widgetAction",
    "title": "Reading a symbol’s headlines",
-   "given": [],
+   "given": [
+    "news"
+   ],
    "pass": true,
    "steps": [
     {
@@ -12847,7 +12751,9 @@
    "say": "show me how to only show headlines on my watchlist",
    "feature": "widgetAction",
    "title": "Reading a symbol’s headlines",
-   "given": [],
+   "given": [
+    "news"
+   ],
    "pass": true,
    "steps": [
     {
@@ -13076,7 +12982,9 @@
    "say": "how do I explain a headline or ask about it",
    "feature": "widgetAction",
    "title": "Reading a symbol’s headlines",
-   "given": [],
+   "given": [
+    "news"
+   ],
    "pass": true,
    "steps": [
     {
@@ -13775,7 +13683,9 @@
    "say": "how do I read breadth tiles",
    "feature": "widgetAction",
    "title": "Reading the breadth tiles",
-   "given": [],
+   "given": [
+    "breadth"
+   ],
    "pass": true,
    "steps": [
     {
@@ -13854,8 +13764,10 @@
    "say": "show me how to send breadth to journal",
    "feature": "control",
    "title": "Sending Breadth to the Journal",
-   "given": [],
-   "pass": false,
+   "given": [
+    "breadth"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -13910,18 +13822,22 @@
     },
     {
      "i": 3,
-     "text": "Send to Journal shows in this widget’s top bar once it has something to send.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "This sends the Breadth widget to your Journal. The arrow beside it chooses where it goes.",
+     "onPrimary": true,
+     "pr": [
+      1082,
+      529,
+      24,
+      24
+     ],
      "rr": [
-      801,
-      490,
-      399,
-      424
+      1078,
+      525,
+      32,
+      32
      ]
     }
    ],
-   "why": "last step shows its fallback: Send to Journal shows in this widget’s top bar once it has something to send.",
    "consoleErrors": []
   },
   {
@@ -14087,7 +14003,9 @@
    "say": "show me how to show themes by week",
    "feature": "widgetAction",
    "title": "Ranking themes by period",
-   "given": [],
+   "given": [
+    "themes"
+   ],
    "pass": true,
    "steps": [
     {
@@ -14166,8 +14084,10 @@
    "say": "how do I open a theme or pick a holding",
    "feature": "widgetAction",
    "title": "Opening a theme",
-   "given": [],
-   "pass": false,
+   "given": [
+    "themes"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -14222,18 +14142,22 @@
     },
     {
      "i": 3,
-     "text": "No themes are showing yet.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "Click a theme to open its holdings, then click a holding to load it on the linked chart.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      627,
+      389,
+      29
+     ],
      "rr": [
-      801,
-      490,
-      399,
-      424
+      802,
+      623,
+      397,
+      37
      ]
     }
    ],
-   "why": "last step shows its fallback: No themes are showing yet.",
    "consoleErrors": []
   },
   {
@@ -14241,7 +14165,9 @@
    "say": "how do I search themes or tickers",
    "feature": "widgetAction",
    "title": "Searching themes",
-   "given": [],
+   "given": [
+    "themes"
+   ],
    "pass": true,
    "steps": [
     {
@@ -14300,16 +14226,16 @@
      "text": "Type a theme or a ticker to find it.",
      "onPrimary": true,
      "pr": [
-      816,
+      1007,
       564,
-      369,
-      24
+      178,
+      22
      ],
      "rr": [
-      812,
+      1003,
       560,
-      377,
-      32
+      186,
+      30
      ]
     }
    ],
@@ -14320,8 +14246,10 @@
    "say": "how do I pick, rename or delete a theme set",
    "feature": "widgetAction",
    "title": "Theme presets",
-   "given": [],
-   "pass": false,
+   "given": [
+    "themes"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -14376,154 +14304,20 @@
     },
     {
      "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "That’s in the Theme Tracker widget. Open Widgets ▾.",
+     "text": "This menu picks a preset. Its pencil renames one and its bin deletes it.",
      "onPrimary": true,
      "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      117,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 1,
-     "text": "Click Theme Tracker to add it to your board.",
-     "onPrimary": true,
-     "pr": [
-      280,
-      138,
-      150,
-      30
-     ],
-     "rr": [
-      276,
-      134,
-      158,
-      38
-     ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 2,
-     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
-     "onPrimary": true,
-     "pr": [
-      910,
-      378,
-      55,
+      816,
+      564,
+      99,
       22
      ],
      "rr": [
-      906,
-      374,
-      63,
+      812,
+      560,
+      107,
       30
      ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "That’s in the Theme Tracker widget. Open Widgets ▾.",
-     "onPrimary": true,
-     "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      117,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 1,
-     "text": "Click Theme Tracker to add it to your board.",
-     "onPrimary": true,
-     "pr": [
-      280,
-      138,
-      150,
-      30
-     ],
-     "rr": [
-      276,
-      134,
-      158,
-      38
-     ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 2,
-     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
-     "onPrimary": true,
-     "pr": [
-      910,
-      800,
-      55,
-      22
-     ],
-     "rr": [
-      906,
-      796,
-      63,
-      30
-     ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
     }
    ],
    "consoleErrors": []
@@ -14533,8 +14327,10 @@
    "say": "how do I send the ranking to Journal",
    "feature": "control",
    "title": "Sending Theme Tracker to the Journal",
-   "given": [],
-   "pass": false,
+   "given": [
+    "themes"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -14589,18 +14385,22 @@
     },
     {
      "i": 3,
-     "text": "Send to Journal shows in this widget’s top bar once it has something to send.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "This sends the Theme Tracker widget to your Journal. The arrow beside it chooses where it goes.",
+     "onPrimary": true,
+     "pr": [
+      1115,
+      531,
+      22,
+      20
+     ],
      "rr": [
-      801,
-      490,
-      399,
-      424
+      1111,
+      527,
+      30,
+      28
      ]
     }
    ],
-   "why": "last step shows its fallback: Send to Journal shows in this widget’s top bar once it has something to send.",
    "consoleErrors": []
   },
   {
@@ -14690,7 +14490,7 @@
    "given": [],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n7:04 AM\nhow do I hide or restore an index // UCT Agent\n7:04 AM\n\nI can’t see Hide on your screen right now — a panel may be covering it. That control is ",
+   "why": "no walkthrough: Harness\n3:45 PM\nhow do I hide or restore an index // UCT Agent\n3:45 PM\n\nI can’t see Hide on your screen right now — a panel may be covering it. That control is ",
    "consoleErrors": []
   },
   {
@@ -14701,7 +14501,7 @@
    "given": [],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n7:04 AM\nshow me how to send index levels to journal // UCT Agent\n7:04 AM\n\nI can’t see Send these index levels to Journal on your screen right now — a pa",
+   "why": "no walkthrough: Harness\n3:45 PM\nshow me how to send index levels to journal // UCT Agent\n3:45 PM\n\nI can’t see Send these index levels to Journal on your screen right now — a pa",
    "consoleErrors": []
   },
   {

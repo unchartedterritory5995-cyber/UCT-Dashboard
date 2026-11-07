@@ -1449,5 +1449,64 @@
   "feature": "control",
   "title": "Editing a note",
   "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-124": {
+  "feature": "indicatorEdit",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C2-010": {
+  "feature": "chartView",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C2-055": {
+  "feature": "indicatorManage",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-034": {
+  "feature": "layoutAction",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-039": {
+  "feature": "layoutAction",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-040": {
+  "feature": "layoutAction",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-086": {
+  "feature": "control",
+  "title": "Resizing a list’s column",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-087": {
+  "feature": "control",
+  "title": "Resetting a list’s columns",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-109": {
+  "feature": "control",
+  "title": "Searching the scans",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-108": {
+  "feature": "control",
+  "title": "Back to the list of scans",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C1-166": {
+  "feature": "control",
+  "title": "Nudging a drawing from the keyboard",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-125": {
+  "feature": "control",
+  "title": "Logos on Volume Surge",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-135": {
+  "feature": "control",
+  "title": "A headline on the chart",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
  }
 }

@@ -14,7 +14,7 @@ The Agent's "show me how to…" walkthroughs now teach the Charts workspace's lo
 
 The teaching count is now measured by a committed browser runner, so it can be reproduced. The 2026-11-05 runner was never committed.
 
-**Browser-VERIFIED teaching (BROWSER-MOCK-MODEL): 203 of 499 inventory rows.** That is from one complete run of 255 cases on the final guide code (`app/src/testing/agent/guide/runs/2026-11-07.final.results.json`). The 2026-11-05 figure was 283 from an unreproducible runner. Measured with this runner: round 2 had 152 and round 3 had 195. Every one of these counts (152 → 195 → 203) is BROWSER-MOCK-MODEL: the local agent harness, a scripted model, synthetic bars and fixtures. None is production evidence or gate evidence.
+**Browser-VERIFIED teaching (BROWSER-MOCK-MODEL): 206 of 499 inventory rows.** That is from one complete run of 255 cases (206 pass) on the final code, 8631b1f329, (`app/src/testing/agent/guide/runs/2026-11-07.final.results.json`). The 2026-11-05 figure was 283 from an unreproducible runner. Measured with this runner: round 2 had 152 and round 3 had 195. Every one of these counts (152 → 195 → 203 → 206) is BROWSER-MOCK-MODEL: the local agent harness, a scripted model, synthetic bars and fixtures. None is production evidence or gate evidence.
 
 **Base branch.** The branch was created from `agent/pl/guide-followup-1` at `1059f6483b`, which is not on master. That base carries PR #864's follow-ups (named-chart resolution, bare tickers, Multi Chart rows): 9 commits, 12 files, including `guide/namedChart.js`, `guide/slots.js` and `widgets/TradeExchangeNewsParts.jsx`. Master was merged in, the latest being `7304620153` (merge `e8c124d5c0`), always by merge and never by rebase.
 

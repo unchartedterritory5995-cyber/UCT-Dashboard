@@ -12,8 +12,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 |---|---|---|---|---|---|
 | C1 | 98 | 6 | 40 | 19 | 12 |
 | C2 | 29 | 7 | 28 | 25 | 12 |
-| C3 | 76 | 39 | 42 | 43 | 23 |
-| All | 203 | 52 | 110 | 87 | 47 |
+| C3 | 83 | 32 | 42 | 43 | 23 |
+| All | 210 | 45 | 110 | 87 | 47 |
 
 - VERIFIED: proved in the browser, as above.
 - ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.
@@ -273,7 +273,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C2-073 | Builder | Ask for an alert from the builder | ROUTED / BROWSER FAILED | builderAction | "how do I ask for an alert from the builder" reaches it; browser: step 1 was not completed by the runner's input (card: This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.) | ROUTED / BROWSER FAILED |
 | C2-074 | Builder | Run Evidence tab | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C2-075 | Builder | Use a starter | NO ASSIGNED WALKTHROUGH |  | The words reach chartTemplate; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C2-076 | Import | Paste Pine or thinkScript | ROUTED / BROWSER FAILED | builderAction | "how do I paste Pine or thinkScript" reaches it; browser: step 1 was not completed by the runner's input (card: This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.) | ROUTED / BROWSER FAILED |
+| C2-076 | Import | Paste Pine or thinkScript | ROUTED / BROWSER FAILED | builderAction | "how do I paste Pine or thinkScript" reaches it; browser: the walkthrough ended before its last step | ROUTED / BROWSER FAILED |
 | C2-077 | Import | Apply import suggestion | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C2-078 | Import | Change script settings | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C2-079 | Import | Turn script output into a screen | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
@@ -321,7 +321,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | chartTab | Browser 2026-11-07: "how do I add a chart tab" → ring on the last step's control | VERIFIED |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | tabAction | Browser 2026-11-07: "how do I switch a chart tab" → ring on the last step's control | VERIFIED |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | control: Renaming a chart tab | Browser 2026-11-07: "how do I rename a chart tab" → ring on the last step's control | VERIFIED |
-| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 6:46 AM how do I change a chart tab's link colour // UCT Agent 6:46 AM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
+| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 3:29 PM how do I change a chart tab's link colour // UCT Agent 3:29 PM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
 | C3-024 | Chart tabs | Close a chart tab | VERIFIED | tabAction | Browser 2026-11-07: "how do I close a chart tab" → ring on the last step's control | VERIFIED |
 | C3-025 | Layout Dock | Open a saved layout | VERIFIED | layouts | Browser 2026-11-07: "how do I open a saved layout" → ring on the last step's control | VERIFIED |
 | C3-026 | Layout Dock | See which layout is open | VERIFIED | layoutAction | Browser 2026-11-07: "how do I see which layout is open" → ring on the last step's control | VERIFIED |
@@ -350,10 +350,10 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-049 | Multi Chart | Step or switch group | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-050 | Multi Chart | Refresh the group | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-051 | Multi Chart | Exit Groups | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
-| C3-052 | Multi Chart | Apply a saved grid | ROUTED / BROWSER FAILED | gridAction | "how do I apply a saved grid" reaches it; browser: last step shows its fallback: You have no saved grids yet. Save one here first. | ROUTED / BROWSER FAILED |
+| C3-052 | Multi Chart | Apply a saved grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I apply a saved grid" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C3-053 | Multi Chart | Save a grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I save a grid" → ring on the last step's control | VERIFIED |
 | C3-054 | Multi Chart | Save a grid as global (admin) | VERIFIED | gridAction | Browser 2026-11-07: "how do I save a grid as global (admin)" → ring on the last step's control | VERIFIED |
-| C3-055 | Multi Chart | Delete a saved grid | ROUTED / BROWSER FAILED | gridAction | "how do I delete a saved grid" reaches it; browser: last step shows its fallback: You have no saved grids yet. Save one here first. | ROUTED / BROWSER FAILED |
+| C3-055 | Multi Chart | Delete a saved grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I delete a saved grid" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED | gridAction | Browser 2026-11-07: "how do I set a cell's timeframe" → ring on the last step's control | VERIFIED |
 | C3-057 | Multi Chart | Set a cell's chart style | VERIFIED | gridAction | Browser 2026-11-07: "how do I set a cell's chart style" → ring on the last step's control | VERIFIED |
 | C3-058 | Multi Chart | Toggle a cell's session | ROUTED / BROWSER FAILED | gridAction | "how do I toggle a cell's session" reaches it; browser: last step shows its fallback: This chart is too narrow to show them. Maximize it, or close me for a moment. | ROUTED / BROWSER FAILED |
@@ -435,7 +435,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-134 | News | Read stored headlines for a symbol | VERIFIED | widgetAction | Browser 2026-11-07: "how do I read stored headlines for a symbol" → ring on the last step's control | VERIFIED |
 | C3-135 | News | Place a headline on the chart | ASSIGNED / NOT REACHED | control: A headline on the chart | Assigned control (A headline on the chart); the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-136 | News | Change News widget appearance | ROUTED / BROWSER FAILED | widgetSettings | "how do I change News widget appearance" reaches it; browser: step 4 was not completed by the runner's input (card: Looking for it on your screen…) | ROUTED / BROWSER FAILED |
-| C3-137 | News | Send the feed to Journal | ROUTED / BROWSER FAILED | control: Sending News & Catalysts to the Journal | "how do I send the feed to Journal" reaches it; browser: last step shows its fallback: Send to Journal shows in this widget’s top bar once it has something to send. | ROUTED / BROWSER FAILED |
+| C3-137 | News | Send the feed to Journal | VERIFIED | control: Sending News & Catalysts to the Journal | Browser 2026-11-07: "how do I send the feed to Journal" → ring on the last step's control | VERIFIED |
 | C3-138 | TE News | Search headlines | VERIFIED | widgetAction | Browser 2026-11-07: "how do I search headlines" → ring on the last step's control | VERIFIED |
 | C3-139 | TE News | Filter by category, linked symbol or watchlist | VERIFIED | widgetAction | Browser 2026-11-07: "show me how to only show headlines on my watchlist" → ring on the last step's control | VERIFIED |
 | C3-140 | TE News | Apply, rename or delete a filter preset | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
@@ -461,7 +461,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-160 | Breadth | Change tile style | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-161 | Breadth | Change palette, intensity or background | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-162 | Breadth | Drill into a reading | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
-| C3-163 | Breadth | Send a snapshot to Journal | ROUTED / BROWSER FAILED | control: Sending Breadth to the Journal | "show me how to send breadth to journal" reaches it; browser: last step shows its fallback: Send to Journal shows in this widget’s top bar once it has something to send. | ROUTED / BROWSER FAILED |
+| C3-163 | Breadth | Send a snapshot to Journal | VERIFIED | control: Sending Breadth to the Journal | Browser 2026-11-07: "show me how to send breadth to journal" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C3-164 | Options Flow | Switch market or symbol scope | VERIFIED | widgetAction | Browser 2026-11-07: "show me how to flow for this symbol only" → ring on the last step's control | VERIFIED |
 | C3-165 | Options Flow | Switch the lead view | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
@@ -470,19 +470,19 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-169 | Themes | Pick a period or ranking | VERIFIED | widgetAction | Browser 2026-11-07: "show me how to show themes by week" → ring on the last step's control | VERIFIED |
 | C3-170 | Themes | Flip sort direction | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-171 | Themes | Switch today basis | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
-| C3-172 | Themes | Open a theme or pick a holding | ROUTED / BROWSER FAILED | widgetAction | "how do I open a theme or pick a holding" reaches it; browser: last step shows its fallback: No themes are showing yet. | ROUTED / BROWSER FAILED |
+| C3-172 | Themes | Open a theme or pick a holding | VERIFIED | widgetAction | Browser 2026-11-07: "how do I open a theme or pick a holding" → ring on the last step's control | VERIFIED |
 | C3-173 | Themes | Search themes or tickers | VERIFIED | widgetAction | Browser 2026-11-07: "how do I search themes or tickers" → ring on the last step's control | VERIFIED |
-| C3-174 | Themes | Pick, rename or delete a theme set | ROUTED / BROWSER FAILED | widgetAction | "how do I pick, rename or delete a theme set" reaches it; browser: step 4 was not completed by the runner's input (card: Looking for it on your screen…) | ROUTED / BROWSER FAILED |
+| C3-174 | Themes | Pick, rename or delete a theme set | VERIFIED | widgetAction | Browser 2026-11-07: "how do I pick, rename or delete a theme set" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C3-175 | Themes | Edit a set (add, hide, reset, custom theme) | NO ASSIGNED WALKTHROUGH |  | The words reach widgetAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-176 | Themes | Add or remove a stock in a theme | NO ASSIGNED WALKTHROUGH |  | The words reach chartThemes; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-177 | Themes | Send the ranking to Journal | ROUTED / BROWSER FAILED | control: Sending Theme Tracker to the Journal | "how do I send the ranking to Journal" reaches it; browser: last step shows its fallback: Send to Journal shows in this widget’s top bar once it has something to send. | ROUTED / BROWSER FAILED |
+| C3-177 | Themes | Send the ranking to Journal | VERIFIED | control: Sending Theme Tracker to the Journal | Browser 2026-11-07: "how do I send the ranking to Journal" → ring on the last step's control | VERIFIED |
 | C3-178 | Fundamentals | Switch view | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-179 | Fundamentals | Read the numbers | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-180 | Fundamentals | Change appearance or send to Journal | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | widgetAction | Browser 2026-11-07: "how do I read profile and earnings table" → ring on the last step's control | VERIFIED |
 | C3-182 | Profile | Click a peer ticker | NO ASSIGNED WALKTHROUGH |  | The words reach symbol; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 7:04 AM how do I hide or restore an index // UCT Agent 7:04 AM I can’t see Hide on your screen right now — a panel may be covering it. That control is | ROUTED / BROWSER FAILED |
-| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 7:04 AM show me how to send index levels to journal // UCT Agent 7:04 AM I can’t see Send these index levels to Journal on your screen right now — a pa | ROUTED / BROWSER FAILED |
+| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 3:45 PM how do I hide or restore an index // UCT Agent 3:45 PM I can’t see Hide on your screen right now — a panel may be covering it. That control is | ROUTED / BROWSER FAILED |
+| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 3:45 PM show me how to send index levels to journal // UCT Agent 3:45 PM I can’t see Send these index levels to Journal on your screen right now — a pa | ROUTED / BROWSER FAILED |
 | C3-185 | Market Context | Read market context | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-186 | Market Context | Send to Journal | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-187 | NH/NL | Add or remove a universe | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
