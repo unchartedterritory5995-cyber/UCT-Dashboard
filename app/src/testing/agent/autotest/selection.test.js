@@ -161,7 +161,7 @@ describe('the generated set', () => {
 describe('the mutants still apply', () => {
   const root = join(here, '..', '..', '..', '..')
   it.each(Object.entries(MUTANTS))('%s: its source line is in the tree', (_n, m) => {
-    const file = m.file.source.includes('host') ? 'src/agent/host.js' : 'src/pages/charts/ChartsWorkspace.jsx'
+    const file = m.file.source.includes('host') ? 'src/agent/host.js' : m.file.source.includes('MultiChartGrid') ? 'src/pages/charts/grid/MultiChartGrid.jsx' : 'src/pages/charts/ChartsWorkspace.jsx'
     expect(readFileSync(join(root, file), 'utf8').replace(/\r\n/g, '\n')).toContain(m.from)
   })
 })
