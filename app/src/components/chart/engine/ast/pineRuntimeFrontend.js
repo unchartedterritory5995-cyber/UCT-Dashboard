@@ -3938,14 +3938,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return null
   }
 
-  /** The family of a collection-valued initialiser: the namespace of the call
-   *  that builds it (`matrix.*` / `map.*`; `array.*` and `str.split` are arrays),
-   *  or the kind of the collection a name already holds. ⚠️ An unserved
-   *  `matrix.*` / `map.*` call is refused when it is lowered, so its slot is never
-   *  read; T7 / T8 replace the namespace with each member's declared result. */
+  /** The family of a collection-valued initialiser: a HELD member's declared result
+   *  (W6-T7: `matrix.new` / `copy` / `submatrix` / `sum` a matrix, `matrix.row` / `col` /
+   *  `remove_row` / `remove_col` an array), else the namespace of the call that builds
+   *  it (`matrix.*` / `map.*`; `array.*` and `str.split` are arrays), or the kind of the
+   *  collection a name already holds. ⚠️ An unserved `matrix.*` / `map.*` call is
+   *  refused when it is lowered, so its slot is never read (and at the object door,
+   *  where no `matrix.*` member is held, this answers master's namespace). */
   const collectionKindOf = (node, scope, depth = 0) => {
     if (!node || depth > 24) return 'array'
     if (node.type === 'call') {
+      if (heldArray(node.name)) return ARRAY_FNS[node.name].returns === 'matrix' ? 'matrix' : 'array'
       const ns = String(node.name || '').split('.')[0]
       return ns === 'matrix' || ns === 'map' ? ns : 'array'
     }
@@ -7741,8 +7744,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           if (rslot !== null && rslot !== undefined && slotIsCollection(rslot)) {
             // ⭐ W6-T3a — THE RECEIVER'S OWN FAMILY (`methodNsOf`): `m.rows()` on a
-            // matrix is `matrix.rows(m)`. Only arrays are served, so only an
-            // `array.*` member is ever admitted here.
+            // matrix is `matrix.rows(m)`. ⭐ W6-T7 — a held `matrix.*` member is admitted
+            // here like an `array.*` one; `map.*` is not served, so it refuses below.
             // ⭐ W6-T3b — the family is the RECEIVER EXPRESSION's type (`exprType`),
             // which for a name is its slot's descriptor: identical for every receiver
             // served today, and the one question T9's chains will ask.

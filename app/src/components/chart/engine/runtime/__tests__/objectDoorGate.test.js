@@ -294,6 +294,58 @@ describe('⭐⭐ W6-T5 array members are gated at the object door', () => {
   })
 })
 
+// ⭐⭐ W6-T7 — every `matrix.*` member is served after master f9651f47ee and is NOT held at the
+// door (`collections.js::DOOR_GATED_ARRAY` lists the whole family; `heldArray` answers false).
+// Master refused the family at the door with `runtime:array` naming the FIRST call lowered,
+// `matrix.new`, and drew nothing; MASTER_DOOR and the sentence are pinned from master
+// f9651f47ee (this file's `doorRun` and `paneBuild`, run with master's four engine sources in
+// place, 2026-11-06, `runs/w6-t7/door-master.json`). The pane builds every shape.
+describe('⭐⭐ W6-T7 matrix members are gated at the object door', () => {
+  const M = 'm = matrix.new<float>(2, 2, close)\nmatrix.set(m, 0, 1, open)\n'
+  const MASTER_DOOR = { ok: false, labels: null }
+  const MASTER_SENTENCE = 'a collection operation this lane does not implement — `matrix.*`, `map.*` or an '
+    + '`array.*` member it lacks — `matrix.new`'
+  const SHAPES_M = {
+    get: 'v = matrix.get(m, 0, 1)\n',
+    rows: 'v = matrix.rows(m)\n',
+    columns: 'v = matrix.columns(m)\n',
+    elements_count: 'v = matrix.elements_count(m)\n',
+    row: 'v = array.get(matrix.row(m, 0), 1)\n',
+    col: 'v = array.sum(matrix.col(m, 1))\n',
+    add_row: 'matrix.add_row(m, 0, array.from(high, low))\nv = matrix.get(m, 0, 0)\n',
+    add_col: 'matrix.add_col(m)\nv = matrix.columns(m)\n',
+    remove_row: 'x = matrix.remove_row(m, 0)\nv = array.get(x, 1)\n',
+    remove_col: 'x = matrix.remove_col(m, 0)\nv = matrix.columns(m)\n',
+    fill: 'matrix.fill(m, high)\nv = matrix.get(m, 1, 1)\n',
+    submatrix: 'v = matrix.rows(matrix.submatrix(m, 0, 1))\n',
+    copy: 'v = matrix.get(matrix.copy(m), 0, 1)\n',
+    min: 'v = matrix.min(m)\n',
+    max: 'v = matrix.max(m)\n',
+    avg: 'v = matrix.avg(m)\n',
+    sum: 'v = matrix.get(matrix.sum(m, 1.5), 0, 0)\n',
+    method: 'v = m.rows() + m.get(0, 1)\n',
+  }
+  for (const [name, body] of Object.entries(SHAPES_M)) {
+    it(`${name}: the door draws what master drew (nothing: refused)`, () => {
+      expect(doorRun(H + M + body + label('v'))).toEqual(MASTER_DOOR)
+    })
+    it(`${name}: the runtime pane builds it`, () => {
+      const b = paneBuild(H + M + body + 'plot(v)\n')
+      expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    })
+    it(`${name}: the same build at the object door refuses with master's guard and sentence`, () => {
+      const b = paneBuild(H + M + body + 'plot(v)\n', { objectDoor: true })
+      expect(b.ok).toBe(false)
+      expect(b.refusal.guard).toBe('runtime:array')
+      expect(b.refusal.message).toBe(MASTER_SENTENCE)
+    })
+  }
+  it('CONTROL: an array member master held still draws through the door beside the matrix shapes', () => {
+    expect(doorRun(H + 'a = array.from(open, high, low, close)\nv = array.sum(a)\n' + label('v')))
+      .toEqual({ ok: true, labels: ['586.915'] })
+  })
+})
+
 describe('W9-T1 the strategy broker is never reachable at the object door', () => {
   const SRC = ['//@version=5', 'strategy("t")', 'if bar_index == 3', '    strategy.entry("L", strategy.long)', 'plot(strategy.position_size)', ''].join(String.fromCharCode(10))
   it('the pane build with the broker on retries and builds; at the door it refuses pine:strategy-call as master does', () => {

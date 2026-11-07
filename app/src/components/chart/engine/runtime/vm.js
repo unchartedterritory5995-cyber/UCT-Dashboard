@@ -27,6 +27,7 @@ import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
 import { ARRAY_FNS, kindOf, argKind, CollectionError } from './collections.js'
+import { isMatrix } from './matrices.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
 // scope in other arms, and a record accessor silently shadowed by one of them
 // would read the wrong thing with nothing red.
@@ -504,6 +505,8 @@ export function execute(program, ctx, limits, opts) {
       if (isDrawingHandle(v)) { containers.add(v.id); return }
       seen.add(v)
       if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1); return }
+      // ⭐ W6-T7 — a matrix's cells hold drawings too (`matrix<pivotGraphic>`)
+      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1); return }
       if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
     }
     const top = (v) => {
@@ -1049,9 +1052,11 @@ export function execute(program, ctx, limits, opts) {
             // collection is assigned. Pine raises a runtime error on an `na` array id;
             // this stops BY NAME (`runtime:CollectionError`), never with the VM's
             // internal kind-mismatch sentence.
-            if (want === 'array' && typeof stack[sp + i] === 'number' && Number.isNaN(stack[sp + i])) {
+            // ⭐ W6-T7 — and an `na` MATRIX (`var matrix<float> m = na`) the same way.
+            if ((want === 'array' || want === 'matrix') && typeof stack[sp + i] === 'number'
+                && Number.isNaN(stack[sp + i])) {
               throw new CollectionError(
-                `\`${op.fn}\`: the array is \`na\` (no array was assigned to it before this call); `
+                `\`${op.fn}\`: the ${want} is \`na\` (no ${want} was assigned to it before this call); `
                 + 'Pine stops the script here with a runtime error')
             }
             if (want !== 'any' && kindOf(stack[sp + i]) !== want) {

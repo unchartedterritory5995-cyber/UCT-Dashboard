@@ -26,6 +26,7 @@
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
+import { buildMatrixFns, isMatrix, MATRIX_WRITES } from './matrices.js'
 
 export class CollectionError extends Error {
   constructor(message) { super(message); this.name = 'CollectionError' }
@@ -65,6 +66,9 @@ export const kindOf = (v) => {
   if (t0 === 'number' || t0 === 'string') return t0
   if (Array.isArray(v)) return 'array'
   if (isDrawingHandle(v)) return 'drawing'
+  // ⭐ W6-T7 — a matrix is its own kind (`matrices.js`), so `matrix.rows` refuses an
+  // array BY NAME and `array.size` refuses a matrix.
+  if (isMatrix(v)) return 'matrix'
   // ⭐⭐ A RECORD ANSWERS ITS OWN TYPE NAME, which is the same argument as
   // `'drawing'` one type further out. No declared operand kind in any of the
   // four tables is ever a user type name, so every kind check refuses a record
@@ -570,6 +574,10 @@ const MASTER_AT_DOOR = {
 }
 const doorKeepsMaster = (budget) => !!(budget && budget.unmeasured)
 
+/** ⭐⭐ W6-T7 — the `matrix.*` members (`matrices.js`), in THIS table: one dispatch,
+ *  one VM op, one admitter. */
+const MATRIX_FNS = buildMatrixFns({ CollectionError, isUnfilled })
+
 const W6T5_MEMBERS = {
   'array.reverse': {
     args: ['array'], returns: 'void',
@@ -717,6 +725,8 @@ const W6T5_MEMBERS = {
  *  master's answer at run time instead (`MASTER_AT_DOOR`). */
 export const DOOR_GATED_ARRAY = Object.freeze(new Set([
   ...Object.keys(W19R2_MEMBERS),
+  // ⭐ W6-T7 — every `matrix.*` member: master refused the whole family at the door
+  ...Object.keys(MATRIX_FNS),
   ...Object.keys(W6T5_MEMBERS).filter((n) => !Object.prototype.hasOwnProperty.call(MASTER_AT_DOOR, n)),
 ]))
 
@@ -941,6 +951,8 @@ const ARRAY_FNS_RAW = Object.freeze({
   // the reference formula, and the object door keeps master's answer (`MASTER_AT_DOOR`).
   ...W19R2_MEMBERS,
   ...W6T5_MEMBERS,
+  // ⭐⭐ W6-T7 — `matrix.*`, see `matrices.js`
+  ...MATRIX_FNS,
   // ⭐ C35 — not a collection member: a void call the VM dispatches through this
   // table like `array.push`, and the one entry whose only effect is to STOP the
   // run (`PineRuntimeError`). Kept here rather than in a second table so the
@@ -955,9 +967,10 @@ export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS_RAW))
 
 /** Does this call return a collection? The front end's route decision needs it
  *  for the same reason `producesText` exists: a value the columnar lane cannot
- *  hold must not be sent there. */
+ *  hold must not be sent there. ⭐ W6-T7 — an array or a matrix. */
 export const producesArray = (name) => (
-  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'array')
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name)
+  && (ARRAY_FNS_RAW[name].returns === 'array' || ARRAY_FNS_RAW[name].returns === 'matrix'))
 
 /** Does this call return nothing? A void call is a STATEMENT, and using one as
  *  a value is refused rather than silently yielding `na`. */
@@ -1006,6 +1019,8 @@ const ARRAY_WRITES = Object.freeze({
   'array.lastindexof': 'none', 'array.range': 'none', 'array.abs': 'none', 'array.join': 'none',
   'array.variance': 'none', 'array.covariance': 'none', 'array.percentile_nearest_rank': 'none',
   'array.every': 'none', 'array.some': 'none',
+  // ⭐ W6-T7
+  ...MATRIX_WRITES,
 })
 export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec0]) => {
   const spec = ARRAY_WRITES[name] ? { ...spec0, writes: ARRAY_WRITES[name] } : spec0
