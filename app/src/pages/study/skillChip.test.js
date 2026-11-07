@@ -7,7 +7,7 @@ describe('skillChip', () => {
     expect(skillChip('read.cycle')).toBe('Cycle of price action')
     expect(skillChip('read.events')).toBe('Chart event')
     expect(skillChip('read.bases')).toBe('Base')
-    expect(skillChip('read.levels')).toBe('Tap the spot')
+    expect(skillChip('read.levels')).toBe('Levels and lines')
   })
   it('keeps the older names', () => {
     expect(skillChip('vocab.candle')).toBe('Candle name')

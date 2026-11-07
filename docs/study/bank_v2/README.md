@@ -79,3 +79,16 @@ now (SQ 2024 next to XYZ).
   universe. The top 1,000 alone let every stock through in the 1990s and most through the 2000s; 1,524 drafts already on
   the pod failed the stricter cut and were replaced (retire list `docs/study/audits/2026-11-07/retire_bank_v2_liquidity.json`).
   High Volume Edge has no replacement under it (15 left).
+
+## Drawing questions and real lessons (2026-11-07, owner: "keep going with anything else")
+
+- `gen_lines.py`: **chart.lines** (skill `read.levels`, with the tap questions in F2b, now "Levels and lines"): "Which line
+  is support under the last bar?" Three labelled horizontal lines (A, B, C) under the last close: the support Chart IQ
+  marks (pipeline.analyze: a recent hold, a base breakout, a breakout retest, a support line or zone, a swing low, gap
+  support) and two decoys where price never made a swing high or low (none within 1.2%; 2% from every Chart IQ line, 3%
+  from the support and each other). The client draws them (app/src/pages/study/lineChoices.js through RecallDrill's
+  annotationsFor and the reviewer's card): neutral colours on the question, the keyed line gold on the reveal.
+  Overhead resistance was the first idea for a wrong line, but Chart IQ marks one on only about 1 support-test day in 6.
+- `gen_fixtures.py`: the 150 fixture questions that carried one-line template lessons now carry the owner's definition
+  (and, for spot, the detector's verdict and the fixture's own note). The 16 template items he approved on the pod are
+  frozen by id (`approved_template_ids_2026-11-07.json`, from pod_study_report.py) and stay byte for byte as they were.

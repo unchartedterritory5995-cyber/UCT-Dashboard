@@ -111,6 +111,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AAPL|2010-07-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AAPL|2024-05-31": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -224,6 +232,14 @@
 "yahoo_sessions": 140
 },
 "ABBV|2015-12-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ABBV|2020-12-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -783,6 +799,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ADI|1996-12-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ADI|1997-06-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -887,7 +911,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ADM|2001-01-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ADM|2003-03-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ADM|2005-01-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -904,6 +944,14 @@
 "yahoo_sessions": 140
 },
 "ADM|2012-06-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ADNT|2019-06-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -976,6 +1024,14 @@
 "yahoo_sessions": 140
 },
 "ADTN|1997-04-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ADTN|2002-01-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -1279,6 +1335,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AEP|2000-09-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AEP|2002-08-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -1288,6 +1352,14 @@
 "yahoo_sessions": 140
 },
 "AEP|2015-08-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AEP|2017-05-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -1432,6 +1504,14 @@
 "yahoo_sessions": 140
 },
 "AGCO|1998-10-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AGCO|2002-04-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -1720,6 +1800,14 @@
 "yahoo_sessions": 140
 },
 "AIV|2001-03-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AIV|2010-03-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -2055,6 +2143,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ALNY|2015-05-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ALNY|2020-06-19": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -2104,6 +2200,22 @@
 "yahoo_sessions": 140
 },
 "AMBA|2016-05-31": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AMBA|2017-05-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AMBA|2021-02-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -2311,6 +2423,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AMG|2015-03-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AMG|2016-11-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -2351,6 +2471,22 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AMKR|2009-08-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AMKR|2021-08-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AMKR|2026-01-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -2376,6 +2512,14 @@
 "yahoo_sessions": 140
 },
 "AMPX|2025-10-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AMPX|2026-03-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -2583,6 +2727,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AMT|2021-04-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AMZN|1998-06-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.01,
@@ -2671,6 +2823,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ANF|2009-09-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ANF|2010-02-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -2735,6 +2895,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AN|1996-03-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AN|1998-03-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -2744,6 +2912,14 @@
 "yahoo_sessions": 140
 },
 "AN|2001-11-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AN|2002-02-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -2984,6 +3160,14 @@
 "yahoo_sessions": 140
 },
 "APD|1997-02-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"APD|2000-03-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -3655,6 +3839,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ASH|2001-10-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ASH|2003-05-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -4199,6 +4391,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AVT|2015-10-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "AVT|2015-11-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -4464,6 +4664,14 @@
 "yahoo_sessions": 140
 },
 "AXON|2006-01-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"AXP|1996-10-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -5359,6 +5567,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"BBAR|1996-12-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "BBAR|1996-12-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -5407,6 +5623,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"BBD|2010-09-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "BBD|2010-09-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -5424,6 +5648,14 @@
 "yahoo_sessions": 140
 },
 "BBWI|2024-04-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BBY|1996-04-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -5456,6 +5688,14 @@
 "yahoo_sessions": 140
 },
 "BBY|2000-03-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BBY|2000-07-31": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -5600,6 +5840,14 @@
 "yahoo_sessions": 140
 },
 "BC|2000-03-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BC|2001-01-25": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -6127,6 +6375,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"BIIB|2004-08-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "BIIB|2005-09-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -6631,6 +6887,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"BMY|2000-09-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "BMY|2009-11-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -6991,7 +7255,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"BRSL|2007-11-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "BRZE|2023-11-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BRZE|2024-01-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -7016,6 +7296,14 @@
 "yahoo_sessions": 140
 },
 "BR|2015-09-21": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BR|2020-05-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -7328,6 +7616,14 @@
 "yahoo_sessions": 140
 },
 "BWA|2005-11-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BWA|2005-11-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -7664,6 +7960,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CACI|2006-01-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CACI|2011-06-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -7784,6 +8088,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CAH|2010-02-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CAH|2010-07-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -7864,6 +8176,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CARR|2021-05-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CARR|2021-06-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -7912,7 +8232,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CAR|2001-06-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CAR|2001-11-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CAR|2011-10-18": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -8065,6 +8401,14 @@
 "yahoo_sessions": 140
 },
 "CBRE|2005-07-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CBRE|2006-10-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -8472,6 +8816,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CCI|2000-01-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CCI|2003-04-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -8545,6 +8897,14 @@
 "yahoo_sessions": 140
 },
 "CCK|2010-02-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CCK|2020-05-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -8713,6 +9073,14 @@
 "yahoo_sessions": 140
 },
 "CDNS|1997-09-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CDNS|1998-01-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -8960,6 +9328,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CENX|2010-12-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CENX|2017-08-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9096,6 +9472,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CFR|2000-07-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CFR|2001-11-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9145,6 +9529,14 @@
 "yahoo_sessions": 140
 },
 "CF|2007-01-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CF|2007-11-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -9225,6 +9617,14 @@
 "yahoo_sessions": 140
 },
 "CGNX|1997-07-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CGNX|1998-04-24": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -9384,6 +9784,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CHD|2020-07-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CHD|2020-07-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9488,6 +9896,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CHE|2020-07-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CHH|2001-08-31": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9537,6 +9953,14 @@
 "yahoo_sessions": 140
 },
 "CHRD|2016-04-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CHRD|2016-05-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -9624,6 +10048,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CHRW|2010-10-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CHRW|2020-07-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9649,6 +10081,14 @@
 "yahoo_sessions": 140
 },
 "CHTR|2023-10-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CHWY|2020-05-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -9864,6 +10304,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CLF|2010-10-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CLF|2017-07-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9873,6 +10321,14 @@
 "yahoo_sessions": 140
 },
 "CLF|2020-02-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CLF|2020-09-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -10040,6 +10496,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CL|1998-05-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CL|2000-02-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -10144,7 +10608,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CMCSA|2002-12-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CMCSA|2006-07-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CMCSA|2006-09-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -10297,6 +10777,14 @@
 "yahoo_sessions": 140
 },
 "CMI|2006-06-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CMI|2010-09-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -10473,6 +10961,14 @@
 "yahoo_sessions": 140
 },
 "CM|2009-03-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CM|2020-05-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -10768,6 +11264,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CNO|2015-05-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CNO|2015-12-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -10913,6 +11417,14 @@
 "yahoo_sessions": 140
 },
 "CNXC|2023-06-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"COF|1996-07-24": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -11400,6 +11912,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CPRI|2018-06-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CPRI|2022-03-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -11616,6 +12136,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CRK|1996-08-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CRK|1996-09-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -11760,7 +12288,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CROX|2010-01-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CROX|2013-07-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CROX|2021-01-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -11841,6 +12385,14 @@
 "yahoo_sessions": 140
 },
 "CRS|2024-07-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CRUS|1996-11-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -12008,7 +12560,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CSCO|1996-05-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CSCO|1997-01-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CSCO|2000-06-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -12321,6 +12889,14 @@
 "yahoo_sessions": 140
 },
 "CTAS|2001-04-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CTAS|2001-12-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -12752,6 +13328,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CXT|1995-12-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CXT|1998-10-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -12857,6 +13441,14 @@
 "yahoo_sessions": 140
 },
 "CXW|2016-08-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CX|2001-10-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -13033,6 +13625,22 @@
 "yahoo_sessions": 140
 },
 "CZR|2018-08-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"C|1997-05-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"C|2001-11-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -13296,6 +13904,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"DCI|2011-11-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "DCI|2013-01-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -13480,6 +14096,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"DEI|2021-04-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "DELL|2022-01-24": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -13505,6 +14129,14 @@
 "yahoo_sessions": 140
 },
 "DEO|2026-07-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"DE|2025-04-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -13617,6 +14249,14 @@
 "yahoo_sessions": 140
 },
 "DG|2014-08-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"DG|2015-03-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -14344,6 +14984,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"DOV|1997-03-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "DOV|1997-04-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -14400,7 +15048,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"DOW|2020-08-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "DRH|2007-06-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"DRI|1997-05-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -14696,6 +15360,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"DVN|1998-10-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "DVN|2000-08-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -14713,6 +15385,14 @@
 "yahoo_sessions": 140
 },
 "DVN|2005-01-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"DVN|2016-07-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -15888,6 +16568,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"EG|2001-05-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "EG|2007-10-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -16137,6 +16825,14 @@
 "yahoo_sessions": 140
 },
 "EMBJ|2005-01-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"EMBJ|2010-03-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -16640,6 +17336,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"EPD|2010-02-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "EPD|2020-11-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -16665,6 +17369,14 @@
 "yahoo_sessions": 140
 },
 "EPR|2001-05-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"EPR|2010-02-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -16993,6 +17705,14 @@
 "yahoo_sessions": 140
 },
 "ESS|2011-07-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ESS|2015-02-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -17617,6 +18337,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"EXPE|2015-07-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "EXPE|2017-03-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -17626,6 +18354,14 @@
 "yahoo_sessions": 140
 },
 "EXPE|2018-02-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"EXPE|2020-08-18": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -17690,6 +18426,14 @@
 "yahoo_sessions": 140
 },
 "EXTR|2002-09-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"EXTR|2003-07-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -17842,6 +18586,14 @@
 "yahoo_sessions": 140
 },
 "FAF|2019-06-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FANG|2014-03-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -18161,6 +18913,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FCX|2005-08-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FCX|2009-03-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18265,6 +19025,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FDX|2016-10-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FDX|2020-02-25": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18329,6 +19097,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FERG|2024-03-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FET|2013-07-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18354,6 +19130,14 @@
 "yahoo_sessions": 140
 },
 "FE|2000-04-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FE|2000-09-05": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -18473,6 +19257,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FFIV|2003-07-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FFIV|2004-12-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18498,6 +19290,14 @@
 "yahoo_sessions": 140
 },
 "FHB|2018-06-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FHB|2019-04-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -18777,6 +19577,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FLEX|2000-08-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FLEX|2001-06-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18838,6 +19646,22 @@
 "median_close_diff_pct": 0.0,
 "ok": true,
 "p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FLNC|2025-12-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FLO|1996-09-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.01,
 "sessions": 140,
 "yahoo_sessions": 140
 },
@@ -18905,6 +19729,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FLR|2003-01-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FLR|2008-05-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18929,6 +19761,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FLS|2001-11-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FLS|2010-03-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18946,6 +19786,14 @@
 "yahoo_sessions": 140
 },
 "FMC|1996-10-31": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FMC|1997-09-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -19233,6 +20081,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FNV|2020-07-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FORM|2005-02-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -19377,6 +20233,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"FRT|2010-04-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "FRT|2010-07-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -19386,6 +20250,14 @@
 "yahoo_sessions": 140
 },
 "FRT|2013-09-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FRT|2016-01-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -19426,6 +20298,14 @@
 "yahoo_sessions": 140
 },
 "FSLR|2012-03-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FSLR|2020-11-19": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -19562,6 +20442,14 @@
 "yahoo_sessions": 140
 },
 "FTV|2020-04-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FTV|2020-11-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -19937,6 +20825,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"GD|2013-06-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "GD|2020-12-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -19986,6 +20882,14 @@
 "yahoo_sessions": 140
 },
 "GEN|1996-12-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"GEN|1997-01-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -21161,6 +22065,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"GOOGL|2007-01-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "GOOGL|2010-01-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -21369,6 +22281,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"GPN|2011-04-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "GPN|2015-01-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -21449,6 +22369,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"GRPN|2017-07-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "GSAT|2014-10-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -21474,6 +22402,14 @@
 "yahoo_sessions": 140
 },
 "GSK|1996-05-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"GSK|1996-06-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -21658,6 +22594,14 @@
 "yahoo_sessions": 140
 },
 "GVA|2000-11-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"GVA|2007-06-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -21857,6 +22801,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"HAL|1997-04-21": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "HAL|2000-03-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -21882,6 +22834,14 @@
 "yahoo_sessions": 140
 },
 "HAL|2005-10-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HAL|2010-09-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -22034,6 +22994,14 @@
 "yahoo_sessions": 140
 },
 "HCA|2020-04-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HCC|2024-05-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -22497,6 +23465,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"HLF|2020-06-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "HLIT|1996-05-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -22546,6 +23522,14 @@
 "yahoo_sessions": 140
 },
 "HLT|2020-08-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HLT|2020-10-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -23009,6 +23993,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"HP|2000-04-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "HP|2005-05-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -23129,7 +24121,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"HRB|2012-09-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "HRB|2014-01-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HRB|2015-07-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -23338,6 +24346,14 @@
 "yahoo_sessions": 140
 },
 "HR|2021-07-21": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HR|2024-08-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -23609,6 +24625,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"HTZ|2023-01-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "HUBB|2000-03-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -23690,6 +24714,14 @@
 "yahoo_sessions": 140
 },
 "HUBB|2018-01-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HUBB|2019-03-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -24137,6 +25169,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"IBN|2006-10-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "IBN|2010-02-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -24353,6 +25393,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"IDXX|2002-04-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "IDXX|2003-08-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -24465,6 +25513,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"IFF|2000-03-31": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "IFF|2001-07-31": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -24506,6 +25562,14 @@
 "yahoo_sessions": 140
 },
 "IFN|2001-10-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"IFN|2005-09-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -24633,6 +25697,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ILMN|2010-06-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ILMN|2010-11-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -24738,6 +25810,14 @@
 "yahoo_sessions": 140
 },
 "IMO|2010-01-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"INCY|1996-08-05": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -24905,6 +25985,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"INSP|2020-07-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "INSP|2020-11-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -25017,6 +26105,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"IONS|1996-04-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "IONS|1996-06-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -25106,6 +26202,14 @@
 "yahoo_sessions": 140
 },
 "IPGP|2017-01-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"IPGP|2020-09-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -25242,6 +26346,14 @@
 "yahoo_sessions": 140
 },
 "IP|2023-11-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"IQV|2014-05-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -25569,6 +26681,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ITT|2015-03-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ITT|2015-06-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -25625,7 +26745,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ITUB|2021-04-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ITW|1996-01-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ITW|1996-02-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -25786,6 +26922,14 @@
 "yahoo_sessions": 140
 },
 "IVZ|2011-01-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"IVZ|2015-02-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -26017,6 +27161,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"JCI|1996-01-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "JCI|1999-12-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -26026,6 +27178,14 @@
 "yahoo_sessions": 140
 },
 "JCI|2000-01-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"JCI|2000-03-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -26066,6 +27226,14 @@
 "yahoo_sessions": 140
 },
 "JCI|2023-11-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"JEF|2011-03-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -26330,6 +27498,14 @@
 "yahoo_sessions": 140
 },
 "JPM|1996-01-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"JPM|1996-05-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -27145,6 +28321,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"KKR|2020-01-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "KLIC|1996-09-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -27186,6 +28370,14 @@
 "yahoo_sessions": 140
 },
 "KMB|1996-09-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"KMB|2000-03-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -27442,6 +28634,14 @@
 "yahoo_sessions": 140
 },
 "KMT|2016-05-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"KMT|2016-07-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -27825,6 +29025,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"KR|2020-04-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "KTOS|2017-05-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -27898,6 +29106,14 @@
 "yahoo_sessions": 140
 },
 "LAZ|2015-03-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LAZ|2023-01-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -28018,6 +29234,14 @@
 "yahoo_sessions": 140
 },
 "LEN|2010-02-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LEN|2010-11-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -28218,6 +29442,22 @@
 "yahoo_sessions": 140
 },
 "LHX|2005-03-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LHX|2005-07-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LHX|2015-03-31": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -28577,6 +29817,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"LLY|2012-04-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "LLY|2014-01-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -28721,6 +29969,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"LOAR|2025-09-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "LOPE|2018-02-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -28730,6 +29986,14 @@
 "yahoo_sessions": 140
 },
 "LOW|1996-05-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LOW|2000-03-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -28865,6 +30129,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"LRCX|1997-01-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "LRCX|1999-01-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -28946,6 +30218,14 @@
 "yahoo_sessions": 140
 },
 "LSCC|1998-12-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LSCC|2001-01-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -29097,6 +30377,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"LUMN|2000-12-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "LUMN|2001-01-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -29145,6 +30433,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"LUV|1997-07-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "LUV|1997-07-25": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -29170,6 +30466,14 @@
 "yahoo_sessions": 140
 },
 "LUV|2000-07-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LUV|2014-04-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -29225,7 +30529,31 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"LU|2022-06-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "LVS|2006-01-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LVS|2006-03-23": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LVS|2010-03-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -29346,6 +30674,14 @@
 "yahoo_sessions": 140
 },
 "LYFT|2023-01-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LYG|2010-09-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -29761,6 +31097,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MAS|2015-03-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MAS|2020-07-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -29897,6 +31241,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MAT|1997-07-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MAT|1999-10-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -30010,6 +31362,14 @@
 "yahoo_sessions": 140
 },
 "MCHP|1996-07-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MCHP|1996-12-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -30369,6 +31729,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MDB|2020-09-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MDGL|2012-10-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -30386,6 +31754,14 @@
 "yahoo_sessions": 140
 },
 "MDGL|2024-02-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MDLZ|2002-05-24": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -30545,6 +31921,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MD|2003-10-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MD|2005-01-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -30554,6 +31938,14 @@
 "yahoo_sessions": 140
 },
 "MD|2010-02-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MD|2010-10-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -31267,6 +32659,14 @@
 "yahoo_sessions": 140
 },
 "MKC|1997-05-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MKC|2001-02-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -32026,7 +33426,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MOS|1999-12-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MOS|2000-12-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MOS|2004-07-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -32179,6 +33595,14 @@
 "yahoo_sessions": 140
 },
 "MO|2013-09-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MO|2015-01-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -32434,6 +33858,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MRSH|2000-05-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MRSH|2006-08-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -32499,6 +33931,14 @@
 "yahoo_sessions": 140
 },
 "MRVL|2003-02-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MRVL|2005-07-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -32578,6 +34018,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MSCI|2009-05-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MSCI|2015-02-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -32619,6 +34067,14 @@
 "yahoo_sessions": 140
 },
 "MSFT|2001-12-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MSFT|2015-10-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -32691,6 +34147,14 @@
 "yahoo_sessions": 140
 },
 "MSM|2015-08-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MSTR|2003-10-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -33114,6 +34578,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MTG|2023-06-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MTH|1997-07-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -33362,6 +34834,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MT|2016-10-18": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MT|2021-12-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -33578,6 +35058,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MYGN|1997-01-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MYGN|2000-01-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -33635,6 +35123,14 @@
 "yahoo_sessions": 140
 },
 "MYGN|2014-09-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"MYGN|2015-10-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -33722,6 +35218,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"M|2007-01-16": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "M|2011-01-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -33786,6 +35290,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NBIX|2006-02-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NBIX|2015-02-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -33819,6 +35331,14 @@
 "yahoo_sessions": 140
 },
 "NBR|2016-02-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NBR|2016-11-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -34122,6 +35642,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NEM|2016-06-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NEO|2019-03-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -34211,6 +35739,14 @@
 "yahoo_sessions": 140
 },
 "NFG|1995-12-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NFG|2000-07-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -34451,6 +35987,14 @@
 "yahoo_sessions": 140
 },
 "NI|1998-05-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NI|2000-04-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -34858,6 +36402,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NOK|2000-02-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NOK|2000-06-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -35210,6 +36762,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NSC|2010-03-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NSC|2010-04-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -35235,6 +36795,14 @@
 "yahoo_sessions": 140
 },
 "NSC|2016-05-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NSC|2016-08-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -35570,6 +37138,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NUE|2001-11-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NUE|2006-11-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -35786,6 +37362,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NVDA|2005-01-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.01,
+"ok": true,
+"p95_close_diff_pct": 0.04,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NVDA|2005-02-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.01,
@@ -35890,6 +37474,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"NVST|2021-03-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "NVS|2000-06-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -35923,6 +37515,14 @@
 "yahoo_sessions": 140
 },
 "NVTS|2026-05-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NVT|2019-03-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -36019,6 +37619,14 @@
 "yahoo_sessions": 140
 },
 "NWL|2010-09-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NWL|2010-12-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -36195,6 +37803,22 @@
 "yahoo_sessions": 140
 },
 "NYT|1996-04-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NYT|1997-01-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"NYT|2000-07-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -36562,6 +38186,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"OI|2005-05-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "OI|2010-03-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -36723,6 +38355,22 @@
 "yahoo_sessions": 140
 },
 "OLED|2005-05-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"OLED|2016-04-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"OLN|1996-03-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -37298,6 +38946,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ORLY|2015-02-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ORLY|2015-09-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -37562,6 +39218,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"OXY|2016-03-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "O|1996-01-18": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -37762,6 +39426,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PAYX|2000-10-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PAYX|2000-12-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -37779,6 +39451,14 @@
 "yahoo_sessions": 140
 },
 "PAYX|2005-10-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PAYX|2006-03-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -38123,6 +39803,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PDD|2020-12-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PDEX|1996-08-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -38148,6 +39836,14 @@
 "yahoo_sessions": 140
 },
 "PEB|2012-08-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PEB|2015-02-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -38332,6 +40028,14 @@
 "yahoo_sessions": 140
 },
 "PFE|2000-02-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PFE|2000-06-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -38587,6 +40291,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PHG|2020-11-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PHK|2006-08-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -38715,6 +40427,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PI|2023-02-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PKE|1998-01-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -38804,6 +40524,14 @@
 "yahoo_sessions": 140
 },
 "PKX|1996-05-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PKX|2001-01-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -38940,6 +40668,14 @@
 "yahoo_sessions": 140
 },
 "PLD|2012-04-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PLD|2015-01-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -39108,6 +40844,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PLXS|2026-05-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PMT|2013-01-02": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -39165,6 +40909,14 @@
 "yahoo_sessions": 140
 },
 "PNC|1996-01-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PNC|1996-01-31": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -39404,6 +41156,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PODD|2017-10-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PODD|2021-05-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -39485,6 +41245,14 @@
 "yahoo_sessions": 140
 },
 "POOL|2016-03-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"POOL|2016-05-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -39772,6 +41540,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"PRDO|2001-01-23": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "PRDO|2002-01-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -39821,6 +41597,14 @@
 "yahoo_sessions": 140
 },
 "PRKS|2023-03-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PRLB|2020-08-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -40253,6 +42037,14 @@
 "yahoo_sessions": 140
 },
 "PZZA|1996-02-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PZZA|1998-10-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -40868,6 +42660,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"REGN|2011-01-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "REGN|2011-04-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -41132,6 +42932,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"RF|2016-09-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "RF|2017-03-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -41141,6 +42949,14 @@
 "yahoo_sessions": 140
 },
 "RF|2025-10-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"RGA|2009-10-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -41892,6 +43708,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"RMD|2012-04-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "RMD|2016-11-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -42053,6 +43877,14 @@
 "yahoo_sessions": 140
 },
 "ROG|2017-07-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ROIV|2024-02-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -42444,6 +44276,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"RRR|2020-10-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "RRX|2000-10-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -42572,6 +44412,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"RS|2005-08-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "RS|2016-11-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -42588,6 +44436,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"RS|2018-01-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "RS|2020-05-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -42597,6 +44453,14 @@
 "yahoo_sessions": 140
 },
 "RTX|2001-11-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"RTX|2005-03-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -42645,6 +44509,14 @@
 "yahoo_sessions": 140
 },
 "RUSHB|1997-10-21": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"RVMD|2024-02-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -43036,6 +44908,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SAIC|2020-05-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SAIC|2022-09-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -43277,6 +45157,14 @@
 "yahoo_sessions": 140
 },
 "SAP|2000-03-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SAP|2002-03-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -43541,6 +45429,14 @@
 "yahoo_sessions": 140
 },
 "SCHW|1996-11-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SCHW|2003-08-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -43893,6 +45789,14 @@
 "yahoo_sessions": 140
 },
 "SF|2024-04-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SGI|2005-05-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -44276,6 +46180,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SIRI|2005-05-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SIRI|2005-05-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -44309,6 +46221,14 @@
 "yahoo_sessions": 140
 },
 "SIRI|2022-07-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SITE|2017-06-19": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -44388,6 +46308,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SJM|2010-03-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SJM|2010-06-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -44405,6 +46333,14 @@
 "yahoo_sessions": 140
 },
 "SJM|2026-05-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SKM|1999-05-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -44620,6 +46556,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SLAB|2003-02-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SLAB|2005-11-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -44701,6 +46645,14 @@
 "yahoo_sessions": 140
 },
 "SLB|2023-06-12": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SLB|2023-07-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -44956,6 +46908,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SMG|2006-01-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SMG|2006-12-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -44981,6 +46941,14 @@
 "yahoo_sessions": 140
 },
 "SMG|2020-01-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SMG|2020-06-30": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -45085,6 +47053,14 @@
 "yahoo_sessions": 140
 },
 "SMTC|2016-08-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SMTC|2024-10-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -45436,6 +47412,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SO|2022-05-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SO|2022-11-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -45493,6 +47477,14 @@
 "yahoo_sessions": 140
 },
 "SPB|2021-09-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SPB|2021-12-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -45628,6 +47620,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SPG|2010-09-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SPG|2011-12-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -45693,6 +47693,14 @@
 "yahoo_sessions": 140
 },
 "SPXC|2010-02-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SPXC|2010-11-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -46628,6 +48636,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"STX|2005-03-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "STX|2012-07-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -46757,6 +48773,14 @@
 "yahoo_sessions": 140
 },
 "STZ|2014-10-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"STZ|2015-05-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -47140,6 +49164,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SYK|1996-09-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "SYK|1996-12-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -47500,6 +49532,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TDG|2020-09-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TDS|1996-02-05": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -47717,6 +49757,14 @@
 "yahoo_sessions": 140
 },
 "TD|2001-08-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TD|2011-02-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -48068,6 +50116,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TFX|2000-03-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TFX|2010-02-05": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -48148,6 +50204,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TGT|2001-03-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TGT|2001-12-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -48212,6 +50276,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"THC|1996-05-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "THC|1999-04-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -48237,6 +50309,14 @@
 "yahoo_sessions": 140
 },
 "THC|2004-01-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"THC|2005-04-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -48405,6 +50485,14 @@
 "yahoo_sessions": 140
 },
 "THRM|2013-10-14": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TIGO|2026-07-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -48740,6 +50828,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TK|2000-08-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TK|2005-07-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -48837,6 +50933,14 @@
 "yahoo_sessions": 140
 },
 "TMO|2000-01-26": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TMO|2000-06-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -49188,6 +51292,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TRMB|2004-08-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TRMB|2012-03-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -49197,6 +51309,14 @@
 "yahoo_sessions": 140
 },
 "TRMB|2013-11-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TRMB|2015-10-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -49309,6 +51429,14 @@
 "yahoo_sessions": 140
 },
 "TRN|2005-07-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TRN|2005-08-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -49604,6 +51732,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TSCO|2015-02-17": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TSCO|2020-04-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -49693,6 +51829,14 @@
 "yahoo_sessions": 140
 },
 "TTC|2005-01-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TTC|2005-01-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -49837,6 +51981,14 @@
 "yahoo_sessions": 140
 },
 "TTMI|2012-02-03": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TTWO|1999-10-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -50045,6 +52197,14 @@
 "yahoo_sessions": 140
 },
 "TW|2020-05-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TW|2021-03-23": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -50340,6 +52500,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"T|2015-10-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "T|2016-06-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -50452,6 +52620,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"UA|2021-02-23": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "UBER|2020-04-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -50485,6 +52661,14 @@
 "yahoo_sessions": 140
 },
 "UBS|2001-06-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"UBS|2001-10-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -51036,6 +53220,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"UMC|2003-10-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "UMC|2004-09-24": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -51212,6 +53404,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"UNM|2003-07-22": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "UNM|2015-10-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -51229,6 +53429,14 @@
 "yahoo_sessions": 140
 },
 "UNM|2020-05-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"UNM|2022-01-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -51588,6 +53796,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"UTHR|2000-06-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "UTHR|2000-06-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -51684,6 +53900,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"VALE|2005-01-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "VALE|2010-09-22": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -51693,6 +53917,14 @@
 "yahoo_sessions": 140
 },
 "VALE|2016-11-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"VALE|2017-01-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -52149,6 +54381,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"VLO|2020-12-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "VLY|1995-12-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -52478,6 +54718,14 @@
 "yahoo_sessions": 140
 },
 "VRSK|2015-10-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"VRSK|2020-01-03": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -52853,6 +55101,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"VTR|1998-03-23": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "VTR|1998-05-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -52926,6 +55182,14 @@
 "yahoo_sessions": 140
 },
 "VVV|2023-06-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"VZ|1995-12-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -53158,6 +55422,14 @@
 "yahoo_sessions": 140
 },
 "WAT|1997-03-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"WAT|1998-01-14": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -53549,6 +55821,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"WEN|2021-05-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "WEN|2021-06-08": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -53885,6 +56165,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"WLK|2015-04-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "WLK|2017-02-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -54078,6 +56366,14 @@
 "yahoo_sessions": 140
 },
 "WNC|2018-02-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"WOR|1996-02-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -54413,6 +56709,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"WSM|1996-09-25": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "WSM|1998-09-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -54478,6 +56782,14 @@
 "yahoo_sessions": 140
 },
 "WSO|2015-06-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"WSO|2020-05-20": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -54613,6 +56925,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"WWD|2025-04-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "WWW|1996-03-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -54646,6 +56966,14 @@
 "yahoo_sessions": 140
 },
 "WWW|2018-05-09": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"WYNN|2004-01-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -54718,6 +57046,14 @@
 "yahoo_sessions": 140
 },
 "WY|2001-10-24": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"WY|2002-02-06": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -55181,7 +57517,23 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"ZBRA|1997-07-11": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "ZBRA|2000-07-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ZBRA|2002-02-11": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
