@@ -23,7 +23,11 @@ import {
 import { __setPaneModeForTest } from './paneLayout'
 import * as registry from './nativeRegistry'
 
-const RS = registry.getDefinition('rsLine')
+// The registered rsLine declares `placement.axis: 'hidden'` since the definition unit
+// (VA2) landed; this fixture is the same definition WITHOUT the field, so the
+// "visible" cases keep meaning what they say (2026-11-07).
+const RS_REGISTERED = registry.getDefinition('rsLine')
+const RS = (() => { const { axis, ...rest } = RS_REGISTERED.placement || {}; return { ...RS_REGISTERED, placement: rest } })()
 const RSI = registry.getDefinition('rsi')
 const MACD = registry.getDefinition('macd')
 

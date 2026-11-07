@@ -16,7 +16,11 @@ import {
 const binding = (defId, plotKey, instanceId) => ({
   key: `${instanceId}::${plotKey}`, instanceId, defId, plotKey, series: { __id: `${defId}/${plotKey}` },
 })
-const RS = engineRegistry.getDefinition('rsLine')
+// The split reads a definition's own `detailOf` as a fallback; the registered
+// rsLine carries its own since VA2. These cases test the RESOLVED rows' field, so
+// the fixture is the definition with `detailOf` stripped from its entries (2026-11-07).
+const RS_REGISTERED = engineRegistry.getDefinition('rsLine')
+const RS = { ...RS_REGISTERED, readout: (RS_REGISTERED.readout || []).map((e) => { const { detailOf, ...rest } = e; return rest }) }
 const RSI = engineRegistry.getDefinition('rsi')
 const MACD = engineRegistry.getDefinition('macd')
 
