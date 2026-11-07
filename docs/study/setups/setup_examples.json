@@ -13206,79 +13206,6 @@
   },
   {
    "setup": "Oops Reversal",
-   "sym": "BNY",
-   "asof": "2000-05-05",
-   "year": 2000,
-   "close": 44.0561,
-   "facts": {
-    "scanner": true,
-    "williams": false,
-    "super": true,
-    "open_vs_prior_low_pct": 0.0,
-    "day_pct": 3.91,
-    "close_pos": 0.86,
-    "rvol": 0.65,
-    "variant": "super",
-    "above_200": true,
-    "sma50_rising": true,
-    "sma200_rising": true,
-    "pullback_from_20d_high_pct": -12.6,
-    "pullback_from_60d_high_pct": -12.6,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "reclaims_e8": true,
-    "reclaims_e21": true,
-    "ext_vs_sma50_pct": 7.8,
-    "downtrend": false,
-    "setup_score": 14,
-    "fwd_min_low_vs_trigger_low_pct": 4.9,
-    "fwd_max_gain_pct": 19.7,
-    "fwd_5d_pct": 7.8,
-    "fwd_10d_pct": 5.9,
-    "fwd_20d_pct": 12.8,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 19.7,
-     "daily_sd_pct": 2.51
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "yahoo_sessions": 140
-    },
-    "avg_dollar_volume_m": 80.6,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "pullback_pct": 12.6,
-    "context": {
-     "off_high_pct": -9.2,
-     "vs50_pct": 7.2,
-     "vs200_pct": 9.7,
-     "s200_rising": true,
-     "market": "mixed",
-     "rs63_pct": 8.8,
-     "era": "2000-04",
-     "sector": "Financial Services",
-     "industry": "Banks - Diversified",
-     "liq_rank": 70,
-     "liq_universe": 1020
-    },
-    "culmination": {
-     "culm_pct": 24.36,
-     "culm_sessions": 54,
-     "broke_at": null,
-     "ret20_pct": 12.78
-    }
-   },
-   "q": 14
-  },
-  {
-   "setup": "Oops Reversal",
    "sym": "BKNG",
    "asof": "2011-08-26",
    "year": 2011,
@@ -19221,93 +19148,6 @@
   },
   {
    "setup": "Slingshot",
-   "sym": "XYZ",
-   "asof": "2017-05-22",
-   "year": 2017,
-   "close": 20.95,
-   "facts": {
-    "day_pct": 5.22,
-    "close_pos": 0.95,
-    "gap_pct": 0.35,
-    "rvol": 1.54,
-    "range_atr": 1.58,
-    "above_200": true,
-    "variant": "v1_strength_day",
-    "tight_pullback": true,
-    "labels": [
-     "cross_only"
-    ],
-    "strength_day_bars_ago": 0,
-    "strength_day_gain_pct": 5.22,
-    "earnings_like_gap": {
-     "bars_ago": 12,
-     "gap_pct": 5.2,
-     "day_pct": 8.9
-    },
-    "rally": {
-     "rally_pct": 14.4,
-     "bars_ago": 4,
-     "peak_high": 20.69
-    },
-    "drive_pct": 14.4,
-    "pullback_sessions": 3,
-    "pullback_depth_pct": -6.0,
-    "worst_red_body_pct": -1.56,
-    "pullback_range_atr": 1.1,
-    "pullback_rvol_max": 1.95,
-    "trigger_vs_peak_pct": 1.3,
-    "s50_slope10_pct": 3.2,
-    "ma_order_8_21_50": true,
-    "setup_score": 22,
-    "pretty": true,
-    "fwd_min_low_vs_trigger_low_pct": 4.6,
-    "fwd_max_gain_pct": 19.2,
-    "fwd_5d_pct": 8.5,
-    "fwd_10d_pct": 15.6,
-    "fwd_20d_pct": 13.8,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 19.5,
-     "daily_sd_pct": 2.28
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "yahoo_sessions": 140
-    },
-    "avg_dollar_volume_m": 102.0,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "trigger_gap_pct": 0.35,
-    "context": {
-     "off_high_pct": -0.2,
-     "vs50_pct": 16.4,
-     "vs200_pct": 46.2,
-     "s200_rising": true,
-     "market": "uptrend",
-     "rs63_pct": 41.4,
-     "era": "2015-19",
-     "sector": "Technology",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 288,
-     "liq_universe": 1906
-    },
-    "culmination": {
-     "culm_pct": 33.51,
-     "culm_sessions": 46,
-     "broke_at": null,
-     "ret20_pct": 13.84
-    }
-   },
-   "q": 22
-  },
-  {
-   "setup": "Slingshot",
    "sym": "ARWR",
    "asof": "2019-06-04",
    "year": 2019,
@@ -22944,79 +22784,6 @@
     }
    },
    "q": 8
-  },
-  {
-   "setup": "Oops Reversal",
-   "sym": "XYZ",
-   "asof": "2020-09-21",
-   "year": 2020,
-   "close": 151.12,
-   "facts": {
-    "scanner": true,
-    "williams": true,
-    "super": true,
-    "open_vs_prior_low_pct": -0.86,
-    "day_pct": 4.21,
-    "close_pos": 0.93,
-    "rvol": 1.11,
-    "variant": "super",
-    "above_200": true,
-    "sma50_rising": true,
-    "sma200_rising": true,
-    "pullback_from_20d_high_pct": -15.0,
-    "pullback_from_60d_high_pct": -15.0,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "reclaims_e8": true,
-    "reclaims_e21": true,
-    "ext_vs_sma50_pct": 7.2,
-    "downtrend": false,
-    "setup_score": 14,
-    "fwd_min_low_vs_trigger_low_pct": 6.1,
-    "fwd_max_gain_pct": 28.0,
-    "fwd_5d_pct": 6.4,
-    "fwd_10d_pct": 19.7,
-    "fwd_20d_pct": 23.7,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 30.9,
-     "daily_sd_pct": 2.49
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 1389.3,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "pullback_pct": 15.0,
-    "context": {
-     "off_high_pct": -11.4,
-     "vs50_pct": 6.9,
-     "vs200_pct": 66.4,
-     "s200_rising": true,
-     "market": "mixed",
-     "rs63_pct": 37.8,
-     "era": "2020-26",
-     "sector": "Technology",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 17,
-     "liq_universe": 2184
-    },
-    "culmination": {
-     "culm_pct": 47.04,
-     "culm_sessions": 58,
-     "broke_at": null,
-     "ret20_pct": 23.72
-    }
-   },
-   "q": 14
   },
   {
    "setup": "Oops Reversal",
@@ -39426,79 +39193,6 @@
   },
   {
    "setup": "Oops Reversal",
-   "sym": "BNY",
-   "asof": "1996-11-14",
-   "year": 1996,
-   "close": 17.3574,
-   "facts": {
-    "scanner": true,
-    "williams": false,
-    "super": false,
-    "open_vs_prior_low_pct": 0.39,
-    "day_pct": 1.55,
-    "close_pos": 0.89,
-    "rvol": 2.38,
-    "variant": "scanner",
-    "above_200": true,
-    "sma50_rising": true,
-    "sma200_rising": true,
-    "pullback_from_20d_high_pct": -6.2,
-    "pullback_from_60d_high_pct": -6.2,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "reclaims_e8": false,
-    "reclaims_e21": true,
-    "ext_vs_sma50_pct": 7.2,
-    "downtrend": false,
-    "setup_score": 12,
-    "fwd_min_low_vs_trigger_low_pct": 2.4,
-    "fwd_max_gain_pct": 10.3,
-    "fwd_5d_pct": 2.3,
-    "fwd_10d_pct": 9.5,
-    "fwd_20d_pct": 1.5,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 11.2,
-     "daily_sd_pct": 1.55
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 32.5,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "pullback_pct": 6.2,
-    "context": {
-     "off_high_pct": -4.7,
-     "vs50_pct": 6.9,
-     "vs200_pct": 21.0,
-     "s200_rising": true,
-     "market": "uptrend",
-     "rs63_pct": 5.3,
-     "era": "1995-99",
-     "sector": "Financial Services",
-     "industry": "Banks - Diversified",
-     "liq_rank": 40,
-     "liq_universe": 833
-    },
-    "culmination": {
-     "culm_pct": 21.37,
-     "culm_sessions": 59,
-     "broke_at": null,
-     "ret20_pct": 1.53
-    }
-   },
-   "q": 12
-  },
-  {
-   "setup": "Oops Reversal",
    "sym": "CAT",
    "asof": "2017-12-07",
    "year": 2017,
@@ -53553,79 +53247,6 @@
      "culm_sessions": 31,
      "broke_at": null,
      "ret20_pct": 8.53
-    }
-   },
-   "q": 11
-  },
-  {
-   "setup": "Oops Reversal",
-   "sym": "VIPS",
-   "asof": "2014-04-15",
-   "year": 2014,
-   "close": 14.001,
-   "facts": {
-    "scanner": true,
-    "williams": false,
-    "super": false,
-    "open_vs_prior_low_pct": 2.77,
-    "day_pct": 3.49,
-    "close_pos": 0.98,
-    "rvol": 1.16,
-    "variant": "scanner",
-    "above_200": true,
-    "sma50_rising": true,
-    "sma200_rising": true,
-    "pullback_from_20d_high_pct": -16.5,
-    "pullback_from_60d_high_pct": -25.7,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "reclaims_e8": true,
-    "reclaims_e21": false,
-    "ext_vs_sma50_pct": 5.3,
-    "downtrend": false,
-    "setup_score": 11,
-    "fwd_min_low_vs_trigger_low_pct": 2.5,
-    "fwd_max_gain_pct": 14.3,
-    "fwd_5d_pct": 11.7,
-    "fwd_10d_pct": 0.1,
-    "fwd_20d_pct": 7.1,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 22.8,
-     "daily_sd_pct": 4.38
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 136.9,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "pullback_pct": 16.5,
-    "context": {
-     "off_high_pct": -23.1,
-     "vs50_pct": 4.6,
-     "vs200_pct": 70.2,
-     "s200_rising": true,
-     "market": "mixed",
-     "rs63_pct": 49.8,
-     "era": "2010-14",
-     "sector": "Consumer Cyclical",
-     "industry": "Internet Retail",
-     "liq_rank": 124,
-     "liq_universe": 1683
-    },
-    "culmination": {
-     "culm_pct": 43.92,
-     "culm_sessions": 54,
-     "broke_at": null,
-     "ret20_pct": 7.14
     }
    },
    "q": 11
@@ -75325,89 +74946,6 @@
   },
   {
    "setup": "Slingshot",
-   "sym": "VIPS",
-   "asof": "2020-10-27",
-   "year": 2020,
-   "close": 20.66,
-   "facts": {
-    "day_pct": 7.27,
-    "close_pos": 0.96,
-    "gap_pct": 0.52,
-    "rvol": 1.1,
-    "range_atr": 1.49,
-    "above_200": true,
-    "variant": "v1_strength_day",
-    "tight_pullback": true,
-    "labels": [
-     "cross_only"
-    ],
-    "strength_day_bars_ago": 0,
-    "strength_day_gain_pct": 7.27,
-    "earnings_like_gap": null,
-    "rally": {
-     "rally_pct": 36.0,
-     "bars_ago": 7,
-     "peak_high": 20.38
-    },
-    "drive_pct": 36.0,
-    "pullback_sessions": 6,
-    "pullback_depth_pct": -10.8,
-    "worst_red_body_pct": -2.49,
-    "pullback_range_atr": 1.67,
-    "pullback_rvol_max": 1.48,
-    "trigger_vs_peak_pct": 1.4,
-    "s50_slope10_pct": -4.7,
-    "ma_order_8_21_50": true,
-    "setup_score": 18,
-    "pretty": true,
-    "fwd_min_low_vs_trigger_low_pct": 2.1,
-    "fwd_max_gain_pct": 26.0,
-    "fwd_5d_pct": 3.4,
-    "fwd_10d_pct": 0.1,
-    "fwd_20d_pct": 24.9,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 33.1,
-     "daily_sd_pct": 2.67
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 139.0,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "trigger_gap_pct": 0.52,
-    "context": {
-     "off_high_pct": -15.5,
-     "vs50_pct": 20.0,
-     "vs200_pct": 20.5,
-     "s200_rising": true,
-     "market": "mixed",
-     "rs63_pct": -9.4,
-     "era": "2020-26",
-     "sector": "Consumer Cyclical",
-     "industry": "Internet Retail",
-     "liq_rank": 238,
-     "liq_universe": 2200
-    },
-    "culmination": {
-     "culm_pct": 49.47,
-     "culm_sessions": 56,
-     "broke_at": null,
-     "ret20_pct": 24.88
-    }
-   },
-   "q": 18
-  },
-  {
-   "setup": "Slingshot",
    "sym": "ALK",
    "asof": "2024-09-23",
    "year": 2024,
@@ -77403,90 +76941,6 @@
      "culm_sessions": 30,
      "broke_at": 45,
      "ret20_pct": 5.58
-    }
-   },
-   "q": 18
-  },
-  {
-   "setup": "Slingshot",
-   "sym": "XYZ",
-   "asof": "2019-01-17",
-   "year": 2019,
-   "close": 68.84,
-   "facts": {
-    "day_pct": 4.46,
-    "close_pos": 0.77,
-    "gap_pct": 0.3,
-    "rvol": 1.18,
-    "range_atr": 1.12,
-    "above_200": false,
-    "variant": "v1_strength_day",
-    "tight_pullback": true,
-    "labels": [
-     "v2_run_20in5",
-     "cross_only"
-    ],
-    "strength_day_bars_ago": 0,
-    "strength_day_gain_pct": 4.46,
-    "earnings_like_gap": null,
-    "rally": {
-     "rally_pct": 33.4,
-     "bars_ago": 4,
-     "peak_high": 67.64
-    },
-    "drive_pct": 33.4,
-    "pullback_sessions": 3,
-    "pullback_depth_pct": -5.8,
-    "worst_red_body_pct": -0.66,
-    "pullback_range_atr": 1.17,
-    "pullback_rvol_max": 0.75,
-    "trigger_vs_peak_pct": 1.8,
-    "s50_slope10_pct": -2.8,
-    "ma_order_8_21_50": false,
-    "setup_score": 18,
-    "pretty": true,
-    "fwd_min_low_vs_trigger_low_pct": 2.0,
-    "fwd_max_gain_pct": 13.5,
-    "fwd_5d_pct": 13.3,
-    "fwd_10d_pct": 2.8,
-    "fwd_20d_pct": 9.9,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 16.2,
-     "daily_sd_pct": 3.71
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 1174.7,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "trigger_gap_pct": 0.3,
-    "context": {
-     "off_high_pct": -31.9,
-     "vs50_pct": 6.8,
-     "vs200_pct": 2.1,
-     "s200_rising": true,
-     "market": "mixed",
-     "rs63_pct": -6.8,
-     "era": "2015-19",
-     "sector": "Technology",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 19,
-     "liq_universe": 2048
-    },
-    "culmination": {
-     "culm_pct": 20.25,
-     "culm_sessions": 28,
-     "broke_at": null,
-     "ret20_pct": 9.88
     }
    },
    "q": 18
@@ -89220,86 +88674,6 @@
      "culm_sessions": 27,
      "broke_at": 48,
      "ret20_pct": 20.58
-    }
-   },
-   "q": 17
-  },
-  {
-   "setup": "Launchpad",
-   "sym": "XYZ",
-   "asof": "2020-01-08",
-   "year": 2020,
-   "close": 67.6,
-   "facts": {
-    "correction_pct": -29.9,
-    "ma_spread_pct": 1.82,
-    "s200_dist_pct": 4.0,
-    "above_200": false,
-    "base30_range_pct": 12.2,
-    "base15_range_pct": 7.3,
-    "day_pct": 4.66,
-    "close_pos": 0.9,
-    "breakout20": false,
-    "rvol": 1.74,
-    "range_atr": 2.33,
-    "gap_pct": -0.05,
-    "ma_spread_10d_max_pct": 2.27,
-    "sessions_under_or_on_bundle_30": 22,
-    "bundle_touches_15": 12,
-    "dangle_days_8": 0,
-    "above_bundle_40": 16,
-    "below_bundle_40": 9,
-    "base_len_sessions": 80,
-    "approach_20_pct": 2.2,
-    "s50_slope20_pct": 1.8,
-    "s200_slope40_pct": -2.9,
-    "s200_vs_bundle_pct": 5.0,
-    "stack_9_20_50": false,
-    "close_above_all": true,
-    "close_above_200": true,
-    "setup_score": 17,
-    "fwd_min_low_vs_trigger_low_pct": 4.0,
-    "fwd_max_gain_pct": 21.4,
-    "fwd_5d_pct": 4.1,
-    "fwd_10d_pct": 2.5,
-    "fwd_20d_pct": 16.1,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 23.1,
-     "daily_sd_pct": 2.3
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 508.4,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "correction_abs_pct": 29.9,
-    "context": {
-     "off_high_pct": -18.8,
-     "vs50_pct": 4.3,
-     "vs200_pct": 0.5,
-     "s200_rising": false,
-     "market": "uptrend",
-     "rs63_pct": -1.1,
-     "era": "2020-26",
-     "sector": "Technology",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 50,
-     "liq_universe": 2139
-    },
-    "culmination": {
-     "culm_pct": 29.07,
-     "culm_sessions": 29,
-     "broke_at": 43,
-     "ret20_pct": 16.14
     }
    },
    "q": 17
@@ -120636,86 +120010,6 @@
   },
   {
    "setup": "Launchpad",
-   "sym": "WCC",
-   "asof": "2016-11-14",
-   "year": 2016,
-   "close": 64.25,
-   "facts": {
-    "correction_pct": -17.5,
-    "ma_spread_pct": 2.13,
-    "s200_dist_pct": 13.5,
-    "above_200": true,
-    "base30_range_pct": 18.1,
-    "base15_range_pct": 17.1,
-    "day_pct": 3.05,
-    "close_pos": 0.75,
-    "breakout20": true,
-    "rvol": 2.02,
-    "range_atr": 0.95,
-    "gap_pct": 0.4,
-    "ma_spread_10d_max_pct": 9.2,
-    "sessions_under_or_on_bundle_30": 21,
-    "bundle_touches_15": 6,
-    "dangle_days_8": 0,
-    "above_bundle_40": 14,
-    "below_bundle_40": 14,
-    "base_len_sessions": 80,
-    "approach_20_pct": -1.3,
-    "s50_slope20_pct": -1.7,
-    "s200_slope40_pct": 6.6,
-    "s200_vs_bundle_pct": -5.3,
-    "stack_9_20_50": false,
-    "close_above_all": true,
-    "close_above_200": true,
-    "setup_score": 15,
-    "fwd_min_low_vs_trigger_low_pct": 1.3,
-    "fwd_max_gain_pct": 14.2,
-    "fwd_5d_pct": 0.6,
-    "fwd_10d_pct": 2.6,
-    "fwd_20d_pct": 9.0,
-    "after_20": {
-     "sessions": 20,
-     "range_pct": 16.3,
-     "daily_sd_pct": 1.41
-    },
-    "second_source": {
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "sessions": 140,
-     "yahoo_sessions": 140,
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0
-    },
-    "avg_dollar_volume_m": 39.9,
-    "known_name": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "correction_abs_pct": 17.5,
-    "context": {
-     "off_high_pct": -1.0,
-     "vs50_pct": 9.4,
-     "vs200_pct": 16.7,
-     "s200_rising": true,
-     "market": "uptrend",
-     "rs63_pct": 9.7,
-     "era": "2015-19",
-     "sector": "Industrials",
-     "industry": "Industrial Distribution",
-     "liq_rank": 625,
-     "liq_universe": 1870
-    },
-    "culmination": {
-     "culm_pct": 18.52,
-     "culm_sessions": 49,
-     "broke_at": null,
-     "ret20_pct": 9.03
-    }
-   },
-   "q": 15
-  },
-  {
-   "setup": "Launchpad",
    "sym": "HII",
    "asof": "2015-10-30",
    "year": 2015,
@@ -132269,6 +131563,709 @@
     }
    },
    "q": 13
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "KKR",
+   "asof": "2020-06-15",
+   "year": 2020,
+   "close": 30.11,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": true,
+    "open_vs_prior_low_pct": -0.77,
+    "day_pct": 3.29,
+    "close_pos": 0.98,
+    "rvol": 1.24,
+    "variant": "super",
+    "above_200": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "pullback_from_20d_high_pct": -8.4,
+    "pullback_from_60d_high_pct": -8.4,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "reclaims_e8": true,
+    "reclaims_e21": true,
+    "ext_vs_sma50_pct": 15.8,
+    "downtrend": false,
+    "setup_score": 14,
+    "fwd_min_low_vs_trigger_low_pct": 4.2,
+    "fwd_max_gain_pct": 17.0,
+    "fwd_5d_pct": 4.1,
+    "fwd_10d_pct": 0.2,
+    "fwd_20d_pct": 14.5,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 20.5,
+     "daily_sd_pct": 3.14
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 107.1,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "pullback_pct": 8.4,
+    "context": {
+     "off_high_pct": -11.8,
+     "vs50_pct": 15.1,
+     "vs200_pct": 8.2,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 7.5,
+     "era": "2020-26",
+     "sector": "Financial Services",
+     "industry": "Asset Management",
+     "liq_rank": 387,
+     "liq_universe": 2167
+    },
+    "culmination": {
+     "culm_pct": 23.45,
+     "culm_sessions": 39,
+     "broke_at": null,
+     "ret20_pct": 14.55
+    }
+   },
+   "q": 14
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "CELH",
+   "asof": "2025-05-06",
+   "year": 2025,
+   "close": 35.52,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": true,
+    "open_vs_prior_low_pct": -1.23,
+    "day_pct": 4.81,
+    "close_pos": 0.83,
+    "rvol": 2.05,
+    "variant": "super",
+    "above_200": true,
+    "sma50_rising": true,
+    "sma200_rising": false,
+    "pullback_from_20d_high_pct": -13.5,
+    "pullback_from_60d_high_pct": -13.5,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "reclaims_e8": true,
+    "reclaims_e21": true,
+    "ext_vs_sma50_pct": 8.5,
+    "downtrend": false,
+    "setup_score": 14,
+    "fwd_min_low_vs_trigger_low_pct": 5.4,
+    "fwd_max_gain_pct": 14.6,
+    "fwd_5d_pct": 6.8,
+    "fwd_10d_pct": 7.2,
+    "fwd_20d_pct": 12.9,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 19.3,
+     "daily_sd_pct": 2.85
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 267.7,
+    "known_name": true,
+    "earnings_dates_near": [
+     "2025-05-06"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "pullback_pct": 13.5,
+    "context": {
+     "off_high_pct": -64.1,
+     "vs50_pct": 8.2,
+     "vs200_pct": 11.0,
+     "s200_rising": false,
+     "market": "mixed",
+     "rs63_pct": 66.9,
+     "era": "2020-26",
+     "sector": "Consumer Defensive",
+     "industry": "Beverages - Non-Alcoholic",
+     "liq_rank": 348,
+     "liq_universe": 2780
+    },
+    "culmination": {
+     "culm_pct": 36.46,
+     "culm_sessions": 57,
+     "broke_at": null,
+     "ret20_pct": 12.87
+    }
+   },
+   "q": 14
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "PSX",
+   "asof": "2026-10-01",
+   "year": 2026,
+   "close": 264.23,
+   "facts": {
+    "scanner": true,
+    "williams": true,
+    "super": true,
+    "open_vs_prior_low_pct": -0.6,
+    "day_pct": 3.49,
+    "close_pos": 0.98,
+    "rvol": 0.85,
+    "variant": "super",
+    "above_200": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "pullback_from_20d_high_pct": -7.9,
+    "pullback_from_60d_high_pct": -7.9,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "reclaims_e8": true,
+    "reclaims_e21": true,
+    "ext_vs_sma50_pct": 10.8,
+    "downtrend": false,
+    "setup_score": 14,
+    "fwd_min_low_vs_trigger_low_pct": 1.3,
+    "fwd_max_gain_pct": 13.3,
+    "fwd_5d_pct": 6.6,
+    "fwd_10d_pct": 9.5,
+    "fwd_20d_pct": 3.5,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 17.0,
+     "daily_sd_pct": 2.34
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 567.0,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "pullback_pct": 7.9,
+    "context": {
+     "off_high_pct": -4.7,
+     "vs50_pct": 10.3,
+     "vs200_pct": 44.1,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": 46.0,
+     "era": "2020-26",
+     "sector": "Energy",
+     "industry": "Oil & Gas Refining & Marketing",
+     "liq_rank": 151,
+     "liq_universe": 2787
+    },
+    "culmination": {
+     "culm_pct": 13.31,
+     "culm_sessions": 12,
+     "broke_at": 25,
+     "ret20_pct": 3.55
+    }
+   },
+   "q": 14
+  },
+  {
+   "setup": "Oops Reversal",
+   "sym": "HUBS",
+   "asof": "2020-09-21",
+   "year": 2020,
+   "close": 284.68,
+   "facts": {
+    "scanner": true,
+    "williams": false,
+    "super": true,
+    "open_vs_prior_low_pct": 0.53,
+    "day_pct": 3.95,
+    "close_pos": 0.96,
+    "rvol": 0.93,
+    "variant": "super",
+    "above_200": true,
+    "sma50_rising": true,
+    "sma200_rising": true,
+    "pullback_from_20d_high_pct": -14.7,
+    "pullback_from_60d_high_pct": -14.7,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "reclaims_e8": true,
+    "reclaims_e21": true,
+    "ext_vs_sma50_pct": 9.1,
+    "downtrend": false,
+    "setup_score": 14,
+    "fwd_min_low_vs_trigger_low_pct": 2.6,
+    "fwd_max_gain_pct": 16.2,
+    "fwd_5d_pct": 6.0,
+    "fwd_10d_pct": 1.7,
+    "fwd_20d_pct": 9.5,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 21.5,
+     "daily_sd_pct": 1.92
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 136.1,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "pullback_pct": 14.7,
+    "context": {
+     "off_high_pct": -11.3,
+     "vs50_pct": 8.7,
+     "vs200_pct": 45.4,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 20.8,
+     "era": "2020-26",
+     "sector": "Technology",
+     "industry": "Software - Application",
+     "liq_rank": 310,
+     "liq_universe": 2184
+    },
+    "culmination": {
+     "culm_pct": 41.63,
+     "culm_sessions": 57,
+     "broke_at": null,
+     "ret20_pct": 9.47
+    }
+   },
+   "q": 14
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "DINO",
+   "asof": "2016-11-30",
+   "year": 2016,
+   "close": 28.77,
+   "facts": {
+    "day_pct": 4.47,
+    "close_pos": 0.94,
+    "gap_pct": 1.6,
+    "rvol": 1.28,
+    "range_atr": 1.37,
+    "above_200": false,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.47,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 30.8,
+     "bars_ago": 5,
+     "peak_high": 29.69
+    },
+    "drive_pct": 30.8,
+    "pullback_sessions": 4,
+    "pullback_depth_pct": -8.9,
+    "worst_red_body_pct": -1.56,
+    "pullback_range_atr": 1.52,
+    "pullback_rvol_max": 0.92,
+    "trigger_vs_peak_pct": -3.1,
+    "s50_slope10_pct": 2.1,
+    "ma_order_8_21_50": true,
+    "setup_score": 20,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 5.9,
+    "fwd_max_gain_pct": 18.6,
+    "fwd_5d_pct": 14.8,
+    "fwd_10d_pct": 9.9,
+    "fwd_20d_pct": 15.3,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 18.9,
+     "daily_sd_pct": 2.44
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 101.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 1.6,
+    "context": {
+     "off_high_pct": -43.0,
+     "vs50_pct": 13.6,
+     "vs200_pct": 2.3,
+     "s200_rising": false,
+     "market": "uptrend",
+     "rs63_pct": 9.7,
+     "era": "2015-19",
+     "sector": "Energy",
+     "industry": "Oil & Gas Refining & Marketing",
+     "liq_rank": 303,
+     "liq_universe": 1874
+    },
+    "culmination": {
+     "culm_pct": 20.89,
+     "culm_sessions": 23,
+     "broke_at": null,
+     "ret20_pct": 15.26
+    }
+   },
+   "q": 20
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "EOG",
+   "asof": "2022-10-19",
+   "year": 2022,
+   "close": 130.07,
+   "facts": {
+    "day_pct": 4.9,
+    "close_pos": 0.87,
+    "gap_pct": 0.81,
+    "rvol": 1.42,
+    "range_atr": 1.29,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": true,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.9,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 23.9,
+     "bars_ago": 8,
+     "peak_high": 130.32
+    },
+    "drive_pct": 23.9,
+    "pullback_sessions": 7,
+    "pullback_depth_pct": -7.8,
+    "worst_red_body_pct": -3.49,
+    "pullback_range_atr": 1.76,
+    "pullback_rvol_max": 1.21,
+    "trigger_vs_peak_pct": -0.2,
+    "s50_slope10_pct": 3.1,
+    "ma_order_8_21_50": true,
+    "setup_score": 18,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 5.2,
+    "fwd_max_gain_pct": 16.0,
+    "fwd_5d_pct": 3.3,
+    "fwd_10d_pct": 4.2,
+    "fwd_20d_pct": 10.3,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 15.4,
+     "daily_sd_pct": 2.16
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 471.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 0.81,
+    "context": {
+     "off_high_pct": -12.1,
+     "vs50_pct": 8.6,
+     "vs200_pct": 11.6,
+     "s200_rising": true,
+     "market": "downtrend",
+     "rs63_pct": 35.9,
+     "era": "2020-26",
+     "sector": "Energy",
+     "industry": "Oil & Gas E&P",
+     "liq_rank": 106,
+     "liq_universe": 2542
+    },
+    "culmination": {
+     "culm_pct": 16.0,
+     "culm_sessions": 12,
+     "broke_at": 36,
+     "ret20_pct": 10.29
+    }
+   },
+   "q": 18
+  },
+  {
+   "setup": "Slingshot",
+   "sym": "FBIN",
+   "asof": "2021-03-26",
+   "year": 2021,
+   "close": 80.3333,
+   "facts": {
+    "day_pct": 3.59,
+    "close_pos": 0.96,
+    "gap_pct": 0.3,
+    "rvol": 1.08,
+    "range_atr": 1.33,
+    "above_200": true,
+    "variant": "v1_strength_day",
+    "tight_pullback": false,
+    "labels": [
+     "cross_only"
+    ],
+    "strength_day_bars_ago": 15,
+    "strength_day_gain_pct": 4.06,
+    "earnings_like_gap": null,
+    "rally": {
+     "rally_pct": 13.2,
+     "bars_ago": 6,
+     "peak_high": 79.76
+    },
+    "drive_pct": 13.2,
+    "pullback_sessions": 5,
+    "pullback_depth_pct": -6.6,
+    "worst_red_body_pct": -2.52,
+    "pullback_range_atr": 1.98,
+    "pullback_rvol_max": 1.58,
+    "trigger_vs_peak_pct": 0.7,
+    "s50_slope10_pct": 0.8,
+    "ma_order_8_21_50": true,
+    "setup_score": 18,
+    "pretty": true,
+    "fwd_min_low_vs_trigger_low_pct": 3.2,
+    "fwd_max_gain_pct": 13.2,
+    "fwd_5d_pct": 4.0,
+    "fwd_10d_pct": 7.5,
+    "fwd_20d_pct": 11.6,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 13.8,
+     "daily_sd_pct": 1.1
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 81.9,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "trigger_gap_pct": 0.3,
+    "context": {
+     "off_high_pct": -0.1,
+     "vs50_pct": 6.3,
+     "vs200_pct": 14.3,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": -0.6,
+     "era": "2020-26",
+     "sector": "Industrials",
+     "industry": "Building Products & Equipment",
+     "liq_rank": 596,
+     "liq_universe": 2290
+    },
+    "culmination": {
+     "culm_pct": 21.3,
+     "culm_sessions": 30,
+     "broke_at": null,
+     "ret20_pct": 11.59
+    }
+   },
+   "q": 18
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "GOOG",
+   "asof": "2025-06-27",
+   "year": 2025,
+   "close": 178.27,
+   "facts": {
+    "correction_pct": -29.8,
+    "ma_spread_pct": 3.0,
+    "s200_dist_pct": 0.4,
+    "above_200": true,
+    "base30_range_pct": 8.4,
+    "base15_range_pct": 8.0,
+    "day_pct": 2.2,
+    "close_pos": 0.91,
+    "breakout20": false,
+    "rvol": 2.81,
+    "range_atr": 1.36,
+    "gap_pct": 0.11,
+    "ma_spread_10d_max_pct": 6.8,
+    "sessions_under_or_on_bundle_30": 9,
+    "bundle_touches_15": 8,
+    "dangle_days_8": 3,
+    "above_bundle_40": 24,
+    "below_bundle_40": 4,
+    "base_len_sessions": 54,
+    "approach_20_pct": 4.1,
+    "s50_slope20_pct": 3.3,
+    "s200_slope40_pct": -0.0,
+    "s200_vs_bundle_pct": 2.5,
+    "stack_9_20_50": true,
+    "close_above_all": true,
+    "close_above_200": true,
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 0.7,
+    "fwd_max_gain_pct": 11.6,
+    "fwd_5d_pct": -0.4,
+    "fwd_10d_pct": 2.5,
+    "fwd_20d_pct": 8.5,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 14.4,
+     "daily_sd_pct": 0.99
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 4121.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "correction_abs_pct": 29.8,
+    "context": {
+     "off_high_pct": -14.6,
+     "vs50_pct": 6.6,
+     "vs200_pct": 2.6,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 0.2,
+     "era": "2020-26",
+     "sector": "Communication Services",
+     "industry": "Internet Content & Information",
+     "liq_rank": 14,
+     "liq_universe": 2787
+    },
+    "culmination": {
+     "culm_pct": 44.0,
+     "culm_sessions": 58,
+     "broke_at": null,
+     "ret20_pct": 8.5
+    }
+   },
+   "q": 17
+  },
+  {
+   "setup": "Launchpad",
+   "sym": "ETN",
+   "asof": "2012-01-10",
+   "year": 2012,
+   "close": 47.74,
+   "facts": {
+    "correction_pct": -23.8,
+    "ma_spread_pct": 1.43,
+    "s200_dist_pct": 1.2,
+    "above_200": false,
+    "base30_range_pct": 12.2,
+    "base15_range_pct": 8.6,
+    "day_pct": 4.83,
+    "close_pos": 0.97,
+    "breakout20": true,
+    "rvol": 1.21,
+    "range_atr": 1.52,
+    "gap_pct": 1.47,
+    "ma_spread_10d_max_pct": 1.43,
+    "sessions_under_or_on_bundle_30": 17,
+    "bundle_touches_15": 10,
+    "dangle_days_8": 5,
+    "above_bundle_40": 16,
+    "below_bundle_40": 9,
+    "base_len_sessions": 48,
+    "approach_20_pct": 1.3,
+    "s50_slope20_pct": 3.4,
+    "s200_slope40_pct": -4.0,
+    "s200_vs_bundle_pct": 3.2,
+    "stack_9_20_50": true,
+    "close_above_all": true,
+    "close_above_200": true,
+    "setup_score": 17,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "fwd_max_gain_pct": 8.2,
+    "fwd_5d_pct": 3.5,
+    "fwd_10d_pct": 3.8,
+    "fwd_20d_pct": 8.2,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 8.7,
+     "daily_sd_pct": 1.42
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "sessions": 140,
+     "yahoo_sessions": 140,
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0
+    },
+    "avg_dollar_volume_m": 185.1,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "correction_abs_pct": 23.8,
+    "context": {
+     "off_high_pct": -15.5,
+     "vs50_pct": 7.7,
+     "vs200_pct": 3.7,
+     "s200_rising": false,
+     "market": "mixed",
+     "rs63_pct": 10.7,
+     "era": "2010-14",
+     "sector": "Industrials",
+     "industry": "Specialty Industrial Machinery",
+     "liq_rank": 121,
+     "liq_universe": 1541
+    },
+    "culmination": {
+     "culm_pct": 11.14,
+     "culm_sessions": 34,
+     "broke_at": null,
+     "ret20_pct": 8.19
+    }
+   },
+   "q": 17
   }
  ],
  "kicker_pass2": {
@@ -147739,6 +147736,108 @@
     "setup": "Launchpad",
     "sym": "HRI",
     "asof": "2010-04-06"
+   }
+  ]
+ },
+ "pod_gaps_2026_11_06": {
+  "why": "the web pod's own bars.db has no or a stub chart for these (pod_bars_coverage.py, run 2026-11-06): removed and replaced by draft_pass --pod-span; their drafts are retired on the pod",
+  "removed": [
+   {
+    "setup": "Oops Reversal",
+    "sym": "BNY",
+    "asof": "2000-05-05"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "XYZ",
+    "asof": "2017-05-22"
+   },
+   {
+    "setup": "Oops Reversal",
+    "sym": "XYZ",
+    "asof": "2020-09-21"
+   },
+   {
+    "setup": "Oops Reversal",
+    "sym": "BNY",
+    "asof": "1996-11-14"
+   },
+   {
+    "setup": "Oops Reversal",
+    "sym": "VIPS",
+    "asof": "2014-04-15"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "VIPS",
+    "asof": "2020-10-27"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "XYZ",
+    "asof": "2019-01-17"
+   },
+   {
+    "setup": "Launchpad",
+    "sym": "XYZ",
+    "asof": "2020-01-08"
+   },
+   {
+    "setup": "Launchpad",
+    "sym": "WCC",
+    "asof": "2016-11-14"
+   }
+  ]
+ },
+ "deep_pass2_pod_fill": {
+  "generated": "2026-11-06",
+  "script": "scripts/study/bank_v2/draft_pass.py",
+  "why": "Replacements for the 9 deep_pass2 charts the web pod has no or a stub chart for (pod_gaps_2026_11_06), same rules plus pod_coverage.py.",
+  "added": [
+   {
+    "setup": "Oops Reversal",
+    "sym": "KKR",
+    "asof": "2020-06-15"
+   },
+   {
+    "setup": "Oops Reversal",
+    "sym": "CELH",
+    "asof": "2025-05-06"
+   },
+   {
+    "setup": "Oops Reversal",
+    "sym": "PSX",
+    "asof": "2026-10-01"
+   },
+   {
+    "setup": "Oops Reversal",
+    "sym": "HUBS",
+    "asof": "2020-09-21"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "DINO",
+    "asof": "2016-11-30"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "EOG",
+    "asof": "2022-10-19"
+   },
+   {
+    "setup": "Slingshot",
+    "sym": "FBIN",
+    "asof": "2021-03-26"
+   },
+   {
+    "setup": "Launchpad",
+    "sym": "GOOG",
+    "asof": "2025-06-27"
+   },
+   {
+    "setup": "Launchpad",
+    "sym": "ETN",
+    "asof": "2012-01-10"
    }
   ]
  }
