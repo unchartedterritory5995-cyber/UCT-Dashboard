@@ -56,10 +56,14 @@ export function writeNoteDetailsOpen(open) {
 
 const TONE = { tag: 'itemTag', ticker: 'itemTicker', status: 'itemStatus', meta: 'itemMeta' }
 
-export default function NoteDetailsLine({ items = [], open, onToggle, controls, buttonRef = null }) {
+// Audit 2026-11-05, spec S10 (M4): `lead` is what sits first on the line, before the summary: the note's folder (a
+// small select, moved here from the header) and its linked trades. "Semis · #swing · Add details".
+// Finish batch (iPhone): `trail` is what sits last on the line -- on a phone, the editor's save indicator ("Saved").
+export default function NoteDetailsLine({ items = [], open, onToggle, controls, buttonRef = null, lead = null, trail = null }) {
   const has = items.length > 0
   return (
     <div className={styles.line} data-export-exclude data-note-details-line="">
+      {lead}
       {has && (
         // Read as one phrase. The separators are decoration, so a screen reader hears
         // "thesis, NVDA, Technology" rather than "thesis dot NVDA dot".
@@ -88,6 +92,7 @@ export default function NoteDetailsLine({ items = [], open, onToggle, controls, 
         </svg>
         {has ? 'Details' : 'Add details'}
       </button>
+      {trail}
     </div>
   )
 }

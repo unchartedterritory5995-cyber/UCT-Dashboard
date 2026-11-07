@@ -411,11 +411,38 @@ def _safe_companions(sym: str) -> None:
             _logger.debug("[earn-warm] %s gen failed %s: %s", label, sym, e)
 
 
+_COST_CAP_ENV = "EARNINGS_WARM_COST_CAP_DAILY"
+_COST_SURFACE = "earnings_warm"
+
+
+def _cost_cap_reached() -> bool:
+    """The warm's dollar gate, OFF until `EARNINGS_WARM_COST_CAP_DAILY` is set. There is deliberately no
+    default: the amount is the owner's decision, so setting one is config only. Unset, zero or
+    unreadable means no gate, exactly as before. Fails open on a ledger read, like a warm that never
+    had a cap."""
+    raw = os.environ.get(_COST_CAP_ENV, "").strip()
+    try:
+        cap = float(raw) if raw else 0.0
+    except ValueError:
+        _logger.warning("[earn-warm] %s is not a number; no dollar gate is set", _COST_CAP_ENV)
+        return False
+    if cap <= 0:
+        return False
+    try:
+        from api.services import narrative_cost_guard
+        return narrative_cost_guard.spend_today_usd(_COST_SURFACE) >= cap
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("[earn-warm] ledger read failed: %s", e)
+        return False
+
+
 def _run(kind: str, generator, reported: bool) -> dict:
     if os.environ.get("EARNINGS_WARM_ENABLED", "1").lower() not in ("1", "true", "yes"):
         return {"skipped": "disabled"}
     if not os.environ.get("ANTHROPIC_API_KEY"):
         return {"skipped": "no-anthropic-key"}
+    if _cost_cap_reached():
+        return {"skipped": "cost-cap"}
     lock = _locks[kind]
     if not lock.acquire(blocking=False):
         return {"skipped": "already-running"}
@@ -513,6 +540,8 @@ def _run(kind: str, generator, reported: bool) -> dict:
 
 def _safe_gen(generator, sym: str, row: dict) -> None:
     try:
+        if _cost_cap_reached():             # a queued job re-asks: a pass can queue hundreds of names
+            return
         generator(sym, row, force_fresh_check=True)
     except Exception as e:
         _logger.warning("[earn-warm] gen failed %s: %s", sym, e)

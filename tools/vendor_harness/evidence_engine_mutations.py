@@ -15,6 +15,7 @@ import sys
 W = pathlib.Path(__file__).resolve().parents[2]
 EE = W / "tools" / "vendor_harness" / "evidence_engine.py"
 BC = W / "tools" / "vendor_harness" / "batch_capture.py"
+DOC = W / "docs" / "pine" / "EVIDENCE-ENGINE-DESIGN.md"
 RAILS = "tests/test_evidence_engine.py"
 
 LICENCE = "test_the_licence_gate_admits_probes_corpus_and_permitted_headers_only"
@@ -29,6 +30,12 @@ BAD_ID = "test_a_capture_id_off_the_house_form_or_off_its_capture_stem_is_refuse
 MISNAMED = "test_an_existing_fixture_is_never_overwritten_and_a_misnamed_file_is_refused"
 NO_VERDICT = "test_a_capture_with_no_verdict_is_refused_and_promote_files_nothing_for_it"
 PROSE = "test_prose_and_owed_and_no_probe_rows_are_needs_probe_never_a_target"
+MANIFEST_STEM = "test_a_capture_is_held_to_the_stem_its_run_manifest_asked_for_not_to_todays_world"
+MANIFEST_STEM_ONLY = "test_a_manifest_stem_is_still_the_stem_an_id_must_open_with_and_only_for_its_own_source"
+SECTION = "test_a_sections_chart_beats_the_preambles_and_the_listing_flag_follows_the_chart_that_was_used"
+PROSE_CELL = "test_a_probe_named_in_a_prose_cell_is_a_reference_never_a_request"
+HEADING = "test_a_finished_capture_heading_is_recognised_numbered_or_in_any_case"
+LOCAL_EVIDENCE = "test_there_is_no_local_evidence_mode_and_the_design_doc_says_so"
 
 MUTATIONS = [
     # ── the first eight (2026-11-02, tip ec0882c16a) ──
@@ -81,7 +88,7 @@ MUTATIONS = [
     ("a fixture reference is read as a source", EE,
      "            fx.append(hit)       # a REFERENCE to a capture of `hit`, never a source",
      '            fx.append(hit); sources.append(("probe", world.probes[hit]))',
-     "test_a_fixture_reference_is_never_a_source_and_the_section_decides"),
+     PROSE_CELL),
     ("an ambiguous section falls back to the preamble", EE,
      "        inherit_from = lead_sources if lead_sources else pre_sources",
      "        inherit_from = lead_sources if len(lead_sources) == 1 else pre_sources",
@@ -101,8 +108,9 @@ MUTATIONS = [
     # ── finding 1: one capture stem for the manifest, the stale lookup and the gate ──
     ("the manifest hands the driver the raw stem", EE, '            "captureStem": capture_stem(world, p),',
      '            "captureStem": t["stem"],', E2E),
-    ("the gate holds an id to the raw stem", EE, "        want = capture_stem(world, src[1])",
-     "        want = pathlib.Path(src[1]).stem", E2E),
+    ("the gate holds an id to the raw stem", EE,
+     "        want = asked if asked is not None else capture_stem(world, src[1])",
+     "        want = asked if asked is not None else pathlib.Path(src[1]).stem", BAD_ID),
     ("the stale lookup reads the raw stem", EE,
      "    lead = f\"{capture_stem(world, path)}-{slugify(symbol.split(':')[-1])}-\"",
      "    lead = f\"{pathlib.Path(path).stem}-{slugify(symbol.split(':')[-1])}-\"",
@@ -150,6 +158,48 @@ MUTATIONS = [
      "            variant = False", "test_a_version_variant_takes_its_sibling_file_or_needs_a_probe"),
     ("STALE is never derived", EE, '    if stale:\n        return "STALE"', '    if False:\n        return "STALE"',
      "test_status_is_derived_from_fixtures_captured_and_stale"),
+    # ── the five lows (2026-11-03): manifest stem, section chart, prose cells, headings, the doc's promises ──
+    ("the gate ignores the run manifest's captureStem", EE, '    asked = (manifest_entry or {}).get("captureStem")\n',
+     "    asked = None\n", MANIFEST_STEM),
+    ("the packet does not hand the gate the manifest entry", EE,
+     "        g = gate_capture(world, f, verifier, fixtures_dir, manifest_entry=man)\n",
+     "        g = gate_capture(world, f, verifier, fixtures_dir)\n", MANIFEST_STEM),
+    ("a manifest stem is taken for another source's capture", EE,
+     'and (manifest_entry or {}).get("sha256") == sha):', "and True):", MANIFEST_STEM_ONLY),
+    ("a section's chart is ignored for the preamble's", EE,
+     '            elif lead_charts:\n                charts, chart_source = lead_charts, "section"\n',
+     '            elif False:\n                charts, chart_source = lead_charts, "section"\n', SECTION),
+    ("a section's listing wording flags a row on its own chart", EE,
+     '(chart_source == "section" and LISTING_RX.search(lead))', "LISTING_RX.search(lead)", SECTION),
+    ("a section's listing wording is ignored", EE,
+     '(chart_source == "section" and LISTING_RX.search(lead))', "False", SECTION),
+    ("the preamble's listing wording flags a row on a section's chart", EE,
+     '(chart_source == "preamble" and LISTING_RX.search(preamble))', "LISTING_RX.search(preamble)", SECTION),
+    ("a prose cell can ask for a probe", EE,
+     '            sources, owed, fx = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if not pr))\n',
+     "            sources, owed, fx = resolve_sources(world, rtext)\n", PROSE_CELL),
+    ("no column is read as prose", EE, "bool(PROSE_HEAD_RX.match(header[ci]))", "False", PROSE_CELL),
+    ("a bare probe stem in a prose cell is not filed as a reference", EE,
+     "        if tok in world.probes and refs_only:\n", "        if False:\n", PROSE_CELL),
+    ("a .pine name in a prose cell is not filed as a reference", EE,
+     '            if kind == "probe" and p.stem not in fx:\n                fx.append(p.stem)\n            continue\n',
+     "            continue\n", PROSE_CELL),
+    ("a finished-capture heading must be upper case", EE, r'\b(?!-)", re.I)', r'\b(?!-)")', HEADING),
+    ("a finished-capture heading may not be numbered", EE,
+     r'FINISHED_HEAD_RX = re.compile(r"^(?:(?:\d+(?:\.\d+)*|[A-Za-z]\d*)[.):]\s+|\d+(?:\.\d+)*\s+)?"',
+     'FINISHED_HEAD_RX = re.compile(r"^"', HEADING),
+    ("`Built-in ...` reads as a finished-capture heading", EE, r'taken)\b(?!-)", re.I)', r'taken)\b", re.I)', HEADING),
+    ("emphasis marks hide a finished-capture heading", EE, 're.sub(r"[*`]+", "", h)', "h", HEADING),
+    ("the manifest command takes --local-evidence again", EE,
+     '        p.add_argument("--include-stale", action="store_true")\n',
+     '        p.add_argument("--include-stale", action="store_true")\n'
+     '        p.add_argument("--local-evidence", action="store_true")\n', LOCAL_EVIDENCE),
+    ("the design doc promises a local-evidence mode again", DOC, "It has no local-evidence mode.",
+     "It has a local-evidence mode.", LOCAL_EVIDENCE),
+    ("the design doc offers --local-evidence on manifest again", DOC,
+     "[--include-stale] [--only ID]`", "[--include-stale] [--only ID] [--local-evidence]`", LOCAL_EVIDENCE),
+    ("the design doc says LICENCE_HOLD is a state again", DOC, "a guard, not a state anything reaches today",
+     "capturable in local-evidence mode only", LOCAL_EVIDENCE),
     ("RDDT's listing day carries over to another symbol", BC,
      '            o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())',
      "            pass", DRIVER),

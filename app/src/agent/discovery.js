@@ -68,9 +68,9 @@ export const TOPICS = [
   {
     id: 'widgets', title: 'Adding widgets and charts',
     words: [/\bwidgets?\b/, /\badd (a |another |some |\d+ )?(new )?charts?\b/, /\bremove (a |the |this )?(widget|chart)s?\b/, /\bclose (a |the |this )?(widget|chart)s?\b/],
-    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan', 'widget.setOption'], productHas: true,
+    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan', 'widget.setOption', 'widget.readOptions', 'widget.sendToJournal'], productHas: true,
     canDo: 'add widgets into empty space, set up several charts for the tickers you name in one go (“four daily charts for SPY, QQQ, NVDA and TSLA” — the charts already there are reused and the board is re-tiled into equal cells to make room; nothing else is moved or removed, and one Undo puts the board back), add up to 12 charts at once with their symbols, timeframes and chart types (Undo closes what I added), duplicate a chart (its cell is split and the copy keeps its ticker, timeframe, look and indicators), make a Watchlist widget show one of your lists, and make a Scanner widget show one of UCT’s scans',
-    known: () => ['other widgets’ settings (news filters, scatter axes, breadth metrics…)'],
+    known: () => ['a widget’s look (colours, fonts), and controls that live only on the Watchlists page'],
     planned: null,
   },
   {

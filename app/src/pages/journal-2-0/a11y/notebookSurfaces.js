@@ -343,9 +343,32 @@ export const SURFACES = Object.freeze({
     // added, so 8A wrote the rail in its own directory (no 8B file edited).
     OTHER_LANES: { lane: '8B', railFile: 'a11y/sharing.a11y.test.jsx' },
   },
+  // S16 (audit 2026-11-05, M2): the 60-second first run -- the gate (closed: nothing) and the sheet it opens.
+  'components/notebook/FirstRunGate.jsx': { coveredBy: 'first-run-sheet' },
+  'components/notebook/FirstRunSheet.jsx': { recipe: 'first-run-sheet' },
+  // S17 (audit 2026-11-05, M7): an empty widget's ask (sentence, input, three suggestions).
+  'components/notebook/EmptyNamesAsk.jsx': { recipe: 'empty-names-ask' },
+  // S15 (audit 2026-11-05, M1): the Today home, and the setups board's first-plan ask it shares (moved out of the board).
+  'components/notebook/TodayHome.jsx': { recipe: 'today-home' },
+  'components/notebook/FirstPlanAsk.jsx': { coveredBy: 'setups-board' },
+  // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.
+  'components/notebook/NoteSharePanel.jsx': { coveredBy: 'share-popover' },
   // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
   // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
+  'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
+  // S14 (audit 2026-11-05): a feature's "?" to its own Quick Answer.
+  'components/notebook/HelpAnswerLink.jsx': { recipe: 'help-answer-link' },
+  // S13 (audit 2026-11-05): the one-time tips; the slot (empty status line) and the card it loads on demand.
+  'components/notebook/NotebookTipSlot.jsx': { recipe: 'notebook-tip-slot' },
+  'components/notebook/NotebookTip.jsx': { recipe: 'notebook-tip' },
+  // Tier 2 fix round 1 (Important 2): the quick thought's own "Set alert" offer.
+  'components/notebook/CaptureAlertOffer.jsx': { recipe: 'capture-alert-offer' },
+  // Fix round 1: the "+" sheet is its own chunk; the axe rail reads it OPEN.
+  'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
+  // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
+  'components/notebook/FolderSheet.jsx': { recipe: 'folder-sheet:open' },
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },

@@ -340,7 +340,12 @@ Terms used in the measure-pair lines:
     `nubia-auto-midas-anchored-vwap-xdecow`, `smart-money-concepts-by-welotrades`,
     `cm-forex-sessions-highlight-v1`, `ict-killzone`, `kz-boxes`, `rsi-trend-reversal`,
     `trading-session-indicator`, `session-hilo`, `volume-profile-v054beta`.
-  - Attach expected: `nubia-auto-midas-anchored-vwap-xdecow`, `cm-forex-sessions-highlight-v1`.
+  - Attach expected: **none from T3 alone** (corrected after the build, see
+    `docs/pine/evidence/2026-11-03-w4-t3/EVIDENCE.md`). `nubia-auto-midas-anchored-vwap-xdecow` is held by
+    `len`, a `simple int` through `getMidas`, which is T2's wall. `cm-forex-sessions-highlight-v1` stops at
+    the no-day-list refusal (Pine before v5; capture W4-T3a), with overnight windows behind it (W4-T3b).
+    The step-0 walls of `initial-balance`, `ict-killzone`, `kz-boxes`, `session-hilo` and
+    `trading-session-indicator` move to those same two named refusals.
 - **Captures:** W4-T1 (day mask), W4-T2 (session through a UDF on 5-minute bars). Section 5.
 - **Engine bump:** yes.
 - **Depends:** none. T2 helps `nubia` (a `simple int` through `getMidas`).
@@ -382,6 +387,10 @@ This is the R4 correctness item on its witnessed half.
     `banknifty-mcclellan-oscillator`, `kernel-channel-backquant`, both
     `strategyrszigzag-pa-strategy-v4*`, `trendlines-2x`, `trendlines-jd`.
   - Attach expected: `mcginley-dynamic`, `trendlines-2x`.
+  - Measured at T4's merge: only `mcginley-dynamic` attaches; `luxy-momentum`'s first wall moves
+    (the `na(x) ? na : ta.ema(…)` arm is now served; next wall later in the script); `cm-gann` (v1)
+    moves na-test → conditional-history (fail-closed). The other listed rows did not move: they are
+    v1-v4 or hit another wall first, and stay refused by name (see the T4 evidence note).
   - Harness: the McGinley built-in capture, if any, must be MATCH or unchanged.
 - **Engine bump:** yes.
 - **Depends:** none. RSI's attach needs T2 as well (batch 2).

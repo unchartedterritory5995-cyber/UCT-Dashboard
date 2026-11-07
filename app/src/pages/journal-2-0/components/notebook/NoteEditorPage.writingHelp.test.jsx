@@ -226,6 +226,18 @@ describe('writing help — the preview, then Accept or Discard', () => {
     expect(JSON.stringify(editor.getJSON())).toBe(before)
   })
 
+  // VIS-5 (audit 2026-11-05, issue 25): closing Writing help sent focus to "Share". The header button keeps
+  // the editor's selection on a press (mousedown is prevented), so the Sheet restored to the wrong opener.
+  it('Discard hands focus back to the Writing help button that opened it', async () => {
+    await mount()
+    const trigger = screen.getByRole('button', { name: 'Writing help' })
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', { name: 'Writing help' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
+  })
+
   it('the daily limit is SAID in the panel, in the server\'s words — never a silent no-op', async () => {
     writingHelpResponse = () => ({
       ok: false, status: 429,

@@ -61,6 +61,9 @@ export const LIMIT_NAMES = Object.freeze([
   // `sma(x, 200)` on 5,000 bars touches a million of them. Counted here so a
   // program whose windows are quietly enormous stops BY NAME rather than by
   // taking a very long time.
+  // ⭐ W4-T8 — a window whose v6 `series int` length changes every bar is charged the span it READ on
+  // that bar (its ring is sized to the history ceiling, but only the bars it reads are cells). The
+  // budget is unchanged.
   'WINDOW_CELLS',
   // ⭐ 2F-2C. A carried builtin's cost is the OPPOSITE SHAPE to a window's: a
   // window reads `span` cells per bar and holds none between bars; a recurrence

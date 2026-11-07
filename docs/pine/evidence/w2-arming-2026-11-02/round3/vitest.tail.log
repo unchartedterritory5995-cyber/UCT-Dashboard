@@ -1,0 +1,41 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/pine-dsk-w2-mrg/app
+
+ ✓ src/components/chart/engine/ast/listingSeed.test.js (25 tests) 1243ms
+     ✓ a pass whose trajectories × bars would pass the ceiling is NOT taken — the bounded window answers  836ms
+ ✓ src/components/chart/builder/memberPane/memberPaneDefinition.test.js (19 tests) 2138ms
+     ✓ builds, validates, installs, and takes an instance  432ms
+     ✓ ⛔⛔ `lookbackBarsHVE` CANNOT vary this pane, and the reason is named  543ms
+ ✓ src/components/chart/engine/__tests__/runtimeSwitchOn.test.js (15 tests) 1057ms
+     ✓ ⛔ an EMPTY list attaches nothing (and nothing latched is an empty list)  817ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimePaneSafety.test.jsx (19 tests) 574ms
+ ✓ src/components/chart/engine/__tests__/vendorHarness/vendorHarness.h4Loops.test.js (14 tests) 503ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalReviewFollowups.test.js (34 tests) 195ms
+ ✓ src/components/chart/engine/runtime/__tests__/carriedState.test.js (81 tests) 161ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalArmsParams.test.js (15 tests) 157ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalCallSite.test.js (23 tests) 199ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimeStopBeacon.test.js (7 tests) 109ms
+ ✓ src/components/chart/engine/__tests__/runtimeKillSwitch.test.js (3 tests) 106ms
+ ✓ src/components/chart/engine/runtime/__tests__/graphRuntimeDifferential.test.js (28 tests) 96ms
+ ✓ src/components/chart/engine/runtime/__tests__/c18WhileAndLastBar.test.js (25 tests) 85ms
+ ✓ src/components/chart/engine/runtime/__tests__/elseGuardShape.test.js (8 tests) 80ms
+ ✓ src/components/chart/engine/runtime/__tests__/elseIfChain.test.js (14 tests) 65ms
+ ✓ src/components/chart/engine/runtime/__tests__/arrays.test.js (22 tests) 64ms
+ ✓ src/components/chart/engine/runtime/__tests__/loops.test.js (18 tests) 63ms
+ ✓ src/components/chart/engine/runtime/__tests__/functionBodyBlockValue.test.js (9 tests) 55ms
+ ✓ src/components/chart/engine/runtime/__tests__/callForEffect.test.js (15 tests) 52ms
+ ✓ src/components/chart/engine/runtime/__tests__/blockValuedBinding.test.js (11 tests) 51ms
+ ✓ src/components/chart/engine/runtime/__tests__/declarationPersistence.test.js (8 tests) 48ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimeStringMemory.test.js (5 tests) 43ms
+ ✓ src/components/chart/engine/runtime/__tests__/w1BareConditionalHistory.test.js (6 tests) 41ms
+ ✓ src/components/chart/engine/runtime/__tests__/functionGlobalReads.test.js (11 tests) 23ms
+ ✓ src/lib/runtimePaneRevocation.test.js (10 tests) 11ms
+ ✓ src/components/chart/engine/__tests__/runtimeRunGate.test.js (6 tests) 6ms
+ ✓ src/components/chart/engine/__tests__/vendorHarness/runtimeAllowlistParity.test.js (4 tests) 6040ms
+     ✓ ⛔ control: a runtime-only script the allowlist does not name is declined BY THE GATE, by name  5855ms
+
+ Test Files  27 passed (27)
+      Tests  455 passed (455)
+   Start at  00:53:51
+   Duration  37.73s (transform 15.15s, setup 5.08s, import 32.01s, tests 13.27s, environment 13.45s)
+

@@ -67,8 +67,8 @@ on:
 env:
   AGENT_SHARDS: '4'
   # the UCT Agent browser suite (agent-ci.yml AGENT_VITEST_PATHS, the same list): src/agent, the builder's agentMutations,
-  # and (DUP-RECEIPT 11-05, owner) the 7 page tests that drive the Agent outside src/agent
-  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
+  # and (DUP-RECEIPT 11-05, owner) the 8 page tests that drive the Agent outside src/agent
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
 
 concurrency:
   group: master-deploy
@@ -107,7 +107,7 @@ jobs:
       # right direction to fail — a new heavy dependency in the publish path is worth
       # stopping for — but it is a cost, not a free lunch.
       - name: Install the gate's dependencies
-        run: python -m pip install --quiet pytest httpx numpy pillow
+        run: python -m pip install --quiet pytest httpx numpy pillow pyyaml
 
       # ⛔⛔ COMPENSATING CONTROL — the DETECTIVE half of the protection `production`
       # does not have. Branch protection (G6) is the preventive half and is still
@@ -284,6 +284,16 @@ jobs:
             echo "range-scan: verdict=FINDING rc=$RC"
           fi
           exit 0
+
+      # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
+      # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.
+      - name: CI cost rails
+        run: python -m pytest tests/test_ci_cost_rails.py -q -p no:cacheprovider
+
+      # RAILWAY COST (2026-11-06): the memory observer's per-file page-cache probe (mincore, /proc) only runs
+      # on Linux, so its tests skip on dev PCs; this is where they actually run. Stdlib only, ~1 s.
+      - name: Memory observer file-cache probe (Linux)
+        run: python -m pytest tests/test_mem_observe.py -k "file_cache or with_files" -q -p no:cacheprovider -rs
 
       # ⛔ Two top-level definitions of one name: Python keeps the last, and every
       # call site written against the first is silently running the other. Master
@@ -483,19 +493,114 @@ jobs:
           if (missing.length || failed > 0) process.exit(1);
           EOF2
 
+  # ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04) ──────────────────────────────────
+  # docs/pine/SERVER-RUNTIME-DESIGN.md section 8, steps 1-7, as its OWN job beside `gate`
+  # (own checkout, Python, Node and `npm ci`, as the agent-browser shards have), and named in
+  # `verdict.needs`. Every step is offline and cheap. Runbook: docs/runbooks/pine-runtime-service.md.
+  # ⛔ NEVER SKIPPED: no conditional, no optional-failure flag, no path filter. A step that cannot
+  # find its subject FAILS (node and pytest both exit non-zero on a missing file).
+  # tests/test_pine_runtime_deploy_gate.py rails all of this: the steps, their order, that the Node
+  # here is the image's Node, that the job is in verdict.needs, and that every
+  # tests/test_pine_runtime_*.py is named by a step.
+  # NOT here, on purpose: the Chromium half of host parity (HP-2/HP-3) and the C18 diff count run
+  # before merge under the coordinator's lock (too heavy for a gate); the post-deploy smoke needs
+  # the live service. The image is not built here: section 8 does not ask for it.
+  pine-runtime:
+    name: Pine runtime service rails (section 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the app's dependencies (for the Pine runtime bundle)
+        working-directory: app
+        run: npm ci
+
+      # The production dependency set, as `gate` builds it: the client and codec rails import the
+      # app's own modules, so they run on what production runs.
+      - name: Pine runtime - the production dependency set
+        run: |
+          python -m venv /tmp/prodvenv
+          /tmp/prodvenv/bin/python -m pip install --quiet --upgrade pip
+          /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
+          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx
+
+      # The Node on this runner must be the image's Node, READ from the image, not retyped: the
+      # setup-node pin above is a major number, so this step compares it with the FROM line of
+      # services/pine_runtime/Dockerfile (a separate rail pins that line to Dockerfile.web's).
+      - name: Pine runtime - this runner's Node is the image's Node
+        run: |
+          want=$(sed -n 's/^FROM node:\([0-9][0-9]*\)\..*/\1/p' services/pine_runtime/Dockerfile | head -n 1)
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          echo "image Node major: ${want:-none}; runner Node: $(node -v) (V8 $(node -p 'process.versions.v8'))"
+          test -n "$want" && test "$want" = "$have"
+
+      # 1. The server bundle builds, and imports under bare Node.
+      - name: Pine runtime - the server bundle builds and imports under bare Node
+        working-directory: app
+        run: |
+          node scripts/build-pine-runtime.mjs
+          node -e "import('./dist-server/pine-runtime.mjs').then(() => console.log('bundle imports'))"
+
+      # 2. Host parity, Node half: HP-1 (committed digests) + HP-4 (the perturbed bundle must go
+      # red) + HP-5. A digest change without an engine bump is red. ⚠️ This runner's V8 (Node 20 =
+      # V8 11.3) is NOT the V8 the digests were recorded on (13.6): on a different V8 the tool
+      # reports exactly the two NAMED trig cases in corpus.json `reportOnly` (V8 sin/cos 1 ulp)
+      # and gates the other 164. On the recording V8 all 166 are gated. Exit 2 (inconclusive) fails.
+      - name: Pine runtime - host parity, Node half (HP-1, HP-4 control, HP-5)
+        run: |
+          node tools/pine_runtime_host_parity.mjs --host node --check
+          node tools/pine_runtime_host_parity.mjs --host node --mutation-control
+
+      # 3. Engine identity agrees (HP-6) and the adapters agree (HP-7).
+      - name: Pine runtime - engine identity and adapters agree (HP-6, HP-7)
+        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider
+
+      # 4. Closure stays host-neutral (W5-T2's tools/pine_runtime_closure.mjs; exits 1 on any finding).
+      # ⚠️ The tool arrives with W5-T2: this step is red on any tree without it, so T2 MUST merge before
+      # (or with) this workflow. That is deliberate: a step that skipped a missing tool would be a rail that
+      # reads green while checking nothing.
+      - name: Pine runtime - the closure stays host-neutral
+        run: node tools/pine_runtime_closure.mjs --check
+
+      # 5. Service unit rails: protocol, auth, sandbox, pool, hostile corpus (and caches, canary,
+      # metrics when they land: the glob takes every *.test.mjs).
+      - name: Pine runtime - service unit rails
+        run: node --test services/pine_runtime/test/*.test.mjs
+
+      # 6. The client, the codec, the stamps, the stop telemetry and the composition matrix (W5-T17:
+      # merge order T17 before T19), and this gate's own rail.
+      - name: Pine runtime - client, codec and composition rails
+        run: |
+          /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_client.py tests/test_pine_runtime_codec.py tests/test_pine_runtime_composition.py tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_result_integrity.py tests/test_pine_runtime_service_smoke.py tests/test_pine_runtime_shared_stamp.py tests/test_pine_runtime_stop_telemetry.py tests/test_pine_runtime_switch_on.py -q -p no:cacheprovider
+
+      # 7. Dockerfile agreement: the image's Node pin and VITE_* set equal Dockerfile.web's.
+      - name: Pine runtime - the image agrees with Dockerfile.web
+        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q -p no:cacheprovider
+
   # One named verdict for the whole gate. Runs even when a dependency failed or was
   # cancelled, and passes ONLY if every job above succeeded.
   verdict:
     name: master deploy gate verdict
-    needs: [gate, agent-browser, agent-browser-union]
+    needs: [gate, agent-browser, agent-browser-union, pine-runtime]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every gate job succeeded
         run: |
-          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }}"
-          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ]; then
+          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ]; then
             echo "master deploy gate: ALL JOBS GREEN"; exit 0
           fi
           exit 1

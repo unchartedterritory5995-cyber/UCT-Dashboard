@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
+import { onChartFault } from './chartFaults'
 
 vi.mock('./widgets/ChartWidget', () => ({ default: () => <div data-testid="body-chart">CHART</div> }))
 vi.mock('./widgets/WatchlistWidget', () => ({ default: () => <div data-testid="body-watchlist">WATCHLIST</div> }))
@@ -80,6 +81,20 @@ test('renders a placeholder for unknown type instead of crashing', () => {
 vi.mock('./widgets/FundamentalsWidget', () => ({
   default: () => { throw new Error('boom: simulated widget crash') },
 }))
+
+test('a chart that throws is reported by the id the Agent addresses it by; another widget type is not', () => {
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const heard = []
+  const off = onChartFault(id => heard.push(id))
+  render(
+    <WorkspaceContext.Provider value={wsValue}>
+      <WidgetHost widget={{ id: 'a', type: 'fundamentals', color: 'A', opts: {} }} onRemove={() => {}} onColorChange={() => {}} />
+    </WorkspaceContext.Provider>,
+  )
+  expect(heard).toEqual([])
+  off()
+  spy.mockRestore()
+})
 
 test('a throwing widget is isolated; a sibling widget stays mounted and interactive', () => {
   // Suppress the expected console.error from ErrorBoundary.componentDidCatch and

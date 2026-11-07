@@ -7,10 +7,11 @@
 // is about actually rendered before axe runs, so an empty or wrong screen can
 // never pass as a clean one.
 import { describe, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers } from './fixtures'
 import { axeSurface } from './surface'
 import NotebookTab from '../tabs/NotebookTab'
+import { chooseView, currentView } from '../tabs/__tests__/toolbarDoors'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
@@ -27,8 +28,9 @@ async function listMode() {
   await settle()
 }
 
+// S11 (audit 2026-11-05): the seven view toggles are ONE labelled View menu now.
 async function switchTo(label) {
-  fireEvent.click(screen.getByRole('button', { name: label }))
+  chooseView(label.replace(/ view$/, ''))
   await settle()
 }
 
@@ -38,13 +40,13 @@ for (const flagsOn of [false, true]) {
 
     axeSurface(`tab-home${flagsOn ? '' : ':flags-off'}`, async () => {
       await renderTab('/journal/notebook')
-      await waitFor(() => expect(screen.queryByRole('button', { name: 'List view' })).toBeNull())
+      await waitFor(() => expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull())
       await settle()
     }, { level: 'page' })
 
     axeSurface(`tab-list${flagsOn ? '' : ':flags-off'}`, async () => {
       await listMode()
-      expect(screen.getByRole('button', { name: 'List view' }).getAttribute('aria-pressed')).toBe('true')
+      expect(currentView()).toBe('List')
     }, { level: 'page' })
 
     axeSurface(`tab-table${flagsOn ? '' : ':flags-off'}`, async () => {

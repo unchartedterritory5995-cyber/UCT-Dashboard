@@ -149,11 +149,18 @@ Detail, with line citations, is in section 3. In summary:
 **Where it runs.** Only in the member's own browser, in a module Web Worker
 (`runtimeAsync.js:415`).
 - If constructing a Worker throws, the run falls back to the main thread under the same budget.
-- **The server never executes Pine.** It lexes (repaint class, `runtime_repaint.py`) and
-  validates shape.
-- Scans and alerts refuse any lane but `ast` (`scan_definition.py:492`,
-  `alert_user_series.py:809-817`).
-- There is no Node sidecar for this lane, despite the C4 Phase 2 plan.
+- **The server executes Pine only inside the isolated `pine-runtime` service, which holds no
+  member data and no credentials** (rewritten by W5-T13, `SERVER-RUNTIME-DESIGN.md` header and
+  5.1). The web pod itself still never executes Pine: it lexes (repaint class,
+  `runtime_repaint.py`), validates shape, and sends a runtime document, its bars and its inputs
+  to the service through the one signed client (`pine_runtime_client.py`).
+- The alert lane admits a runtime document only when
+  `runtime_definitions.server_lane_refusal(row, lane="alert")` answers None (kill list, graded
+  allowlist, pane stage, `PINE_RUNTIME_SERVER_STAGE`, service configured), asked before any
+  network call, at arm and on every evaluation (`alert_user_series._gate_lane`,
+  `runtime_server_lane.runtime_column_fn`). `PINE_RUNTIME_SERVER_STAGE` unset is `off`: no
+  runtime alert arms or evaluates. Scans still refuse any lane but `ast` until W5-T14.
+- There is no Node sidecar in the web pod; the service is separate (design section 3).
 
 **No code generation.**
 - No `eval` and no `new Function` anywhere under `app/src/components/chart` outside tests.
@@ -537,7 +544,7 @@ host's answer, and its saved definition stays.
 
 | # | item | state | evidence or work |
 |---|---|---|---|
-| S1 | Member logic runs only in the member's own browser worker. No eval, no network, and the server never executes it. | **MET** | section 1.3; grep evidence |
+| S1 | Member logic runs only in the member's own browser worker, or in the isolated `pine-runtime` service, which holds no member data and no credentials. No eval, no network inside the run, and the web pod never executes it. (Rewritten by W5-T13, the first server lane that calls the service.) | **MET** (browser); service lane dark while `PINE_RUNTIME_SERVER_STAGE` is unset | section 1.3; grep evidence; `tests/test_alert_runtime_lane.py` |
 | S2 | Memory: strings counted in the `MEMORY` estimate; a measured worker-OOM path that names the stop and leaves the chart usable | **MET** (WS-H, 2026-10-31) | `CONCAT` peaks `MEMORY` with the result's size (2 B per UTF-16 unit) BEFORE concatenating. Measured before the fix: the doubling script never reached the worker's heap, it died on V8's own string ceiling (`RangeError: Invalid string length`, ropes keep it cheap until then), named only `runtime:failed`. After: `MEMORY_EXCEEDED` at 67,111,344 B, pane guard `runtime:limit`. Rail `runtimeStringMemory.test.js` (5 cases, 4 red on the pre-fix bytes). ⚠️ Charges the string being built: many separate strings held at once are counted one at a time (stated in `vm.js`). |
 | S3 | CPU: every stop named (`time-budget`, `limit`, `failed`, `worker-unresponsive`, `worker-failed`, `load-failed`); watchdog; 3 starts per tab; a run never moves to the main thread after a hang | **MET** (RF P2/P4) | `runtimePaneSafety.test.jsx` |
 | S4 | Every serving path stamps kill and allowlist state, **including `GET /shared/{token}`** | **MET** (WS-H, 2026-10-31) | `resolve_shared` serves the definition through `stamp_served`, keyed on the ORIGIN definition id. Rail `tests/test_pine_runtime_shared_stamp.py` (control unstamped; killed by hash; killed by origin id; ungraded and back). Pre-fix bytes: 3 red; origin-id keying removed: 1 red. |

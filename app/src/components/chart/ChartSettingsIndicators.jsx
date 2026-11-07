@@ -1875,6 +1875,7 @@ export default function ChartSettingsIndicators({
                     <button
                       type="button" className={styles.insArrBtn}
                       aria-label={`Move ${group.name} pane ${word}`}
+                      data-guide="indicators.movePane"
                       title={why || `Move pane ${word}`}
                       disabled={off}
                       {...(off ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
@@ -2526,6 +2527,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={`${styles.insAction} ${styles.insActionDanger}`}
             aria-label={`Remove ${meta.name}`}
+            data-guide="indicators.remove"
             onClick={() => removeRow(row)}
           >Remove</button>
         </div>
@@ -3211,7 +3213,7 @@ export default function ChartSettingsIndicators({
             if (!d || definitionKindOf(d) !== 'user') return null
             const stop = (fn) => (e) => { e.stopPropagation(); fn() }
             return (
-              <span className={styles.resActions} data-testid="your-indicator-actions">
+              <span className={styles.resActions} data-testid="your-indicator-actions" data-guide="indicators.yours">
                 {definitionDoors.canModify() && (
                   <button type="button" className={styles.resAction} data-testid="your-indicator-modify"
                     onClick={stop(() => definitionDoors.modify(d.id))}>Modify</button>
@@ -3286,6 +3288,7 @@ export default function ChartSettingsIndicators({
                 type="button"
                 className={styles.resAddMore}
                 aria-label={`Add another ${row.name}`}
+                data-guide="indicators.addAnother"
                 title={`Add a second ${row.shortName} with the default settings`}
                 onClick={(e) => addAnother(row, e)}
               >＋</button>
@@ -3315,7 +3318,7 @@ export default function ChartSettingsIndicators({
   const renderAddSurface = () => {
     const tabLabel = (libraryTabs.find((t) => t.key === activeTab) || { label: 'anything' }).label
     return (
-    <div className={styles.insAdd} data-testid="add-surface">
+    <div className={styles.insAdd} data-testid="add-surface" data-guide="indicators.addSurface">
       <div className={styles.insHead}>
         {/* ⚰️⚰️ IT WAS UNCONDITIONAL, AND IT USED TO MEAN SOMETHING: discovery was a
             place you went FROM the orientation screen, so there was always
@@ -3358,6 +3361,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.insNewFormula}
             data-testid="settings-create-indicator"
+            data-guide="indicators.create"
             onClick={() => onCreateIndicator()}
             title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
           >
@@ -3657,6 +3661,7 @@ export default function ChartSettingsIndicators({
                       type="button"
                       className={styles.insHeadAct}
                       data-testid="arrange-enter"
+                      data-guide="indicators.arrange"
                       onClick={enterArrange}
                     >Arrange</button>
                   )}
@@ -3721,6 +3726,7 @@ export default function ChartSettingsIndicators({
                 type="button"
                 className={styles.insAddIndicator}
                 data-testid="add-enter"
+                data-guide="indicators.add"
                 onClick={enterBrowse}
               >
                 <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>

@@ -198,7 +198,7 @@ import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
-import { shouldApplyRange, rangeFitsBars, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
+import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
 // The engine's "nothing to draw" answer. Module-scope and frozen so a chart with
 // no instances allocates nothing per paint and nobody can mutate the "no engine"
 // answer into a "some engine" one.
@@ -2630,6 +2630,7 @@ export default function StockChart({
   focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar (fallback when focusStartDate unset)
   // ── Per-setup annotations (Model Book) — additive, default-off ──
   callouts = null,              // array of {time, text} leader-line labels (Model Book catalysts) — placed in blank space with a diagonal line to the candle
+  calloutLook = null,           // Study (round 21): how the callouts are drawn (a pill, a ring, an arrowhead; ChartCalloutOverlay `look`); null = the Model Book's plain labels
   setupMoves = null,            // sorted array of {date, anchor} per setup (Model Book) — draws a "+X%" advance label at the start of each setup's lines vs the previous one
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
@@ -16163,7 +16164,8 @@ export default function StockChart({
       // The latch lasts one frame; an echo that lands later is still our own range.
       if (!shouldApplyRange(range, lastAppliedRangeRef.current)) return
       lastAppliedRangeRef.current = null
-      onTimeRangeChange({ from: range.from, to: range.to }, {
+      const held = filteredBarsRef.current
+      onTimeRangeChange({ from: range.from, to: range.to, barsTo: rangeBarsEnd(range.to, held?.length ? adjustTime(held[held.length - 1].t) : null) }, {
         memberMoved: userViewMovedRef.current && !framingViewRef.current
           && viewMostlyBars(ts.getVisibleLogicalRange(), filteredBarsRef.current?.length),
       })
@@ -16185,7 +16187,8 @@ export default function StockChart({
     let raf = null
     const off = subscribeTimeRange((range) => {
       const bars = filteredBarsRef.current
-      if (!bars?.length || !rangeFitsBars(range, adjustTime(bars[0].t), adjustTime(bars[bars.length - 1].t))) return
+      // Whether it fits is judged on the bars the sender shows (`barsTo`): the empty axis right of its newest bar is no history to hold.
+      if (!bars?.length || !rangeFitsBars({ from: range.from, to: range.barsTo ?? range.to }, adjustTime(bars[0].t), adjustTime(bars[bars.length - 1].t))) return
       applyingExternalRangeRef.current = true
       try {
         if (!shouldApplyRange(range, ts.getVisibleRange())) return
@@ -19003,6 +19006,7 @@ export default function StockChart({
           ]
           return (
             <ContextPopover
+              guide="chart.chipMenu"
               open
               onClose={close}
               anchor={chipMenu.anchor}
@@ -19084,6 +19088,7 @@ export default function StockChart({
               : it))
         return (
           <ContextPopover
+            guide="chart.chipMenu"
             open
             onClose={close}
             anchor={chipMenu.anchor}
@@ -19332,6 +19337,7 @@ export default function StockChart({
         </div>
       )}
       <div
+        data-guide="chart.plot"
         ref={containerRef}
         className={styles.chart}
         style={{
@@ -19634,6 +19640,7 @@ export default function StockChart({
              current scale. `aria-pressed` carries what `.scaleToggleActive` paints. */
           role="group"
           aria-label="Price scale"
+          data-guide="chart.scale"
         >
           <button
             type="button"
@@ -20131,9 +20138,9 @@ export default function StockChart({
                         folded={folded}
                         {...legendRowHandlers}
                       />
-                    ) : (
+                    ) : (cs.volume?.visible === false ? null : (   // a hidden volume pane prints no volume (round 18: Hard mode's candles-only chart showed one)
                       <span key="vol" className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-                    )
+                    ))
                   }
                   if (it.kind === 'ma') {
                     const ov = it.ov
@@ -20488,7 +20495,7 @@ export default function StockChart({
         </div>
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
-        <div ref={rangeBarRef} className={styles.rangeBar}>
+        <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}
@@ -21298,6 +21305,7 @@ export default function StockChart({
             seriesRef={candleSeriesRef}
             bars={bars}
             callouts={callouts}
+            look={calloutLook}
             bottomFrac={overlayBounds ? 0.96 : 0.82}
           />
         </div>

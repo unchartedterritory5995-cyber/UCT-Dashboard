@@ -73,8 +73,8 @@ function renderPicker() {
 
 async function openGallery() {
   const user = renderPicker()
-  await user.click(await screen.findByRole('button', { name: /Browse the community gallery/ }))
-  await screen.findByRole('heading', { name: 'Community gallery' })
+  await user.click(await screen.findByRole('button', { name: /Browse the Template library/ }))
+  await screen.findByRole('heading', { name: 'Template library · From members' })
   return user
 }
 
@@ -123,7 +123,7 @@ describe('lane 12A surfaces (community template gallery)', () => {
 
   axeSurface('gallery-publish-form', async () => {
     const user = renderPicker()
-    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the community gallery' }))
-    await screen.findByRole('form', { name: 'Share Swing plan to the community gallery' })
+    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the Template library' }))
+    await screen.findByRole('form', { name: 'Share Swing plan to the Template library' })
   })
 })

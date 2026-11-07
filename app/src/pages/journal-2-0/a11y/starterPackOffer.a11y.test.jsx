@@ -97,7 +97,7 @@ describe('starter pack offer (P5)', () => {
   axeSurface('starter-pack-offer-in-manager', async () => {
     installFetch(ROUTES())
     render(<Providers><StylesManager open onClose={() => {}} /></Providers>)
-    await screen.findByRole('heading', { name: 'Journal styles' })
+    await screen.findByRole('heading', { name: 'Manage templates' })
     await cardShown()
   })
 })
@@ -128,10 +128,10 @@ describe('one How do you trade? per page (P5-T10-R2)', () => {
         <StylesManager open onClose={() => {}} />
       </Providers>,
     )
-    await screen.findByRole('heading', { name: 'Journal styles' })
+    await screen.findByRole('heading', { name: 'Manage templates' })
     const card = await cardShown()
-    expect(screen.getByRole('dialog', { name: 'Journal styles' }).contains(card)).toBe(true)
-    expect(screen.getAllByRole('group', { name: 'Start from a kind of note' })).toHaveLength(1)
+    expect(screen.getByRole('dialog', { name: 'Manage templates' }).contains(card)).toBe(true)
+    expect(screen.getAllByRole('group', { name: 'Start from a template' })).toHaveLength(1)
     expect(screen.getAllByRole('region', { name: OFFER_TITLE })).toHaveLength(1)
     expect((await landmarkUnique(container)).violations).toEqual([])
   })

@@ -52,7 +52,7 @@ describe('the switch is ON and the note has no style', () => {
     expect(loaded.surfaces).toBe(0)
     expect(fetchJournalStyles).not.toHaveBeenCalled()
     act(() => { document.querySelector('.ProseMirror').editor.view.dom.dispatchEvent(new CustomEvent(STYLE_EVENT, { bubbles: true })) })
-    expect(await screen.findByRole('dialog', { name: 'Choose a journal style' }, { timeout: 10000 })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: 'Choose a template' }, { timeout: 10000 })).toBeTruthy()
     expect(loaded.surfaces).toBe(1)
   })
 })

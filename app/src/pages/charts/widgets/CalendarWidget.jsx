@@ -12,6 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { buildCalendarCapture, calendarCaptureSettings } from './captures/calendarCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
@@ -152,6 +153,7 @@ const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
     <div
       className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
       data-earn-sym={c.sym}
+      data-guide="calendar.row"
       onClick={() => onSelect(c.sym)}
       title={`Show ${c.sym} on the linked chart`}
     >
@@ -332,6 +334,11 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', buildDayCapture(), { label: `UCT Terminal ${selected}` }))
   }, [buildDayCapture, selected])
+  useWidgetDoor(() => ({
+    read: () => ({ day: selected, tbdOpen }),
+    write: (key, v) => { if (key === 'day') setSelected(v); else if (key === 'tbdOpen') setTbdOpen(v === true) },
+    capture: () => (journalDoor ? { kind: 'calendar', capture: buildDayCapture(), label: `UCT Terminal ${selected}` } : null),
+  }))
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
   // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──
@@ -416,7 +423,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       )}
 
       {/* Header: ◀ date ▶ + gear */}
-      <div className={styles.bar}>
+      <div className={styles.bar} data-guide="calendar.days">
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, -1))} aria-label="Previous day">‹</button>
         <span className={styles.dateWrap}>
           <span className={styles.dateMain}>{fmtMain(selected)}</span>
@@ -458,7 +465,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="UCT Terminal widget settings"
         ><UIcon name="gear" size={13} /></button>
         <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />
@@ -487,6 +494,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
                   <button
                     key={n}
                     type="button"
+                    data-guide="calendar.stars"
                     className={`${styles.starBtn}${n <= econStars ? ' ' + styles.starOn : ''}`}
                     onClick={() => setEconStars(n)}
                     title={n === 1 ? 'All events' : n === 2 ? 'Medium & high impact' : 'High impact only'}

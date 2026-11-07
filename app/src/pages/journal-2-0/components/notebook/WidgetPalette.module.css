@@ -8,7 +8,8 @@
   right: 18px;
   top: calc(100% + 10px);
   width: 268px;
-  max-height: calc(100vh - 160px);
+  /* VIS-4 (issue 22): never past the screen -- the panel's own top is measured on open (WidgetPalette.jsx) */
+  max-height: calc(100vh - var(--palette-top, 160px) - 16px);
   overflow-y: auto;
   z-index: 45;
   background: var(--bg-surface);
@@ -47,6 +48,9 @@
 .headBtn:hover { color: var(--accent); }
 .typeList { display: flex; flex-direction: column; gap: 6px; }
 .typeBtn {
+  /* VIS-4 (issue 22): every card the column's full width (they measured 159 to 246 px, ragged) */
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: flex-start;

@@ -20,6 +20,7 @@ import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 import * as drawingsStore from '../components/chart/drawingsStore'
 import { readFlagged, writeFlagged } from '../hooks/flaggedStore'
 import { mountedListViews } from '../pages/watchlist/watchlistViews'
+import { mountedWidgetDoor } from '../pages/charts/widgetDoors'
 // ⭐ W1-B B-03 (announced to Indicators): the indicator-alert product's OWN writers, called — never modified
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
@@ -307,6 +308,8 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
       }
     },
     applyBoard: (p) => widgetOps.applyBoard(p),
+    // a mounted widget's own state, writers and capture (pages/charts/widgetDoors.js); null when it is not showing
+    door: (id) => mountedWidgetDoor(id),
     add: (type, place, init) => widgetOps.add(type, place, init),
     // A widget's CONFIGURATION as the workspace holds it (layout + link-group
     // ticker) — readable whether or not the widget has mounted yet. This is what a
@@ -320,6 +323,8 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
     remove: (id) => widgetOps.remove(id),
     color: (id, color) => widgetOps.color?.(id, color),
     cancelPending: () => widgetOps.cancelPending?.(),
+    // the bound's banner: a refused add says it on the board too, as the Widgets menu does
+    raiseBound: (sentence) => widgetOps.raiseBound?.(sentence),
   }
 }
 

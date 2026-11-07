@@ -89,11 +89,19 @@ def _as_key(key: Any) -> dict:
 #: ⚰️ Only `answer` was unwrapped until 2026-10-21, so EVERY multiple-choice
 #: answer from the live app compared a dict's repr against the key and scored
 #: wrong (seen live: "Matching Low" chosen, "Not quite. The answer: Matching Low").
+#: ⚰️ And the unwrap ran only on a ONE-key dict until 2026-11-05: a challenge
+#: records what the member picked beside the choice (Spot the Kicker's
+#: `picked_bar` / `picked_kind`, Hard mode's `picked_setup`), so every such
+#: attempt compared the whole dict against the key and scored wrong on the pod
+#: (Spot the Kicker, live since 2026-11-04). The record keys are the brain-
+#: training material; the choice is the answer.
 _SINGLE_VALUE_KEYS = ("answer", "choice")
 
 
 def _as_answer_value(answer: Any) -> Any:
-    if isinstance(answer, dict) and len(answer) == 1:
+    """The value a choice answer carries: `{answer: v}` or `{choice: v}`,
+    whatever else rides beside it. Anything else is the answer as posted."""
+    if isinstance(answer, dict):
         for k in _SINGLE_VALUE_KEYS:
             if k in answer:
                 return answer[k]

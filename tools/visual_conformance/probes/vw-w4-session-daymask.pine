@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_SESSION_DAYMASK", overlay = false)
+
+// W4 T3, row W4-T1. THE DAY-MASK DIGIT MAP, ONE DIGIT AT A TIME.
+//
+// Pine's session grammar: `HHMM-HHMM:days`, each day digit 1 = Sunday ... 7 = Saturday. On disk
+// (`vw-time-session-spy-1d-2026-09-27`, S09/S10): `:1234567` is every day and `:23456` is Monday to
+// Friday on SPY 1D. That settles the SET 2-6; it cannot tell digit 1 from digit 7 or from "Monday"
+// (SPY has no weekend bars), and it never read a single-digit mask.
+//
+// The window is the whole day ("0000-2359") so that every bar of the selected day is a member:
+// membership is the bar's OPEN time in the half-open window, in the window's zone. The zone is named
+// ("America/New_York") so the same probe reads the same on BITSTAMP:BTCUSD, whose exchange zone is UTC.
+//
+// Grade: row Dd must be 0 (in session) exactly where `dayofweek` (row DOW, in the same zone) is d,
+// and 1 (na) everywhere else, for d = 1..7. On SPY 60 digits 1 and 7 read 1 (na) on every bar;
+// BITSTAMP:BTCUSD 60 is the chart that has Sunday and Saturday bars.
+//
+// ⛔ CAPTURE TWICE, inputs at defaults: AMEX:SPY 60 (>= 300 bars) and BITSTAMP:BTCUSD 60 (>= 400
+// bars, so several whole weeks).
+
+isNa(t) => na(t) ? 1 : 0
+z = "America/New_York"
+
+plot(bar_index, "D00_bar_index_CONTROL")
+plot(dayofweek(time, z), "DOW_dayofweek_in_zone")
+plot(isNa(time(timeframe.period, "0000-2359:1", z)), "D1_na_sunday")
+plot(isNa(time(timeframe.period, "0000-2359:2", z)), "D2_na_monday")
+plot(isNa(time(timeframe.period, "0000-2359:3", z)), "D3_na_tuesday")
+plot(isNa(time(timeframe.period, "0000-2359:4", z)), "D4_na_wednesday")
+plot(isNa(time(timeframe.period, "0000-2359:5", z)), "D5_na_thursday")
+plot(isNa(time(timeframe.period, "0000-2359:6", z)), "D6_na_friday")
+plot(isNa(time(timeframe.period, "0000-2359:7", z)), "D7_na_saturday")
+plot(isNa(time(timeframe.period, "0000-2359:23456", z)), "D8_na_monday_to_friday")
+plot(isNa(time(timeframe.period, "0000-2359:17", z)), "D9_na_weekend")
+plot(isNa(time(timeframe.period, "0000-2359:1234567", z)), "D10_na_every_day_CONTROL")
+plot(isNa(time(timeframe.period, "0930-1600:23456", z)), "D11_na_rth_monday_to_friday")

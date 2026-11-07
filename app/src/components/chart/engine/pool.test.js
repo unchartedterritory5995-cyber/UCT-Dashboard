@@ -551,6 +551,10 @@ const COMPLETE_KEYS = {
     'topLineColor', 'bottomLineColor',
     'topFillColor1', 'topFillColor2', 'bottomFillColor1', 'bottomFillColor2',
   ],
+  // W4-T13 - the two OHLC styles a document may now declare (`candles`, `ohlcBars`). A bare one
+  // carries the base set (their colours ride the data points); a bar adds its two geometry keys.
+  candlestick: [...BASE_KEYS],
+  bar: [...BASE_KEYS, 'openVisible', 'thinBars'],
 }
 
 describe('the COMPLETE series option set — one key set per pool key, every call', () => {

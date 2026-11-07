@@ -1,0 +1,12 @@
+# trimmed (colour codes removed) to the totals and vitest summary; tree 93efdb607f; full log /c/Users/pgosz/uct-worktrees/_resume-laptop/runs/w2/round2/j3b.log
+LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 112) · objects-only pane ARMED · runtime drew 0, declined 0
+TOTAL 336 captures — MATCH 93 · DIVERGE 103 · INCONCLUSIVE 140
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 107 captures) — MATCH 93 · DIVERGE 103 · INCONCLUSIVE 140
+CHANGED BY OBJECT COLOUR (0): none
+WITHOUT PAINTS (the verdict before B1; paints graded on 26 captures) — MATCH 94 · DIVERGE 100 · INCONCLUSIVE 142
+CHANGED BY PAINTS (3): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → DIVERGE; supertrend-strategy-spy-1d-2026-10-02 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE
+NOT COMPARABLE (0):
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  04:28:21
+   Duration  433.88s (transform 10.60s, setup 947ms, import 430.15s, tests 174ms, environment 2.26s)

@@ -53,6 +53,7 @@ vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blo
 
 import NotebookTab from './NotebookTab'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
+import { chooseView, currentView, offersSaveView, pressSaveView } from './__tests__/toolbarDoors'
 
 let store // the fake server's saved views
 beforeEach(() => {
@@ -79,8 +80,8 @@ const openNotebook = () => render(
   </SWRConfig>,
 )
 
-const labelOf = (mode) => VIEW_MODES.find((m) => m.id === mode).label
-const pressed = (mode) => screen.getByRole('button', { name: labelOf(mode) }).getAttribute('aria-pressed')
+// S11: the View trigger SAYS the mode on ("View: Timeline") -- readable while a saved view disables the menu.
+const pressed = (mode) => String(currentView() === VIEW_MODES.find((m) => m.id === mode).short)
 const STAND_IN = { timeline: 'timeline', calendar: 'calendar', board: 'board', graph: 'graph', table: 'table' }
 
 async function reopenSavedView(name) {
@@ -93,9 +94,9 @@ async function reopenSavedView(name) {
 describe('R5-2 — a saved view reopens in the mode it was saved in, through the real sidebar row', () => {
   it('save a TIMELINE view, reload, reopen it from the sidebar: the timeline is pressed and drawn', async () => {
     openNotebook()
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline view' }))
+    chooseView('Timeline')
     expect(pressed('timeline')).toBe('true')
-    fireEvent.click(screen.getByRole('button', { name: /save view/i }))
+    pressSaveView()
     const name = await screen.findByLabelText('Name')
     fireEvent.change(name, { target: { value: 'Walk timeline' } })
     fireEvent.keyDown(name, { key: 'Enter' })
@@ -128,7 +129,7 @@ describe('R5-2 — a saved view reopens in the mode it was saved in, through the
   it('the Tasks mode is never offered as a saveable view (saveable: false)', () => {
     expect(SAVEABLE_VIEW_MODES.has('tasks')).toBe(false)
     openNotebook()
-    fireEvent.click(screen.getByRole('button', { name: 'Tasks view' }))
-    expect(screen.queryByRole('button', { name: /save view/i })).toBeNull()
+    chooseView('Tasks')
+    expect(offersSaveView()).toBe(false)
   })
 })

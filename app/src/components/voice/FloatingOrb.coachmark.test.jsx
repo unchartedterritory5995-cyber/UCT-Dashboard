@@ -17,10 +17,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useContext, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { AuthProvider } from '../../context/AuthContext'
 import { renderWithProviders, screen, fireEvent, act } from '../../test-utils'
 import FloatingOrb from './FloatingOrb'
-import { VoiceContext } from '../../context/VoiceContext'
+import { VoiceContext, VoiceProvider } from '../../context/VoiceContext'
 import { registerFirstRunSlot, claimFirstRunStage } from '../firstRun/firstRunStage'
 
 vi.mock('../../hooks/useRealtimeSession', () => ({
@@ -230,24 +231,127 @@ describe('"Meet Compass" waits on a viewport-locked page', () => {
   })
 })
 
-describe('"Meet Compass" at the desktop width keeps clear of the feedback "?"', () => {
-  // After run on aa2417c2c (docs/notebook/proof/f5-after-aa2417c2c/geometry.json.gz,
-  // nb-note-first-run @1200): "Got it" [1104,23,63,44] and the fixed "?" [1162,10,24,24]
-  // shared a 5x11 px corner. Structural (jsdom lays nothing out): the card's desktop right
-  // margin must clear the "?" -- whose numbers are READ from FeedbackWidget.jsx, the one
-  // authority over where it sits, never retyped here.
+// VIS-4 follow-up (Tier 2): found on production after Tier 1a at 1440x900 -- the card arrived late IN FLOW at the
+// top of the Journal shell and pushed the whole page down. It is a toast now (the "New in your Notebook" offer's
+// pattern): fixed, in the --z-toast layer, at every width. ⚰️ This block used to rail a desktop margin-right that
+// kept the in-flow card clear of the corner "?"; a bottom-right toast cannot reach a top-right button.
+describe('"Meet Compass" is a toast: out of flow, so its arrival moves nothing', () => {
   const SRC = join(process.cwd(), 'src', 'components')
   const css = readFileSync(join(SRC, 'voice', 'FloatingOrb.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-  const fw = readFileSync(join(SRC, 'FeedbackWidget.jsx'), 'utf8')
+  // the body of `.coachmark { ... }` (exactly that selector, not .coachmarkText), within `at`
+  const rule = (at = css) => {
+    const m = /(?:^|\n)\s*\.coachmark\s*\{([^}]*)\}/.exec(at)
+    return m ? m[1] : null
+  }
 
-  it('reads the "?" button geometry from FeedbackWidget.jsx (non-vacuity)', () => {
-    expect(/position: 'fixed', top: \d+, right: \d+, width: \d+, height: \d+/.test(fw)).toBe(true)
+  it('the card is position: fixed in the --z-toast layer with no margin (never in flow)', () => {
+    const card = rule()
+    expect(card, 'a .coachmark rule').not.toBeNull()
+    expect(card).toMatch(/position\s*:\s*fixed/)
+    expect(card).toMatch(/z-index\s*:\s*var\(--z-toast\)/)
+    expect(card).toMatch(/bottom\s*:/)
+    expect(card).toMatch(/margin\s*:\s*0\s*;/)
   })
 
-  it('the desktop margin-right is wider than the "?" reaches in from the right edge', () => {
-    const [, right, width] = /position: 'fixed', top: \d+, right: (\d+), width: (\d+), height: \d+/.exec(fw).map(Number)
-    const desk = /@media \(min-width: 1025px\)\s*\{\s*\.coachmark\s*\{\s*margin-right:\s*(\d+)px;?\s*\}\s*\}/.exec(css)
-    expect(desk, 'a desktop .coachmark margin-right rule').not.toBeNull()
-    expect(Number(desk[1])).toBeGreaterThan(right + width)
+  it('no width puts it back in flow (no media rule overrides position or adds a margin)', () => {
+    const medias = [...css.matchAll(/@media[^{]*\{([\s\S]*?)\n\}/g)].map((m) => m[1])
+    expect(medias.length).toBeGreaterThan(0)                  // non-vacuity: the file has media blocks
+    expect(medias.some((b) => rule(b))).toBe(true)            // non-vacuity: the phone rule is among them
+    for (const body of medias) {
+      const r = rule(body)
+      if (!r) continue
+      expect(r).not.toMatch(/position\s*:\s*(static|relative|sticky)/)
+      expect(r).not.toMatch(/margin/)
+    }
+  })
+
+  it('it still lands in the first-run slot, which is out of the page flow only through the card itself', () => {
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    const c = card()?.closest('[data-orb-coachmark]')
+    expect(c, 'the card is on screen').toBeTruthy()
+    expect(slot.contains(c)).toBe(true)
+    expect(c.className).toMatch(/coachmark/)
+  })
+})
+
+// Tier 1b fix round 1 (review Important 5): on a PHONE's Notebook the orb cluster gives way to the Notebook's "+"
+// (S12), so the card -- "Tap the compass button" -- WAITS there, exactly as on a viewport-locked page: not shown, not
+// dismissed. The slot itself stays (the tour-offer toast lives in it too).
+describe('"Meet Compass" waits on the phone Notebook', () => {
+  const realMM = window.matchMedia
+  const phone = (on) => {
+    window.matchMedia = (q) => ({ matches: on && /max-width:\s*640px/.test(q) && !/min-width/.test(q), media: q,
+      addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
+  }
+  afterEach(() => { window.matchMedia = realMM })
+
+  it('phone + /journal/notebook: no card, the key is not written', () => {
+    phone(true)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    expect(card()).toBeNull()
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('control: a phone on another page shows it', () => {
+    phone(true)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/trades' })
+    expect(card()).not.toBeNull()
+  })
+
+  it('control: the Notebook on a wider screen shows it (the orb is there)', () => {
+    phone(false)
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    expect(card()).not.toBeNull()
+  })
+})
+
+// Review Minors 9 + 19, fix round 2 (re-review N6): the phone Notebook hides the cluster unless `data-in-session` is
+// on it, and the "+" steps up while <html> carries `data-orb-in-session`. Both are set for a live call, and for a call
+// that STARTED and then fell into error (its glyph says it failed) -- never for an error with no call behind it (a
+// denied microphone), so neither the orb nor the raised "+" lingers. The <html> attribute is cleared on unmount.
+describe('the orb says when a call is live or failing (data-in-session, html[data-orb-in-session])', () => {
+  const html = () => document.documentElement.hasAttribute('data-orb-in-session')
+  function Driven({ status }) {
+    return <VoiceOverride voice={{ mode: 'c', status }}><FloatingOrb /></VoiceOverride>
+  }
+  it.each([['connected', true], ['idle', false]])('status %s -> %s', (status, on) => {
+    const { container } = renderWithProviders(<Driven status={status} />)
+    expect(cluster(container).hasAttribute('data-in-session')).toBe(on)
+    expect(html()).toBe(on)
+  })
+
+  it('an error with no call behind it (the connect never started) sets neither', () => {
+    const { container } = renderWithProviders(<Driven status="error" />)
+    expect(cluster(container).hasAttribute('data-in-session')).toBe(false)
+    expect(html()).toBe(false)
+  })
+
+  it('a call that started and then failed keeps both; back to idle clears them; unmount clears <html>', () => {
+    const view = renderWithProviders(<Driven status="connected" />)
+    view.rerender(<MemoryRouter><AuthProvider><VoiceProvider><Driven status="error" /></VoiceProvider></AuthProvider></MemoryRouter>)
+    expect(cluster(view.container).hasAttribute('data-in-session')).toBe(true)
+    expect(html()).toBe(true)
+    view.unmount()
+    expect(html()).toBe(false)
+  })
+})
+
+// Tier 2 fix round 1 (review minor 14): on a phone the toast sits above the Journal "+ Log" button. Both numbers are
+// READ from their stylesheets (the button's bottom plus the 44 px tap floor it is drawn at), never retyped here.
+describe('"Meet Compass" on a phone clears the Journal "+ Log" button', () => {
+  it('its bottom offset is above the +Log button\'s top', () => {
+    const SRC = join(process.cwd(), 'src')
+    const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '')
+    const orb = strip(readFileSync(join(SRC, 'components', 'voice', 'FloatingOrb.module.css'), 'utf8'))
+    const jl = strip(readFileSync(join(SRC, 'pages', 'journal-2-0', 'JournalLayout.module.css'), 'utf8'))
+    const card = /@media \(max-width: 640px\) \{\s*\.coachmark \{[^}]*bottom: calc\((\d+)px/.exec(orb)
+    const fab = /\.logFab \{[^}]*bottom: calc\((\d+)px/.exec(jl)
+    expect(card, 'the phone .coachmark bottom').not.toBeNull()
+    expect(fab, 'the phone .logFab bottom').not.toBeNull()
+    expect(Number(card[1])).toBeGreaterThan(Number(fab[1]) + 44)
   })
 })

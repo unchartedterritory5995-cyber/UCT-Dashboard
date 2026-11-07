@@ -662,8 +662,10 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
 # ── source readers (network/disk; thin; monkeypatchable) ──────────────────────
 
 # One deep read per ticker: the tail 400 feed every existing consumer
-# unchanged; only ath_fields sees the full depth. 5000 matches the bars
-# API ceiling.
+# unchanged; only ath_fields sees the full depth. This is the ALL-TIME-HIGH
+# lookback behind dist_ath_pct / new_ath, NOT the server history window
+# (`bars_window.HISTORY_WINDOW_BARS`, ruling R13): the two are equal today and
+# decided separately. (The bars API's ceiling is 60,000; 5000 was never it.)
 DEEP_BARS = 5000
 
 

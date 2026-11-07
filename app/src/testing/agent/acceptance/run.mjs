@@ -141,26 +141,54 @@ scn('task-C indicators on all four', [], { prefs: FOUR }, async (p, t) => {
 })
 
 scn('task-D watchlist and save layout', ['C3-030', 'C1-171', 'C3-076'], { query: 'charts=1&layouts=1' }, async (p, t) => {
-  // as ONE planned turn the runtime refuses the whole plan: that is recorded, and nothing may land
-  await act(p, t, {
+  // ONE planned turn, ONE card: the save runs last, on the board the rest left
+  const r = await act(p, t, {
     say: 'add AMD to my Momentum list and save this layout as Swing 2',
     plan: { disposition: 'propose', ops: [{ action: 'watchlist.add', target: '$watchlists[0]', args: { symbols: ['AMD'] } }, { action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 2' } }] },
-    noReceipt: true, says: /didn't change anything/i, busy: false,
+    approve: true, settleMs: 1200, receipt: /Swing 2/, busy: false,
   })
-  t.ok('the refused plan left the list alone', !(await p.H(`H.wl.find(w => w.name === 'Momentum').items.map(i => i.sym)`)).includes('AMD'))
-  t.ok('the refused plan saved nothing', (await p.H('H.layoutWrites.length')) === 0)
-  // the same work, as two requests
-  await act(p, t, { say: 'add AMD to my Momentum list', plan: { ops: [{ action: 'watchlist.add', target: '$watchlists[0]', args: { symbols: ['AMD'] } }] }, receipt: /AMD/ })
   const wl = await p.H(`H.wl.find(w => w.name === 'Momentum').items.map(i => i.sym)`)
   t.ok('AMD is on the list, once', wl.filter(s => s === 'AMD').length === 1, wl.join())
   const face = await p.b.evaluate(`document.querySelector('[data-widget-id="w-watch"]').innerText`)
   t.ok('the Watchlist widget shows the new count', face.split(/[^A-Za-z0-9]+/).join(' ').includes('Momentum 5'), face.slice(0, 200))
-  const r = await act(p, t, { say: 'save this layout as Swing 2', plan: { ops: [{ action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 2' } }] }, approve: true, settleMs: 1200, receipt: /Swing 2/ })
   const writes = await p.H('H.layoutWrites.map(w => [w.method, w.path, w.body && w.body.name])')
   t.ok('a layout write reached the library, with that name', writes.some(w => w[2] === 'Swing 2'), JSON.stringify(writes))
   const dock = await p.b.evaluate(`[...document.querySelectorAll('button, a, div, span')].filter(e => !e.closest('[data-testid="agent-panel"]') && e.textContent.trim() === 'Swing 2').length`)
   t.ok('the Layout Dock shows Swing 2', dock > 0, dock)
   t.ok('the charts did not change', r.after.filter(w => w.type === 'chart').every(c => same(c, r.was(c.id))))
+})
+scn('save last holds the change before it', ['C3-030'], { query: 'charts=1&layouts=1' }, async (p, t) => {
+  await act(p, t, {
+    say: 'make this chart weekly and save this layout as Swing 3',
+    plan: { disposition: 'propose', ops: [{ action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }, { action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 3' } }] },
+    receipt: /weekly/i, undoable: true, settleMs: 1200, busy: false,
+  })
+  t.ok('the chart is weekly at once', (await p.charts())[0].tf === '1W', (await p.charts())[0].tf)
+  t.ok('the save is a card, not yet run', /Swing 3/.test(await p.proposal() || '') && (await p.H('H.layoutWrites.length')) === 0, await p.proposal())
+  t.ok('Apply clicked', await p.button('Apply'))
+  await p.idle()
+  await sleep(800)
+  const w = (await p.H('H.layoutWrites')).find(x => x.body?.name === 'Swing 3')
+  t.ok('the saved layout holds the weekly chart', !!w && /"tf":"W"/.test(JSON.stringify(w.body)), JSON.stringify(w?.body || null).slice(0, 300))
+})
+scn('save last on a card with the rest', ['C3-030'], { query: 'charts=1&layouts=1' }, async (p, t) => {
+  await act(p, t, {
+    say: 'alert me if SPY goes above 300 and save this layout as Swing 5',
+    plan: { disposition: 'propose', ops: [{ action: 'alert.create', target: '$alertLibrary', args: { symbol: 'SPY', price: 300, direction: 'above' } }, { action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 5' } }] },
+    approve: true, settleMs: 1200, receipt: /Swing 5/, busy: false,
+  })
+  t.ok('the alert landed', (await p.b.evaluate('window.__ba.alerts.length')) === 1)
+  t.ok('the layout was saved once, on the one Apply', (await p.H('H.layoutWrites')).filter(w => w.body?.name === 'Swing 5').length === 1)
+  t.ok('no second card', !(await p.proposal()), await p.proposal())
+})
+scn('save first stays refused', [], { query: 'charts=1&layouts=1' }, async (p, t) => {
+  await act(p, t, {
+    say: 'save this layout as Swing 4 and then make this chart weekly',
+    plan: { disposition: 'propose', ops: [{ action: 'layout.saveAs', target: '$layouts', args: { name: 'Swing 4' } }, { action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }] },
+    noReceipt: true, says: /Save the layout on its own/, busy: false,
+  })
+  t.ok('nothing saved', (await p.H('H.layoutWrites.length')) === 0)
+  t.ok('nothing changed', (await p.charts())[0].tf === '1D')
 })
 
 scn('task-E rsi with follow-ups', ['C2-004', 'C2-024', 'C2-030', 'C2-032'], { prefs: TWO() }, async (p, t) => {
@@ -171,7 +199,7 @@ scn('task-E rsi with follow-ups', ['C2-004', 'C2-024', 'C2-030', 'C2-032'], { pr
   t.ok('RSI has its own pane', r1.chart(A).panes.length === r1.was(A).panes.length + 1, JSON.stringify(r1.chart(A).panes))
   const r2 = await act(p, t, { say: 'make it orange', plan: (b) => ({ ops: [{ action: 'indicatorStyle.set', target: '$indicatorEdits[0]', args: { instance: rsiId(b), property: 'color', value: '#f97316', output: null } }] }), touch: [A], receipt: /RSI|orange|colou?r/i, undoable: true })
   t.ok('the follow-up found the RSI (the model saw it in memory)', r2.chart(A).panes.length === r1.chart(A).panes.length)
-  await act(p, t, { say: 'make it thicker', plan: (b) => ({ ops: [{ action: 'indicatorStyle.set', target: '$indicatorEdits[0]', args: { instance: rsiId(b), property: 'lineWidth', value: 'thicker', output: null } }] }), touch: [], noReceipt: true, says: /Nothing was changed|didn't change/i, busy: false })
+  await act(p, t, { say: 'make it thicker', plan: (b) => ({ ops: [{ action: 'indicatorStyle.set', target: '$indicatorEdits[0]', args: { instance: rsiId(b), property: 'lineWidth', value: 'thicker', output: null } }] }), touch: [], noReceipt: true, says: /^.*I didn't change anything: Relative Strength Index has no line width setting\.\s*$/s, busy: false })
   const r4 = await act(p, t, { say: 'change the length to 21', plan: (b) => ({ ops: [{ action: 'indicator.update', target: '$indicatorEdits[0]', args: { instance: rsiId(b), inputs: [{ key: 'period', value: 21 }] } }] }), touch: [A], receipt: /21/, undoable: true })
   t.ok('the pane is still there', r4.chart(A).panes.length === r1.chart(A).panes.length)
   await p.shot(`${SHOTS}/task-E.png`)
@@ -209,6 +237,37 @@ scn('custom timeframe', ['C1-008'], { prefs: TWO() }, async (p, t) => {
   await p.select(A)
   const r = await act(p, t, { say: 'add a 2 hour timeframe', plan: { ops: [{ action: 'chart.addCustomTimeframe', target: CH0, args: { unit: 'hours', count: 2, switch: true } }] }, touch: [A], receipt: /2/ })
   t.ok('the chart is on it', /2H|120/i.test(r.chart(A).tf) || axisHas(r.chart(A), /^SPY, (2H|120)/i), JSON.stringify([r.chart(A).tf, r.chart(A).text[0]]))
+})
+// A chart that goes to its error boundary after a change that landed in its settings. The fixture is the bad payload #842 fixes:
+// once that merges this chart may survive, and the check below then holds the other way (no crash, the receipt stands).
+const crashed = async (p) => p.b.evaluate(`[...document.querySelectorAll('[role="alert"]')].filter(e => /hit an error/.test(e.textContent)).length`)
+const faultCheck = async (p, t) => {
+  await sleep(1500)
+  const down = await crashed(p)
+  const rc = await p.receipt()
+  t.ok(`recorded: ${down} chart(s) at the error boundary`, true)
+  t.ok('the receipt tells the truth about the chart', down ? rc?.status === 'failed' : rc?.status == null, JSON.stringify(rc))
+  if (down) t.ok('the panel says so in words', /hit an error after that change/.test(await p.transcript()), (await p.transcript()).slice(-200))
+}
+scn('chart crash after a change', [], { prefs: TWO(), dateShaped: true, allowErrors: true }, async (p, t) => {
+  await p.select(A)
+  await act(p, t, { say: 'add a 47 minute timeframe', plan: { ops: [{ action: 'chart.addCustomTimeframe', target: CH0, args: { unit: 'minutes', count: 47, switch: true } }] }, busy: false })
+  await faultCheck(p, t)
+  t.ok('the other chart stayed', (await p.read(B))[0].sym === 'AAPL')
+  if (await crashed(p)) {
+    t.ok('no Undo is offered for a chart that is gone', (await p.receipt())?.undoable !== 'true', JSON.stringify(await p.receipt()))
+    t.ok('the words say what will work', /Remove the chart and add it again/.test(await p.transcript()), (await p.transcript()).slice(-200))
+  }
+})
+scn('mc chart crash after a change', [], { query: 'multichart=1', dateShaped: true, allowErrors: true }, async (p, t) => {
+  await p.select('g1')
+  await act(p, t, { say: 'add a 47 minute timeframe', plan: (b) => ({ ops: [{ action: 'chart.addCustomTimeframe', target: refOf(b, 'AMD'), args: { unit: 'minutes', count: 47, switch: true } }] }), busy: false })
+  await faultCheck(p, t)
+  t.ok('the grid and the panel are still up', !!(await p.read('g0'))[0]?.sym && !!(await p.box('[aria-label="Message UCT Agent"]')))
+  if (await crashed(p)) {
+    await act(p, t, { say: 'undo', busy: false, settleMs: 1200 })
+    t.ok('a cell is still there, so Undo brings the chart back', (await crashed(p)) === 0 && (await p.read('g1'))[0].tf === '1D', JSON.stringify((await p.read('g1'))[0].tf))
+  }
 })
 scn('chart type line', ['C1-013'], { prefs: TWO() }, async (p, t) => {
   await p.select(A)
@@ -464,6 +523,8 @@ scn('price alert', ['C1-114', 'C3-098', 'C3-128', 'C3-127'], { prefs: TWO() }, a
   await act(p, t, { say: 'show my alerts', plan: { disposition: 'apply', ops: [{ action: 'alert.list', target: '$alertLibrary', args: {} }] }, busy: false })
   const txt = await p.b.evaluate(`[...document.querySelectorAll('[data-testid="agent-transcript"] > *')].at(-1).textContent`)
   t.ok('the list names the alert (the rows sit under Details)', /SPY/.test(txt), txt.slice(0, 200))
+  const face = await p.b.evaluate(`(() => { const e = [...document.querySelectorAll('[data-testid="agent-transcript"] > *')].at(-1); const d = e.querySelector('details'); if (d) d.remove(); return e.innerText })()`)
+  t.ok('both halves are stated with Details shut', /price alerts \(1\)/i.test(face) && /no indicator alerts/i.test(face), face.slice(0, 200))
 })
 
 const OSC = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true }, { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
@@ -591,6 +652,7 @@ scn('replay', ['C1-042', 'C1-045', 'C3-209', 'C3-210'], { prefs: TWO() }, async 
   await p.select(A)
   const snap = await p.read()
   const r = await act(p, t, { say: 'show me this chart as of may 1 2025', plan: { ops: [{ action: 'chart.replay', target: CH0, args: { date: '2025-05-01' } }] }, touch: [A, B], receipt: /replay|as of|may/i })
+  t.ok('the receipt says every chart, which is what moved: the two charts here are not linked', /every chart in this workspace/.test(r.receipt?.text || '') && r.chart(A).pixels !== r.was(A).pixels && r.chart(B).pixels !== r.was(B).pixels, r.receipt?.text)
   const f = await p.b.evaluate(`document.querySelector('[data-widget-id="${A}"]').innerText`)
   t.ok('the chart says it is in replay', /replay/i.test(f), f.slice(0, 200))
   t.ok('the last bars are gone from the picture', r.chart(A).text.join() !== r.was(A).text.join())
@@ -621,16 +683,17 @@ scn('full board banner', [], { prefs: board(Array.from({ length: 16 }, (_, i) =>
   t.ok('the board has 16 widgets', before.length === 16, before.length)
   const r = await act(p, t, { say: 'add a news widget', plan: { ops: [{ action: 'widget.add', target: '$workspace', args: { type: 'news', as: null } }] }, noReceipt: true })
   t.ok('nothing was added', r.after.length === 16, r.after.length)
-  t.ok('the Agent says why', /full|16|limit|close/i.test(await p.last()), await p.last())
+  t.ok('the Agent says the bound\'s own sentence', (await p.last()).includes('A board holds at most 16 widgets, and this one would hold 17. Close a widget before adding another.'), await p.last())
   const banner = await p.b.evaluate(`document.querySelector('[data-testid="board-bound-status"]')?.textContent || ''`)
-  t.ok('the workspace banner shows the refusal', /widget|board|full/i.test(banner), banner || 'no banner: only the human add path raises it')
+  t.ok('the workspace banner shows the same sentence', banner.includes('A board holds at most 16 widgets, and this one would hold 17.'), banner || 'no banner')
   await realClick(p, '[data-guide="workspace.widgets"]', 'Widgets ▾')
   const note = await p.b.evaluate(`document.querySelector('[data-testid="board-bound-note"]')?.textContent || ''`)
   t.ok('the Widgets menu carries the bound note', /16|full|widget/i.test(note), note)
 })
-scn('multi chart gate', [], { prefs: { multichart_state: JSON.stringify({ mode: 'grid', layout: '2x2', cells: [{ sym: 'SPY', tf: 'D' }, { sym: 'NVDA', tf: 'D' }, { sym: 'AAPL', tf: 'D' }, null], groups: {}, syncTimeRange: false }) } }, async (p, t) => {
-  await act(p, t, { say: 'make the top-left chart weekly', plan: { ops: [{ action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }] }, noReceipt: true, busy: false })
-  t.ok('recorded', true, await p.last())
+// (#835 lifted the gate this scenario was written for: a saved grid opens with an empty cell, and a change on it runs)
+scn('multi chart from a saved grid', [], { emptyCell: true, prefs: { multichart_state: JSON.stringify({ mode: 'grid', layout: '2x2', cells: [{ sym: 'SPY', tf: 'D' }, { sym: 'NVDA', tf: 'D' }, { sym: 'AAPL', tf: 'D' }, null], groups: {}, syncTimeRange: false }) } }, async (p, t) => {
+  const r = await act(p, t, { say: 'make the top-left chart weekly', plan: { ops: [{ action: 'chart.setTimeframe', target: CH0, args: { timeframe: 'W' } }] }, receipt: /weekly/i, undoable: true })
+  t.ok('the top-left cell is weekly, the others are not', r.after.filter(c => c.type === 'chart' && c.sym).map(c => c.tf).join() === '1W,1D,1D', JSON.stringify(r.after.map(brief)))
 })
 
 // ── Multi Chart (needs #835 and #839: run only on a build holding them, filter "^mc ") ─────────────────────
@@ -724,15 +787,15 @@ scn('mc sync a member wheel', [], { query: 'multichart=sync' }, async (p, t) => 
   t.ok('a real wheel zoomed the cell under it', b.find(x => x.id === 'g0').pixels !== a.find(x => x.id === 'g0').pixels)
   for (const id of others('g0')) t.ok(id + ' followed the wheel', b.find(x => x.id === id).pixels !== a.find(x => x.id === id).pixels, months(b.find(x => x.id === id)) + ' vs ' + months(b.find(x => x.id === 'g0')))
 })
-const jump = (name, say, date, months) => scn(name, [], { query: 'multichart=sync' }, async (p, t) => {
+const jump = (name, say, date, months, { follows = true } = {}) => scn(name, [], { query: 'multichart=sync' }, async (p, t) => {
   await p.select('g0')
-  const r = await act(p, t, { say, plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date } }] }), touch: FILLED, says: /follow/i })
+  const r = await act(p, t, { say, plan: (b) => ({ ops: [{ action: 'chart.goToDate', target: refOf(b, 'NVDA'), args: { date } }] }), touch: follows ? FILLED : ['g0'], says: follows ? /moved with it/i : /stayed where they were/i })
   t.ok('the date is on the clicked cell\'s axis', axisHas(r.chart('g0'), months), r.chart('g0').text.slice(-6).join(' '))
-  for (const id of others('g0')) t.ok(id + ' followed', axisHas(r.chart(id), months), r.chart(id).text.slice(-6).join(' '))
+  if (follows) for (const id of others('g0')) t.ok(id + ' followed', axisHas(r.chart(id), months), r.chart(id).text.slice(-6).join(' '))
 })
 jump('mc sync an Agent date jump', 'go to june 2 2025', '2025-06-02', /^(May|Jun)$/)
-// near the start of the 200-bar fixture the view is mostly empty, so the cell does not send it: the receipt still says the others follow
-jump('mc sync an Agent date jump near the start of history', 'go to march 3 2025', '2025-03-03', /^(Feb|Mar)$/)
+// near the start of the 200-bar fixture the view is mostly empty, so the cell does not send it, and the receipt says the others stayed
+jump('mc sync an Agent date jump near the start of history', 'go to march 3 2025', '2025-03-03', /^(Feb|Mar)$/, { follows: false })
 scn('mc sync a wheel from inside the bars', [], { query: 'multichart=sync' }, async (p, t) => {
   await p.select('g0')
   await dragCell(p, 'g0')
@@ -790,17 +853,17 @@ for (const s of S) {
   let p = null
   const t0 = Date.now()
   try {
-    p = await open(R, { query: s.opts.query || '', prefs: s.opts.prefs, fixtures: s.opts.fixtures, iaCatalog: s.opts.iaCatalog, ls: s.opts.ls, profile })
+    p = await open(R, { query: s.opts.query || '', prefs: s.opts.prefs, fixtures: s.opts.fixtures, iaCatalog: s.opts.iaCatalog, ls: s.opts.ls, dateShaped: s.opts.dateShaped, profile })
     await p.settle()
     await p.openPanel()
     // the workspace mounts panels in batches: a board is ready when every chart on it has painted
-    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || (x.id === 'g3' && !x.sym)) })()`, { timeout: 30000 })
+    const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ((x.id === 'g3' || ${!!s.opts.emptyCell}) && !x.sym)) })()`, { timeout: 30000 })
     t.ok('every chart on the board painted', !!up, JSON.stringify((await p.charts()).map(brief)))
     await p.settle()
     await s.fn(p, t)
     if (SHOTS) await p.shot(`${SHOTS}/${s.id.replace(/\W+/g, '-')}.png`)
     const errs = p.errors()
-    t.ok('no console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
+    if (!s.opts.allowErrors) t.ok('no console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
   } catch (e) {
     t.ok('scenario ran to the end', false, e.stack || e.message)
     try { if (SHOTS && p) await p.shot(`${SHOTS}/${s.id.replace(/\W+/g, '-')}-crash.png`) } catch { /* */ }

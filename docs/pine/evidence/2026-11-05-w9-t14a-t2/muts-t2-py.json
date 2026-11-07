@@ -1,0 +1,38 @@
+[
+ [
+  "CONTROL no-op comment",
+  "tools/vendor_harness/evidence_engine.py",
+  "# \u2500\u2500\u2500 W9-T2: the broker pin ledger (design rule 7)",
+  "# \u2500\u2500\u2500 W9-T2: the broker pin ledger (design rule 7) (control)"
+ ],
+ [
+  "R1 INCONCLUSIVE counted as MATCH",
+  "tools/vendor_harness/evidence_engine.py",
+  "if all(v == \"MATCH\" for i in ids for v in verdicts[i]):",
+  "if all(v in (\"MATCH\", \"INCONCLUSIVE\") for i in ids for v in verdicts[i]):"
+ ],
+ [
+  "R2 a missing fixture no longer fails",
+  "tools/vendor_harness/evidence_engine.py",
+  "        if missing:\n",
+  "        if False:\n"
+ ],
+ [
+  "R3 any fixture MATCH pins (all -> any over fixtures)",
+  "tools/vendor_harness/evidence_engine.py",
+  "if all(v == \"MATCH\" for i in ids for v in verdicts[i]):",
+  "if any(v == \"MATCH\" for i in ids for v in verdicts[i]):"
+ ],
+ [
+  "R4 output not canonical (indent)",
+  "tools/vendor_harness/evidence_engine.py",
+  "separators=(\",\", \":\"), ensure_ascii=True)",
+  "indent=1, ensure_ascii=True)"
+ ],
+ [
+  "R5 ledger not sorted",
+  "tools/vendor_harness/evidence_engine.py",
+  "kept[rule] = sorted(set(ids))",
+  "kept[rule] = list(reversed(ids))"
+ ]
+]

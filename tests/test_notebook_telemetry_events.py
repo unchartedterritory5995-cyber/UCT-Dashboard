@@ -368,8 +368,26 @@ def test_the_p5_events_are_on_both_sides_and_read_not_typed():
     names = set(_client_event_names())
     assert P5_EVENTS <= names, P5_EVENTS - names
     assert P5_EVENTS <= _J2_TELEMETRY_EVENTS
-    # P5-R-C7: 17 + 3 = 20 names on the client.
-    assert len(_client_event_names()) == 20
+    # P5-R-C7: 17 + 3 = 20 names on the client; audit 2026-11-05 (S16, S20) adds five: 25; S15 adds today_opened: 26.
+    assert len(_client_event_names()) == 26
+
+
+S20_EVENTS = {"first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident"}
+
+
+def test_the_s20_return_metric_events_are_on_both_sides(telemetry_app):
+    """Audit 2026-11-05, S16 + S20: each new event is read from the client and accepted by the server, and a
+    ticker list or a typed word never rides along."""
+    assert S20_EVENTS <= set(_client_event_names())
+    assert S20_EVENTS <= _J2_TELEMETRY_EVENTS
+    client, logged = telemetry_app
+    r = client.post("/api/j2/telemetry", content=json.dumps({
+        "event": "first_run_completed",
+        "props": {"names": 3, "tickers": ["NVDA", "AMD"], "pack": "NVDA", "plan": True},
+    }), headers={"Content-Type": "application/json"})
+    assert r.status_code == 200
+    stored = json.loads(logged.rows[-1][2])
+    assert stored == {"names": 3, "pack": "other", "plan": True}
 
 
 def test_block_used_kind_is_the_block_catalog_both_sides():

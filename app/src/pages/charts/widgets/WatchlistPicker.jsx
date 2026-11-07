@@ -302,7 +302,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             )}
 
             {showFlagged && (
-              <button type="button" className={styles.row} onClick={() => handlePick({ key: 'flagged', name: flaggedLabel })}>
+              <button type="button" className={styles.row} data-guide="watchlist.pickFlagged" onClick={() => handlePick({ key: 'flagged', name: flaggedLabel })}>
                 <span className={styles.rowIcon}><UIcon name="flag" size={13} gold={false} /></span>
                 <span className={styles.rowName}>{flaggedLabel}</span>
                 {flagged?.length != null && <span className={styles.rowCount}>{flagged.length}</span>}

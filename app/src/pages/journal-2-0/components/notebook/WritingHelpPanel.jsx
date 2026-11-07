@@ -25,7 +25,7 @@ import styles from './WritingHelpPanel.module.css'
  *   onAccept(draft) — inserts; returns `{ ok, replaced }` / `{ ok: false, reason }`
  *   onClose()
  */
-export default function WritingHelpPanel({ noteId, request, onAccept, onClose }) {
+export default function WritingHelpPanel({ noteId, request, onAccept, onClose, returnFocusTo }) {
   const [choiceId, setChoiceId] = useState(WRITING_HELP_CHOICES[0].id)
   const [lang, setLang] = useState(WRITING_HELP_LANGUAGES[0][0])
   const [status, setStatus] = useState('idle')   // idle | writing | ready | error
@@ -88,7 +88,7 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
   )
 
   return (
-    <Sheet open onClose={discard} title="Writing help" labelledByTitle footer={footer} maxWidth={560}>
+    <Sheet open onClose={discard} title="Writing help" labelledByTitle footer={footer} maxWidth={560} returnFocusTo={returnFocusTo}>
       <p className={styles.scope}>
         {selection
           ? `Working on your selection · ${request.text.length.toLocaleString('en-US')} characters`

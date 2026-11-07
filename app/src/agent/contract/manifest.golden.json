@@ -3483,8 +3483,8 @@
    "name": "widget.setOption",
    "domain": "widget",
    "target": "board",
-   "summary": "Change ONE option of a widget on the board — what its own settings control writes (a Fundamentals view, a News filter, an Options Flow lead / scope, the Calendar's star filter, Volume Scan logos…). Undo puts the previous value back.",
-   "hints": "target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — fundamentals: view (annual|quarterly|analyst|ownership); news: filter (all|up|down); calendar: econStars (1–3); optionsflow: lead (tape|biggest|sentiment), scope (market|symbol); periodsort: group (theme|sector|industry); volumescan: showLogos (on/off); tradeExchangeNews: follow (on/off), linked (on/off); researchLibrary: follow (on/off), linked (on/off). A widget type not listed has no options here.",
+   "summary": "Change ONE control of a widget on the board, exactly as the widget's own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.",
+   "hints": "target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget's own list right now, and a name is enough. (+/-) takes \"+member\" or \"-member\". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.",
    "args": {
     "type": "object",
     "properties": {
@@ -3512,6 +3512,75 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.readOptions",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Say how a widget on the board is set right now: each control's value and its choices (the themes it can open, a map's axes, a Scanner's criteria…).",
+   "hints": "target = the board entry; widget = the widget id.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.sendToJournal",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Send a frozen capture of what a widget on the board shows now to the member's Journal, exactly as the widget's Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.",
+   "hints": "target = the board entry; widget = the widget id; where = note (their current note, else the inbox: the default), newNote or inbox.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "where": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "note",
+       "newNote",
+       "inbox",
+       null
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "where"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,
@@ -6576,13 +6645,51 @@
    "domain": "guide",
    "target": "guide",
    "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-   "hints": "target = the guide entry. feature = one of: watchlistCreate (creating a watchlist); canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). Other pages, only there: screenerScreens (screener), screenerColumns (screener), screenerFilters (screener), breadthViews (breadth), breadthTable (breadth), calendarNextReport (calendar), journalNewNote (journal). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
    "args": {
     "type": "object",
     "properties": {
      "feature": {
       "type": "string",
       "enum": [
+       "builderAction",
+       "gridAction",
+       "drawingEdit",
+       "indicatorManage",
+       "layoutAction",
+       "tabAction",
+       "watchlistAction",
+       "alertAction",
+       "widgetAction",
+       "dockAction",
+       "panelAction",
+       "compareAction",
+       "chartMenu",
+       "chartView",
+       "legendChip",
+       "indicatorColor",
+       "indicatorEdit",
+       "alertIndicator",
+       "alertPrice",
+       "multiChart",
+       "widgetResize",
+       "widgetMove",
+       "widgetHeader",
+       "widgetSettings",
+       "widgetAdd",
+       "widgetMerge",
+       "compare",
+       "replay",
+       "periodSort",
+       "goToDate",
+       "chartTab",
+       "chartThemes",
+       "chartTemplate",
+       "chartType",
+       "timeframeCustom",
+       "watchlistAddSymbol",
+       "chartSetting",
+       "layoutSave",
        "watchlistCreate",
        "canvas",
        "link",
@@ -6603,10 +6710,48 @@
        "calendarNextReport",
        "journalNewNote"
       ]
+     },
+     "detail": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
-     "feature"
+     "feature",
+     "detail"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "calendar.day",
+   "domain": "calendar",
+   "target": "calendar",
+   "summary": "List the earnings reports on ONE day (tickers by session: before the open / after the close), or the whole week when no day is given — from the week the Calendar page has loaded. Use it for \"what reports on Thursday?\", \"who reports today?\", \"what's on this week?\".",
+   "hints": "target = the ref of the calendar entry; date = YYYY-MM-DD, or null for every day of the week on the page. Tickers only — no estimates.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date"
     ],
     "additionalProperties": false
    },

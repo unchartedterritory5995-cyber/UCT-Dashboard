@@ -98,59 +98,68 @@ const more = () => screen.getByRole('button', { name: 'More note actions' })
 const panel = () => document.getElementById(more().getAttribute('aria-controls'))
 const openMore = () => { fireEvent.click(more()); return within(panel()) }
 
+// Audit 2026-11-05, spec S10 (M4): the header is FOUR controls on every width -- Favorite, AI (Ask and Writing help),
+// Share and More. Find and Outline are More's first items on every width (`leadItems`); the folder is on the line under
+// the title. On a phone Ask's toggle is hidden in the row, so More carries "Ask about this note" first there.
 const PHONE_ITEMS = ['Ask about this note', 'Find in note', 'Outline']
+const LEAD_ITEMS = ['Find in note', 'Outline']
 
-describe('opened on a DESKTOP, the More panel is exactly what it was', () => {
-  it('none of the phone items, and the first action (where focus lands) is still History', async () => {
+describe('opened on a DESKTOP, More leads with Find and Outline', () => {
+  it('no phone item; Find and Outline first, then a separator, then History; focus lands on Find', async () => {
     await renderEditor()
     more().focus()
     const p = openMore()
-    for (const name of PHONE_ITEMS) expect(p.queryByRole('button', { name }), name).toBeNull()
-    expect(p.queryByRole('combobox', { name: 'Move to folder' })).toBeNull()
-    expect(p.getAllByRole('button')[0]).toHaveAccessibleName('Version history')
-    expect(document.activeElement).toHaveAccessibleName('Version history')
+    expect(p.queryByRole('button', { name: 'Ask about this note' })).toBeNull()
+    const buttons = p.getAllByRole('button')
+    expect(buttons.slice(0, LEAD_ITEMS.length).map((x) => x.getAttribute('aria-label'))).toEqual(LEAD_ITEMS)
+    expect(buttons[1].closest('div').nextElementSibling).toHaveAttribute('role', 'separator')
+    expect(buttons[2]).toHaveAccessibleName('Version history')
+    expect(document.activeElement).toHaveAccessibleName('Find in note')
   })
 
-  it('and the header still carries Ask, Find, Writing help, Outline and the folder', async () => {
+  it('and the header carries Ask and Writing help (one AI group), never Find, Outline or the folder', async () => {
     await renderEditor()
     const h = within(header())
-    expect(h.getByRole('button', { name: /^ask this note$/i })).toBeTruthy()
-    for (const name of ['Find in note', 'Writing help', 'Outline']) expect(h.getByRole('button', { name }), name).toBeTruthy()
-    expect(h.getByRole('combobox', { name: 'Folder' })).toBeTruthy()
+    const ai = h.getByRole('group', { name: 'AI' })
+    expect(within(ai).getByRole('button', { name: /^ask this note$/i })).toBeTruthy()
+    expect(within(ai).getByRole('button', { name: 'Writing help' })).toBeTruthy()
+    for (const name of ['Find in note', 'Outline']) expect(h.queryByRole('button', { name }), name).toBeNull()
+    expect(h.queryByRole('combobox', { name: 'Folder' })).toBeNull()
+    // The folder is on the line under the title.
+    const folder = screen.getByRole('combobox', { name: 'Folder' })
+    expect(folder.closest('[data-note-details-line]')).not.toBeNull()
   })
 })
 
-describe('opened on a PHONE, More carries the header actions the phone hides', () => {
+describe('opened on a PHONE, More carries Ask too', () => {
   beforeEach(() => { phone = true })
 
-  it('the five actions come FIRST, then a separator, and focus lands on the first', async () => {
+  it('Ask, Find and Outline come FIRST, then a separator, and focus lands on the first', async () => {
     await renderEditor()
     more().focus()
     const p = openMore()
     const buttons = p.getAllByRole('button')
-    expect(buttons.slice(0, PHONE_ITEMS.length).map((b) => b.getAttribute('aria-label'))).toEqual(PHONE_ITEMS)
-    const folder = p.getByRole('combobox', { name: 'Move to folder' })
-    expect(folder.closest('div').nextElementSibling).toHaveAttribute('role', 'separator')
+    expect(buttons.slice(0, PHONE_ITEMS.length).map((x) => x.getAttribute('aria-label'))).toEqual(PHONE_ITEMS)
+    expect(buttons[PHONE_ITEMS.length - 1].closest('div').nextElementSibling).toHaveAttribute('role', 'separator')
     expect(document.activeElement).toBe(buttons[0])
-    // ...and everything that was in the panel is still there, Delete still LAST
-    for (const name of ['Version history', 'Duplicate note', 'Delete']) expect(p.getByRole('button', { name }), name).toBeTruthy()
-    expect(buttons[buttons.length - 1]).toHaveAccessibleName('Delete')
+    // ...and everything that was in the panel is still there, Move to Trash still LAST
+    for (const name of ['Version history', 'Duplicate note', 'Move to Trash']) expect(p.getByRole('button', { name }), name).toBeTruthy()
+    expect(buttons[buttons.length - 1]).toHaveAccessibleName('Move to Trash')
   })
 
   it('⛔ every header control marked phone-hidden has its More counterpart (none is dropped)', async () => {
     await renderEditor()
-    // The controls the phone block hides: `.phoneInMore`, plus the Ask toggle inside `.askSlot`.
+    // The controls the phone block hides: `.phoneInMore` (none left in the header since S10), plus the Ask toggle
+    // inside `.askSlot`.
     const hidden = [...header().querySelectorAll('[class*="phoneInMore"]')]
     const ask = header().querySelector('[class*="askSlot"] [data-ask-toggle]')
-    expect(hidden.length, 'non-vacuity: the phone-hidden controls were found').toBeGreaterThanOrEqual(3)
     expect(ask, 'non-vacuity: the Ask toggle sits in its slot').toBeTruthy()
-    const COUNTERPART = { 'Find in note': 'Find in note', Outline: 'Outline', Folder: 'Move to folder' }
+    const COUNTERPART = { 'Find in note': 'Find in note', Outline: 'Outline' }
     const p = openMore()
     for (const el of hidden) {
       const name = el.getAttribute('aria-label')
       expect(COUNTERPART[name], `header control "${name}" is hidden on a phone with no More item`).toBeTruthy()
-      const role = el.tagName === 'SELECT' ? 'combobox' : 'button'
-      expect(p.getByRole(role, { name: COUNTERPART[name] }), name).toBeTruthy()
+      expect(p.getByRole('button', { name: COUNTERPART[name] }), name).toBeTruthy()
     }
     expect(p.getByRole('button', { name: 'Ask about this note' })).toBeTruthy()
     // Star, Share and More itself stay in the row on a phone
@@ -171,7 +180,7 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     expect(document.activeElement).toBe(item)
   })
 
-  it('Find: opens the same find bar as the header button and closes the panel', async () => {
+  it('Find: opens the find bar (the same as Ctrl+F) and closes the panel', async () => {
     await renderEditor()
     const p = openMore()
     fireEvent.click(p.getByRole('button', { name: 'Find in note' }))
@@ -179,19 +188,18 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     expect(more()).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('Outline: one state with the header button; closing hands focus back to the item', async () => {
+  it('Outline: opens the outline and closes the panel; closing the outline hands focus back to the More door', async () => {
     await renderEditor()
-    const headerOutline = within(header()).getAllByRole('button', { name: 'Outline' })
-      .find((b) => !panel().contains(b))
     const p = openMore()
     const item = p.getByRole('button', { name: 'Outline' })
     fireEvent.click(item)
     expect(await screen.findByRole('navigation', { name: /outline/i })).toBeTruthy()
     expect(item).toHaveAttribute('aria-expanded', 'true')
-    expect(headerOutline).toHaveAttribute('aria-expanded', 'true')   // the same `outlineOpen`
+    expect(more()).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(screen.getByRole('button', { name: 'Close outline' }))
     await waitFor(() => expect(screen.queryByRole('navigation', { name: /outline/i })).toBeNull())
-    expect(document.activeElement).toBe(item)
+    // The item is hidden with the panel; the door that stays on screen takes focus, never <body>.
+    expect(document.activeElement).toBe(more())
   })
 
   it('Writing help STAYS in the row (its walkthrough opens on it), not in More', async () => {
@@ -204,18 +212,14 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     expect(await screen.findByRole('dialog', { name: 'Writing help' })).toBeTruthy()
   })
 
-  it('Move to folder: the same write as the header select', async () => {
+  it('the folder (under the title) writes the same folder move it did from the header', async () => {
     await renderEditor()
-    fireEvent.change(within(header()).getByRole('combobox', { name: 'Folder' }), { target: { value: 'f2' } })
-    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1))
-    const fromHeader = updateMock.mock.calls[0][0]
-    const p = openMore()
-    const select = p.getByRole('combobox', { name: 'Move to folder' })
+    const select = screen.getByRole('combobox', { name: 'Folder' })
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Unfiled', 'Swing ideas', 'Earnings'])
     fireEvent.change(select, { target: { value: 'f2' } })
-    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(2))
-    expect(updateMock.mock.calls[1][0]).toEqual(fromHeader)
-    expect(fromHeader).toEqual({ folderId: 'f2' })
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1))
+    expect(updateMock.mock.calls[0][0]).toEqual({ folderId: 'f2' })
+    expect(openMore().queryByRole('combobox')).toBeNull()        // one folder control, not two
   })
 
   it('a LOCKED note: no Writing help in the row or in More (the one condition)', async () => {
@@ -234,6 +238,6 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     phone = false
     act(() => { for (const fn of [...mqListeners]) fn({ matches: false }) })
     expect(p.queryByRole('button', { name: 'Ask about this note' })).toBeNull()
-    expect(p.getAllByRole('button')[0]).toHaveAccessibleName('Version history')
+    expect(p.getAllByRole('button')[0]).toHaveAccessibleName('Find in note')
   })
 })

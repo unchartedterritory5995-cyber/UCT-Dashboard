@@ -2393,8 +2393,10 @@ describe('FolderSidebar + Home search: H14, a bounded number of renders across a
     expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
     expect(screen.getByRole('searchbox', { name: 'Search your notes' })).toBeTruthy()
 
-    // typing in the Home box opens the panel's search holding that text; Home steps aside
+    // VIS-4 (audit 2026-11-05, issue 12): typing keeps the text in the Home box (results under it); its
+    // "Search by meaning" opens the panel's search holding that text, and Home steps aside.
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search your notes' }), { target: { value: 'nv' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Search by meaning' }))
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search your notes' }).value).toBe('nv'))
     expect(screen.queryByRole('searchbox', { name: 'Search your notes' })).toBeNull()
     expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)

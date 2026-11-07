@@ -4121,6 +4121,30 @@
      "modes": {}
     }
    }
+  },
+  "widget.readOptions": {
+   "digest": "bcbf2ab575d27c22",
+   "phrasings": {
+    "how is that one set right now": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"how is that one set right now\" → widget.readOptions"
+     }
+    }
+   }
+  },
+  "widget.sendToJournal.no-door": {
+   "digest": "b2a365594b174c3d",
+   "phrasings": {
+    "keep a copy of that one": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
