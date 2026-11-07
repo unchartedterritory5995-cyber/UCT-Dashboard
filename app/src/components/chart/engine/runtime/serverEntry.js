@@ -28,6 +28,10 @@ export {
 // W5-INT: and the job adapter (services/pine_runtime/job.mjs) writes each column's wire bytes with
 // the same codec's encoder, so the service holds no second copy of the design 2.3 encoding.
 export { bytesToB64, columnDigest, decodeColumn, encodeColumn } from './columnDigest.js'
+// W9-T14: the run's `strategy` record (W9 design 3.2) as the service serves it under `want: '#strategy'`:
+// the reader the browser worker reads it by, and the ONE shape check every reader shares (T12, T13a,
+// and the service's seal, services/pine_runtime/protocol.mjs). Re-exported, never copied.
+export { runtimeStrategyOf, strategyRecordShapeErrors, STRATEGY_RECORD_SCHEMA } from './strategyRecord.js'
 // W5-T7: drawings are not served by the server lanes in v1; the adapter names them by this key.
 export { RUNTIME_OBJECTS_KEY } from './runtimeObjects.js'
 export { SCRIPT_ENGINE_VERSION } from '../scriptEngineVersion.js'
