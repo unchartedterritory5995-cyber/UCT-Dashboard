@@ -27,12 +27,15 @@ import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
+import { lowerIrProgram } from '../lowerIr.js'
+import { execute } from '../vm.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const CAP = JSON.parse(fs.readFileSync(
   path.join(REPO, 'tests/fixtures/vendor/harness/vw-call-site-history-rddt-1d-2026-10-01.json'), 'utf8'))
 const BARS = CAP.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v: v == null ? 0 : v }))
 const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' }
+const T9_SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -97,6 +100,15 @@ const SHAPES = {
     'v = f(close > open) + k * 0\n'],
   forin_udt: ['', true, 'type P\n    float p\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(2))\n',
     's = 0.0\nfor q in ps\n    s += q.p\nv = s + close * 0 + k * 0\n'],
+  // ⭐ W6-T9 — receiver types (overloads by receiver type, a chain off an element, a member on a
+  // field's array). A widened dispatch (`receiverTypesServed`), so the door keeps master's own
+  // refusals (`runtime:udt-method`, `pine:member`, `runtime:expression-statement`).
+  t9_overload: ['', false, 'type A\n    float a = 1\ntype B\n    float b = 2\nmethod m(A x) =>\n    x.a\nmethod m(B x) =>\n    x.b\n',
+    'v = A.new(close + k * 0).m() + B.new(2).m()\n'],
+  t9_chain: ['', false, 'type Z\n    float s = 0\nvar zs = array.new<Z>()\nzs.push(Z.new(close))\n',
+    'cp = zs.copy()\nv = cp.get(0).s + k * 0\n'],
+  t9_field_coll: ['', false, 'type T\n    array<float> c\nvar t = T.new(array.new<float>())\n',
+    't.c.unshift(close + k * 0)\nv = t.c.size() + k * 0\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
@@ -355,5 +367,62 @@ describe('W9-T1 the strategy broker is never reachable at the object door', () =
     const door = buildRuntimeIr(SRC, { bars: BARS, inputs: {}, symbol: SYMBOL, strategyBroker: true, objectDoor: true })
     expect(door.ok).toBe(false)
     expect(door.refusal.guard).toBe('pine:strategy-call')
+  })
+})
+
+// ⭐⭐ W6-T9 — ONE SHAPE PER DOOR SITE (review B1). Each site where W6-T9 changes what is built
+// asks `receiverTypesServed` itself, and each is proved here alone: drop that one site's gate and
+// the shape below changes at the door. Every answer is master's at the door (pinned 2026-11-06 by
+// running master 81a4665a5a's front end on these shapes: refused with the same guard, or the same
+// run). The pane serves each of them (`w6ReceiverTypes.test.js`).
+describe('⭐⭐ W6-T9 receiver types keep master\'s answer at the object door, site by site', () => {
+  const T9H = '//@version=6\nindicator("t")\n'
+  const door = (body, extra = {}) => paneBuild(T9H + body, { objectDoor: true, ...extra })
+  /** Build at the door and run every bar: the outputs, or the thrown stop. */
+  const doorRun = (body, extra = {}) => {
+    const b = door(body, extra)
+    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    const program = lowerIrProgram(b.ir, { historyFromListing: true })
+    return () => execute(program, { bars: BARS.length, series: T9_SERIES, columns: program.columns,
+      confirmed: true, barTimes: BARS.map((x) => x.t) })
+  }
+  const guardOf = (body, extra = {}) => {
+    const b = door(body, extra)
+    expect(b.ok, 'expected the door to refuse, as master does').toBe(false)
+    return b.refusal
+  }
+  const FN_B = 'type B\n    float o = 0\nf_rt(float a) =>\n    B.new(a)\n'
+  const SHADOW = 'type Foo\n    float x = 0\nmethod clear(Foo f) =>\n    f.x := 0\n    f.x\n'
+    + 'var a = array.new_float()\na.push(close)\nif a.size() > 2\n    a.clear()\nplot(a.size())\n'
+
+  it('`memberRecvUdt`: a field read off a function\'s result (`f_rt(close).o`) refuses `pine:member`', () => {
+    expect(guardOf(`${FN_B}plot(f_rt(close).o)\n`).guard).toBe('pine:member')
+  })
+  it('`overloadRefusal`: two overloads on two record types refuse with master\'s sentence', () => {
+    const r = guardOf('type A\n    float a = 1\ntype C\n    float c = 2\nmethod m(A x) =>\n    x.a\nmethod m(C x) =>\n    x.c\n'
+      + 'plot(A.new().m() + C.new().m())\n')
+    expect(r.guard).toBe('runtime:udt-method')
+    expect(r.message).toMatch(/which this lane does not resolve/)
+  })
+  it('`isReceiverCall`: a drawing member read off an element refuses `pine:member` (the run draws)', () => {
+    expect(guardOf('var bx = array.new_box()\nbx.unshift(box.new(bar_index, high, bar_index, low))\nplot(bx.get(0).get_bottom())\n',
+      { objectsInRun: true }).guard).toBe('pine:member')
+  })
+  it('`receiverCallOf`: a collection member on a record\'s field, as a statement, refuses as master', () => {
+    expect(guardOf('type T\n    array<float> c\nvar t = T.new(array.new<float>())\nt.c.push(close)\nplot(t.c.size())\n').guard)
+      .toBe('runtime:expression-statement')
+  })
+  it('`receiverInitTy`: a field of a name bound to a function\'s result refuses `pine:builtin`', () => {
+    expect(guardOf('type Hb\n    int l = 0\nmk(int a) =>\n    Hb.new(a)\nhb = mk(bar_index)\nplot(hb.l)\n').guard).toBe('pine:builtin')
+  })
+  it('`userMethodShadows`: master\'s untyped shadowing (`a.clear()` runs the script\'s `clear(Foo)` and stops)', () => {
+    expect(doorRun(SHADOW)).toThrow(/user-defined type/)
+  })
+  it('`methodCallOf`: the same statement keeps master\'s binding of the method form (built, then stops)', () => {
+    expect(doorRun(SHADOW.replace('    f.x := 0\n', ''))).toThrow(/user-defined type/)
+  })
+  it('the call arm: a single method on a record keeps master\'s binding and is SERVED at the door', () => {
+    const r = doorRun('type A\n    float a = 1\nmethod m(A x) =>\n    x.a\nv = A.new(close)\nplot(v.m())\n')()
+    expect(Array.from(r.outputs[0])).toEqual(BARS.map((b) => b.c))
   })
 })
