@@ -696,11 +696,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 746
+          "line": 767
         }
       ],
       "evidence": {
-        "line": 750,
+        "line": 771,
         "pattern": "int-subscript",
         "index": 0
       }
