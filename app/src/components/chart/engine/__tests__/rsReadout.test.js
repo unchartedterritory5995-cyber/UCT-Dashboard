@@ -112,7 +112,7 @@ describe('UCT RS · the rows, against the v2 scalars', () => {
       // redDay: false, and its false-word is empty, so the row is omitted
       ['history', '330'],
       ['shortHistory', 'short history: dots over every bar we hold, not a full year'],
-      ['requested', 'SECTOR'],
+      ['requested', 'Sector ETF (auto)'],
       ['lookback', '252'],                    // the declared default — the instance never stored one
     ])
     for (const r of rows(PAYLOAD)) {
@@ -155,7 +155,7 @@ describe('UCT RS · the rows, against the v2 scalars', () => {
       ['rating', 'not yet rated'],            // the one declared fallback, muted below
       ['phase', 'below its average'],
       ['fromMa', '-0.4%'],
-      ['requested', 'SPY'],
+      ['requested', 'S&P 500 (SPY)'],
       ['lookback', '126'],
     ])
     expect(got.find((r) => r.key === 'rating')).toMatchObject({ value: null, muted: true })
@@ -280,7 +280,7 @@ describe('the formats, on RS-shaped values', () => {
     expect(readoutRows({ readout: 'benchmark' }, PAYLOAD, {})).toEqual([])
     expect(readoutRows(RS_READOUT, PAYLOAD, null)).toHaveLength(12)      // a missing ctx is "no stored inputs"
     // with no scalars only the input rows and the declared fallback can print
-    expect(pairs(rows(null))).toEqual([['rating', 'not yet rated'], ['requested', 'SECTOR'], ['lookback', '252']])
+    expect(pairs(rows(null))).toEqual([['rating', 'not yet rated'], ['requested', 'Sector ETF (auto)'], ['lookback', '252']])
     expect(pairs(rows([1, 2]))).toEqual(pairs(rows(null)))
     expect(pairs(rows('junk'))).toEqual(pairs(rows(null)))
     // junk ENTRIES are skipped, never fatal, and never printed

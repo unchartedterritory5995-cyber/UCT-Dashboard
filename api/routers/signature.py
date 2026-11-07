@@ -1048,10 +1048,14 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
                                 params["redDayThreshold"])
         payload = {
             "benchmark": dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
-                              bars=len(bench.get("bars") or [])),
+                              bars=len(bench.get("bars") or []),
+                              note=_rs_benchmark_note(bench, legend, times, intraday=intraday,
+                                                       same_symbol=same_symbol)),
             "legend": legend,
             "lastRsHigh": last_high,
-            "history": {"bars": len(times), "requested": count, "short": short_history},
+            "history": {"bars": len(times), "requested": count, "short": short_history,
+                        "summary": f"{_rs_plural(len(times), 'bar')} held; dots use every bar"
+                        if short_history else None},
             "inputs": params,
             "intraday": intraday,
             "state": state,
@@ -1132,7 +1136,7 @@ _RS_GREEN_ON_RED_PASS = 6
 _RS_PULLBACK_EMA = 8          # pullback distance from the 8-day EMA (v3 §7.20)
 #: The v2 payload's shape, in the cache key (bump when a payload field or a
 #: wire blanking rule changes inside one `compute.rev`).
-_RS_PAYLOAD_SHAPE = 2
+_RS_PAYLOAD_SHAPE = 3
 #: What Mansfield view blanks in the wire (A2): the ratio, its average, the
 #: above flag and every RS-line dot. Event columns are never blanked here.
 _RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
@@ -1183,6 +1187,47 @@ def _rs_zero_cross_dot(values, cross_up) -> list:
         if e == 1.0 and _rs_num(v):
             out[i] = 0.0
     return out
+
+
+# The Benchmark row's muted second line (Phase 2a visual spec, rows 1 and A8):
+# the server's `benchmark.fallback` reason in sentence form. A reason this table
+# does not know still prints, in the generic shape, rather than vanishing.
+_RS_AUTO_NOUN = {"SECTOR": "Sector ETF", "INDUSTRY": "Industry group"}
+_RS_FALLBACK_SENTENCE = {
+    "symbol is an ETF": "{noun} not available for an ETF; using {resolved}",
+    "no sector": "{noun} not available: no sector on file; using {resolved}",
+    "no industry": "{noun} not available: no industry on file; using {resolved}",
+    "no industry or sector": "{noun} not available: no industry or sector on file; using {resolved}",
+    "industry group too small": "Industry group too small to average; using {resolved}",
+}
+
+
+def _rs_benchmark_note(bench: dict, legend: dict, times, *, intraday: bool,
+                       same_symbol: bool = False) -> str | None:
+    """The Benchmark row's second line, or None.
+
+    A benchmark gap wins (A8): when the RS line has no value on the newest bar,
+    ``No SPY bar for Nov 5 yet`` says why the label is muted and dated. Daily,
+    weekly and monthly only: an intraday gap is one bar wide and names no date a
+    member could check, and a chart of the benchmark itself has no ratio to be
+    missing (its state says so). Otherwise the fallback reason as a sentence
+    (``Sector ETF not available for an ETF; using SPY``)."""
+    resolved = str(bench.get("resolved") or "")
+    idx = legend.get("index") if isinstance(legend, dict) else None
+    gap = bool(times) and (not isinstance(idx, int) or idx < len(times) - 1)
+    if gap and not intraday and not same_symbol and resolved and not resolved.startswith("INDUSTRY:"):
+        day = _rs_short_date(_rs_bar_ymd(times[-1]))
+        if day:
+            return f"No {resolved} bar for {day} yet"
+    reason = bench.get("fallback")
+    if not reason:
+        return None
+    noun = _RS_AUTO_NOUN.get(str(bench.get("requested") or "").upper(), "Benchmark")
+    shape = _RS_FALLBACK_SENTENCE.get(str(reason))
+    if shape is None and str(reason).startswith("sector not mapped: "):
+        return f"{noun} not available for the {str(reason)[19:]} sector; using {resolved}"
+    return (shape or "{noun} not available: {reason}; using {resolved}").format(
+        noun=noun, resolved=resolved, reason=reason)
 
 
 def _rs_legend(leg: dict, times, params: dict) -> dict:
@@ -1299,6 +1344,7 @@ def _rs_mansfield_scalars(mans: dict, length: int) -> dict:
         "stateLabel": labels.get(state) if state is not None else None,
         "crossBarsAgo": int(age) if _rs_num(age) else None,
         "length": int(length),
+        "lengthText": _rs_plural(int(length), "bar"),
         "slope": slope,
         "crossDirection": direction,
         "lastCross": f"{direction}, {_rs_ago(cross_ago)}" if direction else None,

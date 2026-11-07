@@ -4144,15 +4144,24 @@ const RS_LINE_RAW = {
   // `benchmark` legend param with the row keyed `benchmark`. Their glance rows are
   // `benchmarkName` and `ratingSummary`, which print the composed read.
   readout: [
+    // ⭐ `note`: the muted second line (visual spec row 1 and A8), the server's
+    // sentence for a fallback (`Sector ETF not available for an ETF; using SPY`)
+    // or a benchmark gap (`No SPY bar for Nov 5 yet`).
     { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
+      note: 'scalar:benchmark.note',
       card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
         origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
         evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Agreement row reads the same line against SPY, the equal-weight index and the sector.',
         learn: 'rsLine' } },
+    // What the member picked, as the option reads (`Sector ETF (auto)`), then what
+    // the server resolved it to.
+    { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
     { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
       detailOf: 'benchmarkName' },
-    { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.fallback', format: 'text',
-      when: 'scalar:benchmark.fallback', detailOf: 'benchmarkName' },
+    // The card repeats the menu's second line as a sentence (the raw fallback code,
+    // `no sector`, is the server's vocabulary, not the member's).
+    { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
+      when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
     { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
       card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated.',
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
@@ -4177,11 +4186,13 @@ const RS_LINE_RAW = {
         evidence: RS_HONESTY_SENTENCE,
         evidenceSource: 'scalar:evidence.sentence.mansfield' } },
     { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
-    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.crossBarsAgo', format: 'barsAgo', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only
+    // the crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
     // ⭐ THE LENGTH ACTUALLY USED (review finding #9, 2026-11-07). The default is
     // 200 on every timeframe, so a weekly chart reads a 200-week average unless
     // the weekly Trend preset set 52. The row prints what the server computed.
-    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.length', format: 'int', detailOf: 'mansfield' },
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
     { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
       card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
         origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',
@@ -4235,8 +4246,8 @@ const RS_LINE_RAW = {
     { key: 'checkGreenOnRed', label: 'Green on red', source: 'scalar:checks.greenOnRed.line', format: 'text', detailOf: 'checks' },
     { key: 'pullback', label: 'From 8-day EMA', source: 'scalar:checks.pullbackEma8', format: 'pct', detailOf: 'checks' },
     // ⭐ ROW 9, ONLY ON A SHORT SERIES, WITH NO CARD: the note is the whole read.
-    { key: 'shortHistory', label: 'History', source: 'scalar:history.short', format: 'bool', when: 'scalar:history.short',
-      words: ['short; dots use every bar we hold', ''] },
+    { key: 'shortHistory', label: 'History', source: 'scalar:history.summary', format: 'text', when: 'scalar:history.short',
+      muted: true },
   ],
   // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
   // declared event by running the definition's compute at registration and

@@ -476,7 +476,7 @@ def test_the_v2_cache_key_carries_the_payload_shape_and_v1_does_not(v2_row, monk
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.append(k))
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
-    assert sig._RS_PAYLOAD_SHAPE == 2 and f"rs3p{sig._RS_PAYLOAD_SHAPE}" in seen[-1], seen[-1]
+    assert sig._RS_PAYLOAD_SHAPE == 3 and f"rs3p{sig._RS_PAYLOAD_SHAPE}" in seen[-1], seen[-1]
     monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(False))
     monkeypatch.setattr(rd, "RS_V2_ENABLED", False)
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
@@ -512,3 +512,38 @@ def test_control_the_other_server_rows_and_the_flag_off_lane_are_unchanged(v2_ro
     env = sig._rs_line_provider("NVDA", "D", {"lookback": 20, "showMansfield": True})
     assert set(env) == {"columns", "times", "asOf"} and set(env["columns"]) == {"rsLine"}
     assert any(v is not None for v in env["columns"]["rsLine"]), "v1 never blanks the line, whatever the inputs say"
+
+
+def _key_paths(obj, path=""):
+    """Every dict key path in a payload (lists are leaves): the payload's SHAPE."""
+    out = set()
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            p = f"{path}.{k}" if path else str(k)
+            out.add(p)
+            out |= _key_paths(v, p)
+    return out
+
+
+#: The v2 payload's key paths at `_RS_PAYLOAD_SHAPE` 3 (2026-11-07: benchmark.note,
+#: history.summary, mansfield.lengthText). ⛔ A field added or removed here without a
+#: bump is served the OLD shape for up to a session: the pod carries its cache across
+#: a restart (`cache_snapshot`), and an RS envelope lives until the next session
+#: close. Measured in the sandbox the day this rail was written.
+_SHAPE_3_TOP = {"benchmark", "checks", "evidence", "history", "inputs", "intraday", "lastRsHigh", "legend",
+                "mansfield", "rating", "regime", "sensitivity", "state", "theme"}
+_SHAPE_3_FIELDS = {"benchmark.note", "history.summary", "mansfield.lengthText", "mansfield.lastCross"}
+
+
+def test_a_payload_field_change_comes_with_a_shape_bump(v2_row, monkeypatch):
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    p = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    got = _key_paths(p)
+    assert {k for k in got if "." not in k} == _SHAPE_3_TOP
+    assert _SHAPE_3_FIELDS <= got
+    import hashlib
+    digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
+    assert (sig._RS_PAYLOAD_SHAPE, digest) == (3, "769dd755aa5ddc93"), (
+        f"the RS payload's key paths changed (digest {digest}): bump signature._RS_PAYLOAD_SHAPE, "
+        f"then pin the new pair here. Paths: {sorted(got)}")

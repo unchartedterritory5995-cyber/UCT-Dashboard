@@ -549,10 +549,14 @@ function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows,
           {list.map((r) => {
             const muted = r.muted === true
             const cls = `${styles.legMenuRow}${muted ? ' ' + styles.legMenuRowMuted : ''}`
+            // ⭐ `note` (readout contract): a muted second line under the value,
+            // in the value column, so the label column stays one word wide.
+            const note = typeof r.note === 'string' && r.note ? r.note : null
             const body = (
               <>
                 <span className={styles.legMenuRowLabel}>{r.label}</span>
                 <span className={styles.legMenuRowVal}>{r.text}</span>
+                {note ? <span className={styles.legMenuRowNote} data-readout-note="">{note}</span> : null}
               </>
             )
             if (r.card && typeof onCard === 'function') {
@@ -19572,8 +19576,14 @@ export default function StockChart({
             dense
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
-               above it reads as a bug. */
-            header={chipPage === 'move' ? null : (
+               above it reads as a bug.
+               ⭐ An RS chip's Display-in page carries an invisible MARKER instead
+               (visual round VA3): the viewport cap in the stylesheet finds an RS
+               popover by what it holds, and this page held nothing it could find,
+               so it alone overflowed a 320 px screen. Not a row, not focusable. */
+            header={chipPage === 'move'
+              ? (readoutMenu ? <span className={styles.legReadoutMark} aria-hidden="true" data-readout-mark="" /> : null)
+              : (
               <LegendMenuHeader
                 label={menuName}
                 hidden={!!c.hidden}

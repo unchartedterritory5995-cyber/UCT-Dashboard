@@ -1586,11 +1586,14 @@
    inline; a stylesheet `max-width` still wins over an inline `width`, and the
    body scrolls inside when the page is taller than the window. Scoped with
    `:has()` to a popover holding readout content, so no other menu changes. */
-:global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage) {
+:global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark) {
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
   overflow-y: auto;
 }
+/* The Display-in page's marker (no header there): present only so the cap above
+   can find the popover. */
+.legReadoutMark { display: none; }
 
 .legMenuRows {
   display: flex;
@@ -1632,6 +1635,18 @@
 }
 .legMenuRowMuted .legMenuRowLabel,
 .legMenuRowMuted .legMenuRowVal { color: var(--text-muted); font-weight: 500; }
+/* The row's `note`: a muted second line in the VALUE column (grid row 2), one
+   step smaller, so a fallback reason or a benchmark gap reads as a qualifier of
+   the value above it, never as a row of its own. */
+.legMenuRowNote {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  margin-top: 1px;
+  font: 500 11px/14px 'Instrument Sans', sans-serif;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
 /* A row that carries a `card` is a BUTTON: it opens the three-line About page
    in place of the menu body. Same look as an inert row plus a chevron, so a
    member can tell which rows explain themselves.

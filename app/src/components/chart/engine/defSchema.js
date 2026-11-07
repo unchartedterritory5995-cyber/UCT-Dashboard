@@ -1583,9 +1583,9 @@ function validateReadout(def, inputsByKey, errors) {
     }
     // `source` and `when` share one grammar; `input:` must name a declared input
     // for the same reason `meta.legendParams` must — the row would read nothing.
-    for (const field of ['source', 'when']) {
+    for (const field of ['source', 'when', 'note']) {
       const v = entry[field]
-      if (field === 'when' && (v === undefined || v === null)) continue
+      if ((field === 'when' || field === 'note') && (v === undefined || v === null)) continue
       if (!isNonEmptyString(v)) {
         errors.push(`${path}.${field}: ${who} — required string, ${SOURCE_HELP}, got ${fmt(v)}`)
         continue
@@ -1621,6 +1621,9 @@ function validateReadout(def, inputsByKey, errors) {
     }
     if (entry.chip !== undefined && typeof entry.chip !== 'boolean') {
       errors.push(`${path}.chip: ${who} — expected a boolean, got ${fmt(entry.chip)}`)
+    }
+    if (entry.muted !== undefined && typeof entry.muted !== 'boolean') {
+      errors.push(`${path}.muted: ${who} — expected a boolean, got ${fmt(entry.muted)}`)
     }
     if (entry.words !== undefined) {
       if (entry.format !== 'bool') {

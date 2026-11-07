@@ -147,7 +147,8 @@ const FIXTURE = Object.freeze({
   plots: [{ key: 'rsi', label: 'RSF', style: 'line', color: 'token:info', width: 1, legend: { decimals: 1 } }],
   events: [],
   readout: [
-    { key: 'benchmark', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text', chip: true, card: CARD },
+    { key: 'benchmark', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text', chip: true, card: CARD,
+      note: 'scalar:benchmark.note' },
     { key: 'rating', label: 'Rating', source: 'scalar:rating.ibd', format: 'int', fallback: 'not yet rated' },
     { key: 'phase', label: 'RS line', source: 'scalar:legend.above', format: 'bool', words: ['above its average', 'below its average'] },
   ],
@@ -257,6 +258,46 @@ describe('the menu prints the readout rows once the envelope lands', () => {
     expect(menu.textContent).toContain('RSF')
     // no emoji anywhere on this surface
     expect(menu.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
+    await closeMenu()
+  })
+})
+
+describe('the row note and the Display-in page (visual round, 2026-11-07)', () => {
+  it('a note prints as a muted second line inside its row, and only when the payload carries one', async () => {
+    const { container } = mount()
+    const key = primeFixture({ ...PAYLOAD, benchmark: { ...PAYLOAD.benchmark, note: 'No XLK bar for Nov 5 yet' } })
+    await act(async () => { notifyColumnsLanded(key) })
+    let menu
+    await vi.waitFor(async () => {
+      menu = await openMenu(container, 'rsf-1')
+      if (!menu.querySelector('[data-readout-rows]')) { await closeMenu(); throw new Error('rows not yet derived') }
+    }, { timeout: 8000, interval: 150 })
+    const row = menu.querySelector('[data-readout-row="benchmark"]')
+    const note = row.querySelector('[data-readout-note]')
+    expect(note, 'the note sits inside its own row').not.toBeNull()
+    expect(note.textContent).toBe('No XLK bar for Nov 5 yet')
+    // the value itself stays in the normal ink; only the note is quiet
+    expect(row.getAttribute('data-muted')).toBe('false')
+    // control: the rows without a declared note carry none
+    expect(menu.querySelectorAll('[data-readout-note]')).toHaveLength(1)
+    await closeMenu()
+  })
+
+  it('the Display-in page of a readout chip carries the cap marker and a plain chip page does not', async () => {
+    const { container } = mount()
+    const open = async (id) => {
+      const menu = await openMenu(container, id)
+      const item = [...menu.querySelectorAll('[role="menuitem"]')].find((el) => /Display in/.test(el.textContent))
+      expect(item, `${id}: a Display in row`).toBeTruthy()
+      await act(async () => { fireEvent.click(item) })
+      await vi.waitFor(() => expect(menuEl().textContent).toMatch(/Own pane|New pane|Price pane|pane/i))
+      return menuEl()
+    }
+    let page = await open('rsf-1')
+    expect(page.querySelector('[data-readout-mark]'), 'the readout chip marks its Display-in page').not.toBeNull()
+    await closeMenu()
+    page = await open('rsi-1')
+    expect(page.querySelector('[data-readout-mark]'), 'RSI is untouched').toBeNull()
     await closeMenu()
   })
 })

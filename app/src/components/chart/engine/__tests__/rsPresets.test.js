@@ -34,7 +34,7 @@ const PAYLOAD = Object.freeze({
   lastRsHigh: { index: 850, time: 20261104, beforePrice: true, redDay: true, barsAgo: 1, summary: '1 bar ago · before price · red day' },
   history: { bars: 852, requested: 852, short: false },
   rating: { ibd: 94, fast: 91, asof: '2026-11-05', summary: '94 · fast 91' },
-  mansfield: { value: 18.71, aboveZero: true, state: 0, stateLabel: 'neutral', crossBarsAgo: 57, length: 200,
+  mansfield: { value: 18.71, aboveZero: true, state: 0, stateLabel: 'neutral', crossBarsAgo: 57, length: 200, lengthText: '200 bars', lastCross: 'up, 57 bars ago',
     summary: '+18.7%, above zero, falling' },
   regime: { label: 'persistence', pctFrom200: 4.1, return2y: 38.2, volTercile: 'low', reason: null },
   sensitivity: { spy: { word: 'rising', ticker: 'SPY' }, rsp: null, sector: { word: 'rising', ticker: 'XLK' },
@@ -77,7 +77,7 @@ describe('A1 — the glance list and the detail rows', () => {
       expect(parent.card, `${e.detailOf} has a card`).toBeTruthy()
     }
     const of = (key) => details.filter((e) => e.detailOf === key).map((e) => e.key)
-    expect(of('benchmarkName')).toEqual(['benchmark', 'benchmarkNote'])
+    expect(of('benchmarkName')).toEqual(['benchmarkRequested', 'benchmark', 'benchmarkNote'])
     expect(of('ratingSummary')).toEqual(['rating', 'fastRating', 'ratingAsOf'])
     expect(of('phase')).toEqual(['fromMa'])
     expect(of('mansfield')).toEqual(['mansfieldValue', 'mansfieldCross', 'mansfieldLength'])
@@ -103,10 +103,13 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(glanceKeys(rows(PAYLOAD, { showMansfield: true })))
       .toEqual(['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rsHigh', 'sensitivity', 'regime', 'checks'])
     // a short series adds History, and never more than nine rows
-    const short = { ...PAYLOAD, history: { bars: 180, requested: 852, short: true } }
-    const g = glanceKeys(rows(short, { showMansfield: true }))
+    const short = { ...PAYLOAD, history: { bars: 180, requested: 852, short: true, summary: '180 bars held; dots use every bar' } }
+    const got = rows(short, { showMansfield: true })
+    const g = glanceKeys(got)
     expect(g[g.length - 1]).toBe('shortHistory')
     expect(g.length).toBeLessThanOrEqual(9)
+    // the History row is the server's sentence, in the muted ink (visual spec row 9)
+    expect(got.find((r) => r.key === 'shortHistory')).toMatchObject({ text: '180 bars held; dots use every bar', muted: true })
   })
 
   it('the glance values print the composed reads verbatim', () => {
@@ -121,13 +124,32 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(unrated.find((r) => r.key === 'ratingSummary')).toMatchObject({ text: 'not yet rated', muted: true })
   })
 
+  it('the Benchmark row carries the server note as a muted second line, and only when there is one', () => {
+    expect(rows(PAYLOAD).find((r) => r.key === 'benchmarkName').note).toBeUndefined()
+    const etf = { ...PAYLOAD, benchmark: { ...PAYLOAD.benchmark, requested: 'SECTOR', fallback: 'symbol is an ETF',
+      note: 'Sector ETF not available for an ETF; using SPY' } }
+    expect(rows(etf).find((r) => r.key === 'benchmarkName')).toMatchObject({
+      text: 'S&P 500 (SPY)', note: 'Sector ETF not available for an ETF; using SPY', muted: false })
+    // the card's Note row is the same sentence, never the raw code
+    expect(rows(etf).find((r) => r.key === 'benchmarkNote')).toMatchObject({
+      text: 'Sector ETF not available for an ETF; using SPY', detailOf: 'benchmarkName' })
+    const gap = { ...PAYLOAD, benchmark: { ...PAYLOAD.benchmark, note: 'No SPY bar for Nov 5 yet' } }
+    expect(rows(gap).find((r) => r.key === 'benchmarkName').note).toBe('No SPY bar for Nov 5 yet')
+    // a blank note is no note
+    const blank = { ...PAYLOAD, benchmark: { ...PAYLOAD.benchmark, note: '   ' } }
+    expect(rows(blank).find((r) => r.key === 'benchmarkName').note).toBeUndefined()
+  })
+
   it('the numbers blocks: each detail row resolves and carries its glance key', () => {
     const got = rows(PAYLOAD, { showMansfield: true })
     const block = (key) => got.filter((r) => r.detailOf === key).map((r) => [r.label, r.text])
-    expect(block('benchmarkName')).toEqual([['Resolved', 'SPY']])
+    // Requested prints the OPTION the member picked, never the stored code
+    expect(block('benchmarkName')).toEqual([['Requested', 'S&P 500 (SPY)'], ['Resolved', 'SPY']])
+    const auto = rows(PAYLOAD, { benchmark: 'SECTOR' })
+    expect(auto.find((r) => r.key === 'benchmarkRequested')).toMatchObject({ text: 'Sector ETF (auto)' })
     expect(block('ratingSummary')).toEqual([['IBD-style', '94'], ['Fast', '91'], ['Rated as of', '2026-11-05']])
     expect(block('phase')).toEqual([['From average', '+6.8%']])
-    expect(block('mansfield')).toEqual([['Value', '+18.7%'], ['Last zero cross', '57 bars ago'], ['Length', '200']])
+    expect(block('mansfield')).toEqual([['Value', '+18.7%'], ['Last zero cross', 'up, 57 bars ago'], ['Length', '200 bars']])
     expect(block('rsHigh')).toEqual([['Bars ago', '1'], ['Before price', 'yes'], ['On a red day', 'yes']])
     expect(block('sensitivity')).toEqual([['SPY', 'rising'], ['Sector', 'rising'], ['Theme', 'Consumer Electronics (XLK)']])
     expect(block('regime')).toEqual([['vs 200-day', '+4.1%'], ['2-year return', '+38.2%'], ['Volatility third', 'low']])
@@ -170,7 +192,8 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(chip.suffix).toBe(' · XLK · 94')
     expect(paneReadoutLabel(chip, RS, null)).toBe('UCT Relative Strength · XLK · 94')
     // a fallback benchmark reads its note in the Benchmark card, never in the suffix
-    const fellBack = { ...sector, benchmark: { ...sector.benchmark, resolved: 'SPY', fallback: 'Sector ETF not available for an ETF; using SPY' } }
+    const fellBack = { ...sector, benchmark: { ...sector.benchmark, resolved: 'SPY', fallback: 'symbol is an ETF',
+      note: 'Sector ETF not available for an ETF; using SPY' } }
     expect(rows(fellBack).find((r) => r.key === 'benchmarkNote')).toMatchObject({ detailOf: 'benchmarkName' })
     expect(legendChips([b], null, engineRegistry, [inst], { scalarsOf: () => fellBack })[0].suffix).toBe(' · SPY · 94')
   })

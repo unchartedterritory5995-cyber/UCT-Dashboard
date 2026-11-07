@@ -299,10 +299,12 @@ def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch)
     assert env["times"] == [1000 + i for i in range(n)]
     assert fetch.calls[0] == ("NVDA", "D", 852), "lookback + 600 bars on a daily chart"
     p = env["payload"]
-    assert p["benchmark"] == {"requested": "SPY", "resolved": "SPY", "label": "S&P 500 (SPY)", "fallback": None, "bars": n}
+    assert p["benchmark"] == {"requested": "SPY", "resolved": "SPY", "label": "S&P 500 (SPY)", "fallback": None,
+                              "bars": n, "note": None}
     # 330 bars came back for a request of 852: the store holds the stock's whole
     # history, so this IS a short history and the partial dots are allowed.
-    assert p["history"] == {"bars": n, "requested": 852, "short": True} and p["intraday"] is False
+    assert p["history"] == {"bars": n, "requested": 852, "short": True,
+                            "summary": f"{n} bars held; dots use every bar"} and p["intraday"] is False
     assert p["state"] == "short-history" and p["benchmark"]["bars"] == n
     assert p["inputs"]["lookback"] == 252 and "lineColor" not in p["inputs"]
     assert p["inputs"]["mansfieldLength"] == 200
@@ -889,6 +891,8 @@ def test_an_etf_says_so_in_theme_and_has_no_sector_leg(v2_row, monkeypatch):
     monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Financial", "industry": rb.ETF_INDUSTRY})
     p = sig._rs_line_provider("QQQ", "D", {"benchmark": "SECTOR"})["payload"]
     assert p["benchmark"]["resolved"] == "SPY" and p["benchmark"]["fallback"] == "symbol is an ETF"
+    # the Benchmark row's muted second line: the reason, as a sentence
+    assert p["benchmark"]["note"] == "Sector ETF not available for an ETF; using SPY"
     assert p["theme"] == {"sector": None, "industry": rb.ETF_INDUSTRY, "etf": None,
                           "label": "Exchange-traded fund", "note": "symbol is an ETF"}
     s = p["sensitivity"]
@@ -1287,3 +1291,59 @@ def test_the_honesty_sentence_is_ONE_fact_in_two_files():
     envelope says "no artifact" must not read two different honesty lines."""
     assert _js_rs_honesty_sentence() == ep.HONESTY_SENTENCE
 
+
+
+# ── The Benchmark row's second line (visual spec rows 1 and A8, 2026-11-07) ──
+
+def _leg(index):
+    return {"index": index}
+
+
+def test_benchmark_note_names_the_missing_benchmark_bar_on_a_daily_chart():
+    times = [20261103, 20261104, 20261105]
+    bench = {"requested": "SPY", "resolved": "SPY", "fallback": None}
+    # the newest bar has no ratio: the benchmark has no bar for that day yet
+    assert sig._rs_benchmark_note(bench, _leg(1), times, intraday=False) == "No SPY bar for Nov 5 yet"
+    # no finite value anywhere in the window says the same
+    assert sig._rs_benchmark_note(bench, _leg(None), times, intraday=False) == "No SPY bar for Nov 5 yet"
+    # control: the newest bar has a value, so there is no note at all
+    assert sig._rs_benchmark_note(bench, _leg(2), times, intraday=False) is None
+
+
+def test_benchmark_note_stays_silent_where_a_date_would_mislead():
+    times = [20261103, 20261104, 20261105]
+    bench = {"requested": "SPY", "resolved": "SPY", "fallback": None}
+    assert sig._rs_benchmark_note(bench, _leg(1), times, intraday=True) is None
+    assert sig._rs_benchmark_note(bench, _leg(None), times, intraday=False, same_symbol=True) is None
+    assert sig._rs_benchmark_note(bench, _leg(None), [], intraday=False) is None
+
+
+def test_benchmark_note_turns_every_fallback_reason_into_a_sentence():
+    def note(requested, reason, resolved="SPY"):
+        b = {"requested": requested, "resolved": resolved, "fallback": reason}
+        return sig._rs_benchmark_note(b, _leg(2), [1, 2, 3], intraday=False)
+
+    assert note("SECTOR", "symbol is an ETF") == "Sector ETF not available for an ETF; using SPY"
+    assert note("SECTOR", "no sector") == "Sector ETF not available: no sector on file; using SPY"
+    assert note("SECTOR", "sector not mapped: Shell Companies") == \
+        "Sector ETF not available for the Shell Companies sector; using SPY"
+    assert note("INDUSTRY", "industry group too small", "XLK") == "Industry group too small to average; using XLK"
+    assert note("INDUSTRY", "no industry", "XLK") == "Industry group not available: no industry on file; using XLK"
+    assert note("INDUSTRY", "no industry or sector") == \
+        "Industry group not available: no industry or sector on file; using SPY"
+    # a reason the table does not know still prints, never vanishes
+    assert note("SECTOR", "brand new reason") == "Sector ETF not available: brand new reason; using SPY"
+    # control: no fallback, no note
+    assert note("SPY", None) is None
+
+
+def test_every_reason_the_resolver_can_return_has_a_sentence_shape():
+    # the resolver's reasons, read from its own source, so a new one cannot ship unworded
+    import inspect
+    import re
+    src = inspect.getsource(rb.resolve_benchmark)
+    reasons = set(re.findall(r'"fallback": "([^"]+)"', src)) | set(re.findall(r'else "([^"]+)"', src))
+    reasons |= set(re.findall(r'"([a-z ]+)" if [a-z]+ else', src))
+    assert reasons, "control: the scan found the resolver's reasons"
+    for r in reasons:
+        assert r in sig._RS_FALLBACK_SENTENCE, r

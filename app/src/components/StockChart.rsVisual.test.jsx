@@ -516,10 +516,20 @@ describe('the stylesheet — one type scale, one grid, the host inks', () => {
   })
 
   it('one popover width capped to the viewport, scrolling inside, scoped to readout content', () => {
-    const cap = rule(base, ':global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage)')
+    // every RS page: menu (header), card, Preset, and Display in (its marker, VA3)
+    const cap = rule(base, ':global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark)')
     expect(cap).toMatch(/max-width:\s*calc\(100vw - 16px\)/)
     expect(cap).toMatch(/max-height:\s*calc\(100vh - 16px\)/)
     expect(cap).toMatch(/overflow-y:\s*auto/)
+    expect(rule(base, '.legReadoutMark')).toMatch(/display:\s*none/)
+  })
+
+  it('a row note is a muted second line in the value column, one step smaller', () => {
+    const note = rule(base, '.legMenuRowNote')
+    expect(note).toMatch(/grid-column:\s*2/)
+    expect(note).toMatch(/grid-row:\s*2/)
+    expect(note).toMatch(/color:\s*var\(--text-muted\)/)
+    expect(note).toMatch(/11px/)
   })
 
   it('lesson rows 28 px on desktop and the tap floor on touch; card rows meet it on touch', () => {

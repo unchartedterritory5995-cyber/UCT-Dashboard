@@ -39,7 +39,14 @@
 //                                            // static `evidence` line when it resolves
 //     detailOf?: 'rsHigh',                   // a DETAIL row: it prints only inside that
 //                                            // glance row's card (the numbers block)
+//     note?:    'scalar:benchmark.note',     // same grammar: a muted second line under
+//                                            // the value, absent when it resolves to nothing
+//     muted?:   true,                        // the value itself prints in the quiet ink
+//                                            // (a qualifier, never a pane-label value)
 //   }]
+//
+// An `input:` source in `text` format over an `enum` input prints the option's
+// LABEL (`Sector ETF (auto)`), never the stored code (`SECTOR`).
 //
 // ⭐ GLANCE ROWS AND DETAIL ROWS (Phase 2a visual round, item A1). The chip menu
 // is a read in under five seconds, so it lists the GLANCE rows only — every
@@ -93,7 +100,7 @@ export const READOUT_SOURCE_PREFIXES = Object.freeze(['scalar', 'payload', 'inpu
  *  closed in `defSchema` — a readout row is behavioural (it decides what the
  *  legend prints), not a document field to preserve. */
 export const READOUT_ENTRY_FIELDS = Object.freeze([
-  'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card', 'detailOf',
+  'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card', 'detailOf', 'note', 'muted',
 ])
 
 /** The closed set of fields a row's `card` may carry. `learn` (2a-10) is a
@@ -240,18 +247,42 @@ function resolveRow(entry, scalars, def, inputs) {
     if (!gate) return null
     if (!gateOpen(readSource(gate, scalars, def, inputs))) return null
   }
-  const value = readSource(src, scalars, def, inputs)
+  let value = readSource(src, scalars, def, inputs)
+  // ⭐ AN ENUM INPUT PRINTS ITS OPTION LABEL, never the stored code: a member
+  // picked "Sector ETF (auto)", not "SECTOR" (Phase 2a visual spec, Benchmark
+  // card, "Requested"). The label is the definition's own, so there is no second
+  // copy of the option copy anywhere.
+  if (src.kind === 'input' && entry.format === 'text') value = enumOptionLabel(def, src.path[0], value)
   const text = (value === undefined || value === null) ? null : formatReadoutValue(entry.format, value, entry)
   let row = null
   if (typeof text === 'string' && text) {
-    row = { key: entry.key, label: entry.label, value, text, muted: false }
+    // `muted: true` — a qualifier the row states in the quiet ink even with a
+    // value (the short-history note); a muted row never reaches the pane label.
+    row = { key: entry.key, label: entry.label, value, text, muted: entry.muted === true }
   } else if (typeof entry.fallback === 'string' && entry.fallback) {
     row = { key: entry.key, label: entry.label, value: null, text: entry.fallback, muted: true }
   }
   // A detail row says whose card it belongs to; a glance row carries no field at
   // all, so the row shape every existing surface reads is unchanged for it.
   if (row && typeof entry.detailOf === 'string' && entry.detailOf) row.detailOf = entry.detailOf
+  // ⭐ `note` — a second, muted line under the value (the Benchmark row's
+  // `Sector ETF not available for an ETF; using SPY`, `No SPY bar for Nov 5
+  // yet`). Same source grammar as `source`; a note that resolves to nothing is
+  // simply absent, and a row that cannot print never carries one.
+  if (row && entry.note !== undefined && entry.note !== null) {
+    const n = parseReadoutSource(entry.note)
+    const v = n ? readSource(n, scalars, def, inputs) : undefined
+    if (typeof v === 'string' && v.trim()) row.note = v.trim()
+  }
   return row
+}
+
+/** The option label an enum input declares for `value`, or `value` unchanged. */
+function enumOptionLabel(def, key, value) {
+  const declared = (def && Array.isArray(def.inputs) ? def.inputs : []).find((i) => i && i.key === key)
+  if (!declared || declared.type !== 'enum' || !Array.isArray(declared.options)) return value
+  const hit = declared.options.find((o) => Array.isArray(o) && o[0] === value)
+  return hit && typeof hit[1] === 'string' && hit[1] ? hit[1] : value
 }
 
 /**
@@ -264,8 +295,9 @@ function resolveRow(entry, scalars, def, inputs) {
  * @param {object} def the definition (reads `def.readout` and `def.inputs`)
  * @param {object|null} scalars the envelope's payload (`scalarsFor`'s answer)
  * @param {{inputs?: object}} [ctx] the instance's stored inputs, for `input:` rows
- * @returns {{key: string, label: string, value: *, text: string, muted: boolean, detailOf?: string}[]}
- *   in declaration order; `detailOf` is present on a detail row only
+ * @returns {{key: string, label: string, value: *, text: string, muted: boolean, detailOf?: string, note?: string}[]}
+ *   in declaration order; `detailOf` is present on a detail row only, `note` on
+ *   a row whose declared note resolved to text
  */
 export function readoutRows(def, scalars, ctx) {
   const entries = def && Array.isArray(def.readout) ? def.readout : []

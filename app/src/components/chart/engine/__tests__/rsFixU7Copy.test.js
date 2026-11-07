@@ -27,15 +27,17 @@ describe('finding #9 — the Mansfield card prints the length actually used', ()
     expect(what).toMatch(/Weinstein/)
   })
 
-  it('a readout row prints `payload.mansfield.length` — a weekly chart at the default reads 200, not 52', () => {
+  it('a readout row prints the length the server used (`payload.mansfield.lengthText`) — a weekly chart at the default reads 200 bars, not 52', () => {
     const row = rowOf('mansfieldLength')
     expect(row, 'a mansfieldLength readout row exists').toBeTruthy()
-    expect(row.source).toBe('scalar:mansfield.length')
-    const weeklyDefault = { mansfield: { value: 4.2, length: 200, stateLabel: 'bull' } }
+    // visual spec, Mansfield card: `Length  200 bars` (2026-11-07). The server
+    // writes the words from the length it computed with, so the two cannot differ.
+    expect(row.source).toBe('scalar:mansfield.lengthText')
+    const weeklyDefault = { mansfield: { value: 4.2, length: 200, lengthText: '200 bars', stateLabel: 'bull' } }
     const rows = readoutRows(RS, weeklyDefault, { inputs: {} })
-    expect(rows.find((r) => r.key === 'mansfieldLength').text).toBe('200')
-    const trendWeekly = { mansfield: { value: 4.2, length: 52 } }
-    expect(readoutRows(RS, trendWeekly, { inputs: {} }).find((r) => r.key === 'mansfieldLength').text).toBe('52')
+    expect(rows.find((r) => r.key === 'mansfieldLength').text).toBe('200 bars')
+    const trendWeekly = { mansfield: { value: 4.2, length: 52, lengthText: '52 bars' } }
+    expect(readoutRows(RS, trendWeekly, { inputs: {} }).find((r) => r.key === 'mansfieldLength').text).toBe('52 bars')
     // it sits in the Mansfield card it qualifies (visual round A1: the numbers
     // block Value, Last zero cross, Length), never in the glance list
     expect(row.detailOf).toBe('mansfield')
