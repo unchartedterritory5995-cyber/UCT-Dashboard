@@ -47,7 +47,7 @@ import { widgetControls as registryControls } from '../../widgets/widgetControls
 // every control a widget offers: the registry's rows, then the Agent's own over the product's writers (widgetNames AGENT_CONTROLS)
 const widgetControls = allControls
 // a type is listed for the model only while one of its widgets can take a control (a chart without the panel offers none)
-const offers = (type, raw) => registryControls(type).length > 0 || (AGENT_CONTROLS[type] || []).some(f => raw.some(w => w.type === type && !f.when?.(w.opts)))
+const offers = (type, raw, doors) => registryControls(type).length > 0 || (AGENT_CONTROLS[type] || []).some(f => raw.some(w => w.type === type && !f.when?.(w.opts, doors?.[w.id])))
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
@@ -214,7 +214,7 @@ function widgetControlSection(s, message, whole) {
   // a widget NAMED in the message (its registry label: routing brought the group for it) narrows the section to the
   // widgets named — the others' controls are not what this request is about (bytes)
   const named = namedBoardWidgets(message, onBoard)
-  const types = onBoard.filter(t => offers(t, s.raw))
+  const types = onBoard.filter(t => offers(t, s.raw, s.doors))
     .filter(t => (whole && (!named.length || named.includes(t))) || namedHere(t, said))
   if (!types.length) return undefined
   const controls = Object.fromEntries(types.map(t => [t, [...widgetControls(t).map(controlWord), ...itemWords(t, s.doors, s.raw.filter(w => w.type === t).map(w => w.id))].join(', ')]))
@@ -1191,7 +1191,7 @@ export function registerBoardCapabilities() {
       if (listFor(t, key)) return itemWhy(st, t, key, value, env)
       const opts = widgetControls(t.type)
       const f = controlFor(t, key)
-      if (f?.when?.(t.opts)) return f.when(t.opts)
+      if (f?.when?.(t.opts, st.doors?.[t.id])) return f.when(t.opts, st.doors?.[t.id])
       if (!f && scalarsOf(t.type).some(x => x.key === String(key))) return `I can't change “${key}” on the ${label(t.type)}: the widget doesn't read a saved value for it, so nothing would change. Use the control on the widget itself.`
       if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
       if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`

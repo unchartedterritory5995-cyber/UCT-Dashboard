@@ -548,7 +548,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     pane: paneRef.current, symbol: symRef.current, tf: tfRef.current, settings: chartCsRef.current,
   }), [])
 
-  useWidgetDoor(() => ({ capture: () => ({ kind: 'chart', capture: buildJournalCapture() }) }))
+  // the View Holdings button (an ETF or a UCT index): its toggle, read back from whether its panel is open
+  const holdingsRef = useRef(null)
+  useWidgetDoor(() => ({
+    capture: () => ({ kind: 'chart', capture: buildJournalCapture() }),
+    read: () => { const h = holdingsRef.current; return h && (h.holdable || h.open) ? { holdingsOpen: !!h.open } : {} },
+    write: (key, v) => { if (key === 'holdingsOpen') holdingsRef.current?.set?.(v) },
+  }))
 
   const handleSendToJournal = useCallback(async () => {
     closeCtx()
@@ -723,7 +729,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   the fund/index constituents (a thematic index lists the theme's merged
                   basket, which tracks the Theme Tracker). ViewHoldingsControl decides
                   whether to render based on the symbol. */}
-              <ViewHoldingsControl sym={sym} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+              <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
               {extraTabs.length === 0 && (

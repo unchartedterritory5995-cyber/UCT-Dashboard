@@ -114,7 +114,7 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no option “minPrice” — its options are universe, universes\.$/)
     expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos, list\.$/)
     // (a chart's options are its Company Info panel's, round 5: the timeframe is chart.setTimeframe's)
-    expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no option “tf” — its options are companyTab, companyOpen/)
+    expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no option “tf” — its options are companyTab, holdingsOpen, companyOpen/)
     // ⛔ declared in the schema, but the mounted widget never reads them back from opts: refused in words, nothing written
     for (const [id, key, value] of [['br', 'tileStyle', 'spark'], ['nh', 'minCount', 5]]) {
       expect(await refuse(host, { widget: id, key, value }), `${id}.${key}`).toMatch(new RegExp(`I can't change “${key}” .*doesn't read a saved value`))
