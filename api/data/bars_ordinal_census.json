@@ -7,7 +7,7 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2241,
+  "modules_scanned": 2244,
   "summary": {
     "named_access_count": 2,
     "positional_count": 49,
@@ -85,7 +85,7 @@
         },
         {
           "function": "get_bars",
-          "line": 5698
+          "line": 5721
         }
       ],
       "evidence": {
@@ -159,15 +159,19 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 580
+          "line": 599
         },
         {
           "function": "get_bars_before",
-          "line": 589
+          "line": 632
+        },
+        {
+          "function": "get_bars_before",
+          "line": 641
         }
       ],
       "evidence": {
-        "line": 590,
+        "line": 602,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -612,11 +616,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 104
+          "line": 126
         }
       ],
       "evidence": {
-        "line": 161,
+        "line": 202,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -668,11 +672,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 487
+          "line": 467
         }
       ],
       "evidence": {
-        "line": 177,
+        "line": 190,
         "pattern": "for-unpack",
         "size": 6
       }

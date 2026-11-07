@@ -117,7 +117,11 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # DELIBERATE Screener change since 3ca4b0d358 (W5-T14): seventeen RS columns, their filters,
 # starters and methodology. The pin is now that programme's last Screener commit (VA6), so the
 # guard keeps its meaning: the F16 Agent work must not touch the Screener after it.
-SCREENER_PIN = "c9c660b15d94508981be2acfee32c4ec67d704db"
+# Re-pinned again 2026-11-07 (RS go-live): the owner-delegated decisions (PR #913) change
+# rs_history.py (split guard, backfill), snapshot_db.py (the bars_rs receipt column) and
+# methodology.py on purpose. The pin is the merge commit that brings the whole RS programme
+# (#889, #903, #913) together with master, so it holds both sides' reviewed Screener code.
+SCREENER_PIN = "1045f9dd37f3630d6b79fb2cd7796a56448cc3a1"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
