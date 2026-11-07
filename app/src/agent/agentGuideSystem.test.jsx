@@ -290,3 +290,35 @@ describe('the overlay', () => {
     expect(card()).toBeNull()
   })
 })
+
+// pl-auto howto-10: a step with no result to wait for, whose control STAYS after the member presses it (a menu that does not
+// close), must not leave its ring and card up over a thing already done
+describe('a pressed control finishes its step, even when it stays on screen', () => {
+  it('a middle step moves on, and the last step ends the walkthrough: no ring is left behind', async () => {
+    dom('<button data-guide="a">A</button><button data-guide="b">B</button><input data-guide="c" />')
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'a', text: 'Click A.' }, { target: 'c', text: 'Type here.' }, { target: 'b', text: 'Click B.' }] }) })
+    await waitFor(() => expect(text()).toBe('Click A.'))
+    fireEvent.pointerDown(document.querySelector('[data-guide="a"]'), { button: 0 })
+    await waitFor(() => expect(text()).toBe('Type here.'))
+    // a click into a field is the start of typing, not the step done
+    fireEvent.pointerDown(document.querySelector('[data-guide="c"]'), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(text()).toBe('Type here.')
+    act(() => { guideState() && fireEvent.click(screen.getByText('Next')) })
+    await waitFor(() => expect(text()).toBe('Click B.'))
+    fireEvent.pointerDown(document.querySelector('[data-guide="b"]'), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(screen.queryByTestId('guide-ring')).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('a right-click on the control does not count as the click the step asked for', async () => {
+    dom('<button data-guide="a">A</button>')
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'a', text: 'Click A.' }, { target: 'a', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('Click A.'))
+    fireEvent.pointerDown(document.querySelector('[data-guide="a"]'), { button: 2 })
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(text()).toBe('Click A.')
+  })
+})

@@ -127,7 +127,19 @@ export default function GuideOverlay() {
     // capture, passive: the guide only notes that the member's click landed on the control; it never touches the event
     const onDown = (e) => {
       const el = findTarget(step.target, st)
-      if (el && el.contains?.(e.target)) clicked = Date.now()
+      if (el && el.contains?.(e.target)) {
+        clicked = Date.now()
+        // ⭐ a step with no result to wait for is DONE when the member presses its control, whether or not the control goes
+        // away (a menu that stays open, a toggle): the walkthrough moves on, or ends on its last step — it never leaves its
+        // ring and card up over a thing already done. Not a field (a click there is only the start of typing), not a right-click.
+        const field = e.target?.closest?.('input, textarea, select, [contenteditable="true"]')
+        if (!step.waitFor && !step.endsOnClick && e.button === 0 && !field) {
+          setTimeout(() => {
+            if (cancelled) return   // the step already moved on (its control went away with the click)
+            if (st.index >= st.steps.length - 1) endGuide('done'); else nextStep()
+          }, POLL_MS * 2)
+        }
+      }
       // the step's other way of being done: its control stays on screen, so the click itself is the finish
       const also = step.also ? findTarget(step.also, st) : null
       if (also && also.contains?.(e.target)) setTimeout(() => { if (!cancelled) endGuide('done') }, POLL_MS)
