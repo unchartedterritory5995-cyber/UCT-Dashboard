@@ -110,7 +110,7 @@ def _with_lesson(item: dict, lesson: str | None, definition: str | None) -> dict
     """The new lesson (and the definition it quotes, on the reveal, so its numbers are grounded) unless the owner
     approved the item with its template lesson: then the item stays byte for byte as it was."""
     if lesson and item["id"] not in _frozen():
-        item["lesson_text"], item["lesson_origin"] = lesson, "session"
+        item["lesson_text"], item["lesson_origin"] = lesson, "source"   # his definition + the fixture note, quoted
         item["reveal_json"] = dict(item["reveal_json"], owner_definition=definition)
     return item
 

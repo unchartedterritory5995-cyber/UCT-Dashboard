@@ -26334,7 +26334,7 @@
   },
   "difficulty": 3,
   "id": "si_b06bdccd6e03",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: a volume gap tested and closed above, but the gap was already closed into earlier.",
   "module": null,
   "prompt_json": {
@@ -27423,7 +27423,7 @@
   },
   "difficulty": 3,
   "id": "si_e48bf04b826a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: an unfilled volume gap and a pullback, but the low never reached the gap.",
   "module": null,
   "prompt_json": {
@@ -28512,7 +28512,7 @@
   },
   "difficulty": 3,
   "id": "si_6d33b318ac8a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: an unfilled volume gap and a pullback, but the low never reached the gap.",
   "module": null,
   "prompt_json": {
@@ -30689,7 +30689,7 @@
   },
   "difficulty": 3,
   "id": "si_6763b7b65c3f",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: the low reached only the gap day's open, judged not a gap test in the blind review.",
   "module": null,
   "prompt_json": {
@@ -31778,7 +31778,7 @@
   },
   "difficulty": 3,
   "id": "si_41fa95d1a578",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -32867,7 +32867,7 @@
   },
   "difficulty": 3,
   "id": "si_85f43bf3158b",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -33956,7 +33956,7 @@
   },
   "difficulty": 3,
   "id": "si_00d2708ed41e",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -35045,7 +35045,7 @@
   },
   "difficulty": 3,
   "id": "si_7030f30bc406",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27). Here the firm's Gap Support detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -44838,7 +44838,7 @@
   },
   "difficulty": 3,
   "id": "si_b7a35bd1e521",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: weak open, sweep and a strong close, but the 20-day is falling (a downtrend bounce).",
   "module": null,
   "prompt_json": {
@@ -45927,7 +45927,7 @@
   },
   "difficulty": 3,
   "id": "si_f4ec090cd28a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: weak open, sweep and a strong close, but the 20-day is falling (a downtrend bounce).",
   "module": null,
   "prompt_json": {
@@ -47016,7 +47016,7 @@
   },
   "difficulty": 3,
   "id": "si_3fdaa6382016",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: a sweep and a strong close, but the session opened above the prior close.",
   "module": null,
   "prompt_json": {
@@ -48105,7 +48105,7 @@
   },
   "difficulty": 3,
   "id": "si_f4ed665a9856",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: a sweep and a strong close, but the session opened above the prior close.",
   "module": null,
   "prompt_json": {
@@ -49194,7 +49194,7 @@
   },
   "difficulty": 3,
   "id": "si_7aa1895c67b2",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -50283,7 +50283,7 @@
   },
   "difficulty": 3,
   "id": "si_76d0facae7b5",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -51372,7 +51372,7 @@
   },
   "difficulty": 3,
   "id": "si_6cd2d17f7f63",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -52461,7 +52461,7 @@
   },
   "difficulty": 3,
   "id": "si_f89b039108fc",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -53550,7 +53550,7 @@
   },
   "difficulty": 3,
   "id": "si_bda8e87b6276",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: weak open, sweep and rejection, but the close finished outside the upper 40% of the range.",
   "module": null,
   "prompt_json": {
@@ -54639,7 +54639,7 @@
   },
   "difficulty": 3,
   "id": "si_217a7b3d60d9",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector does not fire on the last bar. The fixture's own note: weak open, sweep and rejection, but the close finished outside the upper 40% of the range.",
   "module": null,
   "prompt_json": {
@@ -55728,7 +55728,7 @@
   },
   "difficulty": 3,
   "id": "si_0c6b6b064b25",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -56817,7 +56817,7 @@
   },
   "difficulty": 3,
   "id": "si_f3ffdb16522d",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -57906,7 +57906,7 @@
   },
   "difficulty": 3,
   "id": "si_4abce8a99e89",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -58995,7 +58995,7 @@
   },
   "difficulty": 3,
   "id": "si_231e7ab26145",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -60084,7 +60084,7 @@
   },
   "difficulty": 3,
   "id": "si_591e29e20208",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -61173,7 +61173,7 @@
   },
   "difficulty": 3,
   "id": "si_a7166080e283",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close. Here the firm's Go Signal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -63622,7 +63622,7 @@
   },
   "difficulty": 3,
   "id": "si_e9198258053b",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: highest volume in 26 weeks but not in 252 sessions (label variant only).",
   "module": null,
   "prompt_json": {
@@ -66071,7 +66071,7 @@
   },
   "difficulty": 3,
   "id": "si_cb985edff621",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: highest volume in 26 weeks but not in 252 sessions (label variant only).",
   "module": null,
   "prompt_json": {
@@ -68520,7 +68520,7 @@
   },
   "difficulty": 3,
   "id": "si_b86a7ec9e62e",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -70969,7 +70969,7 @@
   },
   "difficulty": 3,
   "id": "si_47956941effb",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -73418,7 +73418,7 @@
   },
   "difficulty": 3,
   "id": "si_e4e91161e61c",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -75867,7 +75867,7 @@
   },
   "difficulty": 3,
   "id": "si_9f73dcd51287",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -78316,7 +78316,7 @@
   },
   "difficulty": 3,
   "id": "si_c18f5afbc614",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: second-highest volume of the year, not the highest.",
   "module": null,
   "prompt_json": {
@@ -80765,7 +80765,7 @@
   },
   "difficulty": 3,
   "id": "si_9ea54b6e4311",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector does not fire on the last bar. The fixture's own note: second-highest volume of the year, not the highest.",
   "module": null,
   "prompt_json": {
@@ -83214,7 +83214,7 @@
   },
   "difficulty": 3,
   "id": "si_3460d68c906f",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -85663,7 +85663,7 @@
   },
   "difficulty": 3,
   "id": "si_a2d7657a338b",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -88112,7 +88112,7 @@
   },
   "difficulty": 3,
   "id": "si_c5abe3eeb73d",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -90561,7 +90561,7 @@
   },
   "difficulty": 3,
   "id": "si_8471926a7932",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -93010,7 +93010,7 @@
   },
   "difficulty": 3,
   "id": "si_40114fdc6ae3",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -95459,7 +95459,7 @@
   },
   "difficulty": 3,
   "id": "si_fa3bad6f99e7",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the firm's High Volume Edge detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -96468,7 +96468,7 @@
   },
   "difficulty": 3,
   "id": "si_12e2ee82afcf",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: weak prior close, gap up and break, but the gap is under a tenth of the prior range.",
   "module": null,
   "prompt_json": {
@@ -97477,7 +97477,7 @@
   },
   "difficulty": 3,
   "id": "si_46daf2fdd98e",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: weak prior close, gap up and break, but the gap is under a tenth of the prior range.",
   "module": null,
   "prompt_json": {
@@ -98486,7 +98486,7 @@
   },
   "difficulty": 3,
   "id": "si_3b12e66b6ea1",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: weak prior close and gap up, but no break of the prior high.",
   "module": null,
   "prompt_json": {
@@ -99495,7 +99495,7 @@
   },
   "difficulty": 3,
   "id": "si_2a0da7b3f2ea",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: weak prior close and gap up, but no break of the prior high.",
   "module": null,
   "prompt_json": {
@@ -100504,7 +100504,7 @@
   },
   "difficulty": 3,
   "id": "si_2e21bf6d16da",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: weak prior close and break of the prior high, but it opened below the prior close.",
   "module": null,
   "prompt_json": {
@@ -101513,7 +101513,7 @@
   },
   "difficulty": 3,
   "id": "si_0135a2c41ecc",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: weak prior close and break of the prior high, but it opened below the prior close.",
   "module": null,
   "prompt_json": {
@@ -102522,7 +102522,7 @@
   },
   "difficulty": 3,
   "id": "si_a9855e349fe5",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -103531,7 +103531,7 @@
   },
   "difficulty": 3,
   "id": "si_7334649917b4",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -104540,7 +104540,7 @@
   },
   "difficulty": 3,
   "id": "si_cbd235e0ff3c",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -105549,7 +105549,7 @@
   },
   "difficulty": 3,
   "id": "si_022f49e23c4a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -106558,7 +106558,7 @@
   },
   "difficulty": 3,
   "id": "si_5efefd03c2c0",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: red prior day that closed in the top 40% of its range is not a weak close.",
   "module": null,
   "prompt_json": {
@@ -107567,7 +107567,7 @@
   },
   "difficulty": 3,
   "id": "si_0dd174a580aa",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: red prior day that closed in the top 40% of its range is not a weak close.",
   "module": null,
   "prompt_json": {
@@ -108576,7 +108576,7 @@
   },
   "difficulty": 3,
   "id": "si_25628131b71e",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: gap up and break of the prior high, but the prior day closed strong.",
   "module": null,
   "prompt_json": {
@@ -109585,7 +109585,7 @@
   },
   "difficulty": 3,
   "id": "si_c781bc1ff1b9",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector does not fire on the last bar. The fixture's own note: gap up and break of the prior high, but the prior day closed strong.",
   "module": null,
   "prompt_json": {
@@ -110594,7 +110594,7 @@
   },
   "difficulty": 3,
   "id": "si_3a28b8115c7e",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -111603,7 +111603,7 @@
   },
   "difficulty": 3,
   "id": "si_32b4fe9bc468",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -112612,7 +112612,7 @@
   },
   "difficulty": 3,
   "id": "si_1bf82b960e3c",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -113621,7 +113621,7 @@
   },
   "difficulty": 3,
   "id": "si_7db396258ed7",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -114630,7 +114630,7 @@
   },
   "difficulty": 3,
   "id": "si_890fd151e83f",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -115639,7 +115639,7 @@
   },
   "difficulty": 3,
   "id": "si_5613f589e2cb",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24). Here the firm's Kicker Candle detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -117368,7 +117368,7 @@
   },
   "difficulty": 3,
   "id": "si_30fbe1c079db",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: tight cluster and a curling 50, but the close is stretched more than 1 ATR above it.",
   "module": null,
   "prompt_json": {
@@ -119097,7 +119097,7 @@
   },
   "difficulty": 3,
   "id": "si_ca93e3948891",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: tight cluster and a curling 50, but the close is stretched more than 1 ATR above it.",
   "module": null,
   "prompt_json": {
@@ -120826,7 +120826,7 @@
   },
   "difficulty": 3,
   "id": "si_ba0cce410cf5",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: averages 3.5-6% apart: close above them and the 50 curling, but not a tight cluster.",
   "module": null,
   "prompt_json": {
@@ -122555,7 +122555,7 @@
   },
   "difficulty": 3,
   "id": "si_98157bd71a91",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: averages 3.5-6% apart: close above them and the 50 curling, but not a tight cluster.",
   "module": null,
   "prompt_json": {
@@ -124284,7 +124284,7 @@
   },
   "difficulty": 3,
   "id": "si_61785ac54ba1",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -126013,7 +126013,7 @@
   },
   "difficulty": 3,
   "id": "si_7ae41cfe1a1c",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -127742,7 +127742,7 @@
   },
   "difficulty": 3,
   "id": "si_e954e33e3844",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -129471,7 +129471,7 @@
   },
   "difficulty": 3,
   "id": "si_aa307f0874be",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -131200,7 +131200,7 @@
   },
   "difficulty": 3,
   "id": "si_c42734afa636",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: tight cluster with the close just above it, but the 50-day is still falling.",
   "module": null,
   "prompt_json": {
@@ -132929,7 +132929,7 @@
   },
   "difficulty": 3,
   "id": "si_64347bef1e8e",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector does not fire on the last bar. The fixture's own note: tight cluster with the close just above it, but the 50-day is still falling.",
   "module": null,
   "prompt_json": {
@@ -134658,7 +134658,7 @@
   },
   "difficulty": 3,
   "id": "si_afd744c0f163",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -136387,7 +136387,7 @@
   },
   "difficulty": 3,
   "id": "si_448f251e7cbf",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -138116,7 +138116,7 @@
   },
   "difficulty": 3,
   "id": "si_a66677add6a8",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -139845,7 +139845,7 @@
   },
   "difficulty": 3,
   "id": "si_e6da6afd8f07",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -141574,7 +141574,7 @@
   },
   "difficulty": 3,
   "id": "si_bd0677e3b64d",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -143303,7 +143303,7 @@
   },
   "difficulty": 3,
   "id": "si_d3926a21ca46",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the firm's Launchpad detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -144312,7 +144312,7 @@
   },
   "difficulty": 3,
   "id": "si_38dec06c4c4a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: undercut and traded over the prior close but closed back under it.",
   "module": null,
   "prompt_json": {
@@ -145321,7 +145321,7 @@
   },
   "difficulty": 3,
   "id": "si_0d71477e79be",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: undercut and traded over the prior close but closed back under it.",
   "module": null,
   "prompt_json": {
@@ -146330,7 +146330,7 @@
   },
   "difficulty": 3,
   "id": "si_c90d70e11cec",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: open below prior close and close above it, but no undercut of the prior low (dropped by the blind review).",
   "module": null,
   "prompt_json": {
@@ -147339,7 +147339,7 @@
   },
   "difficulty": 3,
   "id": "si_1a683ad3e571",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: open below prior close and close above it, but no undercut of the prior low (dropped by the blind review).",
   "module": null,
   "prompt_json": {
@@ -148348,7 +148348,7 @@
   },
   "difficulty": 3,
   "id": "si_21c33ef613f5",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: undercut and reclaim but the open was above the prior close.",
   "module": null,
   "prompt_json": {
@@ -149357,7 +149357,7 @@
   },
   "difficulty": 3,
   "id": "si_4d735660dc76",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: undercut and reclaim but the open was above the prior close.",
   "module": null,
   "prompt_json": {
@@ -150366,7 +150366,7 @@
   },
   "difficulty": 3,
   "id": "si_ae411355002f",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -151375,7 +151375,7 @@
   },
   "difficulty": 3,
   "id": "si_f3932d8a44c4",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -152384,7 +152384,7 @@
   },
   "difficulty": 3,
   "id": "si_607aa9208a6a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -153393,7 +153393,7 @@
   },
   "difficulty": 3,
   "id": "si_02f7502308d1",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -154402,7 +154402,7 @@
   },
   "difficulty": 3,
   "id": "si_760d7e259b17",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: reclaimed the prior low but not the prior close.",
   "module": null,
   "prompt_json": {
@@ -155411,7 +155411,7 @@
   },
   "difficulty": 3,
   "id": "si_895b0b705c9d",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector does not fire on the last bar. The fixture's own note: reclaimed the prior low but not the prior close.",
   "module": null,
   "prompt_json": {
@@ -156420,7 +156420,7 @@
   },
   "difficulty": 3,
   "id": "si_094d084b92a2",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -157429,7 +157429,7 @@
   },
   "difficulty": 3,
   "id": "si_944aefc0e9c0",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -158438,7 +158438,7 @@
   },
   "difficulty": 3,
   "id": "si_46d18ae2b7f4",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -159447,7 +159447,7 @@
   },
   "difficulty": 3,
   "id": "si_91438efb5537",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -160456,7 +160456,7 @@
   },
   "difficulty": 3,
   "id": "si_4bc705c58162",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -161465,7 +161465,7 @@
   },
   "difficulty": 3,
   "id": "si_74458acd0081",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here the firm's Oops Reversal detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -162474,7 +162474,7 @@
   },
   "difficulty": 3,
   "id": "si_f6f16c47b866",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: a slingshot close but under the 50-day average (the S5 uptrend gate).",
   "module": null,
   "prompt_json": {
@@ -163483,7 +163483,7 @@
   },
   "difficulty": 3,
   "id": "si_b8fc9bcb2136",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: a slingshot close but under the 50-day average (the S5 uptrend gate).",
   "module": null,
   "prompt_json": {
@@ -164492,7 +164492,7 @@
   },
   "difficulty": 3,
   "id": "si_6c4bf5c42552",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: pullback and reclaim in an uptrend but no qualifying strength day.",
   "module": null,
   "prompt_json": {
@@ -165501,7 +165501,7 @@
   },
   "difficulty": 3,
   "id": "si_704fe3e1115a",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: pullback and reclaim in an uptrend but no qualifying strength day.",
   "module": null,
   "prompt_json": {
@@ -166510,7 +166510,7 @@
   },
   "difficulty": 3,
   "id": "si_ee6679ca4484",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: first close over the average of highs after only one close below.",
   "module": null,
   "prompt_json": {
@@ -167519,7 +167519,7 @@
   },
   "difficulty": 3,
   "id": "si_5ce4c535527d",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: first close over the average of highs after only one close below.",
   "module": null,
   "prompt_json": {
@@ -168528,7 +168528,7 @@
   },
   "difficulty": 3,
   "id": "si_212c0947f2e3",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -169537,7 +169537,7 @@
   },
   "difficulty": 3,
   "id": "si_6eb37d7cdf33",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -170546,7 +170546,7 @@
   },
   "difficulty": 3,
   "id": "si_411ae17572a6",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -171555,7 +171555,7 @@
   },
   "difficulty": 3,
   "id": "si_681016dfb964",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector does not fire on the last bar. The fixture's own note: an ordinary session with no trigger in the last three sessions.",
   "module": null,
   "prompt_json": {
@@ -172564,7 +172564,7 @@
   },
   "difficulty": 3,
   "id": "si_3676408aff39",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -173573,7 +173573,7 @@
   },
   "difficulty": 3,
   "id": "si_f8e741ccfb7c",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -174582,7 +174582,7 @@
   },
   "difficulty": 3,
   "id": "si_889105c38ed5",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -175591,7 +175591,7 @@
   },
   "difficulty": 3,
   "id": "si_351226b6fe38",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -176600,7 +176600,7 @@
   },
   "difficulty": 3,
   "id": "si_3384b42db5a6",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
@@ -177609,7 +177609,7 @@
   },
   "difficulty": 3,
   "id": "si_07b6bd12c0d3",
-  "lesson_origin": "session",
+  "lesson_origin": "source",
   "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the firm's Slingshot detector fires on the last bar. The fixture's own note: real daily bars; the detector's rule holds on the last session.",
   "module": null,
   "prompt_json": {
