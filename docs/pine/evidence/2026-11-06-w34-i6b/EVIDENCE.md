@@ -172,3 +172,72 @@ R2 is equivalent. A whole-line call that carries a `sub` is a call followed by a
 ("`f()` is not a shape this front end reads"), and that guard does not consult `statementOnlyFn`. The same refusal
 was observed on the tip with and without the sub condition. So whether `f` counts as statement-only cannot be
 observed: the script refuses at the line either way. The condition stays as fail-closed belt.
+
+## Measure-pair, mutate.py, merge (after re-review GO @fea38c2785)
+
+### Measure-pair (tip `fea38c2785`, base `pine-dsk-mpbase2` detached at the merge-base `4ca464f6e3`)
+- Lock: `dsk/heavy-mp2.lock`, which was free at launch. The RAM gate was on. Both HEADs were verified before and after
+  each lane.
+- Logs: `$UCT_RESUME/runs/w34-i6b/mpr/mp-all.log` and `mp0/`, `mp1/`. The compare tool was `runs/w6-t7/mpcompare.py`.
+
+**Runtime 0**
+
+| check | tip side | base side |
+|---|---|---|
+| `== side` SHA | `fea38c2785` | `4ca464f6e3` |
+| captures | 336: MATCH 93, DIVERGE 103, INCONCLUSIVE 140 | identical |
+
+- C18 out: 395 rows, 0 differ. C18 probe: 69 rows, 0 differ.
+- Harness: identical.
+- Census: 5 rows differ.
+
+**Runtime 1**
+
+| check | tip side | base side |
+|---|---|---|
+| `== side` SHA | `fea38c2785` | `4ca464f6e3` |
+| captures | 336: MATCH 112, DIVERGE 107, INCONCLUSIVE 117 | identical |
+
+- C18 out: 395 rows, 0 differ. C18 probe: 69 rows, 0 differ.
+- Harness: identical.
+- Census: 7 rows differ.
+
+**C18: 0 diffs on both lanes.**
+
+| lane | census row | verdict | why |
+|---|---|---|---|
+| rt0 | `example:keywords:method#0` | PROGRESS | `runtime.attached` false -> true. This is the reference's `method` example: `maintainArray` (tail `if` with no else, `id.shift()`) is called only as the statement `prices.maintainArray(50, close)`. That is item 1, and the value is discarded |
+| rt0 | `volatility-coil-edge-bullbyte` | NEUTRAL | the order of the `pine:timeout` dropHeads differs (time budget) |
+| rt0 | `halftrend-longshort-signal-engine-bigbeluga` | NEUTRAL | the timeout reason text differs (10000ms budget vs nesting depth); both are `pine:timeout` |
+| rt0 | `luxy-momentum-trend-and-breakout-…` | NEUTRAL | `guard:reset` 11 vs 10, inside a step whose dropHeads are all `pine:timeout`; same refusal |
+| rt0 | `mirage-liquidity-sweep-pro-willyalgotrader` | NEUTRAL | one dropHead is `pine:timeout` vs `pine:tuple` (time budget) |
+| rt1 | `fibonacci-retracement-statistics-by-volprofex` | PROGRESS | the step-1/2 probe `runtime:block-value` (L593, L719) is gone, so the first wall moves to `pine:drawing` `box.all` L862 (item 1) |
+| rt1 | `tehthomas-aligned-timeframe-fair-value-gaps` | PROGRESS | peelSteps 7 -> 5: the `runtime:block-value` L239 and `runtime:statement` L236 walls are gone (item 1) |
+| rt1 | `volume-delta-oi-delta-kioseff-trading` | PROGRESS | the step-4 probe `runtime:block-value` (L69 `size.*`) is gone, so the wall moves to `runtime:request-with-state` (item 4). L63 is still refused (Q-A3) |
+| rt1 | `volatility-coil-edge-bullbyte` | PROGRESS | the step-6 probe `runtime:block-value` (L615) is gone, so the wall moves to `runtime:colour` |
+| rt1 | `dynamic-support-and-resistance-with-trend-lines-multi-language` | PROGRESS | the step-6 probe `runtime:block-value` is gone, so the wall moves to `runtime:history-dynamic-offset` |
+| rt1 | `example:keywords:method#0` | PROGRESS | attached false -> true (as on rt0) |
+| rt1 | `multi-timeframe-trend-indicator` | NEUTRAL | 3 vs 2 `pine:timeout` refusals in timed-out steps; the probes are identical |
+
+**Totals: 7 PROGRESS, 5 NEUTRAL, 0 REGRESSION, 0 unintended.**
+
+### mutate.py
+- Lock: `dsk/heavy-mut.lock`, which was free when checked.
+- Muts file: `runs/w34-i6b/i6b-muts.json`, 18 entries. Tests: the I6b rail + `w4V6Bool`.
+- Log: `runs/w34-i6b/mut.log`. MUT_RC 0, and the tree was clean afterwards.
+
+**16 KILLED.** The killed mutants are:
+- M1a, M1b and M1c;
+- M2a, M2b and M2c;
+- M4a, M4b and M4c;
+- r1-M1, r1-M2 and r1-M3;
+- R1, R3, R4 and R7.
+
+**2 SURVIVED**, both expected:
+- M0, the no-op control;
+- R2, the named equivalent (see Round r1).
+
+### Merge
+- `origin/master` `0aeffdc0e9` (engine 24, W34-I4 landed) was merged as `349e138e9c`. The merge was clean.
+- Rails on the merged tree: `w34I6V6BoolResidue` + `w4V6Bool` = **62 passed (62)**.
+- final-tip was not run, by the coordinator's instruction.
