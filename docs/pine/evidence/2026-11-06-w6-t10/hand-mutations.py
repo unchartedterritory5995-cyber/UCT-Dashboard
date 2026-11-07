@@ -23,6 +23,8 @@ MUTS = [
   ('M13 route exclusion removed', "        && !(enumDecls.size && containsEnum(node, scope))) {", "        ) {", [RAIL]),
   ('M14 registry built at the object door too', "  const enumDecls = atObjectDoor ? new Map() : collectEnums(stmts)", "  const enumDecls = collectEnums(stmts)", [RAIL, DOOR]),
   ('M14b statement arm also at the object door', "      if (word === 'enum' && !atObjectDoor && enumDeclarationHead(toks)) {", "      if (word === 'enum' && enumDeclarationHead(toks)) {", [RAIL, DOOR]),
+  ('M16 reserved enum names accepted', "    if (ENUM_RESERVED_NAMES.has(name)) {", "    if (false) {", [RAIL]),
+  ('M17 enum named like a declared type accepted', "        if (udtTypes.has(decl.name)) {", "        if (false) {", [RAIL]),
 ]
 
 orig = io.open(FE, encoding='utf-8', newline='').read()

@@ -153,3 +153,18 @@ describe('W6-T10 unchanged elsewhere', () => {
     expect(out0('enum = 5\nplot(close + enum)', {}, 4)).toEqual(BARS.map((b) => b.c + 5))
   })
 })
+
+describe('W6-T10 enum names Pine reserves (review N2)', () => {
+  it('an enum named like a built-in namespace or type refuses by name', () => {
+    refused('enum color\n    red\n    blue\nplot(color.red == color.blue ? 1 : 0)', /built-in type or namespace/)
+    refused('enum syminfo\n    a\nplot(close)', /built-in type or namespace/)
+    refused('enum float\n    a\nplot(close)', /built-in type or namespace/)
+    refused('enum polyline\n    a\nx = polyline.a\nplot(x == polyline.a ? 1 : 0)', /built-in type or namespace/)
+  })
+  it('an enum sharing its name with a declared type refuses by name', () => {
+    refused('type Q\n    float v\nenum Q\n    a\nplot(close)', /must be unique/)
+  })
+  it('a name near a reserved one still serves', () => {
+    expect(out0('enum colors\n    red\n    blue\nplot(colors.red == colors.blue ? 1 : 0)')).toEqual(ones(0))
+  })
+})

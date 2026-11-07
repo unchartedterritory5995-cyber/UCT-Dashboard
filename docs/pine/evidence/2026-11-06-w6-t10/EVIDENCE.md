@@ -116,3 +116,18 @@ removed rather than shipped unproved; the rerun above is on the final code, wher
 ## Not run (coordinator schedules): `mutate.py`, measure-pair (both lanes), final-tip, ready-check.
 Expected measure-pair: no census row moves (breakdown section 0, finding 5: no census script reaches an enum);
 C18 diffs 0 (door unchanged by construction, railed).
+
+## r1 (review GO-WITH-NOTES @a86e365e4c, note N2): reserved enum names
+- `collectEnums` marks a declaration `bad` when its name is in `ENUM_RESERVED_NAMES`: every namespace heading a
+  variable, constant, function or method in the Pine v6 reference, plus every type it lists (reference extracted
+  2026-11-06 with `tools/pine_survey/pine_reference_extract.js`). The manual, *Enums*: an enum name must not match a
+  built-in type or namespace, and such a name is a compilation error. W6-T2 has no namespace roster to reuse (its
+  rule covers the `method` keyword only), so the list is new and cites the reference.
+- The statement arm also refuses an `enum` sharing its name with a `type` the script declares (the manual: enum names
+  are unique).
+- Rail: 3 new tests in `w6Enum.test.js` (`enum color` / `syminfo` / `float` / `polyline` refuse; `enum Q` beside
+  `type Q` refuses; `enum colors` still serves). 27/27 on the tip. The first two were red before the fix
+  (`enum color` served, as the reviewer found).
+- Hand mutations (`hand-mutations.py`): C0 control SURVIVED; M16 reserved names accepted KILLED; M17 enum named like a
+  declared type accepted KILLED; M1 re-run KILLED.
+- Door: unaffected (the registry is empty at the door).

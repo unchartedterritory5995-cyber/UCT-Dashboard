@@ -632,6 +632,24 @@ export function collectUdtTypes(stmts, out) {
  * @returns {Map<string, {name, members: Map<string, string>, bad: string|null, tok}>}
  *   field name → title, in declaration order.
  */
+/** ⭐ W6-T10 (review N2) — THE NAMES AN ENUM MAY NOT TAKE. Pine (manual, *Enums*): an enum's name
+ *  must not match a built-in type or namespace (`syminfo`, `polyline`, `ta` are its examples), and
+ *  such a name is a compilation error. This is every namespace that heads a variable, constant,
+ *  function or method in the Pine v6 reference, and every type the reference lists, read 2026-11-06
+ *  through `tools/pine_survey/pine_reference_extract.js` (W6-T10 evidence). There is no roster of
+ *  these in the front end to reuse: W6-T2's rule is about the `method` keyword only. */
+export const ENUM_RESERVED_NAMES = Object.freeze(new Set([
+  // namespaces
+  'adjustment', 'alert', 'array', 'backadjustment', 'barmerge', 'barstate', 'box', 'chart', 'color',
+  'currency', 'dayofweek', 'display', 'dividends', 'earnings', 'extend', 'font', 'footprint', 'format',
+  'hline', 'input', 'label', 'line', 'linefill', 'location', 'log', 'map', 'math', 'matrix', 'order',
+  'plot', 'polyline', 'position', 'request', 'runtime', 'scale', 'session', 'settlement_as_close',
+  'shape', 'size', 'splits', 'str', 'strategy', 'syminfo', 'ta', 'table', 'text', 'ticker', 'timeframe',
+  'volume_row', 'xloc', 'yloc',
+  // types (and qualifiers) not already above
+  'bool', 'const', 'float', 'int', 'series', 'simple', 'string',
+]))
+
 export function collectEnums(stmts) {
   const acc = new Map()
   for (const st of stmts || []) {
@@ -666,6 +684,9 @@ export function collectEnums(stmts) {
       members.set(mt[0].value, title)
     }
     if (!members.size) bad = bad || 'it declares no fields'
+    if (ENUM_RESERVED_NAMES.has(name)) {
+      bad = `its name is a Pine built-in type or namespace, which Pine's manual says an enum may not take`
+    }
     acc.set(name, { name, members, bad, tok: toks[1], stmt: st })
   }
   return acc
@@ -11196,6 +11217,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           locate(first))
         }
         if (decl.bad) throw enumRefusal(`\`enum ${decl.name}\` — ${decl.bad}`, locate(first))
+        // ⛔ (review N2) nor the name of a `type` this script declares: Pine's enum names are unique.
+        if (udtTypes.has(decl.name)) {
+          throw enumRefusal(`\`enum ${decl.name}\` — the script also declares \`type ${decl.name}\`, `
+            + 'and Pine\'s manual says an enum name must be unique', locate(first))
+        }
         continue
       }
       if (word === 'type' && toks[1] && toks[1].kind === 'ident') {
