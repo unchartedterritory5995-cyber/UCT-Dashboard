@@ -226,8 +226,8 @@ const SETTING_HINTS = (() => {
   // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
   return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
     + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
-    + 'header.fields|barInfo: +/-field. '
-    + 'Any other setting (volume plot style…): no op — say where it lives in Chart Settings.'
+    + 'header.fields|barInfo: +/-field ("+Market Cap"). '
+    + 'Anything else: no op — say where it lives in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
 const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))
@@ -752,7 +752,7 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator, info-row/bar-info fields).',
+    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: [...ELIGIBLE_SETTINGS.map(d => d.id), ...LIST_SETTINGS.map(l => l.id)] },
@@ -764,8 +764,7 @@ const CAPABILITIES = [
     argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },
     shape: 'args {"setting": <one id from the list>, "value": …} — "turn the gradient off" = {"setting":"bgMode","value":"solid"}, '
       + '"gradient on" = {"setting":"bgMode","value":"gradient"}, "hide the grid" = {"setting":"grid.visible","value":false}. Never invent '
-      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported. '
-      + 'Which fields the Info row / Bar info strip print: "add market cap to the info row" = {"setting":"header.fields","value":"+Market Cap"}, "no open in the bar info" = {"setting":"header.barInfo","value":"-Open"}.',
+      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported.',
     check(st, { setting, value }) {
       const l = listSetting(setting)
       if (l) return listMember(l, value).why || null
