@@ -16,7 +16,7 @@ driver, the artifact, the publish gate), ``__main__`` (the CLI).
 THE ARTIFACT ``rs/evidence.json`` (what unit 2b-03 pulls and the card reads)::
 
     {
-      "version": 1,
+      "version": 2,                         2 since 2026-11-07: next-open base (N6), split guard (N5)
       "asof": "YYYY-MM-DD",                 newest benchmark session measured against
       "generated_at": "...Z",
       "benchmark": "SPY",
@@ -38,9 +38,14 @@ THE ARTIFACT ``rs/evidence.json`` (what unit 2b-03 pulls and the card reads)::
         }, ...
       },
       "baseline": {"21": {same keys}, "63": {...}, "126": {...}},
+      "split_guard": {"skipped": {"<name>": int, ..., "all_bars": int}, "rule": "..."},
+                                            rows left out: an unadjusted split in the window
       "method": {"forward_return", "hit", "baseline", "point_in_time", "inputs",
                  "warmup_bars", "display_floor_n", "publish_floor_rows"}
     }
+
+The forward return runs from the NEXT session's open to the close ``h`` sessions
+after the signal (``measure`` header).
 
 ``hit_rate`` and ``incomplete_share`` are fractions 0-1; ``median_excess`` and
 ``mean_excess`` are PERCENT; a statistic with no complete window is ``null``.
@@ -62,12 +67,14 @@ from .job import (
     publish,
     run,
 )
-from .measure import BASELINE_KEY, HORIZONS, forward_excess, measure, rows_for_ticker, summarise, summarise_values
+from .measure import (BASELINE_KEY, HORIZONS, benchmark_aligned, forward_excess, measure, rows_for_ticker,
+                      split_indexes, summarise, summarise_values)
 from .signals import SIGNALS, compute_signal_columns, inputs_used
 
 __all__ = [
     "ARTIFACT_KEY", "ARTIFACT_VERSION", "BASELINE_KEY", "DEFAULT_BENCHMARK", "DISPLAY_FLOOR_N", "HORIZONS",
     "MIN_ROWS", "SIGNALS", "SURVIVORSHIP_NOTE", "WARMUP_BARS", "UsageError", "artifact_bytes",
-    "build_artifact", "compute_signal_columns", "default_delisted_count", "forward_excess", "inputs_used",
-    "measure", "plan_sessions", "publish", "rows_for_ticker", "run", "summarise", "summarise_values",
+    "benchmark_aligned", "build_artifact", "compute_signal_columns", "default_delisted_count", "forward_excess",
+    "inputs_used", "measure", "plan_sessions", "publish", "rows_for_ticker", "run", "split_indexes",
+    "summarise", "summarise_values",
 ]

@@ -9,6 +9,10 @@ interpreter and GIL, armed by a boot hook so a redeploy resumes it).
     --asof YYYY-MM-DD  measure as of this session; default: the newest held
     --benchmark SYM    default SPY
     --dry-run          measure, print the summary, write and publish NOTHING
+    --split-fetch-budget N
+                       provider fetches for the split guard's declared split
+                       lists (default: `declared_splits.DEFAULT_FETCH_BUDGET`
+                       on a real run, 0 on a dry run)
     --publish          publish the artifact; REQUIRES --dest
     --dest KEY         the R2 key, e.g. rs/evidence.json
 
@@ -30,7 +34,7 @@ import logging
 import sys
 from typing import Callable, List, Optional, Sequence
 
-from .job import DEFAULT_BENCHMARK, UsageError, run
+from .job import AUTO_SPLIT_BUDGET, DEFAULT_BENCHMARK, UsageError, run
 
 log = logging.getLogger("api.services.rs_evidence")
 
@@ -68,6 +72,9 @@ def _parser() -> argparse.ArgumentParser:
     ap.add_argument("--dry-run", action="store_true", help="measure and print; write and publish nothing")
     ap.add_argument("--publish", action="store_true", help="publish the artifact (requires --dest)")
     ap.add_argument("--dest", help="R2 key for the artifact, e.g. rs/evidence.json")
+    ap.add_argument("--split-fetch-budget", type=int, default=None, metavar="N",
+                    help="provider fetches for the split guard's declared split lists "
+                         "(default: the nightly budget on a real run, 0 on a dry run)")
     return ap
 
 
@@ -92,14 +99,16 @@ def _print_summary(receipt: dict) -> None:
             md = "-" if x["median_excess"] is None else f"{x['median_excess']:+.2f}%"
             parts.append(f"h{h}: n={x['n']} hit={hr} med={md}")
         print(f"  {'all_bars (baseline)':<28} " + " | ".join(parts), flush=True)
+    print(f"  split guard: rows_skipped={receipt.get('split_skipped')} tickers_with_split="
+          f"{receipt.get('split_tickers')} lists_unknown={receipt.get('split_unchecked')}", flush=True)
 
 
 def main(argv: Optional[Sequence[str]] = None, *, bars_reader: Optional[Callable] = None,
          universe: Optional[Sequence[str]] = None, put_bytes: Optional[Callable] = None,
-         delisted_fn: Optional[Callable] = None) -> int:
+         delisted_fn: Optional[Callable] = None, splits_reader: Optional[Callable] = None) -> int:
     """Parse, run, print the receipt line, return the exit code. The keyword
-    seams exist for tests (a synthetic reader, a spy for ``put_bytes``) and are
-    not CLI arguments."""
+    seams exist for tests (a synthetic reader, a spy for ``put_bytes``, a split
+    list stub) and are not CLI arguments."""
     try:
         args = _parser().parse_args(list(argv) if argv is not None else None)
     except SystemExit as e:                                  # argparse: 2 on error, 0 on --help
@@ -114,6 +123,10 @@ def main(argv: Optional[Sequence[str]] = None, *, bars_reader: Optional[Callable
     if args.sessions < 0:
         print("rs_evidence: --sessions must be 0 or a positive count", file=sys.stderr)
         return EXIT_USAGE
+    if args.split_fetch_budget is not None and args.split_fetch_budget < 0:
+        print("rs_evidence: --split-fetch-budget must be 0 or more", file=sys.stderr)
+        return EXIT_USAGE
+    budget = AUTO_SPLIT_BUDGET if args.split_fetch_budget is None else args.split_fetch_budget
     uni = universe
     if args.universe:
         try:
@@ -124,7 +137,8 @@ def main(argv: Optional[Sequence[str]] = None, *, bars_reader: Optional[Callable
     try:
         receipt = run(db=args.db, dry_run=args.dry_run, publish_to=args.dest if args.publish else None,
                       sessions=args.sessions, asof=args.asof, benchmark=args.benchmark, universe=uni,
-                      bars_reader=bars_reader, put_bytes=put_bytes, delisted_fn=delisted_fn)
+                      bars_reader=bars_reader, put_bytes=put_bytes, delisted_fn=delisted_fn,
+                      splits_reader=splits_reader, split_fetch_budget=budget)
     except UsageError as e:
         print(f"rs_evidence: {e}", file=sys.stderr)
         return EXIT_USAGE

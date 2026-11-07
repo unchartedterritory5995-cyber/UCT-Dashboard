@@ -29,6 +29,27 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG = ROOT / "api" / "services" / "rs_evidence"
 
 
+@pytest.fixture(autouse=True)
+def provider(monkeypatch):
+    """No test here reaches the corporate-action provider. The split guard's
+    default reader fetches through this stub (it refuses unless a test loads an
+    answer into ``answers``), its brake is a local no-op and its cache is empty."""
+    from api.services import declared_splits as ds
+    state = {"answers": {}, "asked": []}
+
+    def fetch(ticker):
+        state["asked"].append(ticker)
+        if ticker in state["answers"]:
+            return {"ipo": None, "splits": state["answers"][ticker]}
+        raise RuntimeError("no provider in tests")
+    monkeypatch.setattr(ds, "_default_fetch", fetch)
+    monkeypatch.setattr(ds, "_default_gate", lambda: (lambda: True, lambda: 0.0, lambda: None))
+    monkeypatch.setattr(ds, "_default_cache_get", lambda t: None)
+    monkeypatch.setattr(ds, "_default_cache_set", lambda t, meta: None)
+    monkeypatch.setattr(ds, "FETCH_PAUSE_S", 0)
+    return state
+
+
 # --------------------------------------------------------------------------- #
 # synthetic bars and a reader in the `get_bars_before` shape
 # --------------------------------------------------------------------------- #
@@ -104,18 +125,19 @@ class _Spy:
 def test_measure_hand_derived_on_a_constructed_universe():
     """SPY flat at 100 (benchmark return 0, so excess = the stock's own return).
     A = 100 + 0.5 i (always up), B = 200 - 0.25 i (always down), C = 100 (flat);
-    400 bars. Signal ``x`` placed by construction: A at 10, 50, 390; B at 100;
-    C at 150.
+    400 bars, each opening at its own close. Signal ``x`` placed by construction:
+    A at 10, 50, 390; B at 100; C at 150.
 
-    h = 21:  A10  (100+0.5*31)/105 - 1 = 115.5/105 - 1 = +10 %
-             A50  135.5/125 - 1               = +8.4 %
-             B100 (200-0.25*121)/175 - 1 = 169.75/175 - 1 = -3 %
+    The base is the NEXT bar's open (N6, 2026-11-07), so excess = C[t+h] / O[t+1] - 1:
+    h = 21:  A10  (100+0.5*31)/(100+0.5*11) - 1 = 115.5/105.5 - 1 = +9.479 %
+             A50  135.5/125.5 - 1                              = +7.968 %
+             B100 (200-0.25*121)/(200-0.25*101) - 1 = 169.75/174.75 - 1 = -2.861 %
              C150 0
              A390 390+21 >= 400 -> incomplete
              n = 4, incomplete = 1 (share 0.2), hit 2/4 = 0.5,
-             median of [-3, 0, 8.4, 10] = 4.2, mean = 15.4/4 = 3.85
-    h = 63:  +30, +25.2, -9, 0  -> median 12.6, mean 11.55
-    h = 126: +60, +50.4, -18, 0 -> median 25.2, mean 23.1
+             median of [-2.861, 0, 7.968, 9.479] = 3.984, mean = 14.586/4 = 3.646
+    (the signal-close base read +10 % / +8.4 % / -3 % here: the overnight step
+    the member could not buy.) h = 63 and h = 126 follow the same formula.
     baseline h = 21: every bar i <= 378 of each ticker -> 3 x 379 = 1137 complete,
              3 x 21 = 63 incomplete; hits = A's 379 only -> 379/1137; the sorted
              values are 379 negatives, 379 zeros, 379 positives -> median 0.
@@ -137,7 +159,18 @@ def test_measure_hand_derived_on_a_constructed_universe():
     assert out["horizons"] == [21, 63, 126] and out["rows"] == 1200
     sig = out["per_signal"]["x"]
     assert (sig["n_signals"], sig["dates"], sig["tickers"]) == (5, 5, 3)
-    expect = {"21": (4.2, 3.85), "63": (12.6, 11.55), "126": (25.2, 23.1)}
+
+    def a(i):
+        return 100 + 0.5 * i
+
+    def b(i):
+        return 200 - 0.25 * i
+    expect = {}
+    for h in (21, 63, 126):
+        vals = sorted([(a(10 + h) / a(11) - 1) * 100, (a(50 + h) / a(51) - 1) * 100,
+                       (b(100 + h) / b(101) - 1) * 100, 0.0])
+        expect[str(h)] = ((vals[1] + vals[2]) / 2, sum(vals) / 4)
+    assert expect["21"] == (pytest.approx(3.98406, abs=1e-4), pytest.approx(3.64639, abs=1e-4))
     for h, (med, mean) in expect.items():
         st = sig["horizons"][h]
         assert st["n"] == 4 and st["incomplete"] == 1
@@ -164,16 +197,82 @@ def test_summarise_values_hand_derived_and_never_invents_a_value():
 
 
 def test_forward_excess_is_the_documented_formula_and_a_hit_is_strictly_positive():
+    """N6 (2026-11-07): from the NEXT bar's open to the close h bars after the signal.
+    Bar 0 closes at 100; bar 1 GAPS to open 105 and closes 110; bar 2 closes 121.
+    The benchmark opens bar 1 at 52 and closes bar 2 at 55."""
+    opens = [99.0, 105.0, 118.0]
     closes = [100.0, 110.0, 121.0]
-    bench = [50.0, 55.0, 55.0]
-    # bars t+1..t+2 from bar 0: stock +21 %, benchmark +10 % -> excess +11 %
-    assert ev.forward_excess(closes, bench, 0, 2) == pytest.approx(11.0)
-    assert ev.forward_excess(closes, bench, 1, 2) is None, "runs past the series -> incomplete"
-    assert ev.forward_excess([100.0, None, 121.0], bench, 0, 2) == pytest.approx(21.0 - 10.0)
-    assert ev.forward_excess([100.0, 110.0, None], bench, 0, 2) is None, "no close at the end -> incomplete"
-    assert ev.forward_excess(closes, [50.0, 55.0, None], 0, 2) is None, "no benchmark at the end -> incomplete"
-    assert ev.forward_excess(closes, bench, 0, 0) is None
+    b_opens = [49.0, 52.0, 54.0]
+    b_closes = [50.0, 55.0, 55.0]
+    want = ((121 / 105 - 1) - (55 / 52 - 1)) * 100          # +15.24 % - 5.77 % = +9.47 %
+    assert ev.forward_excess(opens, closes, b_opens, b_closes, 0, 2) == pytest.approx(want)
+    old_base = ((121 / 100 - 1) - (55 / 50 - 1)) * 100      # +11 %: the signal-close base
+    assert ev.forward_excess(opens, closes, b_opens, b_closes, 0, 2) != pytest.approx(old_base), \
+        "the overnight gap the member could not buy is no longer counted"
+    assert ev.forward_excess(opens, closes, b_opens, b_closes, 0, 1) == pytest.approx(
+        ((110 / 105 - 1) - (55 / 52 - 1)) * 100), "h = 1 is the next session's open to its close"
+    assert ev.forward_excess(opens, closes, b_opens, b_closes, 1, 2) is None, "runs past the series"
+    assert ev.forward_excess(opens, [100.0, None, 121.0], b_opens, b_closes, 0, 2) == pytest.approx(want), \
+        "a hole inside the window does not matter: only its two ends are read"
+    assert ev.forward_excess([99.0, None, 118.0], closes, b_opens, b_closes, 0, 2) is None, \
+        "no open at t+1 -> incomplete"
+    assert ev.forward_excess(opens, [100.0, 110.0, None], b_opens, b_closes, 0, 2) is None, \
+        "no close at the end -> incomplete"
+    assert ev.forward_excess(opens, closes, [49.0, None, 54.0], b_closes, 0, 2) is None, \
+        "no benchmark open at t+1 -> incomplete"
+    assert ev.forward_excess(opens, closes, b_opens, [50.0, 55.0, None], 0, 2) is None, \
+        "no benchmark close at the end -> incomplete"
+    assert ev.forward_excess(opens, closes, b_opens, b_closes, 0, 0) is None
     assert ev.summarise_values([0.0])["hit_rate"] == 0.0, "zero excess is not a hit"
+
+
+def test_the_benchmark_open_and_close_are_joined_by_bar_time():
+    ts = _weekdays(4)
+    bars = [{"t": ts[i], "o": 10.0, "c": 10.0} for i in (0, 1, 3)]          # the stock skips ts[2]
+    bench = [{"t": t, "o": 100.0 + i, "c": 200.0 + i} for i, t in enumerate(ts)]
+    opens, closes = ev.benchmark_aligned(bars, bench)
+    assert opens == [100.0, 101.0, 103.0] and closes == [200.0, 201.0, 203.0]
+    assert closes == rs.benchmark_closes_aligned(bars, bench), "the one join the RS line uses"
+
+
+# --------------------------------------------------------------------------- #
+# the split guard (N5, 2026-11-07)
+# --------------------------------------------------------------------------- #
+
+def test_a_row_whose_window_holds_an_unadjusted_split_is_not_counted():
+    """A 2:1 split at bar 100 that was never adjusted. Rows at bar i with
+    i + 1 < 100 <= i + 126 are left out; a boundary AT i + 1 is fine (the base
+    open is already on the new scale), and the rows after it are measured."""
+    ts = _weekdays(300)
+    closes = [100.0] * 100 + [50.0] * 200
+    bars = _bars(closes, ts)
+    bench = [100.0] * 300
+    splits = ev.split_indexes(bars, [ts[100]])
+    assert splits == [100]
+    rows = ev.rows_for_ticker("A", bars, bench, bench, {"x": [1.0] * 300}, splits=splits)
+    by = {(r[0], r[1]): r[3] for r in rows}
+    skipped = [i for i in range(300) if by[(ts[i], ev.BASELINE_KEY)] is None]
+    assert skipped == list(range(0, 99)), "every bar from 0 to 98 has the split inside its window"
+    assert by[(ts[99], ev.BASELINE_KEY)] is not None, "boundary at t+1: measured, base is post-split"
+    assert by[(ts[99], ev.BASELINE_KEY)][0] == pytest.approx(0.0)
+    assert all(by[(ts[i], "x")] is None for i in range(99)), "signal rows follow the same rule"
+    out = ev.summarise(rows)
+    assert out["split_skipped"] == {ev.BASELINE_KEY: 99, "x": 99}
+    assert out["rows"] == 201 and out["per_signal"]["x"]["n_signals"] == 201
+    assert out["baseline"]["21"]["median_excess"] == pytest.approx(0.0), \
+        "without the guard the 2:1 split reads as a -50 % trade"
+    unguarded = ev.summarise(ev.rows_for_ticker("A", bars, bench, bench, {"x": [1.0] * 300}))
+    assert unguarded["baseline"]["21"]["mean_excess"] < -1.0 and unguarded["split_skipped"] == {}
+
+
+def test_the_job_finds_split_boundaries_with_the_one_detector():
+    ts = _weekdays(60)
+    bars = _bars([100.0] * 30 + [25.0] * 30, ts)
+    declared_at = J.ymd_to_iso(ts[28])                     # the provider's date can be off by days
+    assert J.split_boundary_times(bars, [(declared_at, 4.0)]) == [ts[30]]
+    assert J.split_boundary_times(_bars([25.0] * 60, ts), [(declared_at, 4.0)]) == [], "already adjusted"
+    assert J.split_boundary_times(bars, []) == [] and J.split_boundary_times(bars, None) == [], \
+        "nothing declared, or nothing known: nothing guessed"
 
 
 def test_store_summary_agrees_with_the_in_memory_summary_on_the_same_rows(tmp_path):
@@ -185,15 +284,19 @@ def test_store_summary_agrees_with_the_in_memory_summary_on_the_same_rows(tmp_pa
         (20200102, "x", "A", (1.0, -2.0, None)),
         (20200103, "x", "A", (0.5, None, None)),
         (20200102, "y", "B", (-1.0, 3.0, 4.0)),
+        (20200106, ev.BASELINE_KEY, "B", None),             # split-guarded: stored, never measured
+        (20200106, "y", "B", None),
     ]
     mem = ev.summarise(rows)
     conn = S.open_store(str(tmp_path / "ev.db"))
     S.write_rows(conn, rows)
     conn.commit()
     got = S.summary(conn)
+    assert S.window(conn)["to"] == 20200103, "a guarded row is not a measured session"
     conn.close()
     assert got == mem
     assert mem["rows"] == 3 and mem["per_signal"]["x"]["n_signals"] == 2
+    assert mem["split_skipped"] == {ev.BASELINE_KEY: 1, "y": 1} and mem["per_signal"]["y"]["n_signals"] == 1
     assert mem["per_signal"]["x"]["horizons"]["63"] == {"n": 1, "incomplete": 1, "incomplete_share": 0.5,
                                                         "hit_rate": 0.0, "median_excess": -2.0, "mean_excess": -2.0}
 
@@ -264,15 +367,15 @@ def test_point_in_time_full_series_equals_truncated_recompute_on_random_sessions
 
 def test_forward_window_is_not_point_in_time_and_is_measured_from_bars_after_the_signal():
     """The one thing that reads the future is the forward return, and it reads
-    bars strictly after the signal bar; a signal in the last 21 bars has no
-    21-bar answer."""
+    bars strictly after the signal bar (from the next bar's open, N6); a signal
+    in the last 21 bars has no 21-bar answer."""
     ts = _weekdays(60)
     bars = _bars([float(100 + i) for i in range(60)], ts)
     bench = [100.0] * 60
-    rows = ev.rows_for_ticker("A", bars, bench, {"x": [1.0] * 60}, horizons=(21,))
+    rows = ev.rows_for_ticker("A", bars, bench, bench, {"x": [1.0] * 60}, horizons=(21,))
     ex = {s: e[0] for s, k, t, e in rows if k == "x"}
-    assert ex[ts[0]] == pytest.approx((121 / 100 - 1) * 100)
-    assert ex[ts[38]] == pytest.approx((159 / 138 - 1) * 100)
+    assert ex[ts[0]] == pytest.approx((121 / 101 - 1) * 100), "bar 1's open to bar 21's close"
+    assert ex[ts[38]] == pytest.approx((159 / 139 - 1) * 100)
     assert ex[ts[39]] is None and ex[ts[59]] is None
 
 
@@ -368,6 +471,80 @@ def test_rows_to_bars_drops_rows_without_a_positive_close():
     assert J.rows_to_bars(None) == []
 
 
+def test_the_run_leaves_split_windows_out_and_counts_them_in_the_artifact(tmp_path, provider):
+    """N5 end to end: B carries an unadjusted 3:1 split at ts[450] that its
+    declared list names; every B row in ts[324..448] is left out, counted in the
+    receipt and in the artifact's split_guard block, and A is measured whole."""
+    ts, series = _universe_500()
+    series["B"] = [c if i < 450 else c / 3.0 for i, c in enumerate(series["B"])]
+    reader = make_reader(series, ts)
+    provider["answers"].update({"A": [], "B": [(J.ymd_to_iso(ts[450]), 3.0)]})
+    db = tmp_path / "ev.db"
+    r = ev.run(db=str(db), sessions=300, bars_reader=reader, universe=["A", "B"], delisted_fn=lambda a, b: None)
+    assert r["ok"] and sorted(provider["asked"]) == ["A", "B"]
+    assert (r["split_tickers"], r["split_unchecked"]) == (1, 0)
+    lo = 450 - 126                                           # the first row whose window reaches the split
+    skipped_b_baseline = 448 - lo + 1
+    store = S.open_store(str(db))
+    guard = J.build_artifact(S.summary(store), asof_ymd=None, benchmark="SPY", window_from=None,
+                             window_to=None, sessions=0, sessions_open=0, universe=0,
+                             universe_requested=0)["split_guard"]
+    store.close()
+    assert guard["skipped"][ev.BASELINE_KEY] == skipped_b_baseline
+    assert r["artifact"]["split_skipped"] == guard["skipped"] and r["split_skipped"] >= skipped_b_baseline
+    assert r["artifact"]["rows"] == 600 - skipped_b_baseline, "A's 300 rows, B's 300 minus the guarded ones"
+    stored = {s for (s,) in _query(db, f"SELECT session FROM {S.ROWS_TABLE} WHERE ticker = 'B' AND skip = 1 "
+                                       f"AND signal = ?", (ev.BASELINE_KEY,))}
+    assert stored == set(ts[lo:449])
+    assert _query(db, f"SELECT COUNT(*) FROM declared_split_lists")[0][0] == 2, "answers kept for the next night"
+
+
+def test_an_unknown_split_list_is_measured_as_held_and_counted(tmp_path, provider):
+    ts, series = _universe_500()
+    r = ev.run(db=str(tmp_path / "ev.db"), sessions=50, bars_reader=make_reader(series, ts), universe=["A", "B"],
+               delisted_fn=lambda a, b: None)
+    assert r["ok"] and r["split_unchecked"] == 2 and r["split_skipped"] == 0
+    assert r["split_lists"]["fetch_failed"] == 2 and r["split_lists"]["unknown"] == 2
+
+
+def test_a_dry_run_asks_no_provider_by_default(tmp_path, provider):
+    ts, series = _universe_500()
+    provider["answers"]["A"] = []
+    r = ev.run(db=str(tmp_path / "missing.db"), dry_run=True, sessions=20, bars_reader=make_reader(series, ts),
+               universe=["A"], delisted_fn=lambda a, b: None)
+    assert r["ok"] and provider["asked"] == [] and r["split_lists"]["budget"] == 0
+    assert not (tmp_path / "missing.db").exists()
+
+
+def test_a_version_one_store_is_rebuilt_so_no_signal_close_row_survives(tmp_path):
+    """N6 changes what a row means, so SCHEMA_VERSION 2 drops every version-1 row
+    (derived data: the next run re-measures it) and keeps the split-list answers."""
+    path = tmp_path / "ev.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript(f"""
+        CREATE TABLE {S.META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        INSERT INTO {S.META_TABLE} VALUES ('version', '1'), ('horizons', '[21, 63, 126]');
+        CREATE TABLE {S.ROWS_TABLE} (session INTEGER, signal TEXT, ticker TEXT, ex_21 REAL, ex_63 REAL,
+                                     ex_126 REAL, PRIMARY KEY (session, signal, ticker));
+        INSERT INTO {S.ROWS_TABLE} VALUES (20200102, 'all_bars', 'A', 1.0, 2.0, 3.0);
+        CREATE TABLE {S.CHECKPOINT_TABLE} (session INTEGER, signal TEXT, status TEXT, rows INTEGER, at TEXT,
+                                           PRIMARY KEY (session, signal));
+        INSERT INTO {S.CHECKPOINT_TABLE} VALUES (20200102, 'all_bars', 'done', 1, 'x');
+        CREATE TABLE declared_split_lists (ticker TEXT PRIMARY KEY, splits TEXT NOT NULL, fetched_at REAL);
+        INSERT INTO declared_split_lists VALUES ('A', '[]', 1.0);
+    """)
+    conn.commit()
+    conn.close()
+    with pytest.raises(S.StoreRefused):
+        S.open_store(str(path), read_only=True)
+    store = S.open_store(str(path))
+    assert S.checkpoints(store) == {} and S.summary(store)["rows"] == 0
+    cols = [r[1] for r in store.execute(f"PRAGMA table_info({S.ROWS_TABLE})")]
+    assert "skip" in cols and S.SCHEMA_VERSION == 2
+    assert store.execute("SELECT COUNT(*) FROM declared_split_lists").fetchone()[0] == 1
+    store.close()
+
+
 # --------------------------------------------------------------------------- #
 # the artifact and the publish gate
 # --------------------------------------------------------------------------- #
@@ -413,8 +590,12 @@ def test_artifact_shape_is_the_documented_one():
                             delisted_fn=lambda a, b: 1)
     assert set(art) == {"version", "asof", "generated_at", "benchmark", "window", "sessions", "sessions_open",
                         "universe", "universe_requested", "delisted_count", "survivorship", "horizons", "rows",
-                        "per_signal", "baseline", "method"}
-    assert art["version"] == ev.ARTIFACT_VERSION == 1 and art["asof"] == "2020-01-31"
+                        "per_signal", "baseline", "split_guard", "method"}
+    # 2 since 2026-11-07: the next-open base (N6) and the split guard (N5) changed what
+    # the numbers measure, so the pull refuses a version-1 artifact.
+    assert art["version"] == ev.ARTIFACT_VERSION == 2 and art["asof"] == "2020-01-31"
+    assert art["split_guard"]["skipped"] == {**{name: 0 for name in ev.SIGNALS}, ev.BASELINE_KEY: 0}
+    assert "unadjusted split" in art["split_guard"]["rule"] and "t+126" in art["split_guard"]["rule"]
     assert art["window"] == {"from": "2020-01-02", "to": "2020-01-31"} and art["horizons"] == [21, 63, 126]
     assert art["survivorship"] == ev.SURVIVORSHIP_NOTE == "universe as held, survivorship not yet corrected"
     for name, spec in ev.SIGNALS.items():
@@ -427,7 +608,9 @@ def test_artifact_shape_is_the_documented_one():
     m = art["method"]
     assert m["display_floor_n"] == ev.DISPLAY_FLOOR_N == 100 and m["publish_floor_rows"] == ev.MIN_ROWS
     assert m["warmup_bars"] == ev.WARMUP_BARS == 852 and m["inputs"]["lookback"] == 252
-    assert "t+1" in m["forward_return"] and m["hit"] == "excess > 0"
+    assert "O[t+1]" in m["forward_return"] and "open of the session after the signal" in m["forward_return"]
+    assert "C[t]" not in m["forward_return"], "the signal-close base is gone (N6)"
+    assert m["hit"] == "excess > 0"
     assert ev.ARTIFACT_KEY == "rs/evidence.json"
 
 
@@ -577,6 +760,11 @@ ALLOWED_API_IMPORTS = {
     "api.services.data_sync",             # the default put_bytes
     "api.services.delisted_registry",     # the default survivorship count
     "api.services.groups",                # the default universe
+    # 2026-11-07 (N5): the split guard. Not maths: the repo's ONE split detector and
+    # the declared split lists it judges with.
+    "api.services.bars_sanitize.unadjusted_splits",
+    "api.services.declared_splits.DeclaredSplits",
+    "api.services.declared_splits.DEFAULT_FETCH_BUDGET",
 }
 
 

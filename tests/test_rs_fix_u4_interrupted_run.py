@@ -20,6 +20,21 @@ from api.services import rs_evidence as ev
 from api.services.rs_evidence import job as J
 from api.services.rs_evidence import store as S
 
+
+@pytest.fixture(autouse=True)
+def _no_provider(monkeypatch):
+    """No run here reaches the corporate-action provider (the split guard's default
+    reader, N5): its fetch refuses and its brake is a local no-op."""
+    from api.services import declared_splits as ds
+
+    def refuse(ticker):
+        raise RuntimeError("no provider in tests")
+    monkeypatch.setattr(ds, "_default_fetch", refuse)
+    monkeypatch.setattr(ds, "_default_gate", lambda: (lambda: True, lambda: 0.0, lambda: None))
+    monkeypatch.setattr(ds, "_default_cache_get", lambda t: None)
+    monkeypatch.setattr(ds, "_default_cache_set", lambda t, meta: None)
+    monkeypatch.setattr(ds, "FETCH_PAUSE_S", 0)
+
 N_SESSIONS = 470
 N_TICKERS = 55            # > 50, so the old loop had committed a batch of rows before the kill
 KILL_AT = "T52"           # the 53rd ticker: 52 measured, 50 of them committed by the old loop

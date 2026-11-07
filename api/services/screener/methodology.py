@@ -518,7 +518,7 @@ def _rs_evidence_params() -> dict:
     return {"floor": _ep.DISPLAY_FLOOR_N, "horizon": _ep.DEFAULT_HORIZON,
             "honesty": _ep.HONESTY_SENTENCE, "survivorship": _ep.SURVIVORSHIP_NOTE,
             "cards": dict(_ep.CARD_SIGNALS), "labels": dict(_ep.SIGNAL_LABELS),
-            "key": _ep.ARTIFACT_KEY}
+            "key": _ep.ARTIFACT_KEY, "outcome": _ep.outcome_phrase}
 
 
 def rs_evidence_section() -> dict:
@@ -537,23 +537,28 @@ def rs_evidence_section() -> dict:
             "display_floor_n": floor,
             "artifact": p["key"],
             "survivorship": surv,
+            # The base (owner decision N6, 2026-11-07) is the next session's open: the
+            # phrase is the pull module's `outcome_phrase`, the card sentence's own.
             "rule": (
                 f"A measured number prints on a chart card only when the nightly backtest counted "
                 f"at least {floor} events for that signal, each with a complete {h}-bar window after "
-                f"it. The sentence carries the sample size, the window's dates, the share that closed "
-                f"higher than the benchmark {h} bars later (the hit rate), the median excess return "
-                f"and the caveat. Signals are read point-in-time, from the bars as held on each "
-                f"session, never from today's history; the forward return is measured from the "
-                f"signal bar's own close, a price a member who sees the dot after the close cannot "
-                f"get, so the hit rate reads as what the dot was worth, not as a trade result. The "
+                f"it. The sentence carries the sample size, the window's dates, the share that "
+                f"{p['outcome']('the benchmark', h)} (the hit rate), the median excess return and the "
+                f"caveat. Signals are read point-in-time, from the bars as held on each session, never "
+                f"from today's history. The forward return starts at the next session's open, the "
+                f"first price a member who sees the dot after the close can act on, and ends at the "
+                f"close {h} sessions after the signal; it carries no costs or slippage, so the hit rate "
+                f"reads as what the dot was worth from the first price a member could take, not as a "
+                f"trade result. A window that holds a stock split the price history has not been "
+                f"adjusted for is left out and counted, never measured across two price scales. The "
                 f"population is the {surv}: a name delisted since is counted only where its bars are "
                 f"still held, which flatters the numbers until the registry correction lands. Under "
                 f"the floor, with no complete window, or before the first artifact has been pulled, "
                 f"the card says: {p['honesty']}"),
             "form": (
-                f"<count> <signal> from <first date> to <last date>; <hit rate>% closed higher than "
-                f"<benchmark> {h} bars later (median <excess>%). "
-                f"{surv[:1].upper()}{surv[1:]}."),
+                f"<count> <signal> on <sessions> sessions, <first date> to <last date>, daily bars: "
+                f"<hit rate>% {p['outcome']('<benchmark>', h)} (median <excess>%), against "
+                f"<all-bars hit rate>% for all bars. {surv[:1].upper()}{surv[1:]}."),
         },
         "honesty": p["honesty"],
         "not_claimed": [

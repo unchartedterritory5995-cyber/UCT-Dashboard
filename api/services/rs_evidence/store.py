@@ -7,7 +7,9 @@ chooses the file under its data directory; nothing here can open a store by
 guessing one. Read-only opens (the dry run) never create the file.
 
 TABLES
-    rs_evidence_rows        (session, signal, ticker) -> ex_<h> REAL per horizon
+    rs_evidence_rows        (session, signal, ticker) -> ex_<h> REAL per horizon,
+                            skip INTEGER (1: the split guard left the row out,
+                            its ex_<h> are NULL; owner decision N5)
                             ``signal`` includes :data:`measure.BASELINE_KEY`.
     rs_evidence_checkpoint  (session, signal) -> status 'done' | 'open', rows, at
                             'done'  every horizon's window was complete when
@@ -20,7 +22,12 @@ TABLES
                             discarded by the next one.
     rs_evidence_meta        version and horizons; a mismatch REBUILDS the
                             tables above (they are derived from bars.db and
-                            the method; nothing original is lost).
+                            the method; nothing original is lost). Version 2
+                            (2026-11-07): the next-open base (N6) and the split
+                            guard (N5), so every version-1 row is re-measured.
+    declared_split_lists    the provider answers `declared_splits` stored for
+                            the split guard; not derived from the method, so a
+                            rebuild keeps it.
     rs_evidence_runs        one JSON receipt per run.
 
 AN INTERRUPTED RUN CHANGES NOTHING PUBLISHED (review finding #3, 2026-11-07).
@@ -44,7 +51,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .measure import BASELINE_KEY, HORIZONS, MaybeNum, Row, summarise_values
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ROWS_TABLE = "rs_evidence_rows"
 CHECKPOINT_TABLE = "rs_evidence_checkpoint"
 META_TABLE = "rs_evidence_meta"
@@ -88,16 +95,19 @@ def open_store(path: Optional[str], *, horizons: Sequence[int] = HORIZONS,
     return conn
 
 
-def ensure_schema(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> None:
+def _derived_tables_sql(horizons: Sequence[int]) -> str:
+    """The tables the method derives (rows, stage, checkpoint): created here and
+    re-created by a meta rebuild, from ONE statement so the two cannot drift."""
     cols = ", ".join(f"{c} REAL" for c in _ex_cols(horizons))
-    conn.executescript(f"""
-        CREATE TABLE IF NOT EXISTS {META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    return f"""
         CREATE TABLE IF NOT EXISTS {ROWS_TABLE} (
             session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
+            skip INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (session, signal, ticker)
         );
         CREATE TABLE IF NOT EXISTS {STAGE_TABLE} (
             session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
+            skip INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (session, signal, ticker)
         );
         CREATE INDEX IF NOT EXISTS {ROWS_TABLE}_signal ON {ROWS_TABLE}(signal);
@@ -105,7 +115,18 @@ def ensure_schema(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) 
             session INTEGER NOT NULL, signal TEXT NOT NULL, status TEXT NOT NULL,
             rows INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL,
             PRIMARY KEY (session, signal)
-        );
+        );"""
+
+
+def ensure_schema(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> None:
+    have = _meta(conn)
+    if have and have.get("version") != str(SCHEMA_VERSION):
+        # An older store: its derived tables carry the old columns. Rebuild them
+        # before the CREATE IF NOT EXISTS below would keep the old shape.
+        _check_meta(conn, horizons, rebuild=True)
+    conn.executescript(f"""
+        CREATE TABLE IF NOT EXISTS {META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        {_derived_tables_sql(horizons)}
         CREATE TABLE IF NOT EXISTS {RUNS_TABLE} (
             id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, receipt TEXT NOT NULL
         );
@@ -132,23 +153,7 @@ def _check_meta(conn: sqlite3.Connection, horizons: Sequence[int], *, rebuild: b
     if have:
         conn.executescript(f"DROP TABLE IF EXISTS {ROWS_TABLE}; DROP TABLE IF EXISTS {CHECKPOINT_TABLE}; "
                            f"DROP TABLE IF EXISTS {STAGE_TABLE};")
-        cols = ", ".join(f"{c} REAL" for c in _ex_cols(horizons))
-        conn.executescript(f"""
-            CREATE TABLE {ROWS_TABLE} (
-                session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
-                PRIMARY KEY (session, signal, ticker)
-            );
-            CREATE TABLE {STAGE_TABLE} (
-                session INTEGER NOT NULL, signal TEXT NOT NULL, ticker TEXT NOT NULL, {cols},
-                PRIMARY KEY (session, signal, ticker)
-            );
-            CREATE INDEX {ROWS_TABLE}_signal ON {ROWS_TABLE}(signal);
-            CREATE TABLE {CHECKPOINT_TABLE} (
-                session INTEGER NOT NULL, signal TEXT NOT NULL, status TEXT NOT NULL,
-                rows INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL,
-                PRIMARY KEY (session, signal)
-            );
-        """)
+        conn.executescript(_derived_tables_sql(horizons))
     conn.executemany(f"INSERT OR REPLACE INTO {META_TABLE}(key, value) VALUES (?, ?)", list(want.items()))
     conn.commit()
 
@@ -186,7 +191,7 @@ def swap_in(conn: sqlite3.Connection, marks: Dict[Tuple[int, str], Tuple[str, in
     (``marks`` is ``{(session, signal): (status, rows)}``), delete any row
     still without a checkpoint, and empty the stage. Nothing is committed until
     all of it has run, so an exception here leaves the store as it was."""
-    names = ", ".join(["session", "signal", "ticker"] + _ex_cols(horizons))
+    names = ", ".join(["session", "signal", "ticker"] + _ex_cols(horizons) + ["skip"])
     ps = [(int(s), str(k)) for s, k in marks]
     try:
         conn.executemany(f"DELETE FROM {ROWS_TABLE} WHERE session = ? AND signal = ?", ps)
@@ -205,13 +210,17 @@ def swap_in(conn: sqlite3.Connection, marks: Dict[Tuple[int, str], Tuple[str, in
 def write_rows(conn: sqlite3.Connection, rows: Iterable[Row], horizons: Sequence[int] = HORIZONS, *,
                table: str = ROWS_TABLE) -> int:
     """Insert measurement rows into ``table`` (the published rows by default; the
-    job writes to :data:`STAGE_TABLE`)."""
+    job writes to :data:`STAGE_TABLE`). A row whose excess is ``None`` is a split-
+    guard row: stored with ``skip = 1`` and NULL excess, so it is counted but
+    never measured."""
     if table not in (ROWS_TABLE, STAGE_TABLE):
         raise ValueError(f"write_rows writes {ROWS_TABLE} or {STAGE_TABLE}, not {table!r}")
     cols = _ex_cols(horizons)
-    sql = (f"INSERT OR REPLACE INTO {table}(session, signal, ticker, {', '.join(cols)}) "
-           f"VALUES ({', '.join('?' for _ in range(3 + len(cols)))})")
-    data = [(int(s), str(k), str(t)) + tuple(ex[i] if i < len(ex) else None for i in range(len(cols)))
+    sql = (f"INSERT OR REPLACE INTO {table}(session, signal, ticker, {', '.join(cols)}, skip) "
+           f"VALUES ({', '.join('?' for _ in range(4 + len(cols)))})")
+    data = [(int(s), str(k), str(t))
+            + tuple((ex[i] if i < len(ex) else None) if ex is not None else None for i in range(len(cols)))
+            + (0 if ex is not None else 1,)
             for s, k, t, ex in rows]
     conn.executemany(sql, data)
     return len(data)
@@ -223,36 +232,42 @@ def mark(conn: sqlite3.Connection, session: int, signal: str, status: str, rows:
 
 
 def values(conn: sqlite3.Connection, signal: str, horizon: int) -> List[MaybeNum]:
+    """One signal's excess at one horizon over the COUNTED rows (``skip = 0``)."""
     col = f"ex_{int(horizon)}"
-    return [r[0] for r in conn.execute(f"SELECT {col} FROM {ROWS_TABLE} WHERE signal = ?", (str(signal),))]
+    return [r[0] for r in conn.execute(f"SELECT {col} FROM {ROWS_TABLE} WHERE signal = ? AND skip = 0",
+                                       (str(signal),))]
 
 
 def summary(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> dict:
     """The same shape as ``measure.summarise``, from the store."""
     hs = [int(h) for h in horizons]
-    names = [r[0] for r in conn.execute(f"SELECT DISTINCT signal FROM {ROWS_TABLE} ORDER BY signal")]
+    names = [r[0] for r in conn.execute(f"SELECT DISTINCT signal FROM {ROWS_TABLE} WHERE skip = 0 "
+                                        f"ORDER BY signal")]
     per_signal = {}
     for name in names:
         if name == BASELINE_KEY:
             continue
         n_signals, dates, tickers = conn.execute(
             f"SELECT COUNT(*), COUNT(DISTINCT session), COUNT(DISTINCT ticker) FROM {ROWS_TABLE} "
-            f"WHERE signal = ?", (name,)).fetchone()
+            f"WHERE signal = ? AND skip = 0", (name,)).fetchone()
         per_signal[name] = {
             "n_signals": int(n_signals), "dates": int(dates), "tickers": int(tickers),
             "horizons": {str(h): summarise_values(values(conn, name, h)) for h in hs},
         }
     baseline = {str(h): summarise_values(values(conn, BASELINE_KEY, h)) for h in hs}
-    rows = conn.execute(f"SELECT COUNT(*) FROM {ROWS_TABLE} WHERE signal = ?", (BASELINE_KEY,)).fetchone()[0]
-    return {"per_signal": per_signal, "baseline": baseline, "rows": int(rows)}
+    rows = conn.execute(f"SELECT COUNT(*) FROM {ROWS_TABLE} WHERE signal = ? AND skip = 0",
+                        (BASELINE_KEY,)).fetchone()[0]
+    skipped = {str(k): int(n) for k, n in conn.execute(
+        f"SELECT signal, COUNT(*) FROM {ROWS_TABLE} WHERE skip = 1 GROUP BY signal ORDER BY signal")}
+    return {"per_signal": per_signal, "baseline": baseline, "rows": int(rows), "split_skipped": skipped}
 
 
 def window(conn: sqlite3.Connection) -> dict:
-    """``{from, to, sessions, sessions_open, universe}`` over the stored baseline rows
-    (``from``/``to`` are YYYYMMDD ints or ``None``)."""
+    """``{from, to, sessions, sessions_open, universe}`` over the stored, counted
+    baseline rows (``from``/``to`` are YYYYMMDD ints or ``None``)."""
     lo, hi, sessions, universe = conn.execute(
         f"SELECT MIN(session), MAX(session), COUNT(DISTINCT session), COUNT(DISTINCT ticker) "
-        f"FROM {ROWS_TABLE} WHERE signal = ?", (BASELINE_KEY,)).fetchone()
+        f"FROM {ROWS_TABLE} WHERE signal = ? AND skip = 0", (BASELINE_KEY,)).fetchone()
     open_n = conn.execute(
         f"SELECT COUNT(DISTINCT session) FROM {CHECKPOINT_TABLE} WHERE status = ?", (OPEN,)).fetchone()[0]
     return {"from": lo, "to": hi, "sessions": int(sessions or 0), "sessions_open": int(open_n or 0),

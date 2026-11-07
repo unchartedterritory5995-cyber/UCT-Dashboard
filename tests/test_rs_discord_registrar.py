@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 import api.main as m
 from api.routers import rs_discord as door
 from api.services import rs_discord_post as rp
+from api.services.rs_evidence_pull import outcome_phrase as ep_outcome
 from api.services.alert_taxonomy import channels
 from api.services.screener import rs_history
 from tests.test_rs_discord_post import FIXTURE
@@ -291,12 +292,15 @@ def test_rs_evidence_for_reports_the_displayable_signals_with_the_benchmark_outc
     out = m._rs_evidence_for(SESSION)
     assert [e["signal"] for e in out] == ["RS new highs", "RS new highs before price"], \
         "the red-day signal sits under the display floor (n=40) and is left out"
-    assert all(e["outcome"] == "closed higher than SPY 63 bars later" for e in out)
+    # 2026-11-07 (owner decision N6): the pull's own phrase, base stated, same as the card.
+    assert all(e["outcome"] == ep_outcome("SPY", 63) for e in out)
+    assert ep_outcome("SPY", 63) == "beat SPY from the next session's open to the close 63 sessions later"
     line = rp.evidence_line(out)
-    assert line.startswith("Evidence: 4,700 RS new highs from 2025-11-05 to 2026-11-04; 55.2% closed "
-                           "higher than SPY 63 bars later. Universe as held, survivorship not yet "
-                           "corrected. 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; "
-                           "58.3% closed higher than SPY 63 bars later.")
+    assert line.startswith("Evidence: 4,700 RS new highs from 2025-11-05 to 2026-11-04; 55.2% beat SPY "
+                           "from the next session's open to the close 63 sessions later. Universe as held, "
+                           "survivorship not yet corrected. 1,284 RS new highs before price from 2025-11-05 "
+                           "to 2026-11-04; 58.3% beat SPY from the next session's open to the close 63 "
+                           "sessions later.")
     assert line != rp.HONESTY_LINE
     # and the longest post the caps allow still clears Discord's limit with the evidence on
     post = rp.build_post(FIXTURE, session=SESSION, evidence=out)

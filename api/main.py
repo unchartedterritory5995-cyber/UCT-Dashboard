@@ -2327,11 +2327,12 @@ def _rs_evidence_for(session) -> list[dict] | None:
     (`rs_evidence_pull.DEFAULT_HORIZON`, 63 bars), read from the artifact the
     04:30 pull landed. One dict per DISPLAYABLE signal (2b-03's floor and
     completeness rule), with `signal` set to the artifact's plural label (the
-    noun phrase `evidence_line` prints) and `outcome` naming the benchmark,
-    because the artifact's hit rate is the share that closed higher than the
-    benchmark, not simply higher. None when nothing is displayable, which
-    prints the honesty line. `session` is unused on purpose: the artifact is
-    one measured window, refreshed nightly, and the sentence states its dates.
+    noun phrase `evidence_line` prints) and `outcome` the pull's own phrase
+    (`rs_evidence_pull.outcome_phrase`, carried on the dict): the share that
+    beat the benchmark from the next session's open (owner decision N6), so the
+    post and the chart card state one base. None when nothing is displayable,
+    which prints the honesty line. `session` is unused on purpose: the artifact
+    is one measured window, refreshed nightly, and the sentence states its dates.
     """
     from api.services import rs_evidence_pull as ep
     out = []
@@ -2339,9 +2340,7 @@ def _rs_evidence_for(session) -> list[dict] | None:
         ev = ep.evidence_for(sig, ep.DEFAULT_HORIZON)
         if not ev or not ev.get("displayable"):
             continue
-        bench = ev.get("benchmark") or "the benchmark"
-        out.append({**ev, "signal": ev["label"],
-                    "outcome": f"closed higher than {bench} {int(ev['horizon_bars'])} bars later"})
+        out.append({**ev, "signal": ev["label"]})
     return out or None
 
 

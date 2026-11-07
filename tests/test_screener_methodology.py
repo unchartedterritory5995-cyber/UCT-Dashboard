@@ -268,7 +268,10 @@ def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
     assert ev["measured"]["display_floor_n"] == ep.DISPLAY_FLOOR_N == 100
     assert ev["measured"]["horizon_bars"] == ep.DEFAULT_HORIZON == 63
     assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-bar window" in ev["measured"]["rule"]
-    assert "63 bars later" in ev["measured"]["rule"] and "63 bars later" in ev["measured"]["form"]
+    # 2026-11-07 (N6): the hit rate is stated with its base, in the pull's own phrase.
+    assert ep.outcome_phrase("the benchmark", 63) in ev["measured"]["rule"]
+    assert ep.outcome_phrase("<benchmark>", 63) in ev["measured"]["form"]
+    assert "63 sessions later" in ev["measured"]["rule"] and "63 sessions later" in ev["measured"]["form"]
     assert ev["honesty"] == ep.HONESTY_SENTENCE
     assert ev["measured"]["rule"].endswith(ep.HONESTY_SENTENCE)
     assert ev["measured"]["survivorship"] == ep.SURVIVORSHIP_NOTE
@@ -282,19 +285,22 @@ def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
     ev = _evidence()
     assert ev["measured"]["display_floor_n"] == 250 and "at least 250 events" in ev["measured"]["rule"]
     assert ev["measured"]["horizon_bars"] == 126 and "complete 126-bar window" in ev["measured"]["rule"]
-    assert "126 bars later" in ev["measured"]["form"] and "63" not in ev["measured"]["form"]
+    assert "126 sessions later" in ev["measured"]["form"] and "63" not in ev["measured"]["form"]
     assert ev["honesty"] == "Nothing measured." and ev["measured"]["rule"].endswith("Nothing measured.")
     assert "universe as held, delistings restored" in ev["measured"]["rule"]
     assert ev["measured"]["form"].endswith("Universe as held, delistings restored.")
 
 
-def test_the_rule_says_point_in_time_and_that_the_base_is_the_signal_close():
-    """`rs_evidence.measure`'s header: the window begins at t+1 but the base is
-    C[t], a price a member who sees the dot after the close cannot get — and it
-    hands the wording to this unit. The rule says so, in those terms."""
+def test_the_rule_says_point_in_time_and_that_the_base_is_the_next_open():
+    """`rs_evidence.measure`'s header: since owner decision N6 (2026-11-07) the
+    base is the NEXT session's open, the first price a member who sees the dot
+    after the close can act on (the signal close overstated what was tradeable),
+    and a window holding an unadjusted split is left out (N5). The rule says so."""
     rule = _evidence()["measured"]["rule"]
     assert "point-in-time" in rule
-    assert "signal bar's own close" in rule and "cannot get" in rule
+    assert "starts at the next session's open" in rule and "can act on" in rule
+    assert "signal bar's own close" not in rule and "cannot get" not in rule, "the old base is gone"
+    assert "stock split" in rule and "left out and counted" in rule
     assert "not as a trade result" in rule
     assert "universe as held, survivorship not yet corrected" in rule
     assert "sample size" in rule and "dates" in rule and "median excess" in rule

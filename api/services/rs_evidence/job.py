@@ -25,6 +25,12 @@ HOW A RUN WORKS
        run asks for the same sessions again (review finding #3, 2026-11-07).
        Sessions holding rows with no checkpoint (left by the clear-first run
        before that fix) are requested too. Bound a run with ``sessions``.
+       Per ticker, the split guard (owner decision N5) asks `declared_splits`
+       for the declared split list and the ONE detector,
+       `bars_sanitize.unadjusted_splits`, for the boundaries still unadjusted in
+       the held bars; a row whose forward window holds one is stored as
+       SKIPPED and counted, never measured (`measure` header). An unknown list
+       is counted in ``split_unchecked`` and the ticker is measured as held.
     4. The artifact is rebuilt from EVERYTHING in the store and published
        through the injected ``put_bytes`` when asked and when it clears the
        row floor.
@@ -63,15 +69,17 @@ import time
 from datetime import date, datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-from api.services import relative_strength as rs
-
 from . import store as S
-from .measure import BASELINE_KEY, HORIZONS, Row, rows_for_ticker, summarise
+from .measure import BASELINE_KEY, HORIZONS, Row, benchmark_aligned, rows_for_ticker, split_indexes, summarise
 from .signals import SIGNALS, compute_signal_columns, inputs_used
 
 log = logging.getLogger(__name__)
 
-ARTIFACT_VERSION = 1
+# 2 since 2026-11-07: the forward return is based on the next session's open (N6)
+# and a window holding an unadjusted split is not counted (N5). A version-1
+# artifact measured something else, so the web pull refuses one rather than print
+# it under the new wording.
+ARTIFACT_VERSION = 2
 ARTIFACT_KEY = "rs/evidence.json"        # the documented destination; the CLI still requires --dest
 MIN_ROWS = 1000                          # the publish floor (module header)
 DISPLAY_FLOOR_N = 100                    # the card's suppression floor, carried in the artifact
@@ -84,6 +92,20 @@ SURVIVORSHIP_NOTE = "universe as held, survivorship not yet corrected"
 # "N + 600 bars daily"), so the 21-EMA seed is fixed well before any measured
 # bar and the window start cannot move a cross (signals.compute_signal_columns).
 WARMUP_BARS = 252 + 600
+
+#: ``split_fetch_budget`` default for :func:`run` (see its docstring).
+AUTO_SPLIT_BUDGET = -1
+
+#: The method sentences the artifact carries (and the methodology page reads).
+FORWARD_RETURN_METHOD = (
+    "excess[h] = ((C[t+h]/O[t+1] - 1) - (B[t+h]/BO[t+1] - 1)) x 100, percent: from the open of the "
+    "session after the signal (t+1, the first price a member who sees the dot after the close can act "
+    "on) to the close h sessions after the signal; h counts the stock's own bars; BO and B are the "
+    "benchmark's open and close at the stock's bar times")
+SPLIT_GUARD_RULE = (
+    f"a row whose forward window (t+1 to t+{max(HORIZONS)}) holds an unadjusted split, found by the repo's split "
+    "detector from the ticker's declared split list, is not counted in any statistic; skipped counts "
+    "the rows left out, per signal and for all bars")
 
 _FAR_FUTURE_YMD = 99991231
 _ALL_SESSIONS_DEPTH = 20000
@@ -108,6 +130,25 @@ def default_universe() -> List[str]:
     """`groups.cap_universe_set()` - the file the ratings rank over."""
     from api.services.groups import cap_universe_set
     return sorted(str(t).upper() for t in cap_universe_set())
+
+
+def default_splits_reader(conn, *, budget: Optional[int], persist: bool):
+    """The declared split lists the split guard judges with: `declared_splits`
+    over the evidence store (its memo table lives there), at most ``budget``
+    provider fetches per run (``None``: no limit)."""
+    from api.services.declared_splits import DeclaredSplits
+    return DeclaredSplits(conn, budget=budget, persist=persist)
+
+
+def split_boundary_times(bars: Sequence[dict], declared) -> List[int]:
+    """The bar time (YYYYMMDD) of each unadjusted split boundary in ``bars``, as the
+    ONE detector, `bars_sanitize.unadjusted_splits`, finds it from the declared
+    list (``[]`` / ``None``: nothing to find, nothing guessed)."""
+    if not declared:
+        return []
+    from api.services.bars_sanitize import unadjusted_splits
+    series = [{"t": ymd_to_iso(b["t"]), "c": b.get("c")} for b in bars]
+    return [int(d.strftime("%Y%m%d")) for d, _ratio in unadjusted_splits(series, list(declared))]
 
 
 def default_put_bytes(key: str, data: bytes, content_type: str) -> bool:
@@ -206,10 +247,14 @@ def plan_sessions(sessions_held: Sequence[int], requested_n: int, checkpoints: D
 
 def collect(universe: Sequence[str], bars_reader: Callable, *, asof_ymd: int, depth: int,
             bench_bars: Sequence[dict], wanted: Dict[int, set], signals: Dict[str, dict],
-            horizons: Sequence[int], sink: Callable[[str, List[Row]], None], log_every: int = 250) -> dict:
+            horizons: Sequence[int], sink: Callable[[str, List[Row]], None], log_every: int = 250,
+            splits_reader: Optional[Callable] = None) -> dict:
     """The ticker loop (module header step 3). ``sink(ticker, rows)`` receives
-    each ticker's rows as they are measured."""
-    stats = {"tickers": 0, "no_bars": 0, "rows": 0, "events": 0}
+    each ticker's rows as they are measured. ``splits_reader(ticker)`` gives the
+    declared split list the split guard judges with (``None``: unknown, counted
+    in ``split_unchecked``; no reader: nothing is judged)."""
+    stats = {"tickers": 0, "no_bars": 0, "rows": 0, "events": 0,
+             "split_tickers": 0, "split_skipped": 0, "split_unchecked": 0}
     total = len(universe)
     for i, ticker in enumerate(universe, 1):
         bars = rows_to_bars(bars_reader(ticker, int(depth), int(asof_ymd)))
@@ -217,12 +262,24 @@ def collect(universe: Sequence[str], bars_reader: Callable, *, asof_ymd: int, de
             stats["no_bars"] += 1
             continue
         columns = compute_signal_columns(bars, bench_bars, signals)
-        bench_closes = rs.benchmark_closes_aligned(bars, list(bench_bars))
-        rows = rows_for_ticker(ticker, bars, bench_closes, columns, horizons, wanted)
+        bench_opens, bench_closes = benchmark_aligned(bars, bench_bars)
+        splits: List[int] = []
+        if splits_reader is not None:
+            try:
+                declared = splits_reader(ticker)
+            except Exception as e:                           # noqa: BLE001 - one name, not the run
+                log.debug("[rs_evidence] split list read failed for %s: %s", ticker, e)
+                declared = None
+            if declared is None:
+                stats["split_unchecked"] += 1
+            splits = split_indexes(bars, split_boundary_times(bars, declared))
+            stats["split_tickers"] += 1 if splits else 0
+        rows = rows_for_ticker(ticker, bars, bench_opens, bench_closes, columns, horizons, wanted, splits)
         sink(ticker, rows)
         stats["tickers"] += 1
         stats["rows"] += len(rows)
-        stats["events"] += sum(1 for r in rows if r[1] != BASELINE_KEY)
+        stats["events"] += sum(1 for r in rows if r[1] != BASELINE_KEY and r[3] is not None)
+        stats["split_skipped"] += sum(1 for r in rows if r[3] is None)
         if log_every and i % log_every == 0:
             log.info("[rs_evidence] %d/%d tickers, %d rows", i, total, stats["rows"])
     return stats
@@ -255,6 +312,11 @@ def build_artifact(summary: dict, *, asof_ymd: Optional[int], benchmark: str, wi
                                   "median_excess": None, "mean_excess": None} for h in horizons},
         }
         per_signal[name] = {"column": spec["column"], "definition": spec["definition"], **stats}
+    skipped = dict(summary.get("split_skipped") or {})
+    split_guard = {
+        "skipped": {name: int(skipped.get(name, 0)) for name in list(signals) + [BASELINE_KEY]},
+        "rule": SPLIT_GUARD_RULE,
+    }
     return {
         "version": ARTIFACT_VERSION,
         "asof": ymd_to_iso(asof_ymd),
@@ -271,10 +333,9 @@ def build_artifact(summary: dict, *, asof_ymd: Optional[int], benchmark: str, wi
         "rows": int(summary["rows"]),
         "per_signal": per_signal,
         "baseline": summary["baseline"],
+        "split_guard": split_guard,
         "method": {
-            "forward_return": "excess[h] = ((C[t+h]/C[t] - 1) - (B[t+h]/B[t] - 1)) x 100, percent: the "
-                              "compounded return of bars t+1..t+h from the signal bar's close; h counts "
-                              "the stock's own bars; B is the benchmark close at the stock's bar times",
+            "forward_return": FORWARD_RETURN_METHOD,
             "hit": "excess > 0",
             "baseline": "the same statistic over every bar of every measured ticker in the window",
             "point_in_time": "a signal on session s reads only bars <= s; a forward window past the "
@@ -320,12 +381,19 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         asof=None, benchmark: str = DEFAULT_BENCHMARK, universe: Optional[Sequence[str]] = None,
         bars_reader: Optional[Callable] = None, put_bytes: Optional[Callable] = None,
         delisted_fn: Optional[Callable] = None, signals: Optional[Dict[str, dict]] = None,
-        horizons: Sequence[int] = HORIZONS) -> dict:
+        horizons: Sequence[int] = HORIZONS, splits_reader: Optional[Callable] = None,
+        split_fetch_budget: Optional[int] = AUTO_SPLIT_BUDGET) -> dict:
     """One run (module header). Returns the receipt; raises :class:`UsageError`
     for a contract violation and lets other exceptions propagate (the CLI maps
     them to exit codes). ``publish_to`` is the destination key; ``None`` means
     measure only. A dry run opens the store read-only (if it exists), writes
-    nothing, publishes nothing and summarises what THIS run measured."""
+    nothing, publishes nothing and summarises what THIS run measured.
+
+    ``splits_reader(ticker)`` gives the declared split lists the split guard
+    judges with (default :func:`default_splits_reader` over the store, with
+    ``split_fetch_budget`` provider fetches: :data:`AUTO_SPLIT_BUDGET` is the
+    nightly default, ``declared_splits.DEFAULT_FETCH_BUDGET``, on a real run and 0
+    (stored answers only) on a dry run; ``None`` is no limit)."""
     t0 = time.time()
     if not db or not str(db).strip():
         raise UsageError("--db is REQUIRED: the evidence store has no default path")
@@ -347,7 +415,8 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         "universe_requested": requested_universe, "universe": 0, "no_bars": 0,
         "sessions_held": 0, "sessions_requested": 0, "sessions_measured": 0, "sessions_skipped": 0,
         "pairs_measured": 0, "pairs_done": 0, "pairs_open": 0, "pairs_skipped": 0,
-        "rows_written": 0, "events": 0, "elapsed_s": 0.0, "artifact": None, "publish": None,
+        "rows_written": 0, "events": 0, "split_tickers": 0, "split_skipped": 0, "split_unchecked": 0,
+        "split_lists": None, "elapsed_s": 0.0, "artifact": None, "publish": None,
     }
 
     # 1. the calendar
@@ -378,6 +447,13 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         receipt["sessions_skipped"] = len(plan["requested"]) - len(wanted)
         receipt["pairs_skipped"] = plan["pairs_skipped"]
         receipt["pairs_measured"] = sum(len(v) for v in wanted.values())
+        split_reader = splits_reader
+        if split_reader is None:
+            budget = split_fetch_budget
+            if budget == AUTO_SPLIT_BUDGET:
+                from api.services.declared_splits import DEFAULT_FETCH_BUDGET
+                budget = 0 if dry_run else DEFAULT_FETCH_BUDGET
+            split_reader = default_splits_reader(conn, budget=budget, persist=not dry_run)
 
         # 3. the ticker loop
         mem_rows: List[Row] = []
@@ -402,11 +478,15 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
                     if written["n"] % 50 == 0:
                         conn.commit()
             stats = collect(names, reader, asof_ymd=asof_ymd, depth=depth, bench_bars=bench_bars,
-                            wanted=wanted, signals=sig, horizons=hs, sink=sink)
+                            wanted=wanted, signals=sig, horizons=hs, sink=sink, splits_reader=split_reader)
             receipt["universe"] = stats["tickers"]
             receipt["no_bars"] = stats["no_bars"]
             receipt["rows_written"] = stats["rows"]
             receipt["events"] = stats["events"]
+            for k in ("split_tickers", "split_skipped", "split_unchecked"):
+                receipt[k] = stats[k]
+            lists = getattr(split_reader, "stats", None)
+            receipt["split_lists"] = dict(lists) if isinstance(lists, dict) else None
             if not dry_run:
                 marks: Dict[Tuple[int, str], Tuple[str, int]] = {}
                 for s, ks in wanted.items():
@@ -421,11 +501,12 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         # 4. the artifact
         if dry_run:
             summary = summarise(mem_rows, hs)
-            sessions_n = len({r[0] for r in mem_rows if r[1] == BASELINE_KEY})
+            counted = [r for r in mem_rows if r[3] is not None]     # the store's `skip = 0`
+            sessions_n = len({r[0] for r in counted if r[1] == BASELINE_KEY})
             open_n = sum(1 for s in wanted if not completable[s])
-            universe_n = len({r[2] for r in mem_rows if r[1] == BASELINE_KEY})
-            lo = min((r[0] for r in mem_rows), default=None)
-            hi = max((r[0] for r in mem_rows), default=None)
+            universe_n = len({r[2] for r in counted if r[1] == BASELINE_KEY})
+            lo = min((r[0] for r in counted if r[1] == BASELINE_KEY), default=None)
+            hi = max((r[0] for r in counted if r[1] == BASELINE_KEY), default=None)
         else:
             summary = S.summary(conn, hs)
             w = S.window(conn)
@@ -446,6 +527,7 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
                            for k, v in artifact["per_signal"].items()},
             "baseline": {h: {"n": x["n"], "hit_rate": x["hit_rate"], "median_excess": x["median_excess"]}
                          for h, x in artifact["baseline"].items()},
+            "split_skipped": artifact["split_guard"]["skipped"],
         }
         receipt["ok"] = True
 

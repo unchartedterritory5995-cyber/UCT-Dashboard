@@ -18,7 +18,10 @@ previous local file is kept byte-for-byte, when the R2 object is missing (R2
 unconfigured or the key absent; `get_bytes` returns None and never raises),
 when `get_bytes` itself raises (defended here anyway), when the payload is
 under :data:`MIN_BYTES`, when it is not JSON, or when it is not the 2b-01
-shape (``version == 1``, a ``per_signal`` dict, an ``asof`` string). The byte
+shape (``version == ARTIFACT_VERSION``, a ``per_signal`` dict, an ``asof``
+string; version 2 since 2026-11-07, when the forward return moved to the next
+session's open and the split guard landed, so a version-1 artifact measured on
+the signal close is refused rather than printed under the new wording). The byte
 floor is the counterpart of 2b-01's ROW floor: the smallest artifact the
 builder produces -- five signals, three horizons, the method block, ZERO rows --
 is just over 4 KB (`tests/test_rs_evidence_pull.py` measures it), so 2 KB is
@@ -86,6 +89,17 @@ SIGNAL_LABELS: dict = {
 #: The calendar span each measured horizon covers, in the sentence's own words.
 #: A horizon not listed prints its session count alone.
 HORIZON_WORDS: dict = dict(zip(_JOB_HORIZONS, ("about 1 month", "about 3 months", "about 6 months")))
+
+
+def outcome_phrase(benchmark: Optional[str], horizon: int) -> str:
+    """What the hit rate counts, with its BASE, in the member's words: the share
+    that beat the benchmark from the next session's open to the close ``horizon``
+    sessions later (owner decision N6, 2026-11-07: a member sees the dot after
+    the close and can act at the next open at the earliest). The ONE phrase: the
+    card sentence, the methodology page and the Discord evidence line all read it
+    from here, so the base cannot be stated two ways."""
+    bench = benchmark or "the benchmark"
+    return f"beat {bench} from the next session's open to the close {int(horizon)} sessions later"
 
 #: The card's honesty sentence, printed whenever a signal has no displayable
 #: number. It is the per-signal form of `rs_discord_post.HONESTY_LINE` (that
@@ -260,7 +274,8 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
     ``{signal, label, n, sessions, effective_n, incomplete, hit_rate_pct,
     median_excess_pct, baseline_hit_rate_pct, horizon_bars, start, end,
     benchmark, asof, survivorship, survivorship_corrected, display_floor_n,
-    displayable}``.
+    displayable, outcome}``. ``outcome`` is :func:`outcome_phrase`: what the hit
+    rate counts, base included, so a caller printing the number prints its basis.
 
     THE FLOOR IS ON EFFECTIVE N, NOT RAW n (review #6, 2026-11-07). Events that
     share a session share one market: 5,000 red-day highs on 40 red sessions
@@ -320,6 +335,7 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
         "survivorship_corrected": False,
         "display_floor_n": floor,
         "displayable": bool(displayable),
+        "outcome": outcome_phrase(art.get("benchmark"), horizon),
     }
 
 
@@ -369,7 +385,8 @@ def sentence_for(ev: Optional[dict]) -> str:
     """The evidence sentence for an `evidence_for` dict, in operator voice.
 
     Displayable: the count, the sessions it fell on, the window, then the hit
-    rate against the all-bars baseline (review #6) at a horizon stated in
+    rate with its base (:func:`outcome_phrase`: from the next session's open,
+    N6) against the all-bars baseline (review #6) at a horizon stated in
     SESSIONS, measured on daily bars (review #7: the same sentence prints on a
     weekly chart, where "63 bars" would read as 63 weeks). Under the floor: what
     was measured and why it is withheld (review #22). No artifact block for the
@@ -378,11 +395,10 @@ def sentence_for(ev: Optional[dict]) -> str:
         return HONESTY_SENTENCE
     if not ev.get("displayable"):
         return _below_floor_sentence(ev) or HONESTY_SENTENCE
-    bench = ev.get("benchmark") or "the benchmark"
     h = int(ev["horizon_bars"])
     on = f" on {int(ev['sessions']):,} sessions" if isinstance(ev.get("sessions"), int) else ""
     text = (f"{int(ev['n']):,} {ev['label']}{on}, {ev['start']} to {ev['end']}, daily bars: "
-            f"{float(ev['hit_rate_pct']):.1f}% closed higher than {bench} {h} sessions later")
+            f"{float(ev['hit_rate_pct']):.1f}% {outcome_phrase(ev.get('benchmark'), h)}")
     notes = [w for w in (HORIZON_WORDS.get(h),) if w]
     if ev.get("median_excess_pct") is not None:
         notes.append(f"median {float(ev['median_excess_pct']):+.1f}%")

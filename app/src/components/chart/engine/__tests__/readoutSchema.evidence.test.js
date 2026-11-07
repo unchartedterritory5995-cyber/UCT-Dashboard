@@ -35,7 +35,9 @@ import { getDefinition } from '../nativeRegistry'
 /** `rs_evidence_pull.HONESTY_SENTENCE`, verbatim (the Python rail pins the two equal). */
 const HONESTY = 'No published hit rate exists for this signal and UCT has not measured one yet.'
 /** The measured sentence as `rs_evidence_pull.sentence_for` builds it over the 2b-01 fixture. */
-const MEASURED = '1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher than SPY 63 bars later (median +2.1%). Universe as held, survivorship not yet corrected.'
+// The server's sentence (rs_evidence_pull.sentence_for): since owner decision N6
+// (2026-11-07) the hit rate states its base, the next session's open.
+const MEASURED = '1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: 58.3% beat SPY from the next session\'s open to the close 63 sessions later (about 3 months; median +2.1%), against 50.2% for all bars. Universe as held, survivorship not yet corrected.'
 /** The keys of `rs_evidence_pull.CARD_SIGNALS`: the cards the v1 artifact measures. */
 const SIGNAL_CARDS = ['rsHigh', 'beforePrice', 'redDay', 'phase', 'mansfield']
 const EMOJI = /\p{Extended_Pictographic}/u

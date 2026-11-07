@@ -35,10 +35,12 @@ SIGNALS = ("rs_new_high", "rs_new_high_before_price", "rs_new_high_red_day", "rs
            "mansfield_cross_up")
 # Pin moved 2026-11-07 (RS review #6, #7): the sentence names the sessions the
 # events fell on, says "sessions" and "daily bars" (true on a weekly chart too)
-# and reads the hit rate against the all-bars baseline.
+# and reads the hit rate against the all-bars baseline. Moved again 2026-11-07
+# (owner decision N6): the hit rate states its base, the next session's open.
 BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: "
-                         "58.3% closed higher than SPY 63 sessions later (about 3 months; median +2.1%), against "
-                         "50.2% for all bars. Universe as held, survivorship not yet corrected.")
+                         "58.3% beat SPY from the next session's open to the close 63 sessions later "
+                         "(about 3 months; median +2.1%), against 50.2% for all bars. "
+                         "Universe as held, survivorship not yet corrected.")
 
 
 # ── the fixture ─────────────────────────────────────────────────────────────
@@ -132,16 +134,19 @@ def test_a_real_artifact_is_written_atomically_byte_for_byte_with_a_receipt(tmp_
 @pytest.mark.parametrize("raw, reason", [
     (None, "no_r2_object"),
     (b"", "short_payload"),
-    (b'{"version": 1, "per_signal": {}, "asof": "2026-11-04"}', "short_payload"),
+    (b'{"version": 2, "per_signal": {}, "asof": "2026-11-04"}', "short_payload"),
     (b"{" + b" " * ep.MIN_BYTES, "bad_json"),
     (_padded([1, 2, 3]), "not_an_object"),
-    (_padded({"version": 2, "per_signal": {}, "asof": "2026-11-04"}), "bad_version"),
+    (_padded({"version": E.ARTIFACT_VERSION + 1, "per_signal": {}, "asof": "2026-11-04"}), "bad_version"),
+    # 2026-11-07: a version-1 artifact was measured from the signal close (before N6)
+    # and without the split guard (N5): refused, never printed under the new wording.
+    (_padded({"version": 1, "per_signal": {}, "asof": "2026-11-04"}), "bad_version"),
     (_padded({"per_signal": {}, "asof": "2026-11-04"}), "bad_version"),
-    (_padded({"version": 1, "per_signal": [], "asof": "2026-11-04"}), "no_per_signal"),
-    (_padded({"version": 1, "asof": "2026-11-04"}), "no_per_signal"),
-    (_padded({"version": 1, "per_signal": {}}), "no_asof"),
-    (_padded({"version": 1, "per_signal": {}, "asof": "  "}), "no_asof"),
-    (_padded({"version": 1, "per_signal": {}, "asof": 20261104}), "no_asof"),
+    (_padded({"version": E.ARTIFACT_VERSION, "per_signal": [], "asof": "2026-11-04"}), "no_per_signal"),
+    (_padded({"version": E.ARTIFACT_VERSION, "asof": "2026-11-04"}), "no_per_signal"),
+    (_padded({"version": E.ARTIFACT_VERSION, "per_signal": {}}), "no_asof"),
+    (_padded({"version": E.ARTIFACT_VERSION, "per_signal": {}, "asof": "  "}), "no_asof"),
+    (_padded({"version": E.ARTIFACT_VERSION, "per_signal": {}, "asof": 20261104}), "no_asof"),
 ])
 def test_a_refused_payload_keeps_the_previous_file_byte_for_byte(tmp_path, raw, reason):
     p, good, mtime = _good_file(tmp_path)
@@ -233,7 +238,7 @@ def test_load_local_is_none_when_absent_corrupt_or_the_wrong_shape(tmp_path, mon
     p = tmp_path / ep.LOCAL_NAME
     p.write_bytes(b"{not json")
     assert ep.load_local(str(tmp_path)) is None
-    p.write_bytes(json.dumps({"version": 2, "per_signal": {}, "asof": "2026-11-04"}).encode())
+    p.write_bytes(json.dumps({"version": E.ARTIFACT_VERSION + 1, "per_signal": {}, "asof": "2026-11-04"}).encode())
     assert ep.load_local(str(tmp_path)) is None
     write_artifact(tmp_path, fixture_artifact())
     assert ep.load_local(str(tmp_path))["asof"] == "2026-11-04"
@@ -264,14 +269,16 @@ def test_load_local_caches_on_the_file_mtime(tmp_path):
 def test_evidence_for_reads_one_signal_at_one_horizon_and_judges_displayability():
     art = fixture_artifact()
     # Pin moved 2026-11-07 (RS review #6): the dict carries the sessions, the
-    # effective n the floor is checked on, the incomplete count and the baseline.
+    # effective n the floor is checked on, the incomplete count and the baseline;
+    # and (N6) the outcome phrase, so whoever prints the number prints its base.
     assert ep.evidence_for("rs_new_high_before_price", 63, art) == {
         "signal": "rs_new_high_before_price", "label": "RS new highs before price", "n": 1284,
         "sessions": 240, "effective_n": 240, "incomplete": 0,
         "hit_rate_pct": 58.3, "median_excess_pct": 2.1, "baseline_hit_rate_pct": 50.2, "horizon_bars": 63,
         "start": "2025-11-05", "end": "2026-11-04", "benchmark": "SPY", "asof": "2026-11-04",
         "survivorship": "universe as held, survivorship not yet corrected", "survivorship_corrected": False,
-        "display_floor_n": 100, "displayable": True}
+        "display_floor_n": 100, "displayable": True,
+        "outcome": "beat SPY from the next session's open to the close 63 sessions later"}
     assert ep.evidence_for("rs_new_high_before_price", artifact=art)["horizon_bars"] == 63, "63 is the default horizon"
     # the floor is the ARTIFACT's: 40 red-day signals carry their numbers but are not displayable
     rd = ep.evidence_for("rs_new_high_red_day", 63, art)
@@ -324,8 +331,8 @@ def test_summary_line_prints_the_measured_sentence_or_the_honesty_sentence():
     # line wherever the artifact carries the signal.
     assert ep.summary_line("rs_new_high_before_price", 63, art) == BEFORE_PRICE_SENTENCE
     assert ep.summary_line("rs_new_high", 63, art) == (
-        "4,700 RS new highs on 250 sessions, 2025-11-05 to 2026-11-04, daily bars: 55.2% closed higher than "
-        "SPY 63 sessions later (about 3 months; median +1.4%), against 50.2% for all bars. "
+        "4,700 RS new highs on 250 sessions, 2025-11-05 to 2026-11-04, daily bars: 55.2% beat SPY from the "
+        "next session's open to the close 63 sessions later (about 3 months; median +1.4%), against 50.2% for all bars. "
         "Universe as held, survivorship not yet corrected.")
     assert ep.summary_line("rs_cross_up_21ema", 63, art).startswith(
         "8,500 RS line crosses above its 21-day average on 250 sessions, ")
@@ -362,12 +369,16 @@ def test_the_card_sentence_shares_its_clause_with_the_discord_honesty_line():
 
 def test_an_evidence_dict_feeds_the_discord_evidence_line_under_its_label():
     """Unit 2b-08 can hand `evidence_for` straight to the poster's `evidence_line`
-    once `signal` is the label: the field names are the poster's contract."""
+    once `signal` is the label: the field names are the poster's contract. Since
+    2026-11-07 the dict carries its own `outcome` (`outcome_phrase`, N6), so the
+    post states the same base as the card without the caller restating it."""
     from api.services import rs_discord_post as rp
     ev = ep.evidence_for("rs_new_high_before_price", 63, fixture_artifact())
+    assert ev["outcome"] == ep.outcome_phrase("SPY", 63)
     assert rp.evidence_line({**ev, "signal": ev["label"]}) == (
-        "Evidence: 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher "
-        "63 bars later. Universe as held, survivorship not yet corrected.")
+        "Evidence: 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% beat SPY from "
+        "the next session's open to the close 63 sessions later. Universe as held, survivorship not yet corrected.")
+    assert ep.outcome_phrase(None, 21) == "beat the benchmark from the next session's open to the close 21 sessions later"
 
 
 def test_the_pull_module_reads_only_DATA_DIR_from_the_environment():

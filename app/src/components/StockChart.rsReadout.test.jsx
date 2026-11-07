@@ -132,7 +132,9 @@ const CARD = Object.freeze({
 /** `rs_evidence_pull.HONESTY_SENTENCE` and the measured sentence `sentence_for` builds
  *  over the 2b-01 fixture (`tests/test_rs_evidence_pull.py`), both verbatim. */
 const HONESTY = 'No published hit rate exists for this signal and UCT has not measured one yet.'
-const MEASURED = '1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% closed higher than SPY 63 bars later (median +2.1%). Universe as held, survivorship not yet corrected.'
+// The server's sentence (rs_evidence_pull.sentence_for): since owner decision N6
+// (2026-11-07) the hit rate states its base, the next session's open.
+const MEASURED = '1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: 58.3% beat SPY from the next session\'s open to the close 63 sessions later (about 3 months; median +2.1%), against 50.2% for all bars. Universe as held, survivorship not yet corrected.'
 const FIXTURE = Object.freeze({
   schemaVersion: 1, id: DEF_ID, version: 1,
   compute: { kind: 'native', fn: 'rsi', rev: 1 },

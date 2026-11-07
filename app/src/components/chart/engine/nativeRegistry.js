@@ -4116,8 +4116,10 @@ const RS_LINE_RAW = {
   // whose signal the nightly backtest measures (2b-01 → `rs/evidence.json` →
   // 2b-03 `payload.evidence.sentence.<key>`) declares `evidenceSource`; the
   // surface prints that sentence VERBATIM — "1,284 RS new highs before price
-  // from … ; 58.3% closed higher than SPY 63 bars later (median +2.1%).
-  // Universe as held, survivorship not yet corrected." — and the static
+  // on 240 sessions, … daily bars: 58.3% beat SPY from the next session's open
+  // to the close 63 sessions later (about 3 months; median +2.1%), against 50.2%
+  // for all bars. Universe as held, survivorship not yet corrected." (the base
+  // is the next open since owner decision N6, 2026-11-07) — and the static
   // `evidence` (the honesty sentence) only when no envelope has landed. A
   // sourced card's literature sentences (Bulkowski on Before price) lead the
   // server sentence, which replaces only the closing honesty sentence

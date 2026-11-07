@@ -46,7 +46,7 @@ def fresh_gen(monkeypatch):
 
 def test_6_the_measured_sentence_carries_the_all_bars_baseline():
     line = ep.summary_line("rs_new_high_before_price", 63, fixture_artifact())
-    assert "58.3% closed higher than SPY" in line
+    assert "58.3% beat SPY from the next session's open" in line, "the base is stated (N6)"
     assert "against 50.2% for all bars" in line, line
     assert "on 240 sessions" in line, "the sessions the events fell on are printed"
 
@@ -59,7 +59,7 @@ def test_6_the_display_floor_is_checked_on_distinct_sessions_not_raw_n():
     ev = ep.evidence_for("rs_new_high_red_day", 63, art)
     assert ev["effective_n"] == 40 and ev["sessions"] == 40
     assert ev["displayable"] is False
-    assert "% closed higher" not in ep.sentence_for(ev)
+    assert "% beat " not in ep.sentence_for(ev), "under the floor, no hit rate prints"
     block["dates"] = 100
     assert ep.evidence_for("rs_new_high_red_day", 63, art)["displayable"] is True
     # an artifact that does not say how many sessions has no effective N
