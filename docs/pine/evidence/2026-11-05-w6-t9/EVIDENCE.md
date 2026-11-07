@@ -248,3 +248,54 @@ Clean merge, no conflicts (T7 and T8 are not on master). Master brings `pineRunt
 switch-arm wrap), objectDoorGate (+7) and engine 22; `SCRIPT_ENGINE_VERSION` is not edited by this lane. Targeted
 rails on the merged tree, Node 20.20.2, `--maxWorkers=1`: w6ReceiverTypes, objectDoorGate, udtRecords,
 methodDrawings, w34I6SwitchArmWrap, p3WsaReviewFixes, **6 files, 341/341**.
+
+## r2: final-tip regression fix (runtime lane served a collection member off a call)
+
+**Finding (coordinator's final-tip run):** `ast/postfixMember.test.js:183`, "⭐ C ... the RUNTIME lane answers alike",
+went red on the T9 tip and is green on master `9485efc2b8`. SRC `plot(close + array.new_float(1, 5.0).size())`: the
+host (`translatePine` strict) refuses `pine:member` line 3; the T9 tip's `buildRuntimeIr` returned `ok: true`.
+
+**Root cause:** `receiverCallOf`'s last arm (the built-in member on a COLLECTION the receiver's type says it is) took
+ANY non-slot receiver. A postfix `.size()` whose receiver is a call (`array.new_float(…)`, `a.copy()`, `a.slice(…)`,
+`f()`, all parsed as a `call` node) or a postfix method (`os.get(0).mk()`) typed through `exprType` as `array<float>`
+and was lowered as `array.size(<call>)`, so `needsRuntime`/`isReceiverCall` routed it to the runtime lane and it was
+served, while the host lane refuses it through `pine.js`'s one Resolver. Master's FE never reached that arm (it is
+T9's), so on master the shared Resolver answered for both lanes. Probe, original tip FE: all 5 shapes below served
+on the runtime lane, refused `pine:member` on the host.
+
+**Spec check:** W6-BREAKDOWN section 4 T9 item 3 serves built-in members on collections "held anywhere typed: a UDT
+field (`ob.levels.size()`), a typed parameter". Item 2 serves chains of USER methods and fields (`f(…).m()`). No
+item serves a built-in collection member read off a call's result, so the agreement is restored (the brief's
+default), not served.
+
+**Fix** (code `5831b98474`, `pineRuntimeFrontend.js`, `receiverCallOf`): the collection arm takes only a `name` receiver (a non-slot
+name, or a dotted field path `ob.levels`) or a `member` receiver (a field read off a chain, `os.get(0).xs`, kept as
+T9 item 3 progress). A `call` or `method` receiver returns null, so the shared Resolver refuses it `pine:member`
+with the host's line. The header comment no longer claims "an element `a.get(i).size()`, a function's result".
+
+**Rails** (`w6ReceiverTypes.test.js`, new section 5b, 7 tests): 5 shapes refuse `pine:member` at the SAME line in
+BOTH lanes (a built-in constructor's result l3, `a.copy()` l4, `a.slice(0, 2)` l4, `f()` l5, a user method off an
+element `os.get(0).mk()` l9, the guard's `method` arm); 2 controls stay served (`o.xs.size()`, and
+`os.get(0).xs.size()` = 2 on every bar, the guard's `member` arm). Recv-type instrumentation (temporary, removed,
+`cmp` same) showed the 4 corpus-style shapes reach the line as `call` and only the user-method chain as `method`.
+
+**Hand mutations** of the one guard line (copy, sed, run w6ReceiverTypes + postfixMember, restore by copy, `cmp`
+same after each), Node 20.20.2, `--maxWorkers=1`:
+
+| mutant | result |
+|---|---|
+| R1 delete the guard (= the r1 tip) | KILLED, 6 red (postfixMember C + 5 in 5b) |
+| R2 refuse only `call` receivers | KILLED, 1 red (`os.get(0).mk().size()`) |
+| R3 refuse only `method` receivers | KILLED, 5 red |
+| R4 take only `name` receivers (drop `member`) | KILLED, 1 red (`os.get(0).xs.size()` control) |
+
+The original tip FE against the new rails: 6 red, 59 green (the same set as R1).
+
+**Folder-wide run** (fix applied, before the 5b test-file additions, FE byte-identical to the committed one):
+`vitest run --maxWorkers=1 src/components/chart/engine/ast src/components/chart/engine/runtime`, Node 20.20.2:
+**505 files: 501 passed, 4 skipped; 7841 tests: 7830 passed, 11 skipped, 0 failed** (1556 s). After the test-file
+additions: w6ReceiverTypes + postfixMember 65/65.
+
+**Measure-pair:** the census rows above name only field or name receivers (`IS.imbalance.size()`, `copy.size`,
+`bull.change.size()`), which keep their path. The coordinator's measure-pair re-run is the authority; not run here
+(light phase).
