@@ -55,6 +55,28 @@ describe('W9 9.7 an order-only `if` with the broker dark', () => {
     expect(JSON.stringify(pure.ir)).toBe(JSON.stringify(bare.ir))
   })
 
+  it('a namespaced effect in an argument is evaluated too (a method push, not only a user function)', () => {
+    const src = `${V5}var a = array.new_float(0)\n`
+      + 'strategy.entry("L", strategy.long, comment = str.tostring(array.push(a, close)))\nplot(array.size(a))\n'
+    const r = run(src)
+    // Evaluated, or refused by name; never the old silent 0 on every bar.
+    if (r.refused) expect(r.refused).toMatch(/^runtime:/)
+    else expect(r.out[0]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  })
+
+  it('every effectful argument of one order is evaluated, not only the first', () => {
+    const src = `${V5}${PUSHER}strategy.exit("x", "L", stop = g(), limit = g())\nplot(array.size(a))\n`
+    expect(run(src).out[0]).toEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24])
+  })
+
+  it('a v4 bare builtin under an operator in an order argument stays a value', () => {
+    const src = '//@version=4\nstrategy("t")\nif close > 0\n'
+      + '    strategy.close("L", when = crossover(close, sma(close, 3)) and close > 0)\nplot(close)\n'
+    const r = run(src)
+    expect(r.refused).toBeUndefined()
+    expect(r.out[0]).toEqual(BARS.map((b) => b.c))
+  })
+
   it('a v4 bare builtin in an order argument stays a value: the script is still served', () => {
     // `highlow-channel-swing` (committed corpus) closes on `when = crossover(...)`; evaluating that
     // inside the arm would refuse `runtime:conditional-history` for a value nothing reads.

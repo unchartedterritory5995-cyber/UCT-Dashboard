@@ -102,6 +102,17 @@ gives 1,1,2,2,...); a pure argument leaves the IR byte-identical to the order wi
 | order site uses the strict default (bare = effect) | KILLED (1 failed) |
 | evaluate every argument | KILLED (4 failed) |
 
+Review N2 on #935 (`dsk/reviews/W9-OQ.md`): three rail cases added (a method-free namespaced effect
+`str.tostring(array.push(a, close))`, two effectful arguments on one `strategy.exit`, a v4 bare
+`crossover` under `and`). The rail is now 8 tests. Re-run of the reviewer's surviving mutations:
+
+| mutation | result |
+|---|---|
+| control | survives, 8 passed |
+| A: bare-is-value regex admits dotted names | KILLED (1 failed) |
+| B: operator recursion drops `bareIsValue` | KILLED (1 failed) |
+| D: only the first effectful argument is evaluated | KILLED (1 failed) |
+
 ### Tests run
 
 - `w9OrderOnlyIf.test.js`: 5 passed.

@@ -124,3 +124,8 @@ They are now evaluated in place, the `alert()` rule, railed by
    route, so it is left to T14's owner rather than folded into this docs branch.
 2. **D8** lands with T13a and T13b.
 3. **D4** awaits the owner.
+4. **9.7, `strategy.*` reads in an order argument over-refuse (review N1 on #935).** Calls such as
+   `strategy.opentrades.entry_price(0)` or `strategy.closedtrades.profit(0)` now count as effects
+   under "unknown namespaced call = effect", so they are lowered and refuse `pine:strategy-call`
+   where master dropped them and served. This is an over-refusal, never a wrong value. The fix is to treat
+   `strategy.*` reads as values at the order site. The `alert()` site has the same behaviour.
