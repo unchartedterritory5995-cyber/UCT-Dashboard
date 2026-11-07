@@ -141,3 +141,50 @@ Results on tip (origin/master `d0a29bbf24` merged; already up to date):
 - Vitest `src/components/chart/engine/runtime` (Node 20.20.2, `--maxWorkers=1`): 3282 pass, 4 fail. The 4 failures are only the `*.measure.test.js` corpus harnesses timing out at 15 s, as in r0. `w9T14ServerRecord` is 5/5.
 
 Engine bump: no.
+
+## Heavy steps (2026-11-07, on code tip b9dfa37d0d)
+
+### mutate.py
+
+- Run under `dsk/heavy-mut.lock`: free at launch, not queued, RAM 16.8 GB. Released after 66 s.
+- Muts file: `runs/w9-t14/muts.json`. Tests: `w9T14ServerRecord.test.js` and `serverBundle.rail.test.js`.
+- Result: 8/8 killed; the control V0 survived.
+
+| id | mutation | result |
+|---|---|---|
+| V1 | the record reader is not exported | KILLED |
+| V2 | the shape check is not exported | KILLED |
+| V3 | the record text is not compact | KILLED |
+| V4 | the seal hashes the wrong bytes | KILLED |
+| V5 | `#strategy` is treated as a column | KILLED |
+| V6 | no record is written | KILLED |
+| V7 | the seal checks `{}` instead of the record | KILLED |
+| V8 | `want` is ignored | KILLED |
+
+- Worktree HEAD unchanged and clean afterwards.
+
+### measure-pair
+
+- Run under `dsk/heavy-mp3.lock` with `ram_gate`, 71.8 min; logs in `runs/w9-t14/mpr/`.
+- Base `pine-dsk-mpbase3` was clean and was detached at the merge-base `d0a29bbf24` inside the lock.
+- HEADs were asserted before and after each side, and none moved.
+
+| runtime | captures (tip = base) | C18 out | probe | harness | census |
+|---|---|---|---|---|---|
+| rt0 | MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140 | 395 rows, 0 differ | 69 rows, 0 differ | identical | 967 rows, 2 differ |
+| rt1 | MATCH 112 / DIVERGE 107 / INCONCLUSIVE 117 | 395 rows, 0 differ | 69 rows, 0 differ | identical | 967 rows, 1 differ |
+
+### Census movers (3 rows, 0 unintended)
+
+All three are NOISE: each row's differing field is a `pine:timeout` translation-budget stop, which is wall-clock. Runtime attach is unchanged on both sides (`attached: false`, same guard).
+
+- rt0, `ai-supertrend-x-pivot-percentile-strategy-presenttrading`: peel `stuck pine:roundtrip` vs reached. The row carries `pine:timeout` budget stops on both sides.
+- rt0, `volatility-coil-edge-bullbyte`: dropHeads ordering from `pine:timeout`. This is the known timeout jitter, already seen in W4-T14.
+- rt1, `multi-timeframe-trend-indicator`: a `pine:timeout` refusal at line 158 vs null; the budget stop landed at a different point.
+
+### After the heavy steps
+
+- origin/master has not moved (`d0a29bbf24`); the merge is a no-op.
+- Service suite (Node 24, glob form): 139/139.
+- Router and codec pytest: 49 passed.
+- Vitest `w9T14ServerRecord` + `serverBundle.rail`: 13/13.
