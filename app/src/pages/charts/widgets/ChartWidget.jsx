@@ -431,8 +431,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [ctxToast, setCtxToast] = useState(null)
   const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
   const [tplFlyout, setTplFlyout] = useState(false)  // "Chart template" side flyout open
+  const [presetFlyout, setPresetFlyout] = useState(false)  // pane indicator's "Preset" side flyout open
   const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
-  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
+  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false); setPresetFlyout(false) }, [])
   const ctxMenuRef = useRef(null)
   // Location-aware in Y too: after the menu renders, measure it and nudge it fully
   // on-screen so a right-click near the bottom (or right) never clips off. Runs in a
@@ -521,7 +522,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
       resetView: p.resetView, openSettings: p.openSettings,
       clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings,
-      onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle })
+      onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle,
+      // B9: the pane owner's chip rows when the click landed in an indicator pane.
+      paneIndicator: p.paneIndicator && Array.isArray(p.paneIndicator.items) && p.paneIndicator.items.length
+        ? p.paneIndicator : null })
   }, [])
 
   useEffect(() => {
@@ -800,6 +804,76 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* ── B9 · The indicator pane under the pointer ──
+                    A right-click inside an indicator's own pane leads with that
+                    indicator's rows: the legend chip's rows and handlers, built
+                    by StockChart (`paneMenuItems`), so this menu and the chip
+                    cannot drift. The chart menu continues below the rule. */}
+                {ctxMenu.paneIndicator && (
+                  <>
+                    {ctxMenu.paneIndicator.items.map((row) => {
+                      if (row.key === 'preset' && Array.isArray(row.submenu)) {
+                        return (
+                          <div key={row.key} className={styles.chartCtxSubWrap}>
+                            <button
+                              type="button"
+                              className={`${styles.chartCtxItem} ${presetFlyout ? styles.chartCtxItemOpen : ''}`}
+                              data-menu-id="pane-preset"
+                              aria-haspopup="true"
+                              aria-expanded={presetFlyout}
+                              onClick={() => { setTplFlyout(false); setPresetFlyout(v => !v) }}
+                            >
+                              <UIcon name={row.icon} size={14} className={styles.chartCtxIcon} />{row.label}
+                              <span className={styles.chartCtxTrail} data-preset-current="">{row.trailing}</span>
+                              <span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
+                            </button>
+                            {presetFlyout && (
+                              <div className={styles.chartCtxFlyout} role="menu" aria-label="Preset">
+                                {row.submenu.map(s => (
+                                  <button
+                                    key={s.key}
+                                    type="button"
+                                    role="menuitemradio"
+                                    aria-checked={!!s.checked}
+                                    className={styles.chartCtxItem}
+                                    data-menu-id={`pane-${s.key}`}
+                                    // Custom is a state, not a choice: shown, ticked when
+                                    // nothing matches, never pressable (chipMenu.presetSubmenu).
+                                    disabled={!s.onClick}
+                                    title={s.origin || undefined}
+                                    onClick={() => { s.onClick?.(); closeCtx() }}
+                                  >
+                                    <span className={styles.chartCtxCheck} aria-hidden="true">
+                                      {s.checked ? <UIcon name="check" size={13} gold={false} /> : null}
+                                    </span>
+                                    <span className={styles.chartCtxTplName}>{s.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      // A refused row (a read-only alert form) is shown with its
+                      // reason, never hidden and never live.
+                      const refused = typeof row.disabled === 'string' && row.disabled ? row.disabled : null
+                      return (
+                        <button
+                          key={row.key}
+                          type="button"
+                          className={styles.chartCtxItem}
+                          data-menu-id={`pane-${row.key}`}
+                          disabled={!!refused || !row.onClick}
+                          title={refused ? `Unavailable: ${refused}` : undefined}
+                          onClick={() => { closeCtx(); row.onClick?.() }}
+                        >
+                          <UIcon name={row.icon} size={14} className={styles.chartCtxIcon} />{row.label}
+                        </button>
+                      )
+                    })}
+                    <div className={styles.menuDivider} />
+                  </>
+                )}
                 {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
                   <>
@@ -848,7 +922,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     data-menu-id="template"
                     aria-haspopup="true"
                     aria-expanded={tplFlyout}
-                    onClick={() => setTplFlyout(v => !v)}
+                    onClick={() => { setPresetFlyout(false); setTplFlyout(v => !v) }}
                   >
                     <UIcon name="copy" size={14} className={styles.chartCtxIcon} />Chart template
                     <span className={styles.chartCtxCaret} aria-hidden="true">▸</span>

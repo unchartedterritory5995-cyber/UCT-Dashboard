@@ -172,7 +172,7 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
-import { chipMenuItems, presetLabelOf } from './chart/legend/chipMenu'
+import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
 import { needsScriptForUpgrade, UPGRADE_NOTICE_LABEL } from './chart/builder/memberPane/savedScriptUpgrade'
 import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
@@ -6185,6 +6185,60 @@ export default function StockChart({
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
   } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
+
+  // ⭐ B9 (2026-11-07) — THE PANE'S OWN ROWS FOR A HOST MENU. A right-click inside
+  // an indicator pane on a surface that draws its own menu (`onBarContextMenu`:
+  // the /charts ChartWidget) leads with the pane owner's chip rows. The owner is
+  // the pane's HOST instance (`region.hostKey`, from the layout's `defByKey`), or,
+  // with no host (band mode), the definition's first live instance: the same
+  // resolution the region menu's settings row makes.
+  //
+  // ⛔ REBUILT EVERY RENDER INTO A REF and read at click time, so the rows close
+  // over this render's `cs` and handlers, never the ones the context-menu effect
+  // last captured. Null on a read-only mount (the chip handlers' gate) and for
+  // any region that is not an indicator pane.
+  const paneIndicatorMenuRef = useRef(null)
+  paneIndicatorMenuRef.current = (region, anchor) => {
+    if (!showDrawingTools || !region || region.type !== 'indicator') return null
+    const host = region.hostKey ? findInstance(cs, region.hostKey) : null
+    const instanceId = host ? host.instanceId : (region.key ? firstLiveInstanceId(cs, region.key) : null)
+    const inst = instanceId ? findInstance(cs, instanceId) : null
+    const def = inst ? engineRegistry.getDefinition(inst.defId) : null
+    if (!inst || !def) return null
+    // The legend's own chip for this instance when it has one (it carries the
+    // label a source-named series such as `dataSeries` shows), else its shape.
+    const legendChip = latestChips().find((c) => c && c.instanceId === inst.instanceId)
+    const chip = {
+      ...(legendChip || {}),
+      instanceId: inst.instanceId, defId: inst.defId, hidden: !!inst.hidden,
+      label: (legendChip && legendChip.label) || labelFor(inst.defId),
+    }
+    // The editor row's noun is the region menu's: the catalogue short name, plus
+    // the legend's suffix when copies share a name. A source-named series keeps
+    // its source (`QQQ settings…`, never `Series settings…`).
+    const siblings = liveInstanceIdsFor(cs, inst.defId)
+    const n = siblings.indexOf(inst.instanceId)
+    const suffix = siblings.length > 1 && n >= 0 ? (instanceMenuSuffixes(cs, siblings)[n] || '') : ''
+    const namesItsSource = !!(def.meta && def.meta.labelFrom === 'source')
+    const paneName = `${namesItsSource ? chip.label : labelFor(inst.defId)}${suffix}`
+    const presets = presetsOf(def)
+    const current = presets.length
+      ? detectPreset(presets, resolvedInputsOf(def, inst.inputs || {}), { instance: inst, def, cs })
+      : null
+    const items = paneMenuItems(chip, def, {
+      onSettings: (id) => handleChipSettings(id),
+      onPreset: (id, presetId) => handleChipPreset(id, presetId),
+      onToggleHidden: (id) => handleChipHidden(id),
+      onAlerts: (id) => handleChipAlerts(id),
+      onAbout: () => { setChipPage(null); setChipMenu(null); setChipAbout({ chip, anchor: anchor || { x: 0, y: 0 } }) },
+    }, {
+      paneName,
+      presets,
+      presetCurrent: current ? current.id : null,
+      alertsRefusal: chipAlertsRefusal,
+    })
+    return { instanceId: inst.instanceId, defId: inst.defId, name: paneName, items }
+  }
 
   // Reset to the default present-day view (newest bar at LAST_CANDLE_POS). Extracted
   // to the component body so the right-click "Reset view" AND the floating
@@ -18082,6 +18136,10 @@ export default function StockChart({
       const currentPrice = Number.isFinite(lastPriceRef.current) ? lastPriceRef.current : (closest?.c ?? null)
 
       const sections = buildRegionSections(region, clickPrice)
+      // ⭐ B9 — the pane owner's chip rows (null outside an indicator pane). The
+      // About card anchors at the click, as the chip's anchors at the label.
+      let paneIndicator = null
+      try { paneIndicator = paneIndicatorMenuRef.current?.(region, { x: clientX, y: clientY }) || null } catch { paneIndicator = null }
 
       // Lazy chart screenshot: only invoked if the consumer actually needs
       // it (e.g. "Save to Notebook"). Lightweight Charts v5 exposes
@@ -18105,6 +18163,7 @@ export default function StockChart({
           getScreenshotBlob,
           region,
           sections,
+          paneIndicator,
           clickPrice,
           currentPrice,
           // Location-aware menu: true when the right-click landed inside the
@@ -18170,6 +18229,9 @@ export default function StockChart({
             getScreenshotBlob,
             region,
             sections,
+            // The app-root menu draws `sections` (its region block already leads
+            // with the pane's rows); carried so both hosts read one payload shape.
+            paneIndicator,
             clickPrice,
             currentPrice,
             // The chart's element, so the app-root menu can hand focus back to
