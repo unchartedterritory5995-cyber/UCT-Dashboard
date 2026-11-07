@@ -107,6 +107,44 @@ describe('W34-I6b item 1 — a tail block whose value is never read needs no typ
   })
 })
 
+// ── review r1 (B1, R1, R7) ──────────────────────────────────────────────────────────────────
+// `f` is a v6 bool tail with no else (unmatched on bars 0..4). Each script below READS f's value
+// through a value-bound block, a parameter default or another function, so the v6 rule must hold:
+// refused by name on the shipped lane (Pine 6 answers false there: [5,5,5,5,5,7,7,7]).
+const F6 = (v = 6) => `${head(v)}f(x) =>
+    if x > 104
+        close > open
+`
+const READ_THROUGH = {
+  'the `else` arm of a value-bound `if` (review B1 repro)': 'y = if close > 1000\n    false\nelse\n    f(close)\nplot(y == false ? 5 : 7)\n',
+  'an `else if` arm of a value-bound `if` (complete chain)': 'y = if close > 1000\n    false\nelse if close > 0\n    f(close)\nelse\n    false\nplot(y == false ? 5 : 7)\n',
+  'an `else` arm of a value-bound `if` inside another function body': 'g(z) =>\n    y = if z > 1000\n        false\n    else\n        f(z)\n    y\nplot(g(close) == false ? 5 : 7)\n',
+  'a nested `if` inside the `else` arm of a value-bound `if`': 'y = if close > 1000\n    false\nelse\n    if close > 0\n        f(close)\n    else\n        false\nplot(y == false ? 5 : 7)\n',
+  'the HEAD arm of a value-bound `if` (R1)': 'y = if close > 0\n    f(close)\nelse\n    false\nplot(y == false ? 5 : 7)\n',
+  'a block arm of a value-bound `switch` (R1)': 'y = switch\n    close > 0 =>\n        f(close)\n    => false\nplot(y == false ? 5 : 7)\n',
+  'a parameter default of another function (R7)': 'g(a, d = f(close)) =>\n    a + (d ? 1 : 0)\nf(close)\nplot(g(close))\n',
+}
+
+describe('W34-I6b review r1 — a value read through a value-bound block is never "discarded"', () => {
+  for (const [name, tail] of Object.entries(READ_THROUGH)) {
+    it(`v6: ${name}: refused by name`, () => {
+      serveOpt = {}
+      const r = refusalOf(F6() + tail)
+      expect(r.guard).toBe('runtime:block-value')
+      expect(r.message).toMatch(V6_SENTENCE)
+    })
+  }
+  it('[gate lifted] v6: the B1 repro reads f\'s false on the unmatched bars', () => {
+    serveOpt = { w4t14ServeUnmatchedFalse: true }
+    try {
+      expect(run(F6() + READ_THROUGH['the `else` arm of a value-bound `if` (review B1 repro)'])).toEqual([5, 5, 5, 5, 5, 7, 7, 7])
+    } finally { serveOpt = {} }
+  })
+  it('CONTROL v5: the B1 repro is na on the unmatched bars (all 7)', () => {
+    expect(run(F6(5) + READ_THROUGH['the `else` arm of a value-bound `if` (review B1 repro)'])).toEqual(Array(N).fill(7))
+  })
+})
+
 // ── item 2 ─────────────────────────────────────────────────────────────────────────────────
 // outer `if x > 102` (bars 3..7) with no else; its arm is a complete `if x > 104 … else false`.
 const B2 = (v) => `${head(v)}f(x) =>
@@ -162,6 +200,11 @@ describe('W34-I6b item 2 [machinery, gate lifted by the test-only opt] — neste
 })
 
 describe('W34-I6b item 2 — a nested arm of numbers is provably not a bool (no gate involved)', () => {
+  it('the object door keeps master: a nested arm is not recursed into there (refused, Q-A3)', () => {
+    serveOpt = {}
+    const r = refusalOf(`${head(6)}x = if close > 102\n    if close > 104\n        1.0\n    else\n        2.0\nplot(x)\n`, { objectDoor: true, objectTrees: [] })
+    expect(r.message).toMatch(/Q-A3/)
+  })
   it('v6: na on the unmatched bars, served on the shipped lane', () => {
     serveOpt = {}
     const out = run(`${head(6)}x = if close > 102\n    if close > 104\n        1.0\n    else\n        2.0\nplot(x)\n`)

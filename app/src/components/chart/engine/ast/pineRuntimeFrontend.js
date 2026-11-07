@@ -9505,6 +9505,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const walk = (list, valueTail) => {
         const L = list || []
         const tailFrom = valueTail && L.length ? lastStatementAt(L) : L.length
+        // ⛔ (review r1 B1) an `else` / `else if` line CONTINUES the chain its head opened: when
+        // the head binds the chain (`y = if …`) or sits in value position, every arm's tail is
+        // read, so the `else` arms inherit the head's flag (they are separate list entries).
+        let chainValued = false
         L.forEach((st, i) => {
           const h = st.header || []
           if (fnDefName(h)) {
@@ -9519,8 +9523,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const bareCall = !inValue && !isBlock && useOf(h[0]) !== null && isPunct(h[1], '(')
             && closeOfToks(h, 1) === h.length - 1 && !(st.sub && st.sub.length)
           markAll(bareCall ? h.slice(1) : h)
-          // a block in value position, or a line that binds a block (`x = if …`), yields its tail
-          walk(st.sub, inValue || !isBlock)
+          // a block in value position, or a line that binds a block (`x = if …`), yields its tail;
+          // an `else` line yields its tail when the chain it continues does
+          const subValued = w === 'else' ? (inValue || chainValued) : (inValue || !isBlock)
+          if (w !== 'else') chainValued = subValued
+          walk(st.sub, subValued)
         })
       }
       walk(stmts, false)
@@ -12319,7 +12326,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             vSlots.push(fnScope.declare(vName, newSlot(vName, false)))
           }
           // ⭐ W34-I6b (item 1): every call site a statement => the result is never read
-          const vstate = { allow: !atObjectDoor, valueless: false, end: null, discarded: !atObjectDoor && statementOnlyFn(String(nameTok.value)) }
+          const vstate = { allow: !atObjectDoor, valueless: false, end: null, discarded: statementOnlyFn(String(nameTok.value)) }
           const fnSink = { slots: vSlots, paint: { colour: 0, na: 0, other: 0 } }
           const label = chainAt >= 0 ? `${nameTok.value}(…) => if …` : `${nameTok.value}(…) =>`
           body = lowerBlockValue(lines, fnScope, fnSink, label, nameTok, vstate)
