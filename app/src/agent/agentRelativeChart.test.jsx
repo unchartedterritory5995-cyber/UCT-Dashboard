@@ -151,3 +151,50 @@ describe('the relation rule, paired: the anchor never runs, the meant neighbour 
     expect(relativeChart('whatever is adjacent to it', C, 'c0')?.hits.map(c => c.ref).sort()).toEqual(['c1', 'c2'])
   })
 })
+
+// AUDIT R5 (11-07): a relation is one chart reference among the sentence's others, read per clause. A NEGATED relation's chart is
+// never touched; beside a clause pointing at the click, the click is the chart meant. An affirmative relation beside a pointer to
+// the click is two references: asked, whatever the plan. Own phrasings (AUDIT's probes are separate).
+describe('R5: negation and compound sentences around a relation', () => {
+  it.each([
+    ['switch this one to weekly but don\'t touch the chart under it', 'c0', 'c2'],
+    ['make this ticker weekly without changing the chart to the right of it', 'c0', 'c1'],
+    ['weekly on this chart; ignore the one beside it', 'c3', 'c2'],
+  ])('%s (clicked %s): a plan on the click runs there; a plan on %s, the chart named to be left alone, never runs', async (t, clicked, spared) => {
+    {
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(clicked))
+      await say(t)
+      expect(tfOf(b, clicked)).toBe('W')
+      expect(tfOf(b, spared)).toBe('D')
+    }
+    cleanup(); p = setupPanel()
+    {
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(spared))
+      await say(t)
+      expect(tfs(b)).toBe('DDDD')
+    }
+  }, 60000)
+  it.each([
+    ['leave the chart above this one alone', 'c2', 'c0'],
+    ['everything stays, except the pane left of it', 'c1', 'c0'],
+  ])('%s (clicked %s): a negated relation alone never makes %s a target', async (t, clicked, spared) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOn(spared))
+    await say(t)
+    expect(tfs(b)).toBe('DDDD')
+  }, 30000)
+  it.each([
+    ['make this one weekly and the one below it weekly too', 'c0'],
+    ['set it weekly, then the graph right of it as well', 'c0'],
+  ])('%s (clicked %s): two chart references, so one plan on either is asked about, nothing changes', async (t, clicked) => {
+    for (const plan of ['c0', 'c1', 'c2']) {
+      cleanup(); p = setupPanel()
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(plan))
+      await say(t)
+      expect(tfs(b), `plan on ${plan}`).toBe('DDDD')
+    }
+  }, 60000)
+})
