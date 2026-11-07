@@ -14934,124 +14934,6 @@
   "answer_json": {
    "answer": "Pocket pivot"
   },
-  "asof": "2000-01-07",
-  "bars": {
-   "asof": "2000-01-07",
-   "forward": 20,
-   "sym": "OSUR",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_55f45a4daf57",
-  "lesson_origin": "session",
-  "lesson_text": "Pocket pivot: an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range. Chart IQ read the last bar: up-day volume (3.5x) above every down day of the last 10. The same bar also printed: HVC. From the brain, Gil Morales: \"Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Pocket pivot",
-    "MA remount",
-    "Range breakout",
-    "20EMA tap"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Pocket pivot"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2000-01-07",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "OSUR"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 150,
-     "quote": "Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.",
-     "who": "Gil Morales"
-    },
-    "chartiq_reading": "up-day volume (3.5x) above every down day of the last 10",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -6.0,
-     "rs63_pct": 37.8,
-     "s200_rising": true,
-     "vs200_pct": 43.6,
-     "vs50_pct": 49.7
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 130.95,
-     "culm_sessions": 43,
-     "ret20_pct": 26.98
-    },
-    "era": "2000-04",
-    "event": "Pocket pivot",
-    "fired_on_bar": [
-     "HVC",
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 685,
-    "liq_universe": 1010,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range.",
-    "sector": "Healthcare"
-   },
-   "forward_bars": 20,
-   "label": "Pocket pivot",
-   "source": "chart_iq.v44_read.candle_events#Pocket pivot#OSUR#2000-01-07",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Pocket pivot#OSUR#2000-01-07",
-  "sym": "OSUR",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Pocket pivot"
-  },
   "asof": "2005-05-04",
   "bars": {
    "asof": "2005-05-04",
@@ -17754,123 +17636,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Pocket pivot#PZZA#1996-02-02",
   "sym": "PZZA",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Pocket pivot"
-  },
-  "asof": "2001-01-31",
-  "bars": {
-   "asof": "2001-01-31",
-   "forward": 20,
-   "sym": "HVT",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_044df718b4be",
-  "lesson_origin": "session",
-  "lesson_text": "Pocket pivot: an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range. Chart IQ read the last bar: up-day volume (1.9x) above every down day of the last 10. From the brain, Gil Morales: \"Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "MA remount",
-    "Range breakout",
-    "20EMA tap",
-    "Pocket pivot"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Pocket pivot"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2001-01-31",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "HVT"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 150,
-     "quote": "Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.",
-     "who": "Gil Morales"
-    },
-    "chartiq_reading": "up-day volume (1.9x) above every down day of the last 10",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -1.4,
-     "rs63_pct": 20.1,
-     "s200_rising": false,
-     "vs200_pct": 22.3,
-     "vs50_pct": 26.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 13.89,
-     "culm_sessions": 11,
-     "ret20_pct": 1.89
-    },
-    "era": "2000-04",
-    "event": "Pocket pivot",
-    "fired_on_bar": [
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 718,
-    "liq_universe": 1054,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Pocket pivot",
-   "source": "chart_iq.v44_read.candle_events#Pocket pivot#HVT#2001-01-31",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Pocket pivot#HVT#2001-01-31",
-  "sym": "HVT",
   "type": "recall",
   "version": 1
  },
@@ -23059,6 +22824,241 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "Pocket pivot"
+  },
+  "asof": "2019-02-28",
+  "bars": {
+   "asof": "2019-02-28",
+   "forward": 20,
+   "sym": "CNMD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_18c9db9188a4",
+  "lesson_origin": "session",
+  "lesson_text": "Pocket pivot: an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range. Chart IQ read the last bar: up-day volume (2.2x) above every down day of the last 10. The same bar also printed: Range breakout. From the brain, Gil Morales: \"Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "HVC",
+    "Pocket pivot",
+    "MA remount",
+    "20EMA tap"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Pocket pivot"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2019-02-28",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "CNMD"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 150,
+     "quote": "Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.",
+     "who": "Gil Morales"
+    },
+    "chartiq_reading": "up-day volume (2.2x) above every down day of the last 10",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -7.9,
+     "rs63_pct": 9.7,
+     "s200_rising": true,
+     "vs200_pct": 7.0,
+     "vs50_pct": 14.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 11.72,
+     "culm_sessions": 39,
+     "ret20_pct": 6.44
+    },
+    "era": "2015-19",
+    "event": "Pocket pivot",
+    "fired_on_bar": [
+     "Pocket pivot",
+     "Range breakout"
+    ],
+    "held_20": true,
+    "liq_rank": 981,
+    "liq_universe": 2054,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Pocket pivot",
+   "source": "chart_iq.v44_read.candle_events#Pocket pivot#CNMD#2019-02-28",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Pocket pivot#CNMD#2019-02-28",
+  "sym": "CNMD",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Pocket pivot"
+  },
+  "asof": "2020-05-11",
+  "bars": {
+   "asof": "2020-05-11",
+   "forward": 20,
+   "sym": "CRSP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_68df5b42cb98",
+  "lesson_origin": "session",
+  "lesson_text": "Pocket pivot: an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range. Chart IQ read the last bar: up-day volume (2.4x) above every down day of the last 10. From the brain, Gil Morales: \"Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "20EMA tap",
+    "Pocket pivot",
+    "MA remount",
+    "Range breakout"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Pocket pivot"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2020-05-11",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "CRSP"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 150,
+     "quote": "Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions.",
+     "who": "Gil Morales"
+    },
+    "chartiq_reading": "up-day volume (2.4x) above every down day of the last 10",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -17.2,
+     "rs63_pct": 23.9,
+     "s200_rising": true,
+     "vs200_pct": 19.5,
+     "vs50_pct": 31.4
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 59.61,
+     "culm_sessions": 40,
+     "ret20_pct": 3.21
+    },
+    "era": "2020-26",
+    "event": "Pocket pivot",
+    "fired_on_bar": [
+     "Pocket pivot"
+    ],
+    "held_20": true,
+    "liq_rank": 742,
+    "liq_universe": 2162,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "an up day on more volume than any down day of the last 10 sessions (and at least 1.2 times average), lifting off the 9 or 20-day EMA, over the 50-day, closing in the top half of its range.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Pocket pivot",
+   "source": "chart_iq.v44_read.candle_events#Pocket pivot#CRSP#2020-05-11",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Pocket pivot#CRSP#2020-05-11",
+  "sym": "CRSP",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "HVC"
   },
   "asof": "1996-05-14",
@@ -23172,124 +23172,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#HVC#HLIT#1996-05-14",
   "sym": "HLIT",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "HVC"
-  },
-  "asof": "2000-11-06",
-  "bars": {
-   "asof": "2000-11-06",
-   "forward": 20,
-   "sym": "GCO",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_287c9cbaf37e",
-  "lesson_origin": "session",
-  "lesson_text": "HVC: a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move. Chart IQ read the last bar: high-volume close: 4.7x, the biggest volume in 3 months, on a gap / breakout, closed at 17.19. The same bar also printed: Pocket pivot. From the brain, TSDR: \"marking out high-volume-close levels as key reference points\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Range breakout",
-    "Heavy volume, closed weak",
-    "HVC",
-    "Gap up"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "HVC"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2000-11-06",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "GCO"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 11364,
-     "quote": "marking out high-volume-close levels as key reference points",
-     "who": "TSDR"
-    },
-    "chartiq_reading": "high-volume close: 4.7x, the biggest volume in 3 months, on a gap / breakout, closed at 17.19",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -0.3,
-     "rs63_pct": 32.1,
-     "s200_rising": true,
-     "vs200_pct": 32.8,
-     "vs50_pct": 11.4
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 39.47,
-     "culm_sessions": 58,
-     "ret20_pct": 20.39
-    },
-    "era": "2000-04",
-    "event": "HVC",
-    "fired_on_bar": [
-     "HVC",
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 505,
-    "liq_universe": 1047,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move.",
-    "sector": "Consumer Cyclical"
-   },
-   "forward_bars": 20,
-   "label": "HVC",
-   "source": "chart_iq.v44_read.candle_events#HVC#GCO#2000-11-06",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#HVC#GCO#2000-11-06",
-  "sym": "GCO",
   "type": "recall",
   "version": 1
  },
@@ -26742,125 +26624,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#HVC#GPC#1996-11-20",
   "sym": "GPC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "HVC"
-  },
-  "asof": "2001-05-17",
-  "bars": {
-   "asof": "2001-05-17",
-   "forward": 20,
-   "sym": "WABC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_62b463287453",
-  "lesson_origin": "session",
-  "lesson_text": "HVC: a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move. Chart IQ read the last bar: high-volume close: 3.6x, the biggest volume in 3 months, on a gap / breakout, closed at 38.43. The same bar also printed: Pocket pivot, Range breakout. From the brain, TSDR: \"marking out high-volume-close levels as key reference points\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "HVC",
-    "Gap up",
-    "Heavy volume, closed weak",
-    "UnR"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "HVC"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2001-05-17",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WABC"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 11364,
-     "quote": "marking out high-volume-close levels as key reference points",
-     "who": "TSDR"
-    },
-    "chartiq_reading": "high-volume close: 3.6x, the biggest volume in 3 months, on a gap / breakout, closed at 38.43",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -12.5,
-     "rs63_pct": 1.7,
-     "s200_rising": true,
-     "vs200_pct": 8.0,
-     "vs50_pct": 4.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 6.43,
-     "culm_sessions": 60,
-     "ret20_pct": -2.6
-    },
-    "era": "2000-04",
-    "event": "HVC",
-    "fired_on_bar": [
-     "HVC",
-     "Pocket pivot",
-     "Range breakout"
-    ],
-    "held_20": true,
-    "liq_rank": 375,
-    "liq_universe": 1062,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move.",
-    "sector": "Financial Services"
-   },
-   "forward_bars": 20,
-   "label": "HVC",
-   "source": "chart_iq.v44_read.candle_events#HVC#WABC#2001-05-17",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#HVC#WABC#2001-05-17",
-  "sym": "WABC",
   "type": "recall",
   "version": 1
  },
@@ -34976,6 +34739,246 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "HVC"
+  },
+  "asof": "2018-05-09",
+  "bars": {
+   "asof": "2018-05-09",
+   "forward": 20,
+   "sym": "WWW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_945bf0eaccf1",
+  "lesson_origin": "session",
+  "lesson_text": "HVC: a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move. Chart IQ read the last bar: high-volume close: 4.0x, the biggest volume in 3 months, on a gap / breakout, closed at 31.95. The same bar also printed: Gap up, Pocket pivot, Range breakout. From the brain, TSDR: \"marking out high-volume-close levels as key reference points\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "UnR",
+    "Gap down",
+    "HVC",
+    "Heavy volume, closed weak"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "HVC"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2018-05-09",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "WWW"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 11364,
+     "quote": "marking out high-volume-close levels as key reference points",
+     "who": "TSDR"
+    },
+    "chartiq_reading": "high-volume close: 4.0x, the biggest volume in 3 months, on a gap / breakout, closed at 31.95",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -5.5,
+     "rs63_pct": -0.4,
+     "s200_rising": true,
+     "vs200_pct": 9.6,
+     "vs50_pct": 8.3
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 16.43,
+     "culm_sessions": 54,
+     "ret20_pct": 10.3
+    },
+    "era": "2015-19",
+    "event": "HVC",
+    "fired_on_bar": [
+     "Gap up",
+     "HVC",
+     "Pocket pivot",
+     "Range breakout"
+    ],
+    "held_20": true,
+    "liq_rank": 889,
+    "liq_universe": 1981,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "HVC",
+   "source": "chart_iq.v44_read.candle_events#HVC#WWW#2018-05-09",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#HVC#WWW#2018-05-09",
+  "sym": "WWW",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "HVC"
+  },
+  "asof": "2020-08-26",
+  "bars": {
+   "asof": "2020-08-26",
+   "forward": 20,
+   "sym": "WDAY",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_0310a968ab27",
+  "lesson_origin": "session",
+  "lesson_text": "HVC: a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move. Chart IQ read the last bar: high-volume close: 4.1x, the biggest volume in 3 months, on a gap / breakout, closed at 213.62. The same bar also printed: Gap up, Pocket pivot, Range breakout. From the brain, TSDR: \"marking out high-volume-close levels as key reference points\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Gap down",
+    "HVC",
+    "Heavy volume, closed weak",
+    "UnR"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "HVC"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2020-08-26",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "WDAY"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 11364,
+     "quote": "marking out high-volume-close levels as key reference points",
+     "who": "TSDR"
+    },
+    "chartiq_reading": "high-volume close: 4.1x, the biggest volume in 3 months, on a gap / breakout, closed at 213.62",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -0.6,
+     "rs63_pct": 2.0,
+     "s200_rising": true,
+     "vs200_pct": 25.8,
+     "vs50_pct": 14.4
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 16.45,
+     "culm_sessions": 2,
+     "ret20_pct": -2.31
+    },
+    "era": "2020-26",
+    "event": "HVC",
+    "fired_on_bar": [
+     "Gap up",
+     "HVC",
+     "Pocket pivot",
+     "Range breakout"
+    ],
+    "held_20": true,
+    "liq_rank": 127,
+    "liq_universe": 2178,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a high-volume close: at least 3 times average volume and the biggest volume in 3 months, closing in the top 40% of the range, on a gap over the prior high, a first breakout of the 20-day high, or a catalyst-size move.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "HVC",
+   "source": "chart_iq.v44_read.candle_events#HVC#WDAY#2020-08-26",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#HVC#WDAY#2020-08-26",
+  "sym": "WDAY",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Heavy volume, closed weak"
   },
   "asof": "1996-11-04",
@@ -38346,118 +38349,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#PCTY#2020-11-05",
   "sym": "PCTY",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Heavy volume, closed weak"
-  },
-  "asof": "1996-02-21",
-  "bars": {
-   "asof": "1996-02-21",
-   "forward": 20,
-   "sym": "ASYS",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_90e3f29d88f5",
-  "lesson_origin": "session",
-  "lesson_text": "Heavy volume, closed weak: at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength. Chart IQ read the last bar: 3.4x volume but closed near the low: sellers into strength.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Bearish engulfing",
-    "Heavy volume, closed weak",
-    "Reversal off highs",
-    "HVC"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Heavy volume, closed weak"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "1996-02-21",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "ASYS"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "3.4x volume but closed near the low: sellers into strength",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -22.1,
-     "rs63_pct": -17.6,
-     "s200_rising": true,
-     "vs200_pct": -3.8,
-     "vs50_pct": -4.1
-    },
-    "culmination": {
-     "broke_at": 24,
-     "culm_pct": -3.33,
-     "culm_sessions": 8,
-     "ret20_pct": -3.33
-    },
-    "era": "1995-99",
-    "event": "Heavy volume, closed weak",
-    "fired_on_bar": [
-     "Heavy volume, closed weak"
-    ],
-    "held_20": true,
-    "liq_rank": 697,
-    "liq_universe": 810,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Heavy volume, closed weak",
-   "source": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#ASYS#1996-02-21",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#ASYS#1996-02-21",
-  "sym": "ASYS",
   "type": "recall",
   "version": 1
  },
@@ -43868,119 +43759,6 @@
   "answer_json": {
    "answer": "Heavy volume, closed weak"
   },
-  "asof": "2000-01-18",
-  "bars": {
-   "asof": "2000-01-18",
-   "forward": 20,
-   "sym": "RELL",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_745e2177d8d0",
-  "lesson_origin": "session",
-  "lesson_text": "Heavy volume, closed weak: at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength. Chart IQ read the last bar: 3.5x volume but closed near the low: sellers into strength.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Heavy volume, closed weak",
-    "Reversal off highs",
-    "HVC",
-    "Bearish engulfing"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Heavy volume, closed weak"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2000-01-18",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "RELL"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "3.5x volume but closed near the low: sellers into strength",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -22.5,
-     "rs63_pct": -13.7,
-     "s200_rising": true,
-     "vs200_pct": 12.1,
-     "vs50_pct": 6.9
-    },
-    "culmination": {
-     "broke_at": 23,
-     "culm_pct": -9.68,
-     "culm_sessions": 9,
-     "ret20_pct": -8.06
-    },
-    "era": "2000-04",
-    "event": "Heavy volume, closed weak",
-    "fired_on_bar": [
-     "Heavy volume, closed weak",
-     "Inside day"
-    ],
-    "held_20": true,
-    "liq_rank": 808,
-    "liq_universe": 1012,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Heavy volume, closed weak",
-   "source": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#RELL#2000-01-18",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#RELL#2000-01-18",
-  "sym": "RELL",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Heavy volume, closed weak"
-  },
   "asof": "2006-05-23",
   "bars": {
    "asof": "2006-05-23",
@@ -46219,6 +45997,234 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#OIS#2010-08-04",
   "sym": "OIS",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Heavy volume, closed weak"
+  },
+  "asof": "2016-12-12",
+  "bars": {
+   "asof": "2016-12-12",
+   "forward": 20,
+   "sym": "CVE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_46e93a54d4c2",
+  "lesson_origin": "session",
+  "lesson_text": "Heavy volume, closed weak: at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength. Chart IQ read the last bar: 2.3x volume but closed near the low: sellers into strength. The same bar also printed: Gap up, Reversal off highs.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "UnR",
+    "Heavy volume, closed weak",
+    "HVC",
+    "Bearish engulfing"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Heavy volume, closed weak"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2016-12-12",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "CVE"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "2.3x volume but closed near the low: sellers into strength",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -5.1,
+     "rs63_pct": 9.4,
+     "s200_rising": true,
+     "vs200_pct": 11.2,
+     "vs50_pct": 6.8
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -26.36,
+     "culm_sessions": 59,
+     "ret20_pct": -6.45
+    },
+    "era": "2015-19",
+    "event": "Heavy volume, closed weak",
+    "fired_on_bar": [
+     "Gap up",
+     "Heavy volume, closed weak",
+     "Reversal off highs"
+    ],
+    "held_20": true,
+    "liq_rank": 678,
+    "liq_universe": 1880,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Heavy volume, closed weak",
+   "source": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#CVE#2016-12-12",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#CVE#2016-12-12",
+  "sym": "CVE",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Heavy volume, closed weak"
+  },
+  "asof": "2024-05-16",
+  "bars": {
+   "asof": "2024-05-16",
+   "forward": 20,
+   "sym": "CRBG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_a99098153cc3",
+  "lesson_origin": "session",
+  "lesson_text": "Heavy volume, closed weak: at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength. Chart IQ read the last bar: 5.1x volume but closed near the low: sellers into strength. The same bar also printed: Gap up, Reversal off highs.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "HVC",
+    "Bearish engulfing",
+    "UnR",
+    "Heavy volume, closed weak"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Heavy volume, closed weak"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2024-05-16",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "CRBG"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "5.1x volume but closed near the low: sellers into strength",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -6.2,
+     "rs63_pct": 23.3,
+     "s200_rising": true,
+     "vs200_pct": 43.2,
+     "vs50_pct": 18.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -26.27,
+     "culm_sessions": 54,
+     "ret20_pct": -12.8
+    },
+    "era": "2020-26",
+    "event": "Heavy volume, closed weak",
+    "fired_on_bar": [
+     "Gap up",
+     "Heavy volume, closed weak",
+     "Reversal off highs"
+    ],
+    "held_20": true,
+    "liq_rank": 506,
+    "liq_universe": 2662,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "at least 2 times average volume, but the close sits in the bottom 35% of the range: sellers into strength.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Heavy volume, closed weak",
+   "source": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#CRBG#2024-05-16",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Heavy volume, closed weak#CRBG#2024-05-16",
+  "sym": "CRBG",
   "type": "recall",
   "version": 1
  },
@@ -56601,118 +56607,6 @@
   "answer_json": {
    "answer": "Gap up"
   },
-  "asof": "2009-04-09",
-  "bars": {
-   "asof": "2009-04-09",
-   "forward": 20,
-   "sym": "WABC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_605bbaf8b28c",
-  "lesson_origin": "session",
-  "lesson_text": "Gap up: the open clears the prior day's high and sits at least 2% over the prior close. Chart IQ read the last bar: gapped up 2.7% on 0.8x volume.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Gap up",
-    "HVC",
-    "Range breakout",
-    "Pocket pivot"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Gap up"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2009-04-09",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WABC"
-   },
-   "facts": {
-    "bearish": false,
-    "chartiq_reading": "gapped up 2.7% on 0.8x volume",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -26.7,
-     "rs63_pct": 11.5,
-     "s200_rising": false,
-     "vs200_pct": 3.1,
-     "vs50_pct": 17.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 12.23,
-     "culm_sessions": 20,
-     "ret20_pct": 12.21
-    },
-    "era": "2005-09",
-    "event": "Gap up",
-    "fired_on_bar": [
-     "Gap up"
-    ],
-    "held_20": true,
-    "liq_rank": 499,
-    "liq_universe": 1428,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the open clears the prior day's high and sits at least 2% over the prior close.",
-    "sector": "Financial Services"
-   },
-   "forward_bars": 20,
-   "label": "Gap up",
-   "source": "chart_iq.v44_read.candle_events#Gap up#WABC#2009-04-09",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Gap up#WABC#2009-04-09",
-  "sym": "WABC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Gap up"
-  },
   "asof": "2012-10-01",
   "bars": {
    "asof": "2012-10-01",
@@ -57502,6 +57396,118 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "Gap up"
+  },
+  "asof": "2019-08-06",
+  "bars": {
+   "asof": "2019-08-06",
+   "forward": 20,
+   "sym": "NOC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_5e33b16c6711",
+  "lesson_origin": "session",
+  "lesson_text": "Gap up: the open clears the prior day's high and sits at least 2% over the prior close. Chart IQ read the last bar: gapped up 2.1% on 1.2x volume.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Pocket pivot",
+    "Gap up",
+    "HVC",
+    "Range breakout"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Gap up"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2019-08-06",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "NOC"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "gapped up 2.1% on 1.2x volume",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -1.3,
+     "rs63_pct": 22.9,
+     "s200_rising": true,
+     "vs200_pct": 23.4,
+     "vs50_pct": 9.4
+    },
+    "culmination": {
+     "broke_at": 57,
+     "culm_pct": 8.37,
+     "culm_sessions": 36,
+     "ret20_pct": 5.03
+    },
+    "era": "2015-19",
+    "event": "Gap up",
+    "fired_on_bar": [
+     "Gap up"
+    ],
+    "held_20": true,
+    "liq_rank": 123,
+    "liq_universe": 2091,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "the open clears the prior day's high and sits at least 2% over the prior close.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Gap up",
+   "source": "chart_iq.v44_read.candle_events#Gap up#NOC#2019-08-06",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Gap up#NOC#2019-08-06",
+  "sym": "NOC",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Gap down"
   },
   "asof": "1996-05-06",
@@ -58281,118 +58287,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Gap down#SVC#1998-07-17",
   "sym": "SVC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Gap down"
-  },
-  "asof": "2000-09-12",
-  "bars": {
-   "asof": "2000-09-12",
-   "forward": 20,
-   "sym": "OSUR",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_56b609d34692",
-  "lesson_origin": "session",
-  "lesson_text": "Gap down: the open sits under the prior day's low and at least 2% under the prior close. Chart IQ read the last bar: gapped down 2.3% on 0.8x volume.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Bearish engulfing",
-    "Gap down",
-    "ER breakdown",
-    "Breakdown on news"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Gap down"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2000-09-12",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "OSUR"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "gapped down 2.3% on 0.8x volume",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -22.7,
-     "rs63_pct": 20.2,
-     "s200_rising": true,
-     "vs200_pct": 31.7,
-     "vs50_pct": 8.3
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -60.44,
-     "culm_sessions": 56,
-     "ret20_pct": -18.67
-    },
-    "era": "2000-04",
-    "event": "Gap down",
-    "fired_on_bar": [
-     "Gap down"
-    ],
-    "held_20": true,
-    "liq_rank": 543,
-    "liq_universe": 1036,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the open sits under the prior day's low and at least 2% under the prior close.",
-    "sector": "Healthcare"
-   },
-   "forward_bars": 20,
-   "label": "Gap down",
-   "source": "chart_iq.v44_read.candle_events#Gap down#OSUR#2000-09-12",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Gap down#OSUR#2000-09-12",
-  "sym": "OSUR",
   "type": "recall",
   "version": 1
  },
@@ -60078,118 +59972,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Gap down#BDX#2011-02-08",
   "sym": "BDX",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Gap down"
-  },
-  "asof": "2018-02-01",
-  "bars": {
-   "asof": "2018-02-01",
-   "forward": 20,
-   "sym": "XYZ",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_b7dff5e10e58",
-  "lesson_origin": "session",
-  "lesson_text": "Gap down: the open sits under the prior day's low and at least 2% under the prior close. Chart IQ read the last bar: gapped down 2.5% on 0.7x volume.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Bearish engulfing",
-    "Gap down",
-    "ER breakdown",
-    "Breakdown on news"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Gap down"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2018-02-01",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "XYZ"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "gapped down 2.5% on 0.7x volume",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -10.3,
-     "rs63_pct": 9.2,
-     "s200_rising": true,
-     "vs200_pct": 48.2,
-     "vs50_pct": 10.2
-    },
-    "culmination": {
-     "broke_at": 21,
-     "culm_pct": -17.3,
-     "culm_sessions": 6,
-     "ret20_pct": 3.53
-    },
-    "era": "2015-19",
-    "event": "Gap down",
-    "fired_on_bar": [
-     "Gap down"
-    ],
-    "held_20": true,
-    "liq_rank": 25,
-    "liq_universe": 1962,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the open sits under the prior day's low and at least 2% under the prior close.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Gap down",
-   "source": "chart_iq.v44_read.candle_events#Gap down#XYZ#2018-02-01",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Gap down#XYZ#2018-02-01",
-  "sym": "XYZ",
   "type": "recall",
   "version": 1
  },
@@ -66143,118 +65925,6 @@
   "answer_json": {
    "answer": "Gap down"
   },
-  "asof": "2015-07-23",
-  "bars": {
-   "asof": "2015-07-23",
-   "forward": 20,
-   "sym": "WCC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_1f5084d0337b",
-  "lesson_origin": "session",
-  "lesson_text": "Gap down: the open sits under the prior day's low and at least 2% under the prior close. Chart IQ read the last bar: gapped down 3.4% on 5.5x volume.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "ER breakdown",
-    "Breakdown on news",
-    "Bearish engulfing",
-    "Gap down"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Gap down"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2015-07-23",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WCC"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "gapped down 3.4% on 5.5x volume",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -28.3,
-     "rs63_pct": -11.5,
-     "s200_rising": false,
-     "vs200_pct": -14.3,
-     "vs50_pct": -12.1
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -27.45,
-     "culm_sessions": 50,
-     "ret20_pct": -12.26
-    },
-    "era": "2015-19",
-    "event": "Gap down",
-    "fired_on_bar": [
-     "Gap down"
-    ],
-    "held_20": true,
-    "liq_rank": 589,
-    "liq_universe": 1789,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the open sits under the prior day's low and at least 2% under the prior close.",
-    "sector": "Industrials"
-   },
-   "forward_bars": 20,
-   "label": "Gap down",
-   "source": "chart_iq.v44_read.candle_events#Gap down#WCC#2015-07-23",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Gap down#WCC#2015-07-23",
-  "sym": "WCC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Gap down"
-  },
   "asof": "2025-01-27",
   "bars": {
    "asof": "2025-01-27",
@@ -68721,20 +68391,20 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "ER breakdown"
+   "answer": "Gap down"
   },
-  "asof": "1997-01-13",
+  "asof": "2010-05-05",
   "bars": {
-   "asof": "1997-01-13",
+   "asof": "2010-05-05",
    "forward": 20,
-   "sym": "USPH",
+   "sym": "MTRN",
    "tf": "D",
    "window": 120
   },
   "difficulty": 2,
-  "id": "si_fbf00c61be81",
+  "id": "si_b7d1b855fd7a",
   "lesson_origin": "session",
-  "lesson_text": "ER breakdown: a gap down of 8% or more on at least 3 times average volume (likely earnings): no swing trade area. Chart IQ read the last bar: gapped down 9.3% on 6.6x volume (likely earnings): no swing trade area.",
+  "lesson_text": "Gap down: the open sits under the prior day's low and at least 2% under the prior close. Chart IQ read the last bar: gapped down 2.2% on 1.6x volume.",
   "module": "F2",
   "prompt_json": {
    "chart": {
@@ -68744,45 +68414,45 @@
    },
    "choices": [
     "Breakdown on news",
-    "Heavy volume, closed weak",
-    "ER breakdown",
-    "Gap down"
+    "Bearish engulfing",
+    "Gap down",
+    "ER breakdown"
    ],
    "q": "Which event did the last bar print?",
-   "subject": "ER breakdown"
+   "subject": "Gap down"
   },
   "reveal_json": {
    "detector": "chart_iq.v44_read.candle_events",
    "example": {
-    "asof": "1997-01-13",
+    "asof": "2010-05-05",
     "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "USPH"
+    "sym": "MTRN"
    },
    "facts": {
-    "bearish": false,
-    "chartiq_reading": "gapped down 9.3% on 6.6x volume (likely earnings): no swing trade area",
+    "bearish": true,
+    "chartiq_reading": "gapped down 2.2% on 1.6x volume",
     "context": {
-     "market": "uptrend",
-     "off_high_pct": -21.0,
-     "rs63_pct": 1.5,
-     "s200_rising": false,
-     "vs200_pct": -1.3,
-     "vs50_pct": -1.7
+     "market": "mixed",
+     "off_high_pct": -11.8,
+     "rs63_pct": 39.2,
+     "s200_rising": true,
+     "vs200_pct": 23.2,
+     "vs50_pct": 10.6
     },
     "culmination": {
-     "broke_at": 52,
-     "culm_pct": 13.92,
-     "culm_sessions": 13,
-     "ret20_pct": 8.86
+     "broke_at": null,
+     "culm_pct": -31.79,
+     "culm_sessions": 43,
+     "ret20_pct": -8.68
     },
-    "era": "1995-99",
-    "event": "ER breakdown",
+    "era": "2010-14",
+    "event": "Gap down",
     "fired_on_bar": [
-     "ER breakdown"
+     "Gap down"
     ],
     "held_20": true,
-    "liq_rank": 813,
-    "liq_universe": 840,
+    "liq_rank": 914,
+    "liq_universe": 1461,
     "rule_numbers": {
      "be_vol": 1.5,
      "er_gap": 8,
@@ -68813,20 +68483,246 @@
      "weak_bottom": 35,
      "weak_vol": 2
     },
-    "rule_text": "a gap down of 8% or more on at least 3 times average volume (likely earnings): no swing trade area.",
+    "rule_text": "the open sits under the prior day's low and at least 2% under the prior close.",
     "sector": null
    },
    "forward_bars": 20,
-   "label": "ER breakdown",
-   "source": "chart_iq.v44_read.candle_events#ER breakdown#USPH#1997-01-13",
+   "label": "Gap down",
+   "source": "chart_iq.v44_read.candle_events#Gap down#MTRN#2010-05-05",
    "system": "Chart IQ, the named bar events",
    "window_bars": 120
   },
   "review_status": "draft",
   "skill_id": "read.events",
   "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#ER breakdown#USPH#1997-01-13",
-  "sym": "USPH",
+  "source_ref": "chart_iq.v44_read.candle_events#Gap down#MTRN#2010-05-05",
+  "sym": "MTRN",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Gap down"
+  },
+  "asof": "2015-07-14",
+  "bars": {
+   "asof": "2015-07-14",
+   "forward": 20,
+   "sym": "FAST",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_2696e8b81cd0",
+  "lesson_origin": "session",
+  "lesson_text": "Gap down: the open sits under the prior day's low and at least 2% under the prior close. Chart IQ read the last bar: gapped down 3.0% on 3.9x volume. The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "ER breakdown",
+    "Breakdown on news",
+    "Bearish engulfing",
+    "Gap down"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Gap down"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2015-07-14",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "FAST"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "gapped down 3.0% on 3.9x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -15.1,
+     "rs63_pct": -2.2,
+     "s200_rising": false,
+     "vs200_pct": -5.1,
+     "vs50_pct": -3.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -16.2,
+     "culm_sessions": 57,
+     "ret20_pct": -3.26
+    },
+    "era": "2015-19",
+    "event": "Gap down",
+    "fired_on_bar": [
+     "Gap down",
+     "Heavy volume, closed weak"
+    ],
+    "held_20": true,
+    "liq_rank": 336,
+    "liq_universe": 1788,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "the open sits under the prior day's low and at least 2% under the prior close.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Gap down",
+   "source": "chart_iq.v44_read.candle_events#Gap down#FAST#2015-07-14",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Gap down#FAST#2015-07-14",
+  "sym": "FAST",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Gap down"
+  },
+  "asof": "2020-01-09",
+  "bars": {
+   "asof": "2020-01-09",
+   "forward": 20,
+   "sym": "AYI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_c8dc5fc44b4c",
+  "lesson_origin": "session",
+  "lesson_text": "Gap down: the open sits under the prior day's low and at least 2% under the prior close. Chart IQ read the last bar: gapped down 7.9% on 7.4x volume. The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Breakdown on news",
+    "Bearish engulfing",
+    "Gap down",
+    "ER breakdown"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Gap down"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2020-01-09",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "AYI"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "gapped down 7.9% on 7.4x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -16.3,
+     "rs63_pct": -7.2,
+     "s200_rising": true,
+     "vs200_pct": -6.5,
+     "vs50_pct": -6.5
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -45.34,
+     "culm_sessions": 47,
+     "ret20_pct": -4.63
+    },
+    "era": "2020-26",
+    "event": "Gap down",
+    "fired_on_bar": [
+     "Gap down",
+     "Heavy volume, closed weak"
+    ],
+    "held_20": true,
+    "liq_rank": 601,
+    "liq_universe": 2139,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "the open sits under the prior day's low and at least 2% under the prior close.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Gap down",
+   "source": "chart_iq.v44_read.candle_events#Gap down#AYI#2020-01-09",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Gap down#AYI#2020-01-09",
+  "sym": "AYI",
   "type": "recall",
   "version": 1
  },
@@ -79951,6 +79847,118 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "ER breakdown"
+  },
+  "asof": "2018-07-31",
+  "bars": {
+   "asof": "2018-07-31",
+   "forward": 20,
+   "sym": "VRNS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_f694e94974f7",
+  "lesson_origin": "session",
+  "lesson_text": "ER breakdown: a gap down of 8% or more on at least 3 times average volume (likely earnings): no swing trade area. Chart IQ read the last bar: gapped down 19.3% on 9.7x volume (likely earnings): no swing trade area.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Heavy volume, closed weak",
+    "ER breakdown",
+    "Gap down",
+    "Breakdown on news"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "ER breakdown"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2018-07-31",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "VRNS"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "gapped down 19.3% on 9.7x volume (likely earnings): no swing trade area",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -28.1,
+     "rs63_pct": -16.3,
+     "s200_rising": true,
+     "vs200_pct": -1.8,
+     "vs50_pct": -22.8
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 32.04,
+     "culm_sessions": 32,
+     "ret20_pct": 19.11
+    },
+    "era": "2015-19",
+    "event": "ER breakdown",
+    "fired_on_bar": [
+     "ER breakdown"
+    ],
+    "held_20": true,
+    "liq_rank": 791,
+    "liq_universe": 2010,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a gap down of 8% or more on at least 3 times average volume (likely earnings): no swing trade area.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "ER breakdown",
+   "source": "chart_iq.v44_read.candle_events#ER breakdown#VRNS#2018-07-31",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#ER breakdown#VRNS#2018-07-31",
+  "sym": "VRNS",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Breakdown on news"
   },
   "asof": "1996-11-07",
@@ -81864,119 +81872,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#AVAV#2018-11-30",
   "sym": "AVAV",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Breakdown on news"
-  },
-  "asof": "2024-08-20",
-  "bars": {
-   "asof": "2024-08-20",
-   "forward": 20,
-   "sym": "VIPS",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_8e6da66f34f5",
-  "lesson_origin": "session",
-  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 18% down on 5.2x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Gap down",
-    "Reversal off highs",
-    "Breakdown on news",
-    "ER breakdown"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Breakdown on news"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2024-08-20",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "VIPS"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "closed 18% down on 5.2x volume (news): no swing trade area",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -42.7,
-     "rs63_pct": -34.2,
-     "s200_rising": false,
-     "vs200_pct": -26.6,
-     "vs50_pct": -16.8
-    },
-    "culmination": {
-     "broke_at": 21,
-     "culm_pct": 0.95,
-     "culm_sessions": 1,
-     "ret20_pct": 11.07
-    },
-    "era": "2020-26",
-    "event": "Breakdown on news",
-    "fired_on_bar": [
-     "Breakdown on news",
-     "Heavy volume, closed weak"
-    ],
-    "held_20": true,
-    "liq_rank": 905,
-    "liq_universe": 2699,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
-    "sector": "Consumer Cyclical"
-   },
-   "forward_bars": 20,
-   "label": "Breakdown on news",
-   "source": "chart_iq.v44_read.candle_events#Breakdown on news#VIPS#2024-08-20",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#VIPS#2024-08-20",
-  "sym": "VIPS",
   "type": "recall",
   "version": 1
  },
@@ -90230,119 +90125,6 @@
   "answer_json": {
    "answer": "Breakdown on news"
   },
-  "asof": "2002-05-30",
-  "bars": {
-   "asof": "2002-05-30",
-   "forward": 20,
-   "sym": "SLNH",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_bbc007a50941",
-  "lesson_origin": "session",
-  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 17% down on 5.1x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Gap down",
-    "Reversal off highs",
-    "Breakdown on news",
-    "ER breakdown"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Breakdown on news"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2002-05-30",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "SLNH"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "closed 17% down on 5.1x volume (news): no swing trade area",
-    "context": {
-     "market": "downtrend",
-     "off_high_pct": -86.8,
-     "rs63_pct": -46.5,
-     "s200_rising": false,
-     "vs200_pct": -53.7,
-     "vs50_pct": -47.7
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -53.33,
-     "culm_sessions": 38,
-     "ret20_pct": -32.0
-    },
-    "era": "2000-04",
-    "event": "Breakdown on news",
-    "fired_on_bar": [
-     "Breakdown on news",
-     "Heavy volume, closed weak"
-    ],
-    "held_20": true,
-    "liq_rank": 874,
-    "liq_universe": 1096,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Breakdown on news",
-   "source": "chart_iq.v44_read.candle_events#Breakdown on news#SLNH#2002-05-30",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#SLNH#2002-05-30",
-  "sym": "SLNH",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Breakdown on news"
-  },
   "asof": "2009-01-07",
   "bars": {
    "asof": "2009-01-07",
@@ -90908,232 +90690,6 @@
   "answer_json": {
    "answer": "Breakdown on news"
   },
-  "asof": "2001-12-05",
-  "bars": {
-   "asof": "2001-12-05",
-   "forward": 20,
-   "sym": "AMRN",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_48e50e17d5c4",
-  "lesson_origin": "session",
-  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 20% down on 3.8x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "ER breakdown",
-    "Gap down",
-    "Reversal off highs",
-    "Breakdown on news"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Breakdown on news"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2001-12-05",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "AMRN"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "closed 20% down on 3.8x volume (news): no swing trade area",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -31.7,
-     "rs63_pct": 11.2,
-     "s200_rising": true,
-     "vs200_pct": 40.2,
-     "vs50_pct": -15.9
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -40.86,
-     "culm_sessions": 46,
-     "ret20_pct": -6.65
-    },
-    "era": "2000-04",
-    "event": "Breakdown on news",
-    "fired_on_bar": [
-     "Breakdown on news",
-     "Heavy volume, closed weak"
-    ],
-    "held_20": true,
-    "liq_rank": 400,
-    "liq_universe": 1079,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
-    "sector": "Healthcare"
-   },
-   "forward_bars": 20,
-   "label": "Breakdown on news",
-   "source": "chart_iq.v44_read.candle_events#Breakdown on news#AMRN#2001-12-05",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#AMRN#2001-12-05",
-  "sym": "AMRN",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Breakdown on news"
-  },
-  "asof": "2007-07-17",
-  "bars": {
-   "asof": "2007-07-17",
-   "forward": 20,
-   "sym": "USNA",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_ece963b8d8e6",
-  "lesson_origin": "session",
-  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 17% down on 4.5x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "ER breakdown",
-    "Gap down",
-    "Reversal off highs",
-    "Breakdown on news"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Breakdown on news"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2007-07-17",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "USNA"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "closed 17% down on 4.5x volume (news): no swing trade area",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -33.0,
-     "rs63_pct": -8.1,
-     "s200_rising": false,
-     "vs200_pct": -13.3,
-     "vs50_pct": -1.7
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -31.1,
-     "culm_sessions": 17,
-     "ret20_pct": -14.98
-    },
-    "era": "2005-09",
-    "event": "Breakdown on news",
-    "fired_on_bar": [
-     "Breakdown on news",
-     "Heavy volume, closed weak"
-    ],
-    "held_20": true,
-    "liq_rank": 484,
-    "liq_universe": 1370,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Breakdown on news",
-   "source": "chart_iq.v44_read.candle_events#Breakdown on news#USNA#2007-07-17",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#USNA#2007-07-17",
-  "sym": "USNA",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Breakdown on news"
-  },
   "asof": "2012-04-02",
   "bars": {
    "asof": "2012-04-02",
@@ -91239,6 +90795,457 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#MITK#2012-04-02",
   "sym": "MITK",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Breakdown on news"
+  },
+  "asof": "2016-12-07",
+  "bars": {
+   "asof": "2016-12-07",
+   "forward": 20,
+   "sym": "FTK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_a17163971768",
+  "lesson_origin": "session",
+  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 15% down on 9.5x volume (news): no swing trade area.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "ER breakdown",
+    "Gap down",
+    "Heavy volume, closed weak",
+    "Breakdown on news"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Breakdown on news"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2016-12-07",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "FTK"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "closed 15% down on 9.5x volume (news): no swing trade area",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -34.4,
+     "rs63_pct": -34.9,
+     "s200_rising": true,
+     "vs200_pct": -7.5,
+     "vs50_pct": -14.5
+    },
+    "culmination": {
+     "broke_at": 46,
+     "culm_pct": -20.09,
+     "culm_sessions": 9,
+     "ret20_pct": -14.41
+    },
+    "era": "2015-19",
+    "event": "Breakdown on news",
+    "fired_on_bar": [
+     "Breakdown on news"
+    ],
+    "held_20": true,
+    "liq_rank": 982,
+    "liq_universe": 1878,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Breakdown on news",
+   "source": "chart_iq.v44_read.candle_events#Breakdown on news#FTK#2016-12-07",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#FTK#2016-12-07",
+  "sym": "FTK",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Breakdown on news"
+  },
+  "asof": "2026-09-16",
+  "bars": {
+   "asof": "2026-09-16",
+   "forward": 20,
+   "sym": "ALHC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_f93bb17f3fb5",
+  "lesson_origin": "session",
+  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 16% down on 4.4x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Breakdown on news",
+    "ER breakdown",
+    "Gap down",
+    "Reversal off highs"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Breakdown on news"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2026-09-16",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "ALHC"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "closed 16% down on 4.4x volume (news): no swing trade area",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -65.3,
+     "rs63_pct": -57.9,
+     "s200_rising": false,
+     "vs200_pct": -53.4,
+     "vs50_pct": -44.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -31.0,
+     "culm_sessions": 17,
+     "ret20_pct": -5.51
+    },
+    "era": "2020-26",
+    "event": "Breakdown on news",
+    "fired_on_bar": [
+     "Breakdown on news",
+     "Heavy volume, closed weak"
+    ],
+    "held_20": true,
+    "liq_rank": 999,
+    "liq_universe": 2787,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
+    "sector": "Healthcare"
+   },
+   "forward_bars": 20,
+   "label": "Breakdown on news",
+   "source": "chart_iq.v44_read.candle_events#Breakdown on news#ALHC#2026-09-16",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#ALHC#2026-09-16",
+  "sym": "ALHC",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Breakdown on news"
+  },
+  "asof": "1999-10-06",
+  "bars": {
+   "asof": "1999-10-06",
+   "forward": 20,
+   "sym": "WGO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_eec6f85c7761",
+  "lesson_origin": "session",
+  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 16% down on 11.2x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Reversal off highs",
+    "Breakdown on news",
+    "ER breakdown",
+    "Gap down"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Breakdown on news"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "1999-10-06",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "WGO"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "closed 16% down on 11.2x volume (news): no swing trade area",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -30.9,
+     "rs63_pct": -11.9,
+     "s200_rising": true,
+     "vs200_pct": 7.0,
+     "vs50_pct": -18.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -22.96,
+     "culm_sessions": 2,
+     "ret20_pct": -12.89
+    },
+    "era": "1995-99",
+    "event": "Breakdown on news",
+    "fired_on_bar": [
+     "Breakdown on news",
+     "Heavy volume, closed weak"
+    ],
+    "held_20": true,
+    "liq_rank": 427,
+    "liq_universe": 997,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
+    "sector": "Consumer Cyclical"
+   },
+   "forward_bars": 20,
+   "label": "Breakdown on news",
+   "source": "chart_iq.v44_read.candle_events#Breakdown on news#WGO#1999-10-06",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#WGO#1999-10-06",
+  "sym": "WGO",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Breakdown on news"
+  },
+  "asof": "2001-07-02",
+  "bars": {
+   "asof": "2001-07-02",
+   "forward": 20,
+   "sym": "TILE",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_8c9601068ba3",
+  "lesson_origin": "session",
+  "lesson_text": "Breakdown on news: a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area. Chart IQ read the last bar: closed 15% down on 3.8x volume (news): no swing trade area. The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Reversal off highs",
+    "Breakdown on news",
+    "ER breakdown",
+    "Gap down"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Breakdown on news"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2001-07-02",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "TILE"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "closed 15% down on 3.8x volume (news): no swing trade area",
+    "context": {
+     "market": "downtrend",
+     "off_high_pct": -42.3,
+     "rs63_pct": -2.6,
+     "s200_rising": false,
+     "vs200_pct": -19.1,
+     "vs50_pct": -7.2
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -45.67,
+     "culm_sessions": 53,
+     "ret20_pct": -6.93
+    },
+    "era": "2000-04",
+    "event": "Breakdown on news",
+    "fired_on_bar": [
+     "Breakdown on news",
+     "Heavy volume, closed weak"
+    ],
+    "held_20": true,
+    "liq_rank": 708,
+    "liq_universe": 1064,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a close 15% or more down on at least 3 times average volume, under the 50-day: no swing trade area.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Breakdown on news",
+   "source": "chart_iq.v44_read.candle_events#Breakdown on news#TILE#2001-07-02",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Breakdown on news#TILE#2001-07-02",
+  "sym": "TILE",
   "type": "recall",
   "version": 1
  },
@@ -101459,120 +101466,6 @@
   "answer_json": {
    "answer": "Outside reversal"
   },
-  "asof": "1995-12-26",
-  "bars": {
-   "asof": "1995-12-26",
-   "forward": 20,
-   "sym": "OSUR",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_a0e87322295d",
-  "lesson_origin": "session",
-  "lesson_text": "Outside reversal: the day takes out the prior day's low, then closes over the prior day's high, on at least 1.2 times average volume, with the low at the 20-day EMA or the 50-day. Chart IQ read the last bar: took out the prior low, then closed above the prior high. The same bar also printed: HVC, Pocket pivot.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Bearish engulfing",
-    "Outside reversal",
-    "UnR",
-    "Hammer at support"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Outside reversal"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "1995-12-26",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "OSUR"
-   },
-   "facts": {
-    "bearish": false,
-    "chartiq_reading": "took out the prior low, then closed above the prior high",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -13.3,
-     "rs63_pct": 17.7,
-     "s200_rising": false,
-     "vs200_pct": 18.9,
-     "vs50_pct": 42.7
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 9.09,
-     "culm_sessions": 40,
-     "ret20_pct": -13.29
-    },
-    "era": "1995-99",
-    "event": "Outside reversal",
-    "fired_on_bar": [
-     "HVC",
-     "Outside reversal",
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 437,
-    "liq_universe": 795,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the day takes out the prior day's low, then closes over the prior day's high, on at least 1.2 times average volume, with the low at the 20-day EMA or the 50-day.",
-    "sector": "Healthcare"
-   },
-   "forward_bars": 20,
-   "label": "Outside reversal",
-   "source": "chart_iq.v44_read.candle_events#Outside reversal#OSUR#1995-12-26",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Outside reversal#OSUR#1995-12-26",
-  "sym": "OSUR",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Outside reversal"
-  },
   "asof": "2001-10-24",
   "bars": {
    "asof": "2001-10-24",
@@ -102585,6 +102478,118 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Outside reversal#OMF#2014-10-28",
   "sym": "OMF",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Outside reversal"
+  },
+  "asof": "2017-01-03",
+  "bars": {
+   "asof": "2017-01-03",
+   "forward": 20,
+   "sym": "AIT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_6522f90e922c",
+  "lesson_origin": "session",
+  "lesson_text": "Outside reversal: the day takes out the prior day's low, then closes over the prior day's high, on at least 1.2 times average volume, with the low at the 20-day EMA or the 50-day. Chart IQ read the last bar: took out the prior low, then closed above the prior high.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Bearish engulfing",
+    "Outside reversal",
+    "UnR",
+    "Hammer at support"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Outside reversal"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2017-01-03",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "AIT"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "took out the prior low, then closed above the prior high",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -3.7,
+     "rs63_pct": 23.7,
+     "s200_rising": true,
+     "vs200_pct": 24.7,
+     "vs50_pct": 6.4
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 10.44,
+     "culm_sessions": 16,
+     "ret20_pct": 0.99
+    },
+    "era": "2015-19",
+    "event": "Outside reversal",
+    "fired_on_bar": [
+     "Outside reversal"
+    ],
+    "held_20": true,
+    "liq_rank": 934,
+    "liq_universe": 1886,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "the day takes out the prior day's low, then closes over the prior day's high, on at least 1.2 times average volume, with the low at the 20-day EMA or the 50-day.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Outside reversal",
+   "source": "chart_iq.v44_read.candle_events#Outside reversal#AIT#2017-01-03",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Outside reversal#AIT#2017-01-03",
+  "sym": "AIT",
   "type": "recall",
   "version": 1
  },
@@ -121109,119 +121114,6 @@
   "answer_json": {
    "answer": "Reversal off highs"
   },
-  "asof": "1996-12-04",
-  "bars": {
-   "asof": "1996-12-04",
-   "forward": 20,
-   "sym": "WABC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_b0cb9c652ca8",
-  "lesson_origin": "session",
-  "lesson_text": "Reversal off highs: a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%. Chart IQ read the last bar: new 20-day high rejected: long upper wick, closed near the low.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Hammer at support",
-    "Reversal off highs",
-    "Heavy volume, closed weak",
-    "Bearish engulfing"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Reversal off highs"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "1996-12-04",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WABC"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "new 20-day high rejected: long upper wick, closed near the low",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -1.3,
-     "rs63_pct": 9.1,
-     "s200_rising": true,
-     "vs200_pct": 19.8,
-     "vs50_pct": 12.6
-    },
-    "culmination": {
-     "broke_at": 34,
-     "culm_pct": -3.42,
-     "culm_sessions": 28,
-     "ret20_pct": -1.07
-    },
-    "era": "1995-99",
-    "event": "Reversal off highs",
-    "fired_on_bar": [
-     "Inside day",
-     "Reversal off highs"
-    ],
-    "held_20": true,
-    "liq_rank": 465,
-    "liq_universe": 835,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%.",
-    "sector": "Financial Services"
-   },
-   "forward_bars": 20,
-   "label": "Reversal off highs",
-   "source": "chart_iq.v44_read.candle_events#Reversal off highs#WABC#1996-12-04",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Reversal off highs#WABC#1996-12-04",
-  "sym": "WABC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Reversal off highs"
-  },
   "asof": "2000-06-09",
   "bars": {
    "asof": "2000-06-09",
@@ -123470,118 +123362,6 @@
   "answer_json": {
    "answer": "Reversal off highs"
   },
-  "asof": "2013-07-22",
-  "bars": {
-   "asof": "2013-07-22",
-   "forward": 20,
-   "sym": "USNA",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_7d3735d44ceb",
-  "lesson_origin": "session",
-  "lesson_text": "Reversal off highs: a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%. Chart IQ read the last bar: new 20-day high rejected: long upper wick, closed near the low.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Bearish engulfing",
-    "Hammer at support",
-    "Reversal off highs",
-    "Heavy volume, closed weak"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Reversal off highs"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2013-07-22",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "USNA"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "new 20-day high rejected: long upper wick, closed near the low",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -2.4,
-     "rs63_pct": 59.0,
-     "s200_rising": true,
-     "vs200_pct": 68.0,
-     "vs50_pct": 19.7
-    },
-    "culmination": {
-     "broke_at": 41,
-     "culm_pct": -14.89,
-     "culm_sessions": 3,
-     "ret20_pct": -9.68
-    },
-    "era": "2010-14",
-    "event": "Reversal off highs",
-    "fired_on_bar": [
-     "Reversal off highs"
-    ],
-    "held_20": true,
-    "liq_rank": 834,
-    "liq_universe": 1619,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Reversal off highs",
-   "source": "chart_iq.v44_read.candle_events#Reversal off highs#USNA#2013-07-22",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Reversal off highs#USNA#2013-07-22",
-  "sym": "USNA",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Reversal off highs"
-  },
   "asof": "2018-11-08",
   "bars": {
    "asof": "2018-11-08",
@@ -125597,6 +125377,233 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Reversal off highs#AVT#2012-02-08",
   "sym": "AVT",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Reversal off highs"
+  },
+  "asof": "2017-12-13",
+  "bars": {
+   "asof": "2017-12-13",
+   "forward": 20,
+   "sym": "TRN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_6ad3e72b2f68",
+  "lesson_origin": "session",
+  "lesson_text": "Reversal off highs: a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%. Chart IQ read the last bar: new 20-day high rejected: long upper wick, closed near the low. The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Reversal off highs",
+    "Bearish engulfing",
+    "Hammer at support",
+    "Range breakout"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Reversal off highs"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2017-12-13",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "TRN"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "new 20-day high rejected: long upper wick, closed near the low",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -2.3,
+     "rs63_pct": 19.3,
+     "s200_rising": true,
+     "vs200_pct": 28.0,
+     "vs50_pct": 9.7
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -17.13,
+     "culm_sessions": 39,
+     "ret20_pct": -0.56
+    },
+    "era": "2015-19",
+    "event": "Reversal off highs",
+    "fired_on_bar": [
+     "Heavy volume, closed weak",
+     "Reversal off highs"
+    ],
+    "held_20": true,
+    "liq_rank": 545,
+    "liq_universe": 1945,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Reversal off highs",
+   "source": "chart_iq.v44_read.candle_events#Reversal off highs#TRN#2017-12-13",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Reversal off highs#TRN#2017-12-13",
+  "sym": "TRN",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Reversal off highs"
+  },
+  "asof": "2025-10-15",
+  "bars": {
+   "asof": "2025-10-15",
+   "forward": 20,
+   "sym": "AMPX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_84f27f3d152e",
+  "lesson_origin": "session",
+  "lesson_text": "Reversal off highs: a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%. Chart IQ read the last bar: new 20-day high rejected: long upper wick, closed near the low. The same bar also printed: Gap up, Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Hammer at support",
+    "Range breakout",
+    "Reversal off highs",
+    "Bearish engulfing"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Reversal off highs"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2025-10-15",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "AMPX"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "new 20-day high rejected: long upper wick, closed near the low",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -8.9,
+     "rs63_pct": 71.1,
+     "s200_rising": true,
+     "vs200_pct": 191.0,
+     "vs50_pct": 55.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -47.23,
+     "culm_sessions": 53,
+     "ret20_pct": -15.33
+    },
+    "era": "2020-26",
+    "event": "Reversal off highs",
+    "fired_on_bar": [
+     "Gap up",
+     "Heavy volume, closed weak",
+     "Reversal off highs"
+    ],
+    "held_20": true,
+    "liq_rank": 875,
+    "liq_universe": 2787,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a new 20-day high rejected: the upper wick is more than half the range and the close sits in the bottom 40%.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Reversal off highs",
+   "source": "chart_iq.v44_read.candle_events#Reversal off highs#AMPX#2025-10-15",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Reversal off highs#AMPX#2025-10-15",
+  "sym": "AMPX",
   "type": "recall",
   "version": 1
  },
@@ -134876,124 +134883,6 @@
   "answer_json": {
    "answer": "MA remount"
   },
-  "asof": "2002-07-29",
-  "bars": {
-   "asof": "2002-07-29",
-   "forward": 20,
-   "sym": "WMK",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_db3f35d5096b",
-  "lesson_origin": "session",
-  "lesson_text": "MA remount: the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day). Chart IQ read the last bar: first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA. The same bar also printed: Range breakout. From the brain, TSDR: \"spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "MA remount",
-    "Pocket pivot",
-    "20EMA tap",
-    "UnR"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "MA remount"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2002-07-29",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WMK"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 10749,
-     "quote": "spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.",
-     "who": "TSDR"
-    },
-    "chartiq_reading": "first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA",
-    "context": {
-     "market": "downtrend",
-     "off_high_pct": -3.9,
-     "rs63_pct": 42.0,
-     "s200_rising": true,
-     "vs200_pct": 20.0,
-     "vs50_pct": 3.9
-    },
-    "culmination": {
-     "broke_at": 24,
-     "culm_pct": 7.63,
-     "culm_sessions": 17,
-     "ret20_pct": 4.74
-    },
-    "era": "2000-04",
-    "event": "MA remount",
-    "fired_on_bar": [
-     "MA remount",
-     "Range breakout"
-    ],
-    "held_20": true,
-    "liq_rank": 740,
-    "liq_universe": 1101,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day).",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "MA remount",
-   "source": "chart_iq.v44_read.candle_events#MA remount#WMK#2002-07-29",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#MA remount#WMK#2002-07-29",
-  "sym": "WMK",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "MA remount"
-  },
   "asof": "2005-12-21",
   "bars": {
    "asof": "2005-12-21",
@@ -136989,123 +136878,6 @@
   "answer_json": {
    "answer": "MA remount"
   },
-  "asof": "2003-01-23",
-  "bars": {
-   "asof": "2003-01-23",
-   "forward": 20,
-   "sym": "SLNH",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_8977b5ad4ac8",
-  "lesson_origin": "session",
-  "lesson_text": "MA remount: the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day). Chart IQ read the last bar: first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA. From the brain, TSDR: \"spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Pocket pivot",
-    "20EMA tap",
-    "UnR",
-    "MA remount"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "MA remount"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2003-01-23",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "SLNH"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 10749,
-     "quote": "spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.",
-     "who": "TSDR"
-    },
-    "chartiq_reading": "first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA",
-    "context": {
-     "market": "downtrend",
-     "off_high_pct": -46.2,
-     "rs63_pct": 93.4,
-     "s200_rising": false,
-     "vs200_pct": 25.5,
-     "vs50_pct": 2.5
-    },
-    "culmination": {
-     "broke_at": 31,
-     "culm_pct": 28.02,
-     "culm_sessions": 4,
-     "ret20_pct": -4.83
-    },
-    "era": "2000-04",
-    "event": "MA remount",
-    "fired_on_bar": [
-     "MA remount"
-    ],
-    "held_20": true,
-    "liq_rank": 890,
-    "liq_universe": 1123,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day).",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "MA remount",
-   "source": "chart_iq.v44_read.candle_events#MA remount#SLNH#2003-01-23",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#MA remount#SLNH#2003-01-23",
-  "sym": "SLNH",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "MA remount"
-  },
   "asof": "2005-01-31",
   "bars": {
    "asof": "2005-01-31",
@@ -137334,6 +137106,240 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#MA remount#MSM#2012-12-18",
   "sym": "MSM",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "MA remount"
+  },
+  "asof": "2015-03-18",
+  "bars": {
+   "asof": "2015-03-18",
+   "forward": 20,
+   "sym": "LNG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_63c5b4418a48",
+  "lesson_origin": "session",
+  "lesson_text": "MA remount: the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day). Chart IQ read the last bar: first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA. From the brain, TSDR: \"spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Pocket pivot",
+    "20EMA tap",
+    "UnR",
+    "MA remount"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "MA remount"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2015-03-18",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "LNG"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 10749,
+     "quote": "spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.",
+     "who": "TSDR"
+    },
+    "chartiq_reading": "first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -6.7,
+     "rs63_pct": 20.4,
+     "s200_rising": true,
+     "vs200_pct": 8.7,
+     "vs50_pct": 7.0
+    },
+    "culmination": {
+     "broke_at": 27,
+     "culm_pct": 2.28,
+     "culm_sessions": 10,
+     "ret20_pct": -1.65
+    },
+    "era": "2015-19",
+    "event": "MA remount",
+    "fired_on_bar": [
+     "MA remount"
+    ],
+    "held_20": true,
+    "liq_rank": 138,
+    "liq_universe": 1767,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day).",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "MA remount",
+   "source": "chart_iq.v44_read.candle_events#MA remount#LNG#2015-03-18",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#MA remount#LNG#2015-03-18",
+  "sym": "LNG",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "MA remount"
+  },
+  "asof": "2026-05-26",
+  "bars": {
+   "asof": "2026-05-26",
+   "forward": 20,
+   "sym": "GM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_27d5f67338d3",
+  "lesson_origin": "session",
+  "lesson_text": "MA remount: the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day). Chart IQ read the last bar: first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA. From the brain, TSDR: \"spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Pocket pivot",
+    "20EMA tap",
+    "UnR",
+    "MA remount"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "MA remount"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2026-05-26",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "GM"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 10749,
+     "quote": "spotting a market bottom forming: relative basing/sideways action and early remounts ahead of the broader market.",
+     "who": "TSDR"
+    },
+    "chartiq_reading": "first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -8.9,
+     "rs63_pct": -10.1,
+     "s200_rising": true,
+     "vs200_pct": 10.6,
+     "vs50_pct": 4.5
+    },
+    "culmination": {
+     "broke_at": 21,
+     "culm_pct": 7.04,
+     "culm_sessions": 15,
+     "ret20_pct": -1.05
+    },
+    "era": "2020-26",
+    "event": "MA remount",
+    "fired_on_bar": [
+     "MA remount"
+    ],
+    "held_20": true,
+    "liq_rank": 206,
+    "liq_universe": 2788,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "the first close back over the 9 and 20-day EMA after 4 of the last 6 closes sat under the 20, over a rising 50-day (and the 200-day).",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "MA remount",
+   "source": "chart_iq.v44_read.candle_events#MA remount#GM#2026-05-26",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#MA remount#GM#2026-05-26",
+  "sym": "GM",
   "type": "recall",
   "version": 1
  },
@@ -156870,125 +156876,6 @@
   "answer_json": {
    "answer": "Range breakout"
   },
-  "asof": "1996-07-22",
-  "bars": {
-   "asof": "1996-07-22",
-   "forward": 20,
-   "sym": "GSBC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_31da1d998357",
-  "lesson_origin": "session",
-  "lesson_text": "Range breakout: a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day. Chart IQ read the last bar: closed over the 10-day range high 6.94 (a 6% range) on 9.2x volume. The same bar also printed: Hammer at support, Pocket pivot. From the brain, jfsrev: \"You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Range breakout",
-    "Inside bar break",
-    "HVC",
-    "Gap up"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Range breakout"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "1996-07-22",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "GSBC"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 17782,
-     "quote": "You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.",
-     "who": "jfsrev"
-    },
-    "chartiq_reading": "closed over the 10-day range high 6.94 (a 6% range) on 9.2x volume",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -0.4,
-     "rs63_pct": 4.8,
-     "s200_rising": true,
-     "vs200_pct": 12.2,
-     "vs50_pct": 4.1
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 14.8,
-     "culm_sessions": 54,
-     "ret20_pct": -2.24
-    },
-    "era": "1995-99",
-    "event": "Range breakout",
-    "fired_on_bar": [
-     "Hammer at support",
-     "Pocket pivot",
-     "Range breakout"
-    ],
-    "held_20": true,
-    "liq_rank": 786,
-    "liq_universe": 820,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Range breakout",
-   "source": "chart_iq.v44_read.candle_events#Range breakout#GSBC#1996-07-22",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Range breakout#GSBC#1996-07-22",
-  "sym": "GSBC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Range breakout"
-  },
   "asof": "2001-11-19",
   "bars": {
    "asof": "2001-11-19",
@@ -160533,123 +160420,6 @@
   "answer_json": {
    "answer": "Range breakout"
   },
-  "asof": "2003-04-23",
-  "bars": {
-   "asof": "2003-04-23",
-   "forward": 20,
-   "sym": "TBI",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_99490ec428e0",
-  "lesson_origin": "session",
-  "lesson_text": "Range breakout: a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day. Chart IQ read the last bar: closed over the 10-day range high 5.78 (a 14% range) on 1.0x volume. From the brain, jfsrev: \"You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Pocket pivot",
-    "HVC",
-    "Range breakout",
-    "Inside bar break"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Range breakout"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2003-04-23",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "TBI"
-   },
-   "facts": {
-    "bearish": false,
-    "brain": {
-     "kb_id": 17782,
-     "quote": "You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.",
-     "who": "jfsrev"
-    },
-    "chartiq_reading": "closed over the 10-day range high 5.78 (a 14% range) on 1.0x volume",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -37.5,
-     "rs63_pct": -11.1,
-     "s200_rising": false,
-     "vs200_pct": -6.9,
-     "vs50_pct": 5.5
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 34.13,
-     "culm_sessions": 57,
-     "ret20_pct": 1.19
-    },
-    "era": "2000-04",
-    "event": "Range breakout",
-    "fired_on_bar": [
-     "Range breakout"
-    ],
-    "held_20": true,
-    "liq_rank": 707,
-    "liq_universe": 1135,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Range breakout",
-   "source": "chart_iq.v44_read.candle_events#Range breakout#TBI#2003-04-23",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Range breakout#TBI#2003-04-23",
-  "sym": "TBI",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Range breakout"
-  },
   "asof": "2006-01-06",
   "bars": {
    "asof": "2006-01-06",
@@ -160877,6 +160647,242 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Range breakout#ORI#2010-03-03",
   "sym": "ORI",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Range breakout"
+  },
+  "asof": "2015-04-22",
+  "bars": {
+   "asof": "2015-04-22",
+   "forward": 20,
+   "sym": "DLB",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_11aa28e68774",
+  "lesson_origin": "session",
+  "lesson_text": "Range breakout: a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day. Chart IQ read the last bar: closed over the 10-day range high 38.64 (a 3% range) on 8.7x volume. The same bar also printed: HVC, Pocket pivot. From the brain, jfsrev: \"You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "UnR",
+    "Range breakout",
+    "Inside bar break",
+    "Gap up"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Range breakout"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2015-04-22",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "DLB"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 17782,
+     "quote": "You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.",
+     "who": "jfsrev"
+    },
+    "chartiq_reading": "closed over the 10-day range high 38.64 (a 3% range) on 8.7x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -12.9,
+     "rs63_pct": -5.6,
+     "s200_rising": false,
+     "vs200_pct": -1.8,
+     "vs50_pct": 5.3
+    },
+    "culmination": {
+     "broke_at": 51,
+     "culm_pct": 1.6,
+     "culm_sessions": 1,
+     "ret20_pct": -4.2
+    },
+    "era": "2015-19",
+    "event": "Range breakout",
+    "fired_on_bar": [
+     "HVC",
+     "Pocket pivot",
+     "Range breakout"
+    ],
+    "held_20": true,
+    "liq_rank": 887,
+    "liq_universe": 1775,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Range breakout",
+   "source": "chart_iq.v44_read.candle_events#Range breakout#DLB#2015-04-22",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Range breakout#DLB#2015-04-22",
+  "sym": "DLB",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Range breakout"
+  },
+  "asof": "2023-08-31",
+  "bars": {
+   "asof": "2023-08-31",
+   "forward": 20,
+   "sym": "TNET",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_f835e0c04bb7",
+  "lesson_origin": "session",
+  "lesson_text": "Range breakout: a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day. Chart IQ read the last bar: closed over the 10-day range high 108.42 (a 4% range) on 1.6x volume. From the brain, jfsrev: \"You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "HVC",
+    "Range breakout",
+    "Inside bar break",
+    "Pocket pivot"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Range breakout"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2023-08-31",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "TNET"
+   },
+   "facts": {
+    "bearish": false,
+    "brain": {
+     "kb_id": 17782,
+     "quote": "You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume confirmation, range breakouts are unreliable.",
+     "who": "jfsrev"
+    },
+    "chartiq_reading": "closed over the 10-day range high 108.42 (a 4% range) on 1.6x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -1.1,
+     "rs63_pct": 13.4,
+     "s200_rising": true,
+     "vs200_pct": 29.7,
+     "vs50_pct": 10.5
+    },
+    "culmination": {
+     "broke_at": 40,
+     "culm_pct": 9.62,
+     "culm_sessions": 31,
+     "ret20_pct": 5.0
+    },
+    "era": "2020-26",
+    "event": "Range breakout",
+    "fired_on_bar": [
+     "Range breakout"
+    ],
+    "held_20": true,
+    "liq_rank": 946,
+    "liq_universe": 2604,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "a close over the high of the last 10 days out of a range no wider than 15%, in the top 30% of the day's range, over the 50-day.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Range breakout",
+   "source": "chart_iq.v44_read.candle_events#Range breakout#TNET#2023-08-31",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Range breakout#TNET#2023-08-31",
+  "sym": "TNET",
   "type": "recall",
   "version": 1
  },
@@ -164595,119 +164601,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Inside bar break#MFIC#2009-08-20",
   "sym": "MFIC",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Inside bar break"
-  },
-  "asof": "2011-10-21",
-  "bars": {
-   "asof": "2011-10-21",
-   "forward": 20,
-   "sym": "WTM",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_52ad5eda1250",
-  "lesson_origin": "session",
-  "lesson_text": "Inside bar break: an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bar's mother high 418.31 (the inside day was 10/20) on 2.5x volume. The same bar also printed: Pocket pivot.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 3,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Range breakout",
-    "Outside reversal",
-    "Inside bar break",
-    "Double inside bar break"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Inside bar break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2011-10-21",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WTM"
-   },
-   "facts": {
-    "bearish": false,
-    "chartiq_reading": "closed over the inside bar's mother high 418.31 (the inside day was 10/20) on 2.5x volume",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -4.0,
-     "rs63_pct": 6.6,
-     "s200_rising": true,
-     "vs200_pct": 9.2,
-     "vs50_pct": 4.4
-    },
-    "culmination": {
-     "broke_at": 22,
-     "culm_pct": 3.59,
-     "culm_sessions": 4,
-     "ret20_pct": 0.58
-    },
-    "era": "2010-14",
-    "event": "Inside bar break",
-    "fired_on_bar": [
-     "Inside bar break",
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 808,
-    "liq_universe": 1537,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
-    "sector": "Financial Services"
-   },
-   "forward_bars": 20,
-   "label": "Inside bar break",
-   "source": "chart_iq.v44_read.candle_events#Inside bar break#WTM#2011-10-21",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Inside bar break#WTM#2011-10-21",
-  "sym": "WTM",
   "type": "recall",
   "version": 1
  },
@@ -170359,122 +170252,6 @@
   "answer_json": {
    "answer": "Inside bar break"
   },
-  "asof": "1997-09-25",
-  "bars": {
-   "asof": "1997-09-25",
-   "forward": 20,
-   "sym": "RELL",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_6c5402109ed2",
-  "lesson_origin": "session",
-  "lesson_text": "Inside bar break: an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bar's mother high 9.25 (the inside day was 9/24) on 16.4x volume. The same bar also printed: Gap up, HVC, Pocket pivot.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 3,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Outside reversal",
-    "Inside bar break",
-    "Double inside bar break",
-    "Range breakout"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Inside bar break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "1997-09-25",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "RELL"
-   },
-   "facts": {
-    "bearish": false,
-    "chartiq_reading": "closed over the inside bar's mother high 9.25 (the inside day was 9/24) on 16.4x volume",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -5.0,
-     "rs63_pct": 36.5,
-     "s200_rising": true,
-     "vs200_pct": 45.9,
-     "vs50_pct": 38.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 14.58,
-     "culm_sessions": 8,
-     "ret20_pct": 8.33
-    },
-    "era": "1995-99",
-    "event": "Inside bar break",
-    "fired_on_bar": [
-     "Gap up",
-     "HVC",
-     "Inside bar break",
-     "Kicker",
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 818,
-    "liq_universe": 882,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Inside bar break",
-   "source": "chart_iq.v44_read.candle_events#Inside bar break#RELL#1997-09-25",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Inside bar break#RELL#1997-09-25",
-  "sym": "RELL",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Inside bar break"
-  },
   "asof": "2001-04-12",
   "bars": {
    "asof": "2001-04-12",
@@ -172164,6 +171941,232 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "Inside bar break"
+  },
+  "asof": "2019-12-20",
+  "bars": {
+   "asof": "2019-12-20",
+   "forward": 20,
+   "sym": "SMG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_1ed422a94e61",
+  "lesson_origin": "session",
+  "lesson_text": "Inside bar break: an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bar's mother high 104.04 (the inside day was 12/19) on 2.4x volume. The same bar also printed: Pocket pivot.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 3,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Double inside bar break",
+    "Range breakout",
+    "Outside reversal",
+    "Inside bar break"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Inside bar break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2019-12-20",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "SMG"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "closed over the inside bar's mother high 104.04 (the inside day was 12/19) on 2.4x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -7.0,
+     "rs63_pct": -1.6,
+     "s200_rising": true,
+     "vs200_pct": 9.8,
+     "vs50_pct": 4.7
+    },
+    "culmination": {
+     "broke_at": 55,
+     "culm_pct": 17.95,
+     "culm_sessions": 49,
+     "ret20_pct": 1.93
+    },
+    "era": "2015-19",
+    "event": "Inside bar break",
+    "fired_on_bar": [
+     "Inside bar break",
+     "Pocket pivot"
+    ],
+    "held_20": true,
+    "liq_rank": 664,
+    "liq_universe": 2132,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Inside bar break",
+   "source": "chart_iq.v44_read.candle_events#Inside bar break#SMG#2019-12-20",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Inside bar break#SMG#2019-12-20",
+  "sym": "SMG",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Inside bar break"
+  },
+  "asof": "2024-08-19",
+  "bars": {
+   "asof": "2024-08-19",
+   "forward": 20,
+   "sym": "LOW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_eea5e4c3f703",
+  "lesson_origin": "session",
+  "lesson_text": "Inside bar break: an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bar's mother high 242.94 (the inside day was 8/16) on 1.0x volume. The same bar also printed: Hammer at support.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 3,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Inside bar break",
+    "Double inside bar break",
+    "Range breakout",
+    "Pocket pivot"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Inside bar break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2024-08-19",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "LOW"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "closed over the inside bar's mother high 242.94 (the inside day was 8/16) on 1.0x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -7.3,
+     "rs63_pct": -0.4,
+     "s200_rising": true,
+     "vs200_pct": 8.0,
+     "vs50_pct": 5.6
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 18.01,
+     "culm_sessions": 40,
+     "ret20_pct": 5.55
+    },
+    "era": "2020-26",
+    "event": "Inside bar break",
+    "fired_on_bar": [
+     "Hammer at support",
+     "Inside bar break"
+    ],
+    "held_20": true,
+    "liq_rank": 95,
+    "liq_universe": 2699,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "an inside day (its range inside the day before, narrower than 0.8 ATR), then a close over that mother bar's high, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Inside bar break",
+   "source": "chart_iq.v44_read.candle_events#Inside bar break#LOW#2024-08-19",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Inside bar break#LOW#2024-08-19",
+  "sym": "LOW",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Double inside bar break"
   },
   "asof": "1996-02-12",
@@ -173064,121 +173067,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Double inside bar break#DINO#2001-05-07",
   "sym": "DINO",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Double inside bar break"
-  },
-  "asof": "2007-04-20",
-  "bars": {
-   "asof": "2007-04-20",
-   "forward": 20,
-   "sym": "GCO",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_5c12f3ed3c7c",
-  "lesson_origin": "session",
-  "lesson_text": "Double inside bar break: two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bars' high 39.78 on 12.6x volume. The same bar also printed: Gap up, HVC, Pocket pivot.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 4,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Range breakout",
-    "20EMA tap",
-    "Double inside bar break",
-    "Inside bar break"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Double inside bar break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2007-04-20",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "GCO"
-   },
-   "facts": {
-    "bearish": false,
-    "chartiq_reading": "closed over the inside bars' high 39.78 on 12.6x volume",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -0.1,
-     "rs63_pct": 21.2,
-     "s200_rising": true,
-     "vs200_pct": 37.9,
-     "vs50_pct": 21.0
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 8.34,
-     "culm_sessions": 40,
-     "ret20_pct": -0.22
-    },
-    "era": "2005-09",
-    "event": "Double inside bar break",
-    "fired_on_bar": [
-     "Double inside bar break",
-     "Gap up",
-     "HVC",
-     "Pocket pivot"
-    ],
-    "held_20": true,
-    "liq_rank": 523,
-    "liq_universe": 1351,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
-    "sector": "Consumer Cyclical"
-   },
-   "forward_bars": 20,
-   "label": "Double inside bar break",
-   "source": "chart_iq.v44_read.candle_events#Double inside bar break#GCO#2007-04-20",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Double inside bar break#GCO#2007-04-20",
-  "sym": "GCO",
   "type": "recall",
   "version": 1
  },
@@ -174870,118 +174758,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Double inside bar break#STNE#2023-06-01",
   "sym": "STNE",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Double inside bar break"
-  },
-  "asof": "1996-02-21",
-  "bars": {
-   "asof": "1996-02-21",
-   "forward": 20,
-   "sym": "ATNI",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_8a60312c14d9",
-  "lesson_origin": "session",
-  "lesson_text": "Double inside bar break: two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bars' high 6.90 on 4.1x volume.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 4,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Pocket pivot",
-    "Double inside bar break",
-    "Inside bar break",
-    "Range breakout"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Double inside bar break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "1996-02-21",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "ATNI"
-   },
-   "facts": {
-    "bearish": false,
-    "chartiq_reading": "closed over the inside bars' high 6.90 on 4.1x volume",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": 0.0,
-     "rs63_pct": 61.0,
-     "s200_rising": true,
-     "vs200_pct": 82.6,
-     "vs50_pct": 60.9
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 42.86,
-     "culm_sessions": 54,
-     "ret20_pct": 9.09
-    },
-    "era": "1995-99",
-    "event": "Double inside bar break",
-    "fired_on_bar": [
-     "Double inside bar break"
-    ],
-    "held_20": true,
-    "liq_rank": 535,
-    "liq_universe": 810,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
-    "sector": null
-   },
-   "forward_bars": 20,
-   "label": "Double inside bar break",
-   "source": "chart_iq.v44_read.candle_events#Double inside bar break#ATNI#1996-02-21",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Double inside bar break#ATNI#1996-02-21",
-  "sym": "ATNI",
   "type": "recall",
   "version": 1
  },
@@ -183468,6 +183244,231 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "Double inside bar break"
+  },
+  "asof": "2016-02-17",
+  "bars": {
+   "asof": "2016-02-17",
+   "forward": 20,
+   "sym": "HEI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_e461398efdfa",
+  "lesson_origin": "session",
+  "lesson_text": "Double inside bar break: two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bars' high 27.68 on 1.1x volume.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 4,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Pocket pivot",
+    "Double inside bar break",
+    "Inside bar break",
+    "Range breakout"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Double inside bar break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2016-02-17",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "HEI"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "closed over the inside bars' high 27.68 on 1.1x volume",
+    "context": {
+     "market": "downtrend",
+     "off_high_pct": -15.1,
+     "rs63_pct": 15.0,
+     "s200_rising": false,
+     "vs200_pct": 1.0,
+     "vs50_pct": 1.8
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 16.15,
+     "culm_sessions": 59,
+     "ret20_pct": 8.59
+    },
+    "era": "2015-19",
+    "event": "Double inside bar break",
+    "fired_on_bar": [
+     "Double inside bar break"
+    ],
+    "held_20": true,
+    "liq_rank": 928,
+    "liq_universe": 1842,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Double inside bar break",
+   "source": "chart_iq.v44_read.candle_events#Double inside bar break#HEI#2016-02-17",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Double inside bar break#HEI#2016-02-17",
+  "sym": "HEI",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Double inside bar break"
+  },
+  "asof": "2024-01-02",
+  "bars": {
+   "asof": "2024-01-02",
+   "forward": 20,
+   "sym": "REGN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_4882dc3d0f71",
+  "lesson_origin": "session",
+  "lesson_text": "Double inside bar break: two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area. Chart IQ read the last bar: closed over the inside bars' high 895.49 on 1.8x volume.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 4,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Inside bar break",
+    "Range breakout",
+    "Pocket pivot",
+    "Double inside bar break"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Double inside bar break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2024-01-02",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "REGN"
+   },
+   "facts": {
+    "bearish": false,
+    "chartiq_reading": "closed over the inside bars' high 895.49 on 1.8x volume",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -0.0,
+     "rs63_pct": 0.0,
+     "s200_rising": true,
+     "vs200_pct": 14.0,
+     "vs50_pct": 9.9
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 10.31,
+     "culm_sessions": 39,
+     "ret20_pct": 4.17
+    },
+    "era": "2020-26",
+    "event": "Double inside bar break",
+    "fired_on_bar": [
+     "Double inside bar break",
+     "Oops reversal"
+    ],
+    "held_20": true,
+    "liq_rank": 112,
+    "liq_universe": 2633,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "two inside days in a row, then a close over the high of the bar they sit inside, in the top 40% of the range, over the 50-day, with the lows at the 9 and 20-day EMA area.",
+    "sector": "Healthcare"
+   },
+   "forward_bars": 20,
+   "label": "Double inside bar break",
+   "source": "chart_iq.v44_read.candle_events#Double inside bar break#REGN#2024-01-02",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Double inside bar break#REGN#2024-01-02",
+  "sym": "REGN",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Bearish engulfing"
   },
   "asof": "1998-08-13",
@@ -184029,120 +184030,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#SHO#2015-05-05",
   "sym": "SHO",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Bearish engulfing"
-  },
-  "asof": "2021-08-09",
-  "bars": {
-   "asof": "2021-08-09",
-   "forward": 20,
-   "sym": "USFD",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_e51fd117bc4c",
-  "lesson_origin": "session",
-  "lesson_text": "Bearish engulfing: after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA. Chart IQ read the last bar: opened over the prior close and closed under the prior open on 2.7x volume, rejected at the 20EMA (34.40). The same bar also printed: Gap up, Heavy volume, closed weak.",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Gap down",
-    "Bearish engulfing",
-    "Reversal off highs",
-    "Outside reversal"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Bearish engulfing"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2021-08-09",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "USFD"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "opened over the prior close and closed under the prior open on 2.7x volume, rejected at the 20EMA (34.40)",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -19.5,
-     "rs63_pct": -18.9,
-     "s200_rising": true,
-     "vs200_pct": -4.0,
-     "vs50_pct": -7.2
-    },
-    "culmination": {
-     "broke_at": 35,
-     "culm_pct": -8.39,
-     "culm_sessions": 8,
-     "ret20_pct": -2.89
-    },
-    "era": "2020-26",
-    "event": "Bearish engulfing",
-    "fired_on_bar": [
-     "Bearish engulfing",
-     "Gap up",
-     "Heavy volume, closed weak"
-    ],
-    "held_20": true,
-    "liq_rank": 585,
-    "liq_universe": 2374,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA.",
-    "sector": "Consumer Defensive"
-   },
-   "forward_bars": 20,
-   "label": "Bearish engulfing",
-   "source": "chart_iq.v44_read.candle_events#Bearish engulfing#USFD#2021-08-09",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#USFD#2021-08-09",
-  "sym": "USFD",
   "type": "recall",
   "version": 1
  },
@@ -185156,118 +185043,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#PVH#2007-10-17",
   "sym": "PVH",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Bearish engulfing"
-  },
-  "asof": "2010-04-29",
-  "bars": {
-   "asof": "2010-04-29",
-   "forward": 20,
-   "sym": "WTM",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 2,
-  "id": "si_5203b497d22d",
-  "lesson_origin": "session",
-  "lesson_text": "Bearish engulfing: after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA. Chart IQ read the last bar: opened over the prior close and closed under the prior open on 1.7x volume, rejected at the 20EMA (356.50).",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Heavy volume, closed weak",
-    "Outside reversal",
-    "Bearish engulfing",
-    "Reversal off highs"
-   ],
-   "q": "Which event did the last bar print?",
-   "subject": "Bearish engulfing"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.candle_events",
-   "example": {
-    "asof": "2010-04-29",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WTM"
-   },
-   "facts": {
-    "bearish": true,
-    "chartiq_reading": "opened over the prior close and closed under the prior open on 1.7x volume, rejected at the 20EMA (356.50)",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -4.4,
-     "rs63_pct": -4.2,
-     "s200_rising": true,
-     "vs200_pct": 8.6,
-     "vs50_pct": -1.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -11.95,
-     "culm_sessions": 18,
-     "ret20_pct": -5.65
-    },
-    "era": "2010-14",
-    "event": "Bearish engulfing",
-    "fired_on_bar": [
-     "Bearish engulfing"
-    ],
-    "held_20": true,
-    "liq_rank": 788,
-    "liq_universe": 1460,
-    "rule_numbers": {
-     "be_vol": 1.5,
-     "er_gap": 8,
-     "er_vol": 3,
-     "gap": 2,
-     "hammer_body": 2,
-     "hammer_near": 2,
-     "hammer_top": 40,
-     "hvc_top": 40,
-     "hvc_vol": 3,
-     "ib_atr": 0.8,
-     "ib_top": 40,
-     "news_drop": 15,
-     "or_vol": 1.2,
-     "pp_vol": 1.2,
-     "pp_window": 10,
-     "rb_days": 10,
-     "rb_top": 30,
-     "rb_width": 15,
-     "remount": "4 of 6",
-     "rev_bottom": 40,
-     "rev_window": 20,
-     "tap_over": 1.5,
-     "tap_under": 1,
-     "unr_depth": 5,
-     "unr_lookback": 15,
-     "unr_spring": 40,
-     "weak_bottom": 35,
-     "weak_vol": 2
-    },
-    "rule_text": "after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA.",
-    "sector": "Financial Services"
-   },
-   "forward_bars": 20,
-   "label": "Bearish engulfing",
-   "source": "chart_iq.v44_read.candle_events#Bearish engulfing#WTM#2010-04-29",
-   "system": "Chart IQ, the named bar events",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.events",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#WTM#2010-04-29",
-  "sym": "WTM",
   "type": "recall",
   "version": 1
  },
@@ -194741,6 +194516,231 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#CRM#2014-03-13",
   "sym": "CRM",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Bearish engulfing"
+  },
+  "asof": "2015-05-28",
+  "bars": {
+   "asof": "2015-05-28",
+   "forward": 20,
+   "sym": "KMT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_c1e4ac98cf63",
+  "lesson_origin": "session",
+  "lesson_text": "Bearish engulfing: after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA. Chart IQ read the last bar: opened over the prior close and closed under the prior open on 1.6x volume, rejected at the 20EMA (37.06).",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Heavy volume, closed weak",
+    "Outside reversal",
+    "Bearish engulfing",
+    "Reversal off highs"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Bearish engulfing"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2015-05-28",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "KMT"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "opened over the prior close and closed under the prior open on 1.6x volume, rejected at the 20EMA (37.06)",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -25.6,
+     "rs63_pct": 1.5,
+     "s200_rising": false,
+     "vs200_pct": -3.1,
+     "vs50_pct": 1.5
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -20.84,
+     "culm_sessions": 60,
+     "ret20_pct": -3.04
+    },
+    "era": "2015-19",
+    "event": "Bearish engulfing",
+    "fired_on_bar": [
+     "Bearish engulfing"
+    ],
+    "held_20": true,
+    "liq_rank": 657,
+    "liq_universe": 1777,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA.",
+    "sector": "Industrials"
+   },
+   "forward_bars": 20,
+   "label": "Bearish engulfing",
+   "source": "chart_iq.v44_read.candle_events#Bearish engulfing#KMT#2015-05-28",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#KMT#2015-05-28",
+  "sym": "KMT",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Bearish engulfing"
+  },
+  "asof": "2023-05-31",
+  "bars": {
+   "asof": "2023-05-31",
+   "forward": 20,
+   "sym": "TSEM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 2,
+  "id": "si_c2bc65cd4709",
+  "lesson_origin": "session",
+  "lesson_text": "Bearish engulfing: after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA. Chart IQ read the last bar: opened over the prior close and closed under the prior open on 2.2x volume, rejected at the 20EMA (40.74). The same bar also printed: Heavy volume, closed weak.",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Bearish engulfing",
+    "Reversal off highs",
+    "Outside reversal",
+    "Gap down"
+   ],
+   "q": "Which event did the last bar print?",
+   "subject": "Bearish engulfing"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.candle_events",
+   "example": {
+    "asof": "2023-05-31",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "TSEM"
+   },
+   "facts": {
+    "bearish": true,
+    "chartiq_reading": "opened over the prior close and closed under the prior open on 2.2x volume, rejected at the 20EMA (40.74)",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -20.3,
+     "rs63_pct": -8.7,
+     "s200_rising": false,
+     "vs200_pct": -9.2,
+     "vs50_pct": -7.7
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -28.18,
+     "culm_sessions": 60,
+     "ret20_pct": -5.34
+    },
+    "era": "2020-26",
+    "event": "Bearish engulfing",
+    "fired_on_bar": [
+     "Bearish engulfing",
+     "Heavy volume, closed weak"
+    ],
+    "held_20": true,
+    "liq_rank": 927,
+    "liq_universe": 2586,
+    "rule_numbers": {
+     "be_vol": 1.5,
+     "er_gap": 8,
+     "er_vol": 3,
+     "gap": 2,
+     "hammer_body": 2,
+     "hammer_near": 2,
+     "hammer_top": 40,
+     "hvc_top": 40,
+     "hvc_vol": 3,
+     "ib_atr": 0.8,
+     "ib_top": 40,
+     "news_drop": 15,
+     "or_vol": 1.2,
+     "pp_vol": 1.2,
+     "pp_window": 10,
+     "rb_days": 10,
+     "rb_top": 30,
+     "rb_width": 15,
+     "remount": "4 of 6",
+     "rev_bottom": 40,
+     "rev_window": 20,
+     "tap_over": 1.5,
+     "tap_under": 1,
+     "unr_depth": 5,
+     "unr_lookback": 15,
+     "unr_spring": 40,
+     "weak_bottom": 35,
+     "weak_vol": 2
+    },
+    "rule_text": "after an up day that closed under the 20-day EMA, an open over its close and a close under its open, on at least 1.5 times average volume, rejected at the 20-day EMA.",
+    "sector": null
+   },
+   "forward_bars": 20,
+   "label": "Bearish engulfing",
+   "source": "chart_iq.v44_read.candle_events#Bearish engulfing#TSEM#2023-05-31",
+   "system": "Chart IQ, the named bar events",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.events",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.candle_events#Bearish engulfing#TSEM#2023-05-31",
+  "sym": "TSEM",
   "type": "recall",
   "version": 1
  }

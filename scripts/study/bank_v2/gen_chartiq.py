@@ -38,6 +38,7 @@ sys.path.insert(0, str(REPO))
 from api.services.chart_iq.engine import v44_read as R  # noqa: E402
 from scripts.study._common import make_item, write_segment  # noqa: E402
 from scripts.study.bank_v2 import second_source  # noqa: E402
+from scripts.study.bank_v2.pod_coverage import PodCoverage  # noqa: E402
 
 #: its own cache, so it never races draft_pass over second_source.json
 YAHOO_CACHE = REPO / "docs" / "study" / "bank_v2" / "second_source_chartiq.json"
@@ -267,6 +268,18 @@ def order_choices(answer: str, others: list, key) -> list:
     return ch[rot:] + ch[:rot]
 
 
+POD: dict = {}        # {"cov": PodCoverage, "keep": {(sym, asof)}} when --pod-span is given
+
+
+def pod_ok(sym, t) -> bool:
+    """A chart the pod already resolved in full (pod_bars_coverage.py, 2026-11-06) keeps its place; any other must
+    pass pod_coverage's stricter rule."""
+    if not POD:
+        return True
+    asof = iso(t)
+    return (sym, asof) in POD["keep"] or POD["cov"].covered(sym, asof)[0]
+
+
 def yahoo_ok(sym, t, db) -> bool:
     """second_source's window check (the bars' own vendor today). It drops an old ticker whose company now trades
     under another symbol (SQ 2024 next to XYZ: the same chart twice) and a series Yahoo has since revised."""
@@ -290,7 +303,7 @@ def cycle_items(rows, sec, target, db=None):
         for r in pick(pool, int(target * 1.4), sec):
             if sum(1 for x in out if x["prompt_json"]["subject"] == st) >= target:
                 break
-            if not yahoo_ok(r["sym"], r["t"], db):
+            if not pod_ok(r["sym"], r["t"]) or not yahoo_ok(r["sym"], r["t"], db):
                 dropped[st] += 1
                 continue
             i = CYCLE_ORDER.index(st)
@@ -330,7 +343,7 @@ def event_items(rows, sec, target, con, con_path=None):
                 break
             b = bars_to(con, r["sym"], r["t"])
             fired = fired_on_last(b) if len(b) >= 220 else set()
-            if ev not in fired or not yahoo_ok(r["sym"], r["t"], con_path):
+            if ev not in fired or not pod_ok(r["sym"], r["t"]) or not yahoo_ok(r["sym"], r["t"], con_path):
                 dropped[ev] += 1
                 continue
             others = [x for x in CONFUSE[ev] + [e for e in EVENT_DEF if e not in CONFUSE[ev]] if x != ev and x not in fired]
@@ -368,6 +381,8 @@ def main(argv=None) -> int:
     ap.add_argument("--per-event", type=int, default=60)
     ap.add_argument("--top", type=int, default=1000)
     ap.add_argument("--no-yahoo", action="store_true", help="skip the Yahoo window check (tests only)")
+    ap.add_argument("--pod-span", action="store_true", help="only charts the web pod's own bars cover (pod_coverage.py)")
+    ap.add_argument("--pod-short", default=None, help="pod_bars_coverage.py's short list: those charts are never kept")
     a = ap.parse_args(argv)
     sec = sectors()
     BQ.update(brain_quotes())
@@ -375,6 +390,14 @@ def main(argv=None) -> int:
     rows = [r for r in rows if r.get("held") and (r.get("liq_rank") or 10 ** 9) <= a.top and sec.get(r["sym"]) != "ETF"]
     con = sqlite3.connect(f"file:{a.bars_db}?mode=ro", uri=True)
     YAHOO.update(second_source.load_cache(YAHOO_CACHE))
+    if a.pod_span:
+        short = {(s[2], s[3]) for s in json.loads(pathlib.Path(a.pod_short).read_text(encoding="utf-8"))} if a.pod_short else set()
+        keep = set()
+        for seg in ("cycle.price_action", "chart.events"):
+            path = REPO / "docs" / "study" / "bank" / f"{seg}.json"
+            if path.exists():
+                keep |= {(i["sym"], i["asof"]) for i in json.loads(path.read_text(encoding="utf-8"))}
+        POD.update(cov=PodCoverage(a.bars_db), keep=keep - short)
     db = None if a.no_yahoo else a.bars_db
     cyc, c_dropped = cycle_items(rows, sec, a.cycle_per_stage, db)
     evs, dropped = event_items(rows, sec, a.per_event, con, db)
