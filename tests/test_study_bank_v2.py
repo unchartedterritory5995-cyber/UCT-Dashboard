@@ -201,3 +201,30 @@ def test_pod_coverage_refuses_what_the_pod_cannot_draw(tmp_path):
     span.write_text(json.dumps({"span": {"ABC": [k(days[0]), k(days[-1]), 200]}}), encoding="utf-8")
     ok, why = PodCoverage(db, span, refused_files=(refused,)).covered("ABC", asof)   # measured wrong on the pod: never
     assert not ok and "measured" in why
+
+
+# ---------------------------------------------------------------- gen_lines
+
+from scripts.study.bank_v2 import gen_lines as GL  # noqa: E402
+
+
+def test_line_support_words_and_swing_points():
+    assert GL.describe("Recent hold (3x)") == "a recent hold, a level price held 3 times"
+    assert GL.describe("Base breakout (support)").startswith("the top of the base")
+    bars = [{"l": l, "h": l + 1} for l in (10, 9, 8, 7, 8, 9, 10, 11, 12)]
+    assert 7 in GL.swings(bars)                                   # the V's low is a turn
+
+
+def test_pick_lines_finds_the_support_and_two_decoys_where_price_never_turned():
+    # 120 bars rising from 50 to 60 with one dip to 54 at bar 60: the dip low is the only swing low
+    bars = []
+    for k in range(120):
+        c = 50 + k / 12 if k != 60 else 54.0
+        bars.append({"t": f"d{k}", "o": c, "h": c + 0.3, "l": c - 0.3 if k != 60 else 53.7, "c": c})
+    res = {"bars": bars, "clean": [{"kind": "hline", "ptype": "Recent hold (2x) · note", "price": 57.0}]}
+    s, decoys, close, crossed = GL.pick_lines(res)
+    assert s[0] == "Recent hold (2x)" and s[1] == 57.0
+    assert len(decoys) == 2 and abs(decoys[0] / decoys[1] - 1) >= GL.SPREAD
+    turns = GL.swings(bars)
+    assert all(all(abs(t / d - 1) > GL.TURN_GAP for t in turns) for d in decoys)
+    assert all(abs(d / 57.0 - 1) >= GL.SPREAD for d in decoys)
