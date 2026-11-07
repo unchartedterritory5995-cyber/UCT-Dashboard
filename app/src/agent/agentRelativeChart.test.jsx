@@ -198,3 +198,39 @@ describe('R5: negation and compound sentences around a relation', () => {
     }
   }, 60000)
 })
+
+// pl-auto browser regression u-target-05/08 (BROWSER-MOCK-MODEL, 620c05604c): a NEGATED pointer ("except this one", "not this
+// chart") had every op aimed onto the click. Negation governing the pointer EXCLUDES the clicked chart: never a target; a plan
+// on the other charts runs there.
+describe('a negated pointer excludes the click', () => {
+  const planOnMany = (ids) => (body) => p.env('apply', ids.map(id => ({ action: 'chart.setTimeframe', target: body.context.charts.find(c => c.label === `Chart (${id})`).ref, args: { timeframe: 'W' } })))
+  it.each([
+    ['weekly for all of them except this one', 'c3', ['c0', 'c1', 'c2'], 'WWWD'],
+    ['every chart but this chart to weekly', 'c0', ['c1', 'c2', 'c3'], 'DWWW'],
+    ['switch the others to weekly, not this one', 'c1', ['c0', 'c2', 'c3'], 'WDWW'],
+  ])('%s (clicked %s): the plan on %j runs there; the click stays', async (t, clicked, plan, want) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOnMany(plan))
+    await say(t)
+    expect(tfs(b)).toBe(want)
+  }, 30000)
+  it.each([
+    ['weekly for all of them except this one', 'c3'],
+    ['anything other than this chart goes weekly', 'c0'],
+  ])('%s (clicked %s): NEGATIVE: a plan on the excluded click never runs', async (t, clicked) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOn(clicked))
+    await say(t)
+    expect(tfs(b)).toBe('DDDD')
+  }, 30000)
+})
+describe('a negated pointer on a board of two', () => {
+  const TWO_W = [cell('a', 0, 0), cell('b', 12, 0)]
+  it.each([['not this chart, the other one: weekly'], ['the other chart, not this one, to weekly']])('%s (clicked b): the plan on a runs there, b stays', async (t) => {
+    const { say, board: b } = p.mount(TWO_W, { 'N:a': 'SPY', 'N:b': 'QQQ' }, { decorate: label })
+    p.select('b')
+    p.st.envelopes.push(planOn('a'))
+    await say(t)
+    expect(['a', 'b'].map(id => tfOf(b, id)).join('')).toBe('WD')
+  }, 30000)
+})

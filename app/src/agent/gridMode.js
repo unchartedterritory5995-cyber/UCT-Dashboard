@@ -17,6 +17,8 @@ const BOARD_KINDS = new Set(['board', 'workspace'])
 export const GRID_BOARD_REFUSAL = 'that changes the Charts board, which is hidden while Multi Chart is on. Exit Multi Chart (Layouts ▸ Multi Chart) and ask again.'
 export const GRID_GROUPS_REFUSAL = 'Groups mode refills the whole grid when one ticker changes, so I can’t change a ticker on just one chart here. Turn Groups off (Layouts ▸ Multi Chart) to change a single chart.'
 export const GRID_WATERMARK_REFUSAL = 'Multi Chart cells don’t show a watermark, so that setting would change nothing you can see.'
+const EMPTY_CELL_OK = new Set(['chart.setSymbol', 'chart.setTimeframe'])
+export const GRID_EMPTY_CELL_REFUSAL = 'That cell is empty, so there is no chart there to change yet. Put a ticker on it first (say “put SPY on the empty cell”), then ask again.'
 export const GRID_HIDDEN_REFUSAL = 'that chart is hidden behind the maximized one. Restore the grid and ask again.'
 
 /** Is this op aimed at a cell other than the maximized one? */
@@ -74,6 +76,14 @@ export function screenGridOps(ops, host) {
     if (behindMaximized(o, cap, host, grid?.maximized?.())) return { refuse: GRID_HIDDEN_REFUSAL }
     if (o.action === 'chart.setSymbol' && grid?.groupsMode()) return { refuse: GRID_GROUPS_REFUSAL }
     if (o.action === 'chart.setSetting' && String(o.args?.setting).startsWith('watermark.')) return { refuse: GRID_WATERMARK_REFUSAL }
+    // pl-auto u-workspace-09 (BROWSER-MOCK-MODEL): "log scale in the empty cell" was receipted as changed while the cell, with no
+    // ticker, draws no chart at all. Only what an empty cell shows can change on it (its ticker, its timeframe); the rest is refused
+    // in words, never receipted.
+    if (cap.target === 'chart' && !cap.query && !EMPTY_CELL_OK.has(o.action)) {
+      let c = null
+      try { c = host?.charts?.read?.(o.target) || null } catch { c = null }
+      if (c && 'symbol' in c && !String(c.symbol || '').trim()) return { refuse: GRID_EMPTY_CELL_REFUSAL }
+    }
     if (cap.target === 'drawing' && !note) {
       const shownOn = host?.drawings?.read?.(o.target)?.charts || []
       if (shownOn.length > 1) note = `Drawings belong to the symbol, so this shows on ${shownOn.join(' and ')}.`
