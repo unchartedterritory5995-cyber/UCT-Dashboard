@@ -8,7 +8,7 @@
 //   { place, need, also?, any?, target, name, say, open?, alt? }
 //     place   'w:<widget type>' a board widget (added from Widgets ▾ first if absent) · 'chart' on the chart talked about ·
 //             'drawing' a drawing's own menu · 'settings:<tab>' a Chart Settings tab · 'list' a watchlist's own list ·
-//             'listMenu' a list's right-click menu · 'library' the layout library · 'bar' a layout's menu on the bar
+//             'picker' a Watchlist widget's list picker · 'library' the layout library · 'bar' a layout's menu on the bar
 //     need    the concepts the words must carry ("delete list")
 //     also    concepts that may be there too and make it a better fit (an object it acts on, its widget's name)
 //     any     one of these must be there as well (a verb several words can say)
@@ -41,17 +41,15 @@ const PLACE_WORDS = {
 }
 const placeWords = (place) => {
   if (place.startsWith('w:')) return PLACE_WORDS[place.slice(2)] || []
-  if (place === 'list' || place === 'listMenu') return ['list']
+  if (place === 'list' || place === 'picker') return ['list']
   if (place === 'library' || place === 'bar') return ['layout']
   return null   // on the chart: the chart is where every request is, so it needs no naming
 }
 
 // ── the openings each place starts with ──
 const WL = 'watchlist'
-const LIST_HEAD = { widgetType: WL, attr: 'aria-expanded' }
 const PICKER = { widgetType: WL, attr: 'data-guide', value: 'watchlist.picker' }
-const listMenu = (label) => ({ within: 'watchlist.rowMenu', ...label })
-const LIST_MENU_PROOF = listMenu({ label: 'Copy list to clipboard' })
+const OPEN_LIST = { widgetType: WL, guide: 'watchlist.lists' }
 const LAYOUT_TAB = { within: 'workspace.layouts', attr: 'data-layout-pin' }
 const DRAW_MENU = (label) => ({ within: 'chart.drawingMenu', label })
 function opening(place, row) {
@@ -60,12 +58,19 @@ function opening(place, row) {
     // a widget the Widgets menu does not offer here (Indexes, Market Context) is shown only where a board already has it
     return inMenu(type) ? onBoard(type, widgetLabel(type), [{ widgetType: type }]) : []
   }
-  if (place === 'list' || place === 'listMenu') {
-    const head = [
-      ...onBoard(WL, widgetLabel(WL), [LIST_HEAD, PICKER]),
-      { target: PICKER, name: 'your lists', text: 'Click one of your own lists to open it.', waitFor: LIST_HEAD, optional: true, late: true },
+  // a list open in the widget: its ‹ Lists button is how the widget shows it (the list's own header is hidden in pick mode)
+  if (place === 'list') {
+    return [
+      ...onBoard(WL, widgetLabel(WL), [OPEN_LIST, PICKER]),
+      { target: PICKER, name: 'your lists', text: 'Click one of your own lists to open it.', waitFor: OPEN_LIST, optional: true, late: true },
     ]
-    return place === 'list' ? head : [...head, { target: LIST_HEAD, name: 'the list’s header', text: 'Right-click the list’s name in its header. Your own lists have this menu.', waitFor: LIST_MENU_PROOF }]
+  }
+  // the widget's list picker: on a widget showing a list, ‹ Lists brings it back
+  if (place === 'picker') {
+    return [
+      ...onBoard(WL, widgetLabel(WL), [OPEN_LIST, PICKER]),
+      { target: OPEN_LIST, name: '‹ Lists', text: 'Click ‹ Lists to open the list picker.', waitFor: PICKER, optional: true },
+    ]
   }
   if (place === 'library') return [{ target: 'workspace.layoutLibrary', name: 'the layout library', text: 'Open the layout library.', waitFor: 'workspace.layoutLibraryMenu' }]
   if (place === 'bar') return [{ target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Right-click one of your layouts on the bar.', waitFor: { within: 'workspace.layoutMenu', lead: '← Move left' } }]
@@ -88,23 +93,13 @@ const JOURNAL_WIDGETS = { alerts: 'these alerts', news: 'this feed', calendar: '
 
 const ROWS = [
   ...Object.entries(JOURNAL_WIDGETS).map(([type, what]) => w(type, 'journal', { nameRe: JOURNAL }, `Send ${what} to Journal`, `This sends the ${widgetLabel(type)} widget to your Journal. The arrow beside it chooses where it goes.`, { id: `journal.${type}`, any: SEND, alt: 'Send to Journal shows in this widget’s top bar once it has something to send.', label: `Sending ${widgetLabel(type)} to the Journal` })),
-  { id: 'journal.list', place: 'list', need: 'journal', any: SEND, target: { widgetType: WL, nameRe: JOURNAL }, name: 'Send to Journal', say: 'This sends the list to your Journal, frozen as it is now. The arrow beside it chooses where it goes.', label: 'Sending a list to the Journal' },
 
-  // ── a watchlist's own list (pages/Watchlists.jsx: the list header's buttons, and its right-click menu) ──
-  { id: 'list.delete', place: 'list', need: 'delete list', target: { widgetType: WL, ...title('Delete watchlist') }, name: 'Delete watchlist', say: 'This deletes the whole list. It asks before anything is lost.', alt: 'Open one of your own lists: only a list you own can be deleted.', label: 'Deleting a watchlist' },
-  { id: 'list.public', place: 'list', need: 'share list', not: ['~open', '~see', '~view', '~browse', 'search'], also: 'communit', target: { widgetType: WL, nameRe: '^(Share with community|Make Private)$' }, name: 'Share with community', say: 'This shares the list with the community, or makes it private again.', label: 'Sharing a list with the community' },
-  { id: 'list.prebuilt', place: 'list', need: 'list ~prebuilt', not: ['~open', '~see', '~view', '~browse', 'search'], any: ['~mark', '~make', '~offer', '~turn', '~unpublish', '~withdraw'], target: { widgetType: WL, nameRe: 'to Prebuilt \\(UCT\\)$|from Prebuilt \\(UCT\\)$' }, name: 'Publish to Prebuilt', say: 'Admins only: this offers the list as one of UCT’s prebuilt lists, or takes it back.', label: 'Making a list prebuilt' },
-  { id: 'list.saveCommunity', place: 'list', need: 'save list', also: 'communit share', any: ['~mine', '~community', 'share', '~their', '~someone'], target: { widgetType: WL, nameRe: '^Save .+ to My Lists$' }, name: 'Save to My Lists', say: 'This saves someone else’s list to My Lists, as a copy or as a link that follows theirs.', label: 'Saving a community list' },
-  { id: 'list.expand', place: 'list', need: 'list', any: ['~expand', '~collapse', '~fold', '~unfold'], target: LIST_HEAD, name: 'the list’s header', say: 'Click the list’s header to open or fold it.', label: 'Opening or folding a list' },
+  // ── a watchlist's own lists, in the Charts Watchlist widget. ⛔ The widget shows a list in PICK MODE, which hides the list's
+  // header (Watchlists.module.css .pickMode .wlHeader { display: none }): its Delete, Share, Prebuilt, Send to Journal buttons and
+  // its right-click menu (rename, copy, export, import, history, remove starred) are NOT reachable here, so they are not taught.
+  // What the widget does show: the picker, with a bin on each of your lists (WatchlistPicker.jsx).
+  { id: 'list.delete', place: 'picker', need: 'delete list', target: { within: 'watchlist.picker', nameRe: '^Delete (?!watchlist)' }, name: 'the list’s bin', say: 'Click the bin beside a list to delete it. It asks before anything is lost.', alt: 'Only your own lists have a bin. Make one with ＋ New, and it shows here.', fallback: [PICKER], label: 'Deleting a watchlist' },
   { id: 'list.back', place: 'list', need: 'list', any: ['~picker', '~other', '~different', '~another'], also: 'choose', target: { widgetType: WL, guide: 'watchlist.lists' }, name: '‹ Lists', say: 'Click ‹ Lists to go back to the list picker and open another list.', label: 'Going back to the list picker' },
-  ...[
-    ['rename', 'Rename', 'rename list', 'Click Rename, type the new name and press Enter. Flagged can be renamed too.', { also: '~flagged' }],
-    ['copy', 'Copy list to clipboard', 'copy list', 'Click this to copy the list’s tickers, ready to paste.', { also: 'ticker' }],
-    ['csv', 'Export CSV', 'export list', 'Click Export CSV, or Export Excel just below it, to download the list.', { also: '~excel ~csv ~download' }],
-    ['import', 'Import tickers', 'import list', 'Click Import tickers, then paste them in, separated by commas or spaces.', { also: 'ticker' }],
-    ['history', 'Version history', 'history list', 'Click Version history. Pick a version, and Restore brings it back.', { also: 'reset' }],
-    ['starred', { lead: 'Remove starred' }, 'delete ticker list', 'Click Remove starred to take every starred ticker off this list.', { any: ['~starred', '~star'] }],
-  ].map(([id, label, need, say, more]) => ({ id: `listMenu.${id}`, place: 'listMenu', need, target: listMenu(typeof label === 'string' ? { label } : label), name: typeof label === 'string' ? label : label.lead, say, label: typeof label === 'string' ? label : label.lead, ...more })),
 
   // ── layouts: the library (the + on the bar) and a layout's own menu on the bar (pages/charts/LayoutDock.jsx) ──
   { id: 'library.delete', place: 'library', need: 'delete layout', not: ['~bar', 'pin'], target: { within: 'workspace.layoutLibraryMenu', nameRe: '^Delete .+ permanently$' }, name: 'the bin', say: 'This bin deletes that layout permanently. It asks first.', alt: 'Only your own layouts can be deleted. They are listed here once you save one.', label: 'Deleting a layout' },
@@ -279,7 +274,7 @@ function finish(row, text) {
 }
 
 const where = (row) => (row.place.startsWith('w:') ? `the ${widgetLabel(row.place.slice(2))} widget`
-  : row.place === 'list' || row.place === 'listMenu' ? 'a watchlist' : row.place === 'library' || row.place === 'bar' ? 'the layouts bar'
+  : row.place === 'list' || row.place === 'picker' ? 'a watchlist' : row.place === 'library' || row.place === 'bar' ? 'the layouts bar'
     : row.place === 'drawing' ? 'a drawing’s menu' : row.place.startsWith('settings:') ? 'Chart Settings' : 'the chart')
 /** The question for words several controls fit. */
 export function askWhich(rows) {

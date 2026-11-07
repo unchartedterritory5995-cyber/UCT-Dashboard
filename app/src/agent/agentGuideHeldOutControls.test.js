@@ -107,8 +107,16 @@ export const NONE = [
 // headline's own bookmark (Save headline), the row expected the ⋯ menu. "line the watermark up" reads "line" as a drawing.
 const MISSES = new Set(['how do I bookmark a news headline', 'how do I line the watermark up on the left'])
 const ASK_MISSES = new Set(['how do I delete a list'])   // one owner (a watchlist) is shown, not asked about
+// ⛔ WITHDRAWN 2026-11-07 (browser: the Charts Watchlist widget shows a list in pick mode, which hides the list's header —
+// Watchlists.module.css .pickMode .wlHeader { display: none } — so these controls are not reachable on /charts). The rows stay
+// as written; what is asserted now is that the guide never rings a control the member cannot see. Deleting a list is taught
+// through the widget's picker instead (its bin on each list).
+const WITHDRAWN = new Set(['Delete watchlist', 'Share with community', 'Export CSV', 'Import tickers', 'Version history', 'Copy list to clipboard', 'Remove starred'])
 describe('held-out: the catalog rings the control the words describe', () => {
-  it.each(HELD_OUT.filter(([q]) => !MISSES.has(q)))('%s → %s', (q, name) => {
+  it.each(HELD_OUT.filter(([q, n]) => WITHDRAWN.has(n)))('WITHDRAWN: %s never rings the hidden %s', (q, name) => {
+    expect(String(lastTarget(q))).not.toContain(name)
+  })
+  it.each(HELD_OUT.filter(([q, n]) => !MISSES.has(q) && !WITHDRAWN.has(n)))('%s → %s', (q, name) => {
     expect(lastTarget(q)).toContain(name)
   })
   it.fails.each(HELD_OUT.filter(([q]) => MISSES.has(q)))('KNOWN MISS: %s → %s', (q, name) => {
