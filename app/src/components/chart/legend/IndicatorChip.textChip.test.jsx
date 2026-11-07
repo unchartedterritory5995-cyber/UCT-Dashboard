@@ -6,7 +6,9 @@
 // one grammar, `UCT RS · SPY`), `textChip` (stay text on the phone, with a 6 px
 // dot) and `fallbackValue` (the last known value, muted, with its date). Every
 // other chip passes none and renders byte for byte what it did — the RSI/MACD
-// control below.
+// control below. Decision C4 (2026-11-07): the legend passes `textChip` alone for
+// every chip drawn outside the price pane; decision B8 put the text chips on the
+// dots' row.
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -71,7 +73,27 @@ describe('A5a / A9 — the text chip', () => {
   })
 })
 
-describe('the stylesheet — phone text chip, 168 px, 6 px dot, own line, no tap floor lost', () => {
+describe('C4 — a pane chip with no readout passes `textChip` alone', () => {
+  const rsi = { defId: 'rsi', plotKey: 'rsi', instanceId: 'i:rsi', label: 'RSI(14)', color: '#7b68ee', decimals: 1, value: 54.3, hidden: false, text: 'RSI(14) 54.3' }
+  it('stays text under its own label, value split out, no short name and no stale value', () => {
+    const { container } = render(<IndicatorChip chip={rsi} textChip onMenu={() => {}} />)
+    const el = container.querySelector('[data-instance-id="i:rsi"]')
+    expect(el.className).toContain(styles.chipText)
+    expect(el.textContent).toBe('RSI(14) 54.3')
+    expect(el.querySelector(`.${styles.chipTextHead}`), 'no ` · ` to split on').toBeNull()
+    expect(el.querySelector(`.${styles.chipVal}`).textContent).toBe('54.3')
+    expect(el.querySelector('[data-stale-value]')).toBeNull()
+    expect(el.getAttribute('aria-label')).toBe('RSI(14) options')
+  })
+  it('hidden: the bare label in the muted ink, no value', () => {
+    const { container } = render(<IndicatorChip chip={{ ...rsi, hidden: true, value: null, text: 'RSI(14)' }} textChip />)
+    const el = container.querySelector('[data-instance-id="i:rsi"]')
+    expect(el.textContent).toBe('RSI(14)')
+    expect(el.style.color).toBe('')
+  })
+})
+
+describe('the stylesheet — phone text chip, 168 px, 6 px dot, one row, no tap floor lost', () => {
   const phone = (() => {
     const i = CSS.indexOf('.chip.chipText')
     const at = CSS.lastIndexOf('@media (max-width: 640px)', i)
@@ -101,13 +123,24 @@ describe('the stylesheet — phone text chip, 168 px, 6 px dot, own line, no tap
     expect(rule('.chipTextTail')).toMatch(/flex:\s*none/)
     expect(rule('.chip.chipText .chipVal')).toMatch(/flex:\s*none/)
   })
-  it('own line under the dots: the break is a full-width zero-height item ordered before the text chips', () => {
-    const br = rule('.chipBreak')
-    expect(br).toMatch(/order:\s*1/)
-    expect(br).toMatch(/flex:\s*0 0 100%/)
+  it('B8 — one row: the text chips follow the dots on the same line; A5a\'s forced break is gone', () => {
+    // ordered after every order-0 item (the dots and the `+N` that folds them)…
     expect(rule('.chip.chipText')).toMatch(/order:\s*2/)
-    // above the phone the break is not drawn at all
-    expect(CSS.replace(/@media[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '')).toMatch(/\.chipBreak\s*\{\s*display:\s*none/)
+    // …and no zero-height full-width item forces them onto a line of their own
+    expect(CSS).not.toMatch(/\.chipBreak\b/)
+    expect(CSS).not.toMatch(/flex:\s*0 0 100%/)
+  })
+  it('B8 — on the phone chart shell a chip keeps its 44 px tap box but takes only the 18 px text line', () => {
+    const at = CSS.indexOf(':global(html[data-mobile-chart-shell]) .chip')
+    expect(at, 'the shell rule').toBeGreaterThan(-1)
+    const mq = CSS.lastIndexOf('@media', at)
+    expect(CSS.slice(mq, at)).toMatch(/^@media \(max-width: 640px\)\s*\{\s*$/)
+    const body = /\{([^}]*)\}/.exec(CSS.slice(at))[1]
+    expect(body).toMatch(/margin-block:\s*calc\(\(18px - var\(--tap-min\)\) \/ 2\)/)
+    // the tap box itself is untouched: no height or width override in the shell rule
+    expect(body).not.toMatch(/(^|[^-])(height|width)\s*:/)
+    // and the base phone `.chip` rule still declares the 44 px box
+    expect(CSS).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.chip\s*\{[^}]*\bheight:\s*var\(--tap-min\)/)
   })
   it('⛔ no class in this file contains "legend" (the export-route hide)', () => {
     expect(CSS.match(/\.[A-Za-z][\w-]*/g).filter((c) => /legend/i.test(c))).toEqual([])

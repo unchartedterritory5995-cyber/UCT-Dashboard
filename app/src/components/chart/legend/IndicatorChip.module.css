@@ -369,24 +369,26 @@
   .chipRepaint { display: none; }
 }
 
-/* ── PHASE 2a (A5a) · THE TEXT CHIP ────────────────────────────────────────
+/* ── PHASE 2a (A5a) + C4 · THE TEXT CHIP ───────────────────────────────────
  *
- * A definition that declares a readout (UCT RS) keeps its chip as TEXT on the
- * phone — `UCT RS · SPY 0.4187` — because the phone hides pane labels and this
- * chip is the only thing that names the bottom pane; its dot is the same blue
- * family as an SMA's, and two blue dots name nothing. Opt-in through the
- * component's `textChip` prop, so every other chip still collapses to a dot.
+ * A chip drawn OUTSIDE the price pane (RSI, MACD, ATR, UCT RS in its own pane)
+ * stays TEXT on the phone — `RSI(14) 54.3`, `UCT RS · SPY 0.4187` — because the
+ * phone hides pane labels and a dot cannot name a pane it does not touch
+ * (decision C4, 2026-11-07, generalising A5a from the readout definition to
+ * every pane by PLACEMENT). A readout definition stays text wherever it is drawn.
+ * Opt-in through the component's `textChip` prop, which the legend sets from the
+ * chip's display target; a price-pane chip still collapses to a dot.
  *
- * ⛔ ON ITS OWN LINE, UNDER THE DOT ROW: `.chipBreak` (rendered by the legend
- * only when a text chip exists) is a zero-height full-width flex item ordered
- * between the dots and the text chips, so the wrap happens there and nowhere
- * else. Never folded into `+N` — the legend keeps it out of the fold count.
+ * ⛔ ONE ROW (decision B8): the text chips follow the dots, and the `+N` that
+ * folds the dots, on the same line (`order: 2` puts them after every order-0
+ * item), and wrap only when the line is genuinely full. A5a's forced line break
+ * (`.chipBreak`) is gone. Never folded into `+N` — the legend keeps them out of
+ * the fold count.
  *
  * ⛔ THE NAME TRUNCATES IN THE MIDDLE, NEVER THE VALUE: the stem ellipsizes, the
  * ` · SPY` tail and the number keep their width. Max width 168 px. The 44 px
  * tap target stays (the `.chip` phone rule's height and min-width). */
 .chipValStale { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
-.chipBreak { display: none; }
 @media (max-width: 640px) {
   .chip.chipText {
     display: inline-flex;
@@ -412,7 +414,28 @@
   .chipTextTail { flex: none; white-space: nowrap; }
   .chip.chipText .chipVal { flex: none; white-space: nowrap; }
   .chip.chipText.chipHidden { opacity: 1; color: var(--legend-ink-muted, var(--text-muted)); }
-  .chipBreak { display: block; order: 1; flex: 0 0 100%; height: 0; }
+}
+
+/* ── B8 · THE PHONE LEGEND'S HEIGHT FOLLOWS ITS CONTENT ─────────────────────
+ *
+ * ⚰️ Every chip on the phone is a 44 px box (the tap floor), so the dot row and
+ * the text-chip row each made the legend panel 44 px taller than the 18 px line
+ * of text they sit in: about 270 device px for four dots and one text chip.
+ *
+ * ⭐ THE TAP BOX KEEPS ITS 44 px; ITS LAYOUT FOOTPRINT DOES NOT. A negative block
+ * margin of half the difference lets the 44 px box overhang the line above and
+ * below (the legend is `pointer-events: none`, so the overhang only ever
+ * receives a touch that would otherwise have fallen through to the chart), and
+ * the flex line is as tall as its text. 18 px is the shell legend's line
+ * (11.5 px type at line-height 1.5, StockChart.module.css). Horizontal margins
+ * stay 0: neighbouring targets never overlap.
+ *
+ * Scoped to the phone chart shell, the one surface whose legend is a
+ * crosshair panel over the candles. */
+@media (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .chip {
+    margin-block: calc((18px - var(--tap-min)) / 2);
+  }
 }
 
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------

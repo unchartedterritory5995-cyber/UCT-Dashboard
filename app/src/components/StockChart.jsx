@@ -348,6 +348,12 @@ function paneRowPrimary(chips, chip) {
  *  the chips stay mounted. See that class's comment for the two reasons. */
 const CHIP_COLLAPSE_AT = 4
 
+/** The text-chip prop for a chip drawn outside the price pane whose definition
+ *  declares no readout (RSI, MACD, ATR, ...): text on the phone, with no short
+ *  name and no stale value — those two are a readout definition's (decision C4).
+ *  Frozen and shared, so every render spreads the same object. */
+const PANE_TEXT_CHIP = Object.freeze({ textChip: true })
+
 /**
  * One study-stack row's height, in px — the unit the geometric fold counts in.
  *
@@ -6154,6 +6160,18 @@ export default function StockChart({
    *  surface they have. A gear that opened nothing there would be worse than the
    *  inconsistency this change removes. */
   const handleChipSettings = useCallback((instanceId) => {
+    // ⭐ Decision C5 — ON THE PHONE SHELL THE MENU'S SETTINGS ROW OPENS THE SAME
+    // STUDY EDITOR A CHIP TAP OPENS. A readout chip's tap now opens this menu, so
+    // "Edit is one row away" has to land on the editor the tap used to give, not
+    // on the full Chart Settings modal. `onLegendStudyTap` is passed only by that
+    // shell, so every other surface keeps the routing below.
+    if (typeof onLegendStudyTap === 'function') {
+      const inst = (engineInstancesRef.current || []).find((i) => i && i.instanceId === instanceId)
+      if (inst && inst.defId) {
+        try { onLegendStudyTap({ kind: 'study', defId: inst.defId, instanceId }) } catch { /* noop */ }
+        return
+      }
+    }
     if (typeof onOpenSettings === 'function') {
       // ⭐⭐ `data:` — THE ONE CHANNEL, CLAIMED FOR CHART DATA (Track B ↔ Track A).
       // `ChartSettingsModal` already routes every deep link through the single
@@ -6170,7 +6188,7 @@ export default function StockChart({
       return
     }
     setSettingsInstanceId(instanceId)
-  }, [onOpenSettings])
+  }, [onOpenSettings, onLegendStudyTap])
 
   const chipHandlers = useMemo(() => (showDrawingTools ? {
     // ⚰️ `onToggleHidden` / `onOpenSettings` / `onRemove` USED TO BE HERE, one
@@ -6185,6 +6203,20 @@ export default function StockChart({
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
   } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
+  // ⭐ Decision C5 (2026-11-07) — on the phone shell a tap on a chip whose
+  // definition DECLARES A READOUT (UCT RS) opens the chip menu sheet, the same
+  // sheet a long-press opens: the readout is the at-a-glance read, and Edit is one
+  // row away in it. Every other chip keeps tap -> its study editor. Dropping
+  // `onBodyTap` is the whole switch: without it `IndicatorChip`'s body click is
+  // the menu door, with the menu-trigger semantics that go with it.
+  const chipReadoutHandlers = useMemo(() => (
+    chipHandlers && chipHandlers.onBodyTap ? { ...chipHandlers, onBodyTap: undefined } : chipHandlers
+  ), [chipHandlers])
+  const chipHandlersFor = (c) => (
+    chipReadoutHandlers !== chipHandlers && c && declaresReadout(engineRegistry.getDefinition(c.defId))
+      ? chipReadoutHandlers
+      : chipHandlers
+  )
 
   // Reset to the default present-day view (newest bar at LAST_CANDLE_POS). Extracted
   // to the component body so the right-click "Reset view" AND the floating
@@ -20280,12 +20312,20 @@ export default function StockChart({
         // Model Book, a pop-up, a gallery cell: one wrapping row of chips with a
         // fixed threshold. Legend V2 does not touch that surface; its own fold is
         // GEOMETRIC and is computed below.
-        // ⭐ Phase 2a (A5a) — A TEXT CHIP (a readout definition's: UCT RS) IS NEVER
-        // FOLDED. On the phone it is the only thing that names the bottom pane, so
-        // it sits on its own line under the dots and the fold counts only the
-        // others. With no readout chip on the chart `chipText` is all-false and
-        // the fold is exactly what it was.
-        const chipText = indChips.map((c) => declaresReadout(engineRegistry.getDefinition(c.defId)))
+        // ⭐ Phase 2a (A5a), generalised by decision C4 (2026-11-07) — A TEXT CHIP
+        // IS NEVER FOLDED. A chip is TEXT when its plot is drawn OUTSIDE the price
+        // pane (its own pane, a guest in another indicator's pane, the volume
+        // pane): the phone hides pane labels, and a dot cannot name a pane it does
+        // not touch. A readout definition (UCT RS) stays text wherever it is drawn,
+        // as A5a shipped it. Placement is asked of `chipPaneHost` — the authority
+        // the pane layout and the pane readouts already read — never of a defId.
+        // The fold counts only the price-pane chips: each text chip names a pane,
+        // and spec §7's budget of four was per pane in the first place. A chart
+        // with no pane indicator folds exactly as it did.
+        const chipText = indChips.map((c) => {
+          if (declaresReadout(engineRegistry.getDefinition(c.defId))) return true
+          try { return chipPaneHost(c) != null } catch { return false }
+        })
         const foldable = chipText.filter((t) => !t).length
         const overflow = !chipsExpanded && foldable > CHIP_COLLAPSE_AT
         const foldedFrom = overflow ? CHIP_COLLAPSE_AT : foldable
@@ -20680,7 +20720,7 @@ export default function StockChart({
                       /* ⭐ A9 / A8 — a readout definition's short name and its
                          muted last-known value; nothing for any other chip. */
                       {...(() => { const s = readoutSurfaceOf(c); return s ? { name: s.name, fallbackValue: s.fallback } : null })()}
-                      {...chipHandlers}
+                      {...chipHandlersFor(c)}
                     />
                   )
                 })}
@@ -20775,13 +20815,14 @@ export default function StockChart({
               key={`${c.instanceId}::${c.plotKey}`}
               chip={c}
               className={foldRank[i] >= foldedFrom ? chipStyles.chipFolded : undefined}
-              {...(chipText[i] ? readoutChipProps(c) : null)}
-              {...chipHandlers}
+              {...(chipText[i] ? (readoutChipProps(c) || PANE_TEXT_CHIP) : null)}
+              {...chipHandlersFor(c)}
             />
           ))}
-          {/* ⭐ A5a — the phone's line break before the text chips (zero height,
-              `display: none` above 640 px). Rendered only when one exists. */}
-          {chipText.some(Boolean) && <span className={chipStyles.chipBreak} aria-hidden="true" />}
+          {/* ⚰️ A5a's zero-height `.chipBreak` stood here and put the text chips on
+              a line of their own under the dots. Decision B8 (2026-11-07): the
+              phone legend is ONE row whose height follows its content, so the
+              text chips now follow the dots on the same line. */}
           {overflow && (
             <button type="button" className={chipStyles.chipMore}
               onClick={() => setChipsExpanded(true)}
