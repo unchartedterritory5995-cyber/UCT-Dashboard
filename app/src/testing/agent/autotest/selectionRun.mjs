@@ -83,7 +83,8 @@ mkdirSync(join(dir, 'shots'), { recursive: true })
 const known = new Set(loadManifest().map(c => c.name))
 const R = await startRelay({ groupOfAction })
 let page = null
-const { claimProfile, reapOrphans } = await import('./profileGuard.mjs')
+const { claimProfile, reapOrphans, freeProfile } = await import('./profileGuard.mjs')
+let hungOnce = false
 const reaped = reapOrphans()       // profiles a hard-killed earlier run left behind (its owner pid is gone)
 const ctx = { R, mock: true, acts, profile: claimProfile(runProfile()), onPage: (p) => { page = p } }
 const label = A.mutate ? `${MODE} MUTANT ${A.mutate}` : MODE
@@ -96,9 +97,12 @@ for (const req of picked) {
   const shotPath = held ? null : join(dir, 'shots', `${req.id}.png`)
   // a page that stops answering (a native dialog, a hung tab) fails its one request, never the run
   let timer
-  const hung = new Promise((resolve) => { timer = setTimeout(() => { page?.close().catch(() => {}); resolve({ evidence: { turns: [], crash: 'the page stopped answering' }, result: { pass: false, graded: 0, na: 0, checks: [{ name: 'the run reached the end', pass: false, detail: 'the page stopped answering', tag: 'crash' }] } }) }, 150000) })
-  const { evidence, result } = await Promise.race([runRequest({ ...ctx, shotPath }, req), hung])
+  const hung = new Promise((resolve) => { timer = setTimeout(() => { hungOnce = true; page?.close().catch(() => {}); resolve({ evidence: { turns: [], crash: 'the page stopped answering' }, result: { pass: false, graded: 0, na: 0, checks: [{ name: 'the run reached the end', pass: false, detail: 'the page stopped answering', tag: 'crash' }] } }) }, 150000) })
+  let { evidence, result } = await Promise.race([runRequest({ ...ctx, shotPath }, req), hung])
   clearTimeout(timer)
+  if (hungOnce) { hungOnce = false; const k = await freeProfile(ctx.profile); if (k) say(MODE, `killed ${k} stuck Chrome process(es) holding the run profile`) }
+  // a launch that failed because a stray Chrome still held the run profile: free it and try that one request once more
+  if (/chrome did not come up/.test(evidence.crash || '')) { const k = await freeProfile(ctx.profile); say(MODE, `retrying ${req.id} after "chrome did not come up" (freed ${k} stuck Chrome)`); ({ evidence, result } = await runRequest({ ...ctx, shotPath }, req)) }
   const row = rowOf(req, evidence, result, { mode: MODE, known })
   const rec = evidence.target ? { clicked: evidence.target.clicked, intended: evidence.target.intended, landed: evidence.target.landed, told: evidence.target.told, modelCalls: evidence.target.modelCalls } : null
   if (req.negative) {

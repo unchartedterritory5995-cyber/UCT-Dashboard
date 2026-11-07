@@ -111,7 +111,7 @@ export function workspace(L) {
   H('howto', 'how would I change the chart background', guide('canvas'), walk([{ target: 'chart.settings', text: 'gear', act: 'click' }, { target: 'chartSettings.tab.canvas', text: 'Open Canvas', act: 'Done' }]))
   H('howto', 'show me how to add a chart to my board', guide('charts'), walk([{ target: 'workspace.widgets', text: 'Open Widgets', act: 'click' }, { target: 'workspace.widgets.chart', text: 'Click Chart', act: 'Done' }]))
   H('howto', 'teach me how to create a new watchlist', guide('watchlistCreate'), walk([{ target: 'workspace.widgets', text: 'Open Widgets', act: 'click' }, { target: 'workspace.widgets.watchlist', text: 'Click Watchlist', act: 'click' }], { expect: [['types', 'has', 'watchlist']] }, true), { board: 'GAP', select: null, browserOnly: true, unverifiable: ['the rest of the create flow is walked by the guide suite: this checks the first two rings and clicks'] })
-  H('howto', 'where do I save a layout', guide('layouts'), walk([{ target: 'workspace.layouts', text: 'saved layouts', act: 'next' }], {}, true), { select: null })
+  H('howto', 'where do I save a layout', guide('layoutSave'), walk([{ target: 'workspace.layoutsMenuBtn', text: 'Open Layouts', act: 'click' }], {}, true), { select: null })
   H('unsupported', 'how do I connect my broker', [], answers(), { turns: [say('how do I connect my broker', answer('UCT does not connect to a broker.'))], select: null })
 
   const X = family(L, 'explain', { inv: ['C2-002'], select: null })

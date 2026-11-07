@@ -80,3 +80,19 @@ export function census(root = tmpdir()) {
   try { names = readdirSync(root) } catch { return [] }
   return names.filter(n => PREFIXES.some(p => n.startsWith(p))).filter(n => { try { return statSync(join(root, n)).isDirectory() } catch { return false } })
 }
+
+/** How many Chrome processes hold `dir` as their profile. */
+export function chromeOn(dir) {
+  if (process.platform !== 'win32') return 0
+  const r = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', `@(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('${dir.replace(/'/g, "''")}') }).Count`], { encoding: 'utf8', timeout: 20000 })
+  return Number(String(r.stdout).trim()) || 0
+}
+
+/** After a hung request: this run's own Chrome may still hold the shared run profile (a hang before the page object existed has
+ *  nothing to close), and the next launch then fails with "chrome did not come up". Kill whatever holds it. → Chromes killed. */
+export async function freeProfile(dir) {
+  const n = chromeOn(dir)
+  if (!n) return 0
+  for (let i = 0; i < 5 && chromeOn(dir); i++) { killChromeOn(dir); await new Promise(r => setTimeout(r, 1000)) }
+  return n
+}

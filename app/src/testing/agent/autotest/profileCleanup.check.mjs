@@ -5,11 +5,12 @@
 // Cases: a normal exit, an uncaught crash, a per-launch profile closed by the rig, and a HARD kill of the node process (no handler
 // can run): the hard kill leaves the profile and its Chrome, and the next run's reapOrphans() must remove both.
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { reapOrphans, census, PREFIXES, MARK_PREFIX } from './profileGuard.mjs'
+import { reapOrphans, census, PREFIXES, MARK_PREFIX, freeProfile, claimProfile } from './profileGuard.mjs'
+import { runProfile, launch } from '../../../econHarness/cdp.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
@@ -55,6 +56,20 @@ for (const how of ['exit', 'crash', 'own']) for (let i = 0; i < REPS; i++) {
   await sleep(500)
   const left = newDirs(before)
   results.push({ case: 'hard-kill then reap', strandedDir, strandedChrome, reaped: reaped.length, dirGone: !existsSync(r.info.profile), chromeLeft: chromeOn(r.info.profile), newProfileFolders: left.length, pass: strandedDir && reaped.includes(r.info.profile) && !existsSync(r.info.profile) && chromeOn(r.info.profile) === 0 && left.length === 0, marksLeft: marks().length })
+}
+{
+  // a hung request whose page object is lost: its Chrome still holds the shared run profile. freeProfile must kill it, and the
+  // next launch on the same profile must come up (it used to fail with "chrome did not come up")
+  const prof = claimProfile(runProfile())
+  const stuck = await launch({ width: 400, height: 300, profile: prof })
+  await stuck.evaluate('1')
+  const held = chromeOn(prof)
+  const killed = await freeProfile(prof)
+  const heldAfter = chromeOn(prof)
+  let relaunched = false
+  try { const again = await launch({ width: 400, height: 300, profile: prof }); relaunched = (await again.evaluate('1 + 1')) === 2; await again.close() } catch { /* */ }
+  rmSync(prof, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 })
+  results.push({ case: 'hung page frees the shared profile', held, killed, heldAfter, relaunched, pass: held > 0 && heldAfter === 0 && relaunched })
 }
 const after = census()
 const sweepMisses = results.filter(r => r.goneByOwnSweep === false).map(r => r.case)
