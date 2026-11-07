@@ -633,7 +633,9 @@ function resolveCreate({ instance, plot, condition, threshold, crossWith = null,
   // ⭐ round 3 (pl-exec): a level the indicator can never reach is refused, from the indicator's OWN declared range (its
   // definition's fixed pane scale: RSI 0-100, Williams %R -100-0, CMO -100-100…), never a per-indicator list
   const range = cond.needs_threshold ? valueRangeOf(found.inst) : null
-  if (range && (threshold < range.min || threshold > range.max)) return { why: `${plotLabel(p)} moves between ${range.min} and ${range.max}, so ${threshold} can never be reached — nothing was created. Say a level from ${range.min} to ${range.max}.` }
+  // at the ends the bound is EXCLUSIVE for a level that has to be passed: RSI can never go above 100 or below 0
+  const upward = /^(?:above|cross_above)$/.test(condition), downward = /^(?:below|cross_below)$/.test(condition)
+  if (range && (threshold < range.min || threshold > range.max || (upward && threshold >= range.max) || (downward && threshold <= range.min))) return { why: `${plotLabel(p)} moves between ${range.min} and ${range.max}, so ${threshold} can never be reached — nothing was created. Say a level from ${range.min} to ${range.max}.` }
   let cross = null
   if (isCrossPlot(p)) {
     cross = resolveCross(found, crossWith, condition)
