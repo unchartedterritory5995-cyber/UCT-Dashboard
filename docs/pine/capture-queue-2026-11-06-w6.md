@@ -49,3 +49,17 @@ Note for the reviewer: `array.mode`'s reference entry does state a tie rule ("it
 breakdown keeps it refused until W6-A1 (review B3), so M01 confirms the sentence before it is served.
 `array.sort_indices` on text, and its `na` ordering, are served on master (a pre-W6 choice: JavaScript string order,
 `na` sinks); T01-T08 and S03-S04 measure them, and W6-T5 does not change them (it would move the live C18 door).
+
+## W6-E1: enum value and text rules (W6-T10, branch `feat/pine-w6-t10-enum`)
+
+Authorities read 2026-11-06: Pine manual *Enums* (`https://www.tradingview.com/pine-script-docs/language/enums/`) and the
+v6 reference entries for the keyword `enum` and `input.enum` (through `tools/pine_survey/pine_reference_extract.js`).
+They state the served shapes (rail `app/src/components/chart/engine/runtime/__tests__/w6Enum.test.js`): fields with an
+optional `const string` title (a missing title is the field's name), each field a unique member, `E.field` bound,
+compared with `==` / `!=`, used in `switch`; `input.enum(defval, ...)` with an `options` tuple that must hold `defval`.
+The manual also says `str.tostring()` returns a field's title and that an enum variable accepts `na`; the breakdown
+keeps both refused until this row is read, so the sentences are confirmed before they serve.
+
+| id | probe | chart | question | engine today |
+|---|---|---|---|---|
+| W6-E1 | `tools/visual_conformance/probes/vw-w6-enum.pine` rows T01-T03, E01, N01-N04, I01, K01 | AMEX:SPY 1D | `str.tostring` of a titled field, an untitled field, and two fields sharing a title (title or name?); two same-title fields compared with `==`; an `na` enum value: `na(m)`, `m == E.a`, the arm a `switch` on it takes, `str.tostring(m)`; `input.enum` at its default; an enum as a `map` key | `str.tostring(e)`, every `na` enum shape and a member-set `input.enum` stop at build by name (`runtime:enum`, "... kept refused until capture W6-E1"); the `input.enum` default serves; a `map` key refuses by name (`runtime:enum`, an enum as a call argument; `map.*` is T8's). No census script reaches an enum today (breakdown section 0, finding 5) |

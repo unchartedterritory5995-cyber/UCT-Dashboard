@@ -97,6 +97,9 @@ const SHAPES = {
     'v = f(close > open) + k * 0\n'],
   forin_udt: ['', true, 'type P\n    float p\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(2))\n',
     's = 0.0\nfor q in ps\n    s += q.p\nv = s + close * 0 + k * 0\n'],
+  // W6-T10: an `enum` and a comparison of its fields over state. No enum arm exists at the
+  // door (the registry is empty there), so the door keeps master's own refusal of the line.
+  enum_eq: ['', false, 'enum E\n    a\n    b = "B"\n', 'm = close + k * 0 > open ? E.a : E.b\nv = m == E.a ? 1 : 0\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {
