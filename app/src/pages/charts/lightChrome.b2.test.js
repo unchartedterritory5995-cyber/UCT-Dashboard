@@ -83,6 +83,17 @@ describe('B2: a /charts chart widget\'s chrome follows the light page', () => {
     expect(bar[0].get('background')).toBe('var(--pg-bg-elevated)')
   })
 
+  it('a bottom-docked header over a gradient cannot keep its canvas inks: every var WidgetHost sets inline is !important here', () => {
+    // review, 2026-11-07: inline custom properties beat a class, so without this the bar
+    // went white while its tab labels kept the dark canvas's light grey
+    const src = read('pages/charts/WidgetHost.jsx')
+    const inline = [...src.slice(src.indexOf('const headerStyle'), src.indexOf('const addMenuTheme'))
+      .matchAll(/'(--widget-[\w-]+)'/g)].map((m) => m[1])
+    expect(inline.length, 'the inline header vars were found').toBeGreaterThan(4)
+    const bar = rules(WS).filter(([sels]) => sels.length === 1 && sels[0] === DRAG_BAR).map(([, b]) => decls(b))[0]
+    for (const t of new Set(inline)) expect(bar.get(t), t).toMatch(/^var\(--pg-[\w-]+\)\s*!important$/)
+  })
+
   it('every token the dark block re-asserts is pointed back at the page, through its --pg- twin', () => {
     const darkened = [...DARK_BLOCK.keys()].filter((k) => k.startsWith('--'))
     expect(darkened.length).toBeGreaterThan(30)

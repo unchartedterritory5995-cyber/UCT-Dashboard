@@ -66,6 +66,7 @@ import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
 import { etDayOf, snapSyncedBar } from './chart/crosshairSync'
 import useMarketOpen from '../hooks/useMarketOpen'
+import { useIsPhone } from '../hooks/useBreakpoint'
 import { getExtSessionCached, anchorNoonSec } from '../utils/extSession'
 import useSessionExtBars from '../hooks/useSessionExtBars'
 import EarningsMarkerPopover from './chart/EarningsMarkerPopover'
@@ -6159,6 +6160,34 @@ export default function StockChart({
    *  pass no `onOpenSettings`, and that per-instance dialog is the only settings
    *  surface they have. A gear that opened nothing there would be worse than the
    *  inconsistency this change removes. */
+  // ⭐ Decision C4's surface (review, 2026-11-07): pane chips become text only on
+  // the phone chart shell (`onLegendStudyTap` is passed by that shell alone) at
+  // phone width, the one place the pane labels are hidden. Desktop inline legends
+  // (Model Book, pop-out, gallery cells) keep their fold and colours, and a
+  // phone-width surface that still shows its pane labels never names a pane twice.
+  // The width read is safe here: the shell does not resize between phone and wider.
+  const isPhoneWidth = useIsPhone()
+  const paneTextChips = typeof onLegendStudyTap === 'function' && isPhoneWidth
+  // ⭐ B8 vs the tap floor (review, 2026-11-07). On the phone shell each chip's
+  // 44 px tap box overhangs its 18 px line (IndicatorChip.module.css), which is
+  // only safe while the chips sit on ONE line: a wrapped second line's boxes would
+  // cover the first line's chips. After every render this marks the legend when
+  // its chips occupy more than one line, and the stylesheet then gives each line
+  // its full 44 px. A DOM attribute, not state: no re-render, no loop.
+  useLayoutEffect(() => {
+    const el = legendRef.current
+    if (!el || !paneTextChips) return
+    const tops = new Set()
+    for (const c of el.querySelectorAll('[data-instance-id]')) {
+      if (c.offsetParent === null) continue
+      tops.add(Math.round(c.offsetTop / 6))
+    }
+    const wrapped = tops.size > 1
+    if (wrapped !== el.hasAttribute('data-chips-wrapped')) {
+      if (wrapped) el.setAttribute('data-chips-wrapped', '')
+      else el.removeAttribute('data-chips-wrapped')
+    }
+  })
   const handleChipSettings = useCallback((instanceId) => {
     // ⭐ Decision C5 — ON THE PHONE SHELL THE MENU'S SETTINGS ROW OPENS THE SAME
     // STUDY EDITOR A CHIP TAP OPENS. A readout chip's tap now opens this menu, so
@@ -20386,6 +20415,7 @@ export default function StockChart({
         // with no pane indicator folds exactly as it did.
         const chipText = indChips.map((c) => {
           if (declaresReadout(engineRegistry.getDefinition(c.defId))) return true
+          if (!paneTextChips) return false
           try { return chipPaneHost(c) != null } catch { return false }
         })
         const foldable = chipText.filter((t) => !t).length

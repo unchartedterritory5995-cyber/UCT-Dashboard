@@ -651,3 +651,23 @@ def test_fast_map_accepts_the_cached_rank_map_shape_and_bare_ints():
     assert rh._fast_for({"AAA": 12}, "AAA") == 12
     assert rh._fast_for({"AAA": {"rs_rank": None}}, "AAA") is None
     assert rh._fast_for({}, "AAA") is None and rh._fast_for(None, "AAA") is None
+
+
+def test_backfill_writes_nothing_while_too_many_split_lists_are_unknown(tmp_db, tmp_path, provider):
+    """Review, 2026-11-07: a written session is never rewritten, so names rated
+    without their split list would stay unguarded for good. The run refuses,
+    says how many lists are unknown, and is simply run again later."""
+    end = date(2026, 11, 5)
+    base = [100.0] * 297
+    names = [f"N{i}" for i in range(8)]
+    reader = make_reader({n: base + [101.0 + i, 102.0, 103.0] for i, n in enumerate(names)}, end)
+    r = rh.backfill(days=3, universe=names, etf_tickers=set(), bars_reader=reader,
+                    sessions=[date(2026, 11, 3), date(2026, 11, 4), end], data_dir=str(tmp_path))
+    assert r["ok"] is False and r["note"]["reason"] == "split_lists_unknown"
+    assert r["note"]["split_lists_unknown"] == 8 and r["note"]["split_lists_unknown_allowed"] == 5
+    assert r["rows"] == 0 and r["note"]["sessions_written"] == 0
+    # answered, the same command writes the year
+    provider["answers"].update({n: [] for n in names})
+    again = rh.backfill(days=3, universe=names, etf_tickers=set(), bars_reader=reader,
+                        sessions=[date(2026, 11, 3), date(2026, 11, 4), end], data_dir=str(tmp_path))
+    assert again["ok"] and again["note"]["sessions_written"] == 3

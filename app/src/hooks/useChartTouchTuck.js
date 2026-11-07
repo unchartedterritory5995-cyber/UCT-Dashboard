@@ -25,7 +25,10 @@ export const CHART_TOUCH_IDLE_MS = 1100
 /** A press on one of the chart's own CONTROLS (a legend chip, the back-to-live
  *  chip, a toolbar button) is not "touching the chart": it opens something, and
  *  hiding the buttons for it would only make them flicker. */
-const CONTROL_SELECTOR = 'button, a[href], input, select, textarea, [role="button"], [role="menuitem"], [contenteditable="true"]'
+//  ⭐ `[data-instance-id]` names every legend chip (review, 2026-11-07): a chip
+//  that taps through to the study editor (`onBodyTap`) carries no button role, so
+//  without it a tap on RSI or MACD hid the buttons while the editor opened.
+const CONTROL_SELECTOR = 'button, a[href], input, select, textarea, [role="button"], [role="menuitem"], [contenteditable="true"], [data-instance-id]'
 
 /**
  * While a touch or pen pointer is down inside `ref`'s element — and for

@@ -17,6 +17,8 @@ function Harness({ enabled = true, idleMs }) {
       <canvas data-testid="canvas" />
       <button type="button" data-testid="chip">RSI(14)</button>
       <span role="button" data-testid="legend-chip">MACD</span>
+      {/* a phone chip that taps through to the editor: no role, only the chip's id */}
+      <span data-instance-id="inst:rsi:1" data-testid="tap-chip"><span data-testid="tap-chip-label">RSI(14) 54.3</span></span>
     </div>
   )
 }
@@ -99,6 +101,9 @@ describe('B3 · the chart-touch tuck', () => {
     down(getByTestId('chip'))
     expect(tucked()).toBe(false)
     down(getByTestId('legend-chip'), { pointerId: 3 })
+    expect(tucked()).toBe(false)
+    // review, 2026-11-07: a chip with no button role (onBodyTap), pressed on its label
+    down(getByTestId('tap-chip-label'), { pointerId: 5 })
     expect(tucked()).toBe(false)
     // …and the control: the same finger on the canvas does tuck
     down(getByTestId('canvas'), { pointerId: 4 })

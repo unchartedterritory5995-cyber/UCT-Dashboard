@@ -142,6 +142,19 @@ describe('the stylesheet — phone text chip, 168 px, 6 px dot, one row, no tap 
     // and the base phone `.chip` rule still declares the 44 px box
     expect(CSS).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.chip\s*\{[^}]*\bheight:\s*var\(--tap-min\)/)
   })
+  it('B8 — once the chips wrap, each line takes the full tap floor, so no two targets overlap (review, 2026-11-07)', () => {
+    const at = CSS.indexOf(':global(html[data-mobile-chart-shell] [data-chips-wrapped]) .chip')
+    expect(at, 'the wrapped rule').toBeGreaterThan(-1)
+    expect(CSS.slice(CSS.lastIndexOf('@media', at), at)).toMatch(/^@media \(max-width: 640px\)/)
+    expect(/\{([^}]*)\}/.exec(CSS.slice(at))[1]).toMatch(/margin-block:\s*0/)
+    // it comes AFTER the overhang rule, so it wins: same block, one more attribute
+    expect(at).toBeGreaterThan(CSS.indexOf(':global(html[data-mobile-chart-shell]) .chip'))
+    // and StockChart is what marks a wrapped legend, measured after each render
+    const src = readFileSync(path.join(HERE, '..', '..', 'StockChart.jsx'), 'utf8')
+    expect(src).toMatch(/setAttribute\('data-chips-wrapped', ''\)/)
+    expect(src).toMatch(/removeAttribute\('data-chips-wrapped'\)/)
+  })
+
   it('⛔ no class in this file contains "legend" (the export-route hide)', () => {
     expect(CSS.match(/\.[A-Za-z][\w-]*/g).filter((c) => /legend/i.test(c))).toEqual([])
   })

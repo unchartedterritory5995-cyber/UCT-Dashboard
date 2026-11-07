@@ -799,3 +799,28 @@ def test_package_imports_its_maths_from_relative_strength_only():
     sig_src = (PKG / "signals.py").read_text(encoding="utf-8")
     assert "rs.compute_phase1_columns(" in sig_src and "rs.compute_mansfield_columns(" in sig_src, \
         "the positive control: the signal columns ARE the compute functions' output"
+
+
+def test_lists_left_unknown_by_the_nightly_budget_keep_sessions_open_until_answered(tmp_path, provider):
+    """Review, 2026-11-07: a `done` pair is never asked for again, so closing
+    sessions over names this run could not look up (budget spent) made the split
+    guard a one-shot. They stay open, and close on the night the lists are known."""
+    ts, series = _universe_500()
+    db = str(tmp_path / "ev.db")
+    provider["answers"]["A"] = []
+    first = ev.run(db=db, sessions=300, bars_reader=make_reader(series, ts), universe=["A", "B"],
+                   delisted_fn=lambda a, b: None, split_fetch_budget=1)
+    assert first["ok"] and first["split_unchecked"] == 1 and first["split_lists"]["budget_exhausted"] is True
+    assert first["split_guard_pending"] is True and first["pairs_done"] == 0
+    provider["answers"]["B"] = []
+    second = ev.run(db=db, sessions=300, bars_reader=make_reader(series, ts), universe=["A", "B"],
+                    delisted_fn=lambda a, b: None)
+    assert second["ok"] and second["split_unchecked"] == 0 and second["split_guard_pending"] is False
+    assert second["pairs_done"] > 0
+
+
+def test_a_name_the_provider_refuses_does_not_hold_sessions_open_forever(tmp_path, provider):
+    ts, series = _universe_500()
+    r = ev.run(db=str(tmp_path / "ev.db"), sessions=300, bars_reader=make_reader(series, ts), universe=["A", "B"],
+               delisted_fn=lambda a, b: None)
+    assert r["split_unchecked"] == 2 and r["split_guard_pending"] is False and r["pairs_done"] > 0

@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 import time
 from typing import Callable, Optional
@@ -58,6 +59,11 @@ DEFAULT_FETCH_BUDGET = 600
 
 #: Seconds between provider calls: the split sweep's politeness pause, not a rate limit.
 FETCH_PAUSE_S = 0.05
+#: Seconds one reader may spend waiting for `bars_sanitize`'s refusal brake to reopen
+#: over a whole run (the brake's own cap is 600 s per pause).
+MAX_GATE_WAIT_S = 900.0
+#: How often a waiting reader looks at the brake again.
+GATE_POLL_S = 5.0
 
 _SQL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (
@@ -81,6 +87,11 @@ def _meta_ttl() -> float:
 def _default_fetch(ticker: str) -> dict:
     from api.services import bars_sanitize as san
     return san._fetch_meta(ticker)
+
+
+#: The built-in fetcher, captured at import: only IT needs FMP_API_KEY (a test or a
+#: caller that swaps the fetcher brings its own provider).
+_BUILTIN_FETCH = _default_fetch
 
 
 def _default_cache_get(ticker: str):
@@ -124,13 +135,32 @@ class DeclaredSplits:
                  persist: bool = True, fetch: Optional[Callable] = None,
                  cache_get: Optional[Callable] = None, cache_set: Optional[Callable] = None,
                  gate=None, now: Callable[[], float] = time.time,
-                 sleep: Callable[[float], None] = time.sleep, ttl: Optional[float] = None):
+                 sleep: Callable[[float], None] = time.sleep, ttl: Optional[float] = None,
+                 max_wait_s: float = MAX_GATE_WAIT_S, share_cache: bool = False,
+                 has_key: Optional[bool] = None):
         self.conn = conn
         self.persist = bool(persist and conn is not None)
         self.budget = None if budget is None else max(0, int(budget))
         self._fetch = fetch or _default_fetch
+        uses_builtin = self._fetch is _BUILTIN_FETCH
         self._cache_get = cache_get or _default_cache_get
-        self._cache_set = cache_set or _default_cache_set
+        # ⭐ A BATCH READER DOES NOT FILL THE SHARED APP CACHE by default (review,
+        # 2026-11-07): up to 600 split lists written at 04:15 ET evicted news, snapshot
+        # and bars entries from the 1,000-entry cache before the open. Its own memo
+        # table is the batch store; an injected `cache_set` (tests) or
+        # `share_cache=True` restores the write.
+        self._cache_set = cache_set or (_default_cache_set if share_cache else None)
+        # ⭐ NO KEY IS SAID ONCE, NOT DISCOVERED 600 TIMES. With the default fetcher
+        # and no FMP_API_KEY every call fails, closes the shared brake and leaves
+        # every name unknown; the run says so in `stats["no_key"]` instead.
+        self._has_key = (bool(os.environ.get("FMP_API_KEY")) if uses_builtin else True)             if has_key is None else bool(has_key)
+        # ⭐ A CLOSED BRAKE IS WAITED OUT, within `max_wait_s` per run (review,
+        # 2026-11-07). The brake pauses 30 s and doubles to 600 s; a loop that only
+        # reads SQLite between names finished the other ~3,000 names inside ONE
+        # pause, every one "unknown". Waiting keeps the guard real; the cap keeps a
+        # provider outage from holding the 04:15 job past its window.
+        self._max_wait = max(0.0, float(max_wait_s))
+        self._waited = 0.0
         self._gate = gate
         self._now = now
         self._sleep = sleep
@@ -138,7 +168,10 @@ class DeclaredSplits:
         self._memo: dict = {}
         self._seen: dict = {}
         self.stats = {"memo": 0, "cache": 0, "fetched": 0, "fetch_failed": 0, "stale_memo": 0,
-                      "unknown": 0, "budget": self.budget}
+                      "unknown": 0, "budget": self.budget, "gate_wait_s": 0.0, "no_key": not self._has_key,
+                      # "unknown because THIS run ran out" (a later run can answer),
+                      # as opposed to a name the provider refused
+                      "budget_exhausted": False, "gate_wait_capped": False}
         if self.conn is not None:
             self._load()
 
@@ -173,14 +206,32 @@ class DeclaredSplits:
     def _budget_left(self) -> bool:
         return self.budget is None or self.stats["fetched"] + self.stats["fetch_failed"] < self.budget
 
+    def _wait_for_gate(self, is_open) -> bool:
+        """True once the brake is open; waits in short steps while this run's wait
+        allowance lasts. An unreadable brake is a closed one."""
+        while True:
+            try:
+                if is_open():
+                    return True
+            except Exception:                        # noqa: BLE001
+                return False
+            left = self._max_wait - self._waited
+            if left <= 0:
+                self.stats["gate_wait_capped"] = True
+                return False
+            step = min(GATE_POLL_S, left)
+            self._sleep(step)
+            self._waited += step
+            self.stats["gate_wait_s"] = round(self._waited, 1)
+
     def _ask_provider(self, ticker: str):
+        if not self._has_key:
+            return None
         if not self._budget_left():
+            self.stats["budget_exhausted"] = True
             return None
         is_open, note_failure, note_success = self._gate or _default_gate()
-        try:
-            if not is_open():
-                return None
-        except Exception:                            # noqa: BLE001 - an unreadable brake is a closed one
+        if not self._wait_for_gate(is_open):
             return None
         try:
             meta = self._fetch(ticker)
@@ -198,10 +249,11 @@ class DeclaredSplits:
             pass
         self.stats["fetched"] += 1
         splits = _clean((meta or {}).get("splits"))
-        try:
-            self._cache_set(ticker, meta if isinstance(meta, dict) else {"ipo": None, "splits": splits})
-        except Exception:                            # noqa: BLE001
-            pass
+        if self._cache_set is not None:
+            try:
+                self._cache_set(ticker, meta if isinstance(meta, dict) else {"ipo": None, "splits": splits})
+            except Exception:                        # noqa: BLE001
+                pass
         self._remember(ticker, splits)
         if FETCH_PAUSE_S:
             self._sleep(FETCH_PAUSE_S)

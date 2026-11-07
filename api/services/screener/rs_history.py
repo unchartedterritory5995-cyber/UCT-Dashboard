@@ -138,6 +138,12 @@ BACKFILL_DAYS = 252
 #: The deepest backfill one command accepts: five trading years. A typo of an
 #: extra digit is refused rather than read as a 25-year universe-as-held history.
 BACKFILL_MAX_DAYS = 5 * BACKFILL_DAYS
+#: The backfill writes nothing while more split lists than this are unknown: the
+#: larger of a small floor and a share of the names read (review, 2026-11-07). A
+#: session it writes is never rewritten, so a name rated unguarded there stays
+#: unguarded; a run refused for this is simply run again once the provider answers.
+BACKFILL_UNKNOWN_SPLITS_FLOOR = 5
+BACKFILL_UNKNOWN_SPLITS_SHARE = 0.01
 
 RATING_COLUMNS = ("ibd", "m1", "m3", "m6", "m12")
 ROW_COLUMNS = ("ibd", "fast", "m1", "m3", "m6", "m12", "score", "bars")
@@ -877,7 +883,9 @@ def backfill(days: int = BACKFILL_DAYS, *, universe=None, data_dir=None, bars_re
         note = receipt["note"]
         note["sessions_remaining"] = remaining
         receipt["ok"] = note["sessions_rated"] >= max(1, len(todo) // 2)
-        if not receipt["ok"]:
+        if note.get("reason") == "split_lists_unknown":
+            receipt["ok"] = False
+        elif not receipt["ok"]:
             note["reason"] = "too_few_sessions_rated"
         elif not dry_run and remaining == 0:
             note["marker_written"] = _write_marker(
@@ -926,6 +934,19 @@ def _backfill_sessions(receipt, conn, keys, todo, *, universe, etf_tickers, bars
     lists = _split_stats(splits_reader)
     if lists is not None:
         note["split_lists"] = lists
+    unknown = note["split_basis"]["unknown"]
+    allowed = max(BACKFILL_UNKNOWN_SPLITS_FLOOR, int(len(series) * BACKFILL_UNKNOWN_SPLITS_SHARE))
+    if not dry_run and unknown > allowed:
+        # ⛔ WRITE NOTHING RATHER THAN A YEAR OF UNGUARDED ROWS (review, 2026-11-07).
+        # A written session is skipped by every later run, so names rated without a
+        # split list here would never be judged again. Run the command again when the
+        # provider answers; `split_lists.no_key` says when the key is the reason.
+        note["reason"] = "split_lists_unknown"
+        note["split_lists_unknown"] = unknown
+        note["split_lists_unknown_allowed"] = allowed
+        log.warning("[rs_history] backfill wrote nothing: %d split lists unknown (allowed %d)%s",
+                    unknown, allowed, " - FMP_API_KEY is not set" if (lists or {}).get("no_key") else "")
+        return
     if not dry_run:
         ensure_schema(conn)
     for n, key in enumerate(todo, 1):

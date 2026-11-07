@@ -487,10 +487,22 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
                 receipt[k] = stats[k]
             lists = getattr(split_reader, "stats", None)
             receipt["split_lists"] = dict(lists) if isinstance(lists, dict) else None
+            # ⭐ AN UNKNOWN SPLIT LIST KEEPS THE SESSION OPEN while the provider can
+            # still answer (review, 2026-11-07). A `done` pair is never asked for
+            # again, so closing sessions over names measured unguarded made N5 a
+            # one-shot: the first run's 600-list budget guarded ~600 of ~3,700
+            # names forever. Open, they are re-measured each night as the memo
+            # fills. Only a list left unknown because THIS run ran out of fetches or
+            # of brake wait keeps them open: a later night can answer that. A name
+            # the provider refused, or a missing key (`split_lists.no_key`), would
+            # hold them open forever, so those close as before and stay counted.
+            guard_pending = bool(stats["split_unchecked"]) and isinstance(lists, dict) and (
+                bool(lists.get("budget_exhausted")) or bool(lists.get("gate_wait_capped")))
+            receipt["split_guard_pending"] = guard_pending
             if not dry_run:
                 marks: Dict[Tuple[int, str], Tuple[str, int]] = {}
                 for s, ks in wanted.items():
-                    status = S.DONE if completable[s] else S.OPEN
+                    status = S.DONE if completable[s] and not guard_pending else S.OPEN
                     for k in ks:
                         marks[(s, k)] = (status, pair_rows.get((s, k), 0))
                         receipt["pairs_done" if status == S.DONE else "pairs_open"] += 1

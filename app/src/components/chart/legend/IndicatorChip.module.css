@@ -436,6 +436,13 @@
   :global(html[data-mobile-chart-shell]) .chip {
     margin-block: calc((18px - var(--tap-min)) / 2);
   }
+  /* ⛔ …BUT ONLY ON ONE LINE (review, 2026-11-07). Once the chips wrap, an
+     overhanging box on line two covers the chips of line one, and a tap lands on
+     the wrong indicator. StockChart marks a wrapped legend; its lines then take
+     the full tap floor, so no two targets overlap. */
+  :global(html[data-mobile-chart-shell] [data-chips-wrapped]) .chip {
+    margin-block: 0;
+  }
 }
 
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------

@@ -343,8 +343,12 @@ def _start_combined_pass():
 
 # ── UCT RS evidence job (WORKER, dark): a nightly SUBPROCESS at 21:30 ET ─────────
 # Engineering map docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md,
-# unit 2b-02. The job itself is `python -m api.services.rs_evidence` (unit 2b-01); it
-# reads NO environment variable, so everything it needs travels on argv, built here.
+# unit 2b-02. The job itself is `python -m api.services.rs_evidence` (unit 2b-01); its
+# settings travel on argv, built here. ⚠️ ONE ENVIRONMENT VARIABLE IS READ: the split
+# guard (decision N5, 2026-11-07) asks FMP for declared split lists through
+# `bars_sanitize._fetch_meta`, which reads `FMP_API_KEY` from the inherited environment.
+# Without it every list is unknown, the guard checks nothing, and the artifact's
+# `split_lists.no_key` says so. The worker service needs the key before arming.
 RS_EVIDENCE_FIRE_ET = (21, 30)
 """HH:MM America/New_York of the nightly pass. After the bars day is settled (the
 worker's daily store is final by the evening) and clear of the worker's overnight

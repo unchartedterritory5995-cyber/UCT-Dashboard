@@ -156,3 +156,56 @@ def test_the_defaults_are_bars_sanitizes_own_fetcher_cache_and_lifetime(monkeypa
 def test_malformed_split_entries_are_dropped(bad):
     r, _, _, _ = _reader(cache={"A": {"splits": bad}})
     assert r("A") == []
+
+
+# ── review fixes, 2026-11-07 ──────────────────────────────────────────────────
+
+def test_a_closed_brake_is_waited_out_and_the_name_is_then_asked():
+    """One refusal closes the shared brake for 30 s or more; the loop between names
+    is milliseconds, so a reader that gave up at once left the rest of the run unknown."""
+    brake = Brake(open_=False)
+    slept = []
+
+    def sleep(s):
+        slept.append(s)
+        if sum(slept) >= 30:
+            brake.open = True
+
+    prov = Provider({"AAA": [("2026-06-18", 0.5)]})
+    r = ds.DeclaredSplits(None, budget=10, fetch=prov, cache_get={}.get, gate=brake.gate(),
+                          now=lambda: 1.0, sleep=sleep, ttl=DAY)
+    assert r("AAA") == [("2026-06-18", 0.5)] and prov.asked == ["AAA"]
+    assert r.stats["gate_wait_s"] == 30.0 and r.stats["unknown"] == 0
+
+
+def test_the_wait_is_capped_per_run_then_names_are_unknown_and_counted():
+    brake = Brake(open_=False)
+    prov = Provider({"AAA": [], "BBB": []})
+    r = ds.DeclaredSplits(None, budget=10, fetch=prov, cache_get={}.get, gate=brake.gate(),
+                          now=lambda: 1.0, sleep=lambda s: None, ttl=DAY, max_wait_s=20)
+    assert r("AAA") is None and r("BBB") is None and prov.asked == []
+    assert r.stats["gate_wait_s"] == 20.0 and r.stats["unknown"] == 2, "the allowance is per run, not per name"
+
+
+def test_no_provider_key_asks_nothing_and_says_so(monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    called = []
+    monkeypatch.setattr(ds, "_BUILTIN_FETCH", lambda t: called.append(t) or {"splits": []})
+    monkeypatch.setattr(ds, "_default_fetch", ds._BUILTIN_FETCH)
+    r = ds.DeclaredSplits(None, budget=10, cache_get={}.get, gate=Brake().gate(), sleep=lambda s: None)
+    assert r("AAA") is None and called == []
+    assert r.stats["no_key"] is True and r.stats["unknown"] == 1
+    monkeypatch.setenv("FMP_API_KEY", "k")
+    assert ds.DeclaredSplits(None, cache_get={}.get).stats["no_key"] is False
+
+
+def test_a_batch_reader_does_not_fill_the_shared_cache_by_default(monkeypatch):
+    shared = []
+    monkeypatch.setattr(ds, "_default_cache_set", lambda t, meta: shared.append(t))
+    prov = Provider({"AAA": []})
+    r = ds.DeclaredSplits(None, budget=10, fetch=prov, cache_get={}.get, gate=Brake().gate(),
+                          sleep=lambda s: None)
+    assert r("AAA") == [] and shared == [], "the 1,000-entry app cache is the serve path's"
+    r2 = ds.DeclaredSplits(None, budget=10, fetch=Provider({"BBB": []}), cache_get={}.get,
+                           gate=Brake().gate(), sleep=lambda s: None, share_cache=True)
+    assert r2("BBB") == [] and shared == ["BBB"]

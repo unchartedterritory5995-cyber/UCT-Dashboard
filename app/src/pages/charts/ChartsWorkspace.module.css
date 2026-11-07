@@ -1225,16 +1225,18 @@
   --text-bright: var(--pg-text-bright);
   --ut-gold: var(--pg-ut-gold);
   --accent: var(--pg-ut-gold);
-  --widget-canvas: var(--pg-bg-elevated);
-  --widget-divider: var(--pg-border);
-  --widget-divider-strong: var(--pg-border-accent);
-  --widget-text: var(--pg-text-muted);
-  --widget-text-strong: var(--pg-text-bright);
-  --widget-accent: var(--pg-ut-gold);
-  --widget-accent-bg: var(--pg-ut-gold-dim);
-  --widget-row-hover: var(--pg-bg-hover);
-  /* Set directly as well: a bottom-docked header carries its canvas vars INLINE
-     (WidgetHost headerStyle), which a class cannot out-rank, but its background can. */
+  --widget-canvas: var(--pg-bg-elevated) !important;
+  --widget-divider: var(--pg-border) !important;
+  --widget-divider-strong: var(--pg-border-accent) !important;
+  --widget-text: var(--pg-text-muted) !important;
+  --widget-text-strong: var(--pg-text-bright) !important;
+  --widget-accent: var(--pg-ut-gold) !important;
+  --widget-accent-bg: var(--pg-ut-gold-dim) !important;
+  --widget-row-hover: var(--pg-bg-hover) !important;
+  /* ⭐ THE CANVAS VARS ARE `!important` (review, 2026-11-07): a bottom-docked header
+     over a GRADIENT canvas carries them INLINE (WidgetHost headerStyle), and only a
+     stylesheet `!important` out-ranks an inline value. Without it the bar turned white
+     here while its tab labels kept the dark canvas's light grey: light on white. */
   background: var(--pg-bg-elevated);
   border-color: var(--pg-border);
 }

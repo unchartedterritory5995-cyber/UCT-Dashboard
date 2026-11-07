@@ -986,8 +986,20 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     view.unmount()
   })
 
-  it('⭐ C4 — a chip is TEXT exactly when its plot is drawn in a pane of its own, and a text chip never folds', async () => {
-    const view = draw(ALL_NINE_ON())
+  // C4's surface: the phone chart shell (it passes `onLegendStudyTap`) at phone width.
+  const drawPhoneShell = (settings) => {
+    const real = window.matchMedia
+    window.matchMedia = (q) => ({ matches: q === '(max-width: 640px)', media: q, onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false } })
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)}
+      onLegendStudyTap={() => {}} />)
+    const unmount = view.unmount
+    view.unmount = () => { unmount(); window.matchMedia = real }
+    return view
+  }
+
+  it('⭐ C4 — on the phone shell a chip is TEXT exactly when its plot is drawn in a pane of its own, and a text chip never folds', async () => {
+    const view = drawPhoneShell(ALL_NINE_ON())
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
     const els = chipEls(view)
     expect(els).toHaveLength(9)
@@ -1006,6 +1018,18 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     expect(priceCount).toBeLessThanOrEqual(4)
     expect(els.filter(el => el.className.includes('chipFolded'))).toHaveLength(0)
     expect(moreButtonOf(view), 'a +N rendered with nothing it may fold').toBeNull()
+    view.unmount()
+  })
+
+  it('⛔ C4 control (review, 2026-11-07): a desktop inline legend keeps pane chips as dots, folded with the rest', async () => {
+    // Model Book, the pop-out and gallery cells share this legend branch. Only the
+    // phone shell hides pane labels, so only there may a pane chip become text.
+    const view = draw(ALL_NINE_ON())
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
+    const els = chipEls(view)
+    expect(els).toHaveLength(9)
+    expect(els.filter(el => el.className.includes('chipText')), 'no text chip off the phone shell').toHaveLength(0)
+    expect(moreButtonOf(view), 'nine chips fold to four plus +N, as before C4').not.toBeNull()
     view.unmount()
   })
 
