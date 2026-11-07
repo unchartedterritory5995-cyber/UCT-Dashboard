@@ -131530,6 +131530,730 @@
     }
    },
    "q": 15
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "VRTX",
+   "asof": "2005-05-10",
+   "year": 2005,
+   "close": 13.4,
+   "facts": {
+    "day_pct": 19.75,
+    "close_pos": 0.75,
+    "gap_pct": 12.87,
+    "rvol": 41.8,
+    "edge_ratio": 7.82,
+    "prior_sessions": 2593,
+    "range_atr": 3.36,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 13.4,
+    "hve_low": 12.13,
+    "base20_range_pct": 17.9,
+    "run_prior_20d_pct": 10.5,
+    "breakout20": true,
+    "setup_score": 10,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -4.6,
+    "fwd_closes_above_hvc": 11,
+    "fwd_reclaim_session": 6,
+    "fwd_max_gain_pct": 9.0,
+    "fwd_5d_pct": -1.5,
+    "fwd_10d_pct": 4.6,
+    "fwd_20d_pct": -0.7,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 19.3,
+     "daily_sd_pct": 2.35
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 8.6,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -3.0,
+     "vs50_pct": 33.6,
+     "vs200_pct": 29.1,
+     "s200_rising": false,
+     "market": "mixed",
+     "rs63_pct": 25.4,
+     "era": "2005-09",
+     "sector": "Healthcare",
+     "industry": "Biotechnology",
+     "liq_rank": 628,
+     "liq_universe": 1243
+    },
+    "culmination": {
+     "culm_pct": 35.37,
+     "culm_sessions": 50,
+     "broke_at": null,
+     "ret20_pct": -0.75
+    }
+   },
+   "q": 10
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "DB",
+   "asof": "2004-03-04",
+   "year": 2004,
+   "close": 72.553,
+   "facts": {
+    "day_pct": 6.35,
+    "close_pos": 0.71,
+    "gap_pct": 1.59,
+    "rvol": 24.3,
+    "edge_ratio": 4.79,
+    "prior_sessions": 1833,
+    "range_atr": 3.76,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 72.55,
+    "hve_low": 69.19,
+    "base20_range_pct": 12.3,
+    "run_prior_20d_pct": 12.0,
+    "breakout20": true,
+    "setup_score": 10,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -14.5,
+    "fwd_closes_above_hvc": 1,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 0.8,
+    "fwd_5d_pct": -8.8,
+    "fwd_10d_pct": -8.5,
+    "fwd_20d_pct": -8.4,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 18.5,
+     "daily_sd_pct": 1.75
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 7.9,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -1.8,
+     "vs50_pct": 12.0,
+     "vs200_pct": 33.9,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": 20.0,
+     "era": "2000-04",
+     "sector": "Financial Services",
+     "industry": "Banks - Regional",
+     "liq_rank": 496,
+     "liq_universe": 1180
+    },
+    "culmination": {
+     "culm_pct": 0.75,
+     "culm_sessions": 1,
+     "broke_at": 4,
+     "ret20_pct": -8.35
+    }
+   },
+   "q": 10
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "RDWR",
+   "asof": "2010-09-14",
+   "year": 2010,
+   "close": 19.295,
+   "facts": {
+    "day_pct": 38.46,
+    "close_pos": 0.93,
+    "gap_pct": -0.32,
+    "rvol": 61.5,
+    "edge_ratio": 12.24,
+    "prior_sessions": 2755,
+    "range_atr": 12.26,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 19.3,
+    "hve_low": 13.84,
+    "base20_range_pct": 21.4,
+    "run_prior_20d_pct": 27.2,
+    "breakout20": true,
+    "setup_score": 10,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -18.6,
+    "fwd_closes_above_hvc": 0,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 4.1,
+    "fwd_5d_pct": -7.5,
+    "fwd_10d_pct": -16.6,
+    "fwd_20d_pct": -11.2,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 34.3,
+     "daily_sd_pct": 4.27
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 6.4,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -2.2,
+     "vs50_pct": 64.0,
+     "vs200_pct": 96.9,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 85.9,
+     "era": "2010-14",
+     "sector": "Technology",
+     "industry": "Software - Infrastructure",
+     "liq_rank": 904,
+     "liq_universe": 1488
+    },
+    "culmination": {
+     "culm_pct": 4.28,
+     "culm_sessions": 58,
+     "broke_at": null,
+     "ret20_pct": -11.22
+    }
+   },
+   "q": 10
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "O",
+   "asof": "2007-11-13",
+   "year": 2007,
+   "close": 29.5058,
+   "facts": {
+    "day_pct": 5.62,
+    "close_pos": 0.85,
+    "gap_pct": 1.14,
+    "rvol": 19.1,
+    "edge_ratio": 5.67,
+    "prior_sessions": 3224,
+    "range_atr": 1.53,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 29.51,
+    "hve_low": 28.16,
+    "base20_range_pct": 9.1,
+    "run_prior_20d_pct": 3.2,
+    "breakout20": true,
+    "setup_score": 9,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -9.4,
+    "fwd_closes_above_hvc": 0,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 0.0,
+    "fwd_5d_pct": -7.6,
+    "fwd_10d_pct": -4.6,
+    "fwd_20d_pct": -8.4,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 11.9,
+     "daily_sd_pct": 2.69
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 24.8,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -0.8,
+     "vs50_pct": 7.5,
+     "vs200_pct": 11.1,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 16.0,
+     "era": "2005-09",
+     "sector": "Real Estate",
+     "industry": "REIT - Retail",
+     "liq_rank": 566,
+     "liq_universe": 1385
+    },
+    "culmination": {
+     "culm_pct": 0.03,
+     "culm_sessions": 1,
+     "broke_at": 4,
+     "ret20_pct": -8.37
+    }
+   },
+   "q": 9
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "VSH",
+   "asof": "2018-06-07",
+   "year": 2018,
+   "close": 24.7,
+   "facts": {
+    "day_pct": 13.3,
+    "close_pos": 0.86,
+    "gap_pct": 5.96,
+    "rvol": 26.1,
+    "edge_ratio": 5.42,
+    "prior_sessions": 5883,
+    "range_atr": 4.58,
+    "detector_fires": true,
+    "ever_in_data": false,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 24.7,
+    "hve_low": 22.9,
+    "base20_range_pct": 3.7,
+    "run_prior_20d_pct": 2.8,
+    "breakout20": true,
+    "setup_score": 9,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -6.3,
+    "fwd_closes_above_hvc": 2,
+    "fwd_reclaim_session": 19,
+    "fwd_max_gain_pct": 4.0,
+    "fwd_5d_pct": -2.2,
+    "fwd_10d_pct": -1.6,
+    "fwd_20d_pct": 2.2,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 12.3,
+     "daily_sd_pct": 1.89
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 33.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -1.2,
+     "vs50_pct": 25.4,
+     "vs200_pct": 23.1,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": 25.8,
+     "era": "2015-19",
+     "sector": "Technology",
+     "industry": "Electronic Components",
+     "liq_rank": 840,
+     "liq_universe": 1992
+    },
+    "culmination": {
+     "culm_pct": 7.29,
+     "culm_sessions": 27,
+     "broke_at": 48,
+     "ret20_pct": 2.23
+    }
+   },
+   "q": 9
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "TTD",
+   "asof": "2017-05-12",
+   "year": 2017,
+   "close": 5.19,
+   "facts": {
+    "day_pct": 30.11,
+    "close_pos": 0.75,
+    "gap_pct": 19.28,
+    "rvol": 21.8,
+    "edge_ratio": 1.96,
+    "prior_sessions": 161,
+    "range_atr": 4.99,
+    "detector_fires": false,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": true,
+    "hvc": 5.19,
+    "hve_low": 4.66,
+    "base20_range_pct": 14.2,
+    "run_prior_20d_pct": 8.2,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -8.0,
+    "fwd_closes_above_hvc": 14,
+    "fwd_reclaim_session": 6,
+    "fwd_max_gain_pct": 10.9,
+    "fwd_5d_pct": -3.5,
+    "fwd_10d_pct": 0.7,
+    "fwd_20d_pct": -3.6,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 20.7,
+     "daily_sd_pct": 3.87
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 22.0,
+    "known_name": true,
+    "earnings_dates_near": [
+     "2017-05-11"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -3.3,
+     "vs50_pct": 33.2,
+     "vs200_pct": null,
+     "s200_rising": false,
+     "market": "uptrend",
+     "rs63_pct": 73.1,
+     "era": "2015-19",
+     "sector": "Communication Services",
+     "industry": "Advertising Agencies",
+     "liq_rank": 764,
+     "liq_universe": 1905
+    },
+    "culmination": {
+     "culm_pct": 11.5,
+     "culm_sessions": 52,
+     "broke_at": null,
+     "ret20_pct": -3.56
+    }
+   },
+   "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "LPL",
+   "asof": "2005-07-21",
+   "year": 2005,
+   "close": 22.47,
+   "facts": {
+    "day_pct": 5.39,
+    "close_pos": 0.65,
+    "gap_pct": 0.09,
+    "rvol": 42.2,
+    "edge_ratio": 1.37,
+    "prior_sessions": 252,
+    "range_atr": 2.89,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": false,
+    "hvc": 22.47,
+    "hve_low": 21.32,
+    "base20_range_pct": 10.8,
+    "run_prior_20d_pct": -9.7,
+    "breakout20": false,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -0.4,
+    "fwd_closes_above_hvc": 19,
+    "fwd_reclaim_session": 2,
+    "fwd_max_gain_pct": 10.4,
+    "fwd_5d_pct": 0.9,
+    "fwd_10d_pct": 7.3,
+    "fwd_20d_pct": 4.1,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 12.0,
+     "daily_sd_pct": 1.36
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 10.0,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -15.5,
+     "vs50_pct": -6.5,
+     "vs200_pct": 10.4,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": -8.5,
+     "era": "2005-09",
+     "sector": "Technology",
+     "industry": "Consumer Electronics",
+     "liq_rank": 531,
+     "liq_universe": 1249
+    },
+    "culmination": {
+     "culm_pct": 10.41,
+     "culm_sessions": 10,
+     "broke_at": 39,
+     "ret20_pct": 4.14
+    }
+   },
+   "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "PLAB",
+   "asof": "2005-05-18",
+   "year": 2005,
+   "close": 21.91,
+   "facts": {
+    "day_pct": 25.27,
+    "close_pos": 0.93,
+    "gap_pct": 12.46,
+    "rvol": 24.7,
+    "edge_ratio": 2.48,
+    "prior_sessions": 2597,
+    "range_atr": 6.18,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 21.91,
+    "hve_low": 19.52,
+    "base20_range_pct": 9.1,
+    "run_prior_20d_pct": 4.7,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": 1.8,
+    "fwd_closes_above_hvc": 20,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 18.5,
+    "fwd_5d_pct": 5.2,
+    "fwd_10d_pct": 9.5,
+    "fwd_20d_pct": 15.3,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 18.9,
+     "daily_sd_pct": 1.88
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 10.5,
+    "known_name": false,
+    "earnings_dates_near": [
+     "2005-05-17"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -0.9,
+     "vs50_pct": 27.0,
+     "vs200_pct": 31.7,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": 22.3,
+     "era": "2005-09",
+     "sector": "Technology",
+     "industry": "Semiconductor Equipment & Materials",
+     "liq_rank": 560,
+     "liq_universe": 1243
+    },
+    "culmination": {
+     "culm_pct": 24.78,
+     "culm_sessions": 53,
+     "broke_at": null,
+     "ret20_pct": 15.29
+    }
+   },
+   "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "PRLB",
+   "asof": "2016-03-04",
+   "year": 2016,
+   "close": 74.0,
+   "facts": {
+    "day_pct": 8.25,
+    "close_pos": 0.99,
+    "gap_pct": 4.3,
+    "rvol": 15.4,
+    "edge_ratio": 3.79,
+    "prior_sessions": 1012,
+    "range_atr": 1.36,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 74.0,
+    "hve_low": 71.12,
+    "base20_range_pct": 16.2,
+    "run_prior_20d_pct": 13.9,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -0.9,
+    "fwd_closes_above_hvc": 16,
+    "fwd_reclaim_session": 6,
+    "fwd_max_gain_pct": 7.6,
+    "fwd_5d_pct": -0.4,
+    "fwd_10d_pct": 3.5,
+    "fwd_20d_pct": 4.7,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 11.1,
+     "daily_sd_pct": 1.37
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 17.2,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -7.4,
+     "vs50_pct": 22.2,
+     "vs200_pct": 11.8,
+     "s200_rising": false,
+     "market": "mixed",
+     "rs63_pct": 14.4,
+     "era": "2015-19",
+     "sector": "Industrials",
+     "industry": "Metal Fabrication",
+     "liq_rank": 817,
+     "liq_universe": 1844
+    },
+    "culmination": {
+     "culm_pct": 10.89,
+     "culm_sessions": 34,
+     "broke_at": 38,
+     "ret20_pct": 4.69
+    }
+   },
+   "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "GBX",
+   "asof": "2008-02-04",
+   "year": 2008,
+   "close": 24.75,
+   "facts": {
+    "day_pct": 19.22,
+    "close_pos": 0.82,
+    "gap_pct": -2.02,
+    "rvol": 20.0,
+    "edge_ratio": 1.45,
+    "prior_sessions": 3279,
+    "range_atr": 5.11,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": false,
+    "above_50": false,
+    "hvc": 24.75,
+    "hve_low": 20.15,
+    "base20_range_pct": 19.2,
+    "run_prior_20d_pct": 1.7,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -2.3,
+    "fwd_closes_above_hvc": 19,
+    "fwd_reclaim_session": 3,
+    "fwd_max_gain_pct": 19.3,
+    "fwd_5d_pct": 9.9,
+    "fwd_10d_pct": 11.6,
+    "fwd_20d_pct": 6.8,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 23.1,
+     "daily_sd_pct": 4.94
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 7.2,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -36.5,
+     "vs50_pct": 17.4,
+     "vs200_pct": -7.3,
+     "s200_rising": false,
+     "market": "downtrend",
+     "rs63_pct": 9.9,
+     "era": "2005-09",
+     "sector": "Industrials",
+     "industry": "Railroads",
+     "liq_rank": 869,
+     "liq_universe": 1392
+    },
+    "culmination": {
+     "culm_pct": 19.27,
+     "culm_sessions": 15,
+     "broke_at": null,
+     "ret20_pct": 6.79
+    }
+   },
+   "q": 8
   }
  ],
  "kicker_pass2": {
@@ -147318,56 +148042,6 @@
     "asof": "2017-01-31"
    },
    {
-    "setup": "High Volume Edge",
-    "sym": "VRTX",
-    "asof": "2005-05-10"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "DB",
-    "asof": "2004-03-04"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "RDWR",
-    "asof": "2010-09-14"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "O",
-    "asof": "2007-11-13"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "VSH",
-    "asof": "2018-06-07"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "TTD",
-    "asof": "2017-05-12"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "LPL",
-    "asof": "2005-07-21"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "PLAB",
-    "asof": "2005-05-18"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "PRLB",
-    "asof": "2016-03-04"
-   },
-   {
-    "setup": "High Volume Edge",
-    "sym": "GBX",
-    "asof": "2008-02-04"
-   },
-   {
     "setup": "Slingshot",
     "sym": "GIII",
     "asof": "2017-12-18"
@@ -147657,7 +148331,62 @@
     "sym": "ETSY",
     "asof": "2017-05-05"
    }
-  ]
+  ],
+  "hve_exception": {
+   "why": "owner 2026-11-07: 'If the examples under the liqudity rule are good enough we can use them ... if they are great visuals of the concept then it is okay to use them'. His High Volume Edge definition says 'often on a lesser-known name', so the 10 HVE charts the tightened cut removed are restored (top 1,000 by dollar volume still applies); they were never retired on the pod.",
+   "restored": [
+    {
+     "setup": "High Volume Edge",
+     "sym": "VRTX",
+     "asof": "2005-05-10"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "DB",
+     "asof": "2004-03-04"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "RDWR",
+     "asof": "2010-09-14"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "O",
+     "asof": "2007-11-13"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "VSH",
+     "asof": "2018-06-07"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "TTD",
+     "asof": "2017-05-12"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "LPL",
+     "asof": "2005-07-21"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "PLAB",
+     "asof": "2005-05-18"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "PRLB",
+     "asof": "2016-03-04"
+    },
+    {
+     "setup": "High Volume Edge",
+     "sym": "GBX",
+     "asof": "2008-02-04"
+    }
+   ]
+  }
  },
  "deep_pass2_liquidity_fill": {
   "generated": "2026-11-07",

@@ -112,7 +112,9 @@ def main(argv=None) -> int:
             if (setup, r["sym"], asof) in have:
                 why_left.append((who, "already in the file")); continue
             from scripts.study.bank_v2.gen_chartiq import liquid
-            if not liquid(r):
+            # owner 2026-11-07: less liquid charts are fine when they are great visuals; his High Volume Edge is "often on
+            # a lesser-known name", so it keeps the top-1,000 cut only (owner_verdicts.jsonl, chat-ruling 2026-11-07)
+            if not (liquid(r) if setup != "High Volume Edge" else (r.get("liq_rank") or 10 ** 9) <= 1000):
                 why_left.append((who, f"rank {r.get('liq_rank')} of {r.get('liq_universe')}: outside the institutional cut")); continue
             if (r.get("quote_type") or "").upper() == "ETF" or r.get("sector") == "ETF":
                 # owner 2026-11-06: "institutionally traded stocks" (enrich_meta.py names the funds from Yahoo's profile)
