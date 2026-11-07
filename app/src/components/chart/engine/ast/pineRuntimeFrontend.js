@@ -615,6 +615,36 @@ export function collectUdtTypes(stmts, out) {
   return acc
 }
 
+/** ⭐ W6-T10 (review N2) — THE NAMES AN ENUM MAY NOT TAKE. Pine (manual, *Enums*, Shadowing):
+ *  "enum types require unique names that do not match any built-in types or namespaces", and its
+ *  `syminfo`, `polyline` and `ta` examples "cause a compilation error". This is every namespace that
+ *  heads a variable, constant, function or method in the reference, and every type the reference
+ *  lists, read through `tools/pine_survey/pine_reference_extract.js` (W6-T10 and W6-T10-N evidence).
+ *  There is no roster of these in the front end to reuse: W6-T2's rule is about `method` only.
+ *
+ *  ⭐⭐ W6-T10-N (review N1) — ONE LIST PER VERSION, each from its own reference. The v5 reference
+ *  has `enum` and every name below except `footprint` and `volume_row`, which only the v6 reference
+ *  has (namespace and type). A v5 `enum footprint` is a legal name and serves.
+ *  ⛔ CASE-SENSITIVE, as Pine is (manual, *Identifiers*: "They are case-sensitive."), and the
+ *  *Enums* page's own example says "Naming an enum "Syminfo" with a capital "S" works": `Color`
+ *  serves, `color` refuses. Never fold case here. */
+export const ENUM_RESERVED_NAMES_V5 = Object.freeze(new Set([
+  // namespaces
+  'adjustment', 'alert', 'array', 'backadjustment', 'barmerge', 'barstate', 'box', 'chart', 'color',
+  'currency', 'dayofweek', 'display', 'dividends', 'earnings', 'extend', 'font', 'format',
+  'hline', 'input', 'label', 'line', 'linefill', 'location', 'log', 'map', 'math', 'matrix', 'order',
+  'plot', 'polyline', 'position', 'request', 'runtime', 'scale', 'session', 'settlement_as_close',
+  'shape', 'size', 'splits', 'str', 'strategy', 'syminfo', 'ta', 'table', 'text', 'ticker', 'timeframe',
+  'xloc', 'yloc',
+  // types (and qualifiers) not already above
+  'bool', 'const', 'float', 'int', 'series', 'simple', 'string',
+]))
+/** v6: the v5 list plus the two names only the v6 reference has (namespace and type). */
+export const ENUM_RESERVED_NAMES_V6 = Object.freeze(new Set([...ENUM_RESERVED_NAMES_V5, 'footprint', 'volume_row']))
+/** The list for a script's version. v5 reads the v5 list; v6, and a version this lane could not
+ *  read, read the v6 list (the larger one: an unknown version fails closed). */
+export const enumReservedNames = (version) => (version === 5 ? ENUM_RESERVED_NAMES_V5 : ENUM_RESERVED_NAMES_V6)
+
 /**
  * ⭐⭐ W6-T10 — EVERY TOP-LEVEL `enum E` IN THE SCRIPT, collected before the walk
  * for the reason `collectUdtTypes` is: an `E.member` may be read above the
@@ -638,25 +668,8 @@ export function collectUdtTypes(stmts, out) {
  * @returns {Map<string, {name, members: Map<string, string>, bad: string|null, tok}>}
  *   field name → title, in declaration order.
  */
-/** ⭐ W6-T10 (review N2) — THE NAMES AN ENUM MAY NOT TAKE. Pine (manual, *Enums*): an enum's name
- *  must not match a built-in type or namespace (`syminfo`, `polyline`, `ta` are its examples), and
- *  such a name is a compilation error. This is every namespace that heads a variable, constant,
- *  function or method in the Pine v6 reference, and every type the reference lists, read 2026-11-06
- *  through `tools/pine_survey/pine_reference_extract.js` (W6-T10 evidence). There is no roster of
- *  these in the front end to reuse: W6-T2's rule is about the `method` keyword only. */
-export const ENUM_RESERVED_NAMES = Object.freeze(new Set([
-  // namespaces
-  'adjustment', 'alert', 'array', 'backadjustment', 'barmerge', 'barstate', 'box', 'chart', 'color',
-  'currency', 'dayofweek', 'display', 'dividends', 'earnings', 'extend', 'font', 'footprint', 'format',
-  'hline', 'input', 'label', 'line', 'linefill', 'location', 'log', 'map', 'math', 'matrix', 'order',
-  'plot', 'polyline', 'position', 'request', 'runtime', 'scale', 'session', 'settlement_as_close',
-  'shape', 'size', 'splits', 'str', 'strategy', 'syminfo', 'ta', 'table', 'text', 'ticker', 'timeframe',
-  'volume_row', 'xloc', 'yloc',
-  // types (and qualifiers) not already above
-  'bool', 'const', 'float', 'int', 'series', 'simple', 'string',
-]))
-
-export function collectEnums(stmts) {
+export function collectEnums(stmts, version = null) {
+  const reserved = enumReservedNames(version)
   const acc = new Map()
   for (const st of stmts || []) {
     const toks = st.header || []
@@ -690,7 +703,7 @@ export function collectEnums(stmts) {
       members.set(mt[0].value, title)
     }
     if (!members.size) bad = bad || 'it declares no fields'
-    if (ENUM_RESERVED_NAMES.has(name)) {
+    if (reserved.has(name)) {
       bad = `its name is a Pine built-in type or namespace, which Pine's manual says an enum may not take`
     }
     acc.set(name, { name, members, bad, tok: toks[1], stmt: st })
@@ -1616,7 +1629,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  reads `b = "B"` as a binding: measured, mutation M15 in the W6-T10 evidence.)
    *  ⛔ Not at the C18 object door, where the registry is empty: the door refuses the
    *  `enum` line exactly as master did (the statement arm below is pane-only). */
-  const enumDecls = atObjectDoor ? new Map() : collectEnums(stmts)
+  const enumDecls = atObjectDoor ? new Map() : collectEnums(stmts, version)
   if (enumDecls.size) {
     const own = new Set([...enumDecls.values()].map((d) => d.stmt))
     stmts = stmts.map((st) => (own.has(st) ? { ...st, enumDecl: true } : st))
