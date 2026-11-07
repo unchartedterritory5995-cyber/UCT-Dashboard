@@ -881,12 +881,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const words = (ops || []).filter(o => o?.action === 'chart.setSymbol' && !o.trusted).map(o => String(o.args?.symbol || ''))
       .filter(sym => sym && !String(said || '').includes(sym))
     if (!words.length) return true
-    try {
+    // AUDIT N1: bounded like nameSearch — a slow or silent ticker search never holds the turn; no answer in time is "not known
+    // here", so the MODEL reads the request
+    const lookup = (async () => {
       const unknown = await unknownSymbols(words)
       if (!unknown.size) return true
       const g = await groundSymbols([...unknown])
       return !g.unknown.size && !g.ambiguous.size
-    } catch { return false }
+    })().catch(() => false)
+    let t = null
+    const timeout = new Promise((resolve) => { t = setTimeout(() => resolve(false), NAME_SEARCH_MS) })
+    try { return await Promise.race([lookup, timeout]) } finally { clearTimeout(t) }
   }
   const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null, more = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
