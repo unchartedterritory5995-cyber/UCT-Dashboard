@@ -33,6 +33,8 @@ import { watermarkSpot } from '../derivedOpts'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { paneVolumePct } from '../../components/chart/pane/paneLook'
+import { HEADER_FIELDS, headerFieldKeys } from '../../components/chart/headerFields'
+import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from '../../components/chart/barInfoFields'
 import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue, canvasLock, settingHiddenNote } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
@@ -162,6 +164,32 @@ function writeSetting(st, d, v) {
   }
   return { ...st, cs: withSetting(st.cs, d, v) }
 }
+// ── Execution family L (pl-exec): a chart's LIST settings — which fields a strip prints — one member at a time ──
+// Chart Settings → Header → Info row (`header.fields`, ChartSettingsModal toggleInfoField: a pick is appended, an unpick
+// removed) and the Bar info strip (`header.barInfo`, toggleBarField → withBarInfoField: the complete set in canonical
+// order). Each row is DATA: its members (the product's own catalog), how the chart reads it, and the product's own writer.
+// value = "+member" or "-member", by key or by the label Chart Settings shows. Read back through the same resolver.
+const LIST_SETTINGS = [
+  { id: 'header.fields', label: 'Info row', members: HEADER_FIELDS.map(f => ({ value: f.key, label: f.label })),
+    read: (cs) => headerFieldKeys(cs?.header),
+    write: (cs, key, on) => { const cur = headerFieldKeys(cs?.header); return { ...cs, header: { ...(cs?.header || {}), fields: on ? [...cur, key] : cur.filter(k => k !== key) }, preset: 'custom' } } },
+  { id: 'header.barInfo', label: 'Bar info', members: BAR_INFO_FIELDS.map(f => ({ value: f.id, label: f.label })),
+    read: (cs) => barInfoFieldsOf(cs),
+    write: (cs, id, on) => ({ ...cs, header: { ...(cs?.header || {}), barInfo: withBarInfoField(cs, id, on) }, preset: 'custom' }) },
+]
+const listSetting = (id) => LIST_SETTINGS.find(l => l.id === id) || null
+const lnorm = (v) => String(v ?? '').trim().toLowerCase().replace(/[^a-z0-9%$]+/g, ' ').trim()
+/** "+mcap" / "-Market Cap" → { member, on } or { why }. A member is its key or its label; a word inside ONE label is enough. */
+function listMember(l, raw) {
+  const m = /^\s*([+-])\s*(.+)$/.exec(String(raw ?? ''))
+  if (!m) return { why: `${l.label} takes "+field" to add a field or "-field" to remove one (${l.members.map(x => x.value).join(', ')}).` }
+  const w = lnorm(m[2])
+  const exact = l.members.filter(x => lnorm(x.value) === w || lnorm(x.label) === w)
+  const near = exact.length ? exact : l.members.filter(x => lnorm(x.label).includes(w))
+  if (near.length !== 1) return { why: `${near.length ? `“${m[2]}” fits ${near.map(x => x.label).join(' and ')}` : `“${m[2]}” isn't a ${l.label} field`} — the fields are ${l.members.map(x => x.label).join(', ')}.` }
+  return { member: near[0], on: m[1] === '+' }
+}
+const listWord = (l, keys) => (keys.length ? keys.map(k => l.members.find(x => x.value === k)?.label || k).join(', ') : 'none')
 const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off')
   : d.labels ? (Object.entries(d.labels).find(([, x]) => x === v)?.[0] ?? String(v)) : String(v))
 const SETTING_HINTS = (() => {
@@ -198,7 +226,8 @@ const SETTING_HINTS = (() => {
   // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
   return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
     + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
-    + 'Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.'
+    + 'header.fields|barInfo: +/-field. '
+    + 'Any other setting (volume plot style…): no op — say where it lives in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
 const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))
@@ -723,10 +752,10 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).',
+    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator, info-row/bar-info fields).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
-      setting: { type: 'string', enum: ELIGIBLE_SETTINGS.map(d => d.id) },
+      setting: { type: 'string', enum: [...ELIGIBLE_SETTINGS.map(d => d.id), ...LIST_SETTINGS.map(l => l.id)] },
       value: { type: ['string', 'number', 'boolean'] },
     }, required: ['setting', 'value'], additionalProperties: false },
     fast: ({ lower, core }) => fastSetting(lower) || fastSetting(core),
@@ -735,8 +764,11 @@ const CAPABILITIES = [
     argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },
     shape: 'args {"setting": <one id from the list>, "value": …} — "turn the gradient off" = {"setting":"bgMode","value":"solid"}, '
       + '"gradient on" = {"setting":"bgMode","value":"gradient"}, "hide the grid" = {"setting":"grid.visible","value":false}. Never invent '
-      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported.',
+      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported. '
+      + 'Which fields the Info row / Bar info strip print: "add market cap to the info row" = {"setting":"header.fields","value":"+Market Cap"}, "no open in the bar info" = {"setting":"header.barInfo","value":"-Open"}.',
     check(st, { setting, value }) {
+      const l = listSetting(setting)
+      if (l) return listMember(l, value).why || null
       const d = settingDescriptor(setting)
       if (!d || d.agent !== 'eligible') return `“${setting}” isn't a chart setting UCT Agent can change.`
       const v = coerceSettingValue(d, d.type === 'color' ? (normalizeColor(value) || value) : value)
@@ -745,18 +777,33 @@ const CAPABILITIES = [
       return settingUnavailable(d, st.cs, { canvasTheme: st.canvasTheme }) || d.refuseValue?.(v.value) || null
     },
     apply(st, { setting, value }) {
+      const l = listSetting(setting)
+      if (l) {
+        const { member, on } = listMember(l, value)
+        if (l.read(st.cs).includes(member.value) === on) return st
+        return { ...st, cs: l.write(st.cs, member.value, on) }
+      }
       const d = settingDescriptor(setting)
       const v = coerceSettingValue(d, d.type === 'color' ? (normalizeColor(value) || value) : value).value
       if (sameJson(readSetting(st, d), v)) return st
       return writeSetting(st, d, v)
     },
     describe(b, a, { setting }) {
+      const l = listSetting(setting)
+      if (l) {
+        const was = l.read(b.cs), now = l.read(a.cs)
+        if (sameJson(was, now)) return null
+        const added = now.filter(k => !was.includes(k)), gone = was.filter(k => !now.includes(k))
+        return `${l.label}: ${[...added.map(k => `added ${listWord(l, [k])}`), ...gone.map(k => `removed ${listWord(l, [k])}`)].join(', ')} — it shows ${listWord(l, now)}`
+      }
       const d = settingDescriptor(setting)
       const now = readSetting(a, d)
       if (sameJson(readSetting(b, d), now)) return null
       return `${d.label}: ${settingWord(d, now)}${d.scope === 'member' ? ' (this applies to all your charts)' : ''}${settingHiddenNote(d, a.tf, now)}`
     },
-    noop: (b, a, { setting } = {}) => {
+    noop: (b, a, { setting, value } = {}) => {
+      const l = listSetting(setting)
+      if (l) { const r = listMember(l, value); return r.member ? `${l.label} ${r.on ? 'already shows' : "doesn't show"} ${r.member.label}` : 'Already set' }
       const d = settingDescriptor(setting)
       return d ? `${d.label} is already ${settingWord(d, readSetting(a, d))}` : 'Already set'
     },

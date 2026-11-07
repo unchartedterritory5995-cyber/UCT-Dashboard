@@ -40,7 +40,7 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
-import { wordsSelect } from '../routing'
+import { wordsSelect, namedBoardWidgets } from '../routing'
 import { labelMap, WIDGET_REGISTRY } from '../../widgets/registry'
 import { widgetControls } from '../../widgets/widgetControls'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
@@ -200,8 +200,12 @@ function namedHere(type, said) {
 }
 function widgetControlSection(s, message, whole) {
   const said = new Set(wordsOf(message))
-  const types = [...new Set(s.raw.map(w => w.type))].filter(t => widgetControls(t).length)
-    .filter(t => whole || namedHere(t, said))
+  const onBoard = [...new Set(s.raw.map(w => w.type))]
+  // a widget NAMED in the message (its registry label: routing brought the group for it) narrows the section to the
+  // widgets named — the others' controls are not what this request is about (bytes)
+  const named = namedBoardWidgets(message, onBoard)
+  const types = onBoard.filter(t => widgetControls(t).length)
+    .filter(t => (named.length ? named.includes(t) : whole) || namedHere(t, said))
   if (!types.length) return undefined
   const controls = Object.fromEntries(types.map(t => [t, widgetControls(t).map(controlWord).join(', ')]))
   const set = {}

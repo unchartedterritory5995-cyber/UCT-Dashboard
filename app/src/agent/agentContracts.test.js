@@ -122,7 +122,8 @@ describe('product drift — the Agent offers exactly what the product has', () =
 
 describe('knowing ≠ doing', () => {
   it('chart.setSetting offers exactly the descriptor rows classified eligible — nothing else', () => {
-    expect(enumOf('chart.setSetting', 'setting')).toEqual(ELIGIBLE_SETTINGS.map(d => d.id))
+    // + the two LIST settings (execution family L): which fields the Info row and the Bar info strip print
+    expect(enumOf('chart.setSetting', 'setting')).toEqual([...ELIGIBLE_SETTINGS.map(d => d.id), 'header.fields', 'header.barInfo'])
     for (const d of CHART_SETTING_DESCRIPTORS.filter(x => x.agent !== 'eligible')) {
       expect(enumOf('chart.setSetting', 'setting'), d.id).not.toContain(d.id)
     }
