@@ -1,5 +1,7 @@
 # Charts visual teaching status
 
+> **BROWSER-MOCK-MODEL.** Every count below is from the local agent harness with a scripted model. It is not production evidence and not gate evidence.
+
 Generated 2026-11-07 by `app/src/testing/agent/guide/status.mjs` from a committed browser run (`teach.mjs`, README in that folder). LOCAL native Windows Node, headless Chrome on the agent harness (real ChartsWorkspace and Agent panel, synthetic bars, fixture lists and layouts, one price-alert fixture), BROWSER-MOCK-MODEL / SIMULATED. Not production evidence.
 
 **Method.** Each inventory row (`CHARTS_COVERAGE_MATRIX.md`) is asked in its own words: "how do I " + its Human action, or "show me how to " + its Example phrase. A row becomes a browser case only when those words reach the walkthrough a person assigned to it (`expected.json`: the 2026-11-05 matrix's Guide feature column, plus catalog controls reviewed by hand 2026-11-07). The runner types the words into the real composer and follows the card with real mouse input. VERIFIED means the walkthrough reached its last step with the gold ring on that step's own control, not on a fallback. A family walkthrough (one feature, many rows) is matched at the feature.
@@ -173,7 +175,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-150 | Drawing | Text font, size, bold, italic, background | NO ASSIGNED WALKTHROUGH |  | The words reach canvas; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-151 | Drawing | Fib levels and fills | VERIFIED | drawingEdit | Browser 2026-11-07: "how do I fib levels and fills" → ring on the last step's control | VERIFIED |
 | C1-152 | Drawing | Reset fib | ROUTED / BROWSER FAILED | control: A drawing’s Reset levels | "show me how to reset the fib levels" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | ROUTED / BROWSER FAILED |
-| C1-153 | Drawing | Measure-label options | ROUTED / BROWSER FAILED | control: A drawing’s Show bars | "show me how to hide bars on the measure" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | VERIFIED |
+| C1-153 | Drawing | Measure-label options | ROUTED / BROWSER FAILED | control: A drawing’s Show bars | "show me how to hide bars on the measure" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | ROUTED / BROWSER FAILED |
 | C1-154 | Drawing | Price label on a line | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-155 | Drawing | Edit anchors | ASSIGNED / NOT REACHED | drawingEdit | Assigned drawingEdit; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C1-156 | Drawing | Make horizontal | VERIFIED | control: A drawing’s Make horizontal | Browser 2026-11-07: "show me how to flatten that line" → ring on the last step's control | VERIFIED |
@@ -293,7 +295,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C2-095 | Alerts | Override alert inputs | NO ASSIGNED WALKTHROUGH |  | The words reach alertPrice; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C2-096 | Alerts | Choose which instance | VERIFIED | alertIndicator | Browser 2026-11-07: "show me how to the alert on the 9 EMA, left chart" → ring on the last step's control | VERIFIED |
 | C2-097 | Alerts | List indicator alerts | VERIFIED | alertAction | Browser 2026-11-07: "show me how to show my indicator alerts" → ring on the last step's control | VERIFIED |
-| C2-098 | Alerts | Pause or resume alert | VERIFIED | alertAction | Browser 2026-11-07: "how do I pause or resume alert" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C2-098 | Alerts | Pause or resume alert | VERIFIED | alertAction | Browser 2026-11-07: "how do I pause or resume alert" → ring on the last step's control | VERIFIED |
 | C2-099 | Alerts | Delete alert | ASSIGNED / NOT REACHED | alertAction | Assigned alertAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C2-100 | Alerts | See why an alert cannot fire | ROUTED / BROWSER FAILED | alertAction | "how do I see why an alert cannot fire" reaches it; browser: last step shows its fallback: None of your alerts for this symbol are blocked. A blocked one says why under its name here. | ROUTED / BROWSER FAILED |
 | C2-101 | Mobile | Edit an average or study on phone | NO ASSIGNED WALKTHROUGH |  | The words reach indicators; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -319,7 +321,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | chartTab | Browser 2026-11-07: "how do I add a chart tab" → ring on the last step's control | VERIFIED |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | tabAction | Browser 2026-11-07: "how do I switch a chart tab" → ring on the last step's control | VERIFIED |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | control: Renaming a chart tab | Browser 2026-11-07: "how do I rename a chart tab" → ring on the last step's control | VERIFIED |
-| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 4:17 AM how do I change a chart tab's link colour // UCT Agent 4:17 AM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
+| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 6:46 AM how do I change a chart tab's link colour // UCT Agent 6:46 AM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
 | C3-024 | Chart tabs | Close a chart tab | VERIFIED | tabAction | Browser 2026-11-07: "how do I close a chart tab" → ring on the last step's control | VERIFIED |
 | C3-025 | Layout Dock | Open a saved layout | VERIFIED | layouts | Browser 2026-11-07: "how do I open a saved layout" → ring on the last step's control | VERIFIED |
 | C3-026 | Layout Dock | See which layout is open | VERIFIED | layoutAction | Browser 2026-11-07: "how do I see which layout is open" → ring on the last step's control | VERIFIED |
@@ -329,7 +331,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-030 | Layout Dock | Save the open layout | VERIFIED | layoutSave | Browser 2026-11-07: "show me how to save my layout" → ring on the last step's control | VERIFIED |
 | C3-031 | Layout Dock | Save as a new layout | VERIFIED | layoutSave | Browser 2026-11-07: "how do I save as a new layout" → ring on the last step's control | VERIFIED |
 | C3-032 | Layout Dock | Save a layout as a global template (admin) | NO ASSIGNED WALKTHROUGH |  | The words reach chartTemplate; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-033 | Layout Dock | Rename a layout | VERIFIED | layoutAction | Browser 2026-11-07: "how do I rename a layout" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-033 | Layout Dock | Rename a layout | VERIFIED | layoutAction | Browser 2026-11-07: "how do I rename a layout" → ring on the last step's control | VERIFIED |
 | C3-034 | Layout Dock | Duplicate a layout | VERIFIED | layoutAction | Browser 2026-11-07: "how do I duplicate a layout" → ring on the last step's control | VERIFIED |
 | C3-035 | Layout Dock | Delete a layout | VERIFIED | control: Deleting a layout | Browser 2026-11-07: "how do I delete a layout" → ring on the last step's control | VERIFIED |
 | C3-036 | Layout Dock | Delete a prebuilt template (admin) | NO ASSIGNED WALKTHROUGH |  | The words reach chartTemplate; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -344,13 +346,13 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-045 | Multi Chart | Toggle crosshair sync | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-046 | Multi Chart | Toggle time-range sync | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-047 | Multi Chart | Turn on Groups mode | VERIFIED | gridAction | Browser 2026-11-07: "show me how to show theme groups in the grid" → ring on the last step's control | VERIFIED |
-| C3-048 | Multi Chart | Pick a group for the grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I pick a group for the grid" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-048 | Multi Chart | Pick a group for the grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I pick a group for the grid" → ring on the last step's control | VERIFIED |
 | C3-049 | Multi Chart | Step or switch group | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-050 | Multi Chart | Refresh the group | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-051 | Multi Chart | Exit Groups | ASSIGNED / NOT REACHED | gridAction | Assigned gridAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-052 | Multi Chart | Apply a saved grid | ROUTED / BROWSER FAILED | gridAction | "how do I apply a saved grid" reaches it; browser: last step shows its fallback: You have no saved grids yet. Save one here first. | ROUTED / BROWSER FAILED |
-| C3-053 | Multi Chart | Save a grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I save a grid" → ring on the last step's control | ROUTED / BROWSER FAILED |
-| C3-054 | Multi Chart | Save a grid as global (admin) | VERIFIED | gridAction | Browser 2026-11-07: "how do I save a grid as global (admin)" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-053 | Multi Chart | Save a grid | VERIFIED | gridAction | Browser 2026-11-07: "how do I save a grid" → ring on the last step's control | VERIFIED |
+| C3-054 | Multi Chart | Save a grid as global (admin) | VERIFIED | gridAction | Browser 2026-11-07: "how do I save a grid as global (admin)" → ring on the last step's control | VERIFIED |
 | C3-055 | Multi Chart | Delete a saved grid | ROUTED / BROWSER FAILED | gridAction | "how do I delete a saved grid" reaches it; browser: last step shows its fallback: You have no saved grids yet. Save one here first. | ROUTED / BROWSER FAILED |
 | C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED | gridAction | Browser 2026-11-07: "how do I set a cell's timeframe" → ring on the last step's control | VERIFIED |
 | C3-057 | Multi Chart | Set a cell's chart style | VERIFIED | gridAction | Browser 2026-11-07: "how do I set a cell's chart style" → ring on the last step's control | VERIFIED |
@@ -394,10 +396,10 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-095 | Watchlist | Export a list as CSV or Excel | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-096 | Watchlist | Import tickers | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-097 | Watchlist | View or restore list version history | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
-| C3-098 | Watchlist | Set a price alert from a row | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I set a price alert from a row" → ring on the last step's control | ROUTED / BROWSER FAILED |
-| C3-099 | Watchlist | Delete an alert from the row popover | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I delete an alert from the row popover" → ring on the last step's control | ROUTED / BROWSER FAILED |
-| C3-100 | Watchlist | Open Full Research or AI from a row | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I open Full Research or AI from a row" → ring on the last step's control | ROUTED / BROWSER FAILED |
-| C3-101 | Watchlist | Compare from a row | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I compare from a row" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-098 | Watchlist | Set a price alert from a row | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I set a price alert from a row" → ring on the last step's control | VERIFIED |
+| C3-099 | Watchlist | Delete an alert from the row popover | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I delete an alert from the row popover" → ring on the last step's control | VERIFIED |
+| C3-100 | Watchlist | Open Full Research or AI from a row | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I open Full Research or AI from a row" → ring on the last step's control | VERIFIED |
+| C3-101 | Watchlist | Compare from a row | VERIFIED | watchlistAction | Browser 2026-11-07: "how do I compare from a row" → ring on the last step's control | VERIFIED |
 | C3-102 | Watchlist | Open a row's attention facts | NO ASSIGNED WALKTHROUGH |  | The words reach watchlistAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-103 | Watchlist | Change list appearance (canvas, text, tint) | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-104 | Watchlist | Save or load a watchlist look | NO ASSIGNED WALKTHROUGH |  | The words reach watchlists; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -479,8 +481,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-180 | Fundamentals | Change appearance or send to Journal | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | widgetAction | Browser 2026-11-07: "how do I read profile and earnings table" → ring on the last step's control | VERIFIED |
 | C3-182 | Profile | Click a peer ticker | NO ASSIGNED WALKTHROUGH |  | The words reach symbol; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 4:34 AM how do I hide or restore an index // UCT Agent 4:34 AM I can’t see Hide on your screen right now — a panel may be covering it. That control is | ROUTED / BROWSER FAILED |
-| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 4:34 AM show me how to send index levels to journal // UCT Agent 4:34 AM I can’t see Send these index levels to Journal on your screen right now — a pa | ROUTED / BROWSER FAILED |
+| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 7:04 AM how do I hide or restore an index // UCT Agent 7:04 AM I can’t see Hide on your screen right now — a panel may be covering it. That control is | ROUTED / BROWSER FAILED |
+| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 7:04 AM show me how to send index levels to journal // UCT Agent 7:04 AM I can’t see Send these index levels to Journal on your screen right now — a pa | ROUTED / BROWSER FAILED |
 | C3-185 | Market Context | Read market context | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-186 | Market Context | Send to Journal | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-187 | NH/NL | Add or remove a universe | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
