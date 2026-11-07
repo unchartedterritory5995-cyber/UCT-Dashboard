@@ -1,5 +1,5 @@
 {
- "at": "2026-11-07T08:07:26.374Z",
+ "at": "2026-11-07T09:37:26.067Z",
  "base": "http://127.0.0.1:5302",
  "results": [
   {
@@ -4038,6 +4038,85 @@
    "consoleErrors": []
   },
   {
+   "id": "C1-124",
+   "say": "how do I open indicator settings",
+   "feature": "indicatorEdit",
+   "title": "Changing an indicator’s settings",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      246,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      242,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 2,
+     "text": "These are the indicators on this chart. Click the one you want to change.",
+     "onPrimary": true,
+     "pr": [
+      508,
+      360,
+      167,
+      18
+     ],
+     "rr": [
+      504,
+      356,
+      175,
+      26
+     ]
+    },
+    {
+     "i": 3,
+     "text": "These are this indicator’s settings. The chart updates as you change them.",
+     "onPrimary": true,
+     "pr": [
+      718,
+      382,
+      393,
+      28
+     ],
+     "rr": [
+      714,
+      378,
+      401,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
    "id": "C1-125",
    "say": "how do I clear all drawings",
    "feature": "chartMenu",
@@ -4143,8 +4222,45 @@
    "say": "how do I open chart settings (Alt+,, gear)",
    "feature": "settings",
    "title": "Finding chart settings",
-   "pass": false,
-   "error": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the gear to open this chart’s settings.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Price Style, Canvas, Indicators, Header and Markers are the tabs along the top.",
+     "onPrimary": true,
+     "pr": [
+      479,
+      246,
+      66,
+      36
+     ],
+     "rr": [
+      475,
+      242,
+      74,
+      44
+     ]
+    }
+   ],
+   "consoleErrors": []
   },
   {
    "id": "C1-128",
@@ -4697,7 +4813,7 @@
     "drawing",
     "setup"
    ],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -4715,13 +4831,46 @@
       793,
       749
      ]
+    },
+    {
+     "i": 1,
+     "text": "Click Levels… to turn each level and its fill on or off. This shows on a Fibonacci drawing.",
+     "onPrimary": true,
+     "pr": [
+      245,
+      345,
+      51,
+      15
+     ],
+     "rr": [
+      241,
+      341,
+      59,
+      23
+     ]
     }
    ],
    "setup": "drawing fib",
    "tried": [
-    []
+    [
+     {
+      "x": 18,
+      "y": 252
+     },
+     {
+      "x": 228,
+      "y": 261
+     },
+     {
+      "x": 594,
+      "y": 261
+     },
+     {
+      "x": 252,
+      "y": 262
+     }
+    ]
    ],
-   "why": "step 1: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -4734,8 +4883,48 @@
     "setup"
    ],
    "pass": false,
-   "steps": [],
-   "error": "Cannot read properties of undefined (reading 'x')"
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click a Fibonacci Retracement or Fibonacci Extension on the chart. If this chart has none yet, draw one first.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "setup": "drawing fib",
+   "tried": [
+    [
+     {
+      "x": 18,
+      "y": 252
+     },
+     {
+      "x": 228,
+      "y": 261
+     },
+     {
+      "x": 594,
+      "y": 261
+     },
+     {
+      "x": 252,
+      "y": 262
+     }
+    ]
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
   },
   {
    "id": "C1-153",
@@ -4746,7 +4935,7 @@
     "drawing",
     "setup"
    ],
-   "pass": true,
+   "pass": false,
    "steps": [
     {
      "i": 0,
@@ -4764,23 +4953,6 @@
       793,
       749
      ]
-    },
-    {
-     "i": 1,
-     "text": "Show bars is here, on this drawing’s menu.",
-     "onPrimary": true,
-     "pr": [
-      551,
-      441,
-      61,
-      15
-     ],
-     "rr": [
-      547,
-      437,
-      69,
-      23
-     ]
     }
    ],
    "setup": "drawing measure",
@@ -4791,19 +4963,20 @@
       "y": 261
      },
      {
-      "x": 540,
-      "y": 261
+      "x": 546,
+      "y": 281
      },
      {
-      "x": 600,
-      "y": 261
+      "x": 579,
+      "y": 283
      },
      {
-      "x": 522,
-      "y": 262
+      "x": 525,
+      "y": 286
      }
     ]
    ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -5055,6 +5228,34 @@
       170,
       32,
       30
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-166",
+   "say": "how do I nudge selected with arrows",
+   "feature": "control",
+   "title": "Nudging a drawing from the keyboard",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click a drawing to select it, then press the arrow keys: each press nudges it a little.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
      ]
     }
    ],
@@ -5762,6 +5963,34 @@
    "consoleErrors": []
   },
   {
+   "id": "C2-010",
+   "say": "how do I keyboard chord toggles RSI, MACD, BB, VWAP",
+   "feature": "chartView",
+   "title": "Toggling an indicator from the keyboard",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Ctrl+I for RSI, Ctrl+O for MACD, Ctrl+B for Bollinger Bands or Alt+U for VWAP. Each one adds that indicator or h",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
    "id": "C2-014",
    "say": "how do I delete indicator from legend",
    "feature": "legendChip",
@@ -6314,6 +6543,68 @@
       586,
       297,
       61,
+      30
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-055",
+   "say": "how do I open Create Indicator",
+   "feature": "indicatorManage",
+   "title": "Creating an indicator",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      246,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      242,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click Create Indicator, and describe what you want. UCT Intelligence previews it on this chart, and you save it when it’s right.",
+     "onPrimary": true,
+     "pr": [
+      988,
+      301,
+      123,
+      22
+     ],
+     "rr": [
+      984,
+      297,
+      131,
       30
      ]
     }
@@ -7645,7 +7936,10 @@
    "say": "show me how to show my indicator alerts",
    "feature": "alertAction",
    "title": "Seeing your indicator alerts",
-   "given": [],
+   "given": [
+    "indicatorAlerts",
+    "setup"
+   ],
    "pass": true,
    "steps": [
     {
@@ -7673,16 +7967,17 @@
       178,
       214,
       320,
-      303
+      294
      ],
      "rr": [
       174,
       210,
       328,
-      311
+      302
      ]
     }
    ],
+   "setup": "indicator alerts 1",
    "consoleErrors": []
   },
   {
@@ -7690,8 +7985,11 @@
    "say": "how do I pause or resume alert",
    "feature": "alertAction",
    "title": "Pausing an indicator alert",
-   "given": [],
-   "pass": false,
+   "given": [
+    "indicatorAlerts",
+    "setup"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -7712,18 +8010,23 @@
     },
     {
      "i": 1,
-     "text": "This chart’s symbol has no indicator alerts yet. Once you add one, it’s listed below the form.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "This switch pauses the alert or turns it back on.",
+     "onPrimary": true,
+     "pr": [
+      419,
+      467,
+      31,
+      21
+     ],
      "rr": [
-      174,
-      210,
-      328,
-      311
+      415,
+      463,
+      39,
+      29
      ]
     }
    ],
-   "why": "last step shows its fallback: This chart’s symbol has no indicator alerts yet. Once you add one, it’s listed below the form.",
+   "setup": "indicator alerts 1",
    "consoleErrors": []
   },
   {
@@ -8255,7 +8558,7 @@
    ],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n2:46 AM\nhow do I change a chart tab's link colour // UCT Agent\n2:46 AM\n\nI can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled",
+   "why": "no walkthrough: Harness\n4:17 AM\nhow do I change a chart tab's link colour // UCT Agent\n4:17 AM\n\nI can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled",
    "consoleErrors": []
   },
   {
@@ -8677,7 +8980,64 @@
    "feature": "layoutAction",
    "title": "Renaming a layout",
    "given": [],
-   "pass": false,
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click one of your own layouts on the bar, such as “Agent Test”.",
+     "onPrimary": true,
+     "pr": [
+      157,
+      923,
+      81,
+      27
+     ],
+     "rr": [
+      153,
+      919,
+      89,
+      35
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Rename layout, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      178,
+      834,
+      176,
+      24
+     ],
+     "rr": [
+      174,
+      830,
+      184,
+      32
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 197.375,
+      "y": 936.5
+     },
+     {
+      "x": 197,
+      "y": 937
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-034",
+   "say": "how do I duplicate a layout",
+   "feature": "layoutAction",
+   "title": "Duplicating a layout",
+   "given": [],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -8695,29 +9055,37 @@
       96,
       35
      ]
+    },
+    {
+     "i": 1,
+     "text": "Click Duplicate layout to make a copy.",
+     "onPrimary": true,
+     "pr": [
+      31,
+      858,
+      176,
+      24
+     ],
+     "rr": [
+      27,
+      854,
+      184,
+      32
+     ]
     }
    ],
    "tried": [
     [
      {
-      "x": 367,
-      "y": 418
+      "x": 50.125,
+      "y": 936.5
      },
      {
-      "x": 367,
-      "y": 481
-     },
-     {
-      "x": 367,
-      "y": 356
-     },
-     {
-      "x": 367,
-      "y": 544
+      "x": 50,
+      "y": 937
      }
     ]
    ],
-   "why": "step 1: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -8811,12 +9179,12 @@
    "consoleErrors": []
   },
   {
-   "id": "C3-041",
-   "say": "how do I restore a layout version",
+   "id": "C3-039",
+   "say": "how do I remove a layout from the bar",
    "feature": "layoutAction",
-   "title": "A layout’s version history",
+   "title": "Taking a layout off the bar",
    "given": [],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -8834,25 +9202,115 @@
       96,
       35
      ]
+    },
+    {
+     "i": 1,
+     "text": "Click Close to take it off the bar. The layout stays in your library.",
+     "onPrimary": true,
+     "pr": [
+      31,
+      891,
+      176,
+      24
+     ],
+     "rr": [
+      27,
+      887,
+      184,
+      32
+     ]
     }
    ],
    "tried": [
     [
      {
-      "x": 367,
-      "y": 418
+      "x": 50.125,
+      "y": 936.5
      },
      {
-      "x": 367,
-      "y": 481
+      "x": 50,
+      "y": 937
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-040",
+   "say": "how do I view a layout's version history",
+   "feature": "layoutAction",
+   "title": "A layout’s version history",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click one of your own layouts on the bar, such as “Agent Test”.",
+     "onPrimary": true,
+     "pr": [
+      157,
+      923,
+      81,
+      27
+     ],
+     "rr": [
+      153,
+      919,
+      89,
+      35
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 197.375,
+      "y": 936.5
      },
      {
-      "x": 367,
-      "y": 356
+      "x": 197,
+      "y": 937
+     }
+    ]
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-041",
+   "say": "how do I restore a layout version",
+   "feature": "layoutAction",
+   "title": "A layout’s version history",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click one of your own layouts on the bar, such as “Agent Test”.",
+     "onPrimary": true,
+     "pr": [
+      157,
+      923,
+      81,
+      27
+     ],
+     "rr": [
+      153,
+      919,
+      89,
+      35
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 197.375,
+      "y": 936.5
      },
      {
-      "x": 367,
-      "y": 544
+      "x": 197,
+      "y": 937
      }
     ]
    ],
@@ -9052,7 +9510,9 @@
    "say": "show me how to show theme groups in the grid",
    "feature": "gridAction",
    "title": "Groups mode",
-   "given": [],
+   "given": [
+    "prefs"
+   ],
    "pass": true,
    "steps": [
     {
@@ -9060,13 +9520,13 @@
      "text": "Open Layouts ▾.",
      "onPrimary": true,
      "pr": [
-      230,
+      121,
       17,
       95,
       26
      ],
      "rr": [
-      226,
+      117,
       13,
       103,
       34
@@ -9077,16 +9537,16 @@
      "text": "Click Multi Chart.",
      "onPrimary": true,
      "pr": [
-      231,
-      134,
+      122,
+      77,
       228,
-      29
+      31
      ],
      "rr": [
-      227,
-      130,
+      118,
+      73,
       236,
-      37
+      39
      ]
     },
     {
@@ -9094,13 +9554,13 @@
      "text": "Tick this, then type a ticker on any chart: the grid fills with its group.",
      "onPrimary": true,
      "pr": [
-      232,
+      123,
       259,
       244,
       18
      ],
      "rr": [
-      228,
+      119,
       255,
       252,
       26
@@ -9114,6 +9574,70 @@
    "say": "how do I pick a group for the grid",
    "feature": "gridAction",
    "title": "Picking a group",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Search for a group and click it to fill the grid with its names.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      499,
+      244,
+      26
+     ],
+     "rr": [
+      119,
+      495,
+      252,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-052",
+   "say": "how do I apply a saved grid",
+   "feature": "gridAction",
+   "title": "Opening a saved grid",
    "given": [
     "prefs"
    ],
@@ -9155,426 +9679,18 @@
     },
     {
      "i": 2,
-     "text": "Looking for it on your screen…",
+     "text": "You have no saved grids yet. Save one here first.",
      "onPrimary": false,
      "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
      "rr": [
-      117,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      122,
-      77,
+      131,
+      336,
       228,
-      31
-     ],
-     "rr": [
-      118,
-      73,
-      236,
-      39
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      117,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      122,
-      77,
-      228,
-      31
-     ],
-     "rr": [
-      118,
-      73,
-      236,
-      39
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      117,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      122,
-      77,
-      228,
-      31
-     ],
-     "rr": [
-      118,
-      73,
-      236,
-      39
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      117,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      122,
-      77,
-      228,
-      31
-     ],
-     "rr": [
-      118,
-      73,
-      236,
-      39
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      121,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      117,
-      13,
-      103,
       34
      ]
     }
    ],
-   "consoleErrors": []
-  },
-  {
-   "id": "C3-052",
-   "say": "how do I apply a saved grid",
-   "feature": "gridAction",
-   "title": "Opening a saved grid",
-   "given": [],
-   "pass": false,
-   "steps": [
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    }
-   ],
+   "why": "last step shows its fallback: You have no saved grids yet. Save one here first.",
    "consoleErrors": []
   },
   {
@@ -9582,21 +9698,23 @@
    "say": "how do I save a grid",
    "feature": "gridAction",
    "title": "Saving a grid",
-   "given": [],
-   "pass": false,
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
      "text": "Open Layouts ▾.",
      "onPrimary": true,
      "pr": [
-      230,
+      121,
       17,
       95,
       26
      ],
      "rr": [
-      226,
+      117,
       13,
       103,
       34
@@ -9607,203 +9725,32 @@
      "text": "Click Multi Chart.",
      "onPrimary": true,
      "pr": [
-      231,
-      134,
+      122,
+      77,
       228,
-      29
+      31
      ],
      "rr": [
-      227,
-      130,
+      118,
+      73,
       236,
-      37
+      39
      ]
     },
     {
      "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
+     "text": "Type a name here, then click Save grid.",
      "onPrimary": true,
      "pr": [
-      230,
-      17,
-      95,
+      135,
+      340,
+      220,
       26
      ],
      "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
+      131,
+      336,
       228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
       34
      ]
     }
@@ -9815,21 +9762,23 @@
    "say": "how do I save a grid as global (admin)",
    "feature": "gridAction",
    "title": "Saving a prebuilt grid",
-   "given": [],
-   "pass": false,
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
      "text": "Open Layouts ▾.",
      "onPrimary": true,
      "pr": [
-      230,
+      121,
       17,
       95,
       26
      ],
      "rr": [
-      226,
+      117,
       13,
       103,
       34
@@ -9840,204 +9789,33 @@
      "text": "Click Multi Chart.",
      "onPrimary": true,
      "pr": [
-      231,
-      134,
+      122,
+      77,
       228,
-      29
+      31
      ],
      "rr": [
-      227,
-      130,
+      118,
+      73,
       236,
-      37
+      39
      ]
     },
     {
      "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
+     "text": "Tick this before saving to offer the grid to every member. Admins only.",
      "onPrimary": true,
      "pr": [
-      230,
-      17,
-      95,
-      26
+      135,
+      372,
+      220,
+      18
      ],
      "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
+      131,
+      368,
       228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
       26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
      ]
     }
    ],
@@ -10048,7 +9826,9 @@
    "say": "how do I delete a saved grid",
    "feature": "gridAction",
    "title": "Deleting a saved grid",
-   "given": [],
+   "given": [
+    "prefs"
+   ],
    "pass": false,
    "steps": [
     {
@@ -10056,13 +9836,13 @@
      "text": "Open Layouts ▾.",
      "onPrimary": true,
      "pr": [
-      230,
+      121,
       17,
       95,
       26
      ],
      "rr": [
-      226,
+      117,
       13,
       103,
       34
@@ -10073,207 +9853,32 @@
      "text": "Click Multi Chart.",
      "onPrimary": true,
      "pr": [
-      231,
-      134,
+      122,
+      77,
       228,
-      29
+      31
      ],
      "rr": [
-      227,
-      130,
+      118,
+      73,
       236,
-      37
+      39
      ]
     },
     {
      "i": 2,
-     "text": "Looking for it on your screen…",
+     "text": "You have no saved grids yet. Save one here first.",
      "onPrimary": false,
      "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
      "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
+      131,
+      336,
       228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
-      34
-     ]
-    },
-    {
-     "i": 1,
-     "text": "Click Multi Chart.",
-     "onPrimary": true,
-     "pr": [
-      231,
-      134,
-      228,
-      29
-     ],
-     "rr": [
-      227,
-      130,
-      236,
-      37
-     ]
-    },
-    {
-     "i": 2,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
-    },
-    {
-     "i": 0,
-     "text": "Open Layouts ▾.",
-     "onPrimary": true,
-     "pr": [
-      230,
-      17,
-      95,
-      26
-     ],
-     "rr": [
-      226,
-      13,
-      103,
       34
      ]
     }
    ],
+   "why": "last step shows its fallback: You have no saved grids yet. Save one here first.",
    "consoleErrors": []
   },
   {
@@ -10556,15 +10161,15 @@
      "text": "Click Flagged to open the tickers you’ve flagged.",
      "onPrimary": true,
      "pr": [
-      831,
+      806,
       173,
-      265,
+      389,
       29
      ],
      "rr": [
-      827,
+      802,
       169,
-      273,
+      397,
       37
      ]
     }
@@ -11116,7 +10721,7 @@
     "alerts",
     "setup"
    ],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 3,
@@ -11151,30 +10756,63 @@
       397,
       37
      ]
+    },
+    {
+     "i": 5,
+     "text": "Click Set price alert. The box that opens takes the price, and any alerts on this ticker are listed below with a × to delete them.",
+     "onPrimary": true,
+     "pr": [
+      893,
+      307,
+      178,
+      30
+     ],
+     "rr": [
+      889,
+      303,
+      186,
+      38
+     ]
+    },
+    {
+     "i": 6,
+     "text": "Type the price and click Set. Alerts on this ticker are listed below, each with a × to delete it.",
+     "onPrimary": true,
+     "pr": [
+      979,
+      222,
+      80,
+      22
+     ],
+     "rr": [
+      975,
+      218,
+      88,
+      30
+     ]
     }
    ],
    "setup": "alerts 2",
    "tried": [
     [
      {
-      "x": 367,
-      "y": 418
+      "x": 1000.5,
+      "y": 182.296875
      },
      {
-      "x": 367,
-      "y": 481
+      "x": 829,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 356
+      "x": 892,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 544
+      "x": 971,
+      "y": 182
      }
     ]
    ],
-   "why": "step 5: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -11186,7 +10824,7 @@
     "alerts",
     "setup"
    ],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 3,
@@ -11221,30 +10859,46 @@
       397,
       37
      ]
+    },
+    {
+     "i": 5,
+     "text": "Click Remove from watchlist.",
+     "onPrimary": true,
+     "pr": [
+      893,
+      337,
+      178,
+      30
+     ],
+     "rr": [
+      889,
+      333,
+      186,
+      38
+     ]
     }
    ],
    "setup": "alerts 2",
    "tried": [
     [
      {
-      "x": 367,
-      "y": 418
+      "x": 1000.5,
+      "y": 182.296875
      },
      {
-      "x": 367,
-      "y": 481
+      "x": 829,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 356
+      "x": 892,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 544
+      "x": 971,
+      "y": 182
      }
     ]
    ],
-   "why": "step 5: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -11253,7 +10907,7 @@
    "feature": "watchlistAction",
    "title": "Research on a ticker",
    "given": [],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 3,
@@ -11288,29 +10942,45 @@
       397,
       37
      ]
+    },
+    {
+     "i": 5,
+     "text": "Click Full Research, or Ask AI just below it.",
+     "onPrimary": true,
+     "pr": [
+      893,
+      187,
+      178,
+      30
+     ],
+     "rr": [
+      889,
+      183,
+      186,
+      38
+     ]
     }
    ],
    "tried": [
     [
      {
-      "x": 367,
-      "y": 418
+      "x": 1000.5,
+      "y": 182.296875
      },
      {
-      "x": 367,
-      "y": 481
+      "x": 829,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 356
+      "x": 892,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 544
+      "x": 971,
+      "y": 182
      }
     ]
    ],
-   "why": "step 5: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -11319,7 +10989,7 @@
    "feature": "watchlistAction",
    "title": "Comparing a ticker from the list",
    "given": [],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 3,
@@ -11354,29 +11024,45 @@
       397,
       37
      ]
+    },
+    {
+     "i": 5,
+     "text": "Click Compare, then pick the other ticker.",
+     "onPrimary": true,
+     "pr": [
+      893,
+      247,
+      178,
+      30
+     ],
+     "rr": [
+      889,
+      243,
+      186,
+      38
+     ]
     }
    ],
    "tried": [
     [
      {
-      "x": 367,
-      "y": 418
+      "x": 1000.5,
+      "y": 182.296875
      },
      {
-      "x": 367,
-      "y": 481
+      "x": 829,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 356
+      "x": 892,
+      "y": 182
      },
      {
-      "x": 367,
-      "y": 544
+      "x": 971,
+      "y": 182
      }
     ]
    ],
-   "why": "step 5: no point of the region it names opened the menu row it needs",
    "consoleErrors": []
   },
   {
@@ -11456,6 +11142,81 @@
      ]
     }
    ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-108",
+   "say": "how do I leave a scan, back to the picker",
+   "feature": "control",
+   "title": "Back to the list of scans",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Scanner widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Scanner to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      170,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      166,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "The list of scans is already showing: click one to open it.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      801,
+      490,
+      399,
+      424
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: The list of scans is already showing: click one to open it.",
    "consoleErrors": []
   },
   {
@@ -11985,6 +11746,85 @@
     }
    ],
    "why": "last step shows its fallback: Open one of your lists first.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-125",
+   "say": "show me how to show logos on volume surge",
+   "feature": "control",
+   "title": "Logos on Volume Surge",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Volume Surge widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Volume Surge to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      280,
+      266,
+      150,
+      30
+     ],
+     "rr": [
+      276,
+      262,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "This gear opens the Volume Surge widget’s settings: Show logos puts the company logos beside the tickers.",
+     "onPrimary": true,
+     "pr": [
+      1165,
+      530,
+      22,
+      22
+     ],
+     "rr": [
+      1161,
+      526,
+      30,
+      30
+     ]
+    }
+   ],
    "consoleErrors": []
   },
   {
@@ -14848,7 +14688,7 @@
    "given": [],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n3:04 AM\nhow do I hide or restore an index // UCT Agent\n3:04 AM\n\nI can’t see Hide on your screen right now — a panel may be covering it. That control is ",
+   "why": "no walkthrough: Harness\n4:34 AM\nhow do I hide or restore an index // UCT Agent\n4:34 AM\n\nI can’t see Hide on your screen right now — a panel may be covering it. That control is ",
    "consoleErrors": []
   },
   {
@@ -14859,7 +14699,7 @@
    "given": [],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n3:05 AM\nshow me how to send index levels to journal // UCT Agent\n3:05 AM\n\nI can’t see Send these index levels to Journal on your screen right now — a pa",
+   "why": "no walkthrough: Harness\n4:34 AM\nshow me how to send index levels to journal // UCT Agent\n4:34 AM\n\nI can’t see Send these index levels to Journal on your screen right now — a pa",
    "consoleErrors": []
   },
   {
@@ -15224,13 +15064,6 @@
       63,
       30
      ]
-    },
-    {
-     "i": 3,
-     "text": "Looking for it on your screen…",
-     "onPrimary": false,
-     "pr": null,
-     "rr": null
     },
     {
      "i": 3,
