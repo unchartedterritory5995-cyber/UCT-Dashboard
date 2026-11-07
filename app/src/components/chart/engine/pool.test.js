@@ -456,7 +456,7 @@ describe('seriesOptionsForPlot', () => {
 
   it('a histogram gets a price format and NOT line options', () => {
     const o = seriesOptionsForPlot(plotOf('macd', 'histogram'), { scaleId: 'macd' })
-    expect(o.priceFormat).toEqual({ type: 'price', precision: 5 })
+    expect(o.priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
     expect(o.lineWidth).toBeUndefined()
     expect(o.crosshairMarkerVisible).toBeUndefined()
   })
@@ -833,19 +833,19 @@ describe('`plots[].precision` is honoured on every pool key', () => {
   it('a declared precision reaches the series on EVERY pool key', () => {
     for (const style of ['line', 'area', 'baseline', 'histogram', 'stepline', 'markers']) {
       const o = seriesOptionsForPlot(withPrecision(style, 5), {})
-      expect(o.priceFormat, style).toEqual({ type: 'price', precision: 5 })
+      expect(o.priceFormat, style).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
     }
   })
 
   it("silence means LWC's OWN default, so a Flip A migration sees no change", () => {
     // 2 is `seriesOptionsDefaults.priceFormat.precision` in the installed bundle
-    // (asserted against the real value, not a hand-copy). That is what makes it
-    // safe to emit this key unconditionally: for every plot that says nothing —
-    // which today is every plot except MACD's histogram — the object the engine
-    // applies is the state the series is already in.
+    // (asserted against the real value, not a hand-copy), and 0.01 is its
+    // `minMove`. That is what makes it safe to emit this key unconditionally: for
+    // every plot that says nothing, the object the engine applies is the state
+    // the series is already in.
     for (const style of ['line', 'area', 'baseline', 'histogram']) {
       expect(seriesOptionsForPlot(bareplot(style), {}).priceFormat, style)
-        .toEqual({ type: 'price', precision: 2 })
+        .toEqual({ type: 'price', precision: 2, minMove: 0.01 })
     }
   })
 
@@ -853,12 +853,14 @@ describe('`plots[].precision` is honoured on every pool key', () => {
     // `defSchema` rejects these at registration; this is the second lock, and it
     // matters because `priceFormat` is one of the few options that can throw
     // inside the renderer rather than just look wrong.
-    for (const bad of [undefined, null, NaN, Infinity, '3', {}]) {
+    // 2.5 and -1 joined the list with decision B1: `minMove` is derived from the
+    // precision, and 10^-2.5 or 10^1 is not a step any axis should round to.
+    for (const bad of [undefined, null, NaN, Infinity, '3', {}, 2.5, -1]) {
       expect(seriesOptionsForPlot({ ...bareplot('line'), precision: bad }, {}).priceFormat)
-        .toEqual({ type: 'price', precision: 2 })
+        .toEqual({ type: 'price', precision: 2, minMove: 0.01 })
     }
     expect(seriesOptionsForPlot({ ...bareplot('line'), precision: 0 }, {}).priceFormat)
-      .toEqual({ type: 'price', precision: 0 })
+      .toEqual({ type: 'price', precision: 0, minMove: 1 })
   })
 
   it("MACD's shipped histogram still asks for 5, exactly as the legacy call did", () => {
@@ -867,7 +869,9 @@ describe('`plots[].precision` is honoured on every pool key', () => {
     // why this whole field was latent: engine and legacy already agreed.
     const hist = registry.getDefinition('macd').plots.find(p => p.key === 'histogram')
     expect(hist.precision).toBe(5)
-    expect(seriesOptionsForPlot(hist, {}).priceFormat).toEqual({ type: 'price', precision: 5 })
+    // Decision B1 adds the matching `minMove`; the legacy call left LWC's 0.01,
+    // which rounded the five decimals it printed to two.
+    expect(seriesOptionsForPlot(hist, {}).priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
   })
 
   it("a pooled series cannot inherit the last tenant's precision", () => {
@@ -877,6 +881,51 @@ describe('`plots[].precision` is honoured on every pool key', () => {
     const macdHist = registry.getDefinition('macd').plots.find(p => p.key === 'histogram')
     expect(seriesOptionsForPlot(macdHist, {}).priceFormat.precision).toBe(5)
     expect(seriesOptionsForPlot(bareplot('histogram'), {}).priceFormat.precision).toBe(2)
+  })
+})
+
+// ─── B1: `minMove` follows `precision` ───────────────────────────────────────
+//
+// LWC 5.2.0's PriceFormatter rounds to `minMove` and only pads to `precision`,
+// so a 4-decimal plot left at LWC's `minMove: 0.01` printed 0.2500 for 0.2477
+// (the real-chart proof is `__tests__/priceFormatMinMove.realChart.test.js`).
+describe('B1: every engine priceFormat carries minMove = 10^-precision', () => {
+  it('for every precision 0..10, and the step times 10^p is exactly 1', () => {
+    // LWC builds its formatter from `minMove * 10^precision`; anything but 1 there
+    // means a step that is not one unit of the last printed decimal.
+    for (let p = 0; p <= 10; p++) {
+      const pf = seriesOptionsForPlot({ ...bareplot('line'), precision: p }, {}).priceFormat
+      expect(pf, `precision ${p}`).toEqual({ type: 'price', precision: p, minMove: 10 ** -p })
+      expect(pf.minMove * 10 ** p, `precision ${p}`).toBe(1)
+    }
+  })
+
+  it('every shipped plot that declares a precision gets its matching step', () => {
+    // Walks the real registry, so a new plot that declares a precision is covered
+    // without editing this test. The census guards against walking nothing.
+    const seen = []
+    for (const def of registry.listDefinitions()) {
+      for (const plot of def.plots || []) {
+        if (!Number.isInteger(plot.precision) || !poolKey(plot)) continue
+        const pf = seriesOptionsForPlot(plot, {}).priceFormat
+        expect(pf, `${def.id}.${plot.key}`).toEqual({ type: 'price', precision: plot.precision, minMove: 10 ** -plot.precision })
+        seen.push(`${def.id}.${plot.key}`)
+      }
+    }
+    expect(seen).toEqual(expect.arrayContaining(['macd.histogram', 'rsLine.rsLine', 'rsLine.rsMa']))
+  })
+
+  it('the step is emitted on EVERY bind, so a pooled series cannot keep a custom step', () => {
+    // LWC's `merge` keeps any `priceFormat` key the new object omits. A fundamental's
+    // custom format sets `minMove: 1`; a plot re-using that series must overwrite it.
+    for (const style of ['line', 'area', 'baseline', 'histogram', 'stepline', 'markers']) {
+      expect(seriesOptionsForPlot(bareplot(style), {}).priceFormat, style).toHaveProperty('minMove', 0.01)
+    }
+  })
+
+  it('a caller-supplied priceFormat (a fundamental or the candle axis) still wins untouched', () => {
+    const custom = Object.freeze({ type: 'custom', minMove: 1, formatter: (v) => String(v) })
+    expect(seriesOptionsForPlot({ ...bareplot('line'), precision: 4 }, { priceFormat: custom }).priceFormat).toBe(custom)
   })
 })
 

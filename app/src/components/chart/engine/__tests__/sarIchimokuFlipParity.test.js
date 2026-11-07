@@ -120,7 +120,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
-  priceFormat: { type: 'price', precision: 2 },
+  priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
 }
 
 // ⭐ B5 TASK 12 — AND WHY THIS FILE ALONE NEEDS NO `__setPaneModeForTest`.
@@ -189,7 +189,7 @@ describe('sar transcription — the first markers plot the engine has ever bound
         visible: true,
         lineStyle: 0,
         lineType: 0,
-        priceFormat: { type: 'price', precision: 2 },
+        priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
         autoscaleInfoProvider: AUTOSCALE_EXCLUDE,
       })
   })
@@ -233,7 +233,7 @@ describe('sar transcription — the first markers plot the engine has ever bound
       visible: true,
       lineStyle: 0,
       lineType: 0,
-      priceFormat: { type: 'price', precision: 2 },
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
       autoscaleInfoProvider: AUTOSCALE_EXCLUDE,
     })
   })

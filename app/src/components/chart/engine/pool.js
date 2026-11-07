@@ -380,11 +380,16 @@ const LWC_DEFAULTS = Object.freeze({
 /** LWC's OWN `priceFormat.precision` (`seriesOptionsDefaults`, 5.2.0). Naming it
  *  here is what makes `precision` free to wire onto EVERY pool key: a plot that
  *  says nothing gets the number the renderer already uses, so the emitted
- *  `{type: 'price', precision: 2}` is a no-op on the picture and Flip A parity is
- *  untouched. `minMove` is deliberately NOT emitted — LWC's `merge` recurses into
- *  a nested plain object, so the series keeps its own `minMove: 0.01`, which is
- *  exactly what the legacy MACD call (`StockChart.jsx:6018`,
- *  `{type: 'price', precision: 5}` and nothing else) leaves it at. */
+ *  `{type: 'price', precision: 2, minMove: 0.01}` is a no-op on the picture and
+ *  Flip A parity is untouched for every plot that declares nothing.
+ *
+ *  ⚰️ `minMove` used to be deliberately left out, to match the legacy MACD call
+ *  (`{type: 'price', precision: 5}` and nothing else). That kept the series' own
+ *  `minMove: 0.01`, and LWC 5.2.0's `PriceFormatter` ROUNDS to `minMove` and only
+ *  PADS to `precision` (`base = 10^precision / (minMove * 10^precision)`): MACD's
+ *  histogram tag printed 0.12000 for 0.12345, and the RS line's 4-dp tag printed
+ *  0.2500 for 0.2477. Decision B1 (2026-11-07): every engine series sets
+ *  `minMove = 10^-precision`, and the parity diffs this causes are corrections. */
 const DEFAULT_PRICE_PRECISION = 2
 
 /**
@@ -400,9 +405,30 @@ const DEFAULT_PRICE_PRECISION = 2
  * Emitted on every pool key rather than only where the author asked for it: the
  * C-1 key set has to be identical for every plot sharing a pool key, or an
  * `applyOptions` merge carries the last tenant's precision onto the next one.
+ *
+ * Only a whole number of decimals >= 0 is accepted, the same rule `defSchema`
+ * applies: `minMove` is derived from it, and 10^-2.5 or 10^1 is a step no axis
+ * should round to.
  */
 function precisionFor(plot) {
-  return Number.isFinite(plot.precision) ? plot.precision : DEFAULT_PRICE_PRECISION
+  const p = plot.precision
+  return Number.isInteger(p) && p >= 0 ? p : DEFAULT_PRICE_PRECISION
+}
+
+/**
+ * The `priceFormat` for a plot: its precision AND the matching `minMove`.
+ *
+ * `minMove` is what LWC rounds to (see `DEFAULT_PRICE_PRECISION`), so it must be
+ * `10^-precision` or a 4-decimal tag rounds to 2. Emitted on every bind, like
+ * `precision`, so a pooled series re-purposed from a tenant with another step
+ * (a fundamental's custom format sets `minMove: 1`) cannot keep that step: LWC's
+ * `merge` recurses into `priceFormat` and keeps any key the new object omits.
+ * `10 ** -p` is exact here: `minMove * 10^p` comes out as exactly 1 for p = 0..10
+ * (pinned in `pool.test.js`), so LWC's step is one unit of the last decimal.
+ */
+function priceFormatFor(plot) {
+  const precision = precisionFor(plot)
+  return { type: 'price', precision, minMove: 10 ** -precision }
 }
 
 /** The engine's own default line width. NOT LWC's (which is 3): every indicator
@@ -670,7 +696,7 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ A historical fundamental reads in ITS unit on the axis (`$365.0B`, `24.3%`,
     // `28.40x`) -- the binder resolves the catalogue format and hands a frozen
     // priceFormat; every other plot keeps the declared precision, unchanged.
-    priceFormat: c.priceFormat || { type: 'price', precision: precisionFor(plot) },
+    priceFormat: c.priceFormat || priceFormatFor(plot),
     // B3 carry #1. A price overlay is a GUEST on the candles' axis and must not
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —

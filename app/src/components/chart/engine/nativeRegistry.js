@@ -4046,6 +4046,8 @@ const RS_LINE_RAW = {
       color: '$color', colorUp: '$color', colorDown: '$lineDownColor', width: '$lineWidth',
       // ⭐ `precision: 4` keeps the axis tag and the legend saying the same number
       // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
+      // It takes `pool`'s matching `minMove: 0.0001` (decision B1) to do so: LWC
+      // rounds to `minMove`, so precision alone printed 0.2500.
       precision: 4, role: 'primary', legend: { decimals: 4 } },
     // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
     // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
