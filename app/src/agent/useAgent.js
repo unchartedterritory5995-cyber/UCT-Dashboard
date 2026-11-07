@@ -29,6 +29,7 @@ import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, c
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
+import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
 import { boardRefusalIn } from '../pages/charts/boardBound'
 import { chartFaultedSince, onChartFault } from '../pages/charts/chartFaults'
 import { bindCreated } from './createdBinding'
@@ -123,7 +124,12 @@ export function translateRefs(ops, refMap) {
   const isAlias = (v, kinds) => typeof v === 'string' && aliasKind[v] != null && (!kinds || [].concat(kinds).includes(aliasKind[v]))
   return (ops || []).map((o) => {
     const cap = getCapability(o?.action)
-    const target = isAlias(o?.target, cap?.target) ? o.target : (refMap[o?.target]?.ref || o?.target)
+    // ⛔ REAL-MODEL VERIFICATION 2026-11-05: "add a watchlist widget" aimed widget.add at a watchlist's own context entry and was
+    // refused "That target is not on the workspace". An action with one possible target has nothing to choose: whichever
+    // context entry the model named, it means that one (`onlyRef`: the workspace, the board).
+    const hit = refMap[o?.target]
+    const only = hit && hit.kind !== cap?.target ? getTargetKind(cap?.target)?.onlyRef : null
+    const target = isAlias(o?.target, cap?.target) ? o.target : (only || hit?.ref || o?.target)
     const out = { ...o, target, args: argRefsBack(o, refMap, isAlias) }
     const c = cap?.creates?.(o?.args || {})
     if (c?.alias) aliasKind[c.alias] = c.kind
@@ -706,7 +712,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (item?.role && item.role !== 'member') turnOutput(item.role)
     const id = item?.id || nid()
     if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
-    setItems(xs => [...xs, { at: Date.now(), ...item, id }])
+    setItems(xs => [...xs, { at: Date.now(), ...withOptionsOrPlain(item), id }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
   // ⛔ APPROVAL BINDING: a change that RAN (any write, or an Undo) withdraws a proposal still waiting —
@@ -1610,7 +1616,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // takes back the WHOLE request, newest first, each entry through doUndoOne (every refusal unchanged); the first that can't
   // be undone stops it there, said exactly. A described Undo ("undo the timeframe change") takes back only the steps of
   // the group it describes. `single`: exactly the one entry (the group runner itself).
+  // ⛔ REAL-MODEL VERIFICATION 2026-11-05: "actually undo that" with a card waiting withdrew the card AND undid an older tab
+  // switch. Nothing on the card has happened, so an Undo said over it is about the card, and one request does one thing: the card
+  // goes and the board stays. An Undo that names something else (`about`) or a receipt's own button (`undoId`) still runs.
+  const dismissRef = useRef(null)
+  const undoSaidOverCard = async ({ member }) => {
+    await dismissRef.current({ member, text: 'Withdrew that proposal: nothing on it was applied, and nothing else changed.' })
+    return true
+  }
   const doUndo = useCallback(async (undoId, { member, voice, about = null, rest = false, single = false } = {}) => {
+    if (!undoId && !about && pendingRef.current?.kind === 'proposal') return await undoSaidOverCard({ member })
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     // OWNER RULING (W2, 11-04: "undo" after "add the 9 and 20 EMAs" took back only one EMA): a PLAIN Undo of the newest
@@ -1629,6 +1644,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     return await undoIds(ids, { member, voice, rest, what: 'from that request' })
   }, [host, doUndoOne, undoIds])
   const undoTurn = useCallback(async ({ member, voice, rest = false } = {}) => {
+    if (pendingRef.current?.kind === 'proposal') return await undoSaidOverCard({ member })
     const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
     if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
     return await undoIds(ids, { member, voice, rest })
@@ -1700,11 +1716,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
   }, [execute, patchItem, push, record, host])
 
-  const dismiss = useCallback(({ member } = {}) => {
+  const dismiss = useCallback(({ member, text = 'Okay — nothing changed.' } = {}) => {
     const p = pendingRef.current
     pendingRef.current = null
     if (p?.kind === 'proposal') patchItem(p.id, { status: 'dismissed' })
-    const text = 'Okay — nothing changed.'
     push({ role: 'outcome', text })
     record({ member, outcome: text, outcomeData: { kind: 'dismissed' }, telemetry: { path: 'fast' } })
     // NLM-1 step plans (dark): a card dismissed mid-plan — what of the plan IS in place, read back (the rest never ran)
@@ -1713,6 +1728,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (v2Ref.current?.paused()) return v2Ref.current.afterCard(v2DepsRef.current())
     return undefined
   }, [patchItem, push, record])
+  dismissRef.current = dismiss
 
   // A local "which one?" for fast-path ops when several targets of the kind exist.
   const chooseTarget = useCallback(async (ref, label) => {
@@ -2568,6 +2584,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const streamed = live.settle(talk ? { text: env.reply, sources } : null)
       if (talk) {
         if (!streamed) push({ role: 'agent', text: env.reply, sources })
+        return
+      }
+      // a "which one?" with nothing behind it is no question (noOptionQuestion.js)
+      const unasked = env.disposition === 'clarify' ? noOptionRefusal(env, host, clarifyChoices(env.question?.choices)) : null
+      if (unasked) {
+        push({ role: 'refusal', text: unasked })
+        record({ member: null, outcome: unasked, outcomeData: { kind: 'refused', actions: env.unplaced_actions || [] }, telemetry: { path: 'model', refused: true, voice } })
         return
       }
       // the member's words this question is about stay with it, for the answer (screenUnnamedTargets)

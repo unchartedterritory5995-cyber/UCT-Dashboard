@@ -384,7 +384,16 @@ const DIST_ABOVE_LOW = /^dist_(?:\w+_)?low_pct$/
 /** 'neg' (≤ 0: below a high), 'pos' (≥ 0: above a low) or null — the sign convention of a distance field. */
 export const distanceSign = (key) => (DIST_BELOW_HIGH.test(String(key || '')) ? 'neg' : DIST_ABOVE_LOW.test(String(key || '')) ? 'pos' : null)
 // SG-1: the catalog line the model reads says the sign ("near the 52-week high" = dist_52w_high_pct gte -5)
-const DIST_UNIT = { neg: '(%, ≤0: −5 = 5% below the high)', pos: '(%, ≥0: 5 = 5% above the low)' }
+const DIST_UNIT = { neg: '(%, ≤0: −5 = 5% below the high; sort desc = closest to the high first)', pos: '(%, ≥0: 5 = 5% above the low; sort asc = closest to the low first)' }
+// ⛔ REAL-MODEL VERIFICATION 2026-11-05: "near their 52-week highs" sorted `asc`, which on a field that is 0 at the high and negative
+// below it lists the stocks FURTHEST from the high first. The catalog line above states the sign, the plan's order stands (AUDIT
+// review of #866: a flip here overrode a deliberate "furthest first"), and the answer says which way it runs.
+// The order in the words of a signed distance: "lowest first" on one reads backwards.
+export const orderWords = ({ key, dir }) => {
+  const sign = distanceSign(key)
+  if (sign) return (dir === 'asc') === (sign === 'pos') ? `closest to the ${sign === 'neg' ? 'high' : 'low'} first` : `furthest from the ${sign === 'neg' ? 'high' : 'low'} first`
+  return dir === 'asc' ? 'lowest first' : 'highest first'
+}
 const MIRROR = { gt: 'lt', gte: 'lte', lt: 'gt', lte: 'gte', eq: 'eq' }
 /** A range filter {op, value, max} on a distance field, put on the field's own side of zero → { x, note } (x unchanged
  *  and note null when it already was). Pure; exported for tests. */
@@ -736,7 +745,7 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   // ⛔ NO usable value at all: the engine's order is not that ranking, so no rows are shown as one.
   const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
   const sortWord = spec.rank ? ` by your weighted rank (${rankWords(spec.rank)})` : !spec.sort ? `, ${DEFAULT_ORDER_WORDS}`
-    : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
+    : ` by ${sortLabel} (${orderWords(spec.sort)})${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const notes = [...extra, ...coverageNotes(spec), ...rankNotes(r.res.rank), ...r.notes]
   return {
@@ -800,7 +809,7 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
   const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
   const sortWord = spec.rank ? ` by your weighted rank (${rankWords(spec.rank)})` : !spec.sort ? `, ${DEFAULT_ORDER_WORDS}`
-    : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
+    : ` by ${sortLabel} (${orderWords(spec.sort)})${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const c = env.coverage
   const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} ${c.dropped === 1 ? 'was' : 'were'} excluded for stopped price history` : ''}` : null
@@ -1308,7 +1317,7 @@ export function registerScreenerCapabilities() {
       const l = cache.last
       if (!l) return "I haven't run a screen in this conversation yet. (I can't see the filters open on the Screener page itself from here.)"
       const f = specParts(l.spec).join(' · ') || 'no filters'
-      const s = l.spec.rank ? `by a weighted rank (${rankWords(l.spec.rank)})` : l.spec.sort ? `by ${fieldOf(l.spec.sort.key)?.label || l.spec.sort.key}, ${l.spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first` : "in UCT's default order"
+      const s = l.spec.rank ? `by a weighted rank (${rankWords(l.spec.rank)})` : l.spec.sort ? `by ${fieldOf(l.spec.sort.key)?.label || l.spec.sort.key}, ${orderWords(l.spec.sort)}` : "in UCT's default order"
       return `${l.name ? `${l.name}: ` : 'The last screen I ran: '}${f}. Sorted ${s}. ${Number(l.total).toLocaleString()} matches${l.asOf ? ` (data ${l.asOf})` : ''}.`
     },
   })

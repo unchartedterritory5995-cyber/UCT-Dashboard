@@ -43,6 +43,8 @@ import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
+import { instancesOf } from '../../components/chart/builder/agentSeams'
+import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -219,6 +221,22 @@ function fastSetting(text) {
   return null
 }
 
+// ⛔ A chart under hide-all (Alt+Shift+I) shows nothing over its candles, whatever each item's own flag says: a request to show
+// one of them has work to do, and the receipt says it brought everything back, because that is what the chart does.
+export const liftHideAll = (st) => (st.view?.indicatorsHidden === true ? { ...st, viewDo: { op: 'setIndicatorsHidden', arg: false } } : st)
+export const HIDE_ALL_LIFTED = 'Turned off hide-all on this chart'
+const MAX_NAMED = 6
+const namesOf = (rows) => (rows.length <= MAX_NAMED ? rows.map(r => r.name).join(', ') : `${rows.slice(0, MAX_NAMED).map(r => r.name).join(', ')} and ${rows.length - MAX_NAMED} more`)
+/** ⛔ AUDIT review of #866: what a lift put on screen, from the chart's settings as they now read. Hide-all covers what the member hid
+ *  one by one too, so those stay hidden and are named as such: never "every indicator and Volume". */
+export function liftedLine(cs, where) {
+  let rows = []
+  try { rows = instancesOf(cs, nativeRegistry) } catch { rows = [] }
+  const back = rows.filter(r => !r.hidden), kept = rows.filter(r => r.hidden)
+  const parts = [...(back.length ? [`${namesOf(back)} ${back.length === 1 ? 'is' : 'are'} showing again`] : []), ...(kept.length ? [`${namesOf(kept)} ${kept.length === 1 ? 'stays' : 'stay'} hidden`] : [])]
+  return `Turned off hide-all on ${where}${parts.length ? `: ${parts.join('; ')}` : ''}.`
+}
+
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
 // Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
@@ -297,13 +315,50 @@ export const chartKind = {
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
-  async commit(host, ref, patch) {
+  // ⛔ AUDIT review of #866: hide-all goes before a setting is written ("show volume" under it does both). A chart that does not
+  // confirm it stops here with nothing saved. Past that point the flip is undone by read-back or the failure says it was not:
+  // "nothing was left changed" is only ever said over a state the chart reported.
+  async commit(host, ref, patch, { lines = [] } = {}) {
+    const { viewDo, ...rest } = patch
+    if (viewDo?.op !== 'setIndicatorsHidden') return chartKind.write(host, ref, patch)
+    const read = () => chartKind.read(host, ref)
+    const until = async (done, ms) => {
+      const t0 = Date.now()
+      while (Date.now() - t0 < ms && !done()) await new Promise(r => setTimeout(r, 50))
+      return done()
+    }
+    if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
+    if (!await until(() => viewDone(read()?.view, viewDo), 5000)) return false
+    const stored0 = read()?.stored ?? null
+    const undoFlip = async () => {
+      const back = { op: viewDo.op, arg: !viewDo.arg }
+      if (!host.charts.viewDo?.(ref, back.op, back.arg) || !await until(() => viewDone(read()?.view, back), 5000)) {
+        throw Object.assign(new Error('the change did not land, and hide-all could not be put back'), { unreverted: true })
+      }
+    }
+    let ok
+    try {
+      ok = !Object.keys(rest).length || await chartKind.write(host, ref, rest)
+    } catch (e) {
+      await undoFlip()
+      throw e
+    }
+    // the write reaches the chart on its next render, and a chart can take it and never show it
+    if (!ok || !await until(() => chartKind.landed(read(), rest), 2000)) {
+      await undoFlip()
+      if ('settings' in rest && !sameJson(read()?.stored ?? null, stored0)) throw Object.assign(new Error('the settings only partly changed'), { unreverted: true })
+      return false
+    }
+    if (lines.includes(HIDE_ALL_LIFTED)) return { lines: lines.map(l => (l === HIDE_ALL_LIFTED ? liftedLine(read()?.cs, 'this chart') : l)) }
+    return ok
+  },
+  async write(host, ref, patch) {
     const { goto, replay, volPanePref, viewDo, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
     if ('volPanePref' in patch && ok) {
-      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw new Error('the server did not confirm the change, so it is not saved')
+      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw Object.assign(new Error('the server did not confirm the change, so it is not saved'), { unreverted: Object.keys(rest).length > 0 })
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
     }
@@ -701,15 +756,18 @@ const CAPABILITIES = [
     },
     check: (st, { state }) => (['visible', 'hidden', 'removed'].includes(state) ? null : `“${state}” is not a Volume state.`),
     apply(st, { state }) {
-      if (volState(st.cs) === state) return st
+      // hide-all (Alt+Shift+I) covers Volume too, whatever its own flag says, and it covers the whole chart
+      const shown = state === 'visible' ? liftHideAll(st) : st
+      if (volState(st.cs) === state) return shown
       const v = { ...(st.cs.volume || {}) }
       if (state === 'visible') { v.visible = true; v.removed = false }
       else if (state === 'hidden') { v.visible = false; v.removed = false }
       else v.removed = true
-      return { ...st, cs: set(st.cs, { volume: v }) }
+      return { ...shown, cs: set(st.cs, { volume: v }) }
     },
     describe(b, a) {
       const now = volState(a.cs)
+      if (a.viewDo?.op === 'setIndicatorsHidden') return HIDE_ALL_LIFTED
       if (volState(b.cs) === now) return null
       return now === 'visible' ? 'Showed Volume' : now === 'hidden' ? 'Hid Volume' : 'Removed Volume'
     },

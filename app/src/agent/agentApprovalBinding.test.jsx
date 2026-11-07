@@ -331,7 +331,7 @@ describe('expiry — every proposal is good for 10 minutes', () => {
 })
 
 describe('a change that runs while a proposal waits withdraws it — an Undo too', () => {
-  it('Undo of an earlier change withdraws the waiting card; "do it" then does nothing', async () => {
+  it('a plain Undo over the waiting card takes the card alone (real-model verification 2026-11-05); "do it" then does nothing', async () => {
     const b = board()
     const { say, transcript } = mount(b.host)
     await say('add NVDA to swing')                                           // an earlier change, with Undo
@@ -340,8 +340,8 @@ describe('a change that runs while a proposal waits withdraws it — an Undo too
     await say('delete my swing watchlist')
     await waitFor(() => expect(transcript()).toMatch(/and its 2 stocks \(permanent\)/))
     await say('undo')
-    await waitFor(() => expect(serverSyms(b, 's1')).toEqual(['TSLA']))
-    await waitFor(() => expect(transcript()).toMatch(/I withdrew the proposal above/))
+    await waitFor(() => expect(transcript()).toMatch(/Withdrew that proposal/))
+    expect(serverSyms(b, 's1')).toEqual(['TSLA', 'NVDA'])
     await say('do it')
     await settle()
     expect(onServer(b, 's1')).not.toBeNull()
@@ -454,7 +454,7 @@ describe('NL-1 on — the approval binding holds when the model reads every requ
     expect(turns).toHaveLength(1)                                          // "do it" never reached the model
   })
 
-  it('an Undo (exact lane) of an earlier change withdraws the waiting card; "do it" then does nothing', async () => {
+  it('a plain Undo (exact lane) over the waiting card takes the card alone; "do it" then does nothing', async () => {
     await nl1On()
     const b = board()
     const { say, transcript } = mount(b.host)
@@ -466,8 +466,8 @@ describe('NL-1 on — the approval binding holds when the model reads every requ
     await say('delete my swing watchlist')
     await waitFor(() => expect(transcript()).toMatch(/and its 1 stock \(permanent\)/))
     await say('undo')
-    await waitFor(() => expect(b.host.charts.read('L').tf).toBe('D'))
-    await waitFor(() => expect(transcript()).toMatch(/I withdrew the proposal above/))
+    await waitFor(() => expect(transcript()).toMatch(/Withdrew that proposal/))
+    expect(b.host.charts.read('L').tf).toBe('W')
     await say('do it')
     await settle()
     expect(onServer(b, 's1')).not.toBeNull()

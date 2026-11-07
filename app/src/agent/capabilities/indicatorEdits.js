@@ -29,7 +29,7 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
 import { savedReferent } from './indicatorAuthoring'
-import { colorName } from './chart'
+import { colorName, liftedLine } from './chart'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -56,9 +56,14 @@ export { ownedIds as ownedDefinitionIds }
 
 const rowsOf = (cs) => { try { return instancesOf(cs, nativeRegistry).filter(r => !r.setting) } catch { return [] } }
 
+// ⛔ REAL-MODEL VERIFICATION 2026-11-05: Alt+Shift+I (chartSetup.setIndicatorsHidden) hides everything with ONE VIEW flag on the
+// chart (read back through getDateMeta), and each indicator's own `hidden` stays false. "bring them back" read only that
+// per-indicator flag and said "RSI is already shown" over a chart with nothing on it. Anything that says an indicator is, or
+// is not, showing reads THIS with the per-indicator flag, and "show" clears it.
+export const chartHidesAll = (c) => c?.view?.indicatorsHidden === true
 const snapOf = (host, c) => ({
   ref: refOf(c.ref), chartRef: c.ref, label: c.label, position: c.position || null, symbol: c.symbol,
-  cs: c.cs, canManage: mutationCtx(host, c.ref).canManage, rows: rowsOf(c.cs),
+  cs: c.cs, canManage: mutationCtx(host, c.ref).canManage, rows: rowsOf(c.cs), allHidden: chartHidesAll(c),
 })
 export { refOf as indicatorEditsRef, chartRefOf as chartOfIndicatorEdits, rowsOf as indicatorRowsOf }
 
@@ -350,6 +355,15 @@ async function persistAndReadBack(host, chartRef, before, written) {
 
 const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg), unreverted ? { unreverted: true } : {})
 
+// The chart's own Alt+Shift+I write, then its own read-back: a receipt only follows the chart reporting that state.
+async function setHideAll(host, chartRef, hidden, ms = 5000) {
+  if (!host.charts.viewDo?.(chartRef, 'setIndicatorsHidden', hidden)) throw fail('the chart did not accept the change')
+  const shown = () => chartHidesAll(host.charts.read(chartRef)) === hidden
+  const t0 = Date.now()
+  while (!shown() && Date.now() - t0 < ms) await afterRender()
+  if (!shown()) throw fail('the chart did not confirm the change, so it is not done')
+}
+
 export const indicatorEditsKind = {
   name: 'indicatorEdits',
   noun: 'chart',                 // what a local "which one?" asks for
@@ -365,11 +379,36 @@ export const indicatorEditsKind = {
     const c = chartRefOf(ref) && host?.charts?.read(chartRefOf(ref))
     return c ? snapOf(host, c) : null
   },
-  stateOf: (s) => ({ chart: s.label, chartRef: s.chartRef, cs: s.cs, canManage: s.canManage, rows: s.rows, change: null }),
-  patch: (before, after) => (after.change ? { change: after.change } : null),
+  stateOf: (s) => ({ chart: s.label, chartRef: s.chartRef, cs: s.cs, canManage: s.canManage, rows: s.rows, allHidden: s.allHidden, change: null, lift: false }),
+  patch: (before, after) => (after.change || after.lift ? { ...(after.change ? { change: after.change } : {}), ...(after.lift ? { lift: true } : {}) } : null),
+  // ⛔ AUDIT review of #866: the view flag goes FIRST, because it is the half that can fail with nothing to undo. A chart that does
+  // not confirm it stops the request before a setting is written, so "nothing was left changed" stays true and the Undo stack
+  // stays good. A settings write that then fails puts the flag back.
+  async commit(host, ref, patch) {
+    if (!patch.lift && !patch.rehide) return indicatorEditsKind.mutate(host, ref, patch)
+    const chartRef = chartRefOf(ref)
+    const cur = host.charts.read(chartRef)
+    if (!cur) throw fail('that chart is no longer on the board')
+    const hidden = !!patch.rehide
+    await setHideAll(host, chartRef, hidden)
+    // hide-all alone: lifted by a "show", put back by that show's Undo. Nothing in the settings changes.
+    if (hidden && !patch.undo) return { lines: [`Hid every indicator and Volume on ${cur.label} again.`], undoData: null }
+    const lifted = () => liftedLine(host.charts.read(chartRef)?.cs, cur.label)
+    if (!hidden && !patch.change) return { lines: [lifted()], undoData: { lifted: true, token: null } }
+    let res
+    try {
+      res = await indicatorEditsKind.mutate(host, ref, patch)
+    } catch (e) {
+      if (!e?.unreverted) {
+        try { await setHideAll(host, chartRef, !hidden) } catch { throw fail('the change did not land, and hide-all could not be put back', { unreverted: true }) }
+      }
+      throw e
+    }
+    return hidden ? res : { lines: [...res.lines, lifted()], undoData: { lifted: true, token: res.undoData } }
+  },
   // A change, or an Undo — both through the Indicators interface, then the chart's own
   // persist, then the authoritative read-back.
-  async commit(host, ref, patch) {
+  async mutate(host, ref, patch) {
     const chartRef = chartRefOf(ref)
     const cur = host.charts.read(chartRef)
     if (!cur) throw fail('that chart is no longer on the board')
@@ -412,7 +451,7 @@ export const indicatorEditsKind = {
   // commit() above already persisted and read back the change: the runtime adds no second board write
   persistsInCommit: true,
   // Undo exists only when the interface minted a token on confirmation — held as returned.
-  undoPatch: (item) => (item.undoData ? { undo: item.undoData } : null),
+  undoPatch: (item) => (item.undoData?.lifted ? { undo: item.undoData.token, rehide: true } : item.undoData ? { undo: item.undoData } : null),
   // Staleness is the interface's (pins re-checked at apply / undo), not a whole-settings hash:
   // an unrelated chart change must not refuse an exact indicator Undo.
   fingerprint: (s) => s.chartRef,
@@ -679,7 +718,7 @@ export function registerIndicatorEditCapabilities() {
     key: 'indicatorEdits',
     build: (host, refFor) => {
       const list = indicatorEditsKind.list(host)
-      return list.length ? list.map(s => ({ ref: refFor('indicatorEdits', s.ref), chart: s.label, position: s.position, symbol: s.symbol, canManage: s.canManage })) : undefined
+      return list.length ? list.map(s => ({ ref: refFor('indicatorEdits', s.ref), chart: s.label, position: s.position, symbol: s.symbol, canManage: s.canManage, ...(s.allHidden ? { allHidden: true } : {}) })) : undefined
     },
   })
   registerContextProvider({
@@ -877,10 +916,12 @@ export function registerIndicatorEditCapabilities() {
         if (!t.ok) return st
         const req = { op: 'setVisible', instanceId: t.instanceId, visible }
         const p = planFor(st, req)
-        return p.ok ? { ...st, change: { request: req, plan: p.plan } } : st
+        const next = p.ok ? { ...st, change: { request: req, plan: p.plan } } : st
+        // hide-all covers the whole chart: nothing else can make this one visible, and its own flag says nothing about that
+        return visible && st.allHidden ? { ...next, lift: true } : next
       },
       noop: (b, a, { instance }) => `${targetOf(b, instance).name || 'It'} is already ${visible ? 'shown' : 'hidden'}`,
-      describe: (b, a) => (a.change ? `${visible ? 'Show' : 'Hide'} ${a.change.plan.preview.name} on ${a.chart}` : null),
+      describe: (b, a) => (a.change ? `${visible ? 'Show' : 'Hide'} ${a.change.plan.preview.name} on ${a.chart}${a.lift ? ', which brings back everything hidden on it' : ''}` : a.lift ? `Bring back every indicator and Volume on ${a.chart}` : null),
     })
   }
 }

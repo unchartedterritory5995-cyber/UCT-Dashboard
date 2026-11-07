@@ -80,7 +80,7 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
   }
   // W1.1 R-01: the capability's declared args tolerance (capabilities.normalizeArgs — the browser half of the
   // server's turn.normalize_args) applies on EVERY path before the shape gate; the op objects given are never mutated
-  const ops = opsIn.map(op => (op && op.args && typeof op.args === 'object' ? { ...op, args: normalizeArgs(op.action, op.args).args } : op))
+  const { ops, left: unset } = withoutStepsOnUnsetWidgets(opsIn.map(op => (op && op.args && typeof op.args === 'object' ? { ...op, args: normalizeArgs(op.action, op.args).args } : op)))
   // An expanded request (compose.expandOps, e.g. "chart these 8") counts once.
   const units = new Set(ops.map((o, i) => (o?.fromExpand != null ? `x${o.fromExpand}` : `#${i}`))).size
   if (units > MAX_OPS || ops.length > MAX_OPS * 4) {
@@ -212,6 +212,7 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
     }
     p.patch = kind.patch(p.before, p.after)
     p.changed = !!p.patch || p.virtual
+    if (unset && p.items.some(({ op }) => op.args?.as && getCapability(op.action)?.createsResource)) p.lines.push(UNSET_NEW_WIDGET)
     if (p.changed) changed = true
   }
   const out = { ok: true, plans, lines: summarize(plans), changed, noops: plans.flatMap(p => p.noops) }
@@ -263,6 +264,22 @@ export async function prepareOps(ops) {
     }
   }
   return env
+}
+
+// A new widget the same request cannot set up (widget.add names it with `as`, but only a chart is configurable: `creates` says
+// no). ⛔ REAL-MODEL VERIFICATION 2026-11-05: steps aimed at that name reached the planner as an unknown target, and the whole
+// request, the add included, was refused "That target is not on the workspace". The add runs, the steps are left out, and the
+// receipt says so (UNSET_NEW_WIDGET): never a silent partial plan, never a refusal of what could run.
+export const UNSET_NEW_WIDGET = 'The new widget opens as it normally does: I can’t set it up in the request that adds it, so ask for that next.'
+function withoutStepsOnUnsetWidgets(ops) {
+  const adds = new Map()
+  for (const op of ops) {
+    const as = op?.args?.as
+    if (typeof as === 'string' && as && getCapability(op?.action)?.createsResource && !getCapability(op.action).creates?.(op.args)) adds.set(as, op)
+  }
+  if (!adds.size) return { ops, left: 0 }
+  const kept = ops.filter(op => adds.get(op?.args?.as) === op || ![op?.target, ...Object.values(op?.args || {})].some(v => adds.has(v)))
+  return { ops: kept, left: ops.length - kept.length }
 }
 
 /** Collect current targets of every kind the ops name, from the host. */

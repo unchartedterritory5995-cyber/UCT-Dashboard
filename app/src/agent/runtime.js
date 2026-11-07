@@ -37,6 +37,13 @@ async function waitForTarget(kind, host, ref, budgetMs = 8000) {
 }
 
 const fpOf = (kind, host, snap, item) => (kind.fingerprintFor ? kind.fingerprintFor(host, snap, item) : kind.fingerprint(snap))
+// ⛔ "nothing was left changed" follows a read-back. A step that returned but did not land is not compensated (only landed steps are),
+// so its target is read: not as the plan found it, or not readable, is not "nothing". A step that made resources says so itself, and
+// a step that THROWS speaks for itself through `unreverted` (a watchlist takes its own rows back, and its snapshot lags the server).
+// Read AFTER compensation (fail's `leftBehind`): two kinds can share one state, and the earlier step's change is gone by then.
+const leftChanged = (kind, host, p) => {
+  try { return kind.fingerprint(kind.read(host, p.ref)) !== kind.fingerprint(p.snap) } catch { return true }
+}
 
 let _seq = 0
 
@@ -83,12 +90,13 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   const aliases = {}
   const born = {}                 // alias → what a creator set at birth (verified without mounting)
   // `dirty`: the failing step itself left something behind it could not take back.
+  // `leftBehind`: the same question asked of the target itself, called only once compensation has finished.
   // `note`: the failing step says itself what it kept (e.g. a draft rename that stays) — never
   // "nothing was left changed" over a change that was deliberately kept
   // `say`: the step's own COMPLETE sentence for the member (it already says what was and wasn't kept) —
   // said once, as-is; only a change that could not be reversed is added to it. `gate`: diagnostics only.
-  const fail = async (label, reason, { dirty = false, note = null, say = null, gate = null } = {}) => {
-    const restored = (await compensate(host, landed)) && !dirty
+  const fail = async (label, reason, { dirty = false, leftBehind = null, note = null, say = null, gate = null } = {}) => {
+    const restored = (await compensate(host, landed)) && !dirty && !leftBehind?.()
     const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : ' — and some changes could not be reversed')
     return {
       ok: false, lines: [], undo: null, compensated: restored && !note,
@@ -101,7 +109,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   for (const p of real) {
     const kind = getTargetKind(p.kind)
     let res
-    try { res = await kind.commit(host, p.ref, p.patch) } catch (e) {
+    try { res = await kind.commit(host, p.ref, p.patch, { lines: p.lines }) } catch (e) {
       // A step that threw part-way says what it had already made (`e.created`) so it
       // is taken back too, and whether it left a write it could not undo (`e.unreverted`)
       // — the receipt never claims "nothing was left changed" when that is not so.
@@ -121,7 +129,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       if (res && res.created && Object.keys(res.created).length) {
         landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: [], before: p.snap, after: snap, patch: p.patch, partial: res.created })
       }
-      return fail(p.snap.label, 'did not take effect')
+      return fail(p.snap.label, 'did not take effect', { leftBehind: res?.created ? null : () => leftChanged(kind, host, p) })
     }
     // A kind whose commit reports what ACTUALLY happened (`res.lines` — e.g. the Create Indicator
     // opener: prefilled, or a draft restored instead) is receipted from that, not from the plan.

@@ -1,0 +1,696 @@
+// The defects of the first REAL-MODEL production verification (2026-11-05), each as a slice through the REAL panel with a
+// scripted model: what these prove is that a plan runs and is receipted truthfully. Whether a real model picks that plan is
+// the next real-model run's question, not this file's.
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { cleanup, screen } from '@testing-library/react'
+import { registerBuiltins } from './builtins'
+import { setupPanel, ONE, TWO } from './testing/panelHarness'
+import { buildContext } from './capabilities'
+import { noOptionRefusal, withOptionsOrPlain } from './noOptionQuestion'
+import { preflightRefusals } from './nl1/interpreter'
+import { planOps, collectTargets } from './executor'
+import { commitPlan } from './runtime'
+import { addChartTab } from '../pages/charts/chartTabs'
+import { orderWords, loadMeta, _resetScreenerCache } from './capabilities/screener'
+
+vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+registerBuiltins()
+
+let p
+beforeEach(() => { p = setupPanel() })
+afterEach(() => { vi.restoreAllMocks(); cleanup() })
+
+// ── defect 1: hide-all is one VIEW flag per chart, as getDateMeta reports it ──
+function withHideAll(h, { land = true } = {}) {
+  const hidden = new Map()
+  const calls = []
+  const base = h.charts
+  const { read, list } = base
+  const see = (s) => s && { ...s, view: { indicatorsHidden: hidden.get(s.ref) === true } }
+  h.charts = {
+    ...base,
+    read: (ref) => see(read(ref)),
+    list: () => list().map(see),
+    viewDo: (ref, op, arg) => {
+      calls.push([ref, op, arg])
+      if ((typeof land === 'function' ? land(arg) : land) && op === 'setIndicatorsHidden') hidden.set(ref, arg)
+      return true
+    },
+  }
+  return { hidden, calls }
+}
+const planIs = (action, target, args) => p.env('apply', [{ action, target, args }])
+const lists = () => [{ id: 'm1', name: 'Momentum', symbols: ['NVDA'] }]
+/** The context entry of this kind the panel really sent, as the model reads it. */
+const refOfKind = (h, kind) => Object.entries(buildContext(h, { surface: 'charts', message: '' }).refMap).find(([, v]) => v.kind === kind)?.[0]
+async function withRsi(say, chart = 'c') {
+  p.select(chart)
+  await say('add rsi')
+  p.select(null)
+}
+
+describe('defect 1: a chart under hide-all is not "already shown"', () => {
+  it('"bring them back" planned as a show of one indicator brings the chart back, and says everything came back', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    const text = await say('ok bring them back')
+    expect(v.hidden.get('c')).toBe(false)
+    expect(text).toMatch(/Turned off hide-all/)
+    expect(text).not.toMatch(/already shown|Nothing to change/)
+  }, 40000)
+  it('its Undo puts the hide-all back', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    await say('unhide everything on the AAPL chart')
+    expect(await say('undo')).toMatch(/Hid every indicator and Volume/)
+    expect(v.hidden.get('c')).toBe(true)
+  }, 40000)
+  it('an indicator hidden by its own eye AND by hide-all: both are cleared, and Undo restores both', async () => {
+    const { say, h, board } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    p.st.envelopes.push(planIs('indicator.hide', 'ixe:c', { instance: 'rsi' }))
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    const text = await say('show the rsi')
+    expect(v.hidden.get('c')).toBe(false)
+    expect(text).toMatch(/Showed RSI/)
+    expect(text).toMatch(/Turned off hide-all/)
+    expect(p.instancesOn(board, 'c').find(r => r.defId === 'rsi').hidden).toBeFalsy()
+    await say('undo')
+    expect(v.hidden.get('c')).toBe(true)
+    expect(p.instancesOn(board, 'c').find(r => r.defId === 'rsi').hidden).toBe(true)
+  }, 40000)
+  it('Volume and the moving averages read the same flag', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('volume.setState', 'c', { state: 'visible' }))
+    expect(await say('show volume please')).toMatch(/Turned off hide-all/)
+    expect(v.hidden.get('c')).toBe(false)
+    expect(await say('undo')).not.toMatch(/nothing/i)
+    expect(v.hidden.get('c')).toBe(true)
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: true }))
+    expect(await say('show my moving averages')).toMatch(/Turned off hide-all/)
+    expect(v.hidden.get('c')).toBe(false)
+  }, 40000)
+  it('hide-all itself still reads the same flag both ways', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('chartSetup.setIndicatorsHidden', 'c', { hidden: true }))
+    expect(await say('hide all my indicators')).toMatch(/already hidden/)
+    p.st.envelopes.push(planIs('chartSetup.setIndicatorsHidden', 'c', { hidden: false }))
+    expect(await say('show all my indicators')).toMatch(/Turned off hide-all/)
+    expect(v.hidden.get('c')).toBe(false)
+  }, 40000)
+  it('a list of what is hidden does not call a hide-all chart clean', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    v.hidden.set('c', true)
+    const text = await say('what indicators are hidden')
+    expect(text).toMatch(/RSI/)
+    expect(text).not.toMatch(/Nothing is hidden/)
+  }, 40000)
+  it('NEGATIVE: a chart that is not under hide-all keeps the truthful "already shown", and no control is touched', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    expect(await say('show the rsi')).toMatch(/already shown/)
+    expect(v.calls).toEqual([])
+  }, 40000)
+  it('NEGATIVE: hide-all on the left chart says nothing about the right one', async () => {
+    const { say, h } = p.mount(...TWO('AAPL', 'NVDA'))
+    const v = withHideAll(h)
+    await withRsi(say, 'cl')
+    await withRsi(say, 'cr')
+    v.hidden.set('cl', true)
+    p.select('cr')
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:cr', { instance: 'rsi' }))
+    expect(await say('show the rsi on this one')).toMatch(/already shown/)
+    expect(v.hidden.get('cl')).toBe(true)
+    expect(v.calls).toEqual([])
+  }, 40000)
+  it('NEGATIVE: hiding one indicator under hide-all does not bring the chart back', async () => {
+    const { say, h, board } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.hide', 'ixe:c', { instance: 'rsi' }))
+    await say('hide the rsi')
+    expect(v.hidden.get('c')).toBe(true)
+    expect(p.instancesOn(board, 'c').find(r => r.defId === 'rsi').hidden).toBe(true)
+  }, 40000)
+  it('a chart that does not take the change never earns a receipt', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await withRsi(say)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    const text = await say('bring them back')
+    expect(text).not.toMatch(/Turned off hide-all/)
+    expect(text).toMatch(/did not confirm/)
+  }, 40000)
+})
+
+describe('defect 2: an action with one possible target has nothing to choose', () => {
+  const half = () => [[{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'N', opts: {} }], { 'N:c': 'AAPL' }]
+  const types = (board) => board.state.widgets.map(w => w.type)
+  it.each(['watchlistLibrary', 'watchlist', 'board', 'chart'])('widget.add aimed at the %s entry adds the widget', async (kind) => {
+    const { say, h, board } = p.mount(...half(), { watchlists: lists() })
+    const ref = refOfKind(h, kind)
+    expect(ref, kind).toBeTruthy()
+    p.st.envelopes.push(planIs('widget.add', ref, { type: 'watchlist', as: null }))
+    const text = await say('add a watchlist widget to the board')
+    expect(text).not.toMatch(/not on the workspace/)
+    expect(types(board)).toEqual(['chart', 'watchlist'])
+  }, 40000)
+  it('the news add, aimed right, is unchanged', async () => {
+    const { say, h, board } = p.mount(...half())
+    p.st.envelopes.push(planIs('widget.add', refOfKind(h, 'workspace'), { type: 'news', as: null }))
+    await say('add the news widget')
+    expect(types(board)).toEqual(['chart', 'news'])
+  }, 40000)
+  it('a step on the new widget that the request cannot do leaves the add standing, and says so', async () => {
+    const { say, h, board } = p.mount(...half(), { watchlists: lists() })
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'watchlist', as: 'new1' } },
+      { action: 'widget.showList', target: 'new1', args: { widget: 'new1', list: 'm1' } },
+    ]))
+    const text = await say('open a watchlist next to the charts')
+    expect(types(board)).toEqual(['chart', 'watchlist'])
+    expect(text).toMatch(/can’t set it up in the request that adds it/)
+    expect(text).not.toMatch(/not on the workspace/)
+  }, 40000)
+  it('NEGATIVE: an action on a chart is not re-aimed: a chart is one of several', async () => {
+    const { say, h, board } = p.mount(...TWO('AAPL', 'NVDA'))
+    p.st.envelopes.push(planIs('chart.setTimeframe', refOfKind(h, 'workspace'), { timeframe: 'W' }))
+    expect(await say('make it weekly')).toMatch(/not on the workspace|Which/)
+    expect(board.state.widgets.every(w => !w.opts?.tf || w.opts.tf === 'D')).toBe(true)
+  }, 40000)
+  it('NEGATIVE: a chart that is configurable keeps its follow-up step', async () => {
+    const { say, h, board } = p.mount(...half())
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'chart', as: 'new1' } },
+      { action: 'chart.setSymbol', target: 'new1', args: { symbol: 'TSLA' } },
+    ]))
+    expect(await say('add a chart of tsla')).not.toMatch(/can’t set it up/)
+    expect(board.state.widgets.length).toBe(2)
+  }, 40000)
+})
+
+describe('defect 3: a pending card is resolved by itself', () => {
+  async function tfThenCard(say) {
+    await withRsi(say)
+    await say('set it to weekly')
+    p.st.envelopes.push(planIs('indicator.remove', 'ixe:c', { instance: 'rsi' }))
+    await say('take the rsi off please')
+    expect(p.proposals().length).toBe(1)
+  }
+  const tfOf = (board) => board.state.widgets.find(w => w.id === 'c').opts.tf
+  it.each(['actually undo that', 'undo', 'undo that', 'revert that', 'undo all of that', 'wait, undo that'])('"%s" withdraws the card and leaves the earlier change', async (words) => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    const text = await say(words)
+    expect(text).toMatch(/Withdrew that proposal/)
+    expect(text).not.toMatch(/Undid/)
+    expect(tfOf(board)).toBe('W')
+    await say('do it')
+    expect(tfOf(board)).toBe('W')
+    expect(p.instancesOn(board, 'c').some(r => r.defId === 'rsi')).toBe(true)
+  }, 40000)
+  it('the model planning agent.undo over a card does the same', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    p.st.envelopes.push(planIs('agent.undo', 'self', { scope: 'last', about: null }))
+    expect(await say('hmm scratch that one')).toMatch(/Withdrew that proposal/)
+    expect(tfOf(board)).toBe('W')
+  }, 40000)
+  it('with the card gone, the next Undo takes back the older change', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    await say('undo')
+    await say('undo')
+    expect(tfOf(board) ?? 'D').toBe('D')
+  }, 40000)
+  it('NEGATIVE: with no card waiting, an Undo undoes', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await say('set it to weekly')
+    expect(tfOf(board)).toBe('W')
+    expect(await say('undo')).toMatch(/Undid/)
+    expect(tfOf(board) ?? 'D').toBe('D')
+  }, 40000)
+  it('NEGATIVE: an Undo that names another change still undoes it, and the card goes with the state it was made for', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    await tfThenCard(say)
+    const text = await say('undo the timeframe change')
+    expect(text).toMatch(/Undid/)
+    expect(text).toMatch(/I withdrew the proposal above/)
+    expect(tfOf(board) ?? 'D').toBe('D')
+  }, 40000)
+})
+
+describe('defect 4: a question reaches the panel only with its options', () => {
+  const clarify = (text, choices = [], extra = {}) => ({ disposition: 'clarify', reply: '', question: { text, choices }, ops: [], unsupported_category: null, ...extra })
+  const questions = () => screen.queryAllByTestId('agent-question')
+  it('the server\'s empty "which one?" on the board says nothing changed and what to say instead', async () => {
+    const { say } = p.mount(...TWO('AAPL', 'NVDA'))
+    p.st.envelopes.push(clarify('Which one do you mean?', [], { unplaced_actions: ['chart.setTimeframe'] }))
+    expect(await say('sort this one out for me')).toMatch(/couldn’t tell which one you meant/)
+    expect(questions().length).toBe(0)
+  }, 40000)
+  it('a model question that has options is still a question with its buttons', async () => {
+    const { say } = p.mount(...TWO('AAPL', 'NVDA'))
+    p.st.envelopes.push(clarify('Which chart?', ['Left', 'Right']))
+    await say('sort this one out for me')
+    expect(questions().length).toBe(1)
+    expect(screen.getByRole('button', { name: 'Left' })).toBeTruthy()
+  }, 40000)
+  it('a model question with no options is a plain line, and the next message still answers it', async () => {
+    const { say } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(clarify('What level should the alert use?'))
+    expect(await say('set an alert for me')).toMatch(/What level should the alert use\? Tell me in your next message; nothing has changed yet\./)
+    expect(questions().length).toBe(0)
+    await say('150')
+    expect(p.lastTurnBody().message).toMatch(/150/)
+  }, 40000)
+  it('a local question that lost its options is a plain line too', () => {
+    expect(withOptionsOrPlain({ role: 'question', text: 'Which one?', choices: [] }).role).toBe('agent')
+    expect(withOptionsOrPlain({ role: 'question', text: 'Which one?', choices: [{ label: 'A' }] }).role).toBe('question')
+    expect(withOptionsOrPlain({ role: 'question', text: 'Which?', authoring: true }).role).toBe('question')
+  })
+  describe('on the grid, a board change is refused by name', () => {
+    const grid = { multiChart: true, charts: { grid: () => ({ maximized: () => null, groupsMode: () => false }) } }
+    it.each([['widget.add'], ['widget.remove'], ['widget.arrange']])('%s', (action) => {
+      expect(noOptionRefusal({ question: { text: 'Which one do you mean?' }, unplaced_actions: [action] }, grid, [])).toMatch(/hidden while Multi Chart is on/)
+    })
+    it('NEGATIVE: a chart action there is no board refusal', () => {
+      expect(noOptionRefusal({ question: { text: 'Which one do you mean?' }, unplaced_actions: ['chart.setTimeframe'] }, grid, [])).toMatch(/couldn’t tell which one/)
+    })
+    it('NEGATIVE: a real question is left alone', () => {
+      expect(noOptionRefusal({ question: { text: 'Which timeframe?' } }, grid, [])).toBe(null)
+      expect(noOptionRefusal({ question: { text: 'Which one do you mean?' } }, grid, [{ label: 'A' }])).toBe(null)
+    })
+    it('the board is named in the model\'s context, so a plan for it has a real target; the planner refuses it, and no repair is paid for', () => {
+      const h = { ...p.mount(...ONE('AAPL')).h, multiChart: true, widgets: undefined, charts: { ...grid.charts, list: () => [] } }
+      const { refMap } = buildContext(h, { surface: 'charts', message: '' })
+      expect(Object.values(refMap).filter(v => v.kind === 'workspace' || v.kind === 'board').map(v => v.ref).sort()).toEqual(['board', 'workspace'])
+      expect(preflightRefusals(h, [{ action: 'widget.add', target: 'workspace', args: { type: 'news', as: null } }])).toEqual([])
+    })
+  })
+})
+
+describe('defect 5: chart tabs', () => {
+  const widgetOf = (board, id = 'c') => board.state.widgets.find(w => w.id === id)
+  const planTabs = (...tfs) => p.env('apply', tfs.map(timeframe => ({ action: 'chart.addTab', target: 'board', args: { widget: 'c', timeframe, name: null } })))
+  it('a tab on a NOT LINKED chart starts on the chart\'s own key, as the tab strip\'s "+" stores it', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(planTabs('W'))
+    await say('open a new tab on this chart at weekly')
+    const { opts } = widgetOf(board)
+    expect(opts.chartTabs[0].color).toBe('N:c')
+    expect(addChartTab({}, { color: 'N:c', tf: 'W' }).chartTabs[0].color).toBe(opts.chartTabs[0].color)
+    expect(board.state.groupSyms[opts.chartTabs[0].color]).toBe('AAPL')
+  }, 40000)
+  it('two tabs in one request: the receipt names both, and only the last says it is showing', async () => {
+    const { say } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(planTabs('60', 'W'))
+    const text = await say('open a new tab on this chart at 1 hour, and a weekly one too')
+    expect(text).toMatch(/Added a chart tab “1h”/)
+    expect(text).toMatch(/Added a chart tab “1W” .* and switched to it/)
+    expect(text).not.toMatch(/“1h”[^“]* and switched to it/)
+  }, 40000)
+  it('a second tab starts on the same key as the first', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(planTabs('60', 'W'))
+    await say('open a new tab at 1 hour and a weekly tab too')
+    expect(widgetOf(board).opts.chartTabs.map(t => t.color)).toEqual(['N:c', 'N:c'])
+  }, 40000)
+  it('two tabs alike are counted, and a named tab is named', async () => {
+    const { say, board } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'chart.addTab', target: 'board', args: { widget: 'c', timeframe: null, name: 'Swing' } },
+      { action: 'chart.addTab', target: 'board', args: { widget: 'c', timeframe: 'W', name: null } },
+    ]))
+    const text = await say('add a tab called Swing and a weekly tab')
+    expect(text).toMatch(/“Swing”/)
+    expect(text).toMatch(/“1W”/)
+    expect(widgetOf(board).opts.chartTabs.length).toBe(2)
+  }, 40000)
+  it('NEGATIVE: a chart in a link group keeps its group, so its tab follows the group', async () => {
+    const { say, board } = p.mount([{ id: 'c', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'B', opts: {} }], { B: 'MSFT' })
+    p.st.envelopes.push(planTabs('W'))
+    await say('open a new tab at weekly')
+    expect(widgetOf(board).opts.chartTabs[0].color).toBe('B')
+  }, 40000)
+})
+
+describe('defect 6: a sort on a signed distance', () => {
+  it.each([
+    ['dist_52w_high_pct', 'desc', 'closest to the high first'],
+    ['dist_52w_high_pct', 'asc', 'furthest from the high first'],
+    ['dist_ath_pct', 'desc', 'closest to the high first'],
+    ['dist_52w_low_pct', 'asc', 'closest to the low first'],
+    ['dist_52w_low_pct', 'desc', 'furthest from the low first'],
+    ['chg_pct_1m', 'desc', 'highest first'],
+    ['chg_pct_1m', 'asc', 'lowest first'],
+  ])('%s %s reads "%s"', (key, dir, words) => {
+    expect(orderWords({ key, dir })).toBe(words)
+  })
+})
+
+describe('review of #866, D1: a show that cannot lift hide-all changes nothing', () => {
+  const rsi = (board) => p.instancesOn(board, 'c').find(r => r.defId === 'rsi')
+  const stillUndoes = async (say) => {
+    const text = await say('undo')
+    expect(text).not.toMatch(/could not be undone|Nothing was undone/)
+  }
+  it('indicator.show: the eye stays as it was, and the earlier hide can still be undone', async () => {
+    const { say, h, board } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await withRsi(say)
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    expect(await say('show the rsi')).toMatch(/did not confirm/)
+    expect(rsi(board).hidden).toBe(true)
+    await stillUndoes(say)
+    expect(rsi(board).hidden).toBeFalsy()
+  }, 40000)
+  it('volume.setState: Volume stays as it was', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await say('hide volume')
+    expect(h.charts.read('c').cs.volume.visible).toBe(false)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('volume.setState', 'c', { state: 'visible' }))
+    await say('bring the volume back please')
+    expect(h.charts.read('c').cs.volume.visible).toBe(false)
+    await stillUndoes(say)
+    expect(h.charts.read('c').cs.volume.visible).not.toBe(false)
+  }, 40000)
+  it('setMovingAverages: the averages stay as they were', async () => {
+    const { say, h, board } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: false })
+    await say('add a 20 ema')
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: false }))
+    await say('hide my moving averages')
+    const hiddenNow = () => p.instancesOn(board, 'c').filter(r => r.defId === 'movingAverage').every(r => r.hidden === true)
+    expect(hiddenNow()).toBe(true)
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: true }))
+    await say('show my moving averages')
+    expect(hiddenNow()).toBe(true)
+  }, 40000)
+  it.each([
+    ['indicator.show', 'ixe:c', { instance: 'rsi' }],
+    ['volume.setState', 'c', { state: 'visible' }],
+  ])('%s: a settings write the chart refuses puts hide-all back', async (action, target, args) => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    await say('hide the rsi')
+    await say('hide volume')
+    v.hidden.set('c', true)
+    h.charts.commit = () => false
+    p.st.envelopes.push(planIs(action, target, args))
+    await say('bring that back please')
+    expect(v.hidden.get('c')).toBe(true)
+  }, 40000)
+})
+
+describe('review of #866, D2: only Multi Chart skips the repair', () => {
+  const stray = { action: 'chart.addTab', target: 'board', args: { widget: 'zz-not-there', timeframe: null, name: null } }
+  it('a board plan the planner refuses on the normal board still goes back to the model once', () => {
+    const { h } = p.mount(...ONE('AAPL'))
+    expect(preflightRefusals(h, [stray])[0]).toMatch(/no widget “zz-not-there”/)
+  })
+  it('a workspace plan too', () => {
+    const { h } = p.mount(...ONE('AAPL'))
+    const symbols = Array.from({ length: 13 }, (_, i) => `T${i}`)
+    expect(preflightRefusals(h, [{ action: 'widget.addCharts', target: 'workspace', args: { symbols, timeframe: null, chart_type: null, exact: null } }]).length).toBe(1)
+  })
+  it('NEGATIVE: on the grid the same plan is refused by name, with no repair', () => {
+    const { h } = p.mount(...ONE('AAPL'))
+    expect(preflightRefusals({ ...h, multiChart: true }, [stray])).toEqual([])
+  })
+})
+
+describe('review of #866, D3: a lift says only what became visible', () => {
+  it('Volume hidden by its own eye is not said to be back', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    await say('hide volume')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    const text = await say('bring back the rsi')
+    expect(text).toMatch(/Turned off hide-all/)
+    expect(text).toMatch(/RSI \(14\) is showing again/)
+    expect(text).toMatch(/Volume stays hidden/)
+    expect(text).not.toMatch(/every indicator/i)
+  }, 40000)
+  it('an indicator hidden by its own eye is not said to be back, on the chart action either', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('chartSetup.setIndicatorsHidden', 'c', { hidden: false }))
+    const text = await say('turn hide-all off please')
+    expect(text).toMatch(/Volume is showing again/)
+    expect(text).toMatch(/RSI \(14\) stays hidden/)
+  }, 40000)
+  it('the Volume the request itself shows is listed as back', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await say('hide volume')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('volume.setState', 'c', { state: 'visible' }))
+    const text = await say('bring the volume back please')
+    expect(text).toMatch(/Volume is showing again/)
+    expect(text).not.toMatch(/stays? hidden/)
+  }, 40000)
+  it('a chart with everything hidden one by one says nothing came back', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await say('hide volume')
+    v.hidden.set('c', true)
+    p.st.envelopes.push(planIs('chartSetup.setIndicatorsHidden', 'c', { hidden: false }))
+    const text = await say('turn hide-all off please')
+    expect(text).toMatch(/Volume stays hidden/)
+    expect(text).not.toMatch(/showing again/)
+  }, 40000)
+})
+
+describe('review of #866, D4: the order is what the plan says, and the answer says which way it is', () => {
+  const FIELDS = { fields: [{ key: 'dist_52w_high_pct', label: 'Dist from 52W High', type: 'range', unit: '%' }, { key: 'sector', label: 'Sector', type: 'enum', unit: null }] }
+  const nearScan = (dir) => p.env('apply', [{ action: 'screener.run', target: 'screener', args: { filters: [{ field: 'dist_52w_high_pct', op: 'gte', value: -10, max: null, values: null }], sort_field: 'dist_52w_high_pct', sort_dir: dir, mode: 'new', show: null, as: null, within: null } }])
+  const sortSent = () => p.st.scans.at(-1)?.sort
+  beforeEach(async () => {
+    _resetScreenerCache()
+    p.st.scans = []
+    const inner = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = String(url)
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (u.startsWith('/api/screener/fields')) return json(u.includes('options') ? { options: {} } : FIELDS)
+      if (u === '/api/screener/saved-screens') return json({ saved: [], starters: [] })
+      if (u.startsWith('/api/screener/scan')) {
+        p.st.scans.push(JSON.parse(init.body))
+        return json({ total: 2, rows: [{ ticker: 'NEAR', company: 'Near', price: 10, dist_52w_high_pct: -1 }, { ticker: 'FAR', company: 'Far', price: 10, dist_52w_high_pct: -9 }], snapshot_date: '2026-10-31', snapshot: {} })
+      }
+      return inner(url, init)
+    })
+    await loadMeta()
+  })
+  it.each([
+    ['stocks near their 52-week highs', 'desc', 'closest to the high first'],
+    ['stocks within 10% of the high, nearest first', 'desc', 'closest to the high first'],
+    ['stocks near their highs, furthest from the high first', 'asc', 'furthest from the high first'],
+    // held out: no word here was used in writing the fix, and none of them is read
+    ['of the names still within ten percent of the top, which have slipped the most', 'asc', 'furthest from the high first'],
+  ])('"%s" sent %s stays %s', async (words, dir, said) => {
+    const { say } = p.mount(...ONE('AAPL'))
+    p.st.envelopes.push(nearScan(dir))
+    const text = await say(words)
+    expect(sortSent()).toEqual({ key: 'dist_52w_high_pct', dir })
+    expect(text).toMatch(new RegExp(said))
+  }, 40000)
+})
+
+describe('review of #866, round 2: "nothing was left changed" only after a read-back says so', () => {
+  const NOTHING = /nothing was left changed/
+  const REVERSED = /could not be reversed/
+  const liftOnly = (arg) => arg === false       // the lift lands; putting hide-all back does not
+  // the chart takes the write and shows nothing for it
+  const silentWrite = (h) => { h.charts.commit = () => true }
+  const volumeBack = () => planIs('volume.setState', 'c', { state: 'visible' })
+  const averagesBack = () => planIs('chartSetup.setMovingAverages', 'c', { visible: true })
+  async function hiddenVolume(say, v) { await say('hide volume'); v.hidden.set('c', true) }
+  async function hiddenAverages(say, v) {
+    await say('add a 20 ema')
+    p.st.envelopes.push(planIs('chartSetup.setMovingAverages', 'c', { visible: false }))
+    await say('hide my moving averages')
+    v.hidden.set('c', true)
+  }
+  it.each([
+    ['volume.setState', hiddenVolume, volumeBack],
+    ['setMovingAverages', hiddenAverages, averagesBack],
+  ])('%s: a write that says yes and never lands puts hide-all back, confirmed', async (_, setup, plan) => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await setup(say, v)
+    silentWrite(h)
+    p.st.envelopes.push(plan())
+    const text = await say('bring that back please')
+    expect(v.hidden.get('c')).toBe(true)
+    expect(text).toMatch(NOTHING)
+  }, 40000)
+  it.each([
+    ['volume.setState', hiddenVolume, volumeBack],
+    ['setMovingAverages', hiddenAverages, averagesBack],
+  ])('%s: when hide-all cannot be put back either, the reply says so', async (_, setup, plan) => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: liftOnly })
+    await setup(say, v)
+    silentWrite(h)
+    p.st.envelopes.push(plan())
+    const text = await say('bring that back please')
+    expect(v.hidden.get('c')).toBe(false)
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('a write the chart refuses, with a revert that fails: said, on the chart path', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: liftOnly })
+    await hiddenVolume(say, v)
+    h.charts.commit = () => false
+    p.st.envelopes.push(volumeBack())
+    const text = await say('bring that back please')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('indicator.show: a failed change with a revert that fails: said', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h, { land: liftOnly })
+    await withRsi(say)
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    h.charts.commit = () => false
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    const text = await say('bring that back please')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('indicator.show: a failed change with a revert the chart confirms stays "nothing was left changed"', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const v = withHideAll(h)
+    await withRsi(say)
+    await say('hide the rsi')
+    v.hidden.set('c', true)
+    h.charts.commit = () => false
+    p.st.envelopes.push(planIs('indicator.show', 'ixe:c', { instance: 'rsi' }))
+    expect(await say('bring that back please')).toMatch(NOTHING)
+    expect(v.hidden.get('c')).toBe(true)
+  }, 40000)
+  it('the same rule with no hide-all: half of a chart change lands, and the reply does not say nothing changed', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    const { commit } = h.charts
+    h.charts.commit = (ref, { symbol: _dropped, ...rest }) => commit(ref, rest)
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } },
+      { action: 'chart.setSymbol', target: 'c', args: { symbol: 'MSFT' } },
+    ]))
+    const text = await say('put MSFT on the weekly for me')
+    expect(h.charts.read('c').tf).toBe('W')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('a settings change that went through beside a pane size the server refused is not "nothing"', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    h.prefs = { read: () => ({}), write: async () => false }
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } },
+      { action: 'chart.setSetting', target: 'c', args: { setting: 'volume.paneHeightPct', value: 20 } },
+    ]))
+    const text = await say('weekly and a smaller volume pane please')
+    expect(h.charts.read('c').tf).toBe('W')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('NEGATIVE: a chart change where nothing landed still says nothing was left changed', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    silentWrite(h)
+    p.st.envelopes.push(planIs('chart.setTimeframe', 'c', { timeframe: 'W' }))
+    expect(await say('put it on the weekly for me')).toMatch(NOTHING)
+  }, 40000)
+})
+
+describe('review of #866, round 3: the read-back comes after compensation', () => {
+  const NOTHING = /nothing was left changed/
+  const REVERSED = /could not be reversed/
+  const half = () => [[{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { A: 'AAPL' }]
+  const addThenLink = (h) => p.env('apply', [
+    { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'news', as: null } },
+    { action: 'widget.setLink', target: refOfKind(h, 'board'), args: { widget: 'c', color: 'B' } },
+  ])
+  it('two kinds on one board: the add is taken back, the board reads as it was, and the reply says nothing was left', async () => {
+    const { say, h, board } = p.mount(...half())
+    const before = JSON.stringify(board.state.widgets)
+    h.widgets.applyBoard = () => true           // accepted, never lands
+    p.st.envelopes.push(addThenLink(h))
+    const text = await say('add the news widget and link this chart to blue')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+    expect(text).toMatch(NOTHING)
+    expect(text).not.toMatch(REVERSED)
+  }, 40000)
+  it('the same plan when the take-back fails too stays "could not be reversed"', async () => {
+    const { say, h, board } = p.mount(...half())
+    const { widgets } = h
+    h.widgets = { ...widgets, applyBoard: () => true, remove: () => {} }
+    p.st.envelopes.push(addThenLink(h))
+    const text = await say('add the news widget and link this chart to blue')
+    expect(board.state.widgets.map(w => w.type)).toContain('news')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+  it('two kinds on one chart\'s settings: the indicator change is taken back, and the chart reads as it was', async () => {
+    const { say, h } = p.mount(...ONE('AAPL'))
+    await withRsi(say)
+    const { commit } = h.charts
+    const stored0 = JSON.stringify(h.charts.read('c').stored)
+    h.charts.commit = (ref, patch) => (patch.tf ? true : commit(ref, patch))   // the timeframe is accepted, and never lands
+    // an indicator change plans alone, so the two plans are put side by side to reach the runtime as one
+    const planOf = (kind, op) => planOps(collectTargets(h, [kind]), [op], {}, { surface: 'charts' })
+    const first = planOf('indicatorEdits', { action: 'indicator.hide', target: 'ixe:c', args: { instance: 'rsi' } })
+    const second = planOf('chart', { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } })
+    expect([first.ok, second.ok]).toEqual([true, true])
+    const res = await commitPlan(h, { ...first, plans: [...first.plans, ...second.plans] }, { env: {} })
+    expect(res.ok).toBe(false)
+    expect(JSON.stringify(h.charts.read('c').stored)).toBe(stored0)
+    expect(res.failed[0].reason).toMatch(NOTHING)
+  }, 40000)
+  it('NEGATIVE: a failing step that left its own change behind still says so after compensation', async () => {
+    const { say, h } = p.mount(...half())
+    const { commit } = h.charts
+    h.charts.commit = (ref, { symbol: _dropped, ...rest }) => commit(ref, rest)
+    p.st.envelopes.push(p.env('apply', [
+      { action: 'widget.add', target: refOfKind(h, 'workspace'), args: { type: 'news', as: null } },
+      { action: 'chart.setTimeframe', target: 'c', args: { timeframe: 'W' } },
+      { action: 'chart.setSymbol', target: 'c', args: { symbol: 'MSFT' } },
+    ]))
+    const text = await say('add news and put MSFT on the weekly')
+    expect(text).toMatch(REVERSED)
+    expect(text).not.toMatch(NOTHING)
+  }, 40000)
+})
