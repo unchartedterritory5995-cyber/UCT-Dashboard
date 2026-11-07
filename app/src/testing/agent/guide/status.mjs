@@ -18,7 +18,7 @@ const rows = probe.report.map(r => {
   const res = byId.get(r.id)
   let status, evidence
   if (res?.pass) { status = 'VERIFIED'; evidence = `Browser ${run.at.slice(0, 10)}: "${res.say}" → ring on the last step's control` }
-  else if (res) { status = 'ROUTED / BROWSER FAILED'; evidence = `"${res.say}" reaches it; browser: ${res.why || res.error || 'failed'}` }
+  else if (res) { const last = (res.steps || []).at(-1); status = 'ROUTED / BROWSER FAILED'; evidence = `"${res.say}" reaches it; browser: ${res.why || res.error || (last ? `step ${last.i + 1} was not completed by the runner's input (card: ${last.text})` : 'failed')}` }
   else if (exp) { status = 'ASSIGNED / NOT REACHED'; evidence = `Assigned ${exp.feature}${exp.title ? ` (${exp.title})` : ''}; the inventory's own words do not reach it` }
   else if (r.a || r.b) { status = 'NO ASSIGNED WALKTHROUGH'; evidence = `The words reach ${(r.a || r.b).feature}${(r.a || r.b).ask ? ' (asks which)' : ''}; nobody has judged it right` }
   else { status = 'NO WALKTHROUGH'; evidence = 'The inventory words reach none.' }
@@ -30,7 +30,7 @@ const count = (part) => ORDER.map(s => rows.filter(r => (!part || r.id.startsWit
 const out = []
 out.push('# Charts visual teaching status', '')
 out.push(`Generated ${run.at.slice(0, 10)} by \`app/src/testing/agent/guide/status.mjs\` from a committed browser run (\`teach.mjs\`, README in that folder). LOCAL native Windows Node, headless Chrome on the agent harness (real ChartsWorkspace and Agent panel, synthetic bars, fixture lists and layouts, one price-alert fixture), BROWSER-MOCK-MODEL / SIMULATED. Not production evidence.`, '')
-out.push('**Method.** Each inventory row (`CHARTS_COVERAGE_MATRIX.md`) is asked in its own words: "how do I " + its Human action, or "show me how to " + its Example phrase. A row becomes a browser case only when those words reach the walkthrough a person assigned to it (`expected.json`: the 2026-11-05 matrix\'s Guide feature column, plus catalog controls reviewed by hand 2026-11-07). The runner types the words into the real composer and follows the card with real mouse input. VERIFIED means the walkthrough reached its last step with the gold ring on that step\'s own control, not on a fallback.', '')
+out.push('**Method.** Each inventory row (`CHARTS_COVERAGE_MATRIX.md`) is asked in its own words: "how do I " + its Human action, or "show me how to " + its Example phrase. A row becomes a browser case only when those words reach the walkthrough a person assigned to it (`expected.json`: the 2026-11-05 matrix\'s Guide feature column, plus catalog controls reviewed by hand 2026-11-07). The runner types the words into the real composer and follows the card with real mouse input. VERIFIED means the walkthrough reached its last step with the gold ring on that step\'s own control, not on a fallback. A family walkthrough (one feature, many rows) is matched at the feature.', '')
 out.push('This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committed, so it could not be reproduced. That count is kept per row as "11-05" for reference only.', '')
 out.push('| Part | ' + ORDER.join(' | ') + ' |', '|---|' + ORDER.map(() => '---').join('|') + '|')
 for (const part of ['C1', 'C2', 'C3']) out.push(`| ${part} | ${count(part).join(' | ')} |`)
