@@ -80,6 +80,22 @@ describe('RS_LEARN_VIDEOS', () => {
     }
   })
 
+  // Decision D6 (2026-11-07): every lesson carries a start. No chapter data for
+  // these videos is in the repo, so the three whole-workshop rows open at 1 s
+  // (the top, not the member's resume point) and the three passage seeks stay.
+  it('every lesson carries a start second (D6): 1 without repo chapters, else the passage', () => {
+    for (const [key, entry] of Object.entries(RS_LEARN_VIDEOS)) {
+      expect(entry.t, key).not.toBeUndefined()
+    }
+    expect(RS_LEARN_VIDEOS.rsLine.t).toBe(1)
+    expect(RS_LEARN_VIDEOS.phase.t).toBe(1)
+    expect(RS_LEARN_VIDEOS.newHigh.t).toBe(1)
+    expect(learnHref('rsLine')).toBe('/desk?section=videos&v=sM-aFdyOps4&t=1')
+    expect(learnHref('newHigh')).toBe('/desk?section=videos&v=QCTOJgCQmjw&t=1')
+    expect([RS_LEARN_VIDEOS.beforePrice.t, RS_LEARN_VIDEOS.redDay.t, RS_LEARN_VIDEOS.fourChecks.t])
+      .toEqual([1814, 341, 726])
+  })
+
   it('learnHref composes a Desk link for every key and null for an unknown one', () => {
     for (const [key, entry] of Object.entries(RS_LEARN_VIDEOS)) {
       const href = learnHref(key)

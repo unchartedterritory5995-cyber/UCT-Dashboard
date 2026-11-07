@@ -49,21 +49,37 @@ export function deskVideoHref(youtubeId, seconds) {
  * Mirrored by `tests/fixtures/indicators/rs_learn_videos.json`, which the
  * Python rail (`tests/test_rs_learn_seed.py`) checks against the Desk seed so
  * a regenerated seed sheet cannot drop a target silently. Keep the two in sync.
+ *
+ * START SECONDS, decision D6 (2026-11-07): a lesson starts at the chapter that
+ * covers relative strength where the video has chapter data in the repo, and
+ * otherwise at 1 s. Why 1 and not "no t": without a seek the player resumes
+ * wherever this member last stopped (GlobalVideoLayer's `resumeSeconds`), so a
+ * Learn link could open mid-workshop on an unrelated topic; `t=1` always opens
+ * the lesson at its top. What the repo holds for each video (checked against
+ * api/services/education_seed.py, the only Desk video data in the tree; the
+ * generated `chapters` live in the education DB, not the repo):
+ *   rsLine, phase  sM-aFdyOps4  no chapter data (description has no timestamps) -> 1
+ *   newHigh        QCTOJgCQmjw  no chapter data (description has no timestamps) -> 1
+ *   beforePrice    _0ZvKLYznLo  1814 kept: the 2a-16 brief's seek to the exact
+ *                               "RS before price" passage, finer than a chapter
+ *   redDay         mfswYu5UlX8  341 kept: the brief's seek to the red-day passage
+ *   fourChecks     mfswYu5UlX8  726 kept: the brief's seek to the four checks
+ * No video here had repo chapter data, so no row starts at a chapter today.
  */
 export const RS_LEARN_VIDEOS = Object.freeze({
   rsLine: Object.freeze({
     youtubeId: 'sM-aFdyOps4',
-    t: undefined,
+    t: 1, // D6: no chapter data in the repo; open at the top, not a resume point
     label: 'Manrav on the RS line: Relative Strength Workshop',
   }),
   phase: Object.freeze({
     youtubeId: 'sM-aFdyOps4',
-    t: undefined,
+    t: 1, // D6: same workshop, same reason
     label: 'Manrav on the RS line and its 21 EMA',
   }),
   newHigh: Object.freeze({
     youtubeId: 'QCTOJgCQmjw',
-    t: undefined,
+    t: 1, // D6: no chapter data in the repo; open at the top, not a resume point
     label: 'Chartmaster on tracking relative strength',
   }),
   beforePrice: Object.freeze({
