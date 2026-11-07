@@ -26,6 +26,32 @@ const TF_NAMED = /\b(?:this|that|the)\s+(\d{1,3}\s*(?:m|min|mins|minute|minutes|
 const STATE_NAMED = /\b(?:this|that|the|my)\s+(empty|blank|unused|vacant)\s+(?:chart|cell|slot|spot|pane|panel|one)\b/i
 const TAB_NAMED = /\b(?:this|that|the)\s+([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+tab\b/i
 const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showing)\s+(?:the\s+|an?\s+)?([a-z]{2,8})\b/i
+// ⭐ A chart named RELATIVE to the clicked one: "the one above this", "the chart to the left of this one", "the cell under it",
+// "the one next to this". The click is the ANCHOR here, never the target: the chart meant is the clicked chart's neighbour on that
+// side, read from where the charts sit (`cell`). No click, no neighbour on that side, or two that fit → no single chart: asked.
+export const RELATIVE = /\b(?:the\s+)?(?:chart|one|cell|pane)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\s+the\s+|on\s+the\s+)?(left|right)\s+of|(next\s+to|beside))\s+(?:this|that|it|the\s+(?:selected|clicked|current)\s+(?:chart|one))(?:\s+(?:chart|one|cell))?\b/i
+const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
+function sideOf(charts, s, side) {
+  const o = charts.filter(c => c.ref !== s.ref && c.cell)
+  const pick = (list, edge, best) => { if (!list.length) return []; const e = best(...list.map(edge)); return list.filter(c => edge(c) === e) }
+  const xo = (c) => overlaps(c.cell.x, c.cell.x + c.cell.w, s.cell.x, s.cell.x + s.cell.w)
+  const yo = (c) => overlaps(c.cell.y, c.cell.y + c.cell.h, s.cell.y, s.cell.y + s.cell.h)
+  if (side === 'above') return pick(o.filter(c => xo(c) && c.cell.y + c.cell.h <= s.cell.y), c => c.cell.y + c.cell.h, Math.max)
+  if (side === 'below') return pick(o.filter(c => xo(c) && c.cell.y >= s.cell.y + s.cell.h), c => c.cell.y, Math.min)
+  if (side === 'left') return pick(o.filter(c => yo(c) && c.cell.x + c.cell.w <= s.cell.x), c => c.cell.x + c.cell.w, Math.max)
+  return pick(o.filter(c => yo(c) && c.cell.x >= s.cell.x + s.cell.w), c => c.cell.x, Math.min)
+}
+/** → { hits: [chart snapshots], match } when the words name a chart relative to the clicked one (hits may be 0 or several), else null. */
+export function relativeChart(text, charts = [], sel = null) {
+  const m = RELATIVE.exec(String(text || ''))
+  if (!m) return null
+  const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
+  if (!s) return { hits: [], match: m }
+  const v = m[1] && m[1].toLowerCase()
+  const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
+  const hits = side ? sideOf(charts, s, side) : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  return { hits, match: m }
+}
 const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
 const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
 function tfOfWord(w) {
@@ -107,7 +133,7 @@ export function describedCharts(text, charts = []) {
 /** Does the member's text point at one chart without naming it? (With the board's `charts`: also a chart it describes.) */
 export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
   const s = String(text || '')
-  return POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
+  return RELATIVE.test(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -140,6 +166,15 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     return hit.length === 1 ? { ref: hit[0].c.ref, implicit: true } : null
   }
   if (candidates.length === 1) return { ref: candidates[0].ref }
+  // "the one above this": the clicked chart's neighbour on that side, and only it. ⛔ The click is the anchor, never the target.
+  const rel = relativeChart(text, live, selectedChart(host))
+  if (rel) {
+    const refs = new Set(rel.hits.map(c => c.ref))
+    const fits = backed.filter(b => refs.has(b.chart))
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+    return { ask: { text: rel.hits.length || selectedChart(host) ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
+      choices: (fits.length ? fits.map(b => b.c) : candidates).map(c => ({ ref: c.ref, label: c.label })) } }
+  }
   // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
   // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
   const said = describedCharts(text, live)
@@ -209,9 +244,11 @@ export function ordinalChart(text, charts = []) {
 
 /** The charts on this board the member's words NAME: a position word that fits exactly one chart, or a
  *  symbol exactly one chart shows ("put RSI on NVDA"). Short tickers count only as typed in capitals. */
-export function chartsNamedBy(text, charts = []) {
+export function chartsNamedBy(text, charts = [], sel = null) {
   const s = String(text || '')
   const named = new Set()
+  const rel = relativeChart(s, charts, sel)
+  if (rel?.hits.length === 1) named.add(rel.hits[0].ref)
   // P1: "the second chart", "chart 3", "the middle chart" — only with the word CHART ("the first one" is as often a
   // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
@@ -331,7 +368,7 @@ const TRUE_POINTER = /\bthis\s+(?:chart|stock|ticker|symbol|one)\b/i
 const ELSE_NAMED = /\b(?:of|showing)\s+[a-z$]/i
 function onlyPointer(text, charts) {
   const s = String(text || '')
-  return TRUE_POINTER.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
+  return TRUE_POINTER.test(s) && !RELATIVE.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
     && !chartNameWord(s, charts) && !chartsNamedBy(s, charts).size
 }
 

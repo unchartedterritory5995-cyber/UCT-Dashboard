@@ -802,3 +802,36 @@ describe('Multi Chart: an approval', () => {
     expect(tfs()).toBe('DDDD')
   }, 30000)
 })
+
+// Autotest multi-chart-04 and u-workspace-09 (BROWSER-MOCK-MODEL, pl-auto's tree without the described-chart gates): the plan named
+// the empty bottom-right cell and the Agent asked "Which chart do you mean?", offering that very cell. The words describe exactly
+// one chart, so it is THE target, on the no-model reader and on the model path alike; a setting on an empty cell is kept by the
+// cell and read back from the grid's own state.
+describe('the empty cell, described', () => {
+  const asked = () => /Which chart do you mean|Did you mean/.test(transcript())
+  it.each([['put SPY on the empty chart'], ['put SPY on the empty chart for me please']])('%s: the empty cell gets SPY, no question', async (t) => {
+    const { say } = mount()
+    envelopes.push(plan('chart.setSymbol', { symbol: 'SPY' }, 3))
+    await say(t)
+    await waitFor(() => expect(at('c3').sym).toBe('SPY'))
+    expect(cells().map(c => c.sym)).toEqual(['NVDA', 'AMD', 'TSLA', 'SPY'])
+    expect(asked()).toBe(false)
+  }, 30000)
+  it.each([['log scale in the empty cell'], ['log scale in the empty cell for me please']])('%s: the empty cell keeps a log scale, no question', async (t) => {
+    const { say, undo } = mount()
+    envelopes.push(plan('chart.setScale', { scale: 'log' }, 3))
+    await say(t)
+    await waitFor(() => expect(at('c3').settings?.logScale).toBe(true))
+    expect(at('c0').settings).toBeUndefined()
+    expect(asked()).toBe(false)
+    await undo()
+    await waitFor(() => expect(at('c3').settings ?? null).toBe(null))
+  }, 30000)
+  it('NEGATIVE: a plan on another cell is not run for "the empty cell"', async () => {
+    const { say } = mount()
+    envelopes.push(plan('chart.setScale', { scale: 'log' }, 0))
+    await say('log scale in the empty cell for me please')
+    await new Promise(r => setTimeout(r, 300))
+    expect(at('c0').settings?.logScale).not.toBe(true)
+  }, 30000)
+})
