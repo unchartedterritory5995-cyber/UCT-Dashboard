@@ -66,6 +66,18 @@ const acts = {
     if (!at) throw new Error(`no ${label} timeframe button on ${role}`)
     await p.b.click(at.x, at.y); await sleep(500)
   },
+  // a real click on a watchlist row: the row loads its symbol into the charts of its link colour. The act checks that `role`'s symbol
+  // really changed, so a click that missed never grades as the case
+  watchRowInto: async (p, c, [, role]) => {
+    const id = BOARDS[c.board].roles[role].id
+    const symOf = () => p.b.evaluate(`(window.__baRead(${q(id)})[0] || {}).sym || null`)
+    const was = await symOf()
+    const at = await p.b.evaluate(`(() => { const w = document.querySelector('[data-widget-id="w-watch"]'); if (!w) return null; const cur = ${q(was)}; const el = [...w.querySelectorAll('*')].find(e => e.children.length === 0 && /^[A-Z]{2,5}$/.test(e.textContent.trim()) && e.textContent.trim() !== cur && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().top > w.getBoundingClientRect().top + 40); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, sym: el.textContent.trim() } })()`)
+    if (!at) throw new Error('no watchlist row to click')
+    await p.b.click(at.x, at.y); await sleep(1200)
+    const now = await symOf()
+    if (now === was) throw new Error(`the watchlist row ${at.sym} did not load into ${role} (still ${was})`)
+  },
   clickWidget: async (p, c, [, id]) => { const r = await p.b.evaluate(`(() => { const e = document.querySelector('[data-widget-id=${id}]'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`); await p.b.click(r.x, r.y); await sleep(400) },
   next: async (p) => { if (!(await p.button('Next', '[data-testid="guide-card"]'))) await p.button('Done', '[data-testid="guide-card"]'); await sleep(500) },
   exit: (p) => clickSel(p, '[aria-label="Exit the guide"]'),

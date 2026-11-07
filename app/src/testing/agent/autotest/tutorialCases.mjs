@@ -35,7 +35,11 @@ add('life', 'esc-on-board', { ...tf, acts: [['escBoard']], lifecycle: 'Escape wi
 // written to that expectation before the decision; the guide's own header said the opposite then. wrong-chart-click below now
 // expects the end too (it accepted either before the decision)
 add('life', 'click-another-chart', { ...tf, acts: [['canvasOf', 'BL']], lifecycle: 'a click on another chart', expect: [['starts', 'timeframe'], ['endsGone', '.']] })
-add('life', 'click-watchlist', { ...tf, acts: [['clickWidget', 'w-watch']], lifecycle: 'a click on another widget', expect: [['starts', 'timeframe'], ['endsGone', '.']] })
+// POST-DECISION UPDATE (2026-11-07, owner ruling): the decision covers clicking another CHART. A click on a non-chart widget ends the
+// walkthrough only if it changes the walkthrough's chart (a watchlist row that loads a symbol into it). A plain click on the watchlist
+// leaves the walkthrough running (written as "ends" before the ruling); a row that loads into the walkthrough's chart ends it
+add('life', 'click-watchlist', { ...tf, acts: [['clickWidget', 'w-watch'], ['wait', 800]], lifecycle: 'a plain click on another widget', expect: [['starts', 'timeframe'], ['stillActive']] })
+add('life', 'watchlist-row-loads-its-chart', { board: 'FOUR', clicks: ['TL'], say: 'how do I change the timeframe on this chart', feature: 'timeframe', acts: [['watchRowInto', 'TL'], ['wait', 1500]], lifecycle: 'a watchlist row that loads a symbol into its chart', expect: [['starts', 'timeframe'], ['nothingOnScreen']] })
 add('life', 'completed-by-next', { ...tf, acts: [['next'], ['next']], lifecycle: 'its last step', expect: [['starts', 'timeframe'], ['endsGone', 'done'], ['unchanged']] })
 add('life', 'close-agent', { ...tf, acts: [['closeAgent']], lifecycle: 'closing the Agent', expect: [['starts', 'timeframe'], ['endsGone', 'closed']] })
 add('life', 'reload', { ...tf, acts: [['reload']], lifecycle: 'a reload', expect: [['starts', 'timeframe'], ['noRing'], ['nothingOnScreen']] })

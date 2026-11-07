@@ -1,7 +1,7 @@
 // UCT Agent AUTOTEST: UNSEEN batch 6 (2026-11-07), written BEFORE the code lands and before any run of it. Conversational targeting,
 // the owner's decision: the last EXPLICITLY NAMED chart stays the target of bare follow-ups ("Change NVDA to weekly." → "Add RSI." →
-// "Make it log.") until something redirects: a new name, a position, an ordinal, or a click followed by "this one". A click alone,
-// followed by a bare sentence, is ambiguous here and must ask. Relative, negation and compound rules still hold. Drawings and alerts.
+// "Make it log.") until something redirects: a new name, a position, an ordinal, or a click on another chart (followed by "this one"
+// or by a bare action: see the post-decision update in u6-ambiguous). Relative, negation and compound rules still hold. Drawings and alerts.
 //
 // Each case is graded on its LAST sentence by the selection oracle (the board just before that sentence vs after it; clicked /
 // intended / landed / told). The earlier turns only build the conversation. FOUR (TL SPY, TR QQQ, BL NVDA, BR TSLA) is clicked on TL
@@ -59,7 +59,10 @@ export function unseen6(L) {
 
   // ── ambiguous: it asks ────────────────────────────────────────────────────────────────────────────────────────────────
   const a = family(L, 'u6-ambiguous', { inv: ['C1-006'], board: 'FOUR', select: 'TL' })
-  a('target', [say('NVDA weekly', [tf('BL', 'W')]), click('BR'), askWhich('add rsi')], null, asks('BR'))
+  // POST-DECISION UPDATE (2026-11-07, owner): "Clear user interaction with another chart may establish a new target when the
+  // interaction and request support that interpretation." A fresh click on another chart plus a bare action makes the CLICKED chart
+  // the target: it acts there. (Written as "must ask" before the ruling.) Ask stays only where the words name something conflicting
+  a('target', [say('NVDA weekly', [tf('BL', 'W')]), click('BR'), say('add rsi', [add('sel', 'rsi')])], null, lands(['BR'], [paneUp('BR')], 'BR'))
   a('target', [say('top left weekly and bottom right monthly', [tf('TL', 'W'), tf('BR', 'M')]), askWhich('add rsi')], null, asks())
   a('target', [askWhich('make the NVDA chart weekly')], null, asks(null), { board: 'TWIN', select: null })
   a('target', [say('the SPY chart and the QQQ chart weekly', [tf('TL', 'W'), tf('TR', 'W')]), askWhich('now log scale')], null, asks())
