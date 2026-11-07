@@ -12220,7 +12220,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 2893.0,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -12442,7 +12442,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 46.6,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -13396,7 +13396,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 3235.7,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -13615,7 +13615,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 67.5,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -14710,7 +14710,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 1034.4,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -15685,7 +15685,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 123.5,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -18305,7 +18305,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 22.0,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [
      "2017-05-11"
     ],
@@ -19192,7 +19192,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 1004.2,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -19708,7 +19708,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 157.8,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -20056,7 +20056,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 1080.6,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -20490,7 +20490,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 517.4,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -21400,7 +21400,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 88.8,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [],
     "earnings_day": false,
     "earnings_history": true,
@@ -22202,7 +22202,7 @@
      "yahoo_sessions": 140
     },
     "avg_dollar_volume_m": 171.9,
-    "known_name": false,
+    "known_name": true,
     "earnings_dates_near": [
      "2023-08-30"
     ],

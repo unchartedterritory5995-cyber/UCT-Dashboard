@@ -100,6 +100,7 @@ def test_an_etf_is_never_drafted(run):
     etf = _pick("XLK", 20150302, setup_score=12, day_pct=6.0, _sector="ETF")
     out = run({"setup.family4.oops": {"textbook": [etf, _pick("MSFT", 20150303, setup_score=12)]}})
     assert [e["sym"] for e in out] == ["MSFT"]
+    assert out[0]["facts"]["known_name"] is True  # MSFT is on the finders' candidate list
 
 
 def test_the_lesson_lines_find_their_facts(run):
@@ -113,6 +114,8 @@ def test_the_lesson_lines_find_their_facts(run):
     assert by["Oops Reversal"]["context"]["era"] == "2010-14"
     # facts.outcome is the Study word for a resolved trade, printed as text on the review screen: never a dict here
     assert "outcome" not in by["Oops Reversal"] and by["Oops Reversal"]["culmination"]["culm_pct"] == 10.0
+    # the finders' own known-name test, not a blanket False
+    assert by["Oops Reversal"]["known_name"] is False
 
     from scripts.study.gen_setup_examples import fact_line
     line = fact_line("Oops Reversal", {"facts": dict(by["Oops Reversal"], close_pos_pct=90)})

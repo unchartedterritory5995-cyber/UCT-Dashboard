@@ -34,6 +34,10 @@ from collections import Counter
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 from scripts.study.bank_v2 import second_source  # noqa: E402
+from scripts.study.find_candle_examples import ALL_CANDIDATES  # noqa: E402
+
+#: the finders' own test for a well-known stock (find_pass4/find_hve/...: `sym in set(ALL_CANDIDATES)`)
+KNOWN = set(ALL_CANDIDATES)
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 EXAMPLES = REPO / "docs" / "study" / "setups" / "setup_examples.json"
@@ -137,7 +141,7 @@ def main(argv=None) -> int:
                 facts["second_source"] = {"source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
                                           **{k: v for k, v in check.items() if k != "ok"}}
             facts["avg_dollar_volume_m"] = round((r.get("dv") or 0) / 1e6, 1)
-            facts["known_name"] = False
+            facts["known_name"] = r["sym"] in KNOWN
             if near is not None:
                 facts["earnings_dates_near"] = near
                 facts["earnings_day"] = bool(near)

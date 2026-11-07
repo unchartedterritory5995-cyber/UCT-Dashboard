@@ -26694,7 +26694,7 @@
     "fwd_min_low_vs_trigger_low_pct": 3.9,
     "gap_pct": 3.67,
     "green": true,
-    "known_name": false,
+    "known_name": true,
     "ma_periods": [
      8,
      20,
@@ -27072,7 +27072,7 @@
     "fwd_min_low_vs_trigger_low_pct": 4.5,
     "gap_pct": 2.08,
     "green": true,
-    "known_name": false,
+    "known_name": true,
     "ma_periods": [
      8,
      20,
@@ -28698,7 +28698,7 @@
     "fwd_5d_pct": 10.6,
     "fwd_max_gain_pct": 18.3,
     "fwd_min_low_vs_trigger_low_pct": 9.6,
-    "known_name": false,
+    "known_name": true,
     "low_near_ma": true,
     "low_near_swing_low": true,
     "ma_periods": [
@@ -29073,7 +29073,7 @@
     "fwd_5d_pct": 2.9,
     "fwd_max_gain_pct": 14.9,
     "fwd_min_low_vs_trigger_low_pct": 3.8,
-    "known_name": false,
+    "known_name": true,
     "low_near_ma": true,
     "low_near_swing_low": true,
     "ma_periods": [
@@ -30876,7 +30876,7 @@
     "gap_stayed_open_20": true,
     "gap_top": 129.59,
     "gap_vol_2x": true,
-    "known_name": false,
+    "known_name": true,
     "labels": [
      "loose_gap_test"
     ],
@@ -32311,7 +32311,7 @@
     "gap_stayed_open_20": true,
     "gap_top": 21.0,
     "gap_vol_2x": true,
-    "known_name": false,
+    "known_name": true,
     "labels": [
      "loose_gap_test"
     ],
@@ -36537,7 +36537,7 @@
     "gap_pct": 19.28,
     "hvc": 5.19,
     "hve_low": 4.66,
-    "known_name": false,
+    "known_name": true,
     "ma_periods": [
      8,
      20,
@@ -37979,7 +37979,7 @@
     "fwd_max_gain_pct": 30.8,
     "fwd_min_low_vs_trigger_low_pct": 3.7,
     "gap_pct": 0.99,
-    "known_name": false,
+    "known_name": true,
     "labels": [
      "v2_run_20in5",
      "cross_only"
@@ -38814,7 +38814,7 @@
     "fwd_max_gain_pct": 18.3,
     "fwd_min_low_vs_trigger_low_pct": 4.1,
     "gap_pct": -1.01,
-    "known_name": false,
+    "known_name": true,
     "labels": [
      "cross_only"
     ],
@@ -39374,7 +39374,7 @@
     "fwd_max_gain_pct": 15.4,
     "fwd_min_low_vs_trigger_low_pct": 6.0,
     "gap_pct": -0.54,
-    "known_name": false,
+    "known_name": true,
     "labels": [
      "cross_only"
     ],
@@ -40073,7 +40073,7 @@
     "fwd_max_gain_pct": 19.6,
     "fwd_min_low_vs_trigger_low_pct": 4.9,
     "gap_pct": 0.0,
-    "known_name": false,
+    "known_name": true,
     "labels": [
      "cross_only"
     ],
@@ -41574,7 +41574,7 @@
     "fwd_max_gain_pct": 20.3,
     "fwd_min_low_vs_trigger_low_pct": 2.4,
     "gap_pct": -0.48,
-    "known_name": false,
+    "known_name": true,
     "ma_periods": [
      8,
      20,
@@ -42898,7 +42898,7 @@
     "fwd_max_gain_pct": 23.3,
     "fwd_min_low_vs_trigger_low_pct": 9.0,
     "gap_pct": 0.11,
-    "known_name": false,
+    "known_name": true,
     "ma_periods": [
      8,
      20,
