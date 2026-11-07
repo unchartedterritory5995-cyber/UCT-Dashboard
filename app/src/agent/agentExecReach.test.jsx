@@ -60,7 +60,9 @@ const PINNED = {
   'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '21/24', list: '21/24' },
   'list held-out v1': { model: '8/8', action: '7/8' }, 'list held-out v2': { model: '8/8', action: '8/8' },
   // round 2 (before the word-based names: name held-out2 list 4/6 both; journal held-out2 action 3/4 both)
-  'name held-out2 v1': { model: '6/6', action: '6/6', list: '6/6' }, 'name held-out2 v2': { model: '6/6', action: '6/6', list: '6/6' },
+  // after the routing gate (a name routes only beside a word of its controls): "on the new-highs/new-lows widget add the S&P 500" says
+  // no control word, so it reaches the action by a reroute only — the price of 0 corpus side-effect turns
+  'name held-out2 v1': { model: '6/6', action: '5/6', list: '5/6' }, 'name held-out2 v2': { model: '6/6', action: '5/6', list: '5/6' },
   'door held-out2 v1': { model: '4/4', action: '4/4', list: '4/4' }, 'door held-out2 v2': { model: '4/4', action: '4/4', list: '4/4' },
   'journal held-out2 v1': { model: '4/4', action: '4/4' }, 'journal held-out2 v2': { model: '4/4', action: '4/4' },
 }

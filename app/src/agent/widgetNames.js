@@ -45,3 +45,32 @@ export function namedWidgetTypes(message, types, surfaceWord) {
   const words = nameWords(message)
   return [...new Set(types)].filter(t => widgetControls(t).length && widgetNamesOf(t, surfaceWord).some(n => saysName(words, n)))
 }
+
+// ── Round 2 (pl-exec): the ROUTING gate is stricter than the name. Measured on the 693 corpus phrasings with every widget on the
+// board, a name alone brought boardEdit (+3,671 manifest bytes) to 19 read questions ("any news on TSLA", "how's breadth today",
+// "add the relative strength index"). A widget's name routes its control action only beside a word of ITS OWN controls: a
+// control's key, a choice it offers (the registry's words, less the widget's own name), or one of the words every widget's
+// control panel uses (CONTROL_WORDS). Data, not phrases; the context narrowing above still reads the name alone.
+const CONTROL_WORDS = ['tab', 'axis', 'filter', 'sort', 'order', 'rank', 'view', 'only', 'hide', 'unhide', 'remove', 'drop', 'switch', 'flip',
+  'set', 'turn', 'expand', 'collapse', 'follow', 'logo', 'label', 'period', 'universe', 'reading', 'watch', 'scan', 'group', 'grouped',
+  'ascending', 'descending', 'worst', 'best', 'week', 'weekly', 'month', 'monthly', 'year', 'ytd', 'star',
+  'size', 'color', 'plot', 'restore', 'lead', 'link', 'linked',
+  // its Send to Journal door (widget.sendToJournal: where = note | newNote | inbox)
+  'journal', 'notebook', 'note', 'inbox', 'send']
+// a control that takes a DAY is named by the words a day is said in
+const DAY_WORDS = ['today', 'tomorrow', 'yesterday', 'next', 'last', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'jump', 'go']
+const camel = (k) => String(k).replace(/([a-z])([A-Z])/g, '$1 $2')
+const VOCAB = new Map()
+function controlVocab(type, surfaceWord) {
+  if (VOCAB.has(type)) return VOCAB.get(type)
+  const own = new Set(widgetNamesOf(type, surfaceWord).flat())
+  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o)))])]
+    .flatMap(nameWords).filter(w => w.length >= 2 && !own.has(w)))
+  VOCAB.set(type, words)
+  return words
+}
+/** The named types whose control vocabulary the message also uses: the ones a routed control action is for. */
+export function controlledWidgetTypes(message, types, surfaceWord) {
+  const said = new Set(nameWords(message))
+  return namedWidgetTypes(message, types, surfaceWord).filter(t => [...controlVocab(t, surfaceWord)].some(w => said.has(w)))
+}

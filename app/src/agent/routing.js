@@ -18,7 +18,7 @@
 //   • a reroute is bounded to ONE extra call, and only when the first call planned nothing.
 // Kill switch: localStorage `uct.agent.routing = '0'` sends the full manifest every turn.
 
-import { namedWidgetTypes } from './widgetNames'
+import { namedWidgetTypes, controlledWidgetTypes } from './widgetNames'
 export const ROUTING_VERSION = 1
 
 // hotfix 2026-11-03: "on four charts", "4 charts", "two more charts", "all the same size", "equal size", "evenly", "split"
@@ -356,7 +356,7 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
-  if (names?.widgetTypes?.length && namedBoardWidgets(q, names.widgetTypes).length) out.add('boardEdit')
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
   return out
 }
 
