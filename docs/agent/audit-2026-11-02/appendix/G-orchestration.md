@@ -1,0 +1,12 @@
+# Claude Code orchestration features (from official docs, 2026-11-02)
+- Subagents: GA; 20 concurrent default (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS); background by default; nesting 3 levels; fresh context; custom agents in .claude/agents/*.md; isolation: worktree supported.
+- Agent teams: EXPERIMENTAL, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1; lead + teammates (full sessions) with shared task list + messaging; interactive only; split panes not on Windows Terminal (in-process display OK); docs suggest 3-5 teammates.
+- Cross-session messaging: SendMessage/ListAgents between own sessions, same machine via local pipe (Windows native v2.1.234+); cannot grant permissions.
+- Worktrees: claude --worktree <name>, EnterWorktree tool, subagent isolation: worktree; auto cleanup of clean ones.
+- Workflow tool: JS script with agent()/parallel()/pipeline(); 16 concurrent agents default; no mid-run input; does not continue after exit; counts against plan usage.
+- Scheduling: /loop, CronCreate, ScheduleWakeup run only while session open (claude --bg keeps /loop alive); cloud scheduled tasks (/schedule, research preview, min 1h, fresh clone, no local files); headless `claude -p` with --max-budget-usd, --permission-mode, --allowedTools, --permission-prompts none (already used by tools/weekly_claude_child.cmd in this repo).
+- /goal "<condition>": GA; Stop-hook style continuation until a small-model evaluator says done; cap with "or stop after N turns".
+- Permission modes: default, acceptEdits, plan, auto, dontAsk, bypassPermissions (containers only).
+- Cloud sessions (claude --cloud / claude.ai/code): run on Anthropic infra from the GitHub remote; parallel OK; share account limits.
+- Context: auto-compaction; CLAUDE.md + auto memory (first 200 lines/25KB) reload; agent-team task lists persist in ~/.claude/tasks/. No official progress-file pattern.
+- Cost: subscriptions share one pool across parallel/cloud/scheduled sessions; teammates cost extra tokens; subagentPromptCacheTtl=1h.
