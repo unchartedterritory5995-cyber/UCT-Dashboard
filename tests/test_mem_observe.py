@@ -1,7 +1,11 @@
 """mem_observe: the watch-only memory observer must measure correctly and never change or break anything."""
 from __future__ import annotations
 
+import os
+import pathlib
+import shutil
 import sys
+import tempfile
 import threading
 import time
 import types
@@ -119,6 +123,77 @@ def test_the_ws_quiet_counter_sits_only_on_an_existing_history():
 linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="mincore and /proc are Linux-only")
 
 
+# ⛔ POSIX_FADV_DONTNEED cannot evict pages that live in memory-backed or stacked filesystems
+# (tmpfs, ramfs, overlay). GitHub runner image ubuntu26/20261101.64 keeps the pages after
+# fsync + DONTNEED (gates 42403103754 and 42404906058 read 8388608 three times), while
+# .186 evicts them (8 of 8 green). So the eviction tests run in a directory the KERNEL can
+# drop, chosen by an oracle independent of mem_observe: the filesystem type in
+# /proc/self/mountinfo. On a disk-backed filesystem the assertions are unchanged.
+NON_DROPPABLE_FS = {"tmpfs", "ramfs", "overlay"}
+
+
+def _fs_type_from_mountinfo(text, path):
+    """Filesystem type of the longest mount point containing `path` (mountinfo format)."""
+    best, fstype = "", None
+    for line in text.splitlines():
+        parts = line.split(" - ", 1)
+        if len(parts) != 2:
+            continue
+        left, right = parts[0].split(), parts[1].split()
+        if len(left) < 5 or not right:
+            continue
+        mnt = left[4].replace(chr(92) + "040", " ")  # mountinfo escapes a space as backslash-040
+        inside = path == mnt or path.startswith(mnt.rstrip("/") + "/")
+        if inside and len(mnt) >= len(best):
+            best, fstype = mnt, right[0]
+    return fstype
+
+
+def _fs_type(path):
+    with open("/proc/self/mountinfo", encoding="utf-8") as fh:
+        return _fs_type_from_mountinfo(fh.read(), os.path.realpath(path))
+
+
+@pytest.fixture
+def droppable_dir(tmp_path):
+    """A fresh writable directory on a filesystem whose page cache the kernel can drop."""
+    seen = []
+    for cand in (str(tmp_path), os.environ.get("RUNNER_TEMP"), os.environ.get("GITHUB_WORKSPACE"),
+                 os.getcwd(), "/var/tmp"):
+        if not cand or not os.path.isdir(cand):
+            continue
+        fs = _fs_type(cand)
+        seen.append(f"{cand}={fs}")
+        if not fs or fs in NON_DROPPABLE_FS:
+            continue
+        try:
+            d = tempfile.mkdtemp(prefix="memobs-", dir=cand)
+        except OSError:
+            continue
+        try:
+            yield pathlib.Path(d)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        return
+    pytest.skip("no writable disk-backed directory; page-cache eviction is not testable here: " + ", ".join(seen))
+
+
+def test_file_cache_fs_type_reader_reads_mountinfo():
+    """The skip oracle itself: longest mount wins, and a name prefix is not a path prefix."""
+    text = "\n".join([
+        "22 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw",
+        "35 22 0:30 / /tmp rw,nosuid,nodev shared:2 - tmpfs tmpfs rw",
+        "40 22 0:31 / /home/runner/work rw,relatime - overlay overlay rw,lowerdir=/a",
+        "41 22 0:9 / /mnt/my" + chr(92) + "040dir rw - xfs /dev/x rw",
+    ])
+    assert _fs_type_from_mountinfo(text, "/tmp/pytest-of-runner/x") == "tmpfs"
+    assert _fs_type_from_mountinfo(text, "/home/runner/a") == "ext4"
+    assert _fs_type_from_mountinfo(text, "/home/runner/work/repo") == "overlay"
+    assert _fs_type_from_mountinfo(text, "/tmpfoo/x") == "ext4"
+    assert _fs_type_from_mountinfo("", "/x") is None
+    assert _fs_type_from_mountinfo(text, "/mnt/my dir/f") == "xfs"   # mountinfo escapes a space
+
+
 def _drop(path):
     import os
     fd = os.open(path, os.O_RDONLY)
@@ -130,8 +205,8 @@ def _drop(path):
 
 
 @linux_only
-def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(tmp_path):
-    f = tmp_path / "hot.bin"
+def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(droppable_dir):
+    f = droppable_dir / "hot.bin"
     f.write_bytes(b"x" * (8 << 20))
     f.read_bytes()
     size = f.stat().st_size
@@ -145,8 +220,8 @@ def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(tmp_path):
 
 
 @linux_only
-def test_file_cache_reports_top_files_and_deleted_open_files(tmp_path):
-    import os
+def test_file_cache_reports_top_files_and_deleted_open_files(droppable_dir):
+    tmp_path = droppable_dir
     big = tmp_path / "big.db"
     big.write_bytes(b"y" * (4 << 20))
     big.read_bytes()
