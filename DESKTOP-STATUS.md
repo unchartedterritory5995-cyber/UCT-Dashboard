@@ -1,3 +1,7 @@
+>>> LANDINGS 2026-11-07 (desktop coordinator), all PROMOTED: W9-T14 server strategy backtests #917 (no bump, route DARK: 404 unless PINE_RUNTIME_STAGE+PINE_RUNTIME_SERVER_STAGE admit; strategies refuse pine:strategy-call until broker armed) | engine 31 W6-T6-N1b #925 (indirect held-list mutation refuses by name; default inverted to provably-independent targets) | engine 32 W6-T10-N #927 (v5/v6 reserved enum names per reference; case-sensitive) | probes #924: 50 capture probes, 99 queue rows now resolve, capture-queue.json regenerated 177->248 targets (master json had been stale).
+QUEUE EMPTY of agent-buildable Pine work. Remaining is OWNER-GATED: captures (see reviews/CAPTURE-CHECKLIST-2026-11-07.md; top: W9-C0, Q-S1-core, Q-S1-core-b, W9-T4 sizing set, Q-S1n, then W6-A1, Q-A1), decisions (W9 D7; arming the broker on the service; stage-1 arm; pine-runtime service). Known flake: tests/test_mem_observe.py:144 failed the master gate 3x in 24h (not Pine).
+<<<
+
 >>> LANDINGS 2026-11-06/07 (desktop coordinator). All PROMOTED to production unless noted.
 engine 22 W34-I6a #898 | 23 W34-I4b #901 | 24 W34-I4 #902 | 25 W34-I6c #906 (v1-v4 bare highestbars/lowestbars sign fix on the live door) |
 26 W6-T7 matrix #908 | 27 W6-T9 receivers #909 | 28 W6-T8 map #910 | 29 W34-I6b #911 (item 4 gated off the door) | 30 W6-T10 enum #914 |

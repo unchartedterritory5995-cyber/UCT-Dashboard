@@ -1,115 +1,126 @@
-VERDICT: NO-GO @b1303e6bd3
+VERDICT: GO-WITH-NOTES @a0bc6a6a1d
 
-Delta re-review of W6-T6-N1b r1. The previous verdict was NO-GO @64acd1ddc8, for B1 (the type route) and B2 (the untyped body-local refusal).
-Lane fix/pine-w6-t6-n1b-indirect, tip b1303e6bd3, base master 7304620153 (engine 29), 2 commits.
-Reviewer: independent (desktop), 2026-11-07. Same method as before: a detached worktree at the tip and a master
-`app/src` extract, both with node_modules junctioned. Each probe is one `buildRuntimeIr` call per script (40 daily
-bars, `objectsInRun` + `pane`, tf D), run on both trees. The corpus was run with `runtimeClockOpts(false)`.
+Delta re-review of W6-T6-N1b r2. History: NO-GO @64acd1ddc8 (type route), then NO-GO @b1303e6bd3 (nine reach holes).
+Lane fix/pine-w6-t6-n1b-indirect, tip a0bc6a6a1d, base master 7304620153 (engine 29), 3 commits.
+Reviewer: independent (desktop), 2026-11-07. Same method: a detached worktree at the tip and a master `app/src`
+extract, both with node_modules junctioned. Each probe is one `buildRuntimeIr` call per script (40 daily bars,
+`objectsInRun` + `pane`, tf D), run on both trees.
+
+r2 inverts the default. While a walk visits records that hold a list, a list may change only if it is PROVABLY
+INDEPENDENT. That means every binding is a NEW list (`array.new*`, `array.from`, `array.copy`, `x.copy()`, `na`)
+or another independent plain name, and the list is never stored where a record could hold it (`storesAny`). A field
+path, an element read, a function result, an if / switch / ternary value, a tuple or a slice is never independent.
+The rule is gated on the element type holding a list (`forInElemHoldsList`).
 
 ## Blocking
 
-B3. The reach rule serves aliases of a held list that it was written to catch. N1b asks that undecidable reach
-refuse by name. Each row below SERVES on r1, and on master; none is a regression. Each one changes, during the
-walk, a list a walked record holds.
-| id | shape | r1 |
-|---|---|---|
-| X6 | IN THE BODY: `a = if close > open` / `q.arr` / `else` / `other`, then `array.push(a, 1.0)` | SERVED |
-| X8 | IN THE BODY: `a = switch` / `close > open => q.arr` / `=> other`, then push `a` | SERVED |
-| X7 | before the walk: `pre = if barstate.isfirst` / `array.get(qs, 0).arr` / `else` / `array.new_float()`, push `pre` in the walk | SERVED |
-| X10 | `get0(array<Q> xs) => array.get(xs, 0).arr`; `pre = get0(qs)`; push `pre` in the walk | SERVED |
-| X11 | `first0(array<Q> xs) => xs.first()`; `p0 = first0(qs)`; `array.push(p0.arr, …)` in the walk | SERVED |
-| X19 | `pair(array<Q> xs) => [array.get(xs, 0).arr, 1.0]`; `[pre, z] = pair(qs)`; push `pre` | SERVED |
-| X13 | `addQ(array<float> v) => array.push(qs, Q.new(1.0, v))`; `addQ(vals)`; push `vals` in the walk | SERVED |
-| X14 | `mk(v) => array.from(Q.new(1.0, v))`; `qs = mk(vals)`; push `vals` | SERVED |
-| X17 | `var qs = array.from(Q.new(1.0, vals))`; push `vals` in the walk | SERVED |
+None.
 
-Causes, all in `forInRule.js`:
-- (a) `bindingsOf` takes a binding's rhs from the HEADER line only. An `if` / `switch` expression's value lives
-  in `sub`, so `a = if …` is seen as naming only the condition. This hits the body's `aliasClosure` (X6, X8: this
-  is N1b shape b itself, written as an if-expression) and `walkedElementReach` (X7).
-- (b) `callsCarryingFn` treats a call as carrying only if the function BODY names a carried global. A function
-  HANDED the walked list (`get0(qs)`) is not treated as carrying (X10, X11, X19). The `walkedElementReach`
-  docstring says "a user function handed (or naming) a carried value may return or keep it". The handed half is not built.
-- (c) `visitStores` scans top-level statements only, and function bodies are filtered out. A function that pushes
-  its parameter into the walked list is never seen, nor is a function whose result becomes the walked list (X13, X14).
-- (d) The walked list's own binding rhs is never read for what it stores: `add` refuses `src`, and the backward
-  rule fires only when the bound name is in `reach` (X17). `var qs = array.from(Q.new(…, vals))` is a plausible way to write this.
+## Notes, to fix before merge or as follow-up
 
-Suggested fixes:
-- (a) For a binding whose rhs starts with `if` / `switch`, treat the names in its sub-block's value lines as the
-  rhs, or refuse such a binding conservatively if it names anything carried.
-- (b) In `callsCarryingFn`, also count a call whose arguments mention `lists` or `reach`.
-- (c) Apply `fnEffects`-style "stores parameter k into outer list L" to calls at top level.
-- (d) Seed the backward rule with the `src` binding's rhs.
+- N-A. A rail is missing for a real route. My Z10 mutation SURVIVED: `fnEffects`'s `own(t)` treated as true for any
+  binding. With it, this hazard SERVES:
+  `f() => l = array.get(qs, 0).arr; array.push(l, 1.0)`, then `for q in qs` / `f()`.
+  The real code REFUSES it ("through `l`, not provably independent of it, changed by `f`"). So the rule is sound and
+  only the rail is missing. Add this shape, with a fresh-local control (`l = array.new_float()`, served).
+- N-B. Z5 survived (`:=` bindings inside function definitions ignored). It is an equivalent mutant on this lane: a
+  function that writes a global with `:=` is refused first by `runtime:unbound` (probe F2), as Pine forbids it. The
+  code is defensive and harmless; no rail is possible today.
+- N-C. There is a new over-refusal the builder did not list: an outer record field such as a "settings object"
+  accumulator, `array.push(st.xs, q.v)`, refuses whatever the type of `xs` (T11, H3 string, Y19). It is conservative
+  (a field path is never independent), and the corpus count is 0. Record it in the capture row next to `mk()` and slice.
 
-Each fix needs a rail per shape and a control that comes out the other way.
+## 1. Holes closed, and new probes
 
-## Closed from the previous review
+All nine holes from @b1303e6bd3 now REFUSE by name: X6, X7, X8, X10, X11, X13, X14, X17, X19, each with "…may hold
+(through `<name>`, not provably independent of it)…". So do the r1-caught shapes (X4, X5, X9, X12, X16, X20, X21,
+X23, X24), the hazards H1/H2/X1-X3 (inferred, declared, `float[]`), H5, and the N1b shapes a and b. X18 (`map` of Q)
+was refused earlier by `pine:member` on master; it now refuses on this rule.
 
-- B1 CLOSED. The type route is gone: no `mayBeHeld`, `forInHeldKeys`, `typedHeld` or "a type it holds" remains.
-  The hazard now refuses by reach whatever the declaration style: inferred (X1/H1), declared (X2/H2) and `float[]`
-  (X3) all give "…may hold (through `vals`, an alias of it)…". The accumulator repros serve: VF1, VF2, VF3, D6,
-  D8, D9, D10, D11, D12, D13, T11. Every one of the 49 over-refusal shapes from the last review now matches master,
-  except the ones that should refuse (N1b-a, N1b-b, N1, H5) and T9 (q.arr.copy(), below).
-- B2 CLOSED. Unrelated body-local lists serve: T14 `t = mk()` and T15/H4 `array.slice` of an unrelated list. So do S1/S2.
-- Reach that is caught correctly, refused by name: a ternary before the walk (X4) and in the body (X5); a `:=`
-  reassignment before the walk (X9); a function that names `qs` globally (X12); a record bound first and then
-  pushed (X16); the method chain `qs.get(0).arr` (X20); `qs.copy()` then get (X21); the element method
-  `q.arrOf()` (X23); `arrOf(q)` (X24). Inconclusive, refused earlier by unrelated guards on both trees: X15 (a field
-  write on an expression), X18 (`map` member read), X22 (a loop-variable write).
+New probes I tried:
+- REFUSED, correctly:
+  - Y3 `r = q.copy()` then `array.push(r.arr, …)` (a shallow record copy);
+  - Y4 a record copy's field, aliased;
+  - Y5 `vals := q.arr` in the body;
+  - Y8 `array.insert(qs, 0, Q.new(1.0, vals))`;
+  - Y9 a named constructor argument `Q.new(v = 1.0, arr = vals)`;
+  - Y10 `nq = Q.new(1.0, na)`, `nq.arr := vals`, push `nq`;
+  - Y11 an alias `w = vals` stored instead of `vals`;
+  - Y12 stored through a ternary;
+  - Y13 stored through an identity function `id(vals)`;
+  - Y18 an accumulator pushed into `qs` inside the walk.
+- SERVED, correctly:
+  - Y14 `var array<float> acc = na`, then `acc := array.new_float()`;
+  - Y15 a fresh-per-bar accumulator;
+  - Y16 an accumulator handed to a non-storing function;
+  - Y17 `array.concat(out, acc)`;
+  - Y21 a fresh body-local list inside an `if`;
+  - Y22 an unrelated fresh body-local beside a held global.
+- Inconclusive (refused earlier by unrelated guards on both trees): Y6 (a function `:=` to a global,
+  `runtime:unbound`), Y7 (a method writing a field, `runtime:function`), X15, X22.
 
-## q.arr.copy() over-refusal (old N1): a note, not blocking
+## 2. Is "provably independent" sound?
 
-`t = q.arr.copy()` in the body refuses ("through `t`, an alias of it", X25/T9), although a copied array is
-independent. Corpus count: 0.
-- Across the 395 scripts in the five corpora, 25 have a `for … in`, and 0 of them call `.copy()` on a path rooted
-  at the loop element.
-- 4 `.copy()` calls appear in for-in scripts: footprint-iq `HD.gradientLevelsDelta.copy()`; higher-time-frame-fvg
-  `formingTrend.copy()` and `formingFVG.copy()`; volume-profile-plus `dist.copy()`. None is reached by a walked element.
-- The same over-refusal applies to `pre = array.get(qs, 0).arr.copy()` before the walk; it also has no corpus instances.
+Yes, by construction and by probe. Nothing derived from an element can be classed independent:
+- a field path is never independent;
+- a binding from an element read, a call, a ternary, an if / switch or a tuple is not NEW;
+- an alias is independent only if what it copies is;
+- any name, or an alias of it, that reaches a constructor argument, an `array.from` argument, a field write or a
+  storing user function fails `storesAny`.
 
-## Corpus
+`isFreshRhs` accepts `x.copy()` on any receiver, including a record. That is safe because a list reached through the
+record copy is a field path, which refuses (Y3, Y4).
 
-The 25 for-in scripts, each run alone with the clock told: first refusal or result IDENTICAL to master, 25/25
-(one served on both). The latent case from the last review, volume-footprint, is no longer newly refused: its
-accumulator shapes VF1 and VF2 serve.
+`array.copy` really copies at runtime: `collections.js` `'array.copy'` returns `a[0].slice()`. A value check
+confirms it. The walk `t = q.arr.copy(); t.push(1.0)` (and the same with `array.copy(q.arr)`) leaves the held
+list's size at 2 on the last bar (Y1, Y2).
 
-## Verified
+## 3. The new over-refusals are acceptable
 
-1. N1b shapes a and b refuse by name with the `forInHeldListRefusal` family. The three sentences are now pinned
-   literally in the rails (my W7 is killed).
-2. One authority: `heldListReach` has one FE call site, fed by `walkedElementReach`, and there is no FE copy. The
-   duplicate mutator-target reader `forInUnwitnessedTargets` was already on master (unchanged note).
-3. Host lane and object door unchanged. I compared 72 probe sources on tip and master: `translatePine(strict)` ok,
-   output count and `forInRefused`; `objectDoor: true`; `objectIterTrees: []`. Result IDENTICAL.
-   `pineObjects.js` / `objectLane.js` are untouched.
-4. Runs:
-   - Full `engine/ast` + `engine/runtime` (vitest, node 20.20.2, `--maxWorkers=1`): 509 files, 8116 tests, 8101 passed,
-     11 skipped, 4 failed. All 4 are `Test timed out in 15000ms` in `*.measure` census files (guardProbe,
-     objectLaneCallSites, objectLaneCensus, objectLaneDrawerCensus). No assertion failed.
-   - `node --test --test-force-exit services/pine_runtime/test/*.test.mjs` (node 24.13.1): 125/125. The tree
-     holds 125, not the 128 the brief named, and the lane touches nothing under `services/`.
-   - hostParity `--host node --check` (node 24): HP-1 GREEN 166/166. Under node 20 the same check reports
-     164/166, with 2 "V8 differs, REPORTED, not gated". That comes from the host, not from the lane.
-5. merge-tree against origin/master is clean (tree c8ad005a59). master is an ancestor of the tip.
+- `array.slice`: refusing it is CORRECT, not just conservative. In this runtime a slice is a VIEW
+  (`collections.js` C18 `SLICED`), and writes through a slice already throw (`guardSliceWrite`).
+- `t = mk()` (a function result) refuses by design: T14, S1, S2, and D13 (`var vals = mk()`).
+- Outer field-path accumulators: see N-C.
+- Corpus count: I scanned every for-in body in the 25 for-in scripts (395 scripts in five corpora) for mutation
+  targets that are not provably fresh or are field paths.
+  - Hits: bigbeluga `block`, smc `fvgBox` (the walked list itself, which is the walked-list rule's, not this one's);
+    multi-timeframe-supply-demand `SnD_*` (function parameters in a walk over `SnD_Type`, not a list-holding record);
+    stop-loss `timeScalingVola.*` fields (a walk over numeric `signVol`, so the gate is off).
+  - Slices: 0. Function results: 0. Field paths in list-holding walks: 0.
+- The q.arr.copy() over-refusal (old N1) is FIXED: it now serves (T9, X25, Y1).
+- Over-refusal shapes from the first review that now serve: the accumulator VF1/VF2/VF3, D1-D12, D14, and T1-T10, T12, T13, T16-T19.
 
-## Mutations (mine: copy, mutate, run `w6ForIn.test.js`, restore by copy, `cmp` equal, `git status` clean)
+## 4. Corpus
 
+The 25 for-in scripts, each run alone with the clock told: first refusal or result IDENTICAL to master, 25/25.
+
+## 5. Door, host lane, runs
+
+- I compared 95 probe sources on tip and master: host `translatePine(strict)` (ok, output count, `forInRefused`),
+  `objectDoor: true`, `objectIterTrees: []`. Result IDENTICAL. `pineObjects.js` and `objectLane.js` are untouched.
+- hostParity `--host node --check` (node 24.13.1): HP-1 GREEN 166/166.
+- `node --test --test-force-exit services/pine_runtime/test/*.test.mjs` (node 24): 125/125. Nothing under
+  `services/` changed; the tree holds 125, not 128.
+- Full `engine/ast` + `engine/runtime` (vitest, node 20.20.2, `--maxWorkers=1`): 509 files, 8117 tests, 8102 passed,
+  11 skipped, 4 failed. All 4 failures are `Test timed out in 15000ms` in `*.measure` census files (guardProbe,
+  objectLaneCallSites, objectLaneCensus, objectLaneDrawerCensus), the same set as at r1. No assertion failed.
+- One authority: `heldListReach` has one FE call site and no FE copy. `walkedElementReach` and the type route are gone.
+
+## 6. Mutations and merge
+
+Mine: copy, mutate, run `w6ForIn.test.js` (21 tests), restore by copy, `cmp` equal; `git status` clean after.
 | id | mutation | result |
 |---|---|---|
-| W1 | backward store (a carried name stores its rhs) off | killed |
-| W2 | `readsElementOf` route off | killed |
-| W3 | a carried value pushed into another list does not make that list carry | killed |
-| W4 | `callsCarryingFn` off | killed |
-| W5 | a plain-name alias of the walked list not added to `lists` | killed |
-| W6 | FE passes `outerReach: []` | killed |
-| W7 | via-sentence "may hold" changed to "holds" (old R6) | killed |
-| W8 | a NEW array is no longer skipped in `walkedElementReach` | killed |
+| Z1 | a field path may be independent | killed |
+| Z2 | `storesAny` never fires | killed |
+| Z3 | `harmlessAt` always true (no store ever seen) | killed |
+| Z4 | `fnStores` empty | killed |
+| Z5 | `:=` inside function definitions ignored | SURVIVED: equivalent on this lane (N-B) |
+| Z6 | a name with no binding counts as independent | killed |
+| Z7 | any single-token rhs counts as fresh (`a = q.arr`) | killed |
+| Z8 | FE `forInElemHoldsList` gate off | killed |
+| Z9 | a handed plain-name argument's independence not checked | killed |
+| Z10 | `fnEffects.own` true for any binding | SURVIVED: a real hazard serves (N-A) |
+| Z11 | a record constructor is not a store | killed |
 
-8/8 killed.
-
-## Notes
-
-- N1 (unchanged, non-blocking): `x.copy()` on an ARRAY receiver is fresh. The receiver's type decides; the corpus count is 0.
-- N2: X6/X8 show that the BODY alias closure from the first commit also misses if/switch expressions. Fix (a) covers both readers.
-- N3: once B3 is fixed, the lane is GO by everything else checked here.
+9/11 killed. merge-tree against origin/master is clean (tree 5dbe7ceb55). master is an ancestor of the tip.
