@@ -81,9 +81,12 @@ describe('the chart the words name', () => {
   it('a position right-click on a named chart keeps the named chart', () => {
     expect(namedChart('how do I open the right-click menu on the AAPL chart', WIDE)?.chart?.ref).toBe('a')
   })
-  it('the words reach the walkthrough only when they choose something', () => {
+  // 2026-11-07 (selection oracle flow-ring-named): the words ALWAYS travel, and `answer` reads the chart from them against the
+  // real board; before, they travelled only when the fast path itself saw a chart named, and a panel whose fast path could not
+  // see the board walked the clicked chart
+  it('the words always reach the walkthrough, which reads the chart from them', () => {
     const fast = (raw) => getCapability('guide.show').fast({ raw, host: { surface: 'charts', charts: { list: () => TWO } } })
-    expect(fast('Where do I change the timeframe?')).toEqual({ feature: 'timeframe' })
+    expect(fast('Where do I change the timeframe?')).toEqual({ feature: 'timeframe', detail: 'Where do I change the timeframe?' })
     expect(fast('where do I change the timeframe on the NVDA chart').detail).toMatch(/NVDA/)
     expect(namesAChart('where is the timeframe', TWO)).toBe(false)
   })
@@ -367,13 +370,17 @@ describe('one chart, and the words named another', () => {
     expect(out).toMatch(/no TSLA chart/)
     expect(out).not.toMatch(/only has/)
   })
-  it('the fast path carries the words that draw the note, and only those', () => {
+  it('the note is drawn only by words that name another chart', () => {
     const host = { surface: 'charts', charts: { list: () => [chart('a', 'AAPL', 'left', 0)], selected: () => 'a' } }
-    const fast = (raw) => getCapability('guide.show').fast({ raw, host })
-    expect(fast('how do I use the symbol search on the TSLA chart').feature).toBe('symbol')
-    expect(fast('how do I use the symbol search on the TSLA chart').detail).toMatch(/TSLA/)
-    expect(fast('how do I use the symbol search on the AAPL chart').detail).toBeUndefined()
-    expect(fast('how do I use the symbol search on the 1D chart').detail).toBeUndefined()
+    const show = getCapability('guide.show')
+    const said = (raw) => { const a = show.fast({ raw, host }); return show.answer(null, { feature: a.feature, detail: a.detail }, host) }
+    expect(show.fast({ raw: 'how do I use the symbol search on the TSLA chart', host }).feature).toBe('symbol')
+    // the words reach `answer`, and namedChart draws the note only for another chart
+    expect(show.fast({ raw: 'how do I use the symbol search on the AAPL chart', host }).detail).toMatch(/AAPL/)
+    expect(namedChart('how do I use the symbol search on the TSLA chart', host.charts.list())?.note).toMatch(/only has AAPL/)
+    expect(namedChart('how do I use the symbol search on the AAPL chart', host.charts.list())).toBeNull()
+    expect(namedChart('how do I use the symbol search on the 1D chart', host.charts.list())).toBeNull()
+    expect(typeof said).toBe('function')
   })
 })
 
@@ -488,5 +495,44 @@ describe('the instance the words name', () => {
   it('no pane named: any divider', () => {
     const [step] = stepsFor(guideFeature('chartView'), 'how do I resize a pane')
     expect(step.target[0].above).toBeUndefined()
+  })
+})
+
+// selection oracle flow-ring-named: the chart the words NAME wins over the clicked one, whatever the fast path could see — the
+// same rule as execution. A bare "this" binds to the click; words that fit no chart, or several, are said or asked.
+describe('the named chart wins over the click, even when the fast path cannot see the board', () => {
+  const FOUR = [chart('tl', 'SPY', 'top-left', 0), chart('tr', 'QQQ', 'top-right', 1), chart('bl', 'NVDA', 'bottom-left', 2), chart('br', 'TSLA', 'bottom-right', 3)]
+  const board = { surface: 'charts', charts: { list: () => FOUR, selected: () => 'bl' } }
+  const blind = { surface: 'charts' }   // what the panel's fast path may get: no charts list
+  const ask = (q) => {
+    const show = getCapability('guide.show')
+    const args = show.fast({ raw: q, host: blind })
+    return show.answer(null, { feature: args.feature, detail: args.detail ?? null }, board)
+  }
+  afterEach(() => { _resetGuide() })
+  it.each([
+    ['how do I change the timeframe on the top right chart', 'tr'],
+    ['how do I change the timeframe on the QQQ chart', 'tr'],
+    ['how do I add RSI to the TSLA chart', 'br'],
+    ['how do I change the timeframe on this chart', 'bl'],
+    ['how do I change the timeframe', 'bl'],
+  ])('%s → %s', (q, ref) => {
+    // the sentence names the chart it is about (highlighted on it, or not visible on it in jsdom): never another
+    const said = ask(q)
+    const want = FOUR.find(c => c.ref === ref)
+    expect(said).toContain(want.label)
+    for (const c of FOUR.filter(x => x !== want)) expect(said).not.toContain(c.label)
+  })
+  it('a position no chart holds is said, never walked on the click', () => {
+    const said = ask('how do I change the timeframe on the middle left chart')
+    expect(guideState()?.chartRef ?? null).not.toBe('bl')
+    expect(said).toMatch(/chart/)
+  })
+  it('a ticker the board shows twice is asked about', () => {
+    const twice = { surface: 'charts', charts: { list: () => [chart('a', 'SPY', 'left', 0), chart('b', 'SPY', 'right', 1)], selected: () => 'a' } }
+    const show = getCapability('guide.show')
+    const args = show.fast({ raw: 'how do I change the timeframe on the SPY chart', host: blind })
+    expect(show.answer(null, { feature: args.feature, detail: args.detail }, twice)).toMatch(/Which one do you mean/)
+    expect(guideState()).toBeNull()
   })
 })
