@@ -87,7 +87,7 @@ const SEND = ['send', 'save', 'copy', '~add', '~get']
 const JOURNAL_WIDGETS = { alerts: 'these alerts', news: 'this feed', calendar: 'this day', breadth: 'this snapshot', fundamentals: 'these financials', indexes: 'these index levels', marketcontext: 'this market context', aisearch: 'this conversation', themes: 'this ranking' }
 
 const ROWS = [
-  ...Object.entries(JOURNAL_WIDGETS).map(([type, what]) => w(type, 'journal', { nameRe: JOURNAL }, `Send ${what} to Journal`, `This sends the ${widgetLabel(type)} widget to your Journal. The arrow beside it chooses where it goes.`, { id: `journal.${type}`, any: SEND, label: `Sending ${widgetLabel(type)} to the Journal` })),
+  ...Object.entries(JOURNAL_WIDGETS).map(([type, what]) => w(type, 'journal', { nameRe: JOURNAL }, `Send ${what} to Journal`, `This sends the ${widgetLabel(type)} widget to your Journal. The arrow beside it chooses where it goes.`, { id: `journal.${type}`, any: SEND, alt: 'Send to Journal shows in this widget’s top bar once it has something to send.', label: `Sending ${widgetLabel(type)} to the Journal` })),
   { id: 'journal.list', place: 'list', need: 'journal', any: SEND, target: { widgetType: WL, nameRe: JOURNAL }, name: 'Send to Journal', say: 'This sends the list to your Journal, frozen as it is now. The arrow beside it chooses where it goes.', label: 'Sending a list to the Journal' },
 
   // ── a watchlist's own list (pages/Watchlists.jsx: the list header's buttons, and its right-click menu) ──
@@ -141,9 +141,9 @@ const ROWS = [
   })),
 
   // ── Chart Settings rows the settings table does not carry (components/chart/ChartSettingsModal.jsx) ──
-  { id: 'settings.wmAlign', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['left', '~right', 'center', '~align', '~alignment'], target: { within: 'chartSettings', label: 'Alignment' }, name: 'Alignment', say: 'Alignment sets the watermark to the left, the centre or the right. It shows while the watermark is on.', label: 'Aligning the watermark' },
-  { id: 'settings.wmMove', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark move', target: { within: 'chartSettings', label: 'Move watermark' }, name: 'Move watermark', say: 'Click Move watermark, then drag it on the chart. Reset to center beside it puts it back.', label: 'Moving the watermark' },
-  { id: 'settings.wmReset', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['reset', 'center'], target: { within: 'chartSettings', label: 'Reset to center' }, name: 'Reset to center', say: 'Click Reset to center to put the watermark back in the middle.', label: 'Centring the watermark' },
+  { id: 'settings.wmAlign', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['left', '~right', 'center', '~align', '~alignment'], target: { within: 'chartSettings', label: 'Alignment' }, alt: 'The watermark is off on this chart: turn on Watermark on this tab first, and its settings show below it.', fallback: [{ within: 'chartSettings', label: 'Watermark' }, 'chartSettings.tab.canvas'], name: 'Alignment', say: 'Alignment sets the watermark to the left, the centre or the right. It shows while the watermark is on.', label: 'Aligning the watermark' },
+  { id: 'settings.wmMove', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark move', target: { within: 'chartSettings', label: 'Move watermark' }, alt: 'The watermark is off on this chart: turn on Watermark on this tab first, and its settings show below it.', fallback: [{ within: 'chartSettings', label: 'Watermark' }, 'chartSettings.tab.canvas'], name: 'Move watermark', say: 'Click Move watermark, then drag it on the chart. Reset to center beside it puts it back.', label: 'Moving the watermark' },
+  { id: 'settings.wmReset', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['reset', 'center'], target: { within: 'chartSettings', label: 'Reset to center' }, alt: 'Reset to center shows here once you have moved this chart’s watermark: it is where it started now. Move watermark places it.', fallback: [{ within: 'chartSettings', label: 'Move watermark' }, 'chartSettings.tab.canvas'], name: 'Reset to center', say: 'Click Reset to center to put the watermark back in the middle.', label: 'Centring the watermark' },
   { id: 'settings.barInfo', place: 'settings:header', tabLabel: 'Header', need: 'legend', any: ['~bar', '~value', '~field', '~ohlc', '~volume', 'choose'], target: { within: 'chartSettings', label: 'Bar info' }, name: 'Bar info', say: 'Bar info chooses which of the bar’s values the legend shows.', label: 'The legend’s bar values' },
 
   // ── widgets' own controls ──
@@ -225,7 +225,8 @@ export const CONTROL_ROWS = ROWS.map(r => {
   // the words of the control's own name count too: what it says it is is what it is about
   const also = new Set([...(r.also ? describe(r.also) : []), ...describe(ownName(r))])
   const pw = placeWords(r.place)
-  const finalStep = { target: r.alt ? [].concat(r.target, r.place.startsWith('w:') ? [{ widgetType: r.place.slice(2) }] : []) : r.target, name: r.name, text: r.say, altText: r.alt }
+  // with `alt`: when the control itself is not there yet, the place it appears in (its widget, or `fallback`) is rung, and `alt` says why
+  const finalStep = { target: r.alt ? [].concat(r.target, r.fallback || [], r.place.startsWith('w:') ? [{ widgetType: r.place.slice(2) }] : []) : r.target, name: r.name, text: r.say, altText: r.alt }
   const opener = [...opening(r.place, r), ...(r.open || [])]
   return { ...r, needSet: need, alsoSet: also, anySet: r.any ? norm(r.any) : null, notSet: r.not ? norm(r.not) : null, placeSet: pw ? norm(pw) : null, steps: [...opener, finalStep] }
 })
