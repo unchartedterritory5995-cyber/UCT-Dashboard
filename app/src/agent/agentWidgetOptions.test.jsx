@@ -217,7 +217,7 @@ describe('through the REAL panel with routing v2 on: a control request carries i
   // round 3 (pl-auto unseen3): with the widget on the board the request is about its chips, not a screen. Which chips the Agent
   // may set is an open owner decision, so nothing is widened: still refused with no model call, but the words name the widget's
   // own control, never "use the Screener page". With no Options Flow widget, the F-16 screen refusal is unchanged.
-  it.each([['only show calls on the options flow'], ['only show puts in the options flow']])('⛔ "%s" with the widget on the board: refused about the widget's own chips, no model call, nothing set', async (t) => {
+  it.each([['only show calls on the options flow'], ['only show puts in the options flow']])('⛔ "%s" with the widget on the board: refused about the widget’s own chips, no model call, nothing set', async (t) => {
     const [[chart], syms] = ONE('NVDA')
     const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
     const out = await say(t)

@@ -193,14 +193,25 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
 })
 
 describe('stale protection', () => {
-  it('refuses to undo over a manual edit made after the Agent wrote', async () => {
+  // round 3 (pl-exec): Undo is FIELD-SCOPED. A manual edit to ANOTHER field (the timeframe) after the Agent changed the chart
+  // type no longer blocks the Undo: the type goes back and the member's timeframe stays. A manual edit to the SAME field still
+  // refuses it, and nothing is overwritten.
+  it('undoes over a manual edit to ANOTHER field, keeping that edit', async () => {
     const host = makeHost([{ ref: 'c1' }])
     const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
     host.manual('c1', { tf: '60' })
     const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(true)
+    expect(host.raw('c1').stored?.chartType ?? 'candles').not.toBe('bars')
+    expect(host.raw('c1').tf).toBe('60')
+  })
+  it('refuses to undo over a manual edit to the SAME field made after the Agent wrote', async () => {
+    const host = makeHost([{ ref: 'c1' }])
+    const res = await commitPlan(host, plan(host, [op('chart.setTimeframe', { timeframe: 'W' })]))
+    host.manual('c1', { tf: '60' })
+    const u = await undoEntry(host, res.undo)
     expect(u.ok).toBe(false)
     expect(u.reason).toMatch(/changed since/)
-    expect(host.raw('c1').stored.chartType).toBe('bars')
     expect(host.raw('c1').tf).toBe('60')
   })
   it('refuses to commit a plan composed against state that moved underneath it', async () => {

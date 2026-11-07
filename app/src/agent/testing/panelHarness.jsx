@@ -69,8 +69,9 @@ function tickerSearch(raw, st) {
   return [...exact, ...prefix, ...named].slice(0, 20)
 }
 
-export function setupPanel({ tickerEcho = false } = {}) {
-  const st = { envelopes: [], calls: [], selected: null, tickerEcho, known: new Set() }
+export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
+  // `tickers`: extra tickers the server knows in this test (a screen's own result rows, a fixture list's symbols)
+  const st = { envelopes: [], calls: [], selected: null, tickerEcho, known: new Set(tickers.map(t => String(t).toUpperCase())) }
   const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
   _simulateReload()
   try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* */ }

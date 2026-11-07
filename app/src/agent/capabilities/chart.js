@@ -314,7 +314,8 @@ const settingsOutside = (blob, keys) => Object.fromEntries(Object.entries(blob |
 function scopedFp(snap, item) {
   const p = item.patch
   return [
-    'tf' in p ? snap.tf : '·', 'symbol' in p ? snap.symbol : '·',
+    // the ticker always: a chart showing another ticker now (its link group moved) is not the chart the change was made on
+    'tf' in p ? snap.tf : '·', snap.symbol,
     'settings' in p ? settingsKeysOf(item).map(k => [k, snap.stored?.[k] ?? null]) : '·',
   ]
 }

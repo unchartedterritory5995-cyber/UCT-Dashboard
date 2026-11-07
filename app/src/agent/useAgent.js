@@ -2300,7 +2300,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
-      if (fast?.kind === 'ops' && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
+      // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
+      if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
+        && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
       if (fast?.kind === 'say') {
         push({ role: 'agent', text: fast.text })
         record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
