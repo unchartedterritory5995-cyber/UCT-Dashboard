@@ -211,6 +211,27 @@
   flex-direction: column;
 }
 
+/* ── Decision B3 · the bottom inset under the joystick hub (phone) ──────────
+ *
+ * The hub's pad sits fixed at `bottom: safe-area + 68px`, 84 px tall
+ * (hub/HubRoot.jsx), and its pill runs beside it at the same height
+ * (hub/HubChip.jsx). The bottom toolbar below is 1 + 5 + 44 + max(5px, safe-area)
+ * px tall (`.toolbar`), so the hub reaches 102 + safe-area - max(5px, safe-area)
+ * px up into the chart: over the time axis, the newest bars and the last pane's
+ * price-axis value. While the hub is on screen (html[data-hub-engaged], written by
+ * HubRoot) the chart stops above it, with 4 px to spare, so the value a member
+ * reads last is never under the pill. The floating buttons also tuck while the
+ * chart is touched (hooks/useChartTouchTuck.js); this inset is for the resting read.
+ *
+ * Phone only (≤640 px): the tablet shell docks its companion panel instead, and a
+ * member without the hub keeps every pixel. Rail: chartBottomInset.test.js, which
+ * derives the overlap from the hub's and the toolbar's own declarations. */
+@media (max-width: 640px) {
+  :global(html[data-hub-engaged]) .shell:not(.tabletShell) .paneWrap {
+    padding-bottom: calc(106px + env(safe-area-inset-bottom, 0px) - max(5px, env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 /* ── Bottom toolbar ────────────────────────────────────────────────────── */
 
 .toolbar {

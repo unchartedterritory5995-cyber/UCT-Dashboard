@@ -206,6 +206,16 @@
     bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }
 }
+/* Decision B3 (2026-11-07): on the chart shell the orb tucks away while a finger is
+   on the chart (html[data-chart-touching], set by hooks/useChartTouchTuck.js) and
+   fades back a short idle after it lifts. Never during a live call (the orb is how
+   the member sees the call) and never mid-drag (the finger is ON the orb). */
+@media (max-width: 1024px) {
+  :global(html[data-mobile-chart-shell][data-chart-touching]) .orbCluster:not([data-in-session]):not(.dragging) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
 .orbCluster.dragging .orb {
   transition: none;
   animation: none;
