@@ -91,7 +91,7 @@ import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, ele
 // table, read by this lane and the host object lane (`pineObjects.js`) alike.
 import {
   FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
-  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal, heldListReach, walkedElementReach,
+  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
 } from './forInRule.js'
 import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
@@ -11109,12 +11109,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (forInHandsOn(st.sub, elem, rule)) {
       refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
     }
-    // ⛔ (review N1 / N1b) …a list the element holds, changed in the body (`array.push(x.arr, v)`),
-    // through an alias (`a = x.arr`, any chain), by a function handed it (`f(x.arr)` where `f`
-    // changes its parameter), or through any name in the script that can CARRY a walked record
-    // or a list one holds (`walkedElementReach`). r1: decided by REACH, never by type.
-    // ONE rule: `forInRule.js::heldListReach`.
-    const held = heldListReach(st.sub, elem, { ...rule, outerReach: [...walkedElementReach(stmts, src, rule)] })
+    // ⛔ (review N1 / N1b r2) …while walking records that hold a list, a change is served ONLY on
+    // a list PROVABLY INDEPENDENT of the walked elements; anything else (the element's own lists,
+    // an alias in any form, a function result, a field read, a list a record could hold) refuses
+    // by name. ONE rule: `forInRule.js::heldListReach`.
+    const held = forInElemHoldsList(srcTy.elem) ? heldListReach(st.sub, elem, { ...rule, stmts, src }) : null
     if (held) refuse(forInHeldListRefusal(elem, held.via))
     // ⛔ …and a change by anything else to a list that MAY be the walked one under another name
     // (an alias holds the same array): another list of the same type, one this lane cannot
@@ -11236,6 +11235,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
     return hit || tuple || forInWrites(s2.sub, name)
   })
+  /** ⛔ (review N1b r2) Does a value of type `ty` hold a list (a collection field of its record
+   *  type, at any depth, or one this lane cannot type)? Off for numbers, text and drawings: their
+   *  walks hold no list, and the held-list rule has nothing to guard. */
+  const forInElemHoldsList = (ty, seen = new Set()) => {
+    if (!ty || ty.kind !== 'udt') return false
+    if (seen.has(ty.name)) return false
+    seen.add(ty.name)
+    const t = udtTypes.get(ty.name)
+    if (!t) return true
+    return t.fields.some((f) => {
+      const fty = writtenTyOf(f.type, f.typeArgs)
+      if (!fty) return true
+      if (fty.kind === 'array' || fty.kind === 'matrix' || fty.kind === 'map') return true
+      return forInElemHoldsList(fty, seen)
+    })
+  }
   /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
    *  change a list held in one (`array.push(p.arr, v)`)? */
   const forInFnWritesField = (fn, rule, seen = new Set()) => {

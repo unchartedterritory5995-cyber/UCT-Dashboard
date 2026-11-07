@@ -130,3 +130,80 @@ Hand mutations r1 (copy, mutate, run `w6ForIn.test.js`, restore by copy, `cmp` e
 r1 limits: `q.arr.copy()` (the method form on an array receiver, reviewer note N1) still counts as an alias in the
 body (`aliasClosure` cannot tell the receiver's type); rare, refused by name. The handed-the-element sentence
 (`forInHandsOn`) and `fnEffects` still give two sentences for one question depending on the route (reviewer note).
+
+## r2 (review delta NO-GO @b1303e6bd3: B3, reach still served nine aliases)
+
+B1 and B2 stay closed. Following the coordinator's ruling, reach is no longer chased: **the default is inverted**.
+
+- `forInRule.js::heldListReach` (still ONE rule, one FE call site): while walking records that hold a list, every
+  change (any mutating member, the witnessed three included; method forms; a user function or method that changes
+  a parameter, or an outer list by name) is allowed ONLY on a list PROVABLY INDEPENDENT of the walked elements.
+  Everything else refuses by name: "…may hold (through `t`, not provably independent of it)…", or "…(handed to
+  `f`, which changes it)…". A change through the element itself keeps N1's sentence.
+- PROVABLY INDEPENDENT (a plain name): every binding of it in the script (outside function definitions, plus any
+  `:=` inside one) is `array.new*`, `array.from`, `array.copy`, `x.copy()` (of anything), `na`, or another provably
+  independent plain name; AND it is never STORED where a record could hold it: a record constructor's or
+  `array.from`'s argument, a field write's value, or a user function that keeps that parameter (`fnStores`:
+  constructor / `array.from` / field write / `:=` to an outer name / handed to another storer), through any name
+  bound to it (`storeClass`). A read by an `array.*` built-in (first argument, not `array.from`) is not a store.
+- NEVER independent: a field path, an element read, a function result, an `if` / `switch` / ternary value, a tuple,
+  a slice. The walked list itself stays with the walked-list rule.
+- The gate `forInElemHoldsList(srcTy.elem)` (FE): the rule runs only when the element's record type holds a
+  collection field at any depth, or a field this lane cannot type. Number, text and drawing walks are unaffected.
+- Removed: `walkedElementReach` and its helpers (`readsElementOf`, `storedNames`), and `outerReach`.
+- `q.arr.copy()` (old note N1) is now independent and serves.
+
+Rails (`w6ForIn.test.js`, 21/21), new `it` "(review N1b r2) DEFAULT INVERTED":
+- each review hole refuses with the exact pinned sentence: X6 (if-expression alias in the body), X8 (switch), X7
+  (if-expression before the walk), X10 (returned by a function handed `qs`), X11 (record returned, then its field:
+  `p0.arr`), X19 (tuple from a function), X13 (stored by a function), X14 (stored by a function whose result is the
+  walked list), X17 (stored in the walked list's own binding); also a global changed by name by a called function,
+  a non-independent list handed to a mutating function, a field write that stores it (refused), and a field path
+  only ever assigned a NEW list (`st.xs`);
+- controls that SERVE: the accumulator VF1 (value 6N); a NEW list handed to a mutating function (value N);
+  `q.arr.copy()` pushed (value N); X17's shape with a NEW list in the record; a list read by `array.sum` inside a
+  constructor; body-local NEW lists, including a plain alias of one (value 3N).
+- r1 rails re-pinned to the r2 sentence. Two r1 controls flip BY DESIGN: a body-local `t = mk()` (function
+  result) and `t = array.slice(other, …)` now refuse by name, because neither is provably independent.
+
+Runs (node 20.20.2, `--maxWorkers=1`): targeted 21/21. Full `engine/ast` + `engine/runtime` on the r2 code
+before the final `storeClass` simplification: 509 files, 8117 tests, **8106 passed, 11 skipped, 0 failed**. The
+final-code run is recorded below.
+
+Corpus (the 25 scripts with a `for … in` in `corpus/committed` + `tests/fixtures/{pine,pine_oos,pine_blind,pine_community}`),
+each built alone with `buildRuntimeIr(src, runtimeClockOpts(false))`: tip vs master engine files in the same tree
+(`forInRule.js` and `pineRuntimeFrontend.js` swapped to `7304620153`, then restored and `cmp`-checked):
+**IDENTICAL 25/25, 0 newly refused**. (A first attempt that ran master from a `git archive` extract showed a
+`footprint-iq` difference in an unrelated translator guard; it came from the extract's module resolution and
+disappeared with the in-tree swap.) Latent scan by hand of every for-in body that changes a list other than the
+walked one: the only walks over records that hold a list are volume-footprint's three `FpBar` accumulators
+(`rowSumB/S`, `ctlRowSum`, `mRowSumB/S`), all `array.new<float>(…)`, never stored, so they serve once their
+earlier blocker (`runtime:library`) clears; ict-killzones' `l.…` writes are N1-direct (refused on master too). The
+other walks (EqualLevels, volTime, ProfComp, Candle, lines, numbers) hold no list, so the rule is off.
+
+Hand mutations r2 (copy, mutate, run `w6ForIn.test.js`, restore by copy, `cmp` equal each time):
+
+| id | mutation | result |
+|---|---|---|
+| Y0 | control (identity substitution) | 21/21 green |
+| Y1 | body target never checked (default not inverted) | killed |
+| Y2 | a field path may be independent | killed (after the `st.xs` rail was added; it first survived) |
+| Y3 | any binding counts as fresh | killed |
+| Y4 | store check off | killed |
+| Y5 | a constructor argument is not a store | killed |
+| Y6 | `fnStores` off | killed |
+| Y7 | a global changed by name in a called function not checked | killed |
+| Y8 | a non-independent argument handed to a mutating function not checked | killed |
+| Y9 | `x.copy()` not fresh | killed |
+| Y10 | every position harmless | killed |
+| Y11 | no position harmless | killed (after the `array.sum`-in-constructor control was added; it first survived) |
+| Y12 | FE gate always off | killed |
+| Y13 | FE gate always on (number walks) | killed |
+| Y14 | sentence "may hold" changed to "holds" | killed |
+
+A fifteenth, Y15 (`storeClass`'s backward plain-alias edge off), survived. The edge was redundant, because
+`independent(t)` already recurses into the aliased name's own store check, so it was removed rather than railed.
+
+Final-code full run (`engine/ast` + `engine/runtime`, after the `storeClass` simplification): 509 files, 8117 tests,
+**8102 passed, 11 skipped, 4 failed**, all `Test timed out in 15000ms` in `*.measure` files (guardProbe,
+objectLaneCallSites, objectLaneCensus, objectLaneDrawerCensus). No assertion failed.
