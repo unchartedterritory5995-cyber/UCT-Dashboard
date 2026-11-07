@@ -111,6 +111,8 @@ def test_the_lesson_lines_find_their_facts(run):
     assert by["Oops Reversal"]["pullback_pct"] == 7.4
     assert by["Launchpad"]["correction_abs_pct"] == 26.9
     assert by["Oops Reversal"]["context"]["era"] == "2010-14"
+    # facts.outcome is the Study word for a resolved trade, printed as text on the review screen: never a dict here
+    assert "outcome" not in by["Oops Reversal"] and by["Oops Reversal"]["culmination"]["culm_pct"] == 10.0
 
     from scripts.study.gen_setup_examples import fact_line
     line = fact_line("Oops Reversal", {"facts": dict(by["Oops Reversal"], close_pos_pct=90)})

@@ -11793,7 +11793,7 @@
      "liq_rank": 684,
      "liq_universe": 1954
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 26.33,
      "culm_sessions": 28,
      "broke_at": null,
@@ -11867,7 +11867,7 @@
      "liq_rank": 33,
      "liq_universe": 1268
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 36.2,
      "culm_sessions": 50,
      "broke_at": null,
@@ -11941,7 +11941,7 @@
      "liq_rank": 133,
      "liq_universe": 1043
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 26.54,
      "culm_sessions": 56,
      "broke_at": null,
@@ -12015,7 +12015,7 @@
      "liq_rank": 529,
      "liq_universe": 1433
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 34.12,
      "culm_sessions": 18,
      "broke_at": null,
@@ -12089,7 +12089,7 @@
      "liq_rank": 257,
      "liq_universe": 1437
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 9.43,
      "culm_sessions": 16,
      "broke_at": null,
@@ -12163,7 +12163,7 @@
      "liq_rank": 294,
      "liq_universe": 1429
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 28.9,
      "culm_sessions": 60,
      "broke_at": null,
@@ -12237,7 +12237,7 @@
      "liq_rank": 11,
      "liq_universe": 2576
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 40.04,
      "culm_sessions": 58,
      "broke_at": null,
@@ -12311,7 +12311,7 @@
      "liq_rank": 51,
      "liq_universe": 1513
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 15.67,
      "culm_sessions": 14,
      "broke_at": 40,
@@ -12385,7 +12385,7 @@
      "liq_rank": 197,
      "liq_universe": 2251
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 21.94,
      "culm_sessions": 46,
      "broke_at": null,
@@ -12459,7 +12459,7 @@
      "liq_rank": 40,
      "liq_universe": 879
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 20.06,
      "culm_sessions": 11,
      "broke_at": 33,
@@ -12533,7 +12533,7 @@
      "liq_rank": 111,
      "liq_universe": 2277
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 19.64,
      "culm_sessions": 20,
      "broke_at": null,
@@ -12607,7 +12607,7 @@
      "liq_rank": 502,
      "liq_universe": 2205
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 54.57,
      "culm_sessions": 55,
      "broke_at": null,
@@ -12680,7 +12680,7 @@
      "liq_rank": 56,
      "liq_universe": 1053
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 22.79,
      "culm_sessions": 42,
      "broke_at": null,
@@ -12753,7 +12753,7 @@
      "liq_rank": 93,
      "liq_universe": 1496
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 21.61,
      "culm_sessions": 44,
      "broke_at": null,
@@ -12826,7 +12826,7 @@
      "liq_rank": 221,
      "liq_universe": 1940
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 25.34,
      "culm_sessions": 49,
      "broke_at": null,
@@ -12901,7 +12901,7 @@
      "liq_rank": 306,
      "liq_universe": 2638
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 14.01,
      "culm_sessions": 25,
      "broke_at": null,
@@ -12974,7 +12974,7 @@
      "liq_rank": 346,
      "liq_universe": 2205
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 22.1,
      "culm_sessions": 53,
      "broke_at": null,
@@ -13049,7 +13049,7 @@
      "liq_rank": 825,
      "liq_universe": 2788
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.41,
      "culm_sessions": 17,
      "broke_at": 42,
@@ -13122,7 +13122,7 @@
      "liq_rank": 23,
      "liq_universe": 1046
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 9.01,
      "culm_sessions": 6,
      "broke_at": 40,
@@ -13195,7 +13195,7 @@
      "liq_rank": 889,
      "liq_universe": 2505
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 14.44,
      "culm_sessions": 8,
      "broke_at": 28,
@@ -13268,7 +13268,7 @@
      "liq_rank": 70,
      "liq_universe": 1020
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 24.36,
      "culm_sessions": 54,
      "broke_at": null,
@@ -13341,7 +13341,7 @@
      "liq_rank": 25,
      "liq_universe": 1533
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 10.04,
      "culm_sessions": 16,
      "broke_at": 24,
@@ -13414,7 +13414,7 @@
      "liq_rank": 26,
      "liq_universe": 2787
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 18.35,
      "culm_sessions": 15,
      "broke_at": 32,
@@ -13487,7 +13487,7 @@
      "liq_rank": 32,
      "liq_universe": 1818
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 8.86,
      "culm_sessions": 14,
      "broke_at": null,
@@ -13560,7 +13560,7 @@
      "liq_rank": 50,
      "liq_universe": 1380
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 20.39,
      "culm_sessions": 59,
      "broke_at": null,
@@ -13633,7 +13633,7 @@
      "liq_rank": 67,
      "liq_universe": 1085
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 14.89,
      "culm_sessions": 16,
      "broke_at": 56,
@@ -13706,7 +13706,7 @@
      "liq_rank": 90,
      "liq_universe": 923
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 12.86,
      "culm_sessions": 23,
      "broke_at": 55,
@@ -13779,7 +13779,7 @@
      "liq_rank": 7,
      "liq_universe": 1201
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 59.84,
      "culm_sessions": 54,
      "broke_at": null,
@@ -13852,7 +13852,7 @@
      "liq_rank": 54,
      "liq_universe": 1870
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 16.27,
      "culm_sessions": 23,
      "broke_at": null,
@@ -13925,7 +13925,7 @@
      "liq_rank": 100,
      "liq_universe": 2151
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 31.65,
      "culm_sessions": 36,
      "broke_at": null,
@@ -13998,7 +13998,7 @@
      "liq_rank": 119,
      "liq_universe": 1997
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 9.01,
      "culm_sessions": 18,
      "broke_at": 21,
@@ -14071,7 +14071,7 @@
      "liq_rank": 129,
      "liq_universe": 1646
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 16.55,
      "culm_sessions": 30,
      "broke_at": 40,
@@ -14144,7 +14144,7 @@
      "liq_rank": 144,
      "liq_universe": 2010
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 12.44,
      "culm_sessions": 38,
      "broke_at": null,
@@ -14217,7 +14217,7 @@
      "liq_rank": 58,
      "liq_universe": 1513
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 14.86,
      "culm_sessions": 32,
      "broke_at": null,
@@ -14290,7 +14290,7 @@
      "liq_rank": 113,
      "liq_universe": 1775
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 29.44,
      "culm_sessions": 32,
      "broke_at": null,
@@ -14363,7 +14363,7 @@
      "liq_rank": 169,
      "liq_universe": 1608
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 10.72,
      "culm_sessions": 21,
      "broke_at": null,
@@ -14436,7 +14436,7 @@
      "liq_rank": 55,
      "liq_universe": 876
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 36.82,
      "culm_sessions": 32,
      "broke_at": 45,
@@ -14531,7 +14531,7 @@
      "liq_rank": 944,
      "liq_universe": 2787
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 34.24,
      "culm_sessions": 53,
      "broke_at": null,
@@ -14629,7 +14629,7 @@
      "liq_rank": 64,
      "liq_universe": 2787
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 122.65,
      "culm_sessions": 58,
      "broke_at": null,
@@ -14727,7 +14727,7 @@
      "liq_rank": 23,
      "liq_universe": 2163
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 39.92,
      "culm_sessions": 49,
      "broke_at": null,
@@ -14823,7 +14823,7 @@
      "liq_rank": 760,
      "liq_universe": 1962
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.03,
      "culm_sessions": 37,
      "broke_at": null,
@@ -14921,7 +14921,7 @@
      "liq_rank": 143,
      "liq_universe": 1631
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 18.48,
      "culm_sessions": 9,
      "broke_at": 23,
@@ -15017,7 +15017,7 @@
      "liq_rank": 172,
      "liq_universe": 1481
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 51.49,
      "culm_sessions": 59,
      "broke_at": null,
@@ -15114,7 +15114,7 @@
      "liq_rank": 986,
      "liq_universe": 2464
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 13.53,
      "culm_sessions": 13,
      "broke_at": 26,
@@ -15212,7 +15212,7 @@
      "liq_rank": 526,
      "liq_universe": 1907
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 33.06,
      "culm_sessions": 59,
      "broke_at": null,
@@ -15311,7 +15311,7 @@
      "liq_rank": 838,
      "liq_universe": 2519
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 16.07,
      "culm_sessions": 19,
      "broke_at": 50,
@@ -15409,7 +15409,7 @@
      "liq_rank": 97,
      "liq_universe": 1319
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 30.91,
      "culm_sessions": 42,
      "broke_at": null,
@@ -15508,7 +15508,7 @@
      "liq_rank": 587,
      "liq_universe": 2788
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 120.74,
      "culm_sessions": 24,
      "broke_at": 46,
@@ -15604,7 +15604,7 @@
      "liq_rank": 395,
      "liq_universe": 1908
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 74.4,
      "culm_sessions": 32,
      "broke_at": null,
@@ -15702,7 +15702,7 @@
      "liq_rank": 39,
      "liq_universe": 1017
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 97.2,
      "culm_sessions": 55,
      "broke_at": null,
@@ -15798,7 +15798,7 @@
      "liq_rank": 509,
      "liq_universe": 1714
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 24.89,
      "culm_sessions": 29,
      "broke_at": 43,
@@ -15894,7 +15894,7 @@
      "liq_rank": 106,
      "liq_universe": 1164
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 28.2,
      "culm_sessions": 55,
      "broke_at": null,
@@ -15991,7 +15991,7 @@
      "liq_rank": 813,
      "liq_universe": 1891
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 31.6,
      "culm_sessions": 32,
      "broke_at": null,
@@ -16088,7 +16088,7 @@
      "liq_rank": 203,
      "liq_universe": 1591
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 28.17,
      "culm_sessions": 51,
      "broke_at": null,
@@ -16188,7 +16188,7 @@
      "liq_rank": 231,
      "liq_universe": 1842
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 19.0,
      "culm_sessions": 26,
      "broke_at": null,
@@ -16284,7 +16284,7 @@
      "liq_rank": 359,
      "liq_universe": 1342
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 30.28,
      "culm_sessions": 51,
      "broke_at": null,
@@ -16382,7 +16382,7 @@
      "liq_rank": 167,
      "liq_universe": 1940
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.65,
      "culm_sessions": 41,
      "broke_at": null,
@@ -16478,7 +16478,7 @@
      "liq_rank": 438,
      "liq_universe": 1628
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 57.68,
      "culm_sessions": 17,
      "broke_at": null,
@@ -16579,7 +16579,7 @@
      "liq_rank": 496,
      "liq_universe": 1288
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 51.44,
      "culm_sessions": 16,
      "broke_at": 22,
@@ -16676,7 +16676,7 @@
      "liq_rank": 23,
      "liq_universe": 1267
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 20.47,
      "culm_sessions": 58,
      "broke_at": null,
@@ -16776,7 +16776,7 @@
      "liq_rank": 101,
      "liq_universe": 966
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 22.21,
      "culm_sessions": 28,
      "broke_at": 34,
@@ -16873,7 +16873,7 @@
      "liq_rank": 82,
      "liq_universe": 1209
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 154.86,
      "culm_sessions": 36,
      "broke_at": null,
@@ -16948,7 +16948,7 @@
      "liq_rank": 341,
      "liq_universe": 891
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 0.94,
      "culm_sessions": 9,
      "broke_at": 14,
@@ -17020,7 +17020,7 @@
      "liq_rank": 386,
      "liq_universe": 1059
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.7,
      "culm_sessions": 21,
      "broke_at": 55,
@@ -17094,7 +17094,7 @@
      "liq_rank": 491,
      "liq_universe": 1494
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 27.04,
      "culm_sessions": 60,
      "broke_at": null,
@@ -17166,7 +17166,7 @@
      "liq_rank": 628,
      "liq_universe": 1243
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 35.37,
      "culm_sessions": 50,
      "broke_at": null,
@@ -17238,7 +17238,7 @@
      "liq_rank": 117,
      "liq_universe": 1714
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 6.22,
      "culm_sessions": 7,
      "broke_at": 29,
@@ -17312,7 +17312,7 @@
      "liq_rank": 201,
      "liq_universe": 1101
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 1.52,
      "culm_sessions": 2,
      "broke_at": 6,
@@ -17384,7 +17384,7 @@
      "liq_rank": 496,
      "liq_universe": 1180
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 0.75,
      "culm_sessions": 1,
      "broke_at": 4,
@@ -17456,7 +17456,7 @@
      "liq_rank": 904,
      "liq_universe": 1488
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 4.28,
      "culm_sessions": 58,
      "broke_at": null,
@@ -17528,7 +17528,7 @@
      "liq_rank": 13,
      "liq_universe": 950
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 58.26,
      "culm_sessions": 60,
      "broke_at": null,
@@ -17600,7 +17600,7 @@
      "liq_rank": 505,
      "liq_universe": 1860
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 6.29,
      "culm_sessions": 2,
      "broke_at": 48,
@@ -17672,7 +17672,7 @@
      "liq_rank": 52,
      "liq_universe": 905
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 6.14,
      "culm_sessions": 3,
      "broke_at": 7,
@@ -17744,7 +17744,7 @@
      "liq_rank": 134,
      "liq_universe": 916
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 4.33,
      "culm_sessions": 8,
      "broke_at": 12,
@@ -17816,7 +17816,7 @@
      "liq_rank": 248,
      "liq_universe": 1736
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 4.18,
      "culm_sessions": 3,
      "broke_at": 8,
@@ -17888,7 +17888,7 @@
      "liq_rank": 566,
      "liq_universe": 1385
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 0.03,
      "culm_sessions": 1,
      "broke_at": 4,
@@ -17960,7 +17960,7 @@
      "liq_rank": 840,
      "liq_universe": 1992
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 7.29,
      "culm_sessions": 27,
      "broke_at": 48,
@@ -18032,7 +18032,7 @@
      "liq_rank": 173,
      "liq_universe": 924
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.83,
      "culm_sessions": 15,
      "broke_at": 48,
@@ -18104,7 +18104,7 @@
      "liq_rank": 282,
      "liq_universe": 963
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 5.4,
      "culm_sessions": 1,
      "broke_at": 3,
@@ -18178,7 +18178,7 @@
      "liq_rank": 535,
      "liq_universe": 2160
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 36.83,
      "culm_sessions": 60,
      "broke_at": null,
@@ -18250,7 +18250,7 @@
      "liq_rank": 319,
      "liq_universe": 1017
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": -2.93,
      "culm_sessions": 1,
      "broke_at": 1,
@@ -18324,7 +18324,7 @@
      "liq_rank": 764,
      "liq_universe": 1905
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 11.5,
      "culm_sessions": 52,
      "broke_at": null,
@@ -18396,7 +18396,7 @@
      "liq_rank": 531,
      "liq_universe": 1249
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 10.41,
      "culm_sessions": 10,
      "broke_at": 39,
@@ -18470,7 +18470,7 @@
      "liq_rank": 560,
      "liq_universe": 1243
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 24.78,
      "culm_sessions": 53,
      "broke_at": null,
@@ -18542,7 +18542,7 @@
      "liq_rank": 817,
      "liq_universe": 1844
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 10.89,
      "culm_sessions": 34,
      "broke_at": 38,
@@ -18614,7 +18614,7 @@
      "liq_rank": 869,
      "liq_universe": 1392
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 19.27,
      "culm_sessions": 15,
      "broke_at": null,
@@ -18686,7 +18686,7 @@
      "liq_rank": 890,
      "liq_universe": 2337
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 4.94,
      "culm_sessions": 1,
      "broke_at": 2,
@@ -18773,7 +18773,7 @@
      "liq_rank": 896,
      "liq_universe": 2788
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 119.51,
      "culm_sessions": 48,
      "broke_at": null,
@@ -18860,7 +18860,7 @@
      "liq_rank": 565,
      "liq_universe": 2542
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 13.14,
      "culm_sessions": 13,
      "broke_at": 32,
@@ -18948,7 +18948,7 @@
      "liq_rank": 637,
      "liq_universe": 1870
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 43.55,
      "culm_sessions": 59,
      "broke_at": null,
@@ -19035,7 +19035,7 @@
      "liq_rank": 704,
      "liq_universe": 2547
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 25.47,
      "culm_sessions": 57,
      "broke_at": null,
@@ -19122,7 +19122,7 @@
      "liq_rank": 882,
      "liq_universe": 1947
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 14.54,
      "culm_sessions": 18,
      "broke_at": 35,
@@ -19210,7 +19210,7 @@
      "liq_rank": 25,
      "liq_universe": 2092
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 30.82,
      "culm_sessions": 14,
      "broke_at": 23,
@@ -19297,7 +19297,7 @@
      "liq_rank": 288,
      "liq_universe": 1906
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 33.51,
      "culm_sessions": 46,
      "broke_at": null,
@@ -19385,7 +19385,7 @@
      "liq_rank": 782,
      "liq_universe": 2065
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 38.59,
      "culm_sessions": 55,
      "broke_at": null,
@@ -19468,7 +19468,7 @@
      "liq_rank": 76,
      "liq_universe": 1407
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 25.67,
      "culm_sessions": 24,
      "broke_at": 29,
@@ -19556,7 +19556,7 @@
      "liq_rank": 102,
      "liq_universe": 947
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 34.22,
      "culm_sessions": 20,
      "broke_at": null,
@@ -19639,7 +19639,7 @@
      "liq_rank": 135,
      "liq_universe": 1621
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 26.09,
      "culm_sessions": 6,
      "broke_at": null,
@@ -19726,7 +19726,7 @@
      "liq_rank": 494,
      "liq_universe": 2725
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 54.36,
      "culm_sessions": 47,
      "broke_at": null,
@@ -19813,7 +19813,7 @@
      "liq_rank": 143,
      "liq_universe": 1945
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 43.93,
      "culm_sessions": 60,
      "broke_at": null,
@@ -19900,7 +19900,7 @@
      "liq_rank": 310,
      "liq_universe": 1628
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.94,
      "culm_sessions": 24,
      "broke_at": null,
@@ -19987,7 +19987,7 @@
      "liq_rank": 963,
      "liq_universe": 2638
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 47.58,
      "culm_sessions": 3,
      "broke_at": 27,
@@ -20074,7 +20074,7 @@
      "liq_rank": 3,
      "liq_universe": 1116
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 16.47,
      "culm_sessions": 41,
      "broke_at": null,
@@ -20161,7 +20161,7 @@
      "liq_rank": 399,
      "liq_universe": 1575
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 60.69,
      "culm_sessions": 36,
      "broke_at": null,
@@ -20248,7 +20248,7 @@
      "liq_rank": 148,
      "liq_universe": 2164
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 9.07,
      "culm_sessions": 3,
      "broke_at": 36,
@@ -20337,7 +20337,7 @@
      "liq_rank": 239,
      "liq_universe": 1275
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 29.86,
      "culm_sessions": 33,
      "broke_at": null,
@@ -20421,7 +20421,7 @@
      "liq_rank": 50,
      "liq_universe": 966
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 22.69,
      "culm_sessions": 37,
      "broke_at": null,
@@ -20508,7 +20508,7 @@
      "liq_rank": 14,
      "liq_universe": 1027
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 19.63,
      "culm_sessions": 18,
      "broke_at": 27,
@@ -20595,7 +20595,7 @@
      "liq_rank": 71,
      "liq_universe": 1430
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 49.14,
      "culm_sessions": 36,
      "broke_at": null,
@@ -20678,7 +20678,7 @@
      "liq_rank": 435,
      "liq_universe": 1544
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 26.15,
      "culm_sessions": 53,
      "broke_at": null,
@@ -20765,7 +20765,7 @@
      "liq_rank": 142,
      "liq_universe": 1378
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 21.13,
      "culm_sessions": 39,
      "broke_at": null,
@@ -20852,7 +20852,7 @@
      "liq_rank": 15,
      "liq_universe": 1318
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 28.35,
      "culm_sessions": 51,
      "broke_at": null,
@@ -20932,7 +20932,7 @@
      "liq_rank": 372,
      "liq_universe": 1575
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 18.82,
      "culm_sessions": 56,
      "broke_at": null,
@@ -21012,7 +21012,7 @@
      "liq_rank": 488,
      "liq_universe": 2630
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 43.21,
      "culm_sessions": 57,
      "broke_at": null,
@@ -21094,7 +21094,7 @@
      "liq_rank": 612,
      "liq_universe": 2638
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 26.86,
      "culm_sessions": 54,
      "broke_at": null,
@@ -21176,7 +21176,7 @@
      "liq_rank": 666,
      "liq_universe": 2565
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 8.52,
      "culm_sessions": 5,
      "broke_at": 29,
@@ -21258,7 +21258,7 @@
      "liq_rank": 668,
      "liq_universe": 1741
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 29.54,
      "culm_sessions": 57,
      "broke_at": null,
@@ -21338,7 +21338,7 @@
      "liq_rank": 452,
      "liq_universe": 1275
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 32.28,
      "culm_sessions": 16,
      "broke_at": null,
@@ -21418,7 +21418,7 @@
      "liq_rank": 262,
      "liq_universe": 1586
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 45.74,
      "culm_sessions": 59,
      "broke_at": null,
@@ -21498,7 +21498,7 @@
      "liq_rank": 269,
      "liq_universe": 1488
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 45.05,
      "culm_sessions": 36,
      "broke_at": null,
@@ -21578,7 +21578,7 @@
      "liq_rank": 92,
      "liq_universe": 1136
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 13.32,
      "culm_sessions": 15,
      "broke_at": null,
@@ -21658,7 +21658,7 @@
      "liq_rank": 98,
      "liq_universe": 905
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.62,
      "culm_sessions": 35,
      "broke_at": null,
@@ -21738,7 +21738,7 @@
      "liq_rank": 114,
      "liq_universe": 1540
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 10.7,
      "culm_sessions": 20,
      "broke_at": null,
@@ -21818,7 +21818,7 @@
      "liq_rank": 406,
      "liq_universe": 1346
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 16.65,
      "culm_sessions": 46,
      "broke_at": null,
@@ -21898,7 +21898,7 @@
      "liq_rank": 509,
      "liq_universe": 1496
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 18.41,
      "culm_sessions": 59,
      "broke_at": null,
@@ -21980,7 +21980,7 @@
      "liq_rank": 882,
      "liq_universe": 1980
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 50.67,
      "culm_sessions": 49,
      "broke_at": null,
@@ -22060,7 +22060,7 @@
      "liq_rank": 133,
      "liq_universe": 2205
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 15.74,
      "culm_sessions": 2,
      "broke_at": 55,
@@ -22140,7 +22140,7 @@
      "liq_rank": 152,
      "liq_universe": 2594
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 25.9,
      "culm_sessions": 47,
      "broke_at": null,
@@ -22222,7 +22222,7 @@
      "liq_rank": 362,
      "liq_universe": 2604
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 23.32,
      "culm_sessions": 7,
      "broke_at": 37,
@@ -22302,7 +22302,7 @@
      "liq_rank": 12,
      "liq_universe": 1403
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 22.71,
      "culm_sessions": 34,
      "broke_at": null,
@@ -22382,7 +22382,7 @@
      "liq_rank": 379,
      "liq_universe": 1985
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 19.49,
      "culm_sessions": 34,
      "broke_at": null,
@@ -22462,7 +22462,7 @@
      "liq_rank": 704,
      "liq_universe": 1870
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 47.63,
      "culm_sessions": 23,
      "broke_at": null,
@@ -22542,7 +22542,7 @@
      "liq_rank": 65,
      "liq_universe": 947
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 17.81,
      "culm_sessions": 56,
      "broke_at": null,
@@ -22622,7 +22622,7 @@
      "liq_rank": 97,
      "liq_universe": 1062
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 20.02,
      "culm_sessions": 56,
      "broke_at": null,
@@ -22702,7 +22702,7 @@
      "liq_rank": 393,
      "liq_universe": 1214
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 29.01,
      "culm_sessions": 52,
      "broke_at": null,
@@ -22782,7 +22782,7 @@
      "liq_rank": 694,
      "liq_universe": 1889
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 46.02,
      "culm_sessions": 47,
      "broke_at": null,
@@ -22862,7 +22862,7 @@
      "liq_rank": 174,
      "liq_universe": 1135
     },
-    "outcome": {
+    "culmination": {
      "culm_pct": 21.81,
      "culm_sessions": 39,
      "broke_at": null,

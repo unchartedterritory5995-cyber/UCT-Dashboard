@@ -154,7 +154,8 @@ def main(argv=None) -> int:
                 facts["correction_abs_pct"] = round(abs(float(facts["correction_pct"])), 1)
             facts["context"] = dict(r.get("ctx") or {}, era=era, sector=r.get("sector"), industry=r.get("industry"),
                                     liq_rank=r.get("liq_rank"), liq_universe=r.get("liq_universe"))
-            facts["outcome"] = r.get("out") or {}
+            # "culmination", not "outcome": facts.outcome is the Study word for a resolved trade (target_hit, stop_hit)
+            facts["culmination"] = r.get("out") or {}
             chosen.append({"setup": setup, "sym": r["sym"], "asof": asof, "year": int(asof[:4]), "close": r["close"],
                            "facts": facts, "q": r.get("score")})
             per_era[era] += 1; dates_taken.add(asof)
@@ -163,7 +164,7 @@ def main(argv=None) -> int:
         for p in chosen:
             c = p["facts"]["context"]
             print(f"   {p['sym']:6} {p['asof']} score={p['q']} {c.get('sector') or '?'} market={c.get('market')} "
-                  f"rank={c.get('liq_rank')}/{c.get('liq_universe')} culm={p['facts']['outcome'].get('culm_pct')}%")
+                  f"rank={c.get('liq_rank')}/{c.get('liq_universe')} culm={p['facts']['culmination'].get('culm_pct')}%")
         for who, why in why_left[:8] + [w for w in why_left[8:] if w[1].startswith(("second source", "pinned after"))]:
             print(f"   left  {who}: {why}")
     cache_path.write_text(json.dumps(cache, indent=0, sort_keys=True), encoding="utf-8")
