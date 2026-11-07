@@ -1,6 +1,7 @@
 // UCT Agent AUTOTEST: the runner. Local harness by default, free by default.
 //
-//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|all] [--out dir]
+//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|all] [--out dir] [--cache dir] [--port 5303]
+//     BROWSER-MOCK-MODEL owns its dev server (selectionServe.mjs) unless BA_BASE is set: it starts here and dies with the process
 //   node src/testing/agent/autotest/run.mjs --mode real-model --target local|production --stage <name>
 //   node src/testing/agent/autotest/run.mjs --lint          the set's own checks, sizes and hash (free)
 //   node src/testing/agent/autotest/run.mjs --guard-check   exercise the REAL-MODEL guard only: prints why it refuses
@@ -11,7 +12,7 @@ import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { publicRequests, sample, setHash } from './requests.mjs'
+import { publicRequests, unseenRequests, sample, setHash } from './requests.mjs'
 import { lint, summarize, loadManifest } from './lint.mjs'
 import { blobInfo, loadHeldout } from './heldout.mjs'
 import { say, rowOf, writeFailure, finish } from './report.mjs'
@@ -20,7 +21,7 @@ import { stageList } from './stages.mjs'
 
 const { values: A } = parseArgs({ options: {
   mode: { type: 'string', default: '' }, target: { type: 'string', default: 'local' }, set: { type: 'string', default: 'public' }, sample: { type: 'string', default: '' },
-  ids: { type: 'string', default: '' }, out: { type: 'string', default: 'autotest-out' }, stage: { type: 'string', default: '' }, lint: { type: 'boolean', default: false }, 'guard-check': { type: 'boolean', default: false },
+  ids: { type: 'string', default: '' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5303' }, out: { type: 'string', default: 'autotest-out' }, stage: { type: 'string', default: '' }, lint: { type: 'boolean', default: false }, 'guard-check': { type: 'boolean', default: false },
 } })
 
 const pub = publicRequests()
@@ -47,7 +48,7 @@ if (A['guard-check'] || A.mode === 'real-model') {
 
 const list = (() => {
   if (MODE === 'REAL-MODEL') return stageList(A.stage, pub, A.stage === 'heldout' ? loadHeldout() : [])
-  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
+  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
   if (A.ids) { const re = new RegExp(A.ids); L = L.filter(r => re.test(r.id)) }
   if (A.sample) L = sample(L, Number(A.sample))
   return L
@@ -56,7 +57,7 @@ const list = (() => {
 const dir = A.out
 mkdirSync(join(dir, 'shots'), { recursive: true })
 const known = new Set(loadManifest().map(c => c.name))
-let ctx
+let ctx, server = null
 if (MODE === 'REAL-MODEL') {
   if (A.target === 'production') {
     const { runProduction } = await import('./productionTarget.mjs')
@@ -66,13 +67,15 @@ if (MODE === 'REAL-MODEL') {
   const { startRealRelay } = await import('./realRelay.mjs')
   ctx = { R: await startRealRelay(authorize.last, { publicSha: setHash(pub), heldoutSha: blobInfo()?.sha256, spendLog: join(dir, 'spend.jsonl') }), mock: false, turnTimeoutMs: 60000 }
 } else {
-  const { startRelay } = await import('../acceptance/lib.mjs')
-  const { groupOfAction } = await import(pathToFileURL(process.env.BA_ROUTING).href)
-  ctx = { R: await startRelay({ groupOfAction }), mock: true }
+  const { startMock } = await import('./mockServer.mjs')
+  ;({ ctx, server } = await startMock({ port: Number(A.port), cache: A.cache }))
 }
 const { runRequest } = await import('./driver.mjs')
 const { runProfile } = await import('../../../econHarness/cdp.mjs')
-ctx.profile = runProfile()         // one Chrome profile for the run, removed when the process ends
+const { claimProfile, reapOrphans } = await import('./profileGuard.mjs')
+const reaped = reapOrphans()       // profiles a hard-killed earlier run left behind (its owner pid is gone)
+if (reaped.length) say(MODE, `reaped ${reaped.length} orphaned Chrome profile(s) from dead runs`)
+ctx.profile = claimProfile(runProfile())   // one Chrome profile for the run, removed when the process ends
 
 say(MODE, `${list.length} requests, set ${A.set}, out ${dir}`)
 const rows = []
@@ -80,7 +83,11 @@ for (const req of list) {
   const heldout = req.set === 'heldout'
   const shotPath = heldout ? null : join(dir, 'shots', `${req.id}.png`)
   const from = ctx.R.spend?.length ?? 0
-  const { evidence, result } = await runRequest({ ...ctx, shotPath }, req)
+  let page = null, timer
+  // a page that stops answering (a native dialog, a hung tab) fails its one request, never the run
+  const hung = new Promise((resolve) => { timer = setTimeout(() => { page?.close().catch(() => {}); resolve({ evidence: { turns: [], crash: 'the page stopped answering' }, result: { pass: false, graded: 0, na: 0, checks: [{ name: 'the run reached the end', pass: false, detail: 'the page stopped answering', tag: 'crash' }] } }) }, 150000) })
+  const { evidence, result } = await Promise.race([runRequest({ ...ctx, shotPath, onPage: (p) => { page = p } }, req), hung])
+  clearTimeout(timer)
   if (ctx.R.turnUsd) evidence.usd = Number(ctx.R.turnUsd(from).toFixed(6))
   const row = rowOf(req, evidence, result, { mode: MODE, known })
   rows.push(row)
@@ -92,4 +99,5 @@ for (const req of list) {
 const out = finish(dir, MODE, rows, { partial: rows.length < list.length, set: A.set, hash: setHash(pub), stopped: ctx.R.stopped || null })
 writeFileSync(join(dir, `families.${MODE}.json`), JSON.stringify(out.failureFamilies, null, 1))
 ctx.R.close?.()
+await server?.close()
 process.exit(0)

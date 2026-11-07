@@ -5,6 +5,7 @@ import { chartSurface } from './families/chartSurface.mjs'
 import { indicators } from './families/indicators.mjs'
 import { drawingsAlerts } from './families/drawingsAlerts.mjs'
 import { workspace } from './families/workspace.mjs'
+import { unseen } from './families/unseen.mjs'
 
 export function publicRequests() {
   const L = []
@@ -13,6 +14,14 @@ export function publicRequests() {
   drawingsAlerts(L)
   workspace(L)
   return L.map(r => ({ ...r, set: 'public' }))
+}
+
+/** Requests written 2026-11-06 for this rig's first BROWSER-MOCK-MODEL sweep, by an author who had not run the public set against
+ *  the product. Kept apart from the public set so the owner-approved public hash does not move. */
+export function unseenRequests() {
+  const L = []
+  unseen(L)
+  return L.map(r => ({ ...r, set: 'unseen' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
