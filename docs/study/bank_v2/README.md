@@ -62,3 +62,20 @@ to bring Slingshot and Gap Support to 600 and REMOVED on his ruling, verbatim: "
 (2026-11-06, owner_verdicts.jsonl). choose.py still lists the failed charts for analysis; nothing drafts them. Every
 window in every pass is checked against Yahoo, which also drops an old ticker whose company trades under another symbol
 now (SQ 2024 next to XYZ).
+
+## More families, a stricter cut (2026-11-07, owner: "lets do it all")
+
+- `scan_bases.py` + `gen_bases.py`: **chart.bases** (skill `read.bases`, Foundations F4): "Which base did this stock just
+  break out of?" from Chart IQ's own base step (v3_bases.find_base + classify) on 56,802 breakout days; 16,088 named
+  bases; 886 drafts over nine types (High tight flag, PEG flag, Double bottom, Cup with handle, Cup without handle, Bull
+  flag, Flat base, VCP, Consolidation / range).
+- `gen_taps.py`: **chart.taps** (skill `read.levels`, F2b): the tap drill already in the product (TapDrill, score_tap),
+  "Tap the low / the pivot of the base this stock just broke out of"; 400 drafts, the key region from the chart's own bars.
+- `near_miss.py`: **spot.near_miss**, 450 No charts (Kicker, Oops, High Volume Edge look-alikes that fail one rule on the
+  day, with nothing firing at all on the bar by study_hard's own sweep): Hard mode's "nothing fired" pool was 84 fixtures.
+- The course map gives the families a home: F2 (chart words, the cycle, chart events), F2b (tap the spot), F3 (candle
+  names), F4 (bases).
+- **The institutional cut tightened** (`gen_chartiq.liquid`): the top 1,000 by dollar volume AND the top 40% of the day's
+  universe. The top 1,000 alone let every stock through in the 1990s and most through the 2000s; 1,524 drafts already on
+  the pod failed the stricter cut and were replaced (retire list `docs/study/audits/2026-11-07/retire_bank_v2_liquidity.json`).
+  High Volume Edge has no replacement under it (15 left).
