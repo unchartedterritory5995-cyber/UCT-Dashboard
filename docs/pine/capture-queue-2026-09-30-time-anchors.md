@@ -66,3 +66,15 @@ York; on a 24×7 symbol the vendor stamps it at 00:00 UTC — an every-day clock
 |---|---|---|
 | T05 `time(timeframe.period) - time`: `vw-time-tf.pine` on AMEX:SPY 5 and AMEX:SPY 15 | not served on a 5m / 15m chart | 0 on every bar ⇒ add the timeframe to `OWN_TIME_WITNESSED_TF` (both lanes) |
 | T06 `time("60") - time`: `vw-time-tf.pine` on AMEX:SPY 5 and AMEX:SPY 15 | not served | NOT 0 (the 60m bar's open, e.g. −0.0035 days on the 09:35 bar) ⇒ `"60"` on a lower chart is a real higher-timeframe anchor: it must leave `chartOwnTimeOf` for that chart and be derived like C30's periods |
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| `time-anchor:weekend-bars` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the capture that settles it is Q-T2 |
+| `time-anchor:session-open-missing`, `time-close:period-end-missing` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the capture that settles it is Q-T5 |
+| `time-anchor:not-daily`, `time-close:not-daily` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the captures that settle it are Q-T4 (W / M) |
+| `time-own:chart-unwitnessed` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the captures that settle it are Q-T3 (intraday) and Q-T4 (W / M) |
+| `pine:function` (translation) | withheld-ledger | a row of "What is still withheld or refused" (every column prose): a translation refusal of the other `time(<tf>)` literals; no capture row asks for it |

@@ -11,3 +11,11 @@ The runtime lane is dark; these are what WS-E carries without a TradingView witn
 | Q-WSE3 | `corpus/committed/atr-trend-bands-misu__a34d44410a.pine` | NYSE:RDDT 1D from the listing | its `barcolor(colorbars ? colorTrend : na)` over `var color colorTrend = na` | a name declared `color` reads as a colour whatever its initialiser (`runtime/colours.js::colourTypedNamesOf`); the bar colour is the run's | first TradingView grade of a per-bar barcolor through a `color`-typed `var` |
 | Q-WSE4 | `corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine` | NYSE:RDDT 1D from the listing | `color barColor = na` assigned in an `if`, then `barcolor(barColor)` | as Q-WSE3 (if its other walls are cleared) | as Q-WSE3 |
 | Q-WSE5 | builtin Relative Strength Index (`STD;RSI`) | NYSE:RDDT 1D from the listing | the RSI line and its two zone gradient fills | the gradient `fill` is lowered as an UNDRAWN fill (no fill is drawn from the run, solid or gradient) and named in the document's "Not drawn by this pane" note; the RSI line is the run's | grades the line; the fill stays undrawn until a run fill renderer exists (see the WS-E handoff) |
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-WSE5 | builtin | the TradingView built-in `STD;RSI`: no probe file can stand in for a built-in (batch-b PR #923) |
