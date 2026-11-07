@@ -29,7 +29,29 @@ const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showi
 // ⭐ A chart named RELATIVE to the clicked one: "the one above this", "the chart to the left of this one", "the cell under it",
 // "the one next to this". The click is the ANCHOR here, never the target: the chart meant is the clicked chart's neighbour on that
 // side, read from where the charts sit (`cell`). No click, no neighbour on that side, or two that fit → no single chart: asked.
-export const RELATIVE = /\b(?:the\s+)?(?:chart|one|cell|pane)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\s+the\s+|on\s+the\s+)?(left|right)\s+of|(next\s+to|beside))\s+(?:this|that|it|the\s+(?:selected|clicked|current)\s+(?:chart|one))(?:\s+(?:chart|one|cell))?\b/i
+// ⛔ AUDIT R1/R2 (2026-11-07): the rule is the RELATION, not the noun before it. A spatial relation word followed by an ANCHOR makes
+// the click the anchor, whatever names the chart meant ("the chart that is above this one", "the ticker below this one", "the stock
+// sitting above it", "the chart above the one I clicked"). An anchor is "this/that" (alone, or on a chart word), "it", "the
+// selected/clicked/current … one/chart", or "the one I clicked/selected". Only an adverb (right, just, directly…) may stand between
+// the relation and the anchor, so "under 30 on this chart" is no relation ("this chart" there is the click itself). "this/that" on
+// another noun ("under this candle") is no anchor. A bare "this" with no relation word still binds to the click.
+const REL_ANCHOR_NOUN = '(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph|name)'
+const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+[a-z]+\\b(?<!\\b(?:to|on|in|and|then|please|for|with|as|into|onto|now|weekly|daily|monthly|hourly|intraday|instead|too|also|here)))\\b)`
+  + `|it\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
+  + `|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?\\b)`
+export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
+// …and it is about a CHART: the anchor itself names one ("this one", "the selected chart", "the one I clicked"), or the thing
+// meant is named before the relation ("the chart / the one / the ticker / whatever … above it"). "alert above it" and "a line
+// under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
+const REL_CHART_ANCHOR = new RegExp(`(?:this|that)\\s+${REL_ANCHOR_NOUN}\\b|\\bthe\\s+(?:selected|clicked|current|highlighted|active|focused)\\b|\\bthe\\s+one\\s`, 'i')
+const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
+/** The relation match, or null when the words relate nothing to the clicked CHART. */
+export function relationMatch(text) {
+  const s = String(text || '')
+  const m = RELATIVE.exec(s)
+  if (!m) return null
+  return REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)) ? m : null
+}
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
 function sideOf(charts, s, side) {
   const o = charts.filter(c => c.ref !== s.ref && c.cell)
@@ -41,16 +63,47 @@ function sideOf(charts, s, side) {
   if (side === 'left') return pick(o.filter(c => yo(c) && c.cell.x + c.cell.w <= s.cell.x), c => c.cell.x + c.cell.w, Math.max)
   return pick(o.filter(c => yo(c) && c.cell.x >= s.cell.x + s.cell.w), c => c.cell.x, Math.min)
 }
-/** → { hits: [chart snapshots], match } when the words name a chart relative to the clicked one (hits may be 0 or several), else null. */
+// ⛔ AUDIT R5 (2026-11-07): a relation is one chart reference among the sentence's others. Read per CLAUSE (split at , ; . and
+// and / then / but / while / also):
+//   NEGATED  — the relation's own clause carries a negation (not, never, n't, except, besides, without, other than, apart from,
+//              leave …) → the chart it names is NEVER a target (`excluded`); it is not the chart meant either.
+//   ALSO THE CLICK — another clause points at the click itself (this chart / this one / this / it / the selected one) → two
+//              chart references. With an affirmative relation the request is asked about (a plan never runs on a guess between
+//              them); with a negated one the affirmative clause's chart, the click, is the one meant.
+const CLAUSE_SPLIT = /[,;.!?]|\b(?:and|then|but|while|also|plus)\b/gi
+const NEGATION = /\b(?:not|never|except|besides|without|other\s+than|apart\s+from|leave|leaving|ignore|skip|exclude|excluding|don'?t|do\s+not|doesn'?t|won'?t)\b|n't\b/i
+const CLICK_POINTER = /\b(?:this|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b(?!\s+(?:candle|candles|bar|bars|line|lines|level|levels|price|drawing|alert|trendline|zone|support|resistance)\b)/i
+function clauseAt(s, at) {
+  let start = 0, end = s.length
+  for (const c of s.matchAll(CLAUSE_SPLIT)) { if (c.index <= at) start = c.index + c[0].length; else { end = c.index; break } }
+  return [start, end]
+}
+/** How the relation sits in the sentence: { negated, alsoClick }. */
+export function relationRole(text, m) {
+  const s = String(text || '')
+  const [a, b] = clauseAt(s, m.index)
+  const negated = NEGATION.test(s.slice(a, b))
+  const outside = `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}`
+  return { negated, alsoClick: CLICK_POINTER.test(outside) }
+}
+/** → { hits: [chart snapshots], match, negated, alsoClick, excluded } when the words name a chart relative to the clicked one
+ *  (hits may be 0 or several), else null. `hits` is what the relation makes the TARGET: none when it is negated or when another
+ *  clause points at the click too; `excluded` is what a negated relation names, which nothing may touch. */
 export function relativeChart(text, charts = [], sel = null) {
-  const m = RELATIVE.exec(String(text || ''))
+  const m = relationMatch(text)
   if (!m) return null
+  const role = relationRole(text, m)
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
-  if (!s) return { hits: [], match: m }
+  if (!s) return { hits: [], match: m, ...role, excluded: [] }
   const v = m[1] && m[1].toLowerCase()
   const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
-  const hits = side ? sideOf(charts, s, side) : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
-  return { hits, match: m }
+  // "next to / beside": either side; "adjacent to / near": any side. More than one fits → asked (the caller), never a guess
+  const hits = side ? sideOf(charts, s, side)
+    : m[4] ? ['above', 'below', 'left', 'right'].flatMap(x => sideOf(charts, s, x))
+      : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+  if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+  return { hits, match: m, ...role, excluded: [] }
 }
 const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
 const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
@@ -133,7 +186,7 @@ export function describedCharts(text, charts = []) {
 /** Does the member's text point at one chart without naming it? (With the board's `charts`: also a chart it describes.) */
 export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
   const s = String(text || '')
-  return RELATIVE.test(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
+  return !!relationMatch(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -168,6 +221,13 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   if (candidates.length === 1) return { ref: candidates[0].ref }
   // "the one above this": the clicked chart's neighbour on that side, and only it. ⛔ The click is the anchor, never the target.
   const rel = relativeChart(text, live, selectedChart(host))
+  // a NEGATED relation beside a clause that points at the click ("this one weekly, leave the one below it alone"): the click is
+  // the chart meant, and the chart the negated clause names is never it
+  if (rel?.negated && rel.alsoClick) {
+    const sel = selectedChart(host)
+    const hit = sel && !rel.excluded.some(c => c.ref === sel) ? backed.filter(b => b.chart === sel) : []
+    if (hit.length === 1) return { ref: hit[0].c.ref }
+  }
   if (rel) {
     const refs = new Set(rel.hits.map(c => c.ref))
     const fits = backed.filter(b => refs.has(b.chart))
@@ -389,7 +449,7 @@ const TRUE_POINTER = /\bthis\s+(?:chart|stock|ticker|symbol|one)\b/i
 const ELSE_NAMED = /\b(?:of|showing)\s+[a-z$]/i
 function onlyPointer(text, charts) {
   const s = String(text || '')
-  return TRUE_POINTER.test(s) && !RELATIVE.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
+  return TRUE_POINTER.test(s) && !relationMatch(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
     && !chartNameWord(s, charts) && !chartsNamedBy(s, charts).size
 }
 

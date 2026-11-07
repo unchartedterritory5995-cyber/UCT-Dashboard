@@ -89,3 +89,112 @@ describe('a chart named relative to the clicked one (u-target-02 family)', () =>
     expect(tfs(b)).toBe('DDWD')
   }, 30000)
 })
+
+// AUDIT R1/R2/R3 (11-07): the RELATION word decides, not the noun before it. A relation word (above, below, under, beneath,
+// left/right of, next to, beside, alongside, adjacent to, near) right before an anchor (this/that, it, the selected/clicked/
+// current one, the one I clicked) makes the click the anchor: a plan on the anchor never runs there (asked), a plan on the meant
+// neighbour runs there, and no single neighbour → asked. These phrasings are this branch's own (AUDIT's probe set is separate).
+describe('the relation rule, paired: the anchor never runs, the meant neighbour does', () => {
+  // [text, clicked, meant neighbour]
+  const PAIRS = [
+    ['set the name sitting under this chart to weekly', 'c1', 'c3'],
+    ['weekly for whatever is beneath it', 'c0', 'c2'],
+    ['the symbol directly above the current one should be weekly', 'c3', 'c1'],
+    ['change the panel that sits to the left of this one to weekly', 'c1', 'c0'],
+    ['flip the graph on the right of the selected one to weekly', 'c2', 'c3'],
+    ['make the stock alongside this one weekly', 'c3', 'c2'],
+    ['go weekly on the one right below the one I clicked', 'c0', 'c2'],
+    ['put whatever is above the one you have selected on weekly', 'c2', 'c0'],
+  ]
+  it.each(PAIRS)('%s (clicked %s): a plan on the clicked chart is asked about, nothing changes', async (t, clicked) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOn(clicked))
+    await say(t)
+    expect(tfs(b)).toBe('DDDD')
+    expect(asked()).toBe(true)
+  }, 30000)
+  it.each(PAIRS)('%s (clicked %s): the plan on %s runs there, the clicked chart is unchanged', async (t, clicked, meant) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOn(meant))
+    await say(t)
+    expect(tfOf(b, meant)).toBe('W')
+    expect(tfOf(b, clicked)).toBe('D')
+  }, 30000)
+  it.each([
+    ['make the one near this weekly', 'c0'],              // near: two neighbours (right and below) fit
+    ['make the chart above it weekly', 'c1'],             // nothing above the top row
+  ])('%s (clicked %s): no single neighbour → asked, nothing changes, whatever the plan', async (t, clicked) => {
+    for (const plan of ['c0', 'c1', 'c2', 'c3']) {
+      cleanup(); p = setupPanel()
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(plan))
+      await say(t)
+      expect(tfs(b), `plan on ${plan}`).toBe('DDDD')
+    }
+  }, 60000)
+  it.each([
+    ['make this ticker weekly', 'c2', 'c2'],                       // a bare pointer: the click
+    ['alert me under 30 rsi, and make this chart weekly', 'c1', 'c1'],   // "under 30" is no relation to "this chart"
+  ])('%s (clicked %s): no relation word, so the click is the chart meant', async (t, clicked, meant) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOn(meant))
+    await say(t)
+    expect(tfOf(b, meant)).toBe('W')
+  }, 30000)
+  it('relativeChart reads the relation, not the noun: "under this candle" is no anchor', () => {
+    const at = (ref, x, y) => ({ ref, cell: { x, y, w: 12, h: 10 } })
+    const C = [at('c0', 0, 0), at('c1', 12, 0), at('c2', 0, 10), at('c3', 12, 10)]
+    expect(relativeChart('draw a line under this candle', C, 'c0')).toBeNull()
+    // a price or a drawing related to "it" is no chart relation (drawingFamily: "alert above it" is the line's alert)
+    for (const t of ['alert above it', 'put a line under it', 'ping me when it goes below that']) expect(relativeChart(t, C, 'c0'), t).toBeNull()
+    expect(relativeChart('the ticker under this', C, 'c0')?.hits.map(c => c.ref)).toEqual(['c2'])
+    expect(relativeChart('whatever is adjacent to it', C, 'c0')?.hits.map(c => c.ref).sort()).toEqual(['c1', 'c2'])
+  })
+})
+
+// AUDIT R5 (11-07): a relation is one chart reference among the sentence's others, read per clause. A NEGATED relation's chart is
+// never touched; beside a clause pointing at the click, the click is the chart meant. An affirmative relation beside a pointer to
+// the click is two references: asked, whatever the plan. Own phrasings (AUDIT's probes are separate).
+describe('R5: negation and compound sentences around a relation', () => {
+  it.each([
+    ['switch this one to weekly but don\'t touch the chart under it', 'c0', 'c2'],
+    ['make this ticker weekly without changing the chart to the right of it', 'c0', 'c1'],
+    ['weekly on this chart; ignore the one beside it', 'c3', 'c2'],
+  ])('%s (clicked %s): a plan on the click runs there; a plan on %s, the chart named to be left alone, never runs', async (t, clicked, spared) => {
+    {
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(clicked))
+      await say(t)
+      expect(tfOf(b, clicked)).toBe('W')
+      expect(tfOf(b, spared)).toBe('D')
+    }
+    cleanup(); p = setupPanel()
+    {
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(spared))
+      await say(t)
+      expect(tfs(b)).toBe('DDDD')
+    }
+  }, 60000)
+  it.each([
+    ['leave the chart above this one alone', 'c2', 'c0'],
+    ['everything stays, except the pane left of it', 'c1', 'c0'],
+  ])('%s (clicked %s): a negated relation alone never makes %s a target', async (t, clicked, spared) => {
+    const { say, board: b } = mountOn(clicked)
+    p.st.envelopes.push(planOn(spared))
+    await say(t)
+    expect(tfs(b)).toBe('DDDD')
+  }, 30000)
+  it.each([
+    ['make this one weekly and the one below it weekly too', 'c0'],
+    ['set it weekly, then the graph right of it as well', 'c0'],
+  ])('%s (clicked %s): two chart references, so one plan on either is asked about, nothing changes', async (t, clicked) => {
+    for (const plan of ['c0', 'c1', 'c2']) {
+      cleanup(); p = setupPanel()
+      const { say, board: b } = mountOn(clicked)
+      p.st.envelopes.push(planOn(plan))
+      await say(t)
+      expect(tfs(b), `plan on ${plan}`).toBe('DDDD')
+    }
+  }, 60000)
+})
