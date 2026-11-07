@@ -73,3 +73,19 @@ describe('a company name resolves to its ticker on every way of naming the chart
     expect(out === '' ? MODEL_SENTINEL : out).toMatch(/no symbol|ticker|«the model was asked»/)
   }, 30000)
 })
+
+// AUDIT N1: the instant path's lookup is bounded (NAME_SEARCH_MS): a ticker search that never answers still reaches the model,
+// and the turn is not held
+describe('a ticker search that never answers', () => {
+  it.each([['pull up oracle on this one'], ['pull up oracle on this chart']])('%s: the model is asked within the bound; nothing is refused unread', async (t) => {
+    globalThis.fetch = ((base) => vi.fn((url, init) => (/ticker-search/i.test(String(url)) ? new Promise(() => {}) : base(url, init))))(globalThis.fetch)
+    const { say, board: b } = mount('c2')
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'chart.setSymbol', target: body.context.charts.find(c => c.label === 'Chart (c2)').ref, args: { symbol: 'ORCL' }, trusted: true }]))
+    const t0 = Date.now()
+    const out = await say(t)
+    expect(p.turns(), out).toBe(1)
+    expect(out).not.toMatch(/no symbol/)
+    expect(Date.now() - t0).toBeLessThan(9000)
+    void b
+  }, 30000)
+})
