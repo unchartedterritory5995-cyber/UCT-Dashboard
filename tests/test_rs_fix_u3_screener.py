@@ -4,8 +4,9 @@ store), 2026-11-07. One section per finding:
   #5   the `bars_rs` build step is dark unless RS_V2_ENABLED, and its time is in
        the receipt
   #4   the rating's split guard judges against the DECLARED split list
-       (`bars_sanitize.unadjusted_splits`), reads only the scored closes, and its
-       fallback flags only split-sized ratios
+       (`bars_sanitize.unadjusted_splits`) and reads only the scored closes;
+       since owner decision N4 (2026-11-07) there is no threshold fallback: an
+       unknown list is rated and counted
   #15  SPY / RSP get the same settle and catch-up as every ticker before the RS
        columns read them
   #20  a rating session too many trading sessions behind is withheld, not served
@@ -34,6 +35,19 @@ SEVEN = ("rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
 
 
 # ───────────────────────────── fixtures ─────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def _no_provider(monkeypatch):
+    """No test here may reach the corporate-action provider: the default split-list
+    reader's fetch refuses, and its brake is a local no-op (no shared state)."""
+    from api.services import declared_splits as ds
+
+    def refuse(ticker):
+        raise RuntimeError("no provider in tests")
+    monkeypatch.setattr(ds, "_default_fetch", refuse)
+    monkeypatch.setattr(ds, "_default_gate", lambda: (lambda: True, lambda: 0.0, lambda: None))
+    monkeypatch.setattr(ds, "FETCH_PAUSE_S", 0)
+
 
 @pytest.fixture
 def tmp_db(tmp_path, monkeypatch):
@@ -209,19 +223,30 @@ def test_a_real_crash_is_rated_not_split_guarded():
     assert out["CR"].get("reason") is None and out["CR"]["bars"] == 270
 
 
-def test_the_fallback_reads_only_the_scored_closes():
+def test_the_guard_reads_only_the_scored_closes():
+    days = _weekdays_ending(END, 270)
+    ts = [_ymd(d) for d in days]
     old_split = [300.0] * 5 + [100.0] * 265        # 3:1 at index 5 of 270: older than 253
     assert len(old_split) - 5 > rh.SCORE_BARS
-    assert not rh.split_suspect(old_split), "the score never reaches that boundary"
+    assert not rh.window_split_suspect(ts, old_split, [(days[5].isoformat(), 3.0)]), \
+        "the score never reaches that boundary"
     recent = [300.0] * 100 + [100.0] * 170
-    assert rh.split_suspect(recent), "an unadjusted 3:1 inside the scored closes still trips"
+    assert rh.window_split_suspect(ts, recent, [(days[100].isoformat(), 3.0)]), \
+        "an unadjusted 3:1 inside the scored closes still trips"
 
 
-def test_the_fallback_flags_only_split_sized_steps():
-    assert not rh.split_suspect([100.0] * 10 + [165.0] * 5), "+65 % is not a split factor"
-    assert not rh.split_suspect([100.0] * 10 + [250.0] * 5), "+150 % sits between 1:2 and 1:3"
-    assert rh.split_suspect([100.0] * 10 + [200.0] * 5), "+100 % reads as a 1:2 reverse split"
-    assert rh.split_suspect([100.0] * 10 + [10.0] * 5), "10:1 forward"
+def test_there_is_no_threshold_fallback_any_more():
+    """N4 (2026-11-07): one judge. A threshold either passes a 2:1 split or drops a
+    real 50 % move, so the +/-60 % fallback and its factor table are gone."""
+    for name in ("split_suspect", "SPLIT_GUARD_PCT", "SPLIT_FACTORS", "_split_sized", "_split_tol"):
+        assert not hasattr(rh, name), f"{name} came back: a second split judge beside unadjusted_splits"
+    days = _weekdays_ending(END, 270)
+    ts = [_ymd(d) for d in days]
+    for closes in ([100.0] * 200 + [50.0] * 70,       # a real -50 % day
+                   [100.0] * 200 + [200.0] * 70,      # a real +100 % day
+                   [100.0] * 200 + [25.0] * 70):      # a 4:1 cliff nobody declared
+        assert not rh.window_split_suspect(ts, closes, None), "an unknown list is no evidence"
+        assert not rh.window_split_suspect(ts, closes, []), "nothing declared: a gap is a gap"
 
 
 def test_the_declared_list_is_the_judge_when_it_is_known():
@@ -231,9 +256,10 @@ def test_the_declared_list_is_the_judge_when_it_is_known():
     declared = [(days[200].isoformat(), 4.0)]
     assert rh.window_split_suspect(ts, split, declared), "a declared split still on the closes"
     assert not rh.window_split_suspect(ts, [25.0] * 270, declared), "already adjusted"
+    two_for_one = [100.0] * 200 + [50.0] * 70       # the 2:1 the old +/-60 % let through
+    assert rh.window_split_suspect(ts, two_for_one, [(days[200].isoformat(), 2.0)])
     doubled = [100.0] * 200 + [200.0] * 70          # a real +100 % day, no split declared
     assert not rh.window_split_suspect(ts, doubled, []), "nothing declared: a gap is a gap"
-    assert rh.window_split_suspect(ts, doubled, None), "unknown list: the fallback decides"
 
 
 def test_nightly_job_judges_each_name_against_its_declared_splits(tmp_db):
@@ -268,16 +294,25 @@ def test_backfill_uses_the_declared_list_too(tmp_db, tmp_path):
     assert {(x["ticker"]) for x in _rows(tmp_db)} == {"DBL", "OK"}
 
 
-def test_the_default_splits_reader_is_cache_only(monkeypatch):
-    """A universe sweep must not schedule thousands of corporate-action fetches."""
+def test_the_default_splits_reader_never_schedules_a_warm_and_fetches_on_budget(monkeypatch):
+    """A universe sweep must not schedule thousands of background warms (the serve
+    path's pool); it asks through its own budgeted reader instead (N4)."""
     from api.services import bars_sanitize as san
-    submitted = []
+    from api.services import declared_splits as ds
+    submitted, asked = [], []
     monkeypatch.setattr(san.cache, "get", lambda key: None)
+    monkeypatch.setattr(san.cache, "set", lambda key, value, ttl: None)
     monkeypatch.setattr(san._warm_pool, "submit", lambda fn: submitted.append(fn))
-    assert rh.default_splits_reader("ZZZZ") is None, "a cold cache is 'unknown'"
+    monkeypatch.setattr(ds, "_default_fetch",
+                        lambda t: asked.append(t) or {"ipo": None, "splits": [("2026-01-02", 2.0)]})
+    monkeypatch.setattr(ds, "_default_gate", lambda: (lambda: True, lambda: 0.0, lambda: None))
+    monkeypatch.setattr(ds, "FETCH_PAUSE_S", 0)
+    reader = rh.default_splits_reader(None, budget=1)
+    assert reader("ZZZZ") == [("2026-01-02", 2.0)] and asked == ["ZZZZ"]
+    assert reader("YYYY") is None, "the budget is spent: unknown, not guessed"
     assert submitted == [], "no warm scheduled"
-    monkeypatch.setattr(san.cache, "get", lambda key: {"ipo": None, "splits": [("2026-01-02", 2.0)]})
-    assert rh.default_splits_reader("ZZZZ") == [("2026-01-02", 2.0)]
+    assert reader.stats["fetched"] == 1 and reader.stats["unknown"] == 1
+    assert rh.default_splits_reader(None).budget == ds.DEFAULT_FETCH_BUDGET, "the nightly default"
 
 
 def _rows(path):

@@ -24,6 +24,27 @@ MODULE = ROOT / "api" / "services" / "screener" / "rs_history.py"
 
 # ───────────────────────── fixtures and synthetic series ─────────────────────
 
+@pytest.fixture(autouse=True)
+def provider(monkeypatch):
+    """No test here reaches the corporate-action provider. The default split-list
+    reader's fetch is this stub (it refuses unless a test loads an answer into
+    ``answers``), and its brake is a local no-op, so nothing shared is touched."""
+    from api.services import declared_splits as ds
+    state = {"answers": {}, "asked": []}
+
+    def fetch(ticker):
+        state["asked"].append(ticker)
+        if ticker in state["answers"]:
+            return {"ipo": None, "splits": state["answers"][ticker]}
+        raise RuntimeError("no provider in tests")
+    monkeypatch.setattr(ds, "_default_fetch", fetch)
+    monkeypatch.setattr(ds, "_default_gate", lambda: (lambda: True, lambda: 0.0, lambda: None))
+    monkeypatch.setattr(ds, "_default_cache_get", lambda t: None)
+    monkeypatch.setattr(ds, "_default_cache_set", lambda t, meta: None)
+    monkeypatch.setattr(ds, "FETCH_PAUSE_S", 0)
+    return state
+
+
 @pytest.fixture
 def tmp_db(tmp_path, monkeypatch):
     """Point ``snapshot_db.connect()`` at a fresh file for one test."""
@@ -197,9 +218,16 @@ def test_components_are_percentiles_of_the_plain_returns():
 # ───────────────────────── the split guard ───────────────────────────────────
 
 def test_split_guard_skips_a_straddled_split_and_writes_no_row(tmp_db):
+    end = date(2026, 11, 5)
+    days = _weekdays_ending(end, 253)
+    ts = [_ymd(d) for d in days]
     straddle = [100.0] * 200 + [25.0] * 53            # an unadjusted 4:1 inside the window
     clean = _flat_then(5)
-    out = rh.compute_ratings({"SPLT": straddle, "OK": clean}, set())
+    declared = [(days[200].isoformat(), 4.0)]
+    marked = {t for t, c in (("SPLT", straddle), ("OK", clean))
+              if rh.window_split_suspect(ts, c, declared if t == "SPLT" else [])}
+    assert marked == {"SPLT"}, "the one detector marks the declared, still-unadjusted split"
+    out = rh.compute_ratings({"SPLT": straddle, "OK": clean}, set(), suspects=marked)
     assert out["SPLT"] == {"ibd": None, "m1": None, "m3": None, "m6": None, "m12": None,
                            "score": None, "bars": 0, "reason": "unadjusted_split"}
     assert out["OK"]["ibd"] == 99, "the skipped name never enters the distribution"
@@ -208,14 +236,20 @@ def test_split_guard_skips_a_straddled_split_and_writes_no_row(tmp_db):
     assert [r["ticker"] for r in rows] == ["OK"]
 
 
-def test_split_guard_threshold_is_the_constant():
-    assert rh.SPLIT_GUARD_PCT == 60.0
-    assert rh.split_suspect([100.0] * 10 + [25.0] * 5)            # 4:1 forward: ratio 0.25
-    assert rh.split_suspect([100.0] * 10 + [33.0] * 5)            # 3:1 forward: ratio 0.33
-    assert rh.split_suspect([10.0] * 10 + [20.0] * 5)             # 1:2 reverse: ratio 2.0
-    assert not rh.split_suspect([100.0] * 10 + [50.0] * 5), "a 2:1 (-50%) passes at 60; stated in the docstring"
-    assert rh.split_suspect([100.0] * 10 + [50.0] * 5, pct=40.0), "tightening the constant catches it"
-    assert not rh.split_suspect([100.0, 0.0, 100.0]), "a zero close is not a ratio"
+def test_a_two_for_one_split_is_caught_and_a_real_fifty_percent_day_is_rated(tmp_db):
+    """N4's two cases, both of which the +/-60 % threshold got wrong: a declared,
+    unadjusted 2:1 split (-50 % on the closes) is left unrated and counted, and a
+    real -50 % biotech day with nothing declared is rated."""
+    end = date(2026, 11, 5)
+    days = _weekdays_ending(end, 270)
+    series = {"SPLIT2": [100.0] * 220 + [50.0] * 50, "BIO": [100.0] * 220 + [50.0] * 50,
+              "OK": [100.0] * 270}
+    declared = {"SPLIT2": [(days[220].isoformat(), 2.0)], "BIO": [], "OK": []}
+    r = rh.nightly_job(end, universe=list(series), etf_tickers=set(),
+                       bars_reader=make_reader(series, end), fast_map={},
+                       splits_reader=lambda t: declared.get(t))
+    assert r["ok"] and r["split_guard"] == 1 and r["note"]["counts"]["split_guard"] == 1
+    assert {x["ticker"] for x in _query(tmp_db, f"SELECT ticker FROM {rh.TABLE}")} == {"BIO", "OK"}
 
 
 # ───────────────────────── sessions and windows ──────────────────────────────
@@ -399,34 +433,129 @@ def _backfill_series():
     return {"AAA": base + [105.0, 105.0, 103.0], "BBB": base + [101.0, 101.0, 104.0]}
 
 
-def test_backfill_is_point_in_time_keeps_nightly_rows_and_writes_the_marker_once(tmp_db, tmp_path):
+def test_backfill_is_point_in_time_skips_stored_sessions_and_is_idempotent(tmp_db, tmp_path):
     end = date(2026, 11, 5)
     reader = make_reader(_backfill_series(), end)
     sessions = [date(2026, 11, 3), date(2026, 11, 4), end]
-    # the nightly already wrote AAA for the newest session, with a fast rating
+    # the nightly already wrote the newest session, with a fast rating
     rh.store_rows(end, {"AAA": {"ibd": 50, "m1": 1, "m3": 1, "m6": 1, "m12": 1, "score": 1.03, "bars": 270}},
                   {"AAA": 77})
     r = rh.backfill(days=3, universe=["AAA", "BBB"], etf_tickers=set(), bars_reader=reader,
                     sessions=sessions, data_dir=str(tmp_path))
     assert r["ok"] is True and r["session"] == "2026-11-05"
-    assert r["note"]["sessions"] == 3 and r["note"]["sessions_rated"] == 3
-    assert r["note"]["survivorship_corrected"] is False and r["note"]["point_in_time"] is True
-    assert r["note"]["marker_written"] is True
-    assert r["rows"] == 5, "3 sessions x 2 names, minus the nightly's AAA row that was kept"
+    note = r["note"]
+    assert (note["sessions"], note["sessions_stored"], note["sessions_todo"]) == (3, 1, 2)
+    assert (note["sessions_written"], note["sessions_rated"], note["sessions_remaining"]) == (2, 2, 0)
+    assert note["survivorship_corrected"] is False and note["point_in_time"] is True
+    assert note["marker_written"] is True, "every requested session now holds rows"
+    assert r["rows"] == 4, "2 missing sessions x 2 names; the nightly's session is never touched"
 
     rows = {(x["session"], x["ticker"]): x for x in _query(tmp_db, f"SELECT * FROM {rh.TABLE}")}
     assert rows[("2026-11-03", "AAA")]["ibd"] == 99 and rows[("2026-11-03", "BBB")]["ibd"] == 50
     assert rows[("2026-11-04", "AAA")]["ibd"] == 99
-    assert rows[("2026-11-05", "BBB")]["ibd"] == 99, "on the newest session BBB leads"
-    assert rows[("2026-11-05", "AAA")]["fast"] == 77, "INSERT OR IGNORE kept the nightly's row"
+    assert rows[("2026-11-05", "AAA")]["fast"] == 77 and rows[("2026-11-05", "AAA")]["ibd"] == 50, \
+        "the nightly's session keeps the nightly's rows"
+    assert ("2026-11-05", "BBB") not in rows, "a stored session is skipped whole, not topped up"
     assert rows[("2026-11-03", "AAA")]["fast"] is None, "the fast rating has no history"
 
     marker = tmp_path / rh.BACKFILL_MARKER
     assert marker.exists() and "survivorship_corrected=False" in marker.read_text()
+    before = _query(tmp_db, f"SELECT * FROM {rh.TABLE} ORDER BY session, ticker")
     again = rh.backfill(days=3, universe=["AAA", "BBB"], etf_tickers=set(), bars_reader=reader,
                         sessions=sessions, data_dir=str(tmp_path))
-    assert again == {"ok": True, "skipped": True, "reason": "marker_present", "marker": str(marker)}
-    assert _query(tmp_db, f"SELECT COUNT(*) AS n FROM {rh.RUNS_TABLE}")[0]["n"] == 1, "a skip writes no receipt"
+    assert again["ok"] is True and again["note"]["reason"] == "nothing_to_do" and again["rows"] == 0
+    assert _query(tmp_db, f"SELECT * FROM {rh.TABLE} ORDER BY session, ticker") == before, "idempotent"
+
+
+def test_backfill_is_bounded_and_resumes_newest_first(tmp_db, tmp_path):
+    end = date(2026, 11, 5)
+    reader = make_reader(_backfill_series(), end)
+    sessions = [date(2026, 11, 3), date(2026, 11, 4), end]
+    kw = dict(days=3, universe=["AAA", "BBB"], etf_tickers=set(), bars_reader=reader,
+              sessions=sessions, data_dir=str(tmp_path))
+    first = rh.backfill(max_sessions=2, **kw)
+    assert first["ok"] and first["note"]["sessions_written"] == 2 and first["note"]["sessions_remaining"] == 1
+    assert "marker_written" not in first["note"], "a bounded run that left a session is not done"
+    stored = [x["session"] for x in _query(tmp_db, f"SELECT DISTINCT session FROM {rh.TABLE} ORDER BY session")]
+    assert stored == ["2026-11-04", "2026-11-05"], "newest first: the chart's recent year fills first"
+    second = rh.backfill(**kw)                                # the same command again finishes it
+    assert second["ok"] and second["note"]["sessions_stored"] == 2 and second["note"]["sessions_written"] == 1
+    assert second["note"]["sessions_remaining"] == 0 and second["note"]["marker_written"] is True
+
+
+def test_backfill_dry_run_writes_nothing(tmp_db, tmp_path, provider):
+    end = date(2026, 11, 5)
+    reader = make_reader(_backfill_series(), end)
+    provider["answers"]["AAA"] = []
+    r = rh.backfill(days=3, universe=["AAA", "BBB"], etf_tickers=set(), bars_reader=reader,
+                    sessions=[date(2026, 11, 3), date(2026, 11, 4), end], data_dir=str(tmp_path),
+                    dry_run=True)
+    assert r["ok"] is True and r["dry_run"] is True
+    assert r["rows"] == 6 and r["note"]["sessions_todo"] == 3 and r["note"]["sessions_written"] == 0
+    assert provider["asked"] == [], "a dry run makes no provider call by default"
+    assert r["note"]["split_lists"]["budget"] == 0
+    assert not os.path.exists(tmp_db), "no table, no receipt, no memo: the file is never even created"
+    assert not (tmp_path / rh.BACKFILL_MARKER).exists()
+
+
+def test_backfill_fetches_split_lists_without_a_limit_and_remembers_them(tmp_db, tmp_path, provider):
+    end = date(2026, 11, 5)
+    reader = make_reader(_backfill_series(), end)
+    provider["answers"].update({"AAA": [], "BBB": []})
+    r = rh.backfill(days=3, universe=["AAA", "BBB"], etf_tickers=set(), bars_reader=reader,
+                    sessions=[date(2026, 11, 3), date(2026, 11, 4), end], data_dir=str(tmp_path))
+    assert r["ok"] and sorted(provider["asked"]) == ["AAA", "BBB"]
+    assert r["note"]["split_lists"]["fetched"] == 2 and r["note"]["split_lists"]["budget"] is None
+    assert r["note"]["split_basis"] == {"declared": 2, "unknown": 0}
+    from api.services import declared_splits as ds
+    memo = _query(tmp_db, f"SELECT ticker FROM {ds.TABLE} ORDER BY ticker")
+    assert [x["ticker"] for x in memo] == ["AAA", "BBB"], "the next nightly reads these, not the provider"
+
+
+def test_backfill_refuses_a_depth_outside_its_bound(tmp_db):
+    for days in (0, rh.BACKFILL_MAX_DAYS + 1):
+        r = rh.backfill(days=days, universe=["AAA"], etf_tickers=set(), bars_reader=lambda t, n, k: [])
+        assert r["ok"] is False and "days must be" in r["note"]["reason"]
+    assert rh.BACKFILL_MAX_DAYS == 5 * rh.BACKFILL_DAYS
+    assert not os.path.exists(tmp_db)
+
+
+def test_the_backfill_command_line(tmp_db, monkeypatch, capsys):
+    seen = {}
+
+    def fake(days, **kw):
+        seen.update(days=days, **kw)
+        return {"ok": True, "dry_run": kw["dry_run"], "rated": 10, "split_guard": 0, "duration_ms": 1.0,
+                "note": {"sessions": 252, "sessions_stored": 0, "sessions_todo": 252,
+                         "sessions_written": 0, "sessions_remaining": 0}}
+    monkeypatch.setattr(rh, "backfill", fake)
+    assert rh.main(["--backfill-days", "252", "--dry-run"]) == 0
+    assert seen == {"days": 252, "dry_run": True, "max_sessions": None, "split_fetch_budget": rh.AUTO_BUDGET}
+    out = capsys.readouterr().out
+    assert "(dry run)" in out and "would_write=252" in out and out.strip().splitlines()[-1].startswith("receipt {")
+    assert rh.main(["--backfill-days", "252", "--max-sessions", "20", "--split-fetch-budget", "0"]) == 0
+    assert seen["max_sessions"] == 20 and seen["split_fetch_budget"] == 0 and seen["dry_run"] is False
+    assert rh.main(["--backfill-days", "0"]) == 2
+    assert rh.main(["--backfill-days", str(rh.BACKFILL_MAX_DAYS + 1)]) == 2
+    assert rh.main(["--backfill-days", "252", "--max-sessions", "0"]) == 2
+    assert rh.main([]) == 2, "--backfill-days is required: the command never runs a default depth by accident"
+
+
+def test_the_backfill_never_runs_on_import_or_on_a_schedule():
+    """D2: a one-shot command. Nothing at module level calls it, the CLI runs only
+    under ``__main__``, and no scheduler registration in api/main.py names it."""
+    tree = ast.parse(MODULE.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+            pytest.fail(f"a module-level call at line {node.lineno}")
+        if isinstance(node, ast.If):
+            test = ast.unparse(node.test)
+            assert test == "__name__ == '__main__'", f"a module-level branch at line {node.lineno}: {test}"
+    main_src = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    for needle in ("rs_history.backfill", "rs_history.main", "backfill_days"):
+        assert needle not in main_src, f"api/main.py names {needle}: the backfill is never scheduled"
+    worker_src = (ROOT / "api" / "worker_main.py").read_text(encoding="utf-8")
+    assert "rs_history" not in worker_src or "rs_history.backfill" not in worker_src
 
 
 def test_backfill_marker_is_not_written_on_failure(tmp_db, tmp_path):
@@ -435,6 +564,21 @@ def test_backfill_marker_is_not_written_on_failure(tmp_db, tmp_path):
     assert r["ok"] is False and r["note"]["reason"] == "too_few_sessions_rated"
     assert not (tmp_path / rh.BACKFILL_MARKER).exists()
     assert rh.last_run()["note"]["survivorship_corrected"] is False
+
+
+def test_the_nightly_receipt_says_where_each_split_list_came_from(tmp_db, provider):
+    end = date(2026, 11, 5)
+    provider["answers"]["AAA"] = []
+    r = rh.nightly_job(end, universe=["AAA", "BBB"], etf_tickers=set(),
+                       bars_reader=make_reader(_universe_series(), end), fast_map={})
+    assert r["ok"] and r["rated"] == 2, "an unknown list is rated, not guessed at"
+    assert r["note"]["split_basis"] == {"declared": 1, "unknown": 1}
+    lists = r["note"]["split_lists"]
+    assert (lists["fetched"], lists["fetch_failed"], lists["unknown"]) == (1, 1, 1)
+    assert lists["budget"] == rh.default_splits_reader(None).budget
+    again = rh.nightly_job(end, universe=["AAA", "BBB"], etf_tickers=set(),
+                           bars_reader=make_reader(_universe_series(), end), fast_map={})
+    assert again["note"]["split_lists"]["memo"] == 1, "the stored answer is read back, not re-asked"
 
 
 def test_backfill_resolves_its_sessions_from_the_calendar_and_the_marker_sits_beside_the_db(tmp_db):

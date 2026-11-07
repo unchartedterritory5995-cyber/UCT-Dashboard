@@ -37,22 +37,18 @@ crash. A ticker whose scored closes (the newest :data:`SCORE_BARS`, all the 252-
 term reads) still carry an unadjusted split is marked ``bars = 0`` and skipped for
 that session: no row, counted in the receipt as ``split_guard``.
 
-The judge is the DECLARED split list (2026-11-07, review finding #4). When
-``bars_sanitize``'s corporate-action cache holds the ticker's list, the one detector,
-``bars_sanitize.unadjusted_splits``, decides: only a declared split whose boundary
-still shows its factor in the closes trips the guard, so a real +65 % earnings gap
-or a -60 % crash never does. The cache is read without scheduling a provider fetch.
-When the list is not cached, :func:`split_suspect` is the fallback: a one-bar
-ratio beyond +/- :data:`SPLIT_GUARD_PCT` that is also split-SIZED (within the
-detector's tolerance of a factor in :data:`SPLIT_FACTORS`). At the default 60 it
-catches an unadjusted 3:1 or larger forward split and a 1:2 or larger reverse split;
-a 2:1 forward split (-50 %) passes it, as does a real -50 % day, and so does a real
-+65 % gap. A real +100 % day reads as a 1:2 reverse split and is still skipped
-while the list is not cached, which is the trade-off the fallback states.
+ONE JUDGE, NO THRESHOLD (owner decision N4, 2026-11-07). The guard is the repo's
+one split detector, ``bars_sanitize.unadjusted_splits``, asked about the ticker's
+DECLARED split list: only a declared split whose boundary still shows its factor in
+the scored closes trips it, so a real +65 % earnings gap, a real -50 % biotech day
+or a real +100 % squeeze is always rated. Any one-bar threshold either passes a 2:1
+split or drops a real 50 % move; the ``+/-60 %`` fallback this replaced did both.
 
-The old guard read every one-bar ratio in the whole ``READ_BARS`` window, so one
-real big gap removed a leader for about 270 sessions, including the sessions after
-the gap had left the 253 closes the score reads.
+The declared list comes from :mod:`api.services.declared_splits` (a stored
+provider answer, ``bars_sanitize``'s cache, or a budgeted fetch through
+``bars_sanitize._fetch_meta``). A name whose list cannot be had this run is rated
+and counted (``note.split_basis.unknown``): there is no evidence of a split to act
+on, and a second judge is the thing N4 removed.
 
 WHERE IT RUNS. The WEB pod, after the 03:00 ET screener build, writing a side
 table in ``screener.db`` through ``snapshot_db.connect()`` - the ``volume_curve``
@@ -69,11 +65,23 @@ decides whether ``nightly_job`` runs. The backfill marker lives beside
 D5 / D20 (plan §7 item 20) are computed ON READ from the earlier sessions in this
 table and never stored, so a corrected session corrects its deltas too.
 
-BACKFILL (plan §9, §17.6). Once, behind ``<data dir>/.rs_history_backfill_v1``
-(written only after success, the ``deep_history_warm`` idiom; a corrected method
-is a new marker name), point-in-time over the names held TODAY. The receipt
-records ``survivorship_corrected = False`` so the readout can say "universe as
-held, survivorship not yet corrected" until a delisting source exists.
+BACKFILL (plan §9, §17.6; owner decision D2). One trading year, point-in-time
+over the names held TODAY, by a ONE-SHOT COMMAND the operator runs on the web pod
+when ``RS_HISTORY_ENABLED`` is armed, so the rating is on the chart from day one::
+
+    python -m api.services.screener.rs_history --backfill-days 252 --dry-run
+    python -m api.services.screener.rs_history --backfill-days 252
+
+Idempotent and resumable: a session that already holds rows (the nightly's, or an
+earlier backfill's) is skipped, and each session commits as it is written, so a
+run that dies is resumed by running it again. Bounded: ``--max-sessions`` writes
+at most that many sessions per invocation and ``days`` is capped at
+:data:`BACKFILL_MAX_DAYS`. Nothing imports-and-runs it and no scheduler names it
+(``tests/test_rs_rating_history.py`` holds both). The marker
+``<data dir>/.rs_history_backfill_v1`` is written once every requested session is
+stored, as a record for ``status``; it no longer gates a run. The receipt records
+``survivorship_corrected = False`` so the readout can say "universe as held,
+survivorship not yet corrected" until a delisting source exists.
 """
 from __future__ import annotations
 
@@ -81,10 +89,12 @@ import json
 import logging
 import math
 import os
+import sqlite3
 import time
 from bisect import bisect_right
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from api.services.rs_weighted_return import (
     IBD_COMPONENTS,
@@ -117,12 +127,6 @@ READ_BARS = 270
 #: Closes the score reads: the 252-bar term compares the newest close with the one
 #: 252 bars back, so a split older than these closes cannot move the rating.
 SCORE_BARS = 253
-#: The fallback split guard (no cached split list): a one-bar close ratio beyond
-#: this percent either way, AND split-sized, marks the window unadjusted.
-SPLIT_GUARD_PCT = 60.0
-#: Split factors the fallback recognises, forward (``prev / cur``) and reverse
-#: (their reciprocals). The tolerance is ``bars_sanitize``'s own.
-SPLIT_FACTORS = (2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50)
 #: A ticker whose newest stored bar is more than this many calendar days behind the
 #: session is not rated for it (a stale name, or a hole in the store). Wide enough
 #: for a long weekend plus a night the prewarm missed.
@@ -131,6 +135,9 @@ MAX_BAR_LAG_DAYS = 5
 STALE_DAYS = 3
 #: The backfill's default depth: one trading year.
 BACKFILL_DAYS = 252
+#: The deepest backfill one command accepts: five trading years. A typo of an
+#: extra digit is refused rather than read as a 25-year universe-as-held history.
+BACKFILL_MAX_DAYS = 5 * BACKFILL_DAYS
 
 RATING_COLUMNS = ("ibd", "m1", "m3", "m6", "m12")
 ROW_COLUMNS = ("ibd", "fast", "m1", "m3", "m6", "m12", "score", "bars")
@@ -186,39 +193,6 @@ def closes_from_rows(rows) -> tuple[list[int], list[float]]:
     return ts_out, c_out
 
 
-def _split_tol() -> float:
-    """``bars_sanitize``'s ratio tolerance, read from its one copy (no second number)."""
-    from api.services.bars_sanitize import _SPLIT_TOL
-    return float(_SPLIT_TOL)
-
-
-def _split_sized(step: float, tol: float) -> bool:
-    """True when ``step`` (``prev / cur``) is within ``tol`` of a split factor."""
-    for f in SPLIT_FACTORS:
-        for factor in (float(f), 1.0 / f):
-            if abs(step / factor - 1.0) <= tol:
-                return True
-    return False
-
-
-def split_suspect(closes, pct: float = SPLIT_GUARD_PCT) -> bool:
-    """The fallback guard, used when the declared split list is not cached.
-
-    True when a one-bar close ratio among the newest :data:`SCORE_BARS` closes lies
-    beyond +/- ``pct`` AND is split-sized (see :func:`_split_sized`). Older closes
-    are not read: the score never reaches them.
-    """
-    lo, hi = 1.0 - pct / 100.0, 1.0 + pct / 100.0
-    tail = list(closes)[-SCORE_BARS:]
-    tol = _split_tol()
-    for prev, cur in zip(tail, tail[1:]):
-        if prev > 0 and cur > 0:
-            r = cur / prev
-            if (r < lo or r > hi) and _split_sized(prev / cur, tol):
-                return True
-    return False
-
-
 def _iso(ymd) -> str:
     s = str(int(ymd))
     return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
@@ -228,15 +202,15 @@ def window_split_suspect(ts_win, closes_win, declared) -> bool:
     """Does this scoring window carry an unadjusted split?
 
     ``declared`` is the ticker's declared split list (``[(iso_date, ratio)]``), ``[]``
-    when it has none, or ``None`` when the list is unknown. Known: the one detector,
-    ``bars_sanitize.unadjusted_splits``, over the newest :data:`SCORE_BARS` closes
-    (read-only; the store is never touched here). Unknown: :func:`split_suspect`.
+    when it has none, or ``None`` when the list is unknown. The one detector,
+    ``bars_sanitize.unadjusted_splits``, judges the newest :data:`SCORE_BARS` closes
+    (read-only; the store is never touched here); the older closes are not read
+    because the score never reaches them. Nothing declared, or nothing known, is
+    no evidence of a split: ``False`` (the caller counts the unknown ones).
     """
-    tail_c = list(closes_win)[-SCORE_BARS:]
-    if declared is None:
-        return split_suspect(tail_c)
     if not declared:
         return False
+    tail_c = list(closes_win)[-SCORE_BARS:]
     tail_t = list(ts_win)[-SCORE_BARS:]
     from api.services import bars_sanitize
     bars = [{"t": _iso(t), "c": c} for t, c in zip(tail_t, tail_c)]
@@ -334,11 +308,11 @@ def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> di
     * A window the split guard marks yields ``bars = 0``, every rating ``None`` and
       ``reason = "unadjusted_split"``; the writer stores no row for it. ``suspects``
       is the set of tickers the caller judged against the declared split list
-      (:func:`window_split_suspect`); without it every window gets the fallback,
-      :func:`split_suspect`.
+      (:func:`window_split_suspect`); ``None`` means none was marked.
     * ``bars`` is the count of closes the ticker was scored on.
     """
     etfs = {str(t).upper() for t in (etf_tickers or ())}
+    marked = {str(t).upper() for t in (suspects or ())}
     scores: dict = {}
     comps: dict = {}
     bars: dict = {}
@@ -346,7 +320,7 @@ def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> di
     for t, closes in (closes_by_ticker or {}).items():
         tu = str(t).upper()
         c = [float(x) for x in (closes or ()) if x is not None]
-        if (tu in suspects) if suspects is not None else split_suspect(c):
+        if tu in marked:
             skipped.append(tu)
             continue
         bars[tu] = len(c)
@@ -487,20 +461,30 @@ def default_bars_reader(ticker: str, n: int, to_key: int) -> list:
     return bars_sqlite.get_bars_before(ticker, "D", int(n), int(to_key))
 
 
-def default_splits_reader(ticker: str):
-    """The ticker's declared split list from ``bars_sanitize``'s corporate-action
-    cache: ``[(iso_date, ratio), ...]``, ``[]`` for none declared, ``None`` when the
-    cache does not hold it. CACHE ONLY: a miss schedules no provider fetch (the
-    nightly sweeps the whole universe; the cache warms on the serve path)."""
-    try:
-        from api.services import bars_sanitize as san
-        with san.suppress_meta_warm():
-            meta = san._meta_cached(str(ticker).upper())
-    except Exception:                                        # noqa: BLE001
-        return None
-    if meta is None:
-        return None
-    return list(meta.get("splits") or [])
+#: ``split_fetch_budget`` default: the nightly's provider-fetch budget
+#: (``declared_splits.DEFAULT_FETCH_BUDGET``); ``None`` means no limit.
+NIGHTLY_BUDGET = "nightly"
+
+
+def default_splits_reader(conn=None, *, budget=NIGHTLY_BUDGET, persist: bool = True):
+    """A declared-split-list reader for one run: ``reader(ticker)`` answers
+    ``[(iso_date, ratio), ...]``, ``[]`` for none declared, ``None`` when unknown.
+
+    :class:`api.services.declared_splits.DeclaredSplits` over ``conn`` (the run's
+    ``screener.db`` connection, where its memo table lives): a stored provider
+    answer, then ``bars_sanitize``'s cache, then at most ``budget`` provider
+    fetches (:data:`NIGHTLY_BUDGET`: the module default; ``None``: no limit). A cold
+    cache alone would leave most of the universe unjudged (that module's header
+    says why)."""
+    from api.services import declared_splits
+    if budget == NIGHTLY_BUDGET:
+        budget = declared_splits.DEFAULT_FETCH_BUDGET
+    return declared_splits.DeclaredSplits(conn, budget=budget, persist=persist)
+
+
+def _split_stats(reader) -> dict | None:
+    stats = getattr(reader, "stats", None)
+    return dict(stats) if isinstance(stats, dict) else None
 
 
 def _split_list(splits_reader, ticker: str):
@@ -661,18 +645,39 @@ def _counts_for(ratings: dict, etfs: set) -> dict:
 
 def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
                 fast_map=None, etf_tickers=None, now=None, session_fn=None,
-                splits_reader=None) -> dict:
+                splits_reader=None, split_fetch_budget=NIGHTLY_BUDGET) -> dict:
     """Rate the universe for one session and store the rows. Never raises.
 
     ``session`` defaults to the last completed session before ``now`` through
     ``session_fn`` (default :func:`settled_session`). ``universe`` defaults to the
     cap universe, ``etf_tickers`` to :func:`default_etf_tickers`, ``bars_reader`` to
     the web pod's ``bars_sqlite`` daily read and ``fast_map`` to the cached UCT fast
-    rating. ``splits_reader`` (default :func:`default_splits_reader`) gives the
-    declared split list the split guard judges against. Rows are ``INSERT OR
-    REPLACE`` for the session, so a rerun for the same session leaves the same rows.
-    Returns the receipt it recorded.
+    rating. ``splits_reader`` (default :func:`default_splits_reader`, with
+    ``split_fetch_budget``) gives the declared split list the split guard judges
+    against. Rows are ``INSERT OR REPLACE`` for the session, so a rerun for the same
+    session leaves the same rows. Returns the receipt it recorded.
     """
+    kw = dict(universe=universe, data_dir=data_dir, bars_reader=bars_reader, fast_map=fast_map,
+              etf_tickers=etf_tickers, now=now, session_fn=session_fn)
+    if splits_reader is not None:
+        return _nightly(session, splits_reader=splits_reader, **kw)
+    conn = None
+    try:
+        conn = snapshot_db.connect()                         # the split-list memo lives in screener.db
+    except Exception as e:                                   # noqa: BLE001 - never costs the build
+        log.warning("[rs_history] split-list memo unavailable (%s); judging from the cache", e)
+    try:
+        return _nightly(session, splits_reader=default_splits_reader(conn, budget=split_fetch_budget), **kw)
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:                                # noqa: BLE001
+                pass
+
+
+def _nightly(session, *, universe, data_dir, bars_reader, fast_map, etf_tickers, now,
+             session_fn, splits_reader) -> dict:
     t0 = time.time()
     receipt = {"ok": False, "session": None, "started_at": t0, "finished_at": None,
                "universe": None, "targets": None, "rated": 0, "rows": 0, "excluded_etfs": None,
@@ -694,7 +699,7 @@ def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
         receipt["targets"] = len(targets)
         receipt["excluded_etfs"] = len(etfs & set(targets))
         reader = bars_reader or default_bars_reader
-        split_reader = splits_reader or default_splits_reader
+        split_reader = splits_reader
         fast = fast_map if fast_map is not None else default_fast_map()
         closes_by_ticker: dict = {}
         suspects: set = set()
@@ -725,6 +730,9 @@ def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
                        split_guard=counts["split_guard"])
         receipt["note"]["etfs_rated"] = counts["etfs_rated"]
         receipt["note"]["split_basis"] = split_basis
+        lists = _split_stats(split_reader)
+        if lists is not None:
+            receipt["note"]["split_lists"] = lists
         receipt["rows"] = store_rows(key, ratings, fast, replace=True)
         receipt["fast_filled"] = sum(1 for t, r in ratings.items()
                                      if r.get("bars") and _fast_for(fast, t) is not None)
@@ -739,10 +747,11 @@ def nightly_job(session=None, *, universe=None, data_dir=None, bars_reader=None,
     return out
 
 
-def _finish(receipt: dict, t0: float) -> dict:
+def _finish(receipt: dict, t0: float, *, record: bool = True) -> dict:
     receipt["finished_at"] = time.time()
     receipt["duration_ms"] = round((receipt["finished_at"] - t0) * 1000, 1)
-    record_run(receipt)
+    if record:
+        record_run(receipt)
     if receipt.get("ok"):
         log.info("[rs_history] %s: rated %s of %s targets (%s ETFs by interpolation, %s short, "
                  "%s stale, %s split-guarded) in %s ms", receipt.get("session"), receipt.get("rated"),
@@ -753,101 +762,198 @@ def _finish(receipt: dict, t0: float) -> dict:
     return receipt
 
 
+#: ``split_fetch_budget`` default for :func:`backfill`: no provider limit for a real
+#: run (a first year needs every name's list once), none at all for a dry run.
+AUTO_BUDGET = "auto"
+
+
+@contextmanager
+def _backfill_conn(dry_run: bool):
+    """The backfill's ``screener.db`` connection. A dry run opens the file READ-ONLY
+    and, when it does not exist yet, opens nothing (``None``): a dry run never
+    creates the file, a table or a memo row."""
+    if not dry_run:
+        with closing(snapshot_db.connect()) as conn:
+            yield conn
+        return
+    path = snapshot_db.get_db_path()
+    if not os.path.exists(path):
+        yield None
+        return
+    conn = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=30)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _stored_sessions(conn, keys) -> set:
+    """The keys that already hold at least one row: one primary-key seek per key,
+    and nothing created when the table does not exist yet."""
+    if not keys or conn is None or not _table_exists(conn, TABLE):
+        return set()
+    out = set()
+    for key in keys:
+        if conn.execute(f"SELECT 1 FROM {TABLE} WHERE session = ? LIMIT 1", (key,)).fetchone():
+            out.add(key)
+    return out
+
+
 def backfill(days: int = BACKFILL_DAYS, *, universe=None, data_dir=None, bars_reader=None,
              etf_tickers=None, now=None, session_fn=None, sessions=None,
-             splits_reader=None) -> dict:
-    """One-shot point-in-time history over the names held today. Never raises.
+             splits_reader=None, dry_run: bool = False, max_sessions=None,
+             split_fetch_budget=AUTO_BUDGET, log_every: int = 25) -> dict:
+    """Point-in-time rating history for the ``days`` sessions ending at the settled
+    session, over the names held today (owner decision D2). Never raises.
 
-    Behind :func:`marker_path` - present means done, and the marker is written only
-    after a run that rated at least half of its sessions. Each ticker is read ONCE
-    (``READ_BARS + days`` closes to the newest session) and sliced per session, so
-    the cost is one indexed seek per name, not one per name per session. Rows are
-    ``INSERT OR IGNORE``: a session the nightly already wrote keeps the nightly's
-    rows (which carry ``fast``; backfilled rows have none - the fast rating has no
-    history). The receipt note says ``survivorship_corrected = False`` (plan §9).
+    IDEMPOTENT: a session that already holds rows is skipped, never rewritten, so a
+    session the nightly wrote keeps the nightly's rows (they carry ``fast``; the
+    fast rating has no history to backfill). RESUMABLE: each session commits as it
+    is written, newest first, so a run that dies, or one bounded by
+    ``max_sessions``, is finished by running the same command again. BOUNDED:
+    ``days`` must lie in ``1 .. BACKFILL_MAX_DAYS`` and ``max_sessions`` caps the
+    sessions written per call. Each ticker is read ONCE (``READ_BARS`` plus the span
+    still to write) and sliced per session: one indexed seek per name.
+
+    ``dry_run`` reads and rates exactly as a real run would and writes NOTHING: no
+    row, no receipt, no marker, no split-list memo. Its ``split_fetch_budget``
+    defaults to 0 (stored answers and the cache only, no provider call); a real
+    run's defaults to no limit. The marker is written once every requested session
+    holds rows. The receipt note says ``survivorship_corrected = False`` (plan §9).
     """
     t0 = time.time()
     marker = marker_path(data_dir)
-    if os.path.exists(marker):
-        return {"ok": True, "skipped": True, "reason": "marker_present", "marker": marker}
-    receipt = {"ok": False, "session": None, "started_at": t0, "finished_at": None,
-               "universe": None, "targets": None, "rated": 0, "rows": 0, "excluded_etfs": None,
-               "short_history": 0, "duration_ms": 0.0,
-               "note": {"source": "backfill", "days": int(days), "sessions": 0, "sessions_rated": 0,
-                        "point_in_time": True, "survivorship_corrected": False}}
+    receipt = {"ok": False, "dry_run": bool(dry_run), "session": None, "started_at": t0,
+               "finished_at": None, "universe": None, "targets": None, "rated": 0, "rows": 0,
+               "excluded_etfs": None, "short_history": 0, "split_guard": 0, "duration_ms": 0.0,
+               "note": {"source": "backfill", "days": None, "sessions": 0, "sessions_stored": 0,
+                        "sessions_todo": 0, "sessions_written": 0, "sessions_rated": 0,
+                        "sessions_remaining": 0, "point_in_time": True,
+                        "survivorship_corrected": False}}
+    record = not dry_run
     try:
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            days = 0
+        receipt["note"]["days"] = days
+        if not 1 <= days <= BACKFILL_MAX_DAYS:
+            receipt["note"]["reason"] = f"days must be 1 to {BACKFILL_MAX_DAYS}"
+            return _finish(receipt, t0, record=False)
         if sessions is None:
             end = (session_fn or settled_session)(now)
             if end is None:
                 receipt["note"]["reason"] = "no_session"
-                return _finish(receipt, t0)
-            sessions = trading_sessions_ending(end, int(days))
-        keys = sorted(session_key(s) for s in sessions)
+                return _finish(receipt, t0, record=record)
+            sessions = trading_sessions_ending(end, days)
+        keys = sorted({session_key(s) for s in sessions})
         receipt["note"]["sessions"] = len(keys)
         if not keys:
             receipt["note"]["reason"] = "no_sessions"
-            return _finish(receipt, t0)
+            return _finish(receipt, t0, record=record)
         receipt["session"] = keys[-1]
-        uni, etfs = _resolve_population(universe, etf_tickers)
-        targets = sorted(uni | etfs)
-        receipt["universe"] = len(uni - etfs)
-        receipt["targets"] = len(targets)
-        receipt["excluded_etfs"] = len(etfs & set(targets))
-        reader = bars_reader or default_bars_reader
-        split_reader = splits_reader or default_splits_reader
-        depth = READ_BARS + len(keys) + 10
-        end_ymd = session_ymd(keys[-1])
-        series: dict = {}
-        for t in targets:
-            try:
-                rows = reader(t, depth, end_ymd)
-            except Exception as e:                           # noqa: BLE001
-                log.debug("[rs_history] backfill read failed for %s: %s", t, e)
-                rows = None
-            ts_list, closes = closes_from_rows(rows)
-            if ts_list:
-                series[t] = (ts_list, closes, _split_list(split_reader, t))
-        receipt["note"]["tickers_with_bars"] = len(series)
-        receipt["note"]["split_basis"] = {
-            "declared": sum(1 for s in series.values() if s[2] is not None),
-            "unknown": sum(1 for s in series.values() if s[2] is None)}
-        rated_sessions = 0
-        with closing(snapshot_db.connect()) as conn:
-            ensure_schema(conn)
-            for key in keys:
-                ymd = session_ymd(key)
-                closes_by_ticker = {}
-                suspects = set()
-                for t, (ts_list, closes, declared) in series.items():
-                    bounds = _window_bounds(ts_list, ymd)
-                    if bounds is None:
-                        continue
-                    win = closes[bounds[0]:bounds[1]]
-                    if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
-                        suspects.add(str(t).upper())
-                    closes_by_ticker[t] = win
-                ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
-                counts = _counts_for(ratings, etfs)
-                receipt["rated"] += counts["rated"]
-                receipt["short_history"] += counts["short_history"]
-                receipt["rows"] += store_rows(key, ratings, None, replace=False, conn=conn)
-                if counts["rated"]:
-                    rated_sessions += 1
-        receipt["note"]["sessions_rated"] = rated_sessions
-        receipt["ok"] = rated_sessions >= max(1, len(keys) // 2)
-        if receipt["ok"]:
-            written = _write_marker(
-                marker, f"done ts={int(time.time())} sessions={len(keys)} sessions_rated={rated_sessions} "
-                        f"rated_rows={receipt['rated']} survivorship_corrected=False")
-            receipt["note"]["marker_written"] = written
-        else:
-            receipt["note"]["reason"] = "too_few_sessions_rated"
+        with _backfill_conn(dry_run) as conn:
+            stored = _stored_sessions(conn, keys)
+            todo = sorted((k for k in keys if k not in stored), reverse=True)   # newest first
+            receipt["note"]["sessions_stored"] = len(stored)
+            if max_sessions is not None and int(max_sessions) >= 0:
+                todo = todo[:int(max_sessions)]
+            receipt["note"]["sessions_todo"] = len(todo)
+            if not todo:
+                receipt["ok"] = True
+                receipt["note"]["reason"] = "nothing_to_do"
+                remaining = len(keys) - len(stored)
+                receipt["note"]["sessions_remaining"] = remaining
+                if not dry_run and remaining == 0 and not os.path.exists(marker):
+                    receipt["note"]["marker_written"] = _write_marker(
+                        marker, f"done ts={int(time.time())} sessions={len(keys)} survivorship_corrected=False")
+                return _finish(receipt, t0, record=record)
+            _backfill_sessions(receipt, conn, keys, todo, universe=universe, etf_tickers=etf_tickers,
+                               bars_reader=bars_reader, splits_reader=splits_reader, dry_run=dry_run,
+                               split_fetch_budget=split_fetch_budget, log_every=log_every)
+            remaining = len(keys) - len(_stored_sessions(conn, keys)) if not dry_run else \
+                len(keys) - len(stored) - len(todo)
+        note = receipt["note"]
+        note["sessions_remaining"] = remaining
+        receipt["ok"] = note["sessions_rated"] >= max(1, len(todo) // 2)
+        if not receipt["ok"]:
+            note["reason"] = "too_few_sessions_rated"
+        elif not dry_run and remaining == 0:
+            note["marker_written"] = _write_marker(
+                marker, f"done ts={int(time.time())} sessions={len(keys)} "
+                        f"sessions_rated={note['sessions_rated']} rated_rows={receipt['rated']} "
+                        f"survivorship_corrected=False")
     except Exception as e:                                   # noqa: BLE001
         log.warning("[rs_history] backfill failed: %s: %s", type(e).__name__, e)
         receipt["note"]["error"] = f"{type(e).__name__}: {e}"[:300]
-    out = _finish(receipt, t0)
+    out = _finish(receipt, t0, record=record)
     out["marker"] = marker
     return out
+
+
+def _backfill_sessions(receipt, conn, keys, todo, *, universe, etf_tickers, bars_reader,
+                       splits_reader, dry_run, split_fetch_budget, log_every) -> None:
+    """The body of :func:`backfill`: read every target once, rate and store each
+    session in ``todo`` (newest first). Fills ``receipt`` in place."""
+    note = receipt["note"]
+    uni, etfs = _resolve_population(universe, etf_tickers)
+    targets = sorted(uni | etfs)
+    receipt["universe"] = len(uni - etfs)
+    receipt["targets"] = len(targets)
+    receipt["excluded_etfs"] = len(etfs & set(targets))
+    reader = bars_reader or default_bars_reader
+    if splits_reader is None:
+        budget = (0 if dry_run else None) if split_fetch_budget == AUTO_BUDGET else split_fetch_budget
+        splits_reader = default_splits_reader(conn, budget=budget, persist=not dry_run)
+    # Bars from READ_BARS before the oldest session still to write, to the newest.
+    span = keys.index(todo[0]) - keys.index(todo[-1]) + 1
+    depth = READ_BARS + span + 10
+    end_ymd = session_ymd(todo[0])
+    series: dict = {}
+    for t in targets:
+        try:
+            rows = reader(t, depth, end_ymd)
+        except Exception as e:                               # noqa: BLE001
+            log.debug("[rs_history] backfill read failed for %s: %s", t, e)
+            rows = None
+        ts_list, closes = closes_from_rows(rows)
+        if ts_list:
+            series[t] = (ts_list, closes, _split_list(splits_reader, t))
+    note["tickers_with_bars"] = len(series)
+    note["split_basis"] = {"declared": sum(1 for s in series.values() if s[2] is not None),
+                           "unknown": sum(1 for s in series.values() if s[2] is None)}
+    lists = _split_stats(splits_reader)
+    if lists is not None:
+        note["split_lists"] = lists
+    if not dry_run:
+        ensure_schema(conn)
+    for n, key in enumerate(todo, 1):
+        ymd = session_ymd(key)
+        closes_by_ticker = {}
+        suspects = set()
+        for t, (ts_list, closes, declared) in series.items():
+            bounds = _window_bounds(ts_list, ymd)
+            if bounds is None:
+                continue
+            win = closes[bounds[0]:bounds[1]]
+            if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+                suspects.add(str(t).upper())
+            closes_by_ticker[t] = win
+        ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
+        counts = _counts_for(ratings, etfs)
+        receipt["rated"] += counts["rated"]
+        receipt["short_history"] += counts["short_history"]
+        receipt["split_guard"] += counts["split_guard"]
+        if dry_run:
+            receipt["rows"] += sum(1 for r in ratings.values() if r.get("bars"))
+        else:
+            receipt["rows"] += store_rows(key, ratings, None, replace=False, conn=conn)
+            note["sessions_written"] += 1
+        if counts["rated"]:
+            note["sessions_rated"] += 1
+        if log_every and n % log_every == 0:
+            log.info("[rs_history] backfill %d/%d sessions (newest first), at %s", n, len(todo), key)
 
 
 # --------------------------------------------------------------------------- #
@@ -1011,3 +1117,65 @@ def status(data_dir=None) -> dict:
         log.warning("[rs_history] status read failed: %s", e)
     return {"table": TABLE, "rows": rows, "sessions": sessions, "latest_session": latest,
             "last_run": last_run(), "backfill": marker_state(data_dir)}
+
+
+# --------------------------------------------------------------------------- #
+# the one-shot backfill command (owner decision D2)
+# --------------------------------------------------------------------------- #
+
+def _parser():
+    import argparse
+    ap = argparse.ArgumentParser(
+        prog="python -m api.services.screener.rs_history",
+        description="One-shot backfill of the UCT RS rating history: point-in-time ratings for the "
+                    "last N sessions from bars.db over today's universe. Idempotent (a session that "
+                    "already holds rows is skipped) and resumable (run it again to finish). Run it on "
+                    "the web pod, by hand, when RS_HISTORY_ENABLED is armed; nothing schedules it.")
+    ap.add_argument("--backfill-days", type=int, required=True, metavar="N",
+                    help=f"sessions to cover, ending at the settled session (1 to {BACKFILL_MAX_DAYS}; "
+                         f"{BACKFILL_DAYS} is one trading year)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="rate and report, write nothing (no rows, receipt, marker or split-list memo)")
+    ap.add_argument("--max-sessions", type=int, default=None, metavar="N",
+                    help="write at most N sessions this run, newest first (default: all still missing)")
+    ap.add_argument("--split-fetch-budget", type=int, default=None, metavar="N",
+                    help="provider fetches for declared split lists (default: no limit on a real run, "
+                         "0 on a dry run, which reads stored answers and the cache only)")
+    return ap
+
+
+def main(argv=None) -> int:
+    """The CLI. Exit 0 when the run finished (or had nothing to do), 1 when it did
+    not, 2 on a usage error. The receipt prints as one ``receipt {json}`` line."""
+    import sys
+    try:
+        args = _parser().parse_args(list(argv) if argv is not None else None)
+    except SystemExit as e:                                  # argparse: 2 on error, 0 on --help
+        return int(e.code) if isinstance(e.code, int) else 2
+    if not 1 <= args.backfill_days <= BACKFILL_MAX_DAYS:
+        print(f"rs_history: --backfill-days must be 1 to {BACKFILL_MAX_DAYS}", file=sys.stderr)
+        return 2
+    if args.max_sessions is not None and args.max_sessions < 1:
+        print("rs_history: --max-sessions must be 1 or more", file=sys.stderr)
+        return 2
+    if args.split_fetch_budget is not None and args.split_fetch_budget < 0:
+        print("rs_history: --split-fetch-budget must be 0 or more", file=sys.stderr)
+        return 2
+    budget = AUTO_BUDGET if args.split_fetch_budget is None else args.split_fetch_budget
+    receipt = backfill(args.backfill_days, dry_run=args.dry_run, max_sessions=args.max_sessions,
+                       split_fetch_budget=budget)
+    note = receipt.get("note") or {}
+    dry = bool(receipt.get("dry_run"))
+    done = note.get("sessions_todo") if dry else note.get("sessions_written")
+    print(f"rs_history backfill{' (dry run)' if dry else ''}: sessions={note.get('sessions')} "
+          f"already_stored={note.get('sessions_stored')} {'would_write' if dry else 'written'}={done} "
+          f"remaining={note.get('sessions_remaining')} rated_rows={receipt.get('rated')} "
+          f"split_guard={receipt.get('split_guard')} ms={receipt.get('duration_ms')} "
+          f"ok={receipt.get('ok')}", flush=True)
+    print("receipt " + json.dumps(receipt, sort_keys=True, default=str), flush=True)
+    return 0 if receipt.get("ok") else 1
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    raise SystemExit(main())
