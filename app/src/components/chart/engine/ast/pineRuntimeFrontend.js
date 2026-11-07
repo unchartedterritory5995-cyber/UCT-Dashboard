@@ -35,7 +35,7 @@ import {
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
-  declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts,
+  declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -3938,14 +3938,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return null
   }
 
-  /** The family of a collection-valued initialiser: the namespace of the call
-   *  that builds it (`matrix.*` / `map.*`; `array.*` and `str.split` are arrays),
-   *  or the kind of the collection a name already holds. ⚠️ An unserved
-   *  `matrix.*` / `map.*` call is refused when it is lowered, so its slot is never
-   *  read; T7 / T8 replace the namespace with each member's declared result. */
+  /** The family of a collection-valued initialiser: a HELD member's declared result
+   *  (W6-T7: `matrix.new` / `copy` / `submatrix` / `sum` a matrix, `matrix.row` / `col` /
+   *  `remove_row` / `remove_col` an array), else the namespace of the call that builds
+   *  it (`matrix.*` / `map.*`; `array.*` and `str.split` are arrays), or the kind of the
+   *  collection a name already holds. ⚠️ An unserved `matrix.*` / `map.*` call is
+   *  refused when it is lowered, so its slot is never read (and at the object door,
+   *  where no `matrix.*` member is held, this answers master's namespace). */
   const collectionKindOf = (node, scope, depth = 0) => {
     if (!node || depth > 24) return 'array'
     if (node.type === 'call') {
+      if (heldArray(node.name)) return ARRAY_FNS[node.name].returns === 'matrix' ? 'matrix' : 'array'
       const ns = String(node.name || '').split('.')[0]
       return ns === 'matrix' || ns === 'map' ? ns : 'array'
     }
@@ -6054,19 +6057,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *
    *  The qualifier is READ from the extracted reference (`windowLengthQualifiers.json`), never
    *  typed here: `ta.sma`/`ta.highest`/`ta.stdev`... say `length (series int)`, `ta.ema`/`ta.rsi`
-   *  say `simple int` and keep their refusal. v6 and v5 only, each from its own version reference (v4 and below have no section),
+   *  say `simple int` and keep their refusal. v6, v5 and v4 (W34-I6c), each from its own version reference (v3 and below have no section),
    *  never in a request's value (it has its own series), and ⛔ never at the live OBJECT door:
    *  that door keeps master's answer until a TradingView capture settles the shape (W4-S1).
    *  https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma */
   const seriesLengthFn = (pineName) => {
     if (atObjectDoor || inRequestValue || pineVersion === null) return false
     // ⭐ W4-T8 r1 - the table of the script own version: v6 from the v6 reference, v5 from the v5 reference
-    // (both generated). v4 and below have no section, so they serve nothing.
-    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length : (pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length : null)
+    // (both generated). ⭐ W34-I6c - v4 from the v4 reference (generated: its `length (series[integer])`
+    // is written `series int`, its bare `integer` is kept as `integer` and serves nothing). v3 and below
+    // have no section, so they serve nothing.
+    //   https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars
+    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length
+      : pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length
+        : pineVersion === 4 ? LENGTH_QUALIFIERS.v4Length : null
     if (!table) return false
     const name = String(pineName)
     // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it: the
-    // bare name asks the same reference entry, spelled with its `ta.` namespace
+    // bare name asks the same reference entry, spelled with its `ta.` namespace. v4 names carry no
+    // namespace (`highestbars`), so the bare name IS the v4 entry.
     return table[name] === 'series int' || table['ta.' + name] === 'series int'
   }
 
@@ -6103,7 +6112,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // builder two probe nodes and reads the tree back; a rewrite that stops
     // being a bare negation — or that starts touching its arguments — fails the
     // structural match and REFUSES rather than quietly changing meaning.
-    const ns = namespacedWindowShape(name)
+    // ⭐⭐ W34-I6c — THE KEY IS pine.js's, BY THE SCRIPT'S VERSION: a v1-v4 bare `highestbars` IS
+    // `ta.highestbars` (pine.js re-routes it, measured against TradingView), so it takes the same
+    // negated shape. Asking the tree with the bare name answered the positive table entry: the
+    // right magnitude and the wrong sign, for every v4 `highestbars` / `lowestbars` in this lane.
+    const nsName = pineNamespacedName(name, pineVersion)
+    const ns = nsName === null ? undefined : namespacedWindowShape(nsName)
     if (ns !== undefined) return ns
     let bare = name
     const dot = name.indexOf('.')
@@ -7730,8 +7744,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           if (rslot !== null && rslot !== undefined && slotIsCollection(rslot)) {
             // ⭐ W6-T3a — THE RECEIVER'S OWN FAMILY (`methodNsOf`): `m.rows()` on a
-            // matrix is `matrix.rows(m)`. Only arrays are served, so only an
-            // `array.*` member is ever admitted here.
+            // matrix is `matrix.rows(m)`. ⭐ W6-T7 — a held `matrix.*` member is admitted
+            // here like an `array.*` one; `map.*` is not served, so it refuses below.
             // ⭐ W6-T3b — the family is the RECEIVER EXPRESSION's type (`exprType`),
             // which for a name is its slot's descriptor: identical for every receiver
             // served today, and the one question T9's chains will ask.
