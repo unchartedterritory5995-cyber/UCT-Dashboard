@@ -31,7 +31,7 @@ export function unseen2(L) {
   m('unsupported', ...nope('maximize the top right cell', 'Maximize is the cell\'s own button.'))
   m('target', 'make the bottom left cell a line chart', [op('chart.setType', ch('C'), { type: 'line' })], changes(['C'], [px('C')], { undo: true }), { inventory: ['C3-057'] })
   m('target', 'bars instead of candles in the top right cell', [op('chart.setType', ch('B'), { type: 'bars' })], changes(['B'], [px('B')], { undo: true }), { inventory: ['C3-057'] })
-  m('target', 'regular hours only in the top left cell', [op('chart.setSession', ch('A'), { mode: 'regular' })], changes(['A'], [], { receipt: true }), { inventory: ['C3-058'], unverifiable: ['a daily cell shows the same bars either way during regular hours: the checks are the receipt and that no other cell moved'] })
+  m('target', 'regular hours only in the top left cell', [op('chart.setSession', ch('A'), { mode: 'regular' })], { outcome: 'answer', says: 'already|regular' }, { inventory: ['C3-058'], unverifiable: ['a daily cell already shows regular hours, so the right answer is a no-op that says so: clock-dependent outside regular hours'] })
   m('combo', 'top left weekly, top right monthly', [tf('A', 'W'), tf('B', 'M')], changes(['A', 'B'], [['A.tf', 'eq', 'W'], ['B.tf', 'eq', 'M']], { undo: true }), { inventory: ['C3-056'] })
 
   // ── saved grids: Multi Chart grids have no Agent capability; a board's layout does ───────────────────────────────────────
@@ -39,7 +39,7 @@ export function unseen2(L) {
   g('unsupported', ...nope('save this grid as Tech Four', 'Saving a Multi Chart grid is on its toolbar; I can\'t save one.'))
   g('unsupported', ...nope('load my saved grid called Semis', 'Saved grids open from the Multi Chart toolbar.', { inventory: ['C3-052'] }))
   g('unsupported', ...nope('delete the Semis grid', 'Saved grids are managed from the Multi Chart toolbar.', { inventory: ['C3-055'] }))
-  g('params', 'a 2 by 2 of SPY QQQ IWM DIA on the hourly', [op('chartGrid.set', '$list:board', { symbols: ['SPY', 'QQQ', 'IWM', 'DIA'], timeframe: '60', layout: 'grid', new_charts: null, watchlist: null, replace: true })], { outcome: 'change', expect: [['chartCount', 'eq', 4]], undo: true }, { board: 'FOUR', inventory: ['C3-042'] })
+  g('params', 'a 2 by 2 of SPY QQQ DIA MSFT on the hourly', [op('chartGrid.set', '$list:board', { symbols: ['SPY', 'QQQ', 'DIA', 'MSFT'], timeframe: '60', layout: 'grid', new_charts: null, watchlist: null, replace: true })], { outcome: 'change', expect: [['chartCount', 'eq', 4]], undo: true }, { board: 'FOUR', inventory: ['C3-042'] })
 
   // ── indicator templates (dark flag) ──────────────────────────────────────────────────────────────────────────────────
   const T = '$list:indicatorTemplateLibrary'
@@ -59,12 +59,12 @@ export function unseen2(L) {
   a('target', 'tell me when the 9 ema drops below the 20 on the right chart', null, changes(['B'], [['ialerts', 'len', 1], ['ialerts.0.condition', 'eq', 'cross_below'], ['ialerts.0.sym', 'eq', 'AAPL']], { confirm: true }), { inventory: ['C2-090'], turns: [say('tell me when the 9 ema drops below the 20 on the right chart', propose([iac({ instance: '$inst:B:EMA 9', condition: 'cross_below', crossWith: '$inst:B:EMA 20', chart: ch('B') })]))] })
   a('phrasing', 'list my indicator alerts', [op('indicatorAlert.list', IA, { symbol: null, status: null })], reads(), { inventory: ['C2-097'] })
   a('invalid', [say('rsi here', [rsi('A')]), say('alert when rsi goes above 150', propose([iac({ instance: '$inst:A:RSI', condition: 'above', threshold: 150, chart: ch('A') })]))], null, { outcome: 'change', expect: [['ialerts', 'len', 0], paneUp('A')], receipt: true }, { select: 'A', unverifiable: ['whether 150 is refused or accepted is the product\'s rule (RSI tops out at 100): the check is that no alert was made'] })
-  a('invalid', 'alert me when the stochastic crosses 80', [], asks(), { select: 'A', turns: [say('alert me when the stochastic crosses 80', clarify('There is no stochastic on this chart. Add one first, or pick an indicator that is here:', ['RSI', 'EMA 9']))] })
+  a('invalid', 'alert me when the stochastic crosses 80', [], asks(), { select: 'A', turns: [say('alert me when the stochastic crosses 80', clarify('There is no stochastic on this chart. Which indicator should it watch?', ['RSI', 'EMA 9']))] })
 
   // ── compare and overlay ───────────────────────────────────────────────────────────────────────────────────────────────
   const c = family(L, 'u2-compare', { inv: ['C1-034'], board: 'TWO', select: 'A' })
-  c('combo', 'overlay QQQ and IWM on this chart', [cmp('A', ['QQQ', 'IWM'])], changes(['A'], [px('A')], { undo: true }))
-  c('followup', [say('overlay QQQ and IWM here', [cmp('A', ['QQQ', 'IWM'])]), say('take QQQ off again', [cmp('A', [], ['QQQ'])])], null, changes(['A'], [px('A')]), { inventory: ['C1-036'] })
+  c('combo', 'overlay QQQ and DIA on this chart', [cmp('A', ['QQQ', 'DIA'])], changes(['A'], [px('A')], { undo: true }))
+  c('followup', [say('overlay QQQ and DIA here', [cmp('A', ['QQQ', 'DIA'])]), say('take QQQ off again', [cmp('A', [], ['QQQ'])])], null, changes(['A'], [px('A')]), { inventory: ['C1-036'] })
   c('followup', [say('compare this with QQQ', [cmp('A', ['QQQ'])]), say('give the comparison its own scale', [op('chartSetup.compareDisplay', ch('A'), { symbols: [], scale: 'new', visible: null, groupOnly: null })])], null, changes(['A'], [px('A')]), { inventory: ['C1-040'] })
   c('followup', [say('compare this with QQQ', [cmp('A', ['QQQ'])]), say('hide SPY itself and just show the comparison', [op('chartSetup.compareDisplay', ch('A'), { symbols: [], scale: null, visible: null, groupOnly: true })])], null, changes(['A'], [px('A')]), { inventory: ['C1-041'] })
   c('target', 'compare the top right chart with SPY', [cmp('TR', ['SPY'])], changes(['TR'], [px('TR')], { undo: true }), { board: 'FOUR', select: 'BL' })
@@ -78,7 +78,7 @@ export function unseen2(L) {
   s('params', 'show the right chart as an area chart', [op('chart.setType', ch('B'), { type: 'area' })], changes(['B'], [px('B')], { undo: true }), { select: null })
   s('params', 'HLC bars on this one', [op('chart.setType', ch('A'), { type: 'hlc' })], changes(['A'], [px('A')], { undo: true }))
   s('phrasing', 'flip the price scale upside down', [set('A', 'invertScale', true)], changes(['A'], [px('A')], { undo: true }), { inventory: ['C1-024'] })
-  s('phrasing', 'thin bars on this chart', [set('A', 'candles.thinBars', true)], changes(['A'], [px('A')], { undo: true }), { inventory: ['C1-018'] })
+  s('followup', [say('switch this to bars', [op('chart.setType', ch('A'), { type: 'bars' })]), say('now make the bars thin', [set('A', 'candles.thinBars', true)])], null, changes(['A'], [px('A')]), { inventory: ['C1-018'], unverifiable: ['thin bars apply to Bars and HLC only (the product refuses them on candles): the second step is checked as part of the end picture'] })
   s('params', 'bigger text on the chart, size 16', [set('A', 'textSize', 16)], changes(['A'], [px('A')], { undo: true }), { inventory: ['C1-055'] })
   s('phrasing', 'heikin ashi candles on the right chart', [set('B', 'heikinAshi', true)], changes(['B'], [px('B')], { undo: true }), { select: null, inventory: ['C1-016'] })
   s('invalid', 'make the candles triangles', [], refuses(), { turns: [say('make the candles triangles', unsupported('UCT draws candles, hollow candles, bars, HLC, line and area. Triangles aren\'t one of them.'))] })
