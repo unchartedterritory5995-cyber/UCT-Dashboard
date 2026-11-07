@@ -190,11 +190,11 @@ def failed_line(ex: dict) -> str:
         return ""
     c = (ex.get("facts") or {}).get("culmination") or {}
     best = c.get("culm_pct")
-    lead = f", after a best of {best:.1f}% first" if best is not None and best >= 1 else ""
+    lead = f", after a best of {best}% first" if best is not None and best >= 1 else ""   # as stored: no re-rounding
     if c.get("broke_at"):
         return f" This one fired, then failed: a close broke the signal day's low {c['broke_at']} sessions later{lead}."
     if c.get("ret20_pct") is not None:
-        return (f" This one fired, then failed the finder's test: 20 sessions later it stood {c['ret20_pct']:.1f}% from "
+        return (f" This one fired, then failed the finder's test: 20 sessions later it stood {c['ret20_pct']}% from "
                 f"the signal close{lead}.")
     return " This one fired, then failed the finder's test."
 

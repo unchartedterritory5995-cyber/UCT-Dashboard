@@ -14,8 +14,10 @@ Two new chart-question families, each answer read by Chart IQ itself from the ba
 Every example is a held one (the 20-session confirmation in scan_chartiq.py), from the top 1,000 stocks by dollar volume
 that session, at most two per stock per question (never two in one era), one per date, spread over six eras and the
 sectors. Each event is re-read on the member's own window (the 300 bars up to the day) and kept only when Chart IQ names
-it there too; no distractor is an event that also fired on that bar. All drafts: the owner approves each on the review
-screen.
+it there too; no distractor is an event that also fired on that bar; and every chart window is checked against
+Yahoo today (second_source.py), which drops an old ticker whose company trades under another symbol now (SQ next to
+XYZ). One short brain quote per name where the brain teaches it, verified word for word. All drafts: the owner
+approves each on the review screen.
 
   python -X utf8 scripts/study/bank_v2/gen_chartiq.py --events <events.jsonl.gz> --bars-db <bars.db>
 """
@@ -35,6 +37,11 @@ sys.path.insert(0, str(REPO))
 
 from api.services.chart_iq.engine import v44_read as R  # noqa: E402
 from scripts.study._common import make_item, write_segment  # noqa: E402
+from scripts.study.bank_v2 import second_source  # noqa: E402
+
+#: its own cache, so it never races draft_pass over second_source.json
+YAHOO_CACHE = REPO / "docs" / "study" / "bank_v2" / "second_source_chartiq.json"
+YAHOO: dict = {}
 
 WINDOW, FORWARD = 120, 20
 ERAS = ["1995-99", "2000-04", "2005-09", "2010-14", "2015-19", "2020-26"]
@@ -133,6 +140,62 @@ CYCLE_OVERLAYS = [
 ]
 
 
+# One short line from the brain per name, quoted word for word from the knowledge base (docs/study/levels/
+# pod_kb_cycle.py, the owner's run of 2026-11-06, saved as brain_kb_cycle_2026-11-06.json). Each quote is checked
+# against its passage when the bank is built; a quote that is not found stops the build. Names whose passages are trade
+# logs rather than teaching get no quote.
+BQ: dict = {}
+BRAIN_FILE = REPO / "docs" / "study" / "levels" / "brain_kb_cycle_2026-11-06.json"
+BRAIN = {
+    "Reversal extension": ("Reversal extension", 10865, "TSDR, sharing a Brian Shannon principle",
+                           "the hardest window to trade is between a reversal extension and the eventual wedge pop"),
+    "Wedge pop": ("Base n' break", 820, "Oliver Kell",
+                  "'The most beneficial time to get involved.' You know exactly what comes next (EMA Crossback, then "
+                  "Base N' Break) so the risk/reward is highest."),
+    "EMA crossback": ("Base n' break", 820, "Oliver Kell", "'If you miss the Wedge Pop, wait for the EMA Crossback.'"),
+    "Base n' break": ("Base n' break", 817, "Oliver Kell",
+                      "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and "
+                      "consolidates (bases) before the next leg up."),
+    "Exhaustion extension": ("Exhaustion extension", 819, "Oliver Kell",
+                             "Do not wait for the Wedge Drop to start selling \u2014 reduce at the Exhaustion Extension "
+                             "(2nd-3rd extension from 10 EMA)."),
+    "Wedge drop": ("Base n' break", 819, "Oliver Kell", "RED LIGHT (Below 20 EMA): Stay in CASH. Do not fight the tape."),
+    "Pocket pivot": ("Pocket pivot", 150, "Gil Morales",
+                     "Volume on the up day must exceed the highest volume of ANY DOWN DAY in the prior 10 trading sessions."),
+    "20EMA tap": ("20EMA tap", 7139, "Bracco",
+                  "When a stock is nearly 50% away from the 50SMA, it would be okay for it to rest more. A 20EMA tap in that "
+                  "scenario would be 100% actionable for entry or adding."),
+    "Range breakout": ("Range breakout", 17782, "jfsrev",
+                       "You need strong relative volume (RVOL) to ascertain and affirm a move out of range. Without volume "
+                       "confirmation, range breakouts are unreliable."),
+    "HVC": ("HVC", 11364, "TSDR", "marking out high-volume-close levels as key reference points"),
+    "MA remount": ("MA remount", 10749, "TSDR",
+                   "spotting a market bottom forming: relative basing/sideways action and early remounts "
+                   "ahead of the broader market."),
+    "Hammer at support": ("Hammer at support", 10992, "Manrav",
+                          "ideally you want a reversal or hammer candle once price undercuts the prior lows, otherwise it is "
+                          "not a double bottom"),
+}
+
+
+def brain_quotes() -> dict:
+    """{name: {kb_id, who, quote}}, every quote verified against its knowledge-base passage."""
+    if not BRAIN_FILE.exists():
+        return {}
+    kb = json.loads(BRAIN_FILE.read_text(encoding="utf-8"))
+    out = {}
+    for name, (section, kb_id, who, quote) in BRAIN.items():
+        texts = [x["text"] for v in kb.values() for x in v["passages"] if x["id"] == kb_id]
+        if not any(quote in t for t in texts):
+            raise SystemExit(f"brain quote for {name} not found in knowledge-base entry {kb_id}")
+        out[name] = {"kb_id": kb_id, "who": who, "quote": quote}
+    return out
+
+
+def brain_line(q: dict | None) -> str:
+    return f' From the brain, {q["who"]}: "{q["quote"]}"' if q else ""
+
+
 def era_of(t) -> str:
     y = int(str(t)[:4])
     for e in ERAS:
@@ -204,16 +267,32 @@ def order_choices(answer: str, others: list, key) -> list:
     return ch[rot:] + ch[:rot]
 
 
+def yahoo_ok(sym, t, db) -> bool:
+    """second_source's window check (the bars' own vendor today). It drops an old ticker whose company now trades
+    under another symbol (SQ 2024 next to XYZ: the same chart twice) and a series Yahoo has since revised."""
+    if not db:
+        return True
+    res = second_source.check(sym, iso(t), db, YAHOO)
+    if len(YAHOO) % 40 == 0:
+        second_source.save_cache(YAHOO, YAHOO_CACHE)
+    return bool(res.get("ok"))
+
+
 def next_line(stage: str) -> str:
     s = R.NEXT[stage]
     return s[0].upper() + s[1:] + ("" if s.endswith(".") else ".")
 
 
-def cycle_items(rows, sec, target):
-    out = []
+def cycle_items(rows, sec, target, db=None):
+    out, dropped = [], Counter()
     for st in CYCLE_ORDER:
         pool = [r for r in rows if r["kind"] == "cycle" and r["name"] == st]
-        for r in pick(pool, target, sec):
+        for r in pick(pool, int(target * 1.4), sec):
+            if sum(1 for x in out if x["prompt_json"]["subject"] == st) >= target:
+                break
+            if not yahoo_ok(r["sym"], r["t"], db):
+                dropped[st] += 1
+                continue
             i = CYCLE_ORDER.index(st)
             others = [CYCLE_ORDER[(i - 1) % 6], CYCLE_ORDER[(i + 1) % 6], CYCLE_ORDER[(i + 3) % 6]]
             asof = iso(r["t"])
@@ -222,9 +301,11 @@ def cycle_items(rows, sec, target):
                      "next": R.NEXT[st], "held_20": r["held"], "era": era_of(r["t"]), "sector": sec.get(r["sym"]),
                      "liq_rank": r.get("liq_rank"), "liq_universe": r.get("liq_universe"), "context": r.get("ctx") or {},
                      "culmination": r.get("out") or {}, "cycle_order": CYCLE_ORDER}
+            if BQ.get(st):
+                facts["brain"] = BQ[st]
             lesson = (f"{st}: {CYCLE_DEF[st]} Chart IQ read the last bar: {r['why']}. {next_line(st)} The cycle runs "
                       "Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then "
-                      "around again.")
+                      "around again." + brain_line(BQ.get(st)))
             out.append(make_item(
                 type="recall", skill_id="read.cycle", module="F2", difficulty=3,
                 q="Where is this stock in the cycle of price action on the last bar?",
@@ -237,10 +318,10 @@ def cycle_items(rows, sec, target):
                 lesson_text=lesson, lesson_origin="session", source_kind="chart_iq", source_ref=ref,
                 sym=r["sym"], asof=asof, adjustment_basis="split-adjusted",
                 bars={"sym": r["sym"], "tf": "D", "asof": asof, "window": WINDOW, "forward": FORWARD}))
-    return out
+    return out, dropped
 
 
-def event_items(rows, sec, target, con):
+def event_items(rows, sec, target, con, con_path=None):
     out, dropped = [], Counter()
     for ev in EVENT_DEF:
         pool = [r for r in rows if r["kind"] == "event" and r["base"] == ev]
@@ -249,7 +330,7 @@ def event_items(rows, sec, target, con):
                 break
             b = bars_to(con, r["sym"], r["t"])
             fired = fired_on_last(b) if len(b) >= 220 else set()
-            if ev not in fired:
+            if ev not in fired or not yahoo_ok(r["sym"], r["t"], con_path):
                 dropped[ev] += 1
                 continue
             others = [x for x in CONFUSE[ev] + [e for e in EVENT_DEF if e not in CONFUSE[ev]] if x != ev and x not in fired]
@@ -260,8 +341,10 @@ def event_items(rows, sec, target, con):
                      "sector": sec.get(r["sym"]), "liq_rank": r.get("liq_rank"), "liq_universe": r.get("liq_universe"),
                      "context": r.get("ctx") or {}, "culmination": r.get("out") or {}}
             also = sorted((fired - {ev}) & set(EVENT_DEF))     # never Chart IQ's Kicker or Oops: the owner ruled his own
+            if BQ.get(ev):
+                facts["brain"] = BQ[ev]
             lesson = (f"{LABEL.get(ev, ev)}: {EVENT_DEF[ev]} Chart IQ read the last bar: {r['why']}."
-                      + (f" The same bar also printed: {', '.join(also)}." if also else ""))
+                      + (f" The same bar also printed: {', '.join(also)}." if also else "") + brain_line(BQ.get(ev)))
             out.append(make_item(
                 type="recall", skill_id="read.events", module="F2", difficulty=2,
                 q="Which event did the last bar print?",
@@ -284,20 +367,26 @@ def main(argv=None) -> int:
     ap.add_argument("--cycle-per-stage", type=int, default=150)
     ap.add_argument("--per-event", type=int, default=60)
     ap.add_argument("--top", type=int, default=1000)
+    ap.add_argument("--no-yahoo", action="store_true", help="skip the Yahoo window check (tests only)")
     a = ap.parse_args(argv)
     sec = sectors()
+    BQ.update(brain_quotes())
     rows = [json.loads(l) for l in gzip.open(a.events, "rt", encoding="utf-8")]
     rows = [r for r in rows if r.get("held") and (r.get("liq_rank") or 10 ** 9) <= a.top and sec.get(r["sym"]) != "ETF"]
     con = sqlite3.connect(f"file:{a.bars_db}?mode=ro", uri=True)
-    cyc = cycle_items(rows, sec, a.cycle_per_stage)
-    evs, dropped = event_items(rows, sec, a.per_event, con)
+    YAHOO.update(second_source.load_cache(YAHOO_CACHE))
+    db = None if a.no_yahoo else a.bars_db
+    cyc, c_dropped = cycle_items(rows, sec, a.cycle_per_stage, db)
+    evs, dropped = event_items(rows, sec, a.per_event, con, db)
+    second_source.save_cache(YAHOO, YAHOO_CACHE)
+    print("   cycle charts Yahoo did not match (dropped):", dict(c_dropped))
     p1 = write_segment("cycle.price_action", cyc)
     p2 = write_segment("chart.events", evs)
     print(f"cycle.price_action: {len(cyc)} items -> {p1}")
     print("   by stage:", dict(Counter(i["prompt_json"]["subject"] for i in cyc)))
     print(f"chart.events: {len(evs)} items -> {p2}")
     print("   by event:", dict(Counter(i["prompt_json"]["subject"] for i in evs)))
-    print("   not re-read on the member's window (dropped):", dict(dropped))
+    print("   not re-read on the member's window or not matching Yahoo (dropped):", dict(dropped))
     return 0
 
 

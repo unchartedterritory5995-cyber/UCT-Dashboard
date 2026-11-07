@@ -169,6 +169,13 @@ def test_the_failed_tier_says_how_it_failed_and_nothing_else_changes():
     from scripts.study.gen_setup_examples import failed_line
     assert failed_line({"facts": {"culmination": {"broke_at": 4}}}) == ""          # no tier: every earlier lesson unchanged
     s = failed_line({"tier": "failed", "facts": {"culmination": {"broke_at": 4, "culm_pct": 3.25}}})
-    assert s == " This one fired, then failed: a close broke the signal day's low 4 sessions later, after a best of 3.2% first."
+    assert s == " This one fired, then failed: a close broke the signal day's low 4 sessions later, after a best of 3.25% first."
     s = failed_line({"tier": "failed", "facts": {"culmination": {"broke_at": None, "ret20_pct": -2.0, "culm_pct": 0.4}}})
     assert "20 sessions later it stood -2.0%" in s and "best" not in s
+
+
+def test_every_brain_quote_is_word_for_word_in_the_brain():
+    q = G.brain_quotes()
+    assert set(q) == set(G.BRAIN)          # a quote that drifts from its passage stops the build
+    assert all(set(G.CYCLE_DEF) - {'x'} >= {n} or n in G.EVENT_DEF for n in q)
+    assert not any('framework' in v['quote'].lower() for v in q.values())   # the voice rules ban the word

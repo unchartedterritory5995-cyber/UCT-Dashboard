@@ -92,7 +92,7 @@ def main(argv=None) -> int:
     data = json.loads(EXAMPLES.read_text(encoding="utf-8"))
     examples = data["examples"]
     have = {(e["setup"], e["sym"], e["asof"]) for e in examples}
-    added, left = {}, {}
+    added, left, lookups = {}, {}, 0
     targets = json.loads(a.per_setup_map) if a.per_setup_map else {}
     for skill, setup in NAMES.items():
         if a.only and setup not in a.only:
@@ -125,6 +125,12 @@ def main(argv=None) -> int:
                 why_left.append((who, "setup_score under 8")); continue
             if setup == "High Volume Edge" and (f.get("day_pct") or 0) < 5.0:
                 why_left.append((who, f"up only {f.get('day_pct')}% on the record volume")); continue
+            lookups += 1
+            if lookups % 40 == 0:
+                # save the two caches as it goes: a long pass stopped midway (the low-memory guard, 2026-11-06) keeps them
+                cache_path.write_text(json.dumps(cache, indent=0, sort_keys=True), encoding="utf-8")
+                if a.bars_db:
+                    second_source.save_cache(second)
             dates = last.earnings_dates(r["sym"], cache)
             near = last.near_earnings(dates, asof)
             has_history = None if dates is None else bool(dates)

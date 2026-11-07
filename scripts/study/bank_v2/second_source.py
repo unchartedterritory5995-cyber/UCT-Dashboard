@@ -30,12 +30,12 @@ WINDOW, FORWARD = 120, 20
 MIN_COVER, MAX_MEDIAN, MAX_P95 = 0.90, 1.0, 3.0
 
 
-def load_cache() -> dict:
-    return json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
+def load_cache(path: pathlib.Path = CACHE) -> dict:
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
-def save_cache(cache: dict) -> None:
-    CACHE.write_text(json.dumps(cache, indent=0, sort_keys=True) + "\n", encoding="utf-8")
+def save_cache(cache: dict, path: pathlib.Path = CACHE) -> None:
+    path.write_text(json.dumps(cache, indent=0, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def window_closes(db: str, sym: str, asof: str) -> dict[str, float]:

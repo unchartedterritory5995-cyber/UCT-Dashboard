@@ -150,6 +150,10 @@ def _scan(sym):
     return kept
 
 
+def _scan_one(sym):
+    return sym, _scan(sym)
+
+
 def main(argv=None) -> int:
     import multiprocessing as mp
     ap = argparse.ArgumentParser()
@@ -185,12 +189,25 @@ def main(argv=None) -> int:
         if row.size:
             thr[t] = float(np.sort(row)[::-1][min(a.top, row.size) - 1])
     print(f"pass 1: liquidity for {len(syms)} stocks in {time.time() - t0:.0f}s", flush=True)
-    hits = []
-    with mp.Pool(a.workers, initializer=_init, initargs=(a.bars, thr, spy)) as pool:   # pass 2: the events
-        for n, kept in enumerate(pool.imap_unordered(_scan, syms, chunksize=4)):
-            hits += kept
+    # pass 2 writes each stock as it finishes to <out>.part (one "done" line per stock), so a run stopped midway
+    # (the low-memory guard stopped the first one at 2,000 of 2,789 stocks, 2026-11-06) resumes where it was
+    part = pathlib.Path(a.out + ".part")
+    done = set()
+    if part.exists():
+        for line in part.read_text(encoding="utf-8").splitlines():
+            if line.startswith('{"done":'):
+                done.add(json.loads(line)["done"])
+    todo = [s for s in syms if s not in done]
+    print(f"pass 2: {len(todo)} stocks to scan ({len(done)} already in {part.name})", flush=True)
+    with open(part, "a", encoding="utf-8") as fh,             mp.Pool(a.workers, initializer=_init, initargs=(a.bars, thr, spy)) as pool:   # pass 2: the events
+        for n, (sym, kept) in enumerate(pool.imap_unordered(_scan_one, todo, chunksize=2)):
+            for h_ in kept:
+                fh.write(json.dumps(h_, default=str) + chr(10))
+            fh.write(json.dumps({"done": sym}) + chr(10))
+            fh.flush()
             if (n + 1) % 100 == 0:
-                print(f"  {n + 1}/{len(syms)} stocks, {len(hits)} events, {time.time() - t0:.0f}s", flush=True)
+                print(f"  {n + 1}/{len(todo)} stocks, {time.time() - t0:.0f}s", flush=True)
+    hits = [json.loads(line) for line in part.read_text(encoding="utf-8").splitlines() if not line.startswith('{"done":')]
     col = {s: k for k, s in enumerate(syms)}
     for h in hits:
         j = didx.get(h["t"])
@@ -205,6 +222,7 @@ def main(argv=None) -> int:
     with gzip.open(a.out, "wt", encoding="utf-8") as fh:
         for h in hits:
             fh.write(json.dumps(h, default=str) + chr(10))
+    part.unlink()
     print(f"scanned {len(syms)} stocks in {time.time() - t0:.0f}s; {len(hits)} events")
     for key, v in Counter((h["kind"], h["base"], h["held"]) for h in hits).most_common():
         print(f"  {key[0]:5} {key[1]:28} held={key[2]!s:5} {v:7d}")
