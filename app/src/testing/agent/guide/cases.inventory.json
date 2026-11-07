@@ -462,6 +462,12 @@
   "title": "Moving a drawing"
  },
  {
+  "id": "C1-124",
+  "say": "how do I open indicator settings",
+  "feature": "indicatorEdit",
+  "title": "Changing an indicator’s settings"
+ },
+ {
   "id": "C1-125",
   "say": "how do I clear all drawings",
   "feature": "chartMenu",
@@ -588,6 +594,12 @@
   "title": "Choosing your drawing tools"
  },
  {
+  "id": "C1-166",
+  "say": "how do I nudge selected with arrows",
+  "feature": "control",
+  "title": "Nudging a drawing from the keyboard"
+ },
+ {
   "id": "C1-167",
   "say": "how do I switch drawing board",
   "feature": "control",
@@ -660,6 +672,12 @@
   "title": "Adding a symbol as a series"
  },
  {
+  "id": "C2-010",
+  "say": "how do I keyboard chord toggles RSI, MACD, BB, VWAP",
+  "feature": "chartView",
+  "title": "Toggling an indicator from the keyboard"
+ },
+ {
   "id": "C2-014",
   "say": "how do I delete indicator from legend",
   "feature": "legendChip",
@@ -730,6 +748,12 @@
   "say": "how do I indicator undo and redo buttons",
   "feature": "indicatorManage",
   "title": "Undoing an indicator change"
+ },
+ {
+  "id": "C2-055",
+  "say": "how do I open Create Indicator",
+  "feature": "indicatorManage",
+  "title": "Creating an indicator"
  },
  {
   "id": "C2-056",
@@ -966,6 +990,12 @@
   "title": "Renaming a layout"
  },
  {
+  "id": "C3-034",
+  "say": "how do I duplicate a layout",
+  "feature": "layoutAction",
+  "title": "Duplicating a layout"
+ },
+ {
   "id": "C3-035",
   "say": "how do I delete a layout",
   "feature": "control",
@@ -976,6 +1006,18 @@
   "say": "how do I pin a layout to the bar",
   "feature": "control",
   "title": "Putting a layout on the bar"
+ },
+ {
+  "id": "C3-039",
+  "say": "how do I remove a layout from the bar",
+  "feature": "layoutAction",
+  "title": "Taking a layout off the bar"
+ },
+ {
+  "id": "C3-040",
+  "say": "how do I view a layout's version history",
+  "feature": "layoutAction",
+  "title": "A layout’s version history"
  },
  {
   "id": "C3-041",
@@ -1164,6 +1206,12 @@
   "title": "Picking a preset scan"
  },
  {
+  "id": "C3-108",
+  "say": "how do I leave a scan, back to the picker",
+  "feature": "control",
+  "title": "Back to the list of scans"
+ },
+ {
   "id": "C3-110",
   "say": "how do I read a scan's conditions",
   "feature": "widgetAction",
@@ -1204,6 +1252,12 @@
   "say": "how do I add a ticker to a scope list",
   "feature": "control",
   "title": "Adding a ticker to a Volume Surge list"
+ },
+ {
+  "id": "C3-125",
+  "say": "show me how to show logos on volume surge",
+  "feature": "control",
+  "title": "Logos on Volume Surge"
  },
  {
   "id": "C3-127",

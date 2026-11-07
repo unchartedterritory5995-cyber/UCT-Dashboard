@@ -71,7 +71,7 @@ const STATE = `(async () => {
   const next = [...document.querySelectorAll('[data-testid="guide-card"] button')].find(x => /^(Next|Skip|Done)/.test(x.textContent.trim()))
   const met = !!(step.waitFor && T.findTarget(step.waitFor, st))
   const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
-  return { pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text), chartRef: st.chartRef || null }
+  return { pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
 
 // ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart
@@ -91,12 +91,12 @@ const REGIONS = `((ref, text) => {
   if (/price numbers|right edge|price scale|price axis/.test(t)) { for (const pn of panes) if (pn.axis) for (const fy of [0.5, 0.3, 0.7]) out.push(at(pn.axis, 0.5, fy)) }
   else if (/volume/.test(t)) { for (let fy = 0.97; fy >= 0.6; fy -= 0.03) out.push(at(p0, 0.6, fy)); for (const pn of panes.slice(1)) out.push(at(pn.plot, 0.5, 0.5)) }
   else if (/drawing|a line|rectangle|trendline|fibonacci|text note|measure|on the chart. if this chart has none/.test(t)) {
-    // a drawing: the pixels the app's drawing layer painted for it (its own canvas, above the chart's), in the drawing's colour
+    // a drawing: the pixels the app's drawing layer painted (its own canvas, above the chart's: only drawings are on it)
     const layer = [...cell.querySelectorAll('canvas')].find(cv => !cv.closest('.tv-lightweight-charts') && getComputedStyle(cv).zIndex === '4')
     if (layer && layer.width) {
       const ctx = layer.getContext('2d'); const d = ctx.getImageData(0, 0, layer.width, layer.height).data; const lb = layer.getBoundingClientRect(); const k = layer.width / lb.width
       const hits = []
-      for (let y = 2; y < layer.height - 2; y += 1) for (let x = 2; x < layer.width - 2; x += 3) { const i = (y * layer.width + x) * 4; if (d[i + 3] > 90 && d[i] > 215 && d[i + 1] > 215 && d[i + 2] > 215) hits.push({ x: Math.round(lb.left + x / k), y: Math.round(lb.top + y / k) }) }
+      for (let y = 2; y < layer.height - 2; y += 1) for (let x = 2; x < layer.width - 2; x += 3) { const i = (y * layer.width + x) * 4; if (d[i + 3] > 90) hits.push({ x: Math.round(lb.left + x / k), y: Math.round(lb.top + y / k) }) }
       for (let i = 0; i < hits.length && out.length < 16; i += Math.max(1, Math.floor(hits.length / 16))) out.push(hits[i])
     }
   }
@@ -105,7 +105,8 @@ const REGIONS = `((ref, text) => {
   return out
 })`
 async function rightClickRegion(s) {
-  const pts = await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`)
+  // a right-click on a control that is not the chart (a list's row, a layout on the bar) lands on that control
+  const pts = s.onChart ? await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`) : [s.ring, ...(s.rr ? [{ x: s.rr[0] + 18, y: s.ring.y }, { x: s.rr[0] + 40, y: s.ring.y }] : [])]
   rec.tried = (rec.tried || []).concat([pts.slice(0, 4)])
   for (const pt of (pts.length ? pts : [s.ring])) {
     // a person's pointer arrives first: the drawing layer takes the click only once it has seen the pointer over a drawing

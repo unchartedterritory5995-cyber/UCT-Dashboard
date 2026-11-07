@@ -12,7 +12,7 @@ GUIDE_CASES_OUT=src/testing/agent/guide/cases.inventory.json GUIDE_PROBE_OUT=tea
 # 2. the browser run (one Chrome per case, temp profile deleted on close; set TEMP to keep profiles in your scratch folder)
 BA_BASE=http://127.0.0.1:5302 node src/testing/agent/guide/teach.mjs --out teach-results.json [--filter 'C1-0|watermark']
 # 3. the status file
-node src/testing/agent/guide/status.mjs teach-results.json teach-probe.json > ../docs/agent/CHARTS_TEACH_STATUS.md
+node src/testing/agent/guide/status.mjs teach-results.json [more-results.json...] teach-probe.json > ../docs/agent/CHARTS_TEACH_STATUS.md
 ```
 
 - `expected.json` holds the walkthrough a person assigned to each inventory row: the 2026-11-05 matrix's "Guide feature" column, plus catalog controls reviewed by hand on 2026-11-07. A case exists only when the row's own words reach that walkthrough.

@@ -1,13 +1,18 @@
 // Writes docs/agent/CHARTS_TEACH_STATUS.md from a browser run (teach.mjs) and the routing probe (agentGuideInventory).
-//   node src/testing/agent/guide/status.mjs <teach-results.json> <teach-probe.json> > ../docs/agent/CHARTS_TEACH_STATUS.md
+//   node src/testing/agent/guide/status.mjs <teach-results.json>... <teach-probe.json> > ../docs/agent/CHARTS_TEACH_STATUS.md
+// Several result files merge in order: a later run's row replaces an earlier one's (a full run, then a re-run of some rows).
 // Only a browser pass is VERIFIED. Everything else says what it rests on.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const [resultsFile, probeFile] = process.argv.slice(2)
-const run = JSON.parse(readFileSync(resultsFile, 'utf8'))
+const files = process.argv.slice(2)
+const probeFile = files.pop()
+const runs = files.map(f => JSON.parse(readFileSync(f, 'utf8')))
+const merged = new Map()
+for (const r of runs) for (const x of r.results) merged.set(x.id, x)
+const run = { at: runs.map(r => r.at).sort().pop(), results: [...merged.values()] }
 const probe = JSON.parse(readFileSync(probeFile, 'utf8'))
 const expected = JSON.parse(readFileSync(path.join(HERE, 'expected.json'), 'utf8'))
 const byId = new Map(run.results.map(r => [r.id, r]))

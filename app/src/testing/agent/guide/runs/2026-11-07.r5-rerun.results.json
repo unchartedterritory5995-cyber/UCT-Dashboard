@@ -1,0 +1,583 @@
+{
+ "at": "2026-11-07T08:13:25.177Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C1-151",
+   "say": "how do I fib levels and fills",
+   "feature": "drawingEdit",
+   "title": "Fibonacci levels and fills",
+   "given": [
+    "drawing",
+    "setup"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click a drawing on the chart. If this chart has none yet, draw one first.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Levels… to turn each level and its fill on or off. This shows on a Fibonacci drawing.",
+     "onPrimary": true,
+     "pr": [
+      311,
+      401,
+      51,
+      15
+     ],
+     "rr": [
+      307,
+      397,
+      59,
+      23
+     ]
+    }
+   ],
+   "setup": "drawing fib",
+   "tried": [
+    [
+     {
+      "x": 18,
+      "y": 308
+     },
+     {
+      "x": 294,
+      "y": 317
+     },
+     {
+      "x": 18,
+      "y": 318
+     },
+     {
+      "x": 450,
+      "y": 318
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-152",
+   "say": "show me how to reset the fib levels",
+   "feature": "control",
+   "title": "A drawing’s Reset levels",
+   "given": [
+    "drawing",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click a Fibonacci Retracement or Fibonacci Extension on the chart. If this chart has none yet, draw one first.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "setup": "drawing fib",
+   "tried": [
+    [
+     {
+      "x": 18,
+      "y": 308
+     },
+     {
+      "x": 294,
+      "y": 317
+     },
+     {
+      "x": 18,
+      "y": 318
+     },
+     {
+      "x": 450,
+      "y": 318
+     }
+    ]
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-040",
+   "say": "how do I view a layout's version history",
+   "feature": "layoutAction",
+   "title": "A layout’s version history",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click one of your own layouts on the bar.",
+     "onPrimary": true,
+     "pr": [
+      6,
+      923,
+      88,
+      27
+     ],
+     "rr": [
+      2,
+      919,
+      96,
+      35
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 50.125,
+      "y": 936.5
+     },
+     {
+      "x": 20,
+      "y": 936.5
+     },
+     {
+      "x": 42,
+      "y": 936.5
+     }
+    ]
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-098",
+   "say": "how do I set a price alert from a row",
+   "feature": "watchlistAction",
+   "title": "A price alert from the list",
+   "given": [
+    "alerts",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the ticker symbol at the left of this row. On a UCT or community list there’s no menu: open one of your own lists.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      168,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      164,
+      397,
+      37
+     ]
+    }
+   ],
+   "setup": "alerts 2",
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 182.296875
+     },
+     {
+      "x": 820,
+      "y": 182.296875
+     },
+     {
+      "x": 842,
+      "y": 182.296875
+     }
+    ]
+   ],
+   "why": "step 5: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-099",
+   "say": "how do I delete an alert from the row popover",
+   "feature": "watchlistAction",
+   "title": "Removing a ticker from a list",
+   "given": [
+    "alerts",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the ticker symbol at the left of this row. On a UCT or community list there’s no menu: open one of your own lists.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      168,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      164,
+      397,
+      37
+     ]
+    }
+   ],
+   "setup": "alerts 2",
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 182.296875
+     },
+     {
+      "x": 820,
+      "y": 182.296875
+     },
+     {
+      "x": 842,
+      "y": 182.296875
+     }
+    ]
+   ],
+   "why": "step 5: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-100",
+   "say": "how do I open Full Research or AI from a row",
+   "feature": "watchlistAction",
+   "title": "Research on a ticker",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the ticker symbol at the left of this row. On a UCT or community list there’s no menu: open one of your own lists.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      168,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      164,
+      397,
+      37
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 182.296875
+     },
+     {
+      "x": 820,
+      "y": 182.296875
+     },
+     {
+      "x": 842,
+      "y": 182.296875
+     }
+    ]
+   ],
+   "why": "step 5: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-101",
+   "say": "how do I compare from a row",
+   "feature": "watchlistAction",
+   "title": "Comparing a ticker from the list",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the ticker symbol at the left of this row. On a UCT or community list there’s no menu: open one of your own lists.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      168,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      164,
+      397,
+      37
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 182.296875
+     },
+     {
+      "x": 820,
+      "y": 182.296875
+     },
+     {
+      "x": 842,
+      "y": 182.296875
+     }
+    ]
+   ],
+   "why": "step 5: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-108",
+   "say": "how do I leave a scan, back to the picker",
+   "feature": "control",
+   "title": "Back to the list of scans",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Scanner widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Scanner to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      170,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      166,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "The list of scans is already showing: click one to open it.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      801,
+      490,
+      399,
+      424
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: The list of scans is already showing: click one to open it.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-125",
+   "say": "show me how to show logos on volume surge",
+   "feature": "control",
+   "title": "Logos on Volume Surge",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Volume Surge widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Volume Surge to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      280,
+      266,
+      150,
+      30
+     ],
+     "rr": [
+      276,
+      262,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "This gear opens the Volume Surge widget’s settings: Show logos puts the company logos beside the tickers.",
+     "onPrimary": true,
+     "pr": [
+      1165,
+      530,
+      22,
+      22
+     ],
+     "rr": [
+      1161,
+      526,
+      30,
+      30
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}
