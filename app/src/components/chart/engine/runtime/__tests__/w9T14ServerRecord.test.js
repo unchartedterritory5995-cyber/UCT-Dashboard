@@ -30,6 +30,9 @@ import { runJob } from '../../../../../../../services/pine_runtime/job.mjs'
 import { STRATEGY_WANT, sealRunResults } from '../../../../../../../services/pine_runtime/protocol.mjs'
 
 const FIXTURE = path.resolve(__dirname, '../../../../../../../tests/fixtures/pine_runtime/w9t14_strategy_result.json')
+// r1: the service's REAL sealed reply for a strategy document with the broker gate unregistered (the
+// service's state today); tests/test_pine_strategy_backtest.py replays it through the route.
+const DARK_FIXTURE = path.resolve(__dirname, '../../../../../../../tests/fixtures/pine_runtime/w9t14_dark_result.json')
 const NL = String.fromCharCode(10)
 const N = 30
 const BARS = Array.from({ length: N }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100 + i, h: 101.5 + i, l: 99 + i, c: 100.5 + i, v: 1000 + i }))
@@ -102,5 +105,17 @@ describe('W9-T14 host parity of the record', () => {
     expect(served.status).toBe('withheld')
     expect(served.refusals[0].guard).toBe('pine:strategy-call')
     expect(Object.hasOwn(served, 'strategy')).toBe(false)
+  })
+
+  it('r1 DARK: the sealed gate-off reply over the route ctx (no listing, the window) is the committed fixture', () => {
+    gate(false)
+    const job = jobOf({ listing: false, window: 5000 })
+    const { ms, ...served } = runJob(serverRt, DOC, job)
+    const sealed = sealRunResults(CODEC, IDENTITY, [job], [served])
+    expect(sealed.ok).toBe(true)
+    expect(sealed.results[0].refusals[0].guard).toBe('pine:strategy-call')
+    const text = `${JSON.stringify({ identity: IDENTITY, result: sealed.results[0] }, null, 1)}\n`
+    if (process.env.W9T14_WRITE_FIXTURE === '1') fs.writeFileSync(DARK_FIXTURE, text)
+    expect(fs.readFileSync(DARK_FIXTURE, 'utf8')).toBe(text)
   })
 })

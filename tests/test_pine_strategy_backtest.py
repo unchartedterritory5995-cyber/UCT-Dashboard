@@ -325,3 +325,83 @@ def test_E3_walks_the_new_route_and_it_cannot_reach_the_sweep():
     mine = [h for h in handlers if h[2] == "/api/pine/strategy-backtest"]
     assert mine == [("api.routers.pine_strategy_backtest", "run_strategy_backtest", "/api/pine/strategy-backtest")]
     assert e3._transitive_imports_and_calls(mine[0]) is False
+
+
+# --- r1 (review W9-T14 N1, N2, coordinator item 2) ---------------------------------------------
+
+def test_r1_G3_the_REAL_stage_is_asked_with_the_callers_own_role_and_id(monkeypatch):
+    """N1: at `admins`/`admins` a member is told the route is not there and an admin is let past.
+    The real `server_permitted`, never a stand-in that ignores its arguments."""
+    monkeypatch.setenv(rd.STAGE_ENV, rd.STAGE_ADMINS)
+    monkeypatch.setenv(rd.SERVER_STAGE_ENV, rd.STAGE_ADMINS)
+    with pytest.raises(HTTPException) as e:
+        pst._require_open({"id": "m1", "role": "member", "plan": "pro"})
+    assert e.value.status_code == 404
+    admin = {"id": "a1", "role": "admin", "plan": "pro"}
+    assert pst._require_open(dict(admin)) == admin
+    # and through HTTP: the member's request reads nothing
+    reads = []
+    monkeypatch.setattr(bars_sqlite, "get_bars", lambda *a: reads.append(a) or [])
+    app = FastAPI()
+    app.include_router(pst.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(PAID)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(PAID)
+    r = TestClient(app).post("/api/pine/strategy-backtest", json={"def_id": DEF_ID, "symbols": ["AAA"]})
+    assert r.status_code == 404 and reads == []
+
+
+@pytest.mark.parametrize("shift", [86_400, -86_400, 1])
+def test_r1_W1_a_record_starting_on_another_bar_is_a_500(world, shift):
+    """N2: the start half of the one-authority window check."""
+    world["client"] = StubClient(lambda job: ok(job, startTime=job.bars[0]["t"] + shift))
+    r = post(world)
+    assert r.status_code == 500 and r.json()["detail"].startswith(prc.INTEGRITY)
+
+
+DARK_FIXTURE = ROOT / "tests" / "fixtures" / "pine_runtime" / "w9t14_dark_result.json"
+
+
+def test_r1_arming_the_shared_server_stage_does_not_make_a_strategy_run(monkeypatch):
+    """Coordinator r1 item 2 (review N3). Both stages at `all` (as arming them for indicators would
+    leave them), the script graded, the service configured: the route reaches the service, and the
+    service -- whose broker gate nobody registers -- answers `pine:strategy-call`. The reply is the
+    service's REAL sealed answer (`w9t14_dark_result.json`, written and byte-checked by
+    `w9T14ServerRecord.test.js` from the server bundle's own surface), decoded here by the REAL
+    client: the route serves the refusal by name and no record, and computes nothing itself."""
+    monkeypatch.setenv(rd.STAGE_ENV, rd.STAGE_ALL)
+    monkeypatch.setenv(rd.SERVER_STAGE_ENV, rd.STAGE_ALL)
+    monkeypatch.setattr(rd, "not_graded", lambda source, graded_only=False: None)
+    monkeypatch.setattr(rd, "service_missing", lambda: [])
+    monkeypatch.setattr(rd, "killed", lambda def_id, source: None)
+    monkeypatch.setattr(defs, "engine_withheld_reason", lambda row, current=None: None)
+    monkeypatch.setattr(defs, "get", lambda uid, did, version=None: strategy_row() if did == DEF_ID else None)
+    monkeypatch.setattr(pst, "is_paid_user", lambda u: True)
+    monkeypatch.setattr(bars_sqlite, "get_bars", lambda sym, tf, n: _store_rows())
+    dark = json.loads(DARK_FIXTURE.read_text(encoding="utf-8"))
+    sent = []
+
+    def transport(url, body, headers, timeout):
+        req = json.loads(body)
+        sent.append(req)
+        return 200, json.dumps({"protocol": 1, "engine": dark["identity"],
+                                "results": [dict(dark["result"], job=j["job"]) for j in req["jobs"]]}).encode()
+
+    prc._forget_signing_times()
+    monkeypatch.setattr(pst, "_runtime_client", lambda: prc.PineRuntimeClient(
+        url="http://pine-runtime.test", secret="s", identity=dark["identity"], transport=transport))
+    app = FastAPI()
+    app.include_router(pst.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(PAID)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(PAID)
+    r = TestClient(app).post("/api/pine/strategy-backtest", json={"def_id": DEF_ID, "symbols": ["RDDT"]})
+    assert r.status_code == 200, r.text
+    [a] = r.json()["results"]
+    assert a["status"] == "refused" and "strategy" not in a
+    assert a["refusal"]["guard"] == "pine:strategy-call"
+    assert a["window"]["fromListing"] is False and a["window"]["startDate"] == "2024-01-02"
+    # the one request the route made: the record asked for, over the one window, no listing claimed
+    [req] = sent
+    assert req["profile"] == "backtest"
+    assert req["jobs"][0]["want"] == [codec.STRATEGY_WANT]
+    assert req["jobs"][0]["ctx"]["historyWindowBars"] == HISTORY_WINDOW_BARS
+    assert req["jobs"][0]["ctx"]["historyFromListing"] is False
