@@ -26,8 +26,8 @@ const out0 = (src, o, v) => {
   const p = lowerIrProgram(b.ir)
   return Array.from(execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true, barTimes: BARS.map((x) => x.t) }).outputs[0])
 }
-const refused = (src, re, o) => {
-  const b = build(src, o)
+const refused = (src, re, o, v) => {
+  const b = build(src, o, v)
   expect(b.ok).toBe(false)
   expect(b.refusal.guard).toBe('runtime:enum')
   if (re) expect(b.refusal.message).toMatch(re)
@@ -203,6 +203,18 @@ describe('W6-T10-N reserved enum names, per version (review N1/N3)', () => {
       }
     })
   }
+  // ⛔ r1 (review W6-T10-N B1): the helper once dropped its version, so every "v5" row ran as v6. This row
+  // proves `refused` builds the version it is given, on the one shape whose answer differs by version.
+  it('GUARD: `refused` runs in the version it is given (footprint refuses in v6, not in v5)', () => {
+    expect(() => refused(reservedSrc('footprint'), /built-in type or namespace/, {}, 6)).not.toThrow()
+    expect(() => refused(reservedSrc('footprint'), /built-in type or namespace/, {}, 5)).toThrow()
+  })
+  it('a script with no version line reads the v6 list (fails closed): `enum footprint` refuses', () => {
+    const b = buildRuntimeIr(`indicator("t")\n${reservedSrc('footprint')}`, { bars: BARS, inputs: {} })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:enum')
+    expect(b.refusal.message).toMatch(/built-in type or namespace/)
+  })
   for (const name of V6_ONLY) {
     it(`v5 enum ${name} is a legal name and serves (no such namespace in the v5 reference)`, () => {
       expect(out0(servedSrc(name), {}, 5)).toEqual(ones(0))

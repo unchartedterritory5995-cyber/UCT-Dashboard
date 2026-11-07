@@ -46,7 +46,9 @@ survived. The comment now forbids case-folding.
     larger set, so an unknown version fails closed.
   - `collectEnums(stmts, version = null)`: the call site in `buildRuntimeIrLinked` now passes the lexed `version`.
   - N4 (cosmetic) is fixed: the constants now sit above `collectEnums`' JSDoc, not between the JSDoc and the function.
-- `runtime/__tests__/w6Enum.test.js` adds two new `describe` blocks (rails below). The `refused` helper takes a version.
+- `runtime/__tests__/w6Enum.test.js` adds two new `describe` blocks (rails below).
+  ⚰️ r0 said here that "the `refused` helper takes a version". **It did not** (review W6-T10-N, B1). The edit that was
+  meant to add the version matched nothing and failed silently, so every "v5" refusal row ran as v6. Fixed in r1, below.
 
 ## Rails (w6Enum: 260 tests, all pass)
 - **Exact lists.** `V5_NAMES` (56) and `V6_NAMES` (58) are typed in the test from the reference derivation, never read
@@ -87,9 +89,9 @@ a scratch file and is not committed.
 | id | mutation | result | note |
 |---|---|---|---|
 | C0 | control | SURVIVED (correct) | 260/260 |
-| N1 | v5 reads the v6 list (N1 reintroduced) | KILLED | 2 failed: the v5 footprint/volume_row rows |
+| N1 | v5 reads the v6 list (N1 reintroduced) | KILLED | 2 failed: the v5 footprint/volume_row serve rows (r0 run; see r1) |
 | N2 | drop `footprint` from v6 (the review's Q2) | KILLED | was SURVIVED in the review |
-| N3 | drop a shared namespace (`xloc`) | KILLED | 3 failed: equality row + v5 + v6 refusal rows |
+| N3 | drop a shared namespace (`xloc`) | KILLED | 3 failed. ⚰️ r0 read these as the equality row plus the v5 and v6 refusal rows. The "v5" row actually ran as v6 (B1). |
 | N4 | add a legal name (`colors`) | KILLED | 3 failed |
 | N5 | case-fold the check (the review's Q6) | KILLED | 116 failed; was SURVIVED in the review |
 | N6 | call site does not pass `version` | KILLED | 2 failed |
@@ -100,3 +102,38 @@ a scratch file and is not committed.
 
 N9 is equivalent. A declaration with an earlier `bad` refuses either way, and only the reason text differs. No rail is
 added for it.
+
+## r1 (review W6-T10-N, NO-GO @0f0cf7009b, B1): the v5 rail was vacuous
+- **Cause.** The test helper `refused` was `(src, re, o) => build(src, o)` and dropped the version argument. So all 56
+  "v5 refuses" rows, and the manual's `syminfo` row, built a `//@version=6` script. The r0 edit meant to change the helper
+  was a `str.replace` that matched nothing, and nothing asserted that it had matched.
+- **Fix (tests only; no product code).** `refused` is now `(src, re, o, v) => build(src, o, v)`.
+- **Guard row.** `refused` must not throw for v6 `enum footprint` and must throw for v5 `enum footprint`. That is the one
+  shape whose answer differs by version, so a helper that ignores its version goes red.
+- **Review N2 row.** A script with no version line reads the v6 list, so `enum footprint` refuses. This makes the
+  "fails closed" comment a railed claim (it kills R4).
+- **w6Enum: 262/262.**
+- Targeted set (w6Enum, objectDoorGate, runtimeInputs, editorStatus.families), Node 20.20.2: `Test Files 4 passed (4)`,
+  `Tests 558 passed (558)`.
+- Service suite, Node 24.13.1: `# tests 131 / # pass 131 / # fail 0`.
+- The folder run was not repeated. Review §5 ran it on this code (503/507 non-skipped files pass, and the only reds are the
+  4 known `.measure` timeouts). r1 changes only the test file.
+
+### Mutation table, re-run (same method; final `cmp` equal)
+| id | mutation | result | failed |
+|---|---|---|---|
+| C0 | control | SURVIVED (correct) | 0 of 262 |
+| N1 | v5 reads the v6 list | KILLED | 3 (2 serve rows + guard) |
+| N2 | drop `footprint` from v6 | KILLED | 4 |
+| N3 | drop `xloc` | KILLED | 3 (equality + real v5 + v6 refusal rows) |
+| N4 | add `colors` | KILLED | 3 |
+| N5 | case-fold the check | KILLED | 116 |
+| N6 | call site does not pass `version` | KILLED | 3 |
+| N7 | v6 reads the v5 list | KILLED | 3 |
+| N8 | drop `string` | KILLED | 3 |
+| N9 | reserved `bad` only if no earlier `bad` | SURVIVED | equivalent: only the reason text differs |
+| N10 | reserved check off | KILLED | 118 |
+| R1 | v5 reads an EMPTY set (reviewer's) | **KILLED** | 56; it SURVIVED at r0 |
+| R2 | v5 drops `xloc` at use; the constant is untouched (reviewer's) | **KILLED** | 1; it SURVIVED at r0 |
+| R3 | v5 reads only the 7 type words (reviewer's) | **KILLED** | 49; it SURVIVED at r0 |
+| R4 | an unknown version (v4 or none) reads the v5 list (reviewer's) | **KILLED** | 1, by the no-version row |
