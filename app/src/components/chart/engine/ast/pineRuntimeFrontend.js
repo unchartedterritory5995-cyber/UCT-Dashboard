@@ -1170,6 +1170,78 @@ export function buildRuntimeIr(source, opts = {}) {
   return out
 }
 
+/** ⭐⭐ W34-I6a — A `switch` ARM WHOSE VALUE WRAPS ONTO A CONTINUATION LINE.
+ *
+ *  Pine's rule (User Manual, "Script structure" → "Line wrapping"): "each wrapped line
+ *  after the first can use any indentation length _except_ multiples of four", "because
+ *  Pine uses four-space or tab indentations to define local code blocks"; between
+ *  brackets "all code … _does not_ have any restriction on indentation length".
+ *
+ *  `blockStatements` (shared with the host lane, `pine.js`) treats the `=>` of an arm as
+ *  a block opener, so every deeper line under `c => a` / `     and b` lands in the arm's
+ *  `sub` and the arm refused "ends in a block". This pass re-reads exactly that shape on
+ *  the runtime side, from the arm's own raw `body` tokens: an arm with an inline value
+ *  whose deeper lines ALL start (outside brackets) at an indent that is NOT a multiple of
+ *  four is ONE expression, header and body joined. The `if` branch already reads its
+ *  wrapped lines this way (a statement that opened no block continues onto them).
+ *
+ *  ⛔ What the rule does not settle keeps a refusal BY NAME:
+ *  - every deeper line at a multiple of four: a real sub-block, today's reading, unchanged;
+ *  - wrapped lines AND a line at a block indent under one arm: marked `wrapMixed`, refused
+ *    in `lowerSwitchInto` (`runtime:block-value`);
+ *  - `c =>` with its value on the next line: a block, unchanged (no inline value to wrap).
+ *  ⛔ Not at the object door (`atObjectDoor`): the door keeps master's reading until
+ *  measure-pair proves its output identical (the caller does not call this there). */
+const SWITCH_WORD = (t) => t && t.kind === 'ident' && t.value === 'switch'
+const ARM_VALUE_OPENERS = new Set(['if', 'switch', 'for', 'while'])
+function wrappedArmOf(arm, indents) {
+  const h = arm.header || []
+  const body = arm.body || []
+  const at = findTop(h, (x) => isPunct(x, '=>'))
+  if (at < 0 || at === h.length - 1 || !body.length) return arm
+  // review N1: an inline value that opens a block (`0 => switch x`) owns the lines beneath as its
+  // block; they are not this arm's wrap (an inner switch's own arms are joined on their level).
+  if (findTop(h.slice(at + 1), (x) => x.kind === 'ident' && ARM_VALUE_OPENERS.has(x.value)) >= 0) return arm
+  let depth = 0
+  let wraps = 0
+  let blocks = 0
+  let prevLine = h.length ? h[h.length - 1].line : null
+  for (const tok of body) {
+    if (tok.line !== prevLine && depth === 0) {
+      if ((indents[tok.line - 1] || 0) % 4 === 0) blocks += 1
+      else wraps += 1
+    }
+    prevLine = tok.line
+    if (tok.kind === 'punct') {
+      if (tok.value === '(' || tok.value === '[') depth += 1
+      else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+    }
+  }
+  if (!wraps) return arm
+  if (blocks) return { ...arm, wrapMixed: true }
+  return { header: h.concat(body), body: [], sub: [] }
+}
+function joinWrappedSwitchArms(list, indents) {
+  if (!list || !list.length) return list
+  let changed = false
+  const out = list.map((st) => {
+    let sub = st.sub && st.sub.length ? joinWrappedSwitchArms(st.sub, indents) : st.sub
+    if (sub && sub.length && findTop(st.header || [], SWITCH_WORD) >= 0) {
+      let armsChanged = false
+      const arms = sub.map((arm) => {
+        const a = wrappedArmOf(arm, indents)
+        if (a !== arm) armsChanged = true
+        return a
+      })
+      if (armsChanged) sub = arms
+    }
+    if (sub === st.sub) return st
+    changed = true
+    return { ...st, sub }
+  })
+  return changed ? out : list
+}
+
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
@@ -1332,6 +1404,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
+  if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents)
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
@@ -9631,9 +9705,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const t = arm.header || []
         const at = findTop(t, (x) => isPunct(x, '=>'))
         if (at < 0) return null
-        // (a CONTINUED inline arm, `c => close` / `      > open`, never yields a value here:
-        // its body is refused at compile — `simpleSwitchShape` declines it, and the block
-        // lowering says "ends in a block" — before any call reads this result)
+        // (a CONTINUED inline arm, `c => close` / `      > open`: off the object door it was
+        // joined into one header by `wrappedArmOf` (W34-I6a); at the door its body is refused at
+        // compile — `simpleSwitchShape` declines it, and the block lowering says "ends in a
+        // block" — before any call reads this result)
         const r = at < t.length - 1 ? [t.slice(at + 1)] : bodyResultToks(arm.sub, d + 1)
         if (!r) return null
         out.push(...r)
@@ -9840,6 +9915,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label ? `${label} ` : ''}switch …\` has no \`=>\``, locate(arm.header[0]))
       }
+      // ⛔ W34-I6a: wrapped lines AND a line at a block indent under one inline arm. Pine's
+      // line-wrapping rule does not say whose statement that line is (see `wrappedArmOf`).
+      if (arm.wrapMixed) {
+        throw new RuntimeRefusal('runtime:block-value',
+          `an arm of \`${label ? `${label} ` : ''}switch …\` wraps onto a continuation line and also has a line at a block indent (a multiple of four) beneath it; Pine's line-wrapping rule does not say which statement that line belongs to`,
+          locate(arm.header[0]))
+      }
       // ⛔ P3 WS-A — THE DEFAULT IS THE LAST ARM. An arm after it (a second
       // default included) has no reading this lane may pick: run in order, the
       // default would shadow it; hoisted, the order changes. No capture says
@@ -9868,8 +9950,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
         const at2 = findTop(arm.header, (t) => isPunct(t, '=>'))
         const rhs = arm.header.slice(at2 + 1)
-        // (a continued inline arm, `c => close` / `      > open`, never reaches here: the arm
-        // lowering above refuses it first — "ends in a block")
+        // (a continued inline arm, `c => close` / `      > open`, arrives joined into one
+        // header off the object door (W34-I6a, `wrappedArmOf`); at the door the arm lowering
+        // above refuses it first — "ends in a block")
         return rhs.length ? rhs : armValueToks(arm.sub)
       }), locate(atTok), 'a `switch` with no default')) fallback = mkArm.falseFallback()
     }
