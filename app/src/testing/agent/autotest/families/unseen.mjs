@@ -73,7 +73,9 @@ export function unseen(L) {
   w('phrasing', 'make a copy of the Intraday Scan layout', null, { outcome: 'change', expect: [['layouts', 'lenGte', 4]], confirm: true }, { board: 'LAYOUTS', inventory: ['C3-034'], turns: [say('make a copy of the Intraday Scan layout', propose([op('layout.duplicate', '$list:layouts', { layout: '12', name: null })]))] })
   w('target', 'every cell on the weekly', [tf('A', 'W'), tf('B', 'W'), tf('C', 'W')], changes(['A', 'B', 'C'], [['A.tf', 'eq', 'W'], ['B.tf', 'eq', 'W'], ['C.tf', 'eq', 'W']], { undo: true }), { board: 'MC', inventory: ['C3-056', 'C1-006'] })
   w('target', 'put AMD in the top left cell', [op('chart.setSymbol', ch('A'), { symbol: 'AMD' })], { outcome: 'change', expect: [['A.sym', 'eq', 'AMD'], ['C.sym', 'eq', 'TSLA']], undo: true }, { board: 'MC', inventory: ['C3-056', 'C1-001'] })
-  w('target', 'log scale in the empty cell', [scale('D', 'log')], { outcome: 'change', expect: [['D.scale', 'eq', 'log']], undo: true }, { board: 'MC', inventory: ['C3-056', 'C1-022'] })
+  // an empty cell has no chart to rescale: the product refuses it and says how to fill the cell (2026-11-07, after the empty-cell
+  // fix 2f3d62d2e4; before it, the instant path receipted a change that never happened)
+  w('target', 'log scale in the empty cell', [scale('D', 'log')], refuses({ says: 'empty' }), { board: 'MC', inventory: ['C3-056', 'C1-022'] })
 
   // ── relational and deictic targets: which chart the words mean, given the click ──────────────────────────────────
   const t = family(L, 'u-target', { inv: ['C1-006'], board: 'FOUR' })
