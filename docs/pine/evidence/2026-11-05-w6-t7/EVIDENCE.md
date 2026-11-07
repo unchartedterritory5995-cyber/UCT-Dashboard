@@ -105,3 +105,14 @@ Result: M00 control SURVIVED; all 23 others KILLED; tree clean after.
 - measure-pair (expect 0 C18 diffs, `adx-and-di-for-v4` unmoved; movers per spec:
   `one-sided-gaussian-support-resistance-rate-loxx` attach, plus `supertrend-cluster-zeiierman` with W4); final-tip and
   ready-check (merge origin/master first).
+
+## Measure-pair (coordinator, 2026-11-06)
+Tip f2445b11e1 vs base f9651f47ee (merge-base), runs/w6-t7/mp-all.log.
+- runtime 0: out 395 rows, 0 differ (C18 clean); probe 69/0; census 967 rows, 15 differ, all movers toward
+  attachment: 12 matrix examples (avg/col/columns/fill/get/max/min/row/rows/set, types:matrix) plus
+  one-sided-gaussian-support-resistance-rate-loxx.
+- runtime 1: out 395/0 (C18 clean); probe 69/0; census 21 differ. These are matrix examples attaching or moving first wall
+  (median/mode reach further), plus first-wall moves on committed scripts from runtime:expression-statement /
+  call-text-state / loop to runtime:array (a later wall).
+- harness: identical on both runtimes.
+Master merged afterwards (3e3541c88b, clean). Targeted rails on the merged tree: 5 files, 315/315.
