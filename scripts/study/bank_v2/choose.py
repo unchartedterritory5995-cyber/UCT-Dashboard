@@ -9,7 +9,7 @@ no ETF as a Slingshot or Kicker):
   * CLEAN FOR HARD MODE: no other setup's engine rule fires on the same bar (`co_fires` empty); the rest go to an
     "ambiguous" list for his ruling ("both count", or not);
   * TEXTBOOK vs FAILED: the finder's must-work verdict (`works`) splits the set; the bank's examples are textbook (his
-    rule), the failed ones are kept as their own list (a future "it fired and failed: what was different?" question);
+    rule), the failed ones are listed for analysis only (owner 2026-11-06: "I do not want to fire the failed events");
   * SPREAD: per setup, quotas across six eras (1995-99, 2000-04, 2005-09, 2010-14, 2015-19, 2020-26), at most
     `--per-era` from one era, at most two charts per stock (never two in one era), sectors spread by taking the
     least-used sector first among the best-scored candidates, market conditions kept in proportion by recording them.

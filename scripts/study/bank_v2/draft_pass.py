@@ -75,9 +75,6 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", default=str(REPO / "docs/study/setups/earnings_dates_cache.json"))
     ap.add_argument("--bars-db", default=None, help="the bars database the scan read; with it every pick's window is "
                     "checked against Yahoo's closes today (second_source.py) and a disagreement is never drafted")
-    ap.add_argument("--tier", choices=("textbook", "failed"), default="textbook",
-                    help="failed: the charts where the setup fired and then failed (choose.py's failed list), drafted "
-                         "with tier=failed so gen_setup_examples puts them in their own segment for the owner's ruling")
     ap.add_argument("--only", nargs="*", default=None, help="setup names to draft (default: all six)")
     ap.add_argument("--per-setup-map", default=None, help='JSON of per-setup targets, e.g. {"Gap Support": 520}')
     ap.add_argument("--block", default="deep_pass1", help="the name of this pass's record in setup_examples.json")
@@ -97,7 +94,7 @@ def main(argv=None) -> int:
     for skill, setup in NAMES.items():
         if a.only and setup not in a.only:
             continue
-        rows = (picks.get(skill) or {}).get(a.tier) or []
+        rows = (picks.get(skill) or {}).get("textbook") or []
         per_setup = int(targets.get(setup, a.per_setup))
         chosen, per_era, dates_taken, why_left = [], Counter(), set(), []
         for r in rows:
@@ -179,8 +176,6 @@ def main(argv=None) -> int:
             facts["culmination"] = r.get("out") or {}
             ex = {"setup": setup, "sym": r["sym"], "asof": asof, "year": int(asof[:4]), "close": r["close"],
                   "facts": facts, "q": r.get("score")}
-            if a.tier == "failed":
-                ex["tier"] = "failed"
             chosen.append(ex)
             per_era[era] += 1; dates_taken.add(asof)
         added[setup], left[setup] = chosen, why_left

@@ -10,7 +10,7 @@ re-runnable without asking any vendor again.
 |---|---|---|
 | 1 | `scan_history.py` | Every session since 1995 in the bars database (2,789 stocks), the owner's calibrated finders for the seven Hard-mode setups, each instance with its context (market condition from SPY against its 50 and 200-day, distance from the 52-week high, strength against SPY), its outcome (the culmination before a close breaks the signal candle, within 60 sessions), the other setups firing on the same bar, and its point-in-time liquidity rank (50-day median dollar volume ranked across every stock that session). Writes the atlas (`.jsonl.gz`, kept outside the repo). |
 | 1b | `enrich_meta.py` | Fills the sector, industry and fund type the scan could not read, from Yahoo's company profile, cached in `yahoo_profiles.json`. |
-| 2 | `choose.py` | Per setup, a spread-out set from the top 1,000 stocks by dollar volume: era quotas over six eras, at most two charts per stock (never two in one era), the least-used sector first among the best-scored candidates. Also sets aside failed examples and co-fire ("both count?") charts for the owner's rulings. |
+| 2 | `choose.py` | Per setup, a spread-out set from the top 1,000 stocks by dollar volume: era quotas over six eras, at most two charts per stock (never two in one era), the least-used sector first among the best-scored candidates. Also lists the failed examples (not drafted: the owner's ruling below) and the co-fire ("both count?") charts. |
 | 3 | `draft_pass.py` | The last pass's drafting rules unchanged (earnings days, the 200-day and 4% gap for Gap Support, score floors, the HVE's 5% up day), plus: one chart per date per setup, no ETFs, and each pick's window checked against Yahoo's closes today (`second_source.py`). Appends a `deep_pass1` block to `docs/study/setups/setup_examples.json`; every example carries its context and outcome fields. |
 | 4 | `scripts/study/fill_setup_facts.py` then `scripts/study/gen_setup_examples.py` | The existing generators: Gap Support's facts from the chart's own bars, then the `spot.setups` drafts. |
 | 5 | `scripts/study/import_bank.py --only spot.setups` (on the pod) | Loads the drafts for the owner's review screen. Nothing goes live until he approves it. |
@@ -47,16 +47,18 @@ chart cannot yet draw labelled lines inside a question, and the `levels` item ty
 
 ## Pass totals (2026-11-06)
 
-| setup | deep_pass1 | deep_pass2 | fired, then failed (`spot.setups_failed`) | deep-history total |
-|---|---:|---:|---:|---:|
-| Oops Reversal | 25 | 600 | | 625 |
-| Launchpad | 25 | 600 | | 625 |
-| Slingshot | 25 | 155 | 420 | 600 |
-| Gap Support | 25 | 43 | 532 | 600 |
-| Kicker | 12 | 1 | 45 | 58 |
-| High Volume Edge | 25 | 0 | | 25 |
+| setup | deep_pass1 | deep_pass2 | deep-history total |
+|---|---:|---:|---:|
+| Oops Reversal | 25 | 600 | 625 |
+| Launchpad | 25 | 600 | 625 |
+| Slingshot | 25 | 155 | 180 |
+| Gap Support | 25 | 43 | 68 |
+| Kicker | 12 | 1 | 13 |
+| High Volume Edge | 25 | 0 | 25 |
 
-Kicker and High Volume Edge have no more qualifying charts in the 2,789 stocks of the bars database. The failed set is
-its own segment so the owner can import, approve or reject it apart from the textbook examples; the Oops Reversal is
-never in it (his ruling: the Oops-day low must never break). Every window in every pass is checked against Yahoo, which
-also drops an old ticker whose company trades under another symbol now (SQ 2024 next to XYZ).
+Under the owner's rules only the Oops Reversal and the Launchpad reach 600; the others hold every qualifying chart in the
+2,789 stocks of the bars database. A fired-then-failed set (the setup fired, then failed the finder's test) was drafted
+to bring Slingshot and Gap Support to 600 and REMOVED on his ruling, verbatim: "I do not want to fire the failed events"
+(2026-11-06, owner_verdicts.jsonl). choose.py still lists the failed charts for analysis; nothing drafts them. Every
+window in every pass is checked against Yahoo, which also drops an old ticker whose company trades under another symbol
+now (SQ 2024 next to XYZ).
