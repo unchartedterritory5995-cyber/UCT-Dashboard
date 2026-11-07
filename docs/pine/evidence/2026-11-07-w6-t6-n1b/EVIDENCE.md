@@ -207,3 +207,32 @@ A fifteenth, Y15 (`storeClass`'s backward plain-alias edge off), survived. The e
 Final-code full run (`engine/ast` + `engine/runtime`, after the `storeClass` simplification): 509 files, 8117 tests,
 **8102 passed, 11 skipped, 4 failed**, all `Test timed out in 15000ms` in `*.measure` files (guardProbe,
 objectLaneCallSites, objectLaneCensus, objectLaneDrawerCensus). No assertion failed.
+
+## Review GO-WITH-NOTES @a0bc6a6a1d: Z10 rail, heavy phase, master merge
+
+- **Z10 (reviewer note N-A)**: rail added at `9fdacea8c1`: a user function that changes a held list through a LOCAL alias
+  (`f() => l = array.get(qs, 0).arr; array.push(l, 1.0)`, called in the walk) refuses "…(through `l`, not provably
+  independent of it, changed by `f`)…". The Z10 mutant (`fnEffects.own` true for any binding): hand run 1 failed /
+  20 passed (killed), restored by cmp.
+- **mutate.py** (programme script, under `dsk/heavy-mut.lock`, RAM gate, 74 s):
+  `_resume-2026-11-01/runs/w6-t6-n1b/muts.json` (Y0-Y14 + Z10) over `w6ForIn.test.js` +
+  `vendorHarness.w6ForInRuntime.test.js`. **15/15 KILLED; Y0 no-op control SURVIVED (as required)**; tree clean after.
+  Log: `runs/w6-t6-n1b/mutate.log`.
+- **measure-pair** (`runs/w6-t6-n1b/mpr`, `dsk/heavy-mp2.lock`, RAM gate, 71 min; tip `9fdacea8c1` vs base
+  `pine-dsk-mpbase2` detached at the merge-base `7304620153`; HEADs unmoved):
+  - runtime 1: out 395 rows 0 differ; probe 69 rows 0 differ; census 967 rows 0 differ; harness IDENTICAL
+    (MATCH 112, DIVERGE 107, INCONCLUSIVE 117 both sides).
+  - runtime 0: out 395 rows **0 differ**; probe 69 rows 0 differ; harness IDENTICAL (MATCH 93, DIVERGE 103,
+    INCONCLUSIVE 140 both sides); census 967 rows, **3 differ**:
+    `ai-supertrend…3b9db05a48` (tip `stuck: pine:roundtrip`, base reached), `volatility-coil-edge…604f0fd1c6`
+    (`update@842: pine:state` vs `loop@630: pine:timeout`), `mirage-liquidity-sweep…238f0e26eb` (`cell:text@988:
+    pine:tuple` vs `pine:timeout`). Two are `pine:timeout` steps. The first was not re-run, but its row carries 19
+    `pine:timeout` steps on BOTH sides, the same tip reaches it in runtime 1, and its only `for … in` walks an int
+    list, where this lane's rule is gated off (`forInElemHoldsList` false). Attributed to the census time budget
+    under load, not to this lane. Not re-measured.
+- **Merged origin/master** `d0a29bbf24` (PR #915, engine 30) cleanly as `0f125c5b66`. On the merged tree: rails
+  (`w6ForIn` + `vendorHarness.{w6ForInRuntime,c40ForIn,c48ForIn}`) 41/41; full `engine/ast` + `engine/runtime`
+  (node 20.20.2, `--maxWorkers=1`) 511 files, 8163 tests, **8148 passed, 11 skipped, 4 failed**, all `Test timed out
+  in 15000ms` in `*.measure` files (guardProbe, objectLaneCallSites, objectLaneCensus, objectLaneDrawerCensus);
+  service suite `node --test --test-force-exit services/pine_runtime/test/*.test.mjs` (node 24.13.1) **128/128**.
+- Not run here: final-tip (the coordinator runs it).
