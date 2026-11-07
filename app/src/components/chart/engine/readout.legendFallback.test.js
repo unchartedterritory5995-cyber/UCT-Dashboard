@@ -1,0 +1,40 @@
+// 2026-11-07: the pane label's declared alternative value (`meta.legendFallback`).
+import { describe, it, expect } from 'vitest'
+import { readoutFallbackValue } from './readout'
+import { validateDefinition } from './defSchema'
+import { getDefinition } from './nativeRegistry'
+
+const RS = getDefinition('rsLine')
+const payload = { legend: { lastValue: 0.4656, asOf: '20261106' }, mansfield: { value: 12.3456 } }
+
+describe('readoutFallbackValue — a declared alternative before the dated last value', () => {
+  it('Mansfield view: the label shows the Mansfield reading, live (not muted, no date)', () => {
+    const v = readoutFallbackValue(RS, payload, 4, { showMansfield: true })
+    expect(v.muted).toBe(false)
+    expect(v.text).toMatch(/^\+12\.3%$/)
+  })
+  it('ratio view: the dated last RS value, muted, as before', () => {
+    const v = readoutFallbackValue(RS, payload, 4, { showMansfield: false })
+    expect(v).toEqual({ text: '0.4656 · Nov 6', muted: true })
+  })
+  it('Mansfield view with no Mansfield value falls back to the dated RS value', () => {
+    const v = readoutFallbackValue(RS, { legend: payload.legend, mansfield: { value: null } }, 4, { showMansfield: true })
+    expect(v.muted).toBe(true)
+  })
+  it('a definition without readout[] is untouched (null)', () => {
+    expect(readoutFallbackValue(getDefinition('rsi'), payload, 2, {})).toBeNull()
+  })
+})
+
+describe('defSchema validates meta.legendFallback', () => {
+  it('the shipped RS definition validates', () => {
+    const r = validateDefinition(RS)
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+  })
+  it('a bad source, an unknown format and a bad shape are refused by name', () => {
+    const bad = (lf) => validateDefinition({ ...RS, meta: { ...RS.meta, legendFallback: lf } })
+    expect(bad('x').errors.join('\n')).toMatch(/meta\.legendFallback: expected an array/)
+    expect(bad([{ source: 'input:benchmark', format: 'pct' }]).errors.join('\n')).toMatch(/legendFallback\[0\]\.source/)
+    expect(bad([{ source: 'scalar:mansfield.value', format: 'percent' }]).errors.join('\n')).toMatch(/legendFallback\[0\]\.format/)
+  })
+})

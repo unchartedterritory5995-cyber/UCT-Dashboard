@@ -5234,11 +5234,13 @@ export default function StockChart({
     let fallback = null
     if (!c.hidden && !chipValueText(c)) {
       let scalars = null
+      let resolved = null
       try {
         const inst = (engineInstancesRef.current || []).find((i) => i && i.instanceId === c.instanceId)
-        scalars = readoutChipOpts.scalarsOf(def, resolvedInputsOf(def, (inst && inst.inputs) || {}))
+        resolved = resolvedInputsOf(def, (inst && inst.inputs) || {})
+        scalars = readoutChipOpts.scalarsOf(def, resolved)
       } catch { scalars = null }
-      fallback = readoutFallbackValue(def, scalars, c.decimals)
+      fallback = readoutFallbackValue(def, scalars, c.decimals, resolved)
     }
     return { def, name, fallback }
   }

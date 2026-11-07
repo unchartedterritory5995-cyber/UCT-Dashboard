@@ -3881,6 +3881,9 @@ const RS_LINE_RAW = {
       'rs rating', 'stress test', 'red day', 'regime'],
     tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // ⭐ Mansfield view blanks the RS line, so the pane label names the line it
+    // draws: the Mansfield reading, live. Otherwise the dated last RS value.
+    legendFallback: [{ source: 'scalar:mansfield.value', format: 'pct', when: 'input:showMansfield' }],
     // ⭐ THE INPUTS THE SERVER DECLARES — and therefore the only ones that key the
     // fetch (`serverCompute.pickServerInputs`). Colours and width stay on the
     // client. `test_rs_columns_provider.py` diffs this list against the Python

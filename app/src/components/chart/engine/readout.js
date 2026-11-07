@@ -1248,8 +1248,18 @@ export function readoutDateText(asOf) {
  * @param {number} [decimals] the plot's legend decimals (the chip's)
  * @returns {{text: string, muted: true}|null} null for a definition without a readout
  */
-export function readoutFallbackValue(def, scalars, decimals) {
+export function readoutFallbackValue(def, scalars, decimals, inputs) {
   if (!declaresReadout(def)) return null
+  // ⭐ A DECLARED ALTERNATIVE FIRST (2026-11-07): `meta.legendFallback` is a list
+  // of readout-grammar entries ({source, format, when?}). The first that
+  // resolves is the pane label's value, LIVE (not muted, no date): a view that
+  // blanks the primary line (the RS Mansfield view) names the line it draws.
+  const alts = def && def.meta && Array.isArray(def.meta.legendFallback) ? def.meta.legendFallback : []
+  if (alts.length) {
+    const rows = readoutRows({ ...def, readout: alts.map((a, i) => ({ ...a, key: a.key || `legendFallback${i}`, label: a.label || 'value' })) },
+      scalars, { inputs: inputs || {} })
+    if (rows.length && rows[0].text && !rows[0].muted) return { text: rows[0].text, muted: false }
+  }
   const legend = scalars && typeof scalars === 'object' && scalars.legend && typeof scalars.legend === 'object'
     ? scalars.legend : null
   const v = legend ? legend.lastValue : null

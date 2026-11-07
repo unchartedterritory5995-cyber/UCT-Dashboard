@@ -1361,6 +1361,21 @@ function validateMeta(meta, def, errors) {
   if (meta.learn !== undefined && meta.learn !== null) {
     validateMetaLearn(meta.learn, errors)
   }
+  // `meta.legendFallback` (2026-11-07): the pane label's declared alternative value,
+  // in the readout grammar. Each entry needs a scalar/payload source and a known format;
+  // an optional `when` uses the same grammar as a readout row's.
+  if (meta.legendFallback !== undefined) {
+    if (!Array.isArray(meta.legendFallback)) {
+      errors.push(`meta.legendFallback: expected an array of {source, format, when?}, got ${fmt(meta.legendFallback)}`)
+    } else {
+      meta.legendFallback.forEach((e, i) => {
+        const p = isPlainObject(e) ? parseReadoutSource(e.source) : null
+        if (!p || p.kind !== 'scalar') errors.push(`meta.legendFallback[${i}].source: expected a 'scalar:<a.b>' or 'payload:<a.b>' path, got ${fmt(e && e.source)}`)
+        if (!isPlainObject(e) || !READOUT_FORMATS.includes(e.format)) errors.push(`meta.legendFallback[${i}].format: expected one of ${list(READOUT_FORMATS)}, got ${fmt(e && e.format)}`)
+        if (isPlainObject(e) && e.when !== undefined && !parseReadoutSource(e.when)) errors.push(`meta.legendFallback[${i}].when: expected a readout source, got ${fmt(e.when)}`)
+      })
+    }
+  }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
   // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
   // resolves to nothing renders the string "RSI(undefined)" in the readout.
