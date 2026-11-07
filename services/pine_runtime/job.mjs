@@ -45,7 +45,17 @@
 //                    [0, withheldBars) a run off the listing withheld because their values depend on
 //                    where the history starts; 0 when the run withheld none. The supervisor's seal
 //                    (protocol.mjs) checks it is a bar count and adds the digest.
-import { INTEGRITY_GUARD } from './protocol.mjs'
+//   strategy         (W9-T14) only when `want` names STRATEGY_WANT ('#strategy', profile `backtest`):
+//                    the run's own `strategy` record (`rt.runtimeStrategyOf`, the reader the browser
+//                    worker posts it by), written as JSON text. '#strategy' is never a column. A run
+//                    that made no record lists `{key: '#strategy', guard: 'runtime:server-output-absent'}`
+//                    (the job stays ok for its columns). A record holding a value JSON cannot carry
+//                    exactly (NaN, +/-Infinity, undefined: JSON.stringify would write null or drop it)
+//                    withholds the WHOLE job as `runtime:server-integrity`: never a silent null. The
+//                    seal (protocol.mjs) checks the shape and adds `strategy_sha256`. This file decides
+//                    no strategy value: sizing, costs and fills are the broker's (RT/broker.js), and
+//                    what it cannot serve it refuses by name inside the run.
+import { INTEGRITY_GUARD, STRATEGY_WANT } from './protocol.mjs'
 
 export const OUTPUT_ABSENT_GUARD = 'runtime:server-output-absent'
 export const DRAWINGS_GUARD = 'runtime:server-drawings'
@@ -117,6 +127,41 @@ export function refusalOf(rt, err) {
   return { guard, sentence, bar: err && Number.isInteger(err.bar) ? err.bar : null }
 }
 
+/** W9-T14: why `rec` cannot be written as JSON exactly (a path and a reason), or null. Every number
+ *  must be finite and every value JSON-representable: JSON.stringify writes NaN and +/-Infinity as
+ *  null and drops undefined, which would be a silent wrong value on the wire. */
+export function recordValueFault(rec, path = 'strategy', depth = 0) {
+  if (depth > 16) return `${path} is nested deeper than a strategy record is`
+  if (rec === null || typeof rec === 'string' || typeof rec === 'boolean') return null
+  if (typeof rec === 'number') return Number.isFinite(rec) ? null : `${path} is ${rec}, not a finite number`
+  if (Array.isArray(rec)) {
+    for (let i = 0; i < rec.length; i += 1) {
+      const why = recordValueFault(rec[i], `${path}[${i}]`, depth + 1)
+      if (why) return why
+    }
+    return null
+  }
+  if (typeof rec === 'object' && (Object.getPrototypeOf(rec) === Object.prototype || Object.getPrototypeOf(rec) === null)) {
+    for (const [k, v] of Object.entries(rec)) {
+      const why = recordValueFault(v, `${path}.${k}`, depth + 1)
+      if (why) return why
+    }
+    return null
+  }
+  return `${path} is ${rec === undefined ? 'undefined' : `a ${typeof rec}`}, which JSON cannot carry`
+}
+
+/** W9-T14: the run's record as wire text, `{ refusal }` when the run made none, or `{ fault }`. */
+function strategyOfRun(rt, cols) {
+  const rec = typeof rt.runtimeStrategyOf === 'function' ? rt.runtimeStrategyOf(cols) : null
+  if (rec === null || rec === undefined) {
+    return { refusal: { key: STRATEGY_WANT, guard: OUTPUT_ABSENT_GUARD, bar: null,
+      sentence: 'this run made no strategy record (the script did not run with the strategy broker), so there is no backtest to serve.' } }
+  }
+  const fault = recordValueFault(rec)
+  return fault ? { fault } : { text: JSON.stringify(rec) }
+}
+
 /** Encode one run's columns for the wire (see the header), or withhold the whole job. */
 export function encodeResult(rt, job, cols) {
   const info = cols ? cols[rt.RUNTIME_INCREMENTAL_KEY] : null
@@ -127,6 +172,7 @@ export function encodeResult(rt, job, cols) {
   const columns = {}
   const refusals = []
   for (const key of keys) {
+    if (key === STRATEGY_WANT) continue // the record, below: never a column
     if (!Object.prototype.propertyIsEnumerable.call(cols, key)) {
       refusals.push({ key, guard: OUTPUT_ABSENT_GUARD, sentence: `this run produced no output \`${key}\`.`, bar: null })
       continue
@@ -141,8 +187,16 @@ export function encodeResult(rt, job, cols) {
     refusals.push({ key: rt.RUNTIME_OBJECTS_KEY, guard: DRAWINGS_GUARD,
       sentence: 'the drawings this script makes are not served to alerts, scans or backtests yet.', bar: null })
   }
+  let strategy
+  if (Array.isArray(job.want) && job.want.includes(STRATEGY_WANT)) {
+    const s = strategyOfRun(rt, cols)
+    if (s.fault) return runWide(job.job, INTEGRITY_GUARD, `the strategy record cannot be sent exactly: ${s.fault}, so no output of this job has a value.`)
+    if (s.refusal) refusals.push(s.refusal)
+    else strategy = s.text
+  }
   const warm = rt.runtimeWarmupOf(cols)
-  return { job: job.job, status: 'ok', columns, refusals, warmup: { withheldBars: warm === null ? 0 : warm.withheldBars } }
+  return { job: job.job, status: 'ok', columns, refusals, warmup: { withheldBars: warm === null ? 0 : warm.withheldBars },
+    ...(strategy !== undefined ? { strategy } : {}) }
 }
 
 /**

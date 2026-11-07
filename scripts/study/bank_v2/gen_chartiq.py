@@ -197,6 +197,20 @@ def brain_line(q: dict | None) -> str:
     return f' From the brain, {q["who"]}: "{q["quote"]}"' if q else ""
 
 
+#: "Institutionally traded" (owner 2026-11-06): the top 1,000 stocks by dollar volume that day, and never more than the top
+#: 40% of the day's universe. Before 2026-11-07 the cut was the top 1,000 alone, which let every stock through in the
+#: 1990s (fewer than 1,000 in the data) and most of them through the 2000s.
+LIQ_SHARE = 0.40
+
+
+def liquid(r: dict, top: int = 1000, share: float = LIQ_SHARE) -> bool:
+    rank, universe = r.get("liq_rank"), r.get("liq_universe")
+    if rank is None:
+        return False
+    cap = min(top, share * universe) if universe else top
+    return rank <= cap
+
+
 def era_of(t) -> str:
     y = int(str(t)[:4])
     for e in ERAS:
@@ -251,6 +265,15 @@ def pick(pool: list, target: int, sec: dict) -> list:
     return chosen
 
 
+def prefer_kept(pool: list, target: int, sec: dict) -> list:
+    """The charts already in the bank first (when they still pass every rule), then the usual spread for the rest: a
+    stricter rule replaces only what fails it, never reshuffles the rest."""
+    keep = POD.get("keep") or set()
+    kept = [r for r in pool if (r["sym"], iso(r["t"])) in keep]
+    rest = [r for r in pool if (r["sym"], iso(r["t"])) not in keep]
+    return pick(kept, target, sec) + pick(rest, target, sec)
+
+
 def bars_to(con, sym, t, n=300):
     rows = con.execute("SELECT ts,o,h,l,c,v FROM (SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? "
                        "ORDER BY ts DESC LIMIT ?) ORDER BY ts", (sym, int(t), n)).fetchall()
@@ -277,6 +300,8 @@ def pod_ok(sym, t) -> bool:
     if not POD:
         return True
     asof = iso(t)
+    if (sym, asof) in POD["cov"].refused:
+        return False
     return (sym, asof) in POD["keep"] or POD["cov"].covered(sym, asof)[0]
 
 
@@ -300,7 +325,7 @@ def cycle_items(rows, sec, target, db=None):
     out, dropped = [], Counter()
     for st in CYCLE_ORDER:
         pool = [r for r in rows if r["kind"] == "cycle" and r["name"] == st]
-        for r in pick(pool, int(target * 1.4), sec):
+        for r in prefer_kept(pool, int(target * 1.4), sec):
             if sum(1 for x in out if x["prompt_json"]["subject"] == st) >= target:
                 break
             if not pod_ok(r["sym"], r["t"]) or not yahoo_ok(r["sym"], r["t"], db):
@@ -338,7 +363,7 @@ def event_items(rows, sec, target, con, con_path=None):
     out, dropped = [], Counter()
     for ev in EVENT_DEF:
         pool = [r for r in rows if r["kind"] == "event" and r["base"] == ev]
-        for r in pick(pool, target * 2, sec):
+        for r in prefer_kept(pool, target * 2, sec):
             if sum(1 for x in out if x["prompt_json"]["subject"] == ev) >= target:
                 break
             b = bars_to(con, r["sym"], r["t"])
@@ -387,7 +412,7 @@ def main(argv=None) -> int:
     sec = sectors()
     BQ.update(brain_quotes())
     rows = [json.loads(l) for l in gzip.open(a.events, "rt", encoding="utf-8")]
-    rows = [r for r in rows if r.get("held") and (r.get("liq_rank") or 10 ** 9) <= a.top and sec.get(r["sym"]) != "ETF"]
+    rows = [r for r in rows if r.get("held") and liquid(r, a.top) and sec.get(r["sym"]) != "ETF"]
     con = sqlite3.connect(f"file:{a.bars_db}?mode=ro", uri=True)
     YAHOO.update(second_source.load_cache(YAHOO_CACHE))
     if a.pod_span:

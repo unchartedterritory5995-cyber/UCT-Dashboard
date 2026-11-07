@@ -10,7 +10,9 @@ docs/study/bank_v2/pod_daily_span.json holds each ticker's first and last daily 
 (pod_bars_coverage.py, run by the owner). A chart is covered when the pod's history starts on or before the first bar of
 the item's window (the 120 sessions up to the chart's last bar, read from the local bars), ends on or after the last
 bar of its forward strip, and is not gappy: the pod holds at least 97% of the rows the local bars hold over the pod's
-own span. Anything else is never drafted.
+own span. Anything else is never drafted. A gap can still hide inside a dense ticker (pod_window_check.py found 18 on
+2026-11-07, plus 31 charts whose signal day the pod lacks), so every chart the pod was measured drawing short or
+differently is refused by name as well (REFUSED_FILES).
 """
 from __future__ import annotations
 
@@ -23,9 +25,23 @@ SPAN_FILE = REPO / "docs" / "study" / "bank_v2" / "pod_daily_span.json"
 WINDOW, FORWARD, DENSE = 120, 20, 0.97
 
 
+#: charts the pod itself was measured drawing short or differently (pod_bars_coverage.py 2026-11-06,
+#: pod_window_check.py 2026-11-07): [segment, id, sym, asof, ...]; never drafted again, whatever the span says
+REFUSED_FILES = (REPO / "docs" / "study" / "bank_v2" / "pod_short_2026-11-06.json",
+                 REPO / "docs" / "study" / "bank_v2" / "pod_windows_2026-11-07.json")
+
+
 class PodCoverage:
-    def __init__(self, local_db: str, span_file: pathlib.Path = SPAN_FILE):
+    def __init__(self, local_db: str, span_file: pathlib.Path = SPAN_FILE, refused_files=REFUSED_FILES):
         self.span = json.loads(span_file.read_text(encoding="utf-8"))["span"]
+        self.refused, self.gappy = set(), set()
+        for f in refused_files:
+            if pathlib.Path(f).exists():
+                rows = json.loads(pathlib.Path(f).read_text(encoding="utf-8"))
+                self.refused |= {(x[2], x[3]) for x in rows}
+                if "windows" in pathlib.Path(f).name:
+                    # a ticker the pod was measured drawing with a hidden gap: no NEW chart on it
+                    self.gappy |= {x[2] for x in rows}
         self.con = sqlite3.connect(f"file:{local_db}?mode=ro", uri=True)
         self._dense: dict = {}
 
@@ -39,6 +55,10 @@ class PodCoverage:
 
     def covered(self, sym: str, asof: str, window: int = WINDOW, forward: int = FORWARD) -> tuple[bool, str]:
         """(ok, why). `asof` is YYYY-MM-DD, the chart's last bar."""
+        if (sym, asof) in self.refused:
+            return False, "the pod was measured drawing this chart short or differently"
+        if sym in self.gappy:
+            return False, "the pod was measured with a hidden gap on this ticker"
         if sym not in self.span:
             return False, "the pod has no daily bars for this ticker"
         key = int(asof.replace("-", ""))
