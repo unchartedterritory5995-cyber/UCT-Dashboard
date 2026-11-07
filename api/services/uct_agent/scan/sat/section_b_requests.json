@@ -2197,7 +2197,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart's timeframe.",
-    "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+    "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
     "args": {
      "type": "object",
      "properties": {
@@ -2211,7 +2211,9 @@
         "60",
         "D",
         "W",
-        "M"
+        "M",
+        "next",
+        "previous"
        ]
       }
      },
@@ -5316,7 +5318,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart's timeframe.",
-    "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+    "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
     "args": {
      "type": "object",
      "properties": {
@@ -5330,7 +5332,9 @@
         "60",
         "D",
         "W",
-        "M"
+        "M",
+        "next",
+        "previous"
        ]
       }
      },
@@ -6755,7 +6759,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart's timeframe.",
-    "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+    "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
     "args": {
      "type": "object",
      "properties": {
@@ -6769,7 +6773,9 @@
         "60",
         "D",
         "W",
-        "M"
+        "M",
+        "next",
+        "previous"
        ]
       }
      },

@@ -32,6 +32,7 @@ import { unknownSymbols } from '../agentClient'
 import { watermarkSpot } from '../derivedOpts'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
+import { TF_ORDER } from '../../components/chart/keyboardShortcuts'
 import { paneVolumePct } from '../../components/chart/pane/paneLook'
 import { HEADER_FIELDS, headerFieldKeys } from '../../components/chart/headerFields'
 import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from '../../components/chart/barInfoFields'
@@ -466,6 +467,17 @@ export function describeChart(snap, shortRef) {
 const onCharts = (ctx) => ctx.surface === 'charts'
 
 // ── fast-path phrases (agent/fastPath.js asks each capability) ──
+// ── C1-011 (pl-exec round 5): the timeframe keys' repeat-press cycle, said — one rung up or down the SAME order the keys walk
+// (keyboardShortcuts TF_ORDER), from the chart's own timeframe; the ends are said, never wrapped (a spoken step has no cycle) ──
+const TF_STEPS = ['next', 'previous']
+const stepTf = (tf, dir) => { const i = TF_ORDER.indexOf(String(tf)); if (i < 0) return null; const j = i + (dir === 'next' ? 1 : -1); return TF_ORDER[j] || null }
+const stepRefusal = (tf, dir) => (TF_ORDER.indexOf(String(tf)) < 0 ? `This chart's ${tfLabel(tf)} timeframe isn't on the timeframe keys' ladder — say which timeframe you want.`
+  : `${tfLabel(tf)} is already the ${dir === 'next' ? 'longest' : 'shortest'} timeframe on the keys' ladder.`)
+// "up one timeframe", "next timeframe", "a timeframe higher" / "down a timeframe", "previous timeframe", "one timeframe lower"
+const TF_STEP_WORDS = [
+  [/^(?:(?:go|step|move|bump|jump|switch)(?: (?:it|this|this chart|the chart))? )?(?:up|higher)(?: (?:one|a|1))? time ?frames?(?: up)?$|^(?:the )?next time ?frame(?: up)?$|^(?:one|a) time ?frame (?:up|higher|longer)$/, 'next'],
+  [/^(?:(?:go|step|move|drop|bump|jump|switch)(?: (?:it|this|this chart|the chart))? )?(?:down|lower)(?: (?:one|a|1))? time ?frames?(?: down)?$|^(?:the )?previous time ?frame$|^(?:one|a) time ?frame (?:down|lower|shorter)$/, 'previous'],
+]
 const TF_WORDS = [
   [/^(1|one)\s*(m|min|mins|minute|minutes)$/, '1'],
   [/^(5|five)\s*(m|min|mins|minute|minutes)$/, '5'],
@@ -507,15 +519,22 @@ const CAPABILITIES = [
   {
     name: 'chart.setTimeframe',
     summary: "Change one chart's timeframe.",
-    hints: 'Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.',
-    args: { type: 'object', properties: { timeframe: { type: 'string', enum: CHART_TIMEFRAMES } }, required: ['timeframe'], additionalProperties: false },
-    check(st, { timeframe }) {
+    hints: '1/5/15/30/60 min, D, W, M; next/previous: one rung.',
+    args: { type: 'object', properties: { timeframe: { type: 'string', enum: [...CHART_TIMEFRAMES, ...TF_STEPS] } }, required: ['timeframe'], additionalProperties: false },
+    check(st, { timeframe: raw }) {
+      if (TF_STEPS.includes(raw) && !stepTf(st.tf, raw)) return stepRefusal(st.tf, raw)
+      const timeframe = TF_STEPS.includes(raw) ? stepTf(st.tf, raw) : raw
       if (!TF_LABEL[timeframe]) return `“${timeframe}” is not a timeframe UCT charts.`
       if (isIntraday(timeframe) && !hasIntradayBars(st.symbol)) return `${st.symbol} has daily, weekly and monthly data only.`
       return null
     },
-    fast: ({ core }) => { const timeframe = firstMatch(TF_WORDS, core); return timeframe ? { timeframe } : null },
-    apply: (st, { timeframe }) => (st.tf === timeframe ? st : { ...st, tf: timeframe }),
+    fast: ({ core }) => {
+      const step = TF_STEP_WORDS.find(([re]) => re.test(core))
+      if (step) return { timeframe: step[1] }
+      const timeframe = firstMatch(TF_WORDS, core)
+      return timeframe ? { timeframe } : null
+    },
+    apply: (st, { timeframe: raw }) => { const timeframe = TF_STEPS.includes(raw) ? stepTf(st.tf, raw) : raw; return st.tf === timeframe ? st : { ...st, tf: timeframe } },
     describe: (b, a) => (b.tf === a.tf ? null : `Switched timeframe to ${tfLabel(a.tf)}`),
     noop: (b, a) => `Already ${tfLabel(a.tf)}`,
   },
