@@ -56,7 +56,9 @@ let p = null
 // what the walkthrough is on, read from the guide's OWN store and target reader (the same modules the page runs)
 const STATE = `(async () => {
   const G = await import('/src/agent/guide/guideStore.js'); const T = await import('/src/agent/guide/targets.js')
-  const st = G.guideState(); if (!st) return null
+  const st = G.guideState()
+  // a card on screen with an empty store: the page runs another copy of the module (Vite hot-reloaded it): a HARNESS fault
+  if (!st) return document.querySelector('[data-testid="guide-card"]') ? { stale: true } : null
   const step = st.steps[st.index]; const ring = document.querySelector('[data-testid="guide-ring"]')
   const r = ring && ring.getBoundingClientRect()
   // the ring is ON the control: its centre is inside the control, and it covers most of it (the guide clips the ring to what
@@ -142,6 +144,7 @@ try {
   await sleep(800)
   for (let n = 0, waits = 0; n < 16; n++) {
     const s = await p.b.evaluate(STATE)
+    if (s?.stale) { rec.why = 'HARNESS: the page’s guide module is not the runner’s (Vite hot-reloaded it): restart Vite and run again'; rec.harness = true; break }
     if (!s) { rec.why = rec.steps.length ? 'the walkthrough ended before its last step' : `no walkthrough: ${(await p.last()).slice(0, 160)}`; break }
     rec.steps.push({ i: s.index, text: s.text, onPrimary: s.onPrimary, pr: s.pr, rr: s.rr })
     if (s.last) {

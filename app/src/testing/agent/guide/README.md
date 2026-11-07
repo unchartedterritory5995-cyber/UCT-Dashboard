@@ -5,7 +5,7 @@ Proves, in a real headless Chrome on the agent harness, that a "how do I…" wal
 From `app/`:
 
 ```
-# 0. dev server (any free port; 5302 is pl-teach's)
+# 0. dev server, started FRESH after any code change (a hot-reloaded module is a different copy from the one the runner reads)
 node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5302 --strictPort
 # 1. cases: the inventory's own words that reach the walkthrough assigned to each row (expected.json)
 GUIDE_CASES_OUT=src/testing/agent/guide/cases.inventory.json GUIDE_PROBE_OUT=teach-probe.json npx vitest run src/agent/agentGuideInventory
