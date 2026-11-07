@@ -74,3 +74,20 @@ export function controlledWidgetTypes(message, types, surfaceWord) {
   const said = new Set(nameWords(message))
   return namedWidgetTypes(message, types, surfaceWord).filter(t => [...controlVocab(t, surfaceWord)].some(w => said.has(w)))
 }
+
+// ── Round 4 (pl-exec): a widget's own LIST of the member's items (a Theme Tracker's theme sets), the one data source for the
+// item control (capabilities/board.js) and for routing: an item named by its own name ("rename my Mine theme set") is about that
+// widget even when the widget is not named. ──
+export const ITEM_LISTS = { themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }] }
+/** The board's widgets that the message reaches by one of their OWN item names, beside an item word (set, preset, rename, delete). */
+export function itemNamedTypes(message, items) {
+  const words = nameWords(message)
+  const said = new Set(words)
+  const out = new Set()
+  for (const { type, key, names } of items || []) {
+    const l = (ITEM_LISTS[type] || []).find(x => x.key === key)
+    if (!l || ![...l.nouns, ...l.ops].map(stem).some(w => said.has(w))) continue
+    if ((names || []).some(n => { const nw = nameWords(n); return nw.length && nw.join(' ').length >= 3 && saysName(words, nw) })) out.add(type)
+  }
+  return [...out]
+}

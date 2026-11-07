@@ -320,6 +320,8 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
     applyBoard: (p) => widgetOps.applyBoard(p),
     // the widget types on the board, cheaply (routing reads it every turn: snapshot() simulates placements)
     types: () => [...new Set(((widgetOps.layout() || {}).widgets || []).map(w => w?.type).filter(Boolean))],
+    // [{ id, type }] of the board's widgets, cheaply (routing reads a widget's own item names through its door)
+    ids: () => ((widgetOps.layout() || {}).widgets || []).filter(w => w?.id && w?.type).map(w => ({ id: w.id, type: w.type })),
     // a mounted widget's own state, writers and capture (pages/charts/widgetDoors.js); null when it is not showing
     door: (id) => mountedWidgetDoor(id),
     add: (type, place, init) => widgetOps.add(type, place, init),

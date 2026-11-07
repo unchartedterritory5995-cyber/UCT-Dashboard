@@ -167,3 +167,20 @@ describe('Theme Tracker theme sets: rename and delete, through the tracker’s o
     expect(setsNow()).toEqual(['Mine', 'Core'])
   }, 60000)
 })
+
+// round 4 (pl-exec): a theme set named by its OWN name ("rename my Mine theme set", no widget named) reaches the item control on the
+// FIRST model call: routing reads the tracker's own set names through its door (widgetNames itemNamedTypes) — no reroute.
+import { ITEM_HELD_OUT } from '../../agentExecHeldOut4.test.js'
+describe('a theme set named by its own name reaches the tracker’s control on the first call', () => {
+  it.each(ITEM_HELD_OUT.map(c => [c.text]))('%s: one model call, carrying widget.setOption and the tracker’s sets', async (text) => {
+    data.sets = [{ id: 'set1', name: 'Mine' }, { id: 'set2', name: 'Core' }]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    const op = /^delete/.test(text) ? 'delete:Mine' : 'rename:Mine=>Growth'
+    await m.say(text, setOption('themeSets', op))
+    const turns = m.p.st.calls.filter(c => c[1] === '/api/agent/turn').map(c => c[2])
+    expect(turns.length).toBe(1)
+    expect(turns[0].capabilities.map(x => x.name)).toContain('widget.setOption')
+    expect(turns[0].context.widgetControls[0].controls.themes).toMatch(/themeSets\(rename:<name>=><new>\|delete:<name>; yours: Mine, Core\)/)
+  }, 60000)
+})

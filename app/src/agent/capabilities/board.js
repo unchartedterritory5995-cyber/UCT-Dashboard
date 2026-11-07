@@ -41,6 +41,7 @@ import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
 import { wordsSelect, namedBoardWidgets } from '../routing'
+import { ITEM_LISTS } from '../widgetNames'
 import { labelMap, WIDGET_REGISTRY } from '../../widgets/registry'
 import { widgetControls } from '../../widgets/widgetControls'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
@@ -199,7 +200,6 @@ function namedHere(type, said) {
   return labels.some(x => said.has(x)) && choices.some(x => said.has(x))
 }
 // round 3 (C3-174): a widget's own list of the member's items, renamed or deleted through its door (widget.setOption, below)
-const ITEM_LISTS = { themes: [{ key: 'themeSets', noun: 'theme set', ops: ['rename', 'delete'] }] }
 const itemWords = (t, doors, ids) => (ITEM_LISTS[t] || []).map(l => {
   const names = [...new Set(ids.flatMap(id => (doors?.[id]?.[l.key] || []).map(x => x.name)))]
   return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`

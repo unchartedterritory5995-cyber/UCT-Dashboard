@@ -18,7 +18,7 @@
 //   • a reroute is bounded to ONE extra call, and only when the first call planned nothing.
 // Kill switch: localStorage `uct.agent.routing = '0'` sends the full manifest every turn.
 
-import { namedWidgetTypes, controlledWidgetTypes } from './widgetNames'
+import { namedWidgetTypes, controlledWidgetTypes, itemNamedTypes, ITEM_LISTS } from './widgetNames'
 export const ROUTING_VERSION = 1
 
 // hotfix 2026-11-03: "on four charts", "4 charts", "two more charts", "all the same size", "equal size", "evenly", "split"
@@ -357,6 +357,7 @@ function namedGroups(q, names) {
     }
   }
   if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   return out
 }
 
@@ -368,6 +369,12 @@ export function routingNames(host) {
     watchlists: read(() => host?.watchlists?.snapshot?.()?.map(l => l.name)),
     screens: read(() => host?.savedScreens?.snapshot?.()?.map(s => s.name)),
     widgetTypes: read(() => host?.widgets?.types?.()),
+    // the member's own items a widget lists (its door), for the types that have such a list: [{ type, key, names }]
+    widgetItems: read(() => (host?.widgets?.ids?.() || []).filter(w => ITEM_LISTS[w.type]).flatMap(w => {
+      let r = null
+      try { r = host.widgets.door?.(w.id)?.read?.() || null } catch { r = null }
+      return ITEM_LISTS[w.type].map(l => ({ type: w.type, key: l.key, names: (Array.isArray(r?.[l.key]) ? r[l.key] : []).map(x => x?.name).filter(Boolean) }))
+    })),
     indicatorTemplates: read(() => {
       const raw = host?.prefs?.read?.()?.indicator_templates
       const list = typeof raw === 'string' ? JSON.parse(raw) : raw
