@@ -45,13 +45,21 @@ export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exa
 // under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
 const REL_CHART_ANCHOR = new RegExp(`(?:this|that)\\s+${REL_ANCHOR_NOUN}\\b|\\bthe\\s+(?:selected|clicked|current|highlighted|active|focused)\\b|\\bthe\\s+one\\s`, 'i')
 const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
+// ⭐ 2026-11-07 (pl-auto u5-relation-controls-02, revisited after the owner's conversational-targeting decision): an ANCHORLESS
+// relation — "the chart above", "the one to the right", "the one to its left" — reads from the click (or the conversation's
+// target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
+// followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
+// Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
   const s = String(text || '')
   const m = RELATIVE.exec(s)
-  if (!m) return null
-  if (placesNonChart(s.slice(0, m.index))) return null
-  return REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)) ? m : null
+  if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
+  if (m) return null
+  const b = RELATIVE_BARE.exec(s)
+  // its noun IS the chart related ("a macd on the chart above" puts the MACD on that chart), so nothing placed before it counts
+  return b || null
 }
 // pl-auto indicator-add-02: "MACD under this chart", "volume beneath this one", "a line above this chart" place an indicator, a pane,
 // a line, a level — not a chart ("the pane left of it" IS a chart: a pane alone is a chart's cell, an indicator's pane is named by
@@ -543,11 +551,22 @@ function clauseReads(text, host, parse) {
     const bare = rel ? part.replace(rel.match[0], ' ').replace(/\b(?:the|a)\s+(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph)\b/gi, ' ') : part
     const core = bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(FILLER, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim()
     let ops = null
-    try { const r = core ? parse(core, { host }) : null; ops = r?.kind === 'ops' && !r.target ? r.ops : null } catch { ops = null }
-    out.push({ part, negated, chart, ops })
+    const read = (t) => { try { const r = t ? parse(t, { host }) : null; return r?.kind === 'ops' && !r.target ? r.ops : null } catch { return null } }
+    // "to the hourly", "on the weekly": the article a chart word left behind is no part of the change
+    ops = read(core) || read(core.replace(/^(?:the|a|an)\s+/i, '')) || read(bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim())
+    out.push({ part, negated, chart, ops, core })
+  }
+  // ⭐ 2026-11-07 (pl-auto u4-clauses-04/06/08/10): ONE change said once for two charts — "the TSLA chart to the hourly and this one
+  // too", "draw a line at 120 on this one and on the TSLA chart", "this one and the one to its left on the weekly". A clause that
+  // names its chart and says NOTHING else (its words are only chart words and fillers) shares the change of the one other
+  // affirmative clause that says one. Two clauses saying changes, or none, leave it unread (the gates decide, as before).
+  const sayers = out.filter(r => !r.negated && r.ops?.length)
+  if (sayers.length === 1) {
+    for (const r of out) if (!r.negated && r.chart && !r.ops && !SHARED_LEFTOVER(r.core)) { r.ops = sayers[0].ops; r.shared = true }
   }
   return out
 }
+const SHARED_LEFTOVER = (core) => !!String(core || '').replace(/\b(?:as\s+well|both|same|the|a|one|ones|chart|charts|do|that|please)\b/gi, ' ').trim()
 const sameOp = (a, b) => a.action === b.action && JSON.stringify(a.args || {}) === JSON.stringify(b.args || {})
 /** → { ok: true } when every op is the change of exactly one affirmative clause, on that clause's chart; { ask } when an op
  *  lands on a chart its clause does not name (or a negated clause's chart); null when the sentence is not read this way. */
@@ -560,6 +579,7 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
   const sel = selectedChart(host)
   if (!affirm.some(r => r.chart && r.chart === sel) || !affirm.some(r => r.chart && r.chart !== sel)) return null
   let any = false
+  const used = new Set()
   for (const o of ops || []) {
     const cap = getCapability(o?.action)
     const kind = cap ? getTargetKind(cap.target) : null
@@ -569,13 +589,21 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (!chart) continue
     if (excluded.has(chart)) return { ask: { text: 'You asked me to leave that chart alone. Which chart do you mean?', choices: list.filter(x => !excluded.has(chartRefOf(kind, x))).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     const says = affirm.filter(r => (r.ops || []).some(x => sameOp(x, o)))
-    if (says.length !== 1 || !says[0].chart) return null                      // not certain: the gates below decide
-    if (says[0].chart !== chart) {
-      const meant = list.find(x => chartRefOf(kind, x) === says[0].chart)
+    // a shared change ("… and this one too") is said by each of its clauses: the op is the one whose chart it is on, each once
+    const mine = says.length > 1 ? says.filter(r => r.chart === chart && !used.has(r)) : says
+    if (says.length > 1 && mine.length !== 1) {
+      if (says.some(r => !r.chart)) return null
+      const meant = list.find(x => chartRefOf(kind, x) === says.find(r => !used.has(r))?.chart)
+      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
+    if (mine.length !== 1 || !mine[0].chart) return null                      // not certain: the gates below decide
+    if (mine[0].chart !== chart) {
+      const meant = list.find(x => chartRefOf(kind, x) === mine[0].chart)
       return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
     any = true
-    o.__clause = says[0]
+    used.add(mine[0])
+    o.__clause = mine[0]
   }
   // every affirmative clause that says a change has an op for it: a plan that does only part of the sentence is not read here
   // (the gates ask), so a one-op plan never runs beside a clause it left out
