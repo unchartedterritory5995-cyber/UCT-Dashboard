@@ -64,7 +64,16 @@
   "upper": "non-transferring sample scripts touching any named guard (a ceiling, not a promise)",
   "NEEDS_CHART": "no row, section or preamble names a chart this parser can read for the target, so its chart is the house default, a guess: never batched; a person names the chart in the row",
   "chartSource": "where the chart was read: row | section (the heading above the table) | preamble (explicit EXCH:SYM only) | census (the E-census pool's house chart, on purpose) | default",
-  "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)"
+  "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)",
+  "rowsNotCaptureQuestions": "rows their own doc disposes of in a `| not a capture | disposition | reason |` table: never a target, never counted in rowsNeedingProbe",
+  "dispositions": {
+   "ruling": "blocked by an owner ruling, not by a missing capture",
+   "engine-gap": "engine work: what it needs is a build, not a TradingView reading",
+   "closed": "the item is closed; nothing is asked",
+   "by-design": "the engine's behaviour here is a decision, not an open question",
+   "builtin": "a TradingView built-in no probe file can stand in for",
+   "withheld-ledger": "a record of what the engine withholds; the capture that settles it, if any, is its own row"
+  }
  },
  "counts": {
   "targets": 279,
@@ -279,9 +288,18 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 36,
-  "rowsNeedingProbeLive": 1,
+  "rowsNeedingProbe": 8,
+  "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
+  "rowsNotCaptureQuestions": 28,
+  "rowsNotCaptureByDisposition": {
+   "builtin": 1,
+   "by-design": 2,
+   "closed": 2,
+   "engine-gap": 10,
+   "ruling": 4,
+   "withheld-ledger": 9
+  },
   "rowsNamingUnreadableCharts": 0
  },
  "targets": [
@@ -13302,196 +13320,6 @@
  ],
  "rowsNeedingProbe": [
   {
-   "key": "capture-queue-2026-09-27#barstate.isnew",
-   "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 123,
-   "docWave": "2026-09-27",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": true,
-   "guards": [
-    "pine:reassign",
-    "pine:request"
-   ],
-   "namedScripts": [],
-   "text": "`barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | `closedTable.json::_barstate.refused.isnew` — \"requires per-tick evaluation\" | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`)"
-  },
-  {
-   "key": "capture-queue-2026-09-27#input.time",
-   "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 124,
-   "docWave": "2026-09-27",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [
-    "pine:input-kind"
-   ],
-   "namedScripts": [],
-   "text": "`input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — \"under the threshold\", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1)"
-  },
-  {
-   "key": "capture-queue-2026-09-27#ta.nvi / ta.pvi",
-   "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 125,
-   "docWave": "2026-09-27",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2"
-  },
-  {
-   "key": "capture-queue-2026-09-27#time(<session>) on daily bars",
-   "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 126,
-   "docWave": "2026-09-27",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`time(<session>)` on daily bars | 5m only | the refusal text: \"This engine screens daily bars\" | sole last wall of 1"
-  },
-  {
-   "key": "capture-queue-2026-09-30-time-anchors#time-anchor:weekend-bars",
-   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
-   "line": 32,
-   "docWave": "time-anchors",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`time-anchor:weekend-bars` | a daily chart with a Saturday OR a Sunday bar but not both (an FX week that opens on a Sunday evening): neither the SPY nor the BTCUSD capture's shape"
-  },
-  {
-   "key": "capture-queue-2026-09-30-time-anchors#time-anchor:session-open-missing, time-close:period-end-miss",
-   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
-   "line": 33,
-   "docWave": "time-anchors",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`time-anchor:session-open-missing`, `time-close:period-end-missing` | a period that opens, or ends, on a day TradingView's session calendar keeps open and the chart holds no bar for. On a 1D chart that is every holiday before 2000 (the calendar applies no closure there) and 2001-09-11..14; the daily captures start in 2007 (time_close) and 2023 (time), where calendar and bars agree, so which one th"
-  },
-  {
-   "key": "capture-queue-2026-09-30-time-anchors#time-anchor:not-daily, time-close:not-daily",
-   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
-   "line": 34,
-   "docWave": "time-anchors",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`time-anchor:not-daily`, `time-close:not-daily` | the periods on any chart that is not 1D (the 60m capture shows a DIFFERENT rule for `time(\"W\")`: the Tuesday 09:30 bar reads −1.0417 days)"
-  },
-  {
-   "key": "capture-queue-2026-09-30-time-anchors#time-own:chart-unwitnessed",
-   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
-   "line": 35,
-   "docWave": "time-anchors",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`time-own:chart-unwitnessed` | `time(timeframe.period)` / `time(\"60\")` on any chart but 1D and 60m"
-  },
-  {
-   "key": "capture-queue-2026-09-30-time-anchors#pine:function (translation)",
-   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
-   "line": 36,
-   "docWave": "time-anchors",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [
-    "pine:function"
-   ],
-   "namedScripts": [],
-   "text": "`pine:function` (translation) | `time(\"15\")`, `time(\"30\")`, `time(\"240\")`, every other literal; `time_close(timeframe.period)` (witnessed equal to `time_close` on both 1D captures, row Q05 — not served, outside C36's ruling); either form inside a `request.security`"
-  },
-  {
-   "key": "capture-queue-2026-10-01-c45#bar-index:window",
-   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
-   "line": 34,
-   "docWave": "c45",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`bar-index:window` | where TradingView's bar 0 is, on any chart whose bars do not start at the daily listing. Nothing to capture for a daily chart (bars reaching the listing settle it); Q-C45c for weekly / monthly; Q-C45d says whether intraday can ever be served"
-  },
-  {
-   "key": "capture-queue-2026-10-01-c45#bar-index:early-bars",
-   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
-   "line": 35,
-   "docWave": "c45",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`bar-index:early-bars` | `bar_index > N` on the bars where a longer history could change the answer. Same as above"
-  },
-  {
-   "key": "capture-queue-2026-10-01-c45#a colour HELD fn:conditional-history (object lane)",
-   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
-   "line": 36,
-   "docWave": "c45",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [
-    "fn:conditional-history"
-   ],
-   "namedScripts": [],
-   "text": "a colour HELD `fn:conditional-history` (object lane) | the per-execution window, for more than the one witnessed shape — Q-C45a"
-  },
-  {
-   "key": "capture-queue-2026-10-01-c45#pine:statement on float = …, line = … …",
-   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
-   "line": 37,
-   "docWave": "c45",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [
-    "pine:statement"
-   ],
-   "namedScripts": [],
-   "text": "`pine:statement` on `float = …`, `line = …` … | whether TradingView compiles the word as a name — Q-C45b"
-  },
-  {
-   "key": "capture-queue-2026-10-01-c45#geometry:lost / content:lost (a withheld object)",
-   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
-   "line": 38,
-   "docWave": "c45",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`geometry:lost` / `content:lost` (a withheld object) | not a capture question: the object's setter is one this chart cannot carry (`update:target`: a target read out of a list in a loop; a loop or helper that was not converted; `line.set_xloc` and the point setters). Building those is new Pine coverage — named in § C45, \"left\""
-  },
-  {
-   "key": "capture-queue-2026-10-01-c45#withheld at assert_scannable / alert arm",
-   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
-   "line": 39,
-   "docWave": "c45",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "`withheld` at `assert_scannable` / alert arm | not a capture question: the server lanes hold date-keyed bars with no clock and no listing proof. A lane that carried a clock would lift the `time-*` half"
-  },
-  {
-   "key": "capture-queue-2026-10-02-l2-libraries#Q-L2b",
-   "doc": "docs/pine/capture-queue-2026-10-02-l2-libraries.md",
-   "line": 11,
-   "docWave": "l2-libraries",
-   "needsProbe": "the row says no probe",
-   "needsLive": false,
-   "guards": [
-    "pine:module",
-    "runtime:library"
-   ],
-   "namedScripts": [],
-   "text": "Q-L2b | **no probe** — a v6 script importing a v5 library (`boitoki/AwesomeColor/9` from `fx-market-sessions`) | any | not a value question: TradingView compiles each at its own version. Recorded so a reader does not queue it; the wall (`pine:module` / `runtime:library`, \"written in Pine v5 and this script in v6\") stays refused until a lane compiles a library under its own version's rules | 4 scri"
-  },
-  {
    "key": "capture-queue-2026-10-05-s1#Q-S1c",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
    "line": 31,
@@ -13525,83 +13353,6 @@
    "text": "L2 | a stamped `?:` INSIDE a `request.security(…)` expression is stamped like any other, but its guard is evaluated on the CHART's bars by the bind, while the arm runs in the REQUESTED context | either way (probe `vw-pt-request-arm.pine` R03 / E03 / P03, NYSE:RDDT 1D from the listing) | `Resolver.stampTernaryArms` (no request-context test); `engine/blockRuns.js` evaluates every guard on the chart'"
   },
   {
-   "key": "capture-queue-2026-10-31-prod-ternary#L3",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 63,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "L3 | a NESTED arm's guard is its own test alone: in `a ? (b ? ta.sma(…) : x) : y` the inner arm runs where `a and b`, and its gate reads `b` (the outer stamp reads `a`) | over-withholds (a `b` that varies only where `a` is false still refuses) | `armRunGates` (no enclosing-arm conjunction) | AND the enclosing stamped arms' tests (negated for a false arm) into a nested stamp's guard during the walk"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#L4",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 64,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "L4 | a guard that is `na` on a bar is \"neither a run nor a skip\" (`blockRuns.firstRunAfterSkip`), but Pine v4+ takes the FALSE arm of a `?:` whose test is `na` (`naConditionFalse`): the true arm SKIPPED that bar and the false arm RAN | under-withholds (a test `na` on early bars, then true, is a run after skips the gate does not see) | `engine/blockRuns.js` / `api/services/block_runs.py` (one rule,"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#L5",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 65,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "L5 | `bgcolor` / `barcolor` colours | — | — | CLOSED by H1: a paint's colour rule is gated like a plot's (its condition column), and a withheld paint draws nothing — for ARM gates (`?:` / v6 `and` / `or`) only; C48's block gates never reach a paint or a fill colour: see G-h"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#L6",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 66,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "L6 | the arm walk re-reads a nested chain once per level: `armHistoryCallOf` walks each `?:`'s arms, so an N-deep `else if` / colour chain costs O(N²) node visits at translation | slow, never wrong | `Resolver.stampTernaryArms` → `armHistoryCallOf` | a per-translation memo keyed by parse node (`WeakMap`), recording only answers reached without the depth cap"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-a",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 67,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-a | CLOSED (fix/prod-plot-var-cond-history, review F2): a gate the output loop notes while the PRESENTATION resolves (after the value's, `valueBlockRuns`) rides the output's colour rules (`_colourBlockRuns`, read by `colourBlockRunsOf`), so a colour that reads an `if`-bound name or a `var` filled in a block that skips withholds that colour's condition column, never the plot. Attribution is per o"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-g",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 68,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-g | (by design, review F3) `if c` / `s := ta.sma(close, 1)` is withheld though a 1-bar window is the current value on every run: C48's mark (`condCallMark`, `stateRuns`) reads the call's NAME, not its window, as master's #604 / C31 do. Not exempted: an exemption is a per-function proof (`sma`, `ema`, `rma`, `wma`, `highest`… each with its own seed and `na` rules), of the repo's 611 `.pine` files"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-h",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 69,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-h | (pre-existing, found in the re-review of F2) C48's BLOCK gates never reach a paint's or a fill's colour: `resolvePaints` and the fill-colour reader resolve with `condGate` off, so `resolveBinding` notes no `condCall` / `stateRuns` gate there. `bgcolor(close > s ? color.red : na)`, `s` filled from a `ta.*` call in a block that skips, paints from the every-bar `s` — on master too | under-withh"
-  },
-  {
    "key": "capture-queue-2026-10-31-prod-ternary#G-i",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
    "line": 70,
@@ -13613,50 +13364,6 @@
    "text": "G-i | (C48, final run 2026-11-02) on the DRAWING lane's text reader a helper that reads a `var` is refused only when the var's last write is a top-level `:=` (runs every bar): that reader's scope is the whole drawing, not the env at the call, so a write in a block may not have run before the call and the folded value (the previous bar's) is then Pine's. Refusing every later write took rsi-swing-in"
   },
   {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-b",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 71,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-b | Pine v1-v4 BARE built-ins (`sma(…)`, `highest(…)`) are not read as history calls by either lane: C48's mark reads `ta.*` tokens (`taCallIn`), the arm walk reads `ta.*` names and history helpers | under-withholds (a v4 `if` block or `if` expression calling `sma` is drawn off every bar) | `objectFnInline.taCallIn`, `pine.js::armHistoryCallOf` | one v4 roster of history-keeping bare names for b"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-c",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 72,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-c | the run-length counter fold copies its condition through `JSON.parse(JSON.stringify(…))`, which drops a stamp inside the condition (`n := up and ta.rising(close, 2) ? n + 1 : 0`) | under-withholds | `pine.js`, the counter fold's `copy()` (search `RESOLVED ONCE AND COPIED`) | a structural copy that carries `_armRuns` (`carryArmRuns`), keeping the JSON copy's NaN behaviour measured first"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-d",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 73,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-d | (FOLLOW-UP, review round 2 L2) a withheld COLOUR is not disclosed on the chart: its refusal sits in `columnErrors` under the hidden condition column's key, which no surface reads, and the plot draws in its series colour (the pane's gold for a conditional colour, this repo's \"colour not carried\" marker) | silent fallback (the colour, never the value) | `binder.columnErrorsOf`, `infoValueResol"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-e",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 74,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-e | (by design, M1) off the listing a recurrence's bounded window reads its SEED W bars back, where an arm in it holds the every-bar history; not gated, because the window's own convergence rule already answers for the seed | — | `interpret.js` bounded window | not a gap of this rule"
-  },
-  {
    "key": "capture-queue-2026-10-31-prod-ternary#G-f",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
    "line": 75,
@@ -13666,17 +13373,6 @@
    "guards": [],
    "namedScripts": [],
    "text": "G-f | (object lane, pre-existing; found while merging #604) a `ta.*` call written in a drawing's NON-colour argument inside a block that varies (`if close > close[1]` / `label.new(…, str.tostring(ta.sma(close, 5)))`) is drawn off the every-bar call; and a colour `var` written in such a block (`c := … ta.rising(…) …`) is not carried at all, so the drawing paints the renderer's default | under-withh"
-  },
-  {
-   "key": "capture-queue-2026-10-31-wse#Q-WSE5",
-   "doc": "docs/pine/capture-queue-2026-10-31-wse.md",
-   "line": 13,
-   "docWave": "wse",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "Q-WSE5 | builtin Relative Strength Index (`STD;RSI`) | NYSE:RDDT 1D from the listing | the RSI line and its two zone gradient fills | the gradient `fill` is lowered as an UNDRAWN fill (no fill is drawn from the run, solid or gradient) and named in the document's \"Not drawn by this pane\" note; the RSI line is the run's | grades the line; the fill stays undrawn until a run fill renderer exists (see "
   },
   {
    "key": "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)",
@@ -13714,6 +13410,288 @@
    ],
    "namedScripts": [],
    "text": "object door | none: measure-pair | — | `runtime:object-door` \"a `for … in` loop is served on the runtime pane only …\" | the C18 door serving `for … in` | a follow-up that shows 0 C18 diffs with the door gate lifted"
+  }
+ ],
+ "rowsNotCaptureQuestions": [
+  {
+   "key": "capture-queue-2026-09-27#barstate.isnew",
+   "doc": "docs/pine/capture-queue-2026-09-27.md",
+   "line": 123,
+   "docWave": "2026-09-27",
+   "disposition": "ruling",
+   "reason": "blocked by a RULING, not by a missing capture: closedTable.json::_barstate.refused.isnew, \"requires per-tick evaluation\" (owner ruling, lane RULING-0927)",
+   "dispositionLine": 316,
+   "text": "`barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | `closedTable.json::_barstate.refused.isnew` — \"requires per-tick evaluation\" | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`)"
+  },
+  {
+   "key": "capture-queue-2026-09-27#input.time",
+   "doc": "docs/pine/capture-queue-2026-09-27.md",
+   "line": 124,
+   "docWave": "2026-09-27",
+   "disposition": "ruling",
+   "reason": "blocked by a RULING, not by a missing capture: pine:input-kind, \"under the threshold\", item (c); T16 already confirms the default value (lane RULING-0927)",
+   "dispositionLine": 317,
+   "text": "`input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — \"under the threshold\", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1)"
+  },
+  {
+   "key": "capture-queue-2026-09-27#ta.nvi / ta.pvi",
+   "doc": "docs/pine/capture-queue-2026-09-27.md",
+   "line": 125,
+   "docWave": "2026-09-27",
+   "disposition": "ruling",
+   "reason": "blocked by a RULING, not by a missing capture: _functions_excluded.nvi / .pvi, fetch-dependent level; the ruling stands until the owner reopens it (lane RULING-0927)",
+   "dispositionLine": 318,
+   "text": "`ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2"
+  },
+  {
+   "key": "capture-queue-2026-09-27#time(<session>) on daily bars",
+   "doc": "docs/pine/capture-queue-2026-09-27.md",
+   "line": 126,
+   "docWave": "2026-09-27",
+   "disposition": "ruling",
+   "reason": "blocked by a RULING, not by a missing capture: the refusal \"This engine screens daily bars\" (lane RULING-0927)",
+   "dispositionLine": 319,
+   "text": "`time(<session>)` on daily bars | 5m only | the refusal text: \"This engine screens daily bars\" | sole last wall of 1"
+  },
+  {
+   "key": "capture-queue-2026-09-30-time-anchors#time-anchor:weekend-bars",
+   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
+   "line": 32,
+   "docWave": "time-anchors",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); the capture that settles it is Q-T2",
+   "dispositionLine": 76,
+   "text": "`time-anchor:weekend-bars` | a daily chart with a Saturday OR a Sunday bar but not both (an FX week that opens on a Sunday evening): neither the SPY nor the BTCUSD capture's shape"
+  },
+  {
+   "key": "capture-queue-2026-09-30-time-anchors#time-anchor:session-open-missing, time-close:period-end-miss",
+   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
+   "line": 33,
+   "docWave": "time-anchors",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); the capture that settles it is Q-T5",
+   "dispositionLine": 77,
+   "text": "`time-anchor:session-open-missing`, `time-close:period-end-missing` | a period that opens, or ends, on a day TradingView's session calendar keeps open and the chart holds no bar for. On a 1D chart that is every holiday before 2000 (the calendar applies no closure there) and 2001-09-11..14; the daily captures start in 2007 (time_close) and 2023 (time), where calendar and bars agree, so which one th"
+  },
+  {
+   "key": "capture-queue-2026-09-30-time-anchors#time-anchor:not-daily, time-close:not-daily",
+   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
+   "line": 34,
+   "docWave": "time-anchors",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); the captures that settle it are Q-T4 (W / M)",
+   "dispositionLine": 78,
+   "text": "`time-anchor:not-daily`, `time-close:not-daily` | the periods on any chart that is not 1D (the 60m capture shows a DIFFERENT rule for `time(\"W\")`: the Tuesday 09:30 bar reads −1.0417 days)"
+  },
+  {
+   "key": "capture-queue-2026-09-30-time-anchors#time-own:chart-unwitnessed",
+   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
+   "line": 35,
+   "docWave": "time-anchors",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); the captures that settle it are Q-T3 (intraday) and Q-T4 (W / M)",
+   "dispositionLine": 79,
+   "text": "`time-own:chart-unwitnessed` | `time(timeframe.period)` / `time(\"60\")` on any chart but 1D and 60m"
+  },
+  {
+   "key": "capture-queue-2026-09-30-time-anchors#pine:function (translation)",
+   "doc": "docs/pine/capture-queue-2026-09-30-time-anchors.md",
+   "line": 36,
+   "docWave": "time-anchors",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose): a translation refusal of the other time(<tf>) literals; no capture row asks for it",
+   "dispositionLine": 80,
+   "text": "`pine:function` (translation) | `time(\"15\")`, `time(\"30\")`, `time(\"240\")`, every other literal; `time_close(timeframe.period)` (witnessed equal to `time_close` on both 1D captures, row Q05 — not served, outside C36's ruling); either form inside a `request.security`"
+  },
+  {
+   "key": "capture-queue-2026-10-01-c45#bar-index:window",
+   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
+   "line": 34,
+   "docWave": "c45",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); Q-C45c (weekly / monthly) and Q-C45d (intraday) are its captures",
+   "dispositionLine": 47,
+   "text": "`bar-index:window` | where TradingView's bar 0 is, on any chart whose bars do not start at the daily listing. Nothing to capture for a daily chart (bars reaching the listing settle it); Q-C45c for weekly / monthly; Q-C45d says whether intraday can ever be served"
+  },
+  {
+   "key": "capture-queue-2026-10-01-c45#bar-index:early-bars",
+   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
+   "line": 35,
+   "docWave": "c45",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); settled as bar-index:window, by Q-C45c / Q-C45d",
+   "dispositionLine": 48,
+   "text": "`bar-index:early-bars` | `bar_index > N` on the bars where a longer history could change the answer. Same as above"
+  },
+  {
+   "key": "capture-queue-2026-10-01-c45#a colour HELD fn:conditional-history (object lane)",
+   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
+   "line": 36,
+   "docWave": "c45",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); its capture is Q-C45a",
+   "dispositionLine": 49,
+   "text": "a colour HELD `fn:conditional-history` (object lane) | the per-execution window, for more than the one witnessed shape — Q-C45a"
+  },
+  {
+   "key": "capture-queue-2026-10-01-c45#pine:statement on float = …, line = … …",
+   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
+   "line": 37,
+   "docWave": "c45",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"What is still withheld or refused\" (every column prose); its capture is Q-C45b",
+   "dispositionLine": 50,
+   "text": "`pine:statement` on `float = …`, `line = …` … | whether TradingView compiles the word as a name — Q-C45b"
+  },
+  {
+   "key": "capture-queue-2026-10-01-c45#geometry:lost / content:lost (a withheld object)",
+   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
+   "line": 38,
+   "docWave": "c45",
+   "disposition": "engine-gap",
+   "reason": "not a capture question (the row says so): the object's setter is one this chart cannot carry; building it is new Pine coverage",
+   "dispositionLine": 51,
+   "text": "`geometry:lost` / `content:lost` (a withheld object) | not a capture question: the object's setter is one this chart cannot carry (`update:target`: a target read out of a list in a loop; a loop or helper that was not converted; `line.set_xloc` and the point setters). Building those is new Pine coverage — named in § C45, \"left\""
+  },
+  {
+   "key": "capture-queue-2026-10-01-c45#withheld at assert_scannable / alert arm",
+   "doc": "docs/pine/capture-queue-2026-10-01-c45.md",
+   "line": 39,
+   "docWave": "c45",
+   "disposition": "engine-gap",
+   "reason": "not a capture question (the row says so): the server lanes hold date-keyed bars with no clock and no listing proof",
+   "dispositionLine": 52,
+   "text": "`withheld` at `assert_scannable` / alert arm | not a capture question: the server lanes hold date-keyed bars with no clock and no listing proof. A lane that carried a clock would lift the `time-*` half"
+  },
+  {
+   "key": "capture-queue-2026-10-02-l2-libraries#Q-L2b",
+   "doc": "docs/pine/capture-queue-2026-10-02-l2-libraries.md",
+   "line": 11,
+   "docWave": "l2-libraries",
+   "disposition": "engine-gap",
+   "reason": "no probe on purpose (the row says so): not a value question, TradingView compiles each script at its own version; the wall stays until a lane compiles a library under its own version's rules",
+   "dispositionLine": 19,
+   "text": "Q-L2b | **no probe** — a v6 script importing a v5 library (`boitoki/AwesomeColor/9` from `fx-market-sessions`) | any | not a value question: TradingView compiles each at its own version. Recorded so a reader does not queue it; the wall (`pine:module` / `runtime:library`, \"written in Pine v5 and this script in v6\") stays refused until a lane compiles a library under its own version's rules | 4 scri"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#L3",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 63,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap of the ?: stamp (armRunGates, no enclosing-arm conjunction): a build, not a reading; PT-GAPS (feat/pine-pt-gaps) fixes it",
+   "dispositionLine": 135,
+   "text": "L3 | a NESTED arm's guard is its own test alone: in `a ? (b ? ta.sma(…) : x) : y` the inner arm runs where `a and b`, and its gate reads `b` (the outer stamp reads `a`) | over-withholds (a `b` that varies only where `a` is false still refuses) | `armRunGates` (no enclosing-arm conjunction) | AND the enclosing stamped arms' tests (negated for a false arm) into a nested stamp's guard during the walk"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#L4",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 64,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap of the ?: gate on an na test (blockRuns.firstRunAfterSkip): a build, already witnessed by rt1-na-test-; PT-GAPS fixes it",
+   "dispositionLine": 136,
+   "text": "L4 | a guard that is `na` on a bar is \"neither a run nor a skip\" (`blockRuns.firstRunAfterSkip`), but Pine v4+ takes the FALSE arm of a `?:` whose test is `na` (`naConditionFalse`): the true arm SKIPPED that bar and the false arm RAN | under-withholds (a test `na` on early bars, then true, is a run after skips the gate does not see) | `engine/blockRuns.js` / `api/services/block_runs.py` (one rule,"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#L5",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 65,
+   "docWave": "prod-ternary",
+   "disposition": "closed",
+   "reason": "CLOSED by H1 (the row says so); the block-gate half is G-h",
+   "dispositionLine": 137,
+   "text": "L5 | `bgcolor` / `barcolor` colours | — | — | CLOSED by H1: a paint's colour rule is gated like a plot's (its condition column), and a withheld paint draws nothing — for ARM gates (`?:` / v6 `and` / `or`) only; C48's block gates never reach a paint or a fill colour: see G-h"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#L6",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 66,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "translation cost only (\"slow, never wrong\"): a memo, nothing to read; PT-GAPS fixes it",
+   "dispositionLine": 138,
+   "text": "L6 | the arm walk re-reads a nested chain once per level: `armHistoryCallOf` walks each `?:`'s arms, so an N-deep `else if` / colour chain costs O(N²) node visits at translation | slow, never wrong | `Resolver.stampTernaryArms` → `armHistoryCallOf` | a per-translation memo keyed by parse node (`WeakMap`), recording only answers reached without the depth cap"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-a",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 67,
+   "docWave": "prod-ternary",
+   "disposition": "closed",
+   "reason": "CLOSED (fix/prod-plot-var-cond-history, review F2; the row says so)",
+   "dispositionLine": 139,
+   "text": "G-a | CLOSED (fix/prod-plot-var-cond-history, review F2): a gate the output loop notes while the PRESENTATION resolves (after the value's, `valueBlockRuns`) rides the output's colour rules (`_colourBlockRuns`, read by `colourBlockRunsOf`), so a colour that reads an `if`-bound name or a `var` filled in a block that skips withholds that colour's condition column, never the plot. Attribution is per o"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-g",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 68,
+   "docWave": "prod-ternary",
+   "disposition": "by-design",
+   "reason": "by design (review F3; the row says so): a window-1 exemption is a per-function proof, and the error is a withheld plot, never a wrong number",
+   "dispositionLine": 140,
+   "text": "G-g | (by design, review F3) `if c` / `s := ta.sma(close, 1)` is withheld though a 1-bar window is the current value on every run: C48's mark (`condCallMark`, `stateRuns`) reads the call's NAME, not its window, as master's #604 / C31 do. Not exempted: an exemption is a per-function proof (`sma`, `ema`, `rma`, `wma`, `highest`… each with its own seed and `na` rules), of the repo's 611 `.pine` files"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-h",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 69,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap: block gates never reach a paint's or fill's colour (resolvePaints); a build, not a reading; PT-GAPS fixes it",
+   "dispositionLine": 141,
+   "text": "G-h | (pre-existing, found in the re-review of F2) C48's BLOCK gates never reach a paint's or a fill's colour: `resolvePaints` and the fill-colour reader resolve with `condGate` off, so `resolveBinding` notes no `condCall` / `stateRuns` gate there. `bgcolor(close > s ? color.red : na)`, `s` filled from a `ta.*` call in a block that skips, paints from the every-bar `s` — on master too | under-withh"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-b",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 71,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap of the v1-v4 bare-name roster; its witness is Q-PT3, which already names its probe (vw-arm-history-v4.pine)",
+   "dispositionLine": 142,
+   "text": "G-b | Pine v1-v4 BARE built-ins (`sma(…)`, `highest(…)`) are not read as history calls by either lane: C48's mark reads `ta.*` tokens (`taCallIn`), the arm walk reads `ta.*` names and history helpers | under-withholds (a v4 `if` block or `if` expression calling `sma` is drawn off every bar) | `objectFnInline.taCallIn`, `pine.js::armHistoryCallOf` | one v4 roster of history-keeping bare names for b"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-c",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 72,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap: the counter fold's JSON copy drops a stamp; a structural copy, not a reading; PT-GAPS fixes it",
+   "dispositionLine": 143,
+   "text": "G-c | the run-length counter fold copies its condition through `JSON.parse(JSON.stringify(…))`, which drops a stamp inside the condition (`n := up and ta.rising(close, 2) ? n + 1 : 0`) | under-withholds | `pine.js`, the counter fold's `copy()` (search `RESOLVED ONCE AND COPIED`) | a structural copy that carries `_armRuns` (`carryArmRuns`), keeping the JSON copy's NaN behaviour measured first"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-d",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 73,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap: a withheld colour's refusal is not surfaced on the plot; UI disclosure, not a reading; PT-GAPS fixes it",
+   "dispositionLine": 144,
+   "text": "G-d | (FOLLOW-UP, review round 2 L2) a withheld COLOUR is not disclosed on the chart: its refusal sits in `columnErrors` under the hidden condition column's key, which no surface reads, and the plot draws in its series colour (the pane's gold for a conditional colour, this repo's \"colour not carried\" marker) | silent fallback (the colour, never the value) | `binder.columnErrorsOf`, `infoValueResol"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-e",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 74,
+   "docWave": "prod-ternary",
+   "disposition": "by-design",
+   "reason": "by design (M1; the row says so): \"not a gap of this rule\"",
+   "dispositionLine": 145,
+   "text": "G-e | (by design, M1) off the listing a recurrence's bounded window reads its SEED W bars back, where an arm in it holds the every-bar history; not gated, because the window's own convergence rule already answers for the seed | — | `interpret.js` bounded window | not a gap of this rule"
+  },
+  {
+   "key": "capture-queue-2026-10-31-wse#Q-WSE5",
+   "doc": "docs/pine/capture-queue-2026-10-31-wse.md",
+   "line": 13,
+   "docWave": "wse",
+   "disposition": "builtin",
+   "reason": "the TradingView built-in STD;RSI: no probe file can stand in for a built-in (batch-b PR #923)",
+   "dispositionLine": 21,
+   "text": "Q-WSE5 | builtin Relative Strength Index (`STD;RSI`) | NYSE:RDDT 1D from the listing | the RSI line and its two zone gradient fills | the gradient `fill` is lowered as an UNDRAWN fill (no fill is drawn from the run, solid or gradient) and named in the document's \"Not drawn by this pane\" note; the RSI line is the run's | grades the line; the fill stays undrawn until a run fill renderer exists (see "
   }
  ],
  "licenceHeldCensus": [
