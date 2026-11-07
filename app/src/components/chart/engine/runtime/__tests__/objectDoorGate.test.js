@@ -109,6 +109,9 @@ const SHAPES = {
     'cp = zs.copy()\nv = cp.get(0).s + k * 0\n'],
   t9_field_coll: ['', false, 'type T\n    array<float> c\nvar t = T.new(array.new<float>())\n',
     't.c.unshift(close + k * 0)\nv = t.c.size() + k * 0\n'],
+  // W6-T10: an `enum` and a comparison of its fields over state. No enum arm exists at the
+  // door (the registry is empty there), so the door keeps master's own refusal of the line.
+  enum_eq: ['', false, 'enum E\n    a\n    b = "B"\n', 'm = close + k * 0 > open ? E.a : E.b\nv = m == E.a ? 1 : 0\n'],
 }
 // [body, named] or ['', named, prelude (before the state loop), body]
 const sourceOf = (shape, tail) => {

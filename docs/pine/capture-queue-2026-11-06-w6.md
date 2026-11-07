@@ -95,3 +95,17 @@ pane only; the C18 object door keeps master's answer. The rows below stay refuse
 | id | probe | chart | question | engine today |
 |---|---|---|---|---|
 | W6-U1 | `tools/visual_conformance/probes/vw-w6-receivers.pine` rows U01-U09 | AMEX:SPY 1D | U01-U02 two overloads by receiver type (confirms what is served); U03-U04 a user `get(array<float>, int)` beside the built-in, on `array<float>` and on `array<int>` (which one Pine runs, and whether the `array<int>` call compiles); U05 a chain off an element (confirms); U06 `copy` aliasing (confirms the shallow copy); U07 a field read off an `na` record (the runtime error's text and bar); U08 overloads on `array<float>` / `array<string>` called on an `array<int>` (does an `array<int>` receiver convert to `array<float>` in overload choice, or not compile?); U09 overloads `m(float)` / `m(string)` on an `int` | U03-U04: `runtime:udt-method` "... AND a built-in member ... (W6-U1)" on every shape W6-T9 adds (master's single-declaration binding on a slot is unchanged); U07: stops by name ("is `na` - Pine stops the script here"); U08-U09: `runtime:udt-method` "... this lane has one number type (W6-U1)" (review N2: this lane cannot tell an `int` receiver from a `float` one, so no overload whose receiver holds numbers is chosen). Reached by `fx-market-sessions` (`clear` on `array<float>`), `ipda-standard-deviations-...` |
+
+## W6-E1: enum value and text rules (W6-T10, branch `feat/pine-w6-t10-enum`)
+
+Authorities read 2026-11-06: Pine manual *Enums* (`https://www.tradingview.com/pine-script-docs/language/enums/`) and the
+v6 reference entries for the keyword `enum` and `input.enum` (through `tools/pine_survey/pine_reference_extract.js`).
+They state the served shapes (rail `app/src/components/chart/engine/runtime/__tests__/w6Enum.test.js`): fields with an
+optional `const string` title (a missing title is the field's name), each field a unique member, `E.field` bound,
+compared with `==` / `!=`, used in `switch`; `input.enum(defval, ...)` with an `options` tuple that must hold `defval`.
+The manual also says `str.tostring()` returns a field's title and that an enum variable accepts `na`; the breakdown
+keeps both refused until this row is read, so the sentences are confirmed before they serve.
+
+| id | probe | chart | question | engine today |
+|---|---|---|---|---|
+| W6-E1 | `tools/visual_conformance/probes/vw-w6-enum.pine` rows T01-T03, E01, N01-N04, I01, K01 | AMEX:SPY 1D | `str.tostring` of a titled field, an untitled field, and two fields sharing a title (title or name?); two same-title fields compared with `==`; an `na` enum value: `na(m)`, `m == E.a`, the arm a `switch` on it takes, `str.tostring(m)`; `input.enum` at its default; an enum as a `map` key | `str.tostring(e)`, every `na` enum shape and a member-set `input.enum` stop at build by name (`runtime:enum`, "... kept refused until capture W6-E1"); the `input.enum` default serves; a `map` key refuses by name (`runtime:enum`, an enum as a call argument; `map.*` is T8's). No census script reaches an enum today (breakdown section 0, finding 5) |
