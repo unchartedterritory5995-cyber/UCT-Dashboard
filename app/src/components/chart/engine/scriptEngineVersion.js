@@ -107,7 +107,8 @@
 /** 23 = W34-I4b: a v1/v2 (or no-pragma) self-reference's bar 0 on a run from the listing is withheld unless both seeds (na, 0) agree, not guessed */
 /** 24 = W34-I4: a v1/v2 self-referencing definition whose every self read is `nz(x[k])` runs as a slot on the runtime lane instead of refusing `pine:state` */
 /** 25 = W34-I6c: v4 per-bar window lengths (highestbars/lowestbars and the series-int family) are served on the runtime lane; v1-v4 bare highestbars/lowestbars give Pine's <=0 offset */
-export const SCRIPT_ENGINE_VERSION = 25
+/** 26 = W34-I6b: v6 bool-residue items 1 and 4 are served on the runtime lane; the object door keeps Q-A3 */
+export const SCRIPT_ENGINE_VERSION = 26
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
