@@ -228,3 +228,57 @@ def test_pick_lines_finds_the_support_and_two_decoys_where_price_never_turned():
     turns = GL.swings(bars)
     assert all(all(abs(t / d - 1) > GL.TURN_GAP for t in turns) for d in decoys)
     assert all(abs(d / 57.0 - 1) >= GL.SPREAD for d in decoys)
+
+# ---------------------------------------------------------------- the 2026-11-07 families
+
+from scripts.study.bank_v2 import gen_bases as GB  # noqa: E402
+from scripts.study.bank_v2 import gen_taps as GT  # noqa: E402
+from scripts.study.bank_v2 import near_miss as NM  # noqa: E402
+
+
+def test_the_institutional_cut_is_the_top_1000_and_the_top_40_percent():
+    assert G.liquid({"liq_rank": 300, "liq_universe": 800})          # 1995: the top 320
+    assert not G.liquid({"liq_rank": 400, "liq_universe": 800})
+    assert G.liquid({"liq_rank": 1000, "liq_universe": 2800})        # today: the top 1,000
+    assert not G.liquid({"liq_rank": 1001, "liq_universe": 2800})
+    assert not G.liquid({"liq_rank": None, "liq_universe": 2800})     # unknown rank: never in
+
+
+def test_every_base_type_has_a_rule_and_three_wrong_answers_that_are_real_types():
+    assert set(GB.BASE_DEF) == set(GB.CONFUSE)
+    for bt, wrong in GB.CONFUSE.items():
+        assert len(wrong) == 3 and bt not in wrong and set(wrong) <= set(GB.BASE_DEF)
+
+
+def _w(lows, highs=None):
+    highs = highs or [x + 1 for x in lows]
+    return [(f"2020-01-{i + 1:02d}", h, l) for i, (h, l) in enumerate(zip(highs, lows))]
+
+
+def test_tap_spot_finds_the_base_low_and_the_pivot_bar_in_the_window():
+    w = _w([10, 9, 8, 7.5, 8, 9, 9.5], [11, 10, 9, 8.5, 9, 10, 12.0])
+    base = {"start": "2020-01-02", "end": "2020-01-06", "pivot": 10.0}
+    assert GT.spot("low", base, w) == (3, 7.5, "2020-01-04")
+    assert GT.spot("pivot", base, w) == (5, 10.0, "2020-01-06")
+    assert GT.spot("pivot", dict(base, pivot=50.0), w) is None        # no bar made that pivot: skipped, never guessed
+
+
+def _bar(o, h, l, c, v=1000):
+    return {"t": 20200101, "o": o, "h": h, "l": l, "c": c, "v": v}
+
+
+def test_near_miss_kicker_and_oops_look_alikes_name_the_rule_that_failed():
+    red = _bar(10.5, 10.6, 9.9, 10.0)
+    kind, why, f = NM.look_alike([red, _bar(10.2, 10.6, 10.1, 10.4)], 1, 9.0, 1000, 5000)
+    assert kind == "kicker" and f["red_day_high"] == 10.6 and "follow-through never came" in why
+    assert NM.look_alike([red, _bar(10.2, 11.5, 10.1, 11.2)], 1, 9.0, 1000, 5000) is None   # closed over the high: a kicker
+    prior = _bar(10.0, 10.3, 9.8, 10.1)
+    kind, why, f = NM.look_alike([prior, _bar(9.9, 10.05, 9.6, 10.0)], 1, 9.0, 1000, 5000)
+    assert kind == "oops" and f["prior_low"] == 9.8 and "no reversal" in why
+
+
+def test_near_miss_hve_look_alike_is_record_volume_without_the_5_percent_day():
+    prior = _bar(10, 10.2, 9.9, 10)
+    kind, why, f = NM.look_alike([prior, _bar(10, 10.4, 9.9, 10.2, v=60000)], 1, None, 10000, 50000)
+    assert kind == "hve" and f["rvol"] == 6.0 and "5% or more" in why
+    assert NM.look_alike([prior, _bar(10, 11, 9.9, 10.8, v=60000)], 1, None, 10000, 50000) is None   # up 8%: no miss
