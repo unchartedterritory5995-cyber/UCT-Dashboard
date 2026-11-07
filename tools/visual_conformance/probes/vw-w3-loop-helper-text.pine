@@ -1,0 +1,20 @@
+//@version=6
+indicator("vw-w3-loop-helper-text", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w3.md, W3 S1, row Q-W3-5 (shape S1-E). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a text helper called over a per-pass number: ?: arms and fixed-decimals str.tostring per pass. Read the eight cell texts.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+txtOf(float v) =>
+    na(v) ? "n/a" : v > 50 ? str.tostring(v, "#.#") : str.tostring(v, "#.###") + " u"
+dirOf(int d) =>
+    d > 0 ? "up" : d < 0 ? "down" : "flat"
+if barstate.islast
+    var table t = table.new(position.top_right, 4, 2)
+    float[] px = array.from(close, open, high, low)
+    int[] sg = array.from(1, -1, 0, 1)
+    for i = 0 to 3
+        table.cell(t, i, 0, txtOf(array.get(px, i)))
+        table.cell(t, i, 1, dirOf(array.get(sg, i)))
