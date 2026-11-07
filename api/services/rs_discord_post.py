@@ -10,13 +10,18 @@ is per-member in-app plus email, a private alert never reaches Discord
 session marker, and no import of the alert lane. A rail in
 tests/test_rs_discord_post.py reads this file's AST to keep it that way.
 
-WHAT IT POSTS (draft; owner approval pending, docs/alerts/RS-DISCORD-POST.md):
-one plain-text message per settled session naming the session's RS leaders in
-three lists (RS new highs before price, RS new highs on a red day, rating 90
+WHAT IT POSTS (the template the owner's delegated decisions settled on
+2026-11-07, P1-P10 in docs/research/relative-strength/reviews/
+2026-11-07-delegated-decisions.md; rendered sample in docs/alerts/RS-DISCORD-POST.md):
+one plain-text message EVERY settled session naming the session's RS leaders
+in three lists (RS new highs before price, RS new highs on a red day, rating 90
 and above with the sector), the rule behind the lists, an evidence line that
 carries a measured number or says plainly that none exists yet, and the
-sign-off. Operator voice: no emoji, no markdown, no exclamation marks, no
-mention of anyone, no hype words (the design plan section 3 voice rules).
+sign-off. On a session that was not a red day the red-day line says so with
+SPY's own change instead of "none" (P1), so a member never reads an empty list
+as "no name held up". Operator voice: no emoji, no markdown, no exclamation
+marks, no mention of anyone, no hype words (the design plan section 3 voice
+rules).
 
 THE CHANNEL IS MEMBER-FACING AND THE JOB IS UNATTENDED, so everything fails
 closed and silent, each gate on its own: the flag is off unless deliberately
@@ -26,22 +31,25 @@ posted again, fewer names than the floor is no post, a post the validator
 refuses is no post. A 429 is reported and never retried; a 5xx is retried once
 after a pause; nothing in `post_rs_summary` raises.
 
-THE DATA SEAM. `leaders_fn(session) -> list[dict]` is injected: this unit is
-built against the seam, and unit 2b-08 wires the real reader over the 2a-05
-screener columns (`rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`,
-`rs_line_above_ma`, `rs_rating_ibd`) and the 2a-06 rating history
-(`rs_history.read_fields`: `ibd, fast, m1, m3, m6, m12, d5, d20, asof`). The
-row contract is enforced once, in `normalise_leaders`.
+THE DATA SEAM. `leaders_fn(session)` is injected and returns either the rows
+(`list[dict]`) or `{"leaders": [rows], "spy_change_pct": float | None}`, the
+second carrying SPY's own close-to-close change for the session so the red-day
+line can state it. Unit 2b-08 wires the real reader (`api.main._rs_leaders_for`)
+over the 2a-05 screener columns (`rs_new_high`, `rs_nh_before_price`,
+`rs_nh_red_day`, `rs_line_above_ma`, `rs_rating_ibd`) and SPY's own
+`chg_pct_1d` row. The row contract is enforced once, in `normalise_leaders`;
+the mapping is split once, in `split_leaders`.
 
-THIS UNIT REGISTERS NO JOB. The scheduler registration, the retry pass, the
-boot line and the admin door are unit 2b-08. Until then nothing in production
-calls `post_rs_summary`.
+THIS MODULE REGISTERS NO JOB. The scheduler registration (04:45 ET with the
+05:15 ET retry), the boot line and the admin door are unit 2b-08, in `api.main`
+and `api/routers/rs_discord.py`.
 """
 from __future__ import annotations
 
 import datetime as _dt
 import json
 import logging
+import math
 import os
 import pathlib
 import re
@@ -54,11 +62,12 @@ log = logging.getLogger(__name__)
 #: The flag. Read PER CALL in `enabled()`; only the literal "1" arms it.
 FLAG = "RS_DISCORD_POST_ENABLED"
 #: The webhook variable: a row in `alert_taxonomy.channels.LEGACY_WEBHOOKS`
-#: (purpose `rs_leaders`), so the census rail sees it. Blank is silence.
+#: (purpose `rs_leaders`), so the census rail sees it. Blank is silence. The
+#: room is #uncharted-scanners (decision P7): the owner creates the webhook
+#: there, because the bot token is 403 in that channel.
 WEBHOOK_ENV = "DISCORD_RS_WEBHOOK_URL"
 WEBHOOK_PURPOSE = "rs_leaders"
-#: Identity. The estate's other automated member posts use this name; the map's
-#: open question 3 lets the owner choose another before arming.
+#: Identity (decision P6): the name the estate's other automated member posts use.
 USERNAME = "UCT Intelligence"
 #: The session marker on the data volume (the `discord_index_close` pattern).
 MARKER_FILE = "rs_discord_post.json"
@@ -68,7 +77,8 @@ SEND_TIMEOUT_S = 15
 
 #: List caps and the floor. A list longer than its cap ends in "and N more";
 #: fewer distinct names than `floor` across the whole post is no post (the
-#: plan's three-name floor). Owner choices, docs/alerts/RS-DISCORD-POST.md.
+#: plan's three-name floor). Decided 2026-11-07: caps 8 / 8 / 10 (P3), floor
+#: three (P8); docs/alerts/RS-DISCORD-POST.md section 8.
 LIMITS = {
     "before_price": 8,     # names in "RS new highs before price"
     "red_day": 8,          # names in "RS new highs on a red day"
@@ -91,13 +101,23 @@ RULE_LINE = (
     "across the cap universe excluding ETFs."
 )
 #: The honesty sentence: printed whenever no measured evidence is supplied.
-#: Never a claim without a number (design plan section 9).
+#: Never a claim without a number (design plan section 9). Approved as written
+#: (decision P10).
 HONESTY_LINE = (
     "Evidence: no published hit rate exists for these signals and UCT has not measured one "
     "yet. A measured number with its sample size and dates replaces this sentence once the "
     "nightly backtest reports."
 )
-SIGN_OFF = "Not a recommendation. UCT Intelligence."
+#: Decision P9: the webhook username already says who is posting.
+SIGN_OFF = "Not a recommendation."
+
+#: The red-day threshold the RULE_LINE states and the screener's `rs_nh_red_day`
+#: flag uses (`relative_strength.DEFAULT_RED_DAY_PCT`, through
+#: `rs_columns.collect_one`'s defaults). Restated rather than imported so this
+#: module stays free of the maths package; tests/test_rs_discord_post.py pins
+#: the two equal.
+RED_DAY_PCT = -0.5
+RED_DAY_LABEL = "RS new highs on a red day: "
 
 #: ONE RUN AT A TIME across every caller (the scheduled fire, the retry pass and
 #: the admin door of 2b-08 all land here). The marker is written only AFTER a
@@ -204,6 +224,35 @@ def last_posted() -> str:
 # ── the seam contract ─────────────────────────────────────────────────────────
 
 ROW_KEYS = ("ticker", "name", "sector", "rating", "before_price", "red_day", "new_high", "rs_line_above")
+#: The keys of the mapping form of `leaders_fn`'s result (see `split_leaders`).
+SEAM_KEYS = ("leaders", "spy_change_pct")
+
+
+def spy_change(value) -> float | None:
+    """SPY's session change in percent as a finite float, or None. A bool, a
+    blank, a non-number, NaN or infinity is None: the red-day line then says
+    nothing about SPY rather than print a made-up change."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return v if math.isfinite(v) else None
+
+
+def split_leaders(result) -> tuple[list, float | None]:
+    """`leaders_fn`'s result as `(rows, spy_change_pct)`.
+
+    The seam accepts two shapes: the bare rows (a list, as before), which carry
+    no SPY change, or the mapping `{"leaders": rows, "spy_change_pct": x}`
+    the real reader returns. Anything else is no rows and no change."""
+    if isinstance(result, dict):
+        rows = result.get("leaders")
+        return (list(rows) if isinstance(rows, (list, tuple)) else []), spy_change(result.get("spy_change_pct"))
+    if isinstance(result, (list, tuple)):
+        return list(result), None
+    return [], None
 
 
 def normalise_leaders(rows) -> list[dict]:
@@ -222,11 +271,14 @@ def normalise_leaders(rows) -> list[dict]:
       red_day       bool: the session was a red day for the benchmark (SPY closed
                     down 0.5% or more); read only together with `new_high`
       rs_line_above bool: the RS line is above its 21-bar average; carried, not
-                    rendered (an owner choice in the template review)
+                    rendered (decision P5, 2026-11-07: no Mansfield word)
 
     Rows that are not dicts, or carry no ticker, are dropped. The result is sorted
     rating descending (unrated last), then ticker, so the lists read best-first.
+    The mapping form of the seam is accepted too (its `leaders` are read).
     """
+    if isinstance(rows, dict):
+        rows = split_leaders(rows)[0]
     out, seen = [], set()
     for raw in rows or ():
         if not isinstance(raw, dict):
@@ -284,6 +336,38 @@ def _joined(rows: list, cap: int) -> str:
     return f"{text}, and {rest} more" if rest else text
 
 
+def spy_change_text(pct) -> str:
+    """SPY's session change as the red-day line prints it: "+0.4%", "-0.3%",
+    "0.0%" ("" when unknown). One decimal, and more only when one would round a
+    change that was NOT a red day onto the threshold: -0.46 printed as "-0.5%"
+    would contradict the rule line, which calls -0.5% a red day."""
+    v = spy_change(pct)
+    if v is None:
+        return ""
+    dp = 1
+    while dp < 4 and v > RED_DAY_PCT and float(f"{v:.{dp}f}") <= RED_DAY_PCT:
+        dp += 1
+    text = f"{v:+.{dp}f}%"
+    return f"{0:.{dp}f}%" if float(text[:-1]) == 0 else text      # never "-0.0%"
+
+
+def red_day_text(red_rows: list, cap: int, spy_change_pct=None) -> str:
+    """The red-day list, or why it is empty (decision P1).
+
+    Names flagged `red_day` are listed whatever SPY's change says: the flag is
+    the screener's own judgement per name and the post never drops a name it
+    was handed. With no such name, a session SPY's change shows was NOT a red
+    day reads "SPY was not a red day (+0.4%)", so an empty list is never
+    mistaken for "nothing held up on a down day"; a red day with no name, or a
+    session whose SPY change is unknown, reads "none"."""
+    if red_rows:
+        return _joined(red_rows, cap)
+    v = spy_change(spy_change_pct)
+    if v is not None and v > RED_DAY_PCT:
+        return f"SPY was not a red day ({spy_change_text(v)})"
+    return "none"
+
+
 def _rated_lines(rows: list, cap: int) -> list[str]:
     if not rows:
         return ["none"]
@@ -328,22 +412,26 @@ def evidence_line(evidence) -> str:
     return "Evidence: " + " ".join(parts) if parts else HONESTY_LINE
 
 
-def build_post(leaders, *, session, evidence=None, limits=LIMITS) -> dict:
+def build_post(leaders, *, session, evidence=None, limits=LIMITS, spy_change_pct=None) -> dict:
     """The message body for one session, pure: `{username, content, allowed_mentions}`
     in the `discord_index_close` shape (plain text, every mention disabled).
 
-    `leaders` is what `leaders_fn(session)` returned (see `normalise_leaders`);
-    `evidence` is the nightly backtest's measured numbers or None (see
-    `evidence_line`); `limits` overrides `LIMITS` key by key.
+    `leaders` is what `leaders_fn(session)` returned, either shape (see
+    `split_leaders`, `normalise_leaders`); `spy_change_pct` is SPY's session
+    change in percent, and defaults to the one the mapping carries (see
+    `red_day_text`); `evidence` is the nightly backtest's measured numbers or
+    None (see `evidence_line`); `limits` overrides `LIMITS` key by key.
     """
     lim = {**LIMITS, **(limits or {})}
-    rows = normalise_leaders(leaders)
+    raw, carried = split_leaders(leaders)
+    spy = spy_change(spy_change_pct) if spy_change_pct is not None else carried
+    rows = normalise_leaders(raw)
     before = [r for r in rows if r["new_high"] and r["before_price"]]
     red = [r for r in rows if r["new_high"] and r["red_day"]]
     rated = [r for r in rows if r["rating"] is not None and r["rating"] >= int(lim["rating_min"])]
     lines = [f"UCT RS leaders for {session_line(session)}.", ""]
     lines.append("RS new highs before price: " + _joined(before, lim["before_price"]))
-    lines.append("RS new highs on a red day: " + _joined(red, lim["red_day"]))
+    lines.append(RED_DAY_LABEL + red_day_text(red, lim["red_day"], spy))
     lines.append(f"Rating {int(lim['rating_min'])} and above, with sector:")
     lines.extend(_rated_lines(rated, lim["rating"]))
     lines.append("")
@@ -537,12 +625,15 @@ def post_rs_summary(session, *, leaders_fn, webhook_url=None, send=None, dedup=N
                     sleep=None, evidence_fn=None, limits=LIMITS,
                     force: bool = False, dry_run: bool = False) -> dict:
     """Post the session's RS leaders once. Returns a receipt and NEVER raises:
-    `{posted: bool, reason: str, session, chars, leaders, attempts, marked, dry_run}`
-    (`chars` is the content length, `leaders` the count of usable rows,
-    `marked` whether the session marker was recorded after a landed post).
+    `{posted: bool, reason: str, session, chars, leaders, spy_change_pct,
+    attempts, marked, dry_run}` (`chars` is the content length, `leaders` the
+    count of usable rows, `spy_change_pct` SPY's session change as the reader
+    gave it or None, `marked` whether the session marker was recorded after a
+    landed post).
 
     session      the settled session, YYYY-MM-DD (the snapshot's date)
-    leaders_fn   `leaders_fn(session) -> list[dict]` (see `normalise_leaders`)
+    leaders_fn   `leaders_fn(session)` -> the rows, or `{"leaders": rows,
+                 "spy_change_pct": x}` (see `split_leaders`, `normalise_leaders`)
     webhook_url  the destination; None reads `configured_webhook()`; blank is
                  the reason "no webhook configured", never a fallback
     send         `send(url, body) -> int | response` (default: `requests.post`)
@@ -567,7 +658,7 @@ def post_rs_summary(session, *, leaders_fn, webhook_url=None, send=None, dedup=N
     """
     session = str(session or "").strip()
     receipt = {"posted": False, "reason": "", "session": session, "chars": 0, "leaders": 0,
-               "attempts": 0, "marked": False, "dry_run": bool(dry_run)}
+               "spy_change_pct": None, "attempts": 0, "marked": False, "dry_run": bool(dry_run)}
     if not _RUN_LOCK.acquire(blocking=False):
         receipt["reason"] = "a run is already in flight"
         return receipt
@@ -600,12 +691,14 @@ def _post_locked(receipt, session, *, leaders_fn, webhook_url, send, dedup, slee
         receipt["reason"] = "already posted for this session"
         return receipt
     try:
-        rows = normalise_leaders(leaders_fn(session))
+        raw, spy = split_leaders(leaders_fn(session))
+        rows = normalise_leaders(raw)
     except Exception as e:  # noqa: BLE001
         log.warning("[rs-post] leaders_fn failed: %s", e)
         receipt["reason"] = f"leaders_fn failed: {type(e).__name__}"
         return receipt
     receipt["leaders"] = len(rows)
+    receipt["spy_change_pct"] = spy
     if not rows:
         receipt["reason"] = "no leaders for this session"
         return receipt
@@ -619,7 +712,7 @@ def _post_locked(receipt, session, *, leaders_fn, webhook_url, send, dedup, slee
             evidence = evidence_fn(session)
         except Exception as e:  # noqa: BLE001
             log.warning("[rs-post] evidence_fn failed (%s); printing the honesty line", e)
-    post = build_post(rows, session=session, evidence=evidence, limits=limits)
+    post = build_post(rows, session=session, evidence=evidence, limits=limits, spy_change_pct=spy)
     receipt["chars"] = len(post["content"])
     problems = validate_post(post)
     if problems:

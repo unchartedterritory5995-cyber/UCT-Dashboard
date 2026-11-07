@@ -95,11 +95,22 @@ def _armed(monkeypatch):
 
 # ── the message ───────────────────────────────────────────────────────────────
 
-def _template_sample() -> str:
+def _template_sample(name: str = "sample") -> str:
     text = TEMPLATE.read_text(encoding="utf-8").replace("\r\n", "\n")
-    m = re.search(r"<!-- sample:start -->\n```text\n(.*?)\n```\n<!-- sample:end -->", text, re.S)
-    assert m, "docs/alerts/RS-DISCORD-POST.md carries the rendered sample between the sample markers"
+    m = re.search(rf"<!-- {name}:start -->\n```text\n(.*?)\n```\n<!-- {name}:end -->", text, re.S)
+    assert m, f"docs/alerts/RS-DISCORD-POST.md carries the rendered sample between the {name} markers"
     return m.group(1)
+
+
+def test_the_calm_session_sample_is_exactly_what_the_code_renders():
+    """The doc's second sample (decision P1): the same names on a session that
+    was not a red day, SPY up 0.4%, as the real reader's mapping carries it."""
+    calm = [dict(r, red_day=False) for r in FIXTURE]
+    post = rp.build_post({"leaders": calm, "spy_change_pct": 0.4}, session=SESSION)
+    assert post["content"] == _template_sample("sample-calm")
+    assert rp.validate_post(post) == []
+    assert f"\n{len(rp.build_post(FIXTURE, session=SESSION)['content'])} characters; Discord allows 2000." in \
+        TEMPLATE.read_text(encoding="utf-8").replace("\r\n", "\n"), "the doc states the red-day sample's length"
 
 
 def test_the_sample_post_is_exactly_the_template_the_owner_reviews():
@@ -111,8 +122,79 @@ def test_the_sample_post_is_exactly_the_template_the_owner_reviews():
     assert set(post) == {"username", "content", "allowed_mentions"}, "the discord_index_close shape"
     assert post["username"] == "UCT Intelligence" and post["allowed_mentions"] == {"parse": []}
     assert post["content"].startswith("UCT RS leaders for Thursday, November 5.\n")
-    assert post["content"].endswith("\nNot a recommendation. UCT Intelligence.")
+    # Decision P9 (2026-11-07): the sign-off was "Not a recommendation. UCT
+    # Intelligence."; the webhook username already says who is posting.
+    assert post["content"].endswith(".\nNot a recommendation.")
+    assert "UCT Intelligence" not in post["content"], "the identity lives in the username only"
     assert len(post["content"]) < 1200, "well inside Discord's 2000 on a busy red day"
+
+
+def test_the_delegated_decisions_are_what_the_module_carries():
+    """P3 caps 8 / 8 / 10, P4 sectors on the rating list only, P5 no Mansfield
+    word, P6 the identity, P8 the floor of three, P9 the sign-off, P10 the
+    honesty sentence as written (docs/research/relative-strength/reviews/
+    2026-11-07-delegated-decisions.md)."""
+    assert {k: rp.LIMITS[k] for k in ("before_price", "red_day", "rating", "rating_min", "floor")} == \
+        {"before_price": 8, "red_day": 8, "rating": 10, "rating_min": 90, "floor": 3}
+    assert rp.USERNAME == "UCT Intelligence" and rp.SIGN_OFF == "Not a recommendation."
+    assert rp.HONESTY_LINE.startswith("Evidence: no published hit rate exists for these signals")
+    content = rp.build_post(FIXTURE, session=SESSION)["content"]
+    head = content.split("Rating 90 and above")[0]
+    assert "Technology" not in head and "Industrials" not in head, "no sector on the two new-high lists"
+    assert "NVDA (97) Technology\n" in content, "the rating list carries the sector"
+    assert "mansfield" not in content.lower() and "above average" not in content, \
+        "the rows carry rs_line_above; the post never prints a Mansfield or average word"
+
+
+def test_the_red_day_threshold_is_the_one_the_screener_flag_uses():
+    from api.services import relative_strength as rs
+    assert rp.RED_DAY_PCT == rs.DEFAULT_RED_DAY_PCT
+    assert "SPY closing down 0.5% or more" in rp.RULE_LINE
+
+
+def test_a_session_that_was_not_a_red_day_says_so_with_spys_change():
+    """Decision P1: every session posts, and on a session that was not a red
+    day the red-day line states SPY's change instead of "none"."""
+    calm = [dict(r, red_day=False) for r in FIXTURE]
+    line = lambda post: post["content"].split(rp.RED_DAY_LABEL)[1].split("\n")[0]   # noqa: E731
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct=0.4)) == "SPY was not a red day (+0.4%)"
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct=-0.31)) == "SPY was not a red day (-0.3%)"
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct=-0.04)) == "SPY was not a red day (0.0%)", \
+        "never a signed zero"
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct=1.257)) == "SPY was not a red day (+1.3%)"
+    # one decimal would round a calm session onto the threshold the rule calls red
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct=-0.46)) == "SPY was not a red day (-0.46%)"
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct=-0.49)) == "SPY was not a red day (-0.49%)"
+    # a red day with no name, or an unknown change, is still "none"
+    for spy in (-0.5, -1.8, None, float("nan"), True, "x"):
+        assert line(rp.build_post(calm, session=SESSION, spy_change_pct=spy)) == "none", spy
+    # a numeric string from a reader is a number
+    assert line(rp.build_post(calm, session=SESSION, spy_change_pct="0.4")) == "SPY was not a red day (+0.4%)"
+    # names flagged red are listed whatever the change says: the post never drops a name
+    assert line(rp.build_post(FIXTURE, session=SESSION, spy_change_pct=0.4)).startswith("NVDA (97), PLTR (96)")
+    post = rp.build_post(calm, session=SESSION, spy_change_pct=0.4)
+    assert rp.validate_post(post) == [], "the sign and the brackets pass the house guard"
+
+
+def test_the_seam_carries_spys_change_in_its_mapping_form(monkeypatch):
+    calm = [dict(r, red_day=False) for r in FIXTURE]
+    seam = {"leaders": calm, "spy_change_pct": 0.4}
+    assert rp.split_leaders(seam) == (calm, 0.4)
+    assert rp.split_leaders(calm) == (calm, None), "the bare list still works and carries no change"
+    for junk in (None, "rows", 5, {"leaders": "x"}, {}):
+        assert rp.split_leaders(junk)[0] == []
+    assert rp.normalise_leaders(seam) == rp.normalise_leaders(calm)
+    assert rp.build_post(seam, session=SESSION) == rp.build_post(calm, session=SESSION, spy_change_pct=0.4)
+    assert "(+0.7%)" in rp.build_post(seam, session=SESSION, spy_change_pct=0.7)["content"], \
+        "an explicit change wins over the carried one"
+    _armed(monkeypatch)
+    send = _sender([204])
+    r = rp.post_rs_summary(SESSION, leaders_fn=lambda s: seam, send=send, dedup=_Marker())
+    assert r["posted"] is True and r["spy_change_pct"] == 0.4 and r["leaders"] == 10
+    assert "RS new highs on a red day: SPY was not a red day (+0.4%)\n" in send.calls[0][1]["content"]
+    r = rp.post_rs_summary(SESSION, leaders_fn=lambda s: {"leaders": FIXTURE[:2], "spy_change_pct": 0.4},
+                           send=send, dedup=_Marker())
+    assert r["reason"] == "below the floor: 2 names, floor is 3", "SPY is not a name; the floor counts rows"
 
 
 def test_each_list_is_capped_between_names_and_says_how_many_were_cut():
@@ -366,8 +448,10 @@ def test_success_receipt_and_what_the_webhook_receives(monkeypatch):
     send, m = _sender([204]), _Marker()
     r = rp.post_rs_summary(SESSION, leaders_fn=lambda s: FIXTURE, send=send, dedup=m)
     expected = rp.build_post(FIXTURE, session=SESSION)
+    # `spy_change_pct` joined the receipt with decision P1 (2026-11-07): a bare
+    # list carries no SPY change, so it reads None here.
     assert r == {"posted": True, "reason": "posted", "session": SESSION, "chars": len(expected["content"]),
-                 "leaders": 10, "attempts": 1, "marked": True, "dry_run": False}
+                 "leaders": 10, "spy_change_pct": None, "attempts": 1, "marked": True, "dry_run": False}
     url, body = send.calls[0]
     assert url == HOOK and body == expected
     json.dumps(body)                                    # the JSON body is serialisable as sent
@@ -563,8 +647,14 @@ def test_the_template_file_documents_the_seam_and_keeps_the_voice():
     for key in rp.ROW_KEYS:
         assert f"`{key}`" in text, f"the seam contract names `{key}`"
     for must in ("leaders_fn", "evidence_fn", "DISCORD_RS_WEBHOOK_URL", "RS_DISCORD_POST_ENABLED",
-                 "rs_discord_post.json", "2000", "rate-limited", "Owner review"):
+                 "rs_discord_post.json", "2000", "rate-limited", "Owner review", "spy_change_pct",
+                 "#uncharted-scanners", "DISCORD_RS_TEST_WEBHOOK_URL", "decided 2026-11-07"):
         assert must in text, must
-    prose = text.replace("<!-- sample:start -->", "").replace("<!-- sample:end -->", "")
+    # Section 8 records the delegated decisions, not open choices (2026-11-07).
+    section8 = text.split("## 8.")[1].split("## 9.")[0]
+    for row in ("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10"):
+        assert f"{row}," in section8, row
+    assert "none is decided here" not in text and "## 8. Owner review - the choices" not in text
+    prose = re.sub(r"<!-- [a-z-]+:(?:start|end) -->", "", text)
     assert not rp._EMOJI_RE.search(prose) and "—" not in prose and "!" not in prose, \
         "operator voice: no emoji, no em dashes, no exclamation marks (the sample markers are machinery)"

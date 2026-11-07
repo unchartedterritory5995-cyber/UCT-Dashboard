@@ -261,7 +261,11 @@ def test_rs_leaders_for_reads_the_sessions_rows_by_bars_asof_in_the_seam_shape(t
         _srow("DDD", rs_new_high=1, rs_rating_ibd=99, bars_asof="20261104"),
         _srow("EEE", sector=None, rs_new_high=1, rs_nh_red_day=1, rs_rating_ibd=None),
     ])
-    rows = m._rs_leaders_for(SESSION)
+    # The reader returns the seam's mapping form since decision P1 (2026-11-07):
+    # the rows plus SPY's session change. No SPY row is seeded here, so None.
+    got = m._rs_leaders_for(SESSION)
+    assert set(got) == set(rp.SEAM_KEYS) and got["spy_change_pct"] is None
+    rows = got["leaders"]
     by = {r["ticker"]: r for r in rows}
     assert set(by) == {"AAA", "BBB", "EEE"}
     assert set(by["AAA"]) == set(rp.ROW_KEYS)
@@ -273,9 +277,48 @@ def test_rs_leaders_for_reads_the_sessions_rows_by_bars_asof_in_the_seam_shape(t
     norm = rp.normalise_leaders(rows)
     assert [r["ticker"] for r in norm] == ["AAA", "BBB", "EEE"], "best-first; unrated last"
     assert norm[2]["rating"] is None
-    assert m._rs_leaders_for("2026-11-04") == [{"ticker": "DDD", "name": "DDD Inc", "sector": "Technology",
-                                                "rating": 99, "new_high": True, "before_price": False,
-                                                "red_day": False, "rs_line_above": True}]
+    assert m._rs_leaders_for("2026-11-04")["leaders"] == [
+        {"ticker": "DDD", "name": "DDD Inc", "sector": "Technology", "rating": 99, "new_high": True,
+         "before_price": False, "red_day": False, "rs_line_above": True}]
+
+
+def test_rs_leaders_for_carries_spys_session_change_and_never_lists_spy(tmp_path, monkeypatch):
+    """Decision P1: SPY's own row's `chg_pct_1d` for the SAME session rides the
+    seam, so a calm session's red-day line can say "SPY was not a red day
+    (+0.4%)". SPY's RS line against itself is a constant that ties its own high
+    every session, so its row is read for the change and never listed."""
+    _seed_screener(tmp_path, monkeypatch, [
+        _srow("SPY", sector="Financial", chg_pct_1d=0.41, rs_new_high=1, rs_nh_before_price=1),
+        _srow("AAA", rs_new_high=1, rs_nh_before_price=1, rs_rating_ibd=95),
+        _srow("BBB", rs_new_high=1, rs_rating_ibd=93),
+        _srow("CCC", rs_new_high=1, rs_rating_ibd=91),
+    ])
+    got = m._rs_leaders_for(SESSION)
+    assert got["spy_change_pct"] == pytest.approx(0.41)
+    assert [r["ticker"] for r in got["leaders"]] and "SPY" not in {r["ticker"] for r in got["leaders"]}
+    post = rp.build_post(got, session=SESSION)
+    assert "RS new highs on a red day: SPY was not a red day (+0.4%)\n" in post["content"]
+    assert "RS new highs before price: AAA (95)\n" in post["content"], "no SPY (unrated) beside the leaders"
+    # another session's SPY row is not this session's change
+    assert m._rs_leaders_for("2026-11-04") == {"leaders": [], "spy_change_pct": None}
+    # through the poster, the receipt carries the change and the post the line
+    r = rp.post_rs_summary(SESSION, leaders_fn=m._rs_leaders_for, force=True, dry_run=True)
+    assert r["reason"] == "dry run" and r["spy_change_pct"] == pytest.approx(0.41) and r["leaders"] == 3
+    assert "SPY was not a red day (+0.4%)" in r["content"]
+
+
+def test_rs_leaders_for_reads_a_red_spy_session_and_a_null_change_as_none(tmp_path, monkeypatch):
+    _seed_screener(tmp_path, monkeypatch, [
+        _srow("SPY", chg_pct_1d=-1.25),
+        _srow("AAA", rs_new_high=1, rs_rating_ibd=95),
+    ])
+    red = m._rs_leaders_for(SESSION)
+    assert red["spy_change_pct"] == pytest.approx(-1.25)
+    assert "RS new highs on a red day: none\n" in rp.build_post(red, session=SESSION)["content"], \
+        "a red day where no name qualified is still none"
+    from api.services.screener import snapshot_db
+    snapshot_db.upsert_rows([_srow("SPY", chg_pct_1d=None)])      # one row per ticker: replaces
+    assert m._rs_leaders_for(SESSION)["spy_change_pct"] is None, "a NULL change is unknown, never 0"
 
 
 def test_rs_leaders_for_raises_on_a_missing_table_so_the_poster_says_why(tmp_path, monkeypatch):

@@ -2280,9 +2280,25 @@ RS_DISCORD_EVIDENCE_SIGNALS = ("rs_new_high", "rs_new_high_before_price", "rs_ne
 RS_DISCORD_TRANSPORT_REASONS = ("rate-limited", "http ", "send failed")
 
 
-def _rs_leaders_for(session) -> list[dict]:
+#: The benchmark the RS line, the red-day flag and the post's red-day line are
+#: all measured against (`rs_columns`: SPY is the ratio's denominator).
+RS_DISCORD_BENCHMARK = "SPY"
+
+
+def _rs_leaders_for(session) -> dict:
     """`leaders_fn` for `rs_discord_post.post_rs_summary`: the nightly screener
-    rows of ONE settled session, in the seam's row shape (`normalise_leaders`).
+    rows of ONE settled session in the seam's mapping shape,
+    `{"leaders": [rows in the `normalise_leaders` shape], "spy_change_pct": x}`.
+
+    `spy_change_pct` is SPY's own screener row's `chg_pct_1d` for the same
+    session -- the close-to-close change of the same settled SPY bars the
+    builder's `rs_nh_red_day` flag reads (`relative_strength.pct_change` and
+    `technicals`' `chg_pct_1d` are one formula), so the post's "SPY was not a
+    red day (+0.4%)" line (decision P1, 2026-11-07) states the number the
+    red-day judgement was made on. None when SPY's row is missing for the
+    session or its change is NULL: the line then reads "none", never a guess.
+    SPY is never one of the leaders: its RS line against itself is a constant
+    1.0, which ties its own 252-bar high every session.
 
     Selects `screener_rows` whose `bars_asof` is the session -- the builder
     stamps a row's price date as YYYYMMDD (`snapshot_builder._asof_of`), and
@@ -2301,15 +2317,18 @@ def _rs_leaders_for(session) -> list[dict]:
     from api.services.screener import rs_history, snapshot_db
     ymd = str(rs_history.session_ymd(session))
     rating_min = int(rp.LIMITS["rating_min"])
+    bench = RS_DISCORD_BENCHMARK
     sql = ("SELECT ticker, company, sector, rs_rating_ibd, rs_new_high, rs_nh_before_price, "
            "rs_nh_red_day, rs_line_above_ma FROM screener_rows "
-           "WHERE bars_asof = ? AND (rs_new_high = 1 OR rs_rating_ibd >= ?)")
+           "WHERE bars_asof = ? AND ticker != ? AND (rs_new_high = 1 OR rs_rating_ibd >= ?)")
     conn = snapshot_db.connect()
     try:
-        rows = conn.execute(sql, (ymd, rating_min)).fetchall()
+        rows = conn.execute(sql, (ymd, bench, rating_min)).fetchall()
+        spy = conn.execute("SELECT chg_pct_1d FROM screener_rows WHERE bars_asof = ? AND ticker = ?",
+                           (ymd, bench)).fetchone()
     finally:
         conn.close()
-    return [{
+    leaders = [{
         "ticker": r["ticker"],
         "name": r["company"],
         "sector": r["sector"],
@@ -2319,6 +2338,7 @@ def _rs_leaders_for(session) -> list[dict]:
         "red_day": r["rs_nh_red_day"] == 1,
         "rs_line_above": r["rs_line_above_ma"] == 1,
     } for r in rows]
+    return {"leaders": leaders, "spy_change_pct": rp.spy_change(spy["chg_pct_1d"]) if spy else None}
 
 
 def _rs_evidence_for(session) -> list[dict] | None:
