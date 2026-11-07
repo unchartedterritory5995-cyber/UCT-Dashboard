@@ -190,3 +190,31 @@ describe('T1d / T1e: "this chart" is the click; "the other one" is the other cha
     expect(namedChart('how do I draw another one on this chart', TWO, 'tl')?.chart ?? null).toBeNull()
   })
 })
+
+// AUDIT T1f (2026-11-07): after a preposition, "the other one" is the LOCATION — the other chart, whatever object the sentence
+// names. Only as the verb's object, with a thing of that kind named BEFORE it, does "one" stand for that thing.
+describe('T1f: "on / to the other one" is the other chart', () => {
+  const TWO = [FOUR[0], FOUR[1]]
+  const ROWS = [
+    'how do I add an indicator to the other one',
+    'how do I change the colors on the other one',
+    'how do I draw a trendline on the other one',
+    'how do I set an alert on the other one',
+  ]
+  it.each(ROWS)('%s (TWO, clicked tl) → the other chart', (q) => {
+    expect(namedChart(q, TWO, 'tl')?.chart?.ref).toBe('tr')
+  })
+  // T2: execution's reading (OTHER_CHART, the definite "the other one") and the guide agree
+  it.each(ROWS)('agreement with execution: %s', (q) => {
+    expect(saysOtherChart(q)).toBe(true)
+    expect(namedChart(q, TWO, 'tl')?.chart?.ref).toBe(TWO.find(c => c.ref !== 'tl').ref)
+  })
+  // the object exception (not guide requests today: namedChart unit tests)
+  it.each([
+    'I drew two lines, how do I delete the other one',
+    'I have two alerts, edit the other one',
+  ])('%s: "one" is that thing, not a chart (the click stands)', (q) => {
+    expect(saysOtherChart(q)).toBe(false)
+    expect(namedChart(q, TWO, 'tl')?.chart ?? null).toBeNull()
+  })
+})

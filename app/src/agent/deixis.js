@@ -307,7 +307,12 @@ export function saysOtherChart(text) {
   const definite = OTHER_CHART.exec(s)
   if (definite) {
     if (/chart/i.test(definite[0])) return true
-    if (!ONE_STANDS_FOR.test(s.slice(0, definite.index) + s.slice(definite.index + definite[0].length))) return true
+    // ⛔ AUDIT T1f: after a preposition "the other one" is the LOCATION — the other chart, whatever the sentence adds there
+    // ("add an indicator to the other one", "draw a trendline on the other one"). Only as the verb's OBJECT, with a thing of
+    // that kind named BEFORE it ("I drew two lines, how do I delete the other one"), does "one" stand for that thing
+    const before = s.slice(0, definite.index)
+    if (/\b(?:on|to|onto|from|in|into|for|of|at|over)\s*$/i.test(before)) return true
+    if (!ONE_STANDS_FOR.test(before)) return true
   }
   const m = DIFFERENT_CHART.exec(s)
   if (!m) return false
