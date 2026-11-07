@@ -34,6 +34,7 @@ from collections import Counter
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 from scripts.study.bank_v2 import second_source  # noqa: E402
+from scripts.study.bank_v2.pod_coverage import PodCoverage  # noqa: E402
 from scripts.study.find_candle_examples import ALL_CANDIDATES  # noqa: E402
 
 #: the finders' own test for a well-known stock (find_pass4/find_hve/...: `sym in set(ALL_CANDIDATES)`)
@@ -75,6 +76,8 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", default=str(REPO / "docs/study/setups/earnings_dates_cache.json"))
     ap.add_argument("--bars-db", default=None, help="the bars database the scan read; with it every pick's window is "
                     "checked against Yahoo's closes today (second_source.py) and a disagreement is never drafted")
+    ap.add_argument("--pod-span", action="store_true",
+                    help="draft only charts the web pod's own bars cover in full (pod_coverage.py; needs --bars-db)")
     ap.add_argument("--only", nargs="*", default=None, help="setup names to draft (default: all six)")
     ap.add_argument("--per-setup-map", default=None, help='JSON of per-setup targets, e.g. {"Gap Support": 520}')
     ap.add_argument("--block", default="deep_pass1", help="the name of this pass's record in setup_examples.json")
@@ -86,6 +89,7 @@ def main(argv=None) -> int:
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
     picks = json.loads(pathlib.Path(a.picks).read_text(encoding="utf-8"))
     second = second_source.load_cache()
+    pod = PodCoverage(a.bars_db) if a.pod_span and a.bars_db else None
     data = json.loads(EXAMPLES.read_text(encoding="utf-8"))
     examples = data["examples"]
     have = {(e["setup"], e["sym"], e["asof"]) for e in examples}
@@ -138,6 +142,10 @@ def main(argv=None) -> int:
                 why_left.append((who, f"earnings {near}")); continue
             if ed and setup == "High Volume Edge" and (f.get("rvol") or 0) < 15:
                 why_left.append((who, f"earnings {near} on ordinary volume")); continue
+            if pod:
+                ok, why = pod.covered(r["sym"], asof)
+                if not ok:
+                    why_left.append((who, f"not on the pod's bars: {why}")); continue
             check = after = None
             if a.bars_db:
                 after = second_source.after_signal(a.bars_db, r["sym"], asof)

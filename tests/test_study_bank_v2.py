@@ -172,3 +172,27 @@ def test_every_brain_quote_is_word_for_word_in_the_brain():
     assert set(q) == set(G.BRAIN)          # a quote that drifts from its passage stops the build
     assert all(set(G.CYCLE_DEF) - {'x'} >= {n} or n in G.EVENT_DEF for n in q)
     assert not any('framework' in v['quote'].lower() for v in q.values())   # the voice rules ban the word
+
+
+# ---------------------------------------------------------------- pod_coverage
+
+from scripts.study.bank_v2.pod_coverage import PodCoverage  # noqa: E402
+
+
+def test_pod_coverage_refuses_what_the_pod_cannot_draw(tmp_path):
+    db, days = _bars_db(tmp_path, n=200)
+    k = lambda d: int(d.replace("-", ""))
+    span = tmp_path / "span.json"
+
+    def cov(first, last, rows):
+        span.write_text(json.dumps({"span": {"ABC": [first, last, rows]}}), encoding="utf-8")
+        return PodCoverage(db, span)
+    asof = days[150]
+    assert cov(k(days[0]), k(days[-1]), 200).covered("ABC", asof) == (True, "")
+    ok, why = cov(k(days[100]), k(days[-1]), 100).covered("ABC", asof)          # history starts inside the window
+    assert not ok and "starts" in why
+    ok, why = cov(k(days[0]), k(days[160]), 161).covered("ABC", asof)           # ends inside the forward strip
+    assert not ok and "ends" in why
+    ok, why = cov(k(days[0]), k(days[-1]), 150).covered("ABC", asof)            # a quarter of the rows missing
+    assert not ok and "gaps" in why
+    assert not cov(k(days[0]), k(days[-1]), 200).covered("XYZ", asof)[0]       # a ticker the pod does not hold
