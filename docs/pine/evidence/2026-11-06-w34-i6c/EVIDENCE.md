@@ -31,6 +31,11 @@ row W4-S1-v4 turns it into VENDOR (and settles bar 0 and the sign, below).
   re-route rule is now ONE exported function, `pine.js::pineNamespacedName(name, version)`, called by the Resolver
   (behaviour-neutral refactor of its inline expression) and by `windowTarget`. This also corrects the FIXED-length
   v4 `highestbars(x, 5)` over a runtime variable, which answered the positive distance on master (rail below).
+- ⛔ **THE LIVE OBJECT DOOR CHANGES OUTPUT (review N1).** `windowTarget` is not door-gated, so the sign fix
+  reaches the member object door too: a v1-v4 bare `highestbars`/`lowestbars` over a runtime series with a FIXED
+  length now answers Pine's non-positive offset there, where master answered the positive distance. The object
+  door keeps master's answer ONLY for per-bar lengths (`seriesLengthFn` is false at the door). Every C18 diff this
+  lane makes must be one of these: a v1-v4 script using bare `highestbars`/`lowestbars`, new value `<= 0`.
 - Rails: `runtime/__tests__/w4SeriesLength.test.js` + 21 tests (W34-I6c describe); its v4 control became a v3
   control (v4 now serves); `head(v)` writes `study(...)` for v4 and below. Two older rails pinned the
   per-bar-length refusal in v4 "which has no series length" and are re-pinned at the OBJECT door (which keeps
@@ -51,8 +56,9 @@ row W4-S1-v4 turns it into VENDOR (and settles bar 0 and the sign, below).
 7. a v4 length past the declared `max_bars_back` (10) stops the run by name;
 8. a v4 `na` length (no `nz`) stops the run by name;
 9. v4 `ema` / `rma` (`integer`) keep their refusal;
-10. the live OBJECT door keeps master's answer in v4 (`runtime:history-dynamic-offset`; the price-column form
-    refuses too);
+10. the live OBJECT door keeps master's answer in v4 FOR A PER-BAR LENGTH (`runtime:history-dynamic-offset`; the
+    price-column form refuses too). It does NOT keep master's answer for a fixed-length bare `highestbars` /
+    `lowestbars` (v1-v4): there the sign flips to Pine's, see "What changed";
 11. the one-argument v4 form `highestbars(length)` keeps `resolve:window`;
 12. serving v4 leaves no `runtime:history-dynamic-offset` in the census counters.
 
@@ -81,7 +87,8 @@ Runner `scratchpad/i6c/handmut.py`, rail `w4SeriesLength.test.js`.
 | M4 v4 unqualified `integer` served as `series` | SURVIVED, **equivalent**: no v4 `integer`-length function (ema, rma, atr, hma, kc, kcw) is a finite-window member, so none reaches this path (the same reason T8's M11 survived). The table content is railed directly (rail 1). |
 
 ## Refusals kept, by name
-- Object door: `runtime:history-dynamic-offset` for every per-bar length, until **W4-S1-v4** MATCHes. The zigzag
+- Object door: `runtime:history-dynamic-offset` for every per-bar length, until **W4-S1-v4** MATCHes. (Fixed
+  lengths are not refused there and DO change: the v1-v4 bare `highestbars`/`lowestbars` sign fix above.) The zigzag
   script is a drawing (object-door) script, so on the member door it stays refused until that capture; the dark
   runtime lane serves its two walls (`highestbars`/`lowestbars`).
 - v4 `ema` / `rma` / `atr` / `hma` / `kc` / `kcw` with a per-bar length: refused (the reference states no `series`).

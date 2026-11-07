@@ -6,9 +6,11 @@ The v4 serve is at the REFERENCE tier, as W4-T8's v5/v6 serve is: the v4 referen
 `length (series[integer])` for `highestbars`, `lowestbars`, `highest`, `lowest`, `sma`, `wma`, `stdev`, `sum`,
 `dev`, `median` (https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars), and `integer` (no
 qualifier) for `ema`, `rma`, `atr`, `hma`, `kc`, `kcw`, which keep their refusal. The row below turns
-REFERENCE into VENDOR. Until it MATCHes, the live OBJECT door keeps master's answer
+REFERENCE into VENDOR. Until it MATCHes, the live OBJECT door keeps master's answer for a PER-BAR length
 (`runtime:history-dynamic-offset`, "the length of `<fn>` is only known while the bar is running, so the ring
-it needs cannot be sized before bar 0"), exactly as W4-S1 gates v5/v6.
+it needs cannot be sized before bar 0"), exactly as W4-S1 gates v5/v6. It does NOT keep master's answer for a
+FIXED-length v1-v4 bare `highestbars`/`lowestbars`: this lane flips that sign to Pine's non-positive offset at
+every door (the translator's vendor-measured v1-v4 re-route).
 
 | id | probe | symbol / tf | refusal kept (object door) | unblocks | settles | owner |
 |---|---|---|---|---|---|---|
