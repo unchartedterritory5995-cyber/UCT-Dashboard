@@ -841,15 +841,22 @@ describe('the empty cell, described', () => {
     expect(cells().map(c => c.sym)).toEqual(['NVDA', 'AMD', 'TSLA', 'SPY'])
     expect(asked()).toBe(false)
   }, 30000)
-  it.each([['log scale in the empty cell'], ['log scale in the empty cell for me please']])('%s: the empty cell keeps a log scale, no question', async (t) => {
-    const { say, undo } = mount()
+  // pl-auto u-workspace-09 (BROWSER-MOCK-MODEL): an empty cell draws no chart, so a scale on it was receipted and never seen. The
+  // empty cell is still the target (no other cell is touched, nothing is asked), and the change is refused in words, never receipted.
+  it.each([['log scale in the empty cell'], ['log scale in the empty cell for me please']])('%s: the empty cell is the target, and a scale on it is refused, never receipted', async (t) => {
+    const { say } = mount()
     envelopes.push(plan('chart.setScale', { scale: 'log' }, 3))
     await say(t)
-    await waitFor(() => expect(at('c3').settings?.logScale).toBe(true))
-    expect(at('c0').settings).toBeUndefined()
+    await waitFor(() => expect(transcript()).toMatch(/That cell is empty, so there is no chart there to change yet/))
+    expect(cells().map(c => c.settings?.logScale ?? null)).toEqual([null, null, null, null])
+    expect(receipts().length).toBe(0)
     expect(asked()).toBe(false)
-    await undo()
-    await waitFor(() => expect(at('c3').settings ?? null).toBe(null))
+  }, 30000)
+  it('what an empty cell DOES show still changes on it: its timeframe ("make the empty cell weekly")', async () => {
+    const { say } = mount()
+    envelopes.push(plan('chart.setTimeframe', { timeframe: 'W' }, 3))
+    await say('make the empty cell weekly')
+    await waitFor(() => expect(at('c3').tf).toBe('W'))
   }, 30000)
   it('NEGATIVE: a plan on another cell is not run for "the empty cell"', async () => {
     const { say } = mount()
