@@ -42,6 +42,10 @@ import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expand
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnMarkMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
+import { FLOW_FIELDS } from './capabilities/scanHidden'
+import { namedBoardWidgets } from './routing'
+// the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
+export const FLOW_WIDGET_REFUSAL = "I can't set the Options Flow widget's filters for you yet. Use the filter chips on the widget itself (Calls / Puts, Sweeps / Blocks, Bull / Bear, the premium floor). Nothing was changed."
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
@@ -2285,6 +2289,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
+      // round 3 (pl-auto unseen3): "only show puts in the options flow" with an Options Flow WIDGET on the board is a request for that
+      // widget's own filter chips, not a screen. Which chips UCT Agent may set is an open owner decision (F-16), so nothing is widened:
+      // it is still not done here, but the refusal says so about the widget's control, never "use the Screener page".
+      if (fast?.kind === 'ops' && fast.ops.some(o => o?.action === 'screener.run' && (o.args?.filters || []).some(f => FLOW_FIELDS.has(f?.field)))
+        && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) {
+        const t = FLOW_WIDGET_REFUSAL
+        push({ role: 'refusal', text: t })
+        record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: ['widget.setOption'] }, telemetry: { path: 'fast', refused: true, voice } })
+        return
+      }
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
       if (fast?.kind === 'ops' && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
       if (fast?.kind === 'say') {
