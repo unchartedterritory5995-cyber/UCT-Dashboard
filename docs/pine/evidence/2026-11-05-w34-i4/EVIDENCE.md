@@ -1,6 +1,6 @@
 # W34-I4 v1-v3 self-referencing state residue (`pine:state` on the run) - evidence (desktop)
 
-**NEXT STEP (superseded): STOPPED on the measure-pair regression below; earlier text:** WAITING FOR THE COORDINATOR'S GO for the heavy jobs, in this order: (1) mutation batch
+**NEXT STEP: measure-pair re-run is CLEAN (see the re-run section); waiting for the FINAL-TIP go, then ready-check. Earlier text:** WAITING FOR THE COORDINATOR'S GO for the heavy jobs, in this order: (1) mutation batch
 (`muts.json`, lock `heavy-mut-w34-i4.lock`), (2) measure-pair runtime 0 and 1 (shared base lock
 `heavy-mp2.lock`/`heavy-mp3.lock`), (3) merge origin/master again, final-tip FULL, ready-check.**
 Light work is done (code, rail, red-on-master, Python parity pytest). Review NO-GO @862ee67295 (B1) FIXED, see below;
@@ -125,6 +125,20 @@ definition whose right side calls a function this script defines (`f(...) =>`) i
 it builds exactly as on master. Rail `a self-reference calling a script function is untouched` (19 passed); hand
 mutant M12 (remove the check) KILLED (`muts-fn.json`). The first measure-pair re-run was cancelled while still queued
 (never started) and re-queued on the new tip.
+
+## measure-pair RE-RUN on the fixed tip (heavy-mp3.lock, base pine-dsk-mpbase3 = 9a75786663; `== side tip 9d6aca609b`; `mp3.log`, `mp3-rt0/`, `mp3-rt1/`)
+| lane | C18 out | C18 probe | harness TOTAL tip / base | census diffs |
+|---|---|---|---|---|
+| 0 | IDENTICAL | IDENTICAL | 93/103/140 = 93/103/140, verdicts identical | 5 / 967 |
+| 1 | IDENTICAL | IDENTICAL | 112/107/117 vs 111/107/118 | 2 / 967 |
+- Lane 0: the 5 are v5/v6 `pine:timeout` peel noise (multi-timeframe-trend-indicator, volatility-coil-edge, halftrend-
+  longshort, luxy-momentum, mirage-liquidity-sweep); the rewrite returns early above v2.
+- Lane 1 census: `coral-trend-indicator-lazybear` INTENDED (`pine:state` -> `runtime:withheld-all`);
+  `multi-timeframe-trend-indicator` (v6) timeout noise. **`earnings-sr-levels-lazybear`: no diff (byte-identical to master).**
+- Lane 1 harness: `delta-rsi-oscillator-strategy-rddt-1d` INCONCLUSIVE -> MATCH ("computeFor returned no column" on base,
+  636 bars agree on tip). NOT I4: the script is `//@version=4`, where `v2SelfReferenceStatements` returns its input
+  unchanged; its SPY twin stays INCONCLUSIVE on both sides, and the previous run's tip (`mp-rt1`) had it INCONCLUSIVE.
+  Classified as the known delta-rsi wall-clock flake (common brief). 0 unintended.
 
 ## Coral's next wall (not this lane's)
 `runtime:withheld-all`: the `Trend` plot's `color = tc` changes per bar (`bfr > nz(bfr[1]) ? green : ...`), and
