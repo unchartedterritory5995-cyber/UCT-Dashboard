@@ -98,9 +98,27 @@ The teaching count is now measured by a committed browser runner, so it can be r
 
 `app/src/testing/agent/guide/runs/2026-11-07.final.results.json` (labelled `mode: BROWSER-MOCK-MODEL` in the file) and the generated `cases.inventory.json` are committed, so the count can be reproduced and checked. Whether raw run files belong in the repository at all, or should be kept outside it with only the generator and the status file committed, is **the owner's call**.
 
-## AUDIT blocker (open): relative and negated chart references (T1, T2)
+## AUDIT T1 / T2: relative and negated chart references (addressed, re-review needed)
 
-`guide/namedChart.js` returns null for "the chart below this one", "the one next to this", "every chart except this one", and the walkthrough lands on the CLICKED chart. That is the same class as the wrong-chart chain. The fix reuses deixis.js's relation/negation detector from `agent/pl/target-plus-multichart` (pl-exec), never a third copy. Paired guide tests are committed in `agentGuideRelational.test.jsx`: 10 skipped-pending, which fail today, and 2 passing. The one-authority agreement test (namedChart vs deixis on one probe set) is a todo until that head is merged. **This PR ships after the wrong-chart chain.**
+- **Base.** `agent/pl/target-plus-multichart` @ `30d1633b23` is merged in (commit `47194b2c45`). If AUDIT changes that chain, it is merged again.
+- **The fix.** `guide/namedChart.js` calls deixis.js's exported `relativeChart` and `negatedPointer`. There is no copy. `showFeature` passes the clicked chart as the anchor.
+  - "the chart below this one" rings the clicked chart's neighbour.
+  - "every chart except this one" is asked about, never walked on the click.
+  - A relation with no neighbour, or with two, is said or asked.
+  - A bare "this" stays the click.
+- **Tests** (`agentGuideRelational.test.jsx`): 6 relation, 3 negation and 2 bare-"this" cases.
+- **T2 agreement test.** The same 14 probes run through `namedChart` and `deixis.chartsNamedBy`. When execution names one chart, the guide rings that chart. When execution names none, the guide picks none. A negated reference never yields a chart.
+- **Pending: "the other chart".** deixis reads it (`OTHER_CHART`) but does not export it. pl-exec would need to export it. The test is skipped, and nothing is copied.
+
+## pl-auto tutorial defects (BROWSER-MOCK)
+
+| Defect | State |
+|---|---|
+| P1 stale ring (the walkthrough's chart closed) | Fixed. Chart-scoped targets no longer fall back to another chart; the walkthrough pauses and says so. |
+| P2 another chart's settings window advances the step | Fixed. While another chart has the same control, the step advances only on a press of its own control. |
+| P2 a new request mid-walkthrough | Partly fixed. The Send button press ends it. Enter in the message box needs `useAgent` to call `guideStore.endForNewRequest()` (pl-exec; the hook is exported). |
+| P2 Escape with focus on the board | Pending a shared change. `guideStore.escapeOnBoard()` decides it. It needs an Escape observer declared in `pages/command/shortcutRegistry.js`: the board's handlers stop the key before the guide hears it, and observers get no event. No raw key listener was added (`keyListenerCensus`). |
+| A click elsewhere does not end the walkthrough | Unchanged: owner decision. |
 
 ## Owed / not done
 - **pytest (not run here, by rule) for the readers of the golden:** `tests/test_uct_agent_contract.py`, `test_agent_eval_proxy.py`, `test_agent_eval_run.py`, `test_uct_agent_acceptance_stabilization.py`, `test_uct_agent_args_live_shapes.py`, `test_uct_agent_autoapply.py`, `test_uct_agent_breadth*.py`, plus whatever reads `section_b_requests.json` (`api/services/uct_agent/scan/sat`).
