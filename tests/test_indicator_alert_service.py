@@ -494,9 +494,11 @@ def test_the_soak_matrix_stays_visible_when_every_row_is_scoped(tmp_db):
     specs = soak.catalog_addresses()
     assert len(specs) > 1, "the catalog is empty, so this proves nothing"
     for i, spec in enumerate(specs):
+        # 2026-11-07 (D4): each row on the matrix's own target (the RS rows on D).
+        sym, tf = soak.spec_target(spec, "SPY", "5")
         alert_id = ias.create(
-            user_id="soak-user", sym="SPY", indicator=spec["address"],
-            condition=spec["condition"], threshold=spec["threshold"], tf="5",
+            user_id="soak-user", sym=sym, indicator=spec["address"],
+            condition=spec["condition"], threshold=spec["threshold"], tf=tf,
             params_json={soak.SOAK_KEY: soak.SOAK_TAG},
             # every row scoped, and to DIFFERENT charts, so a filter of any
             # shape (equality, IS NULL, or both) would drop at least some
@@ -1047,12 +1049,18 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     from tools import alert_soak_matrix as soak
 
     # 2026-11-06 (RS 2b-05): 44 = 32 + the twelve (2026-11-07, RS 2b-06: +rs_line.rating) `rs_line.*` rows the matrix
-    # now arms (its `arm()` writes through the UNGATED `create`; at its
-    # DEFAULT_TF "5" those eleven are refused every cycle by the lane — one
-    # warning line, no fire — and flagged by the silence sweep. That is the
-    # matrix's own concern, recorded in the 2b-05 hand-off, not this rail's).
+    # now arms (its `arm()` writes through the UNGATED `create`).
+    # 2026-11-07 (owner decision D4): the twelve RS rows arm on the DAILY timeframe
+    # (`RS_SOAK_TF`), not the matrix's 5-minute default where the lane refused
+    # them every cycle; and on QQQ, because SPY is the RS lane's default benchmark
+    # and SPY over itself is a flat line the door refuses.
     first = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert len(first["created"]) == 44 and first["kept"] == []
+    assert len(first["created"]) == 44 and first["kept"] == [] and first["retired"] == []
+    assert (first["rs_sym"], first["rs_tf"]) == ("QQQ", "D")
+    rows = soak.soak_rows()
+    rs_rows = [a for a in rows if a["indicator"] in ev.RS_ADDRESSES]
+    assert len(rs_rows) == 12 and {(a["sym"], a["tf"]) for a in rs_rows} == {("QQQ", "D")}
+    assert {(a["sym"], a["tf"]) for a in rows if a["indicator"] not in ev.RS_ADDRESSES} == {("SPY", "5")}
 
     second = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
     assert second["created"] == [] and len(second["kept"]) == 44
@@ -1061,8 +1069,35 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     assert out["armed"] == 44
     assert out["visible_to_shadow"] == 44
     assert out["deliverable_now"] == 0
-    assert out["missing"] == []
+    assert out["missing"] == [] and out["misplaced"] == []
     assert out["addresses_covered"] == out["addresses_expected"] == 44
+
+
+def test_the_soak_matrix_retires_the_five_minute_rs_rows_an_earlier_arm_left(tmp_db):
+    """D4 on a store armed before it: the twelve RS rows sit on (SPY, "5"), where
+    the lane refuses them every cycle. `--verify` refuses (they cover nothing), and
+    one `--arm` retires them and places the twelve on (QQQ, D); the 32 others are
+    kept as they are. Only soak-tagged rows are ever touched."""
+    from tools import alert_soak_matrix as soak
+
+    member = ias.create(user_id="member-1", sym="SPY", indicator="rs_line.newHigh", condition="above",
+                        threshold=0.5, tf="5")
+    for spec in soak.catalog_addresses():
+        aid = ias.create(user_id="owner-1", sym="SPY", indicator=spec["address"],
+                         condition=spec["condition"], threshold=spec["threshold"], tf="5",
+                         params_json={soak.SOAK_KEY: soak.SOAK_TAG})
+        ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
+    before = soak.verify()
+    assert len(before["misplaced"]) == 12 and len(before["missing"]) == 12
+    assert soak.main(["--verify"]) == 1
+    assert any("RS soak rows" in line for line in soak.verify_refusals(before))
+
+    out = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
+    assert len(out["retired"]) == 12 and len(out["created"]) == 12 and len(out["kept"]) == 32
+    after = soak.verify()
+    assert after["armed"] == 44 and after["misplaced"] == [] and after["missing"] == []
+    assert soak.main(["--verify"]) == 0
+    assert ias.get(member)["tf"] == "5", "a member's alert is never the matrix's to retire"
 
 
 def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
@@ -1094,35 +1129,38 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
     monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "closed")
     refused_addresses = set(ias.closed_lane_dead_addresses())
     assert refused_addresses == {"ichimoku.chikou"}, refused_addresses
-    # 2026-11-06 (RS 2b-05) — and the twelve RS addresses (2026-11-07, RS 2b-06: +rating), at the matrix's own
-    # DEFAULT_TF ("5"): an RS alert is judged on closed daily / weekly bars only
-    # and the door says so in the lane's sentence (`REFUSAL_RS_TIMEFRAME`). A
-    # different refusal, a different anchor — the two are asserted apart.
-    rs_refused = set(_ev.RS_ADDRESSES)
-    assert len(rs_refused) == 12 and not (rs_refused & refused_addresses)
+    rs_addresses = set(_ev.RS_ADDRESSES)
+    assert len(rs_addresses) == 12 and not (rs_addresses & refused_addresses)
 
+    # 2026-11-07 (owner decision D4): each spec is posted on the matrix's OWN target
+    # (`spec_target`): the twelve RS rows on D (and QQQ, since SPY is their default
+    # benchmark), where the door ACCEPTS them. Until D4 they rode the 5-minute
+    # default and were refused with `REFUSAL_RS_TIMEFRAME`, kept as the control below.
     refused = []
     for spec in specs:
+        sym, tf = soak.spec_target(spec, soak.DEFAULT_SYM, soak.DEFAULT_TF)
+        assert (sym, tf) == (("QQQ", "D") if spec["address"] in rs_addresses else ("SPY", "5")), spec
         r = client.post("/api/indicator-alerts", json={
-            "sym": soak.DEFAULT_SYM, "indicator": spec["address"],
+            "sym": sym, "indicator": spec["address"],
             "condition": spec["condition"], "threshold": spec["threshold"],
-            "tf": soak.DEFAULT_TF})
+            "tf": tf})
         if spec["address"] in refused_addresses:
             assert r.status_code == 400, (spec, r.text)
             assert ias.CLOSED_LANE_TRAILING_PAD in r.text
             refused.append(spec["address"])
-        elif spec["address"] in rs_refused:
-            assert r.status_code == 400, (spec, r.text)
-            assert ias.REFUSAL_RS_TIMEFRAME in r.text
-            assert ias.CLOSED_LANE_TRAILING_PAD not in r.text
-            refused.append(spec["address"])
         else:
             assert r.status_code == 200, (spec, r.text)
-    assert sorted(refused) == sorted(refused_addresses | rs_refused)
-    # STILL 31: 44 specs minus chikou minus the twelve RS rows refused on "5"
-    # (2026-11-04: 32 specs (+ma_cross) minus chikou; 2026-11-06 (RS 2b-05):
-    # +11 specs and +11 door refusals, so the armed count does not move; 2026-11-07 (RS 2b-06): +1 spec, +1 refusal, still 31).
-    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
+    assert sorted(refused) == sorted(refused_addresses)
+    # 43: 44 specs minus chikou. It read 31 while the twelve RS rows were refused on
+    # "5" (2026-11-04: 32 specs (+ma_cross) minus chikou; 2026-11-06/07, RS 2b-05/06:
+    # +12 specs, +12 door refusals); D4 moves them to D, where all twelve arm.
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 43
+    # The control: the same RS rows on the old 5-minute target are still refused.
+    for address in sorted(rs_addresses):
+        spec = next(s for s in specs if s["address"] == address)
+        refusal = ias.refusal_for(address, spec["condition"], soak.DEFAULT_TF, spec["threshold"])
+        assert refusal is not None and ias.REFUSAL_RS_TIMEFRAME in refusal, address
+    rs_refused = rs_addresses
 
     # …and on the ROLLBACK lane the whole catalog is armable again, with no
     # deploy and no code change. The gate reads `eval_mode()`, so this is one
@@ -1254,9 +1292,10 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
     import time as _time
 
     for spec in soak.catalog_addresses():
-        aid = ias.create(user_id="owner-1", sym="SPY", indicator=spec["address"],
+        sym, tf = soak.spec_target(spec, "SPY", "5")     # 2026-11-07 (D4): the RS rows on D
+        aid = ias.create(user_id="owner-1", sym=sym, indicator=spec["address"],
                          condition=spec["condition"], threshold=spec["threshold"],
-                         tf="5", params_json={soak.SOAK_KEY: soak.SOAK_TAG})
+                         tf=tf, params_json={soak.SOAK_KEY: soak.SOAK_TAG})
         ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
 
     out = soak.verify()
