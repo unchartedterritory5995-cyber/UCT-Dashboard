@@ -322,3 +322,22 @@ describe('a pressed control finishes its step, even when it stays on screen', ()
     expect(text()).toBe('Click A.')
   })
 })
+
+// round 4 (Layouts ▾ → Multi Chart): a card placed under the member's pointer closes a hover menu (its onMouseLeave fires as
+// the pointer is suddenly over the card). The card never lands under the pointer — with a control found, or still looking
+describe('the card is never placed under the pointer', () => {
+  const hit = (c, p, h) => c.left < p.left + p.width && c.left + c.width > p.left && c.top < p.top + p.height && c.top + h > p.top
+  it('while still looking for the control (no rect): a corner away from the pointer', () => {
+    const pointer = { top: 76, left: 220, width: 32, height: 32 }
+    const c = placeCard(null, { vw: 1600, vh: 950, cardH: 120, pointer })
+    expect(hit(c, pointer, 120)).toBe(false)
+  })
+  it('beside a control, never over the pointer either', () => {
+    for (let x = 40; x < 1500; x += 97) for (let y = 40; y < 900; y += 83) {
+      const pointer = { top: y - 16, left: x - 16, width: 32, height: 32 }
+      const rect = { top: 300, left: 500, width: 120, height: 30 }
+      const c = placeCard(rect, { vw: 1600, vh: 950, cardH: 140, pointer })
+      expect(hit(c, pointer, 140), JSON.stringify({ x, y, c })).toBe(false)
+    }
+  })
+})

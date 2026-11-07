@@ -156,6 +156,15 @@ export default function GuideOverlay() {
     }
   }, [st, step, stepKey])
 
+  // where the member's pointer is (passive: nothing is consumed), so the card is never placed under it
+  const pointerRef = useRef(null)
+  useEffect(() => {
+    const onMove = (e) => { pointerRef.current = { x: e.clientX, y: e.clientY } }
+    window.addEventListener('pointermove', onMove, { capture: true, passive: true })
+    window.addEventListener('pointerdown', onMove, { capture: true, passive: true })
+    return () => { window.removeEventListener('pointermove', onMove, { capture: true }); window.removeEventListener('pointerdown', onMove, { capture: true }) }
+  }, [])
+
   // closing the Agent / leaving Charts ends the walkthrough
   useEffect(() => () => endGuide('closed'), [])
 
@@ -195,7 +204,8 @@ export default function GuideOverlay() {
   const vw = window.innerWidth || 1280
   const vh = window.innerHeight || 800
   const why = found.key === stepKey ? found.why : null
-  const pos = placeCard(rect, { vw, vh, cardH, avoid: found.key === stepKey && found.holder ? [found.holder] : [] })
+  const pt = pointerRef.current
+  const pos = placeCard(rect, { vw, vh, cardH, avoid: found.key === stepKey && found.holder ? [found.holder] : [], pointer: pt ? { top: pt.y - 16, left: pt.x - 16, width: 32, height: 32 } : null })
   const last = st.index === st.steps.length - 1
   const waiting = !!step.waitFor
   const shownHint = hint?.key === stepKey ? hint.text : null
