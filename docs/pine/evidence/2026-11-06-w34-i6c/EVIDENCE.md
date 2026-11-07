@@ -96,3 +96,33 @@ Runner `scratchpad/i6c/handmut.py`, rail `w4SeriesLength.test.js`.
 - one-argument `highestbars(length)` / `lowestbars(length)` with a per-bar length: `resolve:window`.
 - Not stated by the v4 reference, so settled only by W4-S1-v4: what a per-bar length reads on bar 0, and the
   sign of v4 `highestbars` under a per-bar length (served here as the translator's measured v1-v4 re-route).
+
+## mutate.py (heavy-mut.lock, label w34i6c-mut, 73 s) at fb2e39c73e
+`_resume-2026-11-01/runs/w34-i6c/muts.json`, log `runs/w34-i6c/mut.log`; rails w4SeriesLength, finiteWindow,
+pureWindowInFunction, legacyBareNamespace. M0 no-op control SURVIVED (control). KILLED: M1 gate back to v5+,
+M2 span read once at bar 0, M3 bare name unrouted (sign), M5 object door ungated, M6 helper bound <= 99,
+M7 helper bound <= 3, M8 v4 reads the v5 table, M9 gate widened to v1-v4 (8/8). M4 (`integer` served as series)
+SURVIVED, equivalent (see above; the review agreed independently).
+
+## measure-pair (heavy-mp3.lock, label w34i6c-mp, 1.5 h) tip fb2e39c73e vs base 4ca464f6e3 (pine-dsk-mpbase3, detached)
+HEAD checked before/after every side; outputs `_resume-2026-11-01/runs/w34-i6c/mpr/mp0`, `mp1`.
+
+| runtime | C18 corpus audit | C18 probes | vendor harness | census (967) |
+|---|---|---|---|---|
+| 0 | 0 of 395 differ | 0 of 69 | identical (MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140) | 6 differ |
+| 1 | 0 of 395 differ | 0 of 69 | identical (MATCH 112 / DIVERGE 107 / INCONCLUSIVE 117) | 3 differ |
+
+**C18: zero diffs on both runtimes.** No script in the C18 corpus or probes reaches a fixed-length bare v1-v4
+`highestbars`/`lowestbars` over a runtime series at the object door, so the N1 sign change has no C18 witness here
+(it is railed: "the v4 SIGN ... fixed length too").
+
+Census, intended: `zigzag-multi-time-frame-with-fibonacci-retracement` (v4, the sole target): rt0 `runtime.attached`
+false -> true; rt1 `attached` false -> true, peel 2 -> 0. `relative-volume-at-time` (v4; `highest`/`lowest`/`stdev`/
+`sma` over a per-bar length): rt1 first runtime wall `runtime:history-dynamic-offset` -> `runtime:request-with-state`.
+Census, noise (translator wall-clock budget, listed as noise in W34-D2, W34-I6a, W6-T1/T5/T6; none is v1-v4 nor uses
+`highestbars`/`lowestbars`): `ai-supertrend-x-pivot` (v5), `volatility-coil-edge-bullbyte` (v6), `halftrend-bigbeluga`
+(v6), `luxy-momentum` (v6), `mirage-liquidity-sweep` (v6) on rt0; `multi-timeframe-trend-indicator` on rt1.
+
+## Merged origin/master 0aeffdc0e9 (clean) and re-ran the rails
+w4SeriesLength, finiteWindow, pureWindowInFunction, legacyBareNamespace, dynamicHistoryOffset, namespacedTreeInLane,
+pine.hiloDefault: 152/152.
