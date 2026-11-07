@@ -177,7 +177,8 @@ const valueOf = (f, w, doors) => {
 /** A control's choices right now, as { value, label }: the registry's, or the mounted widget's own. */
 const choicesOf = (f, door) => {
   const raw = f.from === 'door' ? door?.options?.()?.[f.key] : f.options
-  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: String(o) }))
+  // a row with `labels` (widgetNames CONTROL_LABELS) shows its chips' own words; `also` = more words for the same chip
+  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: f.labels?.[o] ?? String(o), ...(f.also?.[o] ? { also: f.also[o] } : {}) }))
 }
 const says = (f, v, choices) => {
   if (Array.isArray(v)) return v.length ? v.join(', ') : (f.all ? 'all' : 'none')
@@ -1080,7 +1081,7 @@ export function registerBoardCapabilities() {
   /** The choice a word names: its value or label, or the one label that contains it. A widget's own list (themes, universes)
    *  is not in front of the model, so a short name has to work; two that fit is a refusal, never a guess. */
   const pick = (f, choices, raw) => {
-    const hit = choices.find(c => norm(c.value) === norm(raw) || norm(c.label) === norm(raw))
+    const hit = choices.find(c => norm(c.value) === norm(raw) || norm(c.label) === norm(raw) || (c.also || []).some(x => norm(x) === norm(raw)))
     if (hit || f.from !== 'door' || !norm(raw)) return hit
     const near = choices.filter(c => norm(c.label).includes(norm(raw)))
     return near.length === 1 ? near[0] : undefined
@@ -1232,7 +1233,7 @@ export function registerBoardCapabilities() {
       if (same(was, now)) return null
       const choices = choicesOf(f, doorFor(env, o))
       const stated = f.door ? b.doors?.[o.id]?.[f.key] !== undefined : atPath(o.opts, f) !== undefined
-      return `The ${nameOf(o, b.board)}: ${key} is now ${says(f, now, choices)}${stated ? ` (was ${says(f, was, choices)})` : ''}`
+      return `The ${nameOf(o, b.board)}: ${f.title || key} is now ${says(f, now, choices)}${stated || f.title ? ` (was ${says(f, was, choices)})` : ''}`
     },
     noop: (b, a, { key, value } = {}) => `${key} is already ${String(value).replace(/^[+-]\s*/, '')}`,
   })
