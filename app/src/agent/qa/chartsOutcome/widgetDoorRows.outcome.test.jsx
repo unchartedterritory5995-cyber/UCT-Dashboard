@@ -23,6 +23,7 @@ vi.mock('../../../components/CompanyLogo', () => ({ default: () => null }))
 vi.mock('echarts-for-react', () => ({ default: () => null }))
 const data = vi.hoisted(() => ({
   sent: [],
+  notes: [],
   prefs: { volume_scan_lists: JSON.stringify([{ id: 'l1', name: 'Semis', syms: ['NVDA', 'AMD'] }, { id: 'l2', name: 'Core', syms: ['SPY'] }]) },
   snapshot: { etfs: { SPY: { price: '1.00', chg: '+0.10%' }, QQQ: { price: '2.00', chg: '-0.20%' } }, futures: {} },
   day: { bmo: [{ sym: 'AAA' }], amc: [], tbd: [], econ: [], fed: [] },
@@ -53,7 +54,7 @@ vi.mock('../../../pages/charts/useListSubscribeEnabled', () => ({ default: () =>
 // table itself is a stand-in here
 vi.mock('../../../pages/Watchlists', () => ({ default: () => null }))
 // the Notebook widget's note list (its own hooks, fixture notes) and its editor (TipTap, not under test here)
-vi.mock('../../../pages/journal-2-0/hooks/useJ2Notes', () => ({ default: () => ({ notes: [{ id: 'n1', title: 'NVDA held the 21', folderId: null, createdAt: '2026-11-03T13:00:00Z' }, { id: 'n2', title: 'AMD breakout plan', folderId: null, createdAt: '2026-11-02T13:00:00Z' }], refresh: async () => {} }), useJ2Note: () => ({ note: null }) }))
+vi.mock('../../../pages/journal-2-0/hooks/useJ2Notes', () => ({ default: () => ({ notes: data.notes, refresh: async () => {} }), useJ2Note: () => ({ note: null }) }))
 vi.mock('../../../pages/journal-2-0/hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 vi.mock('@tiptap/react', async (orig) => ({ ...(await orig()), useEditor: () => null, EditorContent: () => null }))
 vi.mock('../../../hooks/useLivePrices', () => ({ default: () => ({ prices: {}, isLoading: false }) }))
@@ -104,6 +105,7 @@ function Live({ board }) {
 const wgt = (id, type, opts = {}) => ({ id, type, x: 12, y: 0, w: 12, h: 20, color: 'N', opts })
 function board(widgets) {
   data.sent = []
+  data.notes = [{ id: 'n1', title: 'NVDA held the 21', folderId: null, createdAt: '2026-11-03T13:00:00Z' }, { id: 'n2', title: 'AMD breakout plan', folderId: null, createdAt: '2026-11-02T13:00:00Z' }]
   const m = open([chart('c1', 0, 0, 12, 20), ...widgets], { 'N:c1': 'NVDA' })
   render(<Live board={m.board} />)
   return m
@@ -223,5 +225,39 @@ describe('the Notebook widget (C3-201 open a note by its name)', () => {
     await waitFor(() => expect(mountedWidgetDoor('nb')?.options?.().note.length).toBe(2))
     expect(await m.say('open my TSLA note', setOption('notebook', 'note', 'TSLA'))).toMatch(/can be NVDA held the 21, AMD breakout plan/)
     expect(optsOf(m, 'nb').noteId ?? null).toBe(null)
+  }, 60000)
+})
+
+// round 6 (C3-202): create a note through the Notebook widget's own New control (its door → newNote: POST /api/j2/notes, then
+// it opens the new note). Proposed first; nothing is created before Apply; read back from the widget's own list. The server is
+// a fixture that mints the note. Held-out phrasings from agentExecHeldOut6.
+import { NOTE_CREATE_HELD_OUT } from '../../agentExecHeldOut6.test.js'
+describe('the Notebook widget: create a note through its own New control (C3-202)', () => {
+  it.each(NOTE_CREATE_HELD_OUT.map(c => [c.text]))('"%s": shown first; on Apply the widget creates a blank note and opens it', async (text) => {
+    const m = board([wgt('nb', 'notebook')])
+    const base = globalThis.fetch
+    const posts = []
+    globalThis.fetch = async (url, init = {}) => {
+      if (String(url) === '/api/j2/notes' && (init.method || 'GET') === 'POST') {
+        posts.push(url); data.notes = [...data.notes, { id: 'n3', title: '', folderId: null, createdAt: '2026-11-04T13:00:00Z' }]
+        return new Response(JSON.stringify({ note: { id: 'n3' } }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return base(url, init)
+    }
+    await waitFor(() => expect(mountedWidgetDoor('nb')?.read?.().notes.length).toBe(2))
+    await m.say(text, setOption('notebook', 'notes', 'create'))
+    expect(proposalsNow()).toHaveLength(1)
+    expect(posts).toEqual([])
+    await m.apply()
+    await waitFor(() => expect(posts).toHaveLength(1))
+    await waitFor(() => expect(optsOf(m, 'nb').noteId).toBe('n3'))
+    expect(mountedWidgetDoor('nb').read().notes.map(x => x.name)).toEqual(['NVDA held the 21', 'AMD breakout plan', 'Untitled note'])
+  }, 60000)
+  it('NEGATIVE: Dismiss creates nothing', async () => {
+    const m = board([wgt('nb', 'notebook')])
+    await waitFor(() => expect(mountedWidgetDoor('nb')?.read?.().notes.length).toBe(2))
+    await m.say('make a new note in the notebook', setOption('notebook', 'notes', 'create'))
+    await m.dismiss()
+    expect(data.notes.length).toBe(2)
   }, 60000)
 })

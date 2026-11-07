@@ -123,7 +123,7 @@ function snapOf(host) {
 function doorsOf(raw, doorOf) {
   const out = {}
   for (const w of raw) {
-    if (!widgetControls(w.type).some(f => f.door)) continue
+    if (!widgetControls(w.type).some(f => f.door) && !ITEM_LISTS[w.type]) continue
     try { const v = doorOf(w.id)?.read?.(); if (v) out[w.id] = v } catch { /* a door that cannot answer is not there */ }
   }
   return out
@@ -206,7 +206,7 @@ function namedHere(type, said) {
 // round 3 (C3-174): a widget's own list of the member's items, renamed or deleted through its door (widget.setOption, below)
 const itemWords = (t, doors, ids) => (ITEM_LISTS[t] || []).map(l => {
   const names = [...new Set(ids.flatMap(id => (doors?.[id]?.[l.key] || []).map(x => x.name)))]
-  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
+  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : o === 'create' ? 'create' : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
 })
 function widgetControlSection(s, message, whole) {
   const said = new Set(wordsOf(message))
@@ -306,7 +306,7 @@ export const boardKind = {
       for (const [f, v] of Object.entries(d)) if (!same(w[f] ?? null, v)) return false
     }
     if ('layoutTheme' in patch && !same(snap.layoutTheme ?? null, patch.layoutTheme ?? null)) return false
-    for (const [id, vals] of Object.entries(patch.doors || {})) for (const [k, v] of Object.entries(vals)) if (!same(snap.doors?.[id]?.[k] ?? null, v ?? null)) return false
+    for (const [id, vals] of Object.entries(patch.doors || {})) for (const [k, v] of Object.entries(vals)) if (!sameDoorValue(snap.doors?.[id]?.[k] ?? null, v ?? null)) return false
     return true
   },
   // Undo: the touched widgets exactly as they were — a removed one re-inserted whole.
@@ -384,13 +384,21 @@ async function settle(pred, ms = 5000) {
 }
 const rawNow = (host) => host.widgets.snapshot().raw || []
 // The widget's own writer, one control at a time, each read back through its door before the next.
+// a door's list of the member's items ([{ id, name }]) is read back by its names: an item the change CREATED gets its id from the
+// server, so `{ id: null, name }` is landed once an item of that name is there
+const isItems = (v) => Array.isArray(v) && v.every(x => x && typeof x === 'object' && 'name' in x)
+const namesOf = (v) => v.map(x => String(x.name)).sort()
+function sameDoorValue(now, want) {
+  if (isItems(now) && isItems(want) && want.some(x => x.id == null)) return same(namesOf(now), namesOf(want))
+  return same(now, want)
+}
 async function writeDoors(host, doors) {
   for (const [id, vals] of Object.entries(doors)) {
     for (const [key, value] of Object.entries(vals)) {
       const door = host.widgets.door?.(id)
       if (!door?.write) throw new Error('that widget is no longer showing')
       door.write(key, value)
-      if (!(await settle(() => same(host.widgets.door?.(id)?.read?.()?.[key] ?? null, value ?? null)))) throw new Error(`“${key}” did not change`)
+      if (!(await settle(() => sameDoorValue(host.widgets.door?.(id)?.read?.()?.[key] ?? null, value ?? null)))) throw new Error(`“${key}” did not change`)
     }
   }
 }
@@ -1124,13 +1132,18 @@ export function registerBoardCapabilities() {
     const near = exact.length ? exact : items.filter(x => norm(x.name).includes(w))
     return near.length === 1 ? { item: near[0] } : { why: near.length ? `“${raw}” could be ${near.map(x => `“${x.name}”`).join(' or ')}` : `there is no “${raw}”` }
   }
-  const ITEM_OP = /^\s*(rename|delete)\s*:\s*(.+?)(?:\s*=>\s*(.+?))?\s*$/i
+  const ITEM_OP = /^\s*(rename|delete|create)\s*(?::\s*(.+?))?(?:\s*=>\s*(.+?))?\s*$/i
   /** "rename:Mine=>Growth" → { op, item, name } | null */
-  const itemOp = (value) => { const m = ITEM_OP.exec(String(value ?? '')); return m ? { op: m[1].toLowerCase(), item: m[2], name: m[3] ?? null } : null }
+  const itemOp = (value) => { const m = ITEM_OP.exec(String(value ?? '')); return m ? { op: m[1].toLowerCase(), item: m[2] ?? '', name: m[3] ?? null } : null }
   function itemWhy(st, t, key, value, env) {
     const io = itemOp(value)
     const l = listFor(t, key)
-    if (!io) return `${l.noun[0].toUpperCase()}${l.noun.slice(1)}s take "rename:<name>=><new name>" or "delete:<name>".`
+    if (!io) return `${l.noun[0].toUpperCase()}${l.noun.slice(1)}s take ${l.ops.map(o => (o === 'rename' ? '"rename:<name>=><new name>"' : o === 'create' ? '"create"' : `"${o}:<name>"`)).join(' or ')}.`
+    // round 6 (C3-202): CREATE through the widget's own New control: a new blank item, opened as the control opens it
+    if (io.op === 'create') {
+      if (!l.ops.includes('create')) return `The ${label(t.type)} can't create a ${l.noun} from here.`
+      return doorFor(env, t) ? null : `The ${label(t.type)} isn't showing right now, so I can't reach its New control.`
+    }
     const r = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
     if (r.why) return r.why
     if (io.op === 'rename') {
@@ -1142,6 +1155,10 @@ export function registerBoardCapabilities() {
   }
   function itemApply(st, t, key, value, env) {
     const io = itemOp(value)
+    if (io.op === 'create') {
+      const l = listFor(t, key)
+      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...itemsNow(st, t, l), { id: null, name: l.blank || 'Untitled' }] } } }
+    }
     const { l, items, it } = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
     const next = io.op === 'delete' ? items.filter(x => x.id !== it.id) : items.map(x => (x.id === it.id ? { ...x, name: String(io.name).trim() } : x))
     return same(next, items) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: next } } }
@@ -1167,7 +1184,7 @@ export function registerBoardCapabilities() {
     hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
     // a delete of one of the member's items (a theme set) is shown first: it cannot be undone
-    confirmIf: (st, { widget, key, value } = {}) => { const t = widgetOf(st, widget); return !!(t && listFor(t, key) && itemOp(value)?.op === 'delete') },
+    confirmIf: (st, { widget, key, value } = {}) => { const t = widgetOf(st, widget); return !!(t && listFor(t, key) && ['delete', 'create'].includes(itemOp(value)?.op)) },
     check(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
@@ -1202,6 +1219,7 @@ export function registerBoardCapabilities() {
       if (l) {
         const io = itemOp(value)
         if (same(b.doors?.[o.id]?.[key], a.doors?.[o.id]?.[key]) || !io) return null
+        if (io.op === 'create') return `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
         return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${io.item}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${io.item}” to “${String(io.name).trim()}”`
       }
       const f = controlFor(o, key)

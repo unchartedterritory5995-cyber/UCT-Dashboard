@@ -19,6 +19,9 @@ const DOCK_WHY = 'This chart has no Company Info panel. Add it from the chart’
 export const AGENT_CONTROLS = {
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
+  // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
+  watchlist: [{ key: 'source', type: 'enum', options: ['flagged'], path: 'watchKey',
+    write: (opts) => ({ ...(opts || {}), watchKey: 'flagged', watchName: 'Flagged', watchTab: 'mine' }) }],
   chart: [
     { key: 'companyTab', type: 'enum', options: COMPANY_TABS.map(t => t.key), default: 'overview', path: 'dock.tab',
       when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
@@ -100,7 +103,11 @@ export function controlledWidgetTypes(message, types, surfaceWord) {
 // ── Round 4 (pl-exec): a widget's own LIST of the member's items (a Theme Tracker's theme sets), the one data source for the
 // item control (capabilities/board.js) and for routing: an item named by its own name ("rename my Mine theme set") is about that
 // widget even when the widget is not named. ──
-export const ITEM_LISTS = { themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }] }
+export const ITEM_LISTS = {
+  themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }],
+  // C3-202: the Notebook widget's notes; its New control creates a blank one and opens it
+  notebook: [{ key: 'notes', noun: 'note', nouns: ['note', 'notebook', 'blank', 'new'], ops: ['create'], blank: 'Untitled note' }],
+}
 /** The board's widgets that the message reaches by one of their OWN item names, beside an item word (set, preset, rename, delete). */
 export function itemNamedTypes(message, items) {
   const words = nameWords(message)

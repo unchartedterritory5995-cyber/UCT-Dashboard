@@ -253,7 +253,12 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
   const { notes, refresh } = useJ2Notes({ q: q.trim() || undefined, sort: 'updated' })
   const openNoteRow = useMemo(() => notes.find(n => n.id === openNoteId) || null, [notes, openNoteId])
   // C3-201 (pl-exec round 5): the notes this widget lists, as its own rows open them (openNote → opts.noteId), for the Agent
-  useWidgetDoor(() => ({ options: () => ({ note: notes.map(n => ({ value: n.id, label: n.title?.trim() || 'Untitled note' })) }) }))
+  // C3-202 (round 6): the notes as the widget lists them, and its New control (newNote, below) for a create
+  useWidgetDoor(() => ({
+    options: () => ({ note: notes.map(n => ({ value: n.id, label: n.title?.trim() || 'Untitled note' })) }),
+    read: () => ({ notes: notes.map(n => ({ id: n.id, name: n.title?.trim() || 'Untitled note' })) }),
+    write: (key, v) => { if (key === 'notes' && Array.isArray(v) && v.some(x => x && !x.id)) newNoteRef.current?.() },
+  }))
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
   const notesByFolder = useMemo(() => {
@@ -280,6 +285,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
 
   // ── New blank note → open it straight in the editor (in the selected folder) ──
   const [creating, setCreating] = useState(false)
+  const newNoteRef = useRef(null)
   const newNote = async () => {
     if (creating) return
     setCreating(true)
@@ -302,6 +308,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
     }
   }
 
+  newNoteRef.current = newNote
   const journalUrl = openNoteId ? `/journal/notebook?note=${encodeURIComponent(openNoteId)}` : '/journal/notebook'
 
   return (

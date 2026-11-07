@@ -72,3 +72,19 @@ describe('the Company Info panel on a chart', () => {
     expect(dockOf(board).company).toBe(false)
   }, 30000)
 })
+
+// C3-065 (round 6): a Watchlist widget on the member's Flagged list, as the picker's Flagged row sets it (watchKey 'flagged');
+// held-out phrasings from agentExecHeldOut6. Undo puts the list it showed back.
+import { FLAGGED_HELD_OUT } from './agentExecHeldOut6.test.js'
+describe('the Flagged list in a Watchlist widget', () => {
+  it.each(FLAGGED_HELD_OUT.map(c => [c.text]))('"%s": the widget shows Flagged; Undo goes back', async (text) => {
+    const { say, board } = p.mount([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'N', opts: { settings: bareSettings() } },
+      { id: 'wl', type: 'watchlist', x: 12, y: 0, w: 12, h: 20, color: 'N', opts: { watchKey: 'user:w1', watchName: 'Momentum', watchTab: 'mine' } }], { 'N:c': 'NVDA' })
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'widget.setOption', target: body.context.board[0].ref, args: { widget: 'wl', key: 'source', value: 'flagged' } }]))
+    const out = await say(text)
+    const wl = () => board.state.widgets.find(w => w.id === 'wl').opts
+    expect([wl().watchKey, wl().watchName], out).toEqual(['flagged', 'Flagged'])
+    await say('undo')
+    expect([wl().watchKey, wl().watchName]).toEqual(['user:w1', 'Momentum'])
+  }, 30000)
+})
