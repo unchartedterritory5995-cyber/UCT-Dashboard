@@ -52,7 +52,8 @@ export function unseen5(L) {
   m('followup', [say('rsi and macd here', [add('A', 'rsi'), add('A', 'macd')]), say('stack the rsi under the macd', [op('pane.move', ie('A'), { pane: 'rsi', to: 'below', relativeTo: 'macd' })])], null, changes(['A'], [paneUp('A', 2)]))
   m('followup', [say('add rsi here', [add('A', 'rsi')]), say('move the rsi pane above the volume', [op('pane.move', ie('A'), { pane: 'rsi', to: 'above', relativeTo: 'volume' })])], null, changes(['A'], [paneUp('A')]))
   m('followup', [say('add macd to this chart', [add('A', 'macd')]), say('move the macd pane to the bottom of this chart', [op('pane.move', ie('A'), { pane: 'macd', to: 'bottom', relativeTo: null })])], null, changes(['A'], [paneUp('A')]))
-  m('target', [say('add macd to this chart', [add('sel', 'macd')]), say('put the macd pane under the price on this one', [op('pane.move', ie('sel'), { pane: 'macd', to: 'below', relativeTo: 'price' })])], null, changes(['TL'], [paneUp('TL'), ...[]], tgt('clicked', 'TL')), { board: 'FOUR', select: 'TL' })
+  // oracle fixed after the first run: a target case is graded from the board at its last sentence, so the MACD is already there
+  m('target', [say('add macd to this chart', [add('sel', 'macd')]), say('put the macd pane under the price on this one', [op('pane.move', ie('sel'), { pane: 'macd', to: 'below', relativeTo: 'price' })])], null, changes(['TL'], [['TL.panes', 'same'], ['TL.pixels', 'changed']], tgt('clicked', 'TL')), { board: 'FOUR', select: 'TL' })
 
   // ── volume and averages "under / over" the chart: the clicked chart's own ─────────────────────────────────────────────
   const v = family(L, 'u5-volume-words', { inv: ['C1-086'], board: 'FOUR' })
