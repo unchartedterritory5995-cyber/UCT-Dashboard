@@ -60,6 +60,11 @@ const hasDoIt = (feature) => !!feature?.doIt
 const MENUS = '[role="menu"],[data-guide$="Menu"]'
 const NO_LAYERS_BENEATH = new Set()
 
+// the walkthrough chart's symbol, from its own label (components/chart/pane/ChartIdentityRow.jsx sym-label)
+const symbolOf = (chartRef) => { try { const cell = document.querySelector(`[data-widget-id="${String(chartRef).split("~")[0].replace(/"/g, "")}"]`); return cell?.querySelector("[data-testid=\"sym-label\"]")?.textContent?.trim() || null } catch { return null } }
+// a walkthrough whose OWN steps change the symbol: the symbol search
+const changesSymbol = (feature) => feature?.id === "symbol" || (feature?.steps || []).some(s => s?.target === "chart.symbol")
+
 export default function GuideOverlay() {
   const { state: st, notice } = useSyncExternalStore(subscribeGuide, guideSnapshot, guideSnapshot)
   // what was found for ONE step (keyed, so a new step never shows the last step's ring)
@@ -67,6 +72,8 @@ export default function GuideOverlay() {
   const [hint, setHint] = useState(null)   // { key, text } — the step the member tried to Skip past
   const [cardH, setCardH] = useState(undefined)
   const cardRef = useRef(null)
+  // the symbol each walkthrough started on, per walkthrough id (the owner rule above)
+  const symbolSeen = useRef(new Map())
   const titleId = useId()
   const step = st ? st.steps[st.index] : null
   const stepKey = st ? `${st.id}:${st.index}` : null
@@ -87,6 +94,16 @@ export default function GuideOverlay() {
     let pressedOwn = false
     const tick = () => {
       if (cancelled) return
+      // ⭐ OWNER RULE (2026-11-07): the walkthrough's chart changed symbol from OUTSIDE the walkthrough (a linked watchlist row
+      // loaded into it, a keyboard jump): the chart it was teaching on is now another chart's content, so it ends cleanly — no
+      // notice, no restart. Read from the chart's own state (its symbol label), never the click; a walkthrough whose own steps
+      // change the symbol (the symbol search) is the exception.
+      if (st.chartRef && !changesSymbol(st.feature)) {
+        const sym = symbolOf(st.chartRef)
+        const seen = symbolSeen.current.get(st.id)
+        if (sym && seen == null) symbolSeen.current.set(st.id, sym)
+        else if (sym && seen && sym !== seen) { endGuide('switched'); return }
+      }
       // the card's real height, so placeCard can keep it off the control whatever the sentence's length
       const h = cardRef.current?.offsetHeight
       if (h) setCardH(h)

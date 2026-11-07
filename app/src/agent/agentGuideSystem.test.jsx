@@ -448,3 +448,28 @@ describe('pressing another chart ends the walkthrough', () => {
     expect(guideState()).not.toBeNull()
   })
 })
+
+// OWNER RULE (2026-11-07, pl-auto watchlist-row-loads): the walkthrough chart's symbol changed from outside its own steps (a
+// linked watchlist row loaded into it): the walkthrough ends cleanly. Read from the chart's own label, not the click.
+describe('the walkthrough chart loads another symbol from outside', () => {
+  const chartCell = () => dom('<div data-widget-id="a" data-widget-type="chart"><span data-testid="sym-label">SPY</span><button data-guide="chart.timeframe">tf</button></div>')
+  it('ends it: ring and card gone, no notice, no restart', async () => {
+    const root = chartCell()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }, { target: 'chart.timeframe', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+    act(() => { root.querySelector('[data-testid="sym-label"]').textContent = 'NVDA' })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(notice()).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('a walkthrough whose own steps change the symbol (the symbol search) carries on', async () => {
+    const root = chartCell()
+    render(<GuideOverlay />)
+    act(() => { startGuide({ ...F, id: 'symbol' }, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'Type a ticker.' }] }) })
+    await waitFor(() => expect(text()).toBe('Type a ticker.'))
+    act(() => { root.querySelector('[data-testid="sym-label"]').textContent = 'NVDA' })
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(guideState()).not.toBeNull()
+  })
+})
