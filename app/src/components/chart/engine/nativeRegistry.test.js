@@ -870,7 +870,18 @@ describe('the MACD head-mask was DROPPED, and stays dropped (B3/A5, decision MAC
     expect(def.compute.rev, 'the maths did not').toBe(1)
     // Every other native is still on the shared version — the bump is scoped to
     // the definition the decision touched, not applied across the board.
-    for (const other of listDefinitions().filter(d => d.id !== 'macd')) {
+    // ⭐ `rsLine` is the one other definition off version 1, and for the OPPOSITE
+    // reason to MACD: UCT Relative Strength v2 changed the MATHS (eighteen
+    // server columns where there was one), so its `compute.rev` moved WITH its
+    // `version` — the downstream caches are told the numbers changed because they
+    // did. Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md §8.
+    // v3 (Phase 2a unit 2a-14) moved both again: four more wire columns (the
+    // Mansfield line, its two zero-cross events, the cross dot), so every cached
+    // envelope and `alert_rev_migration.ADDRESS_REVS` read 3 with it.
+    const rs = getDefinition('rsLine')
+    expect(rs.version, 'UCT RS v3 is a deliberate migration').toBe(3)
+    expect(rs.compute.rev, 'and its maths changed, so rev moved with it').toBe(3)
+    for (const other of listDefinitions().filter(d => d.id !== 'macd' && d.id !== 'rsLine')) {
       expect(other.version, `${other.id} should not have been bumped`).toBe(1)
     }
   })

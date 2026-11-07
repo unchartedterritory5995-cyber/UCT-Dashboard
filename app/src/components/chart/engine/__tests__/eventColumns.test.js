@@ -199,11 +199,23 @@ const SHIPPED_COLUMNS = Object.freeze({
   avwap: ['avwap'],
   atrBands: ['upper', 'middle', 'lower'],
   // ── Phase C Task 13, the SERVER lane ──
-  // One plot, one column — and it is written here for the same reason as the
-  // rest: `columnKeys` is a pure read of the DECLARATION, so a server-lane
-  // definition is covered by exactly the same rail as a native. Where the two
-  // lanes differ is who FILLS the column, which is `computeFor`'s business.
-  rsLine: ['rsLine'],
+  // Written here for the same reason as the rest: `columnKeys` is a pure read of
+  // the DECLARATION, so a server-lane definition is covered by exactly the same
+  // rail as a native. Where the two lanes differ is who FILLS the column, which
+  // is `computeFor`'s business.
+  // ⭐ UCT RELATIVE STRENGTH v3 (2026-11-06, Phase 2a unit 2a-14): ten declared
+  // columns — the line, the hidden `rsAbove` condition that colours it, its
+  // moving average, the Mansfield line, and six dot marker plots. The server
+  // sends twelve more (events for scans) that the definition does NOT declare,
+  // because `events[]` cannot be declared on the server lane (registration
+  // probes compute); `columnKeys` reads the declaration, so they are rightly
+  // absent here. `registry_defs._rs_line_row(True)["columns"]` is the full wire
+  // set (22), railed against the provider by `tests/test_rs_columns_provider.py`.
+  // Visual round A3 declares the red-day dot BEFORE the before-price dot, so the
+  // gold before-price glyph paints on top where both fire; the `mansfieldZero`
+  // guide (A2) is an `hlines` plot and returns no column.
+  rsLine: ['rsLine', 'rsAbove', 'rsMa', 'mansfield', 'dotNH', 'dotNHred', 'dotNHbeforePx',
+    'dotNHpartial', 'dotNL', 'dotMansfieldCross'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who

@@ -50,6 +50,7 @@ import { orderCategories } from './technicalCategories'
 import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
+  fieldsForInstance, sectionize, initialCollapsed, evalActiveWhen,
 } from './indicatorRegistry'
 // ⭐ THE BREAKPOINT HOOK THE APP ALREADY HAS. The narrow layout is a second
 // VIEW of one state, not a second component, and it needs exactly one bit:
@@ -126,7 +127,12 @@ import {
 } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
-import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
+import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dotPlotsOf, DOT_SIZE_OPTIONS,
+  instanceDotSizeReading, DOT_SIZE_MIXED } from './engine/instanceControls'
+// ⭐ UCT RS PHASE 2a VISUAL (A6) — the Inspector's Preset row reads and writes
+// through the ENGINE's preset helpers, the ones the settings dialog and the phone
+// sheet use, so the three surfaces cannot name different presets for one instance.
+import { applyPresetInputs, presetsOf, detectPreset, CUSTOM_PRESET } from './engine/instanceControls'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -2192,15 +2198,29 @@ export default function ChartSettingsIndicators({
   // Whitespace AFTER a correctly sized control is fine; whitespace INSIDE a giant
   // input holding `20` is what this is not.
 
+  /** The tooltip a regular input row's label shows on hover (S1): the generated
+   *  field's own, else the definition's declared one, else nothing. */
+  const tooltipOf = (row, f) => {
+    if (typeof f.tooltip === 'string' && f.tooltip) return f.tooltip
+    const declared = (registry?.getDefinition?.(row.defId)?.inputs || []).find((i) => i && i.key === f.key)
+    return declared && typeof declared.tooltip === 'string' && declared.tooltip ? declared.tooltip : undefined
+  }
+
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
     const dis = !!f.disabled
+    // ⭐ UCT RS PHASE 2a VISUAL (A6) — `activeWhen` DIMS, NEVER REMOVES, exactly as
+    // the phone sheet does: the row keeps its place and its words, the label takes
+    // the off tier and the control is `disabled` + `aria-disabled`. It wakes on the
+    // same click that satisfies the condition, because `row.values` is the resolved
+    // state that click writes. A field with no `activeWhen` is untouched.
+    const off = !dis && !!f.activeWhen && !evalActiveWhen(f.activeWhen, row.values)
     // The reason has to reach a screen reader, not just a pointer — the rule this
     // tab already followed, kept verbatim.
     const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
     const inert = dis
       ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
-      : {}
+      : off ? { disabled: true, 'aria-disabled': 'true' } : {}
     const seg = isSegment(f)
     return (
       <div
@@ -2208,17 +2228,30 @@ export default function ChartSettingsIndicators({
         className={styles.insField}
         data-field={f.key}
         data-measure={seg ? 'segment' : measureOf(f)}
+        data-active={f.activeWhen ? String(!off) : undefined}
         title={f.disabled || undefined}
       >
-        <span className={`${styles.insFieldLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+        {/* ⭐ visual review S1 — the declared tooltip rides the label as `title`, so a
+            label the column truncates can still be read on hover. ⚠️ `row.fields` come
+            from `fieldsFromDefinition`, which carries no `tooltip` (only
+            `fieldsForInstance` adds it), so the definition's own declaration is the
+            fallback; absent both, no `title` at all. */}
+        <span className={`${styles.insFieldLabel} ${dis || off ? styles.indLabelOff : ''}`} title={tooltipOf(row, f)}>{f.label}</span>
         {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
         <span className={styles.insFieldCtl}>
-          {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
+          {f.type === 'color' && !off && colorSwatch(indTarget(row.id, f.key), f.label, val)}
+          {/* An inactive colour: the modal's swatch has no disabled state, so the
+              cell around it is inert (no pointer, the off tier) and says so. */}
+          {f.type === 'color' && off && (
+            <span className={styles.insCtlOff} aria-disabled="true">
+              {colorSwatch(indTarget(row.id, f.key), f.label, val)}
+            </span>
+          )}
           {f.type === 'toggle' && (
             <button
               type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
               {...inert}
-              className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
+              className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis || off ? styles.toggleOff : ''}`}
               onClick={() => onRowPatch?.(row, { [f.key]: val === false })}
             ><span className={styles.toggleKnob} /></button>
           )}
@@ -2255,12 +2288,12 @@ export default function ChartSettingsIndicators({
               className={styles.insSeg}
               role="radiogroup"
               aria-label={f.label}
-              {...(dis ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
+              {...(dis ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : off ? { 'aria-disabled': 'true' } : {})}
               /* ⭐ ARROW KEYS MOVE THE CHOICE, which is what a radio group is
                  defined to do and what a member reaches for after tabbing to it.
                  Home/End are the same two answers here, so they are not bound. */
               onKeyDown={(e) => {
-                if (dis) return
+                if (dis || off) return
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight'
                   && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
                 e.preventDefault()
@@ -2282,8 +2315,8 @@ export default function ChartSettingsIndicators({
                        on every option in turn is how a two-choice control becomes
                        two controls for a keyboard member. */
                     tabIndex={picked ? 0 : -1}
-                    disabled={dis}
-                    {...(dis ? { 'aria-disabled': 'true', title: f.disabled } : {})}
+                    disabled={dis || off}
+                    {...(dis ? { 'aria-disabled': 'true', title: f.disabled } : off ? { 'aria-disabled': 'true' } : {})}
                     className={`${styles.insSegBtn} ${picked ? styles.insSegBtnOn : ''}`}
                     onClick={() => onRowPatch?.(row, { [f.key]: v })}
                   >{l}</button>
@@ -2365,13 +2398,127 @@ export default function ChartSettingsIndicators({
     )
   }
 
+  // ─── UCT RS PHASE 2a VISUAL (A6) — THE INSPECTOR REACHES THE DIALOG'S PARITY ─
+  //
+  // ⭐ PRESETS, GROUPS AND `activeWhen`, read from the definition exactly as the
+  // settings dialog and the phone sheet read them: `presetsOf` / `detectPreset` /
+  // `applyPresetInputs` from the engine, `sectionize` / `initialCollapsed` /
+  // `fieldsForInstance` from the registry. A definition that declares none of
+  // them renders exactly what it did — no Preset row, no head, no dimming.
+  //
+  // Group disclosure is panel-local UI state keyed `<rowId>::<group>`; an absent
+  // key reads the definition's `meta.groupsCollapsed` hint, so a group starts as
+  // the definition asks and keeps the member's toggle for the life of the panel.
+  const [insGroupOpen, setInsGroupOpen] = useState({})
+  // The preset each instance last matched or was set to, so "Reset to preset" has
+  // a target after a tweak reads Custom — the dialog's `pickedPresetId`, per row.
+  const pickedPresetRef = useRef({})
+
+  /** The Preset row, first in CORE, for a definition that declares `meta.presets`. */
+  const presetControl = (row, def) => {
+    if (!row || !row.instanceId || !row.engineOwned || !def) return null
+    const presets = presetsOf(def)
+    if (!presets.length) return null
+    const inst = findInstance(settings, row.instanceId)
+    if (!inst) return null
+    const current = detectPreset(presets, row.values || {}, { instance: inst, def, cs: settings })
+    const memo = pickedPresetRef.current
+    if (current) memo[row.instanceId] = current.id
+    const target = current || presets.find((p) => p.id === memo[row.instanceId]) || null
+    const apply = (p) => {
+      if (!p) return
+      memo[row.instanceId] = p.id
+      commitWrite(applyPresetInputs(settings, row.instanceId, def, p, registry))
+    }
+    const originId = `ins-preset-origin-${resultIdSafe(row.id)}`
+    return (
+      <Fragment key="preset">
+        <div className={styles.insField} data-field="__preset__" data-measure="wide"
+          data-preset={current ? current.id : CUSTOM_PRESET}>
+          <span className={styles.insFieldLabel}>Preset</span>
+          <span className={`${styles.insFieldCtl} ${styles.insPresetCtl}`}>
+            <select
+              className={styles.indSelect}
+              value={current ? current.id : CUSTOM_PRESET}
+              aria-label={`${row.label} preset`}
+              aria-describedby={current && current.origin ? originId : undefined}
+              onChange={(e) => {
+                // ⛔ Custom is a STATE, not a preset: choosing it writes nothing.
+                const id = e.target.value
+                if (id === CUSTOM_PRESET) return
+                apply(presets.find((p) => p.id === id))
+              }}
+            >
+              {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              {!current && <option value={CUSTOM_PRESET}>Custom</option>}
+            </select>
+            <button
+              type="button"
+              className={styles.insPresetReset}
+              disabled={!target}
+              onClick={() => apply(target)}
+            >Reset to preset</button>
+          </span>
+        </div>
+        {current && current.origin && (
+          <div className={styles.insPresetOrigin} id={originId} data-testid="preset-origin">{current.origin}</div>
+        )}
+      </Fragment>
+    )
+  }
+
+  /** CORE's input rows, in the definition's declared GROUPS when it declares any. */
+  const renderCoreFields = (row, def, core) => {
+    if (!def || !core.some((f) => f.group)) return core.map((f) => renderField(row, f))
+    const hint = initialCollapsed(def)
+    return sectionize(def, core).map((sec, si) => {
+      const body = sec.fields.map((f) => renderField(row, f))
+      if (!sec.group) return <Fragment key={`ungrouped-${si}`}>{body}</Fragment>
+      const k = `${row.id}::${sec.group}`
+      const open = Object.prototype.hasOwnProperty.call(insGroupOpen, k) ? insGroupOpen[k] : !hint.has(sec.group)
+      const bodyId = `ins-group-${resultIdSafe(row.id)}-${si}`
+      return (
+        <div key={`group-${sec.group}`} className={styles.insGroup} data-group={sec.group}>
+          <button
+            type="button"
+            className={styles.insGroupHead}
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setInsGroupOpen((m) => ({ ...m, [k]: !open }))}
+          >
+            <span className={styles.insGroupHeadText}>{sec.label}</span>
+            <span className={styles.insGroupHeadIcon} aria-hidden="true">
+              <UIcon name={open ? 'chevronDown' : 'chevronRight'} size={12} gold={false} />
+            </span>
+          </button>
+          {open && <div id={bodyId} className={styles.insGroupBody}>{body}</div>}
+        </div>
+      )
+    })
+  }
+
   const renderInspector = (row) => {
     const group = groupOfRow(row.id)
     const def = row.defId ? (registry?.getDefinition?.(row.defId) || null) : null
     const meta = paneRowMeta(row, group, settings, defOf)
     const kind = kindLabel(row, def, rawSourceOf(row, def))
     const on = rowVisible(row)
-    const { core, look } = partitionFields(row, def)
+    const parts = partitionFields(row, def)
+    // ⭐ A6 — the generated row fields carry no `group` / `activeWhen`; the
+    // registry's per-instance model does (`fieldsForInstance`, the dialog's call).
+    // Merged by key, so a definition that declares neither gets its fields back
+    // unchanged.
+    const instForMeta = def && row.instanceId ? findInstance(settings, row.instanceId) : null
+    const declaredMeta = def && instForMeta
+      ? new Map(fieldsForInstance(def, instForMeta).all.map((f) => [f.key, f])) : null
+    const withMeta = (f) => {
+      const m = declaredMeta && declaredMeta.get(f.key)
+      if (!m || (!m.group && !m.activeWhen)) return f
+      return { ...f, group: m.group, activeWhen: m.activeWhen }
+    }
+    const core = parts.core.map(withMeta)
+    const look = parts.look.map(withMeta)
+    const preset = presetControl(row, def)
     const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
     const timeframe = timeframeControl(row)
@@ -2435,11 +2582,13 @@ export default function ChartSettingsIndicators({
         </div>
 
         {/* ─── CORE ─────────────────────────────────────────────────────── */}
-        {(core.length > 0 || display || timeframe || visibility || readOnly.length > 0) && (
+        {(preset || core.length > 0 || display || timeframe || visibility || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
+            {/* ⭐ A6 — the Preset row is FIRST: the first decision a member makes. */}
+            {preset}
             {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
-            {core.map((f) => renderField(row, f))}
+            {renderCoreFields(row, def, core)}
             {/* ⭐ WHAT IT READS, HOW LONG, WHICH KIND, AT WHAT RESOLUTION, WHERE IT
                 DRAWS — Timeframe sits between the maths and the destination. */}
             {timeframe}
@@ -2724,13 +2873,17 @@ export default function ChartSettingsIndicators({
     const plots = Array.isArray(def.plots) ? def.plots : []
     // ⭐ BATCH 2 — a `hidden: true` plot is never drawn, so it has no style to pick.
     const restyleable = plots.filter((pl) => pl && pl.hidden !== true && availableStyles(pl, styleCtx).length > 0)
-    if (!restyleable.length) return null
+    // ⭐ 2a-12 — the outputs that draw as DOTS get one Dot size control beside Plot
+    // style, through `setInstanceDotSize` (the dialog's Style tab and the `setDotSize`
+    // agent op share it). A definition with neither has nothing here.
+    const dots = dotPlotsOf(def)
+    if (!restyleable.length && !dots.length) return null
 
     // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
     // inside a panel already titled `QQQ`, is furniture.
     const single = restyleable.length === 1
 
-    return restyleable.map((plot) => {
+    const rows = restyleable.map((plot) => {
       const style = resolvePlotStyle(inst, plot, styleCtx)
       const choices = availableStyles(plot, styleCtx)
       const label = single ? 'Plot style' : `${plot.label || plot.key} style`
@@ -2759,6 +2912,31 @@ export default function ChartSettingsIndicators({
         </div>
       )
     })
+    if (dots.length) {
+      // ⭐ U8 #11 (2026-11-07): "Mixed" while a per-dot size disagrees with the
+      // instance level; the writer deletes per-dot sizes on any word chosen.
+      const dotReading = instanceDotSizeReading(inst, def)
+      rows.push(
+        <div className={styles.insField} data-field="__dotSize__" data-measure="medium" key="dot-size">
+          <span className={styles.insFieldLabel}>Dot size</span>
+          <span className={styles.insFieldCtl}>
+            <select
+              className={styles.indSelect}
+              value={dotReading}
+              aria-label={`${row.label} dot size`}
+              onChange={(e) => {
+                const next = setInstanceDotSize(settings, row.instanceId, e.target.value, registry)
+                if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+              }}
+            >
+              {dotReading === DOT_SIZE_MIXED && <option value={DOT_SIZE_MIXED} disabled>Mixed</option>}
+              {DOT_SIZE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </span>
+        </div>,
+      )
+    }
+    return rows
   }, [settings, registry, onChange])
 
   /** Write one settings blob through the ONE persist path this tab uses. A refused

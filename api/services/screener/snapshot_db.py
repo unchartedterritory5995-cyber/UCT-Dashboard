@@ -177,6 +177,33 @@ COLUMNS = [
     "sma200_rising", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run",
     "vol_down_run", "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age",
     "low_52w_age",
+    # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). ONE writer,
+    # `rs_columns.collect_one` (the builder's `_step("bars_rs")`), from the same
+    # `relative_strength` functions the chart's rsLine draws, so a scan and a
+    # chart dot never disagree. Five 0/1 flags, three ages and one count are
+    # INTEGER (`_INT` below); `mansfield` is REAL — percent above or below its
+    # own 200-bar average. NULL when the window is short, the benchmark has no
+    # bar at the row's date, or a hole sits inside the lookback (never a
+    # guessed 0). Additive: ALTER-added on init, NULL on every row until the
+    # next build. The seven history-derived rating columns follow (2a-06).
+    "rs_new_high", "rs_nh_before_price", "rs_nh_red_day", "rs_nh_bars_ago",
+    "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
+    "mansfield", "mansfield_cross_bars_ago", "rs_benchmark_agree",
+    # ⭐ UCT RELATIVE STRENGTH, history-derived (Phase 2a, unit 2a-06). ONE
+    # writer, the builder's `_read_rs_history_fields` — a `_read_market_source`
+    # peer read ONCE per build from the `rs_rating_history` side table that
+    # `rs_history.nightly_job` writes (04:15 ET, AFTER this build, so a row
+    # normally carries the rating as of the session before its `bars_asof`;
+    # the builder logs which session it read). All seven INTEGER: the
+    # IBD-style rating 1-99 (plan §7 item 17), its change over the 5 and 20
+    # stored sessions (item 20 — `read_fields` derives the deltas on read,
+    # never stored) and the four component percentiles of the plain
+    # 21/63/126/252-bar returns (item 19). NULL when the table has no row for
+    # the name — a dark pod, a name outside the rated population, too few
+    # sessions for a delta — never a guessed value. Additive: ALTER-added on
+    # init.
+    "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
+    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -239,7 +266,16 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "run_close_ema20", "run_close_sma50", "run_close_sma200", "run_ema9_ema20",
         "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
         "sma200_rising", "vol_up_run", "vol_down_run", "new_high_lookback",
-        "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age"}
+        "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age",
+        # UCT RS, bar-derived (2a-05): five flags 0/1, three ages, the 20-bar
+        # count. `mansfield` is deliberately NOT here — it is REAL.
+        "rs_new_high", "rs_nh_before_price", "rs_nh_red_day", "rs_nh_bars_ago",
+        "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
+        "mansfield_cross_bars_ago", "rs_benchmark_agree",
+        # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
+        # of it, four 1-99 component percentiles. Whole numbers, all seven.
+        "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m"}
 
 
 # ---------------------------------------------------------------------------
@@ -805,7 +841,7 @@ CREATE TABLE IF NOT EXISTS screener_build_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at REAL, finished_at REAL,
     targets INTEGER, built INTEGER, skipped INTEGER, errors INTEGER,
-    empty_columns TEXT, settled_bars TEXT
+    empty_columns TEXT, settled_bars TEXT, bars_rs TEXT
 )"""
 
 
@@ -815,11 +851,19 @@ def _ensure_build_runs(conn) -> None:
     ``settled_bars`` is the JSON of ``run_build``'s ``stats["settled_bars"]``: the
     session whose settled whole-market bars replaced each row's newest stored bar,
     how many came back, and what happened per ticker — or the error that left the
-    build on its stored bars. An ADD COLUMN, never a rebuild, so old receipts stay."""
+    build on its stored bars. An ADD COLUMN, never a rebuild, so old receipts stay.
+
+    ``bars_rs`` (UCT RS Phase 2a, unit U3) is the JSON of ``stats["bars_rs"]``:
+    the RS column step's switch and measured wall time (``{"enabled", "rows",
+    "ms", "ms_per_row"}``), so the cost of arming ``RS_V2_ENABLED`` is on the
+    receipt, not only in a log line. A dark pod stores ``enabled: false`` with
+    zero rows; NULL means a receipt written before the column existed."""
     conn.execute(_BUILD_RUNS_SQL)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(screener_build_runs)")}
     if "settled_bars" not in cols:
         conn.execute("ALTER TABLE screener_build_runs ADD COLUMN settled_bars TEXT")
+    if "bars_rs" not in cols:
+        conn.execute("ALTER TABLE screener_build_runs ADD COLUMN bars_rs TEXT")
 
 
 def record_build_run(stats: dict) -> None:
@@ -829,13 +873,16 @@ def record_build_run(stats: dict) -> None:
         with connect() as conn:
             _ensure_build_runs(conn)
             settled = stats.get("settled_bars")
+            rs_timing = stats.get("bars_rs")
             conn.execute(
                 "INSERT INTO screener_build_runs (started_at, finished_at, targets, built, "
-                "skipped, errors, empty_columns, settled_bars) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "skipped, errors, empty_columns, settled_bars, bars_rs) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (stats.get("started_at"), stats.get("finished_at"), stats.get("targets"),
                  stats.get("built"), stats.get("skipped"), stats.get("errors"),
                  ",".join(stats.get("empty_columns") or []),
-                 json.dumps(settled, sort_keys=True) if settled is not None else None))
+                 json.dumps(settled, sort_keys=True) if settled is not None else None,
+                 json.dumps(rs_timing, sort_keys=True) if rs_timing is not None else None))
             conn.execute(
                 "DELETE FROM screener_build_runs WHERE id NOT IN (SELECT id FROM "
                 "screener_build_runs ORDER BY id DESC LIMIT ?)", (BUILD_RUNS_KEEP,))
@@ -857,10 +904,11 @@ def last_build_run() -> dict | None:
         return None
     d = dict(r)
     d["empty_columns"] = [c for c in (d.get("empty_columns") or "").split(",") if c]
-    try:
-        d["settled_bars"] = json.loads(d["settled_bars"]) if d.get("settled_bars") else None
-    except (TypeError, ValueError):
-        d["settled_bars"] = None
+    for key in ("settled_bars", "bars_rs"):
+        try:
+            d[key] = json.loads(d[key]) if d.get(key) else None
+        except (TypeError, ValueError):
+            d[key] = None
     # A build that reached every row it targeted accounts for each one as built, skipped
     # (no bars) or errored. Anything short of that was cut off partway.
     seen = (d.get("built") or 0) + (d.get("skipped") or 0) + (d.get("errors") or 0)

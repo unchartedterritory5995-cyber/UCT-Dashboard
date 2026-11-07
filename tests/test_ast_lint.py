@@ -529,14 +529,27 @@ def _pads_measured_from_the_golden_fixtures() -> dict:
 
     The declaration lives in ``TRAILING_PAD``; this measures the ARTEFACT the
     declaration describes, so the two agree on a number neither of them typed.
+
+    ⭐ 2026-11-07: ONLY A COLUMN THIS LANE DECLARES IS MEASURED (``ic._CASE_COLUMNS``,
+    joined through the fixture's own ``kind``) -- the Python mirror of the JS
+    helper ``goldenTrailingPads.js`` (a column counts only when a shipped
+    definition draws it as a continuous series). The UCT RS fixtures carry
+    SPARSE event and dot columns (null means "no event", so they often end in
+    nulls); they are not a forward pad and this lane never declared them.
     """
     out = {}
+    declared = {kind: set(cols) for kind, cols in ic._CASE_COLUMNS.items()}
     for path in sorted(FIXTURE_DIR.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
         expected = doc.get("expected")
         if not isinstance(expected, dict):
             continue
+        cols_of_kind = declared.get(doc.get("kind"))
+        if not cols_of_kind:
+            continue
         for col, values in expected.items():
+            if col not in cols_of_kind:
+                continue
             if not isinstance(values, list) or not values:
                 continue
             trailing = 0

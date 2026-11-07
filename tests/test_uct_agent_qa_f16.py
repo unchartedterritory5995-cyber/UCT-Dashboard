@@ -113,7 +113,15 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 #: MOVED 2026-11-06 to 3ca4b0d358, PR #869 (Pine W9 landing): its reviewed W9-T14a lane (review GO-WITH-NOTES, dsk/reviews/W9-T2.md)
 #: changes scan_evaluator.py and snapshot_builder.py on purpose (b6115e9b4d: one history window, bars_window.HISTORY_WINDOW_BARS;
 #: value still 5000, behaviour identical). The pin is the merge commit that brought it to master; it also holds be5fd05ea2.
-SCREENER_PIN = "3ca4b0d358232aaa8afc7f7b084361372740a3ca"
+# Re-pinned 2026-11-07: the UCT Relative Strength programme (feat/uct-rs-phase2a) is the first
+# DELIBERATE Screener change since 3ca4b0d358 (W5-T14): seventeen RS columns, their filters,
+# starters and methodology. The pin is now that programme's last Screener commit (VA6), so the
+# guard keeps its meaning: the F16 Agent work must not touch the Screener after it.
+# Re-pinned again 2026-11-07 (RS go-live): the owner-delegated decisions (PR #913) change
+# rs_history.py (split guard, backfill), snapshot_db.py (the bars_rs receipt column) and
+# methodology.py on purpose. The pin is that work's last Screener commit; master changed no
+# Screener file since the RS branches split from it, so the go-live merge adds nothing here.
+SCREENER_PIN = "e4a6491b60a76c53b5353e16331e005ca3d2a384"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -162,7 +170,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/scan_evaluator.py" in r.stdout.split()  # the file the pinned commit changed (W5-T14)
+    assert "api/services/screener/rs_history.py" in r.stdout.split()  # a file the pinned commit changed (the review fixes)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

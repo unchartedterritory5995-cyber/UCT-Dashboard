@@ -112,9 +112,9 @@ adding one.
 ```
 LINTER-MEASUREMENT-V1
 definitions 53
-plots 125
+plots 135
 decided 1
-undecidable-hand-written 124
+undecidable-hand-written 134
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
@@ -136,6 +136,22 @@ and gave Session VWAP six optional σ-band plots. Every one of them is hand-writ
 JS, so all eighty plots land in `undecidable-hand-written`: `decided` stays 1, the
 one verdict and the one disagreement are unchanged. Re-measured here, never edited
 into agreement — the same response as the `dollarVolume` note above.
+
+⭐ **2026-11-07 — the counts moved by ten plots and no definition, and the FINDING
+did not move at all.** The UCT RS work (branches `feat/uct-rs-phase1` →
+`feat/uct-rs-phase2a`) grew `rsLine` from one plot to eleven: `rsAbove`, `rsMa`,
+`mansfield`, the `mansfieldZero` guide and six dots (`dotNH`, `dotNHred`,
+`dotNHbeforePx`, `dotNHpartial`, `dotNL`, `dotMansfieldCross`). `rsLine` is a
+`server` compute, so all ten land in `undecidable-hand-written`: `decided` stays 1,
+the one verdict and the one disagreement are unchanged. Measured, not assumed:
+`rsLine` had 1 plot at `f202ff9c48` and has 11 at `9b7e58ce3b`, the whole of the
+135 − 125. ⚠️ The same work had ALSO turned the measurement's own input red: the
+RS golden fixtures carry sparse event/dot columns that end in nulls, and the
+trailing-pad loop counted them as six new pads. That was the measurement's rule,
+not a finding — a pad is now counted only on a column a shipped definition draws
+as a CONTINUOUS plot at `<compute.fn>.<plotKey>`
+(`app/src/components/chart/engine/__tests__/goldenTrailingPads.js`), and the facts
+handed to the linter are `ichimoku.chikou` alone again.
 
 **Read `decided 1` before reading anything else.** Every shipped definition today
 is hand-written JS or Python, and spec §11 explicitly forbids static analysis of

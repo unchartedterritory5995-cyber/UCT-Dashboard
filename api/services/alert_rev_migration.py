@@ -72,6 +72,27 @@ DEFAULT_REV = 1
 ADDRESS_REVS: dict[str, int] = {
     # VWAP_SESSION_ANCHOR, applied 2026-08-03. The ET-session accumulator.
     "vwap": 2,
+    # UCT RELATIVE STRENGTH v2 → v3, 2026-11-06. The server-lane `rsLine`
+    # definition moved from one column to the Phase 1 set (plan §8, rev 2) and
+    # then grew the Mansfield line, its zero-cross events and the cross dot
+    # (Phase 2a unit 2a-14, rev 3). No alert address is bound to `rsLine` yet (RS
+    # alerts are a Phase 2b partition), so there are no bindings to migrate; the
+    # entry keeps the two lanes' vocabulary equal, which is the rail's whole point.
+    "rsLine": 3,
+}
+
+# ⭐ AN ALERT BASE THAT IS NOT THE DEFINITION ID (found by unit 2b-05, fixed at
+# 2a-14). The RS alert addresses are `rs_line.<plot>` (`alert_rs_series.RS_BASE`,
+# the alert grammar's snake_case) while the definition — and the key above,
+# which `test_the_python_rev_table_matches_the_JS_registry` holds equal to the
+# JS registry's `fn` — is `rsLine`. Keyed on the bare base, a bound
+# `rs_line.crossUp` alert read DEFAULT_REV (1) against a rev-3 definition and
+# could never be migrated. The table stays keyed by definition id (one
+# vocabulary with the JS lane); this map says which alert base is which
+# definition, and `compute_rev` reads through it. Every other base IS its
+# definition id (`vwap.vwap` → `vwap`), so the map is short on purpose.
+ADDRESS_BASE_DEFINITION: dict[str, str] = {
+    "rs_line": "rsLine",
 }
 
 
@@ -80,11 +101,13 @@ def compute_rev(address: Optional[str]) -> int:
 
     Keyed on the address's BASE, because `compute.rev` is a property of the
     DEFINITION and an address names a plot of one: every `ichimoku.*` plot comes
-    out of one compute call and therefore shares one revision.
+    out of one compute call and therefore shares one revision. A base that is
+    spelled differently from its definition (`rs_line` → `rsLine`) is read
+    through `ADDRESS_BASE_DEFINITION` first.
     """
     from api.services.indicator_alert_evaluator import plot_base, resolve_address
     base = plot_base(resolve_address(address))
-    return ADDRESS_REVS.get(base, DEFAULT_REV)
+    return ADDRESS_REVS.get(ADDRESS_BASE_DEFINITION.get(base, base), DEFAULT_REV)
 
 
 # ─── the side table ──────────────────────────────────────────────────────────

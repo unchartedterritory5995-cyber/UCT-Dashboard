@@ -127,6 +127,25 @@ import { treesHash as treesHashOf, assertTrees } from './ast/trees'
 // what a legal program is; this file only adds the DOCUMENT-level rules the
 // program module cannot know (is it bound, and does every node it names exist).
 import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from './ast/objectProgram'
+// ⭐ THE READOUT VOCABULARY IS OWNED BY ITS READER (`readoutSchema.js`), the
+// same way LEGEND_FIELDS is owned here and read by `readout.js`: one list, two
+// modules, and a format the resolver cannot print cannot be declared.
+import {
+  READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
+  parseReadoutSource,
+} from './readoutSchema'
+// ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
+// 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
+// to `setInstanceDotSize` (the words of `DOT_SIZES`), its `visibility` to
+// `setInstanceVisibility` (the policies `normalizeVisibility` keeps, over the
+// chart's own timeframe codes) and its `displayTarget` to the placement writer.
+// The schema reads those three modules rather than typing their lists again, so
+// a word the writer would drop with a `console.warn` cannot be declared. None of
+// the three imports anything of this module (`presentation.js` imports nothing,
+// `instanceTimeframe.js` only `../timeframes`), so there is no cycle to mind.
+import { DOT_SIZES } from './presentation'
+import { VISIBILITY_PRESETS } from './instanceTimeframe'
+import { isValidTf } from '../timeframes'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -326,6 +345,16 @@ const V2_COMPUTE_KEYS = Object.freeze(['trees', 'treesHash', 'scanPlot', 'source
 /** Where the indicator draws. `volume` = the shipped left-axis overlay. */
 export const PLACEMENT_TARGETS = Object.freeze(['price', 'pane', 'volume'])
 
+/**
+ * `placement.axis` — whether the pane's price scale shows (Phase 2a visual round,
+ * item A4; owner decision D6). `'visible'` is the default and what an absent field
+ * means; `'hidden'` asks the binder for an invisible right scale on that pane (no
+ * tick labels, no last-value tag), so the value is read in the pane label. The
+ * binder half (`placement.js` / `binder.js`) owns what "invisible" draws; this is
+ * the declaration and its vocabulary. Behavioural, so an unknown value fails closed.
+ */
+export const PLACEMENT_AXIS_MODES = Object.freeze(['visible', 'hidden'])
+
 /** Repaint honesty label (spec §3). Phase A/B: audited metadata. */
 export const REPAINT_MODES = Object.freeze(['non-repainting', 'preview-repaints', 'repaints'])
 
@@ -512,8 +541,20 @@ export const SOURCE_BAR_FIELDS = Object.freeze([
  * unchanged), and the resolved value is still checked against `PLOT_LINE_STYLES`,
  * so an input whose enum options wander outside the vocabulary fails at
  * registration exactly as a literal typo does.
+ *
+ * ⭐ `colorUp` / `colorDown` JOINED 2026-11-05 (UCT Relative Strength, Phase 1
+ * unit 5). A `colorMode: 'column:<key>'` plot alternates between those two
+ * colours per bar, and until now both had to be an author's literals — so a
+ * member could recolour a one-colour line (`color: '$lineColor'`) but never a
+ * two-colour one, and the RS line coloured by its position against its moving
+ * average (the Phase preset: `bull` above, `bear` below) could not be a pair of
+ * colour inputs. Same shape as `lineStyle`: whole-value, substituted first and
+ * then validated as a colour, `$refs` recorded, `pool.resolvePlotForInstance`
+ * re-applies the member's pick. `readout.resolvePlotColor` (the legend chip's
+ * swatch) still reads `color` only — a chip is one swatch, and the plot keeps a
+ * `color` for it.
  */
-export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle'])
+export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle', 'colorUp', 'colorDown'])
 
 // ─── Grammar ─────────────────────────────────────────────────────────────────
 
@@ -1068,12 +1109,194 @@ function validateTrees(compute, storedHash, errors, inputScope) {
   }
 }
 
+/** The closed set of fields a `meta.learn[]` entry may carry. */
+export const META_LEARN_FIELDS = Object.freeze(['key', 'label'])
+
+/**
+ * `meta.learn`: a NON-EMPTY array of `{key, label}` — both non-empty strings,
+ * keys unique, no other fields. Every refusal names the index and the field so
+ * the author fixes the entry rather than guessing. An empty array is refused
+ * too: a definition with no lessons declares no `learn` at all.
+ */
+function validateMetaLearn(learn, errors) {
+  if (!Array.isArray(learn)) {
+    errors.push(`meta.learn: expected an array of lessons [{key, label}], got ${fmt(learn)}`)
+    return
+  }
+  if (learn.length === 0) {
+    errors.push('meta.learn: expected at least one lesson {key, label} — a definition with no lessons declares no meta.learn')
+    return
+  }
+  const seen = new Set()
+  learn.forEach((entry, i) => {
+    const path = `meta.learn[${i}]`
+    if (!isPlainObject(entry)) {
+      errors.push(`${path}: expected an object {key, label}, got ${fmt(entry)}`)
+      return
+    }
+    for (const k of Object.keys(entry)) {
+      if (!META_LEARN_FIELDS.includes(k)) {
+        errors.push(`${path}.${k}: unknown lesson field — expected one of: ${list(META_LEARN_FIELDS)}`)
+      }
+    }
+    if (!isNonEmptyString(entry.key)) {
+      errors.push(`${path}.key: required non-empty string (a key the app's Learn map resolves), got ${fmt(entry.key)}`)
+    } else if (seen.has(entry.key)) {
+      errors.push(`${path}.key: duplicate lesson key ${fmt(entry.key)}`)
+    } else {
+      seen.add(entry.key)
+    }
+    if (!isNonEmptyString(entry.label)) {
+      errors.push(`${path}.label: required non-empty string (the member-facing link text), got ${fmt(entry.label)}`)
+    }
+  })
+}
+
 /**
  * @param {unknown} meta
  * @param {object} def the whole definition — `legendParams` names INPUT keys, so
  *        this is the one meta field that cannot be checked from `meta` alone.
  * @param {string[]} errors
  */
+// ─── preset fields beyond `inputs` (Phase 2a, unit 2a-15) ───────────────────
+
+/** Every key a `meta.presets[]` entry may carry. Closed: `applyPresetFields`
+ *  reads the three non-input fields BY NAME, so a key outside this list is a
+ *  typo that applies nothing, never data waiting for a future reader. */
+export const PRESET_FIELDS = Object.freeze(['id', 'label', 'origin', 'inputs', 'visibility', 'dotSize', 'displayTarget'])
+
+/** The dot-size words a preset may name — `DOT_SIZES`' own keys (`presentation.js`),
+ *  the vocabulary `setInstanceDotSize` accepts. ONE list, read from its owner. */
+export const PRESET_DOT_SIZES = Object.freeze(Object.keys(DOT_SIZES))
+
+/** The visibility policies a preset may name — `VISIBILITY_PRESETS`' own values
+ *  (`instanceTimeframe.js`): `all` (stored as the ABSENT key), `intraday`,
+ *  `dailyUp`, `custom` (the only one that carries timeframe codes). */
+export const PRESET_VISIBILITY_PRESETS = Object.freeze(VISIBILITY_PRESETS.map((p) => p.value))
+
+/** The outputs a definition draws as DOTS — the rule `instanceControls.dotPlotsOf`
+ *  applies, restated over the RAW plots (this runs before `validatePlot`): a
+ *  `markers` style or a `marker` glyph block, hidden ones excluded. Read here, not
+ *  imported, because `instanceControls` imports this module. */
+function dotPlotKeysOf(def) {
+  const plots = def && Array.isArray(def.plots) ? def.plots : []
+  return plots
+    .filter((p) => isPlainObject(p) && isNonEmptyString(p.key) && p.hidden !== true
+      && (p.style === 'markers' || isPlainObject(p.marker)))
+    .map((p) => p.key)
+}
+
+/**
+ * ⭐⭐ `meta.presets[i].{visibility, dotSize, displayTarget}` — checked EXACTLY as
+ * `applyPresetFields` consumes them, so a value the writer would drop with a
+ * `console.warn` is refused at registration instead, by definition id, preset id
+ * and field:
+ *
+ *   visibility     `null` | `'all'` (the absent key — every timeframe), or the
+ *                  policy object `normalizeVisibility` keeps: `{preset: 'intraday'}`,
+ *                  `{preset: 'dailyUp'}`, `{preset: 'custom', tfs: [<code>, …]}` with
+ *                  at least one code and every code one `isValidTf` knows. The
+ *                  normaliser DROPS an unknown code and answers "all" for an empty
+ *                  list — fail-open is right for a reader of a saved chart and wrong
+ *                  for an author, so a code it would drop is refused here.
+ *   dotSize        one word of `PRESET_DOT_SIZES` (every dot output), or
+ *                  `{plotKey: word}` where every key is a declared dot output
+ *                  (`dotPlotKeysOf`) and every value a word; an empty object sizes
+ *                  nothing and is refused.
+ *   displayTarget  one of `PLACEMENT_TARGETS` (`price` / `pane` / `volume`). The
+ *                  writer also takes `@<instanceId>` for a DERIVED instance, but a
+ *                  definition has no instance to name, so the preset vocabulary is
+ *                  the placement vocabulary.
+ *
+ * Absent fields are fine (a preset that sets only inputs). The entry's own shape
+ * (`id`, `label`, `inputs`) is the caller's check; this reads `p.id` for the
+ * message only, so a preset that failed that check still gets its fields named.
+ */
+function validatePresetFields(p, i, def, errors) {
+  const who = `definition ${fmt(def && def.id)}, preset ${fmt(p.id)}`
+  const at = (field) => `meta.presets[${i}].${field}: ${who} — `
+
+  for (const key of Object.keys(p)) {
+    if (!PRESET_FIELDS.includes(key)) {
+      errors.push(
+        `${at(key)}unknown preset field. Expected one of ${list(PRESET_FIELDS)}; ` +
+        `\`applyPresetFields\` reads its fields by name, so this one would register and apply nothing.`,
+      )
+    }
+  }
+
+  if (p.visibility !== undefined && p.visibility !== null && p.visibility !== 'all') {
+    const v = p.visibility
+    const SHAPES = `null, "all", {preset: "intraday"}, {preset: "dailyUp"} or {preset: "custom", tfs: [<timeframe code>, …]}`
+    if (!isPlainObject(v)) {
+      errors.push(`${at('visibility')}expected ${SHAPES}, got ${fmt(v)}`)
+    } else {
+      const extra = Object.keys(v).filter((k) => k !== 'preset' && k !== 'tfs')
+      if (extra.length) {
+        errors.push(`${at('visibility')}unknown key(s) ${list(extra.map(fmt))}; a policy carries \`preset\` and, for custom, \`tfs\``)
+      }
+      if (!PRESET_VISIBILITY_PRESETS.includes(v.preset) || v.preset === 'all') {
+        errors.push(
+          `${at('visibility.preset')}expected one of ${list(PRESET_VISIBILITY_PRESETS.filter((x) => x !== 'all').map(fmt))} ` +
+          `(spell "every timeframe" as visibility: "all"), got ${fmt(v.preset)}`,
+        )
+      } else if (v.preset === 'custom') {
+        if (!Array.isArray(v.tfs) || !v.tfs.length) {
+          errors.push(
+            `${at('visibility.tfs')}a custom policy needs a non-empty array of timeframe codes, got ${fmt(v.tfs)}. ` +
+            `\`normalizeVisibility\` reads an empty list as "all", which is not what custom means.`,
+          )
+        } else {
+          v.tfs.forEach((code, j) => {
+            if (typeof code !== 'string' || !isValidTf(code)) {
+              errors.push(
+                `${at(`visibility.tfs[${j}]`)}${fmt(code)} is not a chart timeframe code; the normaliser would drop it silently.`,
+              )
+            }
+          })
+        }
+      } else if (v.tfs !== undefined) {
+        errors.push(`${at('visibility.tfs')}only a "custom" policy names timeframe codes; ${fmt(v.preset)} ignores them`)
+      }
+    }
+  }
+
+  if (p.dotSize !== undefined) {
+    const d = p.dotSize
+    const WORDS = list(PRESET_DOT_SIZES.map(fmt))
+    if (typeof d === 'string') {
+      if (!PRESET_DOT_SIZES.includes(d)) {
+        errors.push(`${at('dotSize')}expected one of ${WORDS} (or {plotKey: word}), got ${fmt(d)}`)
+      }
+    } else if (!isPlainObject(d)) {
+      errors.push(`${at('dotSize')}expected one of ${WORDS} or {plotKey: word}, got ${fmt(d)}`)
+    } else {
+      const dots = dotPlotKeysOf(def)
+      const entries = Object.entries(d)
+      if (!entries.length) {
+        errors.push(`${at('dotSize')}an empty object sizes nothing; name a dot output (${list(dots) || 'none declared'}) or use a word`)
+      }
+      for (const [plotKey, word] of entries) {
+        if (!dots.includes(plotKey)) {
+          errors.push(
+            `${at(`dotSize.${plotKey}`)}${fmt(plotKey)} is not a dot output of this definition ` +
+            `(a non-hidden "markers" plot or one with a \`marker\` glyph). Declared: ${list(dots) || 'none'}`,
+          )
+        }
+        if (typeof word !== 'string' || !PRESET_DOT_SIZES.includes(word)) {
+          errors.push(`${at(`dotSize.${plotKey}`)}expected one of ${WORDS}, got ${fmt(word)}`)
+        }
+      }
+    }
+  }
+
+  if (p.displayTarget !== undefined) {
+    if (typeof p.displayTarget !== 'string' || !PLACEMENT_TARGETS.includes(p.displayTarget)) {
+      errors.push(`${at('displayTarget')}expected one of ${list(PLACEMENT_TARGETS.map(fmt))}, got ${fmt(p.displayTarget)}`)
+    }
+  }
+}
+
 function validateMeta(meta, def, errors) {
   if (!isPlainObject(meta)) {
     errors.push(`meta: required object, got ${fmt(meta)}`)
@@ -1126,6 +1349,31 @@ function validateMeta(meta, def, errors) {
     } else if (meta.recurrenceOrigin === 'pine') {
       errors.push('meta.semantics: a Pine translation keeps Pine semantics and carries no '
         + 'definition-semantics stamp')
+    }
+  }
+  // `learn` (Phase 2a, unit 2a-10) is the lessons an indicator's About page
+  // links to: `[{key, label}]`, where `key` names an entry in the APP's Learn
+  // map (`lib/deskVideoHref.RS_LEARN_VIDEOS`) and `label` is the member-facing
+  // link text. BEHAVIOURAL — it renders links — so it is checked, not preserved:
+  // an entry shape nobody declared would render a link to nowhere. The key is
+  // NOT checked against the map: that map is app code and this is engine code;
+  // an unknown key renders no link (`learnHref` → null), never a broken one.
+  if (meta.learn !== undefined && meta.learn !== null) {
+    validateMetaLearn(meta.learn, errors)
+  }
+  // `meta.legendFallback` (2026-11-07): the pane label's declared alternative value,
+  // in the readout grammar. Each entry needs a scalar/payload source and a known format;
+  // an optional `when` uses the same grammar as a readout row's.
+  if (meta.legendFallback !== undefined) {
+    if (!Array.isArray(meta.legendFallback)) {
+      errors.push(`meta.legendFallback: expected an array of {source, format, when?}, got ${fmt(meta.legendFallback)}`)
+    } else {
+      meta.legendFallback.forEach((e, i) => {
+        const p = isPlainObject(e) ? parseReadoutSource(e.source) : null
+        if (!p || p.kind !== 'scalar') errors.push(`meta.legendFallback[${i}].source: expected a 'scalar:<a.b>' or 'payload:<a.b>' path, got ${fmt(e && e.source)}`)
+        if (!isPlainObject(e) || !READOUT_FORMATS.includes(e.format)) errors.push(`meta.legendFallback[${i}].format: expected one of ${list(READOUT_FORMATS)}, got ${fmt(e && e.format)}`)
+        if (isPlainObject(e) && e.when !== undefined && !parseReadoutSource(e.when)) errors.push(`meta.legendFallback[${i}].when: expected a readout source, got ${fmt(e.when)}`)
+      })
     }
   }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
@@ -1213,9 +1461,259 @@ function validateMeta(meta, def, errors) {
       )
     }
   }
+  // `presets` is read by the settings dialog's generic preset picker: a named set
+  // of input values applied to the CURRENT instance through `setInstanceInput`.
+  // Light shape check on the entry — each needs a string `id` and `label` and an
+  // object `inputs`. Keys and values inside `inputs` are NOT checked against the
+  // declared inputs here: the writer validates every value at apply time and the
+  // picker skips an undeclared key with a warning, so a stale preset degrades
+  // rather than refusing the whole definition.
+  //
+  // ⭐⭐ THE THREE NON-INPUT FIELDS ARE BEHAVIOURAL AND FAIL CLOSED (Phase 2a,
+  // unit 2a-15; the writer is unit 2a-12's `applyPresetFields`). `visibility`,
+  // `dotSize` and `displayTarget` are each handed to a per-instance writer that
+  // DROPS a value it cannot take with a `console.warn` — so a preset carrying
+  // `dotSize: 'big'` or a visibility over a timeframe code the chart does not
+  // have would register, show in the picker, and apply nothing. That is the
+  // "validated but inert" failure this schema exists to prevent, and nobody
+  // reads a console on a phone. `validatePresetFields` refuses each one by
+  // definition id, preset id and field, in the writer's own vocabulary.
+  //
+  // ⛔ AND A PRESET'S KEY SET IS CLOSED (`PRESET_FIELDS`), unlike `meta.*`
+  // itself. `applyPresetFields` reads its three fields BY NAME — `dotsize` or
+  // `visibilty` is not forward-compatible data waiting for a reader, it is a
+  // typo that silently does nothing; the forward-compatibility half of the
+  // asymmetric policy stays with `meta`'s own unknown keys (preserved below).
+  if (meta.presets !== undefined && meta.presets !== null) {
+    if (!Array.isArray(meta.presets)) {
+      errors.push(`meta.presets: expected an array of {id, label, inputs}, got ${fmt(meta.presets)}`)
+    } else {
+      const seen = new Set()
+      meta.presets.forEach((p, i) => {
+        if (!isPlainObject(p)) {
+          errors.push(`meta.presets[${i}]: expected an object {id, label, inputs}, got ${fmt(p)}`)
+          return
+        }
+        if (!isNonEmptyString(p.id)) {
+          errors.push(`meta.presets[${i}].id: required non-empty string, got ${fmt(p.id)}`)
+        } else if (seen.has(p.id)) {
+          errors.push(`meta.presets[${i}].id: duplicate preset id ${fmt(p.id)}`)
+        } else {
+          seen.add(p.id)
+        }
+        if (!isNonEmptyString(p.label)) {
+          errors.push(`meta.presets[${i}].label: required non-empty string, got ${fmt(p.label)}`)
+        }
+        if (p.origin !== undefined && typeof p.origin !== 'string') {
+          errors.push(`meta.presets[${i}].origin: expected a string, got ${fmt(p.origin)}`)
+        }
+        if (!isPlainObject(p.inputs)) {
+          errors.push(`meta.presets[${i}].inputs: required object of input values, got ${fmt(p.inputs)}`)
+        }
+        validatePresetFields(p, i, def, errors)
+      })
+    }
+  }
+  // `groupsCollapsed` is read by the settings dialog: the input groups named here
+  // open collapsed. Names that match no declared group are inert, so only the
+  // shape is checked.
+  if (meta.groupsCollapsed !== undefined && meta.groupsCollapsed !== null) {
+    if (!Array.isArray(meta.groupsCollapsed) || meta.groupsCollapsed.some((g) => typeof g !== 'string' || !g)) {
+      errors.push(`meta.groupsCollapsed: expected an array of group names, got ${fmt(meta.groupsCollapsed)}`)
+    }
+  }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
   // asymmetric policy, and the round-trip promise depends on this silence.
+}
+
+/**
+ * ⭐⭐ `readout[]` — THE ROWS A SERVER-LANE DEFINITION PRINTS IN WORDS (Phase 2a).
+ *
+ * A top-level field, and a BEHAVIOURAL one: each entry decides what the legend
+ * and the pane readout say about a scalar the envelope carried, so it is
+ * validated fail-closed like `plots[].legend` — explicitly carved out of the
+ * preserve-unknown policy that every other top-level key enjoys. The grammar
+ * and the formats are `readoutSchema.js`'s (its header is the full account);
+ * this checks a definition against them so a row that could only ever print
+ * "undefined" is refused at registration, by index, rather than rendered.
+ *
+ * Every message names the definition and the entry index, because a readout
+ * block is authored once per tenant and read by nobody until a chart draws it.
+ *
+ * @param {object} def the whole definition (reads `readout`, `id`)
+ * @param {Map<string, object>} inputsByKey the declared inputs, for `input:` sources
+ * @param {string[]} errors
+ */
+function validateReadout(def, inputsByKey, errors) {
+  const readout = def.readout
+  if (readout === undefined || readout === null) return
+  const who = `definition ${fmt(def.id)}`
+  const SOURCE_HELP = `expected ${READOUT_SOURCE_PREFIXES.map((p) => `${p}:<${p === 'input' ? 'key' : 'path'}>`).join(', ')}`
+  if (!Array.isArray(readout)) {
+    errors.push(`readout: ${who} — expected an array of readout rows {key, label, source, format}, got ${fmt(readout)}`)
+    return
+  }
+  const seen = new Set()
+  readout.forEach((entry, i) => {
+    const path = `readout[${i}]`
+    if (!isPlainObject(entry)) {
+      errors.push(`${path}: ${who} — expected an object {key, label, source, format}, got ${fmt(entry)}`)
+      return
+    }
+    for (const key of Object.keys(entry)) {
+      if (!READOUT_ENTRY_FIELDS.includes(key)) {
+        errors.push(
+          `${path}.${key}: ${who} — unknown readout field — expected one of: ${list(READOUT_ENTRY_FIELDS)}. ` +
+          `A readout row decides what the legend prints, so an unknown field fails closed rather than being preserved.`,
+        )
+      }
+    }
+    if (!isNonEmptyString(entry.key)) {
+      errors.push(`${path}.key: ${who} — required non-empty string, got ${fmt(entry.key)}`)
+    } else if (!KEY_RE.test(entry.key)) {
+      errors.push(`${path}.key: ${who} — ${fmt(entry.key)} is not a legal key (must match ${KEY_RE})`)
+    } else if (seen.has(entry.key)) {
+      errors.push(`${path}.key: ${who} — duplicate readout key ${fmt(entry.key)}`)
+    } else {
+      seen.add(entry.key)
+    }
+    if (!isNonEmptyString(entry.label)) {
+      errors.push(`${path}.label: ${who} — required non-empty string (the member-facing row name), got ${fmt(entry.label)}`)
+    }
+    // `source` and `when` share one grammar; `input:` must name a declared input
+    // for the same reason `meta.legendParams` must — the row would read nothing.
+    for (const field of ['source', 'when', 'note']) {
+      const v = entry[field]
+      if ((field === 'when' || field === 'note') && (v === undefined || v === null)) continue
+      if (!isNonEmptyString(v)) {
+        errors.push(`${path}.${field}: ${who} — required string, ${SOURCE_HELP}, got ${fmt(v)}`)
+        continue
+      }
+      const parsed = parseReadoutSource(v)
+      if (!parsed) {
+        const prefix = v.includes(':') ? v.slice(0, v.indexOf(':')) : v
+        errors.push(
+          `${path}.${field}: ${who} — ${fmt(v)} is not a readout source` +
+          (READOUT_SOURCE_PREFIXES.includes(prefix) ? ` (a dotted path of identifiers must follow the prefix)` : ` — unknown prefix ${fmt(prefix)}`) +
+          `; ${SOURCE_HELP}`,
+        )
+        continue
+      }
+      if (parsed.kind === 'input') {
+        if (parsed.path.length !== 1) {
+          errors.push(`${path}.${field}: ${who} — an input source names ONE input key, got ${fmt(v)}`)
+        } else if (!inputsByKey.has(parsed.path[0])) {
+          errors.push(
+            `${path}.${field}: ${who} — ${fmt(parsed.path[0])} names no declared input. ` +
+            `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+          )
+        }
+      }
+    }
+    if (!READOUT_FORMATS.includes(entry.format)) {
+      errors.push(
+        `${path}.format: ${who} — unknown readout format ${fmt(entry.format)} — expected one of: ${list(READOUT_FORMATS)}`,
+      )
+    }
+    if (entry.fallback !== undefined && !isNonEmptyString(entry.fallback)) {
+      errors.push(`${path}.fallback: ${who} — expected a non-empty string, got ${fmt(entry.fallback)}`)
+    }
+    if (entry.chip !== undefined && typeof entry.chip !== 'boolean') {
+      errors.push(`${path}.chip: ${who} — expected a boolean, got ${fmt(entry.chip)}`)
+    }
+    if (entry.muted !== undefined && typeof entry.muted !== 'boolean') {
+      errors.push(`${path}.muted: ${who} — expected a boolean, got ${fmt(entry.muted)}`)
+    }
+    if (entry.words !== undefined) {
+      if (entry.format !== 'bool') {
+        errors.push(`${path}.words: ${who} — only a "bool" row carries a word pair (this row is ${fmt(entry.format)})`)
+      } else if (!Array.isArray(entry.words) || entry.words.length !== 2 || entry.words.some((w) => typeof w !== 'string')) {
+        errors.push(`${path}.words: ${who} — expected [trueWord, falseWord], two strings, got ${fmt(entry.words)}`)
+      }
+    }
+    if (entry.card !== undefined) {
+      if (!isPlainObject(entry.card)) {
+        errors.push(`${path}.card: ${who} — expected an object {what, origin, evidence?}, got ${fmt(entry.card)}`)
+      } else {
+        for (const key of Object.keys(entry.card)) {
+          if (!READOUT_CARD_FIELDS.includes(key)) {
+            errors.push(`${path}.card.${key}: ${who} — unknown card field — expected one of: ${list(READOUT_CARD_FIELDS)}`)
+          }
+        }
+        for (const key of ['what', 'origin']) {
+          if (!isNonEmptyString(entry.card[key])) {
+            errors.push(`${path}.card.${key}: ${who} — required non-empty string, got ${fmt(entry.card[key])}`)
+          }
+        }
+        if (entry.card.evidence !== undefined && typeof entry.card.evidence !== 'string') {
+          errors.push(`${path}.card.evidence: ${who} — expected a string, got ${fmt(entry.card.evidence)}`)
+        }
+        // `learn` names a lesson in the APP's Learn map (`lib/deskVideoHref`), not
+        // anything the engine holds — so the schema asks only that it is a key
+        // at all. A key the map does not know renders no link (`learnHref` → null).
+        // `evidenceSource` (unit 2b-09) is a payload path the card reads its measured
+        // sentence from. Its GRAMMAR is checked here, at registration: a path that
+        // cannot parse would silently fall back to the static line forever, which
+        // reads as "nothing measured yet" rather than as the typo it is. An
+        // `input:` source is refused too: evidence is the server's, never a knob.
+        if (entry.card.evidenceSource !== undefined) {
+          const parsed = parseReadoutSource(entry.card.evidenceSource)
+          if (!parsed || parsed.kind !== 'scalar') {
+            errors.push(`${path}.card.evidenceSource: ${who} — expected a 'scalar:<a.b.c>' or 'payload:<a.b.c>' path, got ${fmt(entry.card.evidenceSource)}`)
+          }
+        }
+        if (entry.card.learn !== undefined && !isNonEmptyString(entry.card.learn)) {
+          errors.push(`${path}.card.learn: ${who} — expected a non-empty lesson key (a string the app's Learn map resolves), got ${fmt(entry.card.learn)}`)
+        }
+      }
+    }
+  })
+  validateReadoutDetails(readout, who, errors)
+}
+
+/**
+ * ⭐ `readout[].detailOf` — A DETAIL ROW AND THE GLANCE ROW IT EXPLAINS (Phase 2a
+ * visual round, item A1). A detail row prints only inside its glance row's card,
+ * so the name must resolve to a row that HAS a card, and nesting is ONE level: a
+ * glance row is a row without `detailOf`, so a detail row cannot be the parent of
+ * another (it has no place of its own in the menu to open a card from). Checked
+ * after the per-entry pass because the parent may be declared after the child.
+ * A row naming itself is the same "no glance row" fault as a missing name.
+ */
+function validateReadoutDetails(readout, who, errors) {
+  const byKey = new Map()
+  for (const e of readout) {
+    if (isPlainObject(e) && isNonEmptyString(e.key) && !byKey.has(e.key)) byKey.set(e.key, e)
+  }
+  readout.forEach((entry, i) => {
+    if (!isPlainObject(entry) || entry.detailOf === undefined) return
+    const path = `readout[${i}].detailOf`
+    const name = entry.detailOf
+    if (!isNonEmptyString(name)) {
+      errors.push(`${path}: ${who} — expected the key of the glance row this row explains, got ${fmt(name)}`)
+      return
+    }
+    const parent = byKey.get(name)
+    if (!parent || parent === entry) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} names no other readout row, so this row could never print. ` +
+        `Declared: ${list([...byKey.keys()]) || 'none'}`,
+      )
+      return
+    }
+    if (!isPlainObject(parent.card)) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} has no card, and a detail row prints only inside its glance row's card`,
+      )
+    }
+    if (parent.detailOf !== undefined) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} is itself a detail row (detailOf ${fmt(parent.detailOf)}); ` +
+        `a detail row explains a GLANCE row, one level deep`,
+      )
+    }
+  })
 }
 
 function validatePlacement(placement, errors) {
@@ -1224,6 +1722,11 @@ function validatePlacement(placement, errors) {
     return
   }
   checkVocabulary(placement.target, PLACEMENT_TARGETS, [], 'placement.target', 'placement target', errors)
+  // ⭐ A4 — whether the pane's price scale shows. Absent means `'visible'`, which
+  // is every definition that predates the field, so no other pane moves.
+  if (placement.axis !== undefined) {
+    checkVocabulary(placement.axis, PLACEMENT_AXIS_MODES, [], 'placement.axis', 'placement axis mode', errors)
+  }
 
   // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
   // supplies `DEFAULT_PANE_HEIGHT` when absent. It lives on the definition
@@ -1549,7 +2052,9 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     }
   }
 
-  // ─ substitutable fields (spec §3.1: color, width, levels) ─
+  // ─ substitutable fields (spec §3.1: color, width, levels; `lineStyle`,
+  //   `colorUp` and `colorDown` are substituted further down, beside the
+  //   vocabulary and the colour modes they belong to) ─
 
   if (plot.color !== undefined) {
     const colorRef = refKeyOf(plot.color)
@@ -1630,12 +2135,14 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     errors.push(`${path}.levels: style "hlines" requires a non-empty levels array, got ${fmt(plot.levels)}`)
   }
 
-  // ─ the two colours `colorMode: 'sign'` needs ─
+  // ─ the two colours `colorMode: 'sign'` and `'column:<key>'` need ─
   //
-  // NOT substitutable ($-refs stay confined to SUBSTITUTABLE_PLOT_FIELDS, which
-  // the spec locks at color/width/levels) and validated exactly like `color`
-  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`;
-  // this half is what stops `colorUp: 3` registering.
+  // SUBSTITUTABLE since 2026-11-05 (`SUBSTITUTABLE_PLOT_FIELDS` names them; spec
+  // §3.1 carries the same sentence) and validated exactly like `color`
+  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`
+  // and `'column:'`; the loop below is what stops `colorUp: 3` registering.
+  // ⚰️ This said "NOT substitutable … the spec locks at color/width/levels"
+  // — true until UCT RS's Phase preset needed a member-pickable pair.
   // ⭐ An N-way palette: two or more colours, each validated like `color`.
   if (plot.colorPalette !== undefined) {
     const pal = plot.colorPalette
@@ -1677,14 +2184,23 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       errors.push(`${path}.colorPacked: a computed colour is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
     }
   }
+  // ⭐ Same order as `lineStyle` below: substitute FIRST, then judge the
+  // RESOLVED value, so `colorUp: '$lineUpColor'` is checked on the colour it
+  // becomes. A ref that fails to resolve is already reported by `substitute`.
   for (const field of ['colorUp', 'colorDown']) {
     if (plot[field] === undefined) continue
-    if (!isNonEmptyString(plot[field])) {
+    const ref = refKeyOf(plot[field])
+    const colour = substitute(plot[field], inputsByKey, `${path}.${field}`, errors, field)
+    if (colour === REF_FAILED) continue
+    noteRef(plot, field, ref)
+    if (!isNonEmptyString(colour)) {
       errors.push(
         `${path}.${field}: expected a non-empty colour string (the colour bars on that side of ` +
-        `zero are drawn in), got ${fmt(plot[field])}`,
+        `zero are drawn in)${plot[field] !== colour ? ` after substituting ${fmt(plot[field])}` : ''}, ` +
+        `got ${fmt(colour)}`,
       )
     }
+    plot[field] = colour
   }
 
   // ─ enumerated presentation fields ─
@@ -1855,6 +2371,54 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `${path}.hidden: an "hlines" plot is a guide — it returns no column, so there is nothing to ` +
       `compute and nothing to hide; drop the plot instead of hiding it`,
     )
+  }
+  // ⭐ A6 — `plots[].restyle: false` is the plot's OPT-OUT from the Plot style
+  // control: the inspector offers no style row for it. A sparse dot column
+  // restyled as a line draws nothing, so a dropdown there would lie. Behavioural
+  // (it decides what the inspector offers), so anything but a boolean fails closed;
+  // `true` is the default written down.
+  if (plot.restyle !== undefined && typeof plot.restyle !== 'boolean') {
+    errors.push(
+      `${path}.restyle: expected true or false (false = the inspector offers no Plot style for this plot), ` +
+      `got ${fmt(plot.restyle)}`,
+    )
+  }
+  validatePlotActiveWhen(plot, path, inputsByKey, errors)
+}
+
+/**
+ * ⭐ A2 — `plots[].activeWhen`: a guide that draws only under one input state (the
+ * RS Mansfield view's zero line, `{key: 'showMansfield', equals: true}`). The SAME
+ * grammar as `inputs[].activeWhen` and read by the same evaluator
+ * (`indicatorRegistry.evalActiveWhen`), so there is one condition language. It is
+ * admitted on an `hlines` guide ONLY: a guide is static, so whether it draws is a
+ * presentation fact; a data plot's visibility is the server's (it blanks the
+ * column), and a second switch over the same pixels would be a second authority.
+ * The key must name a declared input, for the reason `validateActiveWhen` gives.
+ */
+function validatePlotActiveWhen(plot, path, inputsByKey, errors) {
+  const aw = plot.activeWhen
+  if (aw === undefined || aw === null) return
+  const where = `${path}.activeWhen`
+  if (plot.style !== 'hlines') {
+    errors.push(
+      `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
+      `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
+    )
+    return
+  }
+  if (!isPlainObject(aw) || typeof aw.key !== 'string') {
+    errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
+    return
+  }
+  if (!inputsByKey.has(aw.key)) {
+    errors.push(
+      `${where}.key: unresolvable reference ${fmt(aw.key)} — no input declares that key ` +
+      `(declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`,
+    )
+  }
+  if (!Object.prototype.hasOwnProperty.call(aw, 'equals')) {
+    errors.push(`${where}: expected an \`equals\` value — the guide's condition is one input state`)
   }
 }
 
@@ -2551,6 +3115,9 @@ export function validateDefinition(def) {
       }
     })
     inputs.forEach((input, i) => validateActiveWhen(input, i, inputsByKey, errors))
+
+    // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
+    validateReadout(out, inputsByKey, errors)
 
     // ─ plots (substitution happens here, in-place on the clone) ─
     const plotKeyIndex = new Map()

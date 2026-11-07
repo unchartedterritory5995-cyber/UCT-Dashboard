@@ -386,6 +386,16 @@ SERIES_FUNCS: dict[str, Callable[[list[dict], dict], Series]] = {
     # ── 2026-11-04: the one CROSS address (its own partition — NOT a level in
     # `INDICATOR_FUNCS`, so the frozen replay grid does not move) ──
     "ma_cross": _series_ma_cross,
+    # ── 2026-11-06 (RS 2b-04): the UCT Relative Strength addresses (`alert_rs_
+    # series.RS_SERIES`, a SECOND SYMBOL — `fn.reads_benchmark` is their call
+    # shape) are NOT appended at import. `alert_rs_series.register_rs_series()`
+    # appends them LAST, by the same append-never-reorder rule `close` and
+    # `ma_cross` followed, and unit 2b-05 calls it where it declares their
+    # partition (`RS_FUNCS`, excluded from `INDICATOR_FUNCS` so the 28-wide
+    # frozen grid is untouched), conditions, labels and decimals: the evaluator
+    # derives its tables from THIS dict at import and `alert_catalog()` indexes
+    # `ALERT_CONDITIONS[address]`, so an entry here without its rows is a
+    # KeyError on the live catalog. ──
 }
 
 
@@ -410,8 +420,9 @@ def address_inputs(address: str) -> dict:
 def address_lookback(address: str, params: Optional[dict]) -> Optional[int]:
     """The history this address DECLARES it reads for these params, or None.
 
-    Metadata, like `address_inputs` — read off the column function (`fn.lookback`,
-    today only `ma_cross`). `None` means "nothing declared", and the caller keeps
+    Metadata, like `address_inputs` — read off the column function (`fn.lookback`:
+    `ma_cross`, and the RS addresses once `alert_rs_series.register_rs_series` has
+    added them). `None` means "nothing declared", and the caller keeps
     its knob-sum rule.
     """
     own = getattr(SERIES_FUNCS.get(address), "lookback", None)

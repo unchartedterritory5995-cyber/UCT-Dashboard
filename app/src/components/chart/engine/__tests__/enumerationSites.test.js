@@ -152,11 +152,28 @@ const INDICATOR_IDS = [
   ...engineRegistry.listDefinitions().map(d => d.id),
   ...Object.keys(CHART_DEFAULTS.indicators),
 ]
-const namesIndicators = (src) => INDICATOR_IDS.filter(id => (
-  new RegExp(`['"]${id}['"]`).test(src) ||
-  new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`).test(src) ||
-  new RegExp(`(?<![A-Za-z0-9_$])${id}\\?\\.`).test(src)
-))
+// ⭐ 2026-11-06 (RS 2a-01) — THE THREE PATTERNS ARE COMPILED ONCE PER ID, NOT ONCE
+// PER ID PER FILE. The Python discovery scan reads 2,233 files (42.8M chars), and
+// this used to construct 3 × 54 RegExp objects for every one of them — 361k per
+// run. Measured on this box, SAME found set either way: 4,738 ms as written,
+// 1,899 ms compiled; add `stripPyComments` (2,265 ms) and the scan ran 7-9 s
+// against the suite's 15 s `testTimeout`, which is the "Python-scan timeout" seen
+// under parallel load. The patterns are byte-identical; the pinned found sets
+// below are what prove nothing else moved. No `g` flag, so a compiled pattern
+// carries no `lastIndex` from one file to the next.
+const ID_PATTERNS = INDICATOR_IDS.map(id => [
+  new RegExp(`['"]${id}['"]`),
+  new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`),
+  new RegExp(`(?<![A-Za-z0-9_$])${id}\\?\\.`),
+])
+const namesIndicators = (src) => INDICATOR_IDS.filter((id, i) => ID_PATTERNS[i].some(re => re.test(src)))
+// A whole-tree discovery scan's cost scales with the repo, not with the test:
+// 7.7 s (JS, every module under app/src) and 7-9 s (Python, 2,233 files) on a
+// warm box, against the suite-wide 15 s ceiling vite.config.js sets for a 2x
+// cache-state variance. Each scan carries its own budget so a busy box reports
+// what it found instead of a timeout. A hung scan still fails — it just takes a
+// minute to say so.
+const SCAN_TIMEOUT_MS = 60_000
 
 // ─── THE SITES ──────────────────────────────────────────────────────────────
 //
@@ -2100,11 +2117,34 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       return out
     }
 
+    // ⭐ 2026-11-06 (RS 2a-01) — AND SO IS A TEST HARNESS THAT DOES NOT CARRY `.test.`
+    // IN ITS NAME. A module that imports from `vitest` cannot ship (a devDependency
+    // the production bundle never resolves), so it is test infrastructure by the
+    // same rule as the two exemptions in `walk` — derived from the file, not from
+    // its path. Measured: `agent/qa/capabilityRegression/testing/harness.jsx`
+    // (landed on master 2026-11-05 with the agent/pl merges; imported by ten
+    // `.test.` files and nothing else) names `rsi`, `macd` and `movingAverage` as
+    // FIXTURE indicator instances and reaches the four-id floor only through
+    // `envelope:` — the agent protocol's response-envelope key, not the indicator.
+    // ⛔ Every such file that would otherwise trip the floor is PINNED here, so the
+    // exemption cannot quietly swallow a real site: a new one moves this literal.
+    const importsVitest = (src) => /^\s*import\b[^\n]*\bfrom\s+['"]vitest['"]/m.test(src)
     const found = []
+    const harnessesOverFloor = []
     for (const p of walk(SRC_DIR)) {
       const src = stripComments(fs.readFileSync(p, 'utf8'))
-      if (namesIndicators(src).length >= 4) found.push(path.relative(ROOT, p).split(path.sep).join('/'))
+      if (namesIndicators(src).length < 4) continue
+      const rel = path.relative(ROOT, p).split(path.sep).join('/')
+      if (importsVitest(src)) { harnessesOverFloor.push(rel); continue }
+      found.push(rel)
     }
+    expect([...harnessesOverFloor].sort(),
+      'a vitest-importing module names four or more indicator ids. It is test ' +
+      'infrastructure (vitest cannot ship), so it is exempt from the ledger — but the ' +
+      'exemption is a DECISION, not a diff: move this literal and say which file.',
+    ).toEqual([
+      'app/src/agent/qa/capabilityRegression/testing/harness.jsx',
+    ])
     // ⭐⭐ PHASE C TASK 1 — THE NON-MEASUREMENT, ASSERTED. Task 1 ADDS a Python
     // scan; it must not change what THIS one sees. The two assertions below are
     // a subset check in each direction (`found ⊆ ledger`, `keep ⊆ found`) and
@@ -2278,7 +2318,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // describing the phase it was written for.
     expect(LEDGER.filter(s => s.fate === 'B5'), 'B5 retired at Task 12 — nothing may re-open it')
       .toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 
   // ⭐⭐ THE PYTHON HALF OF THE DISCOVERY SCAN — PHASE C TASK 1.
   //
@@ -2417,7 +2457,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(walk(API_DIR).length,
       'the Python walk found almost no files — the walk root is wrong, not the tree')
       .toBeGreaterThan(100)
-  })
+  }, SCAN_TIMEOUT_MS)
 
   // ⭐⭐ THE TWO PYTHON `C` ROWS, SIZED — BECAUSE BOTH HAD PROSE THAT OUTLIVED
   // THEIR SUBJECT, AND THIS LEDGER'S WHOLE JOB IS STOPPING EXACTLY THAT.

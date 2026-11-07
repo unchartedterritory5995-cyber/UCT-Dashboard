@@ -962,10 +962,11 @@ const RAW_DEFS = [
     [
       periodInput('period', 'Period', 14, 2, 200),
       // ⭐ `multiplier` IS AN INPUT THE COMPUTE READS, AND IT HAD TO BE.
-      // `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
-      // `lineStyle` — `SUBSTITUTABLE_PLOT_FIELDS`, locked by spec §3.1 — and a
-      // band's WIDTH IN PRICE is none of those. Written as a plot literal it
-      // would render one multiplier for every user while the settings form
+      // `$<inputKey>` substitution is legal in `color`, `width`, `levels`,
+      // `lineStyle`, `colorUp` and `colorDown` — `SUBSTITUTABLE_PLOT_FIELDS`,
+      // locked by spec §3.1 — and a band's WIDTH IN PRICE is none of those.
+      // Written as a plot literal it would render one multiplier for every user
+      // while the settings form
       // offered a control that changed nothing, and `atr_bands_14_2.json`
       // (multiplier 2) would stay green the whole time.
       { key: 'multiplier', type: 'float', label: 'Multiplier', default: 2, min: 0.1, max: 10, step: 0.1 },
@@ -1711,7 +1712,10 @@ const RAW_DEFS = [
   nativeDef('percentFromMa', 'percentFromMa',
     // ⭐ `% From MA`, NOT "% From Moving Average": the library offers exactly ONE
     // row named Moving Average (owner §34), and this is a different study.
-    { name: '% From MA', shortName: '% From MA', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ A price-LEVEL study, not relative strength (review finding U7, 2026-11-06):
+    // it reads one series against its own average. The Relative Strength heading
+    // holds the one row that compares against a benchmark.
+    { name: '% From MA', shortName: '% From MA', category: CAT.LEVELS, quickMenu: false,
       legendParams: ['period'],
       description: 'How far the value is above or below its moving average, in percent.',
       tags: ['% from ma', 'percent from moving average', 'distance from ma', 'extension', 'extended'] },
@@ -1728,7 +1732,9 @@ const RAW_DEFS = [
     ]),
 
   nativeDef('fiftyTwoWeek', 'fiftyTwoWeek',
-    { name: '52-Week High/Low', shortName: '52W', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ Likewise a price-LEVEL study (review finding U7): distance from the
+    // close's own 52-week high and low, no benchmark anywhere.
+    { name: '52-Week High/Low', shortName: '52W', category: CAT.LEVELS, quickMenu: false,
       description: 'How far the close is below its 52-week high and above its 52-week low, in percent.',
       tags: ['52 week', '52-week', '52w', '52 week high', '52 week low', 'off high', 'yearly high'],
       // ⛔ A CALENDAR WINDOW. It needs a full 52 weeks of loaded bars before it
@@ -3778,33 +3784,508 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
  * in `IndicatorLibraryDialog` and gates nothing by itself; the gate is the
  * handler, and this is the declaration matching it.
  */
+// ─── UCT Relative Strength (v3) ──────────────────────────────────────────────
+//
+// Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md
+// (§5–§8); Phase 2a engineering map docs/superpowers/plans/2026-11-06-uct-rs-
+// phase2-engineering-map.md (§2.3, §2.7, §2.8, row 2a-14). Same id as the v1
+// "Relative Strength Line" so a saved layout keeps working: every new input has
+// a default, and an instance stored as `{benchmark: 'QQQ'}` renders Classic
+// against QQQ (`__tests__/rsSavedLayout.test.js` walks that path).
+//
+// ⛔ THE SERVER OWNS THE COLUMNS. `compute.kind: 'server'` because an RS line
+// needs a SECOND symbol and the compute contract carries one `bars`
+// (`compute_rs_line_raw`'s docstring). `api/services/relative_strength.py`
+// computes every column below; `registry_defs._rs_line_row(v2=True)` declares the
+// same compute inputs with the same ranges, and `wire_columns` requires the two
+// column lists to be EQUAL. The benchmark enum is diffed against the Python list
+// by `test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES`.
+//
+// ⭐ v3 (Phase 2a, unit 2a-14; `compute.rev` 3 in both lanes and in
+// `alert_rev_migration.ADDRESS_REVS`): the Mansfield line and its zero-cross
+// dot join the plots; the red-day and new-low dots the server has sent since
+// Phase 1 gain their toggles and their markers; `readout[]` turns the server's
+// `payload` into the Leadership rows (rating, regime, sensitivity, the four
+// checks, theme — plan §6.6) with a three-line card each; `meta.learn` names
+// the six Desk lessons; Trend and Stress join the presets with the non-input
+// fields unit 2a-12 taught `applyPresetInputs` (visibility, dot size).
+//
+// ⭐ DOTS RIDE THE LINE. A marker plot's glyph sits at the plotted value when
+// `position: 'inBar'` (binder: "THE MARKERS RIDE THE PLOT'S OWN SERIES"), and
+// the marker builder draws wherever the column is finite and > 0. So each RS
+// dot column carries the RS VALUE on event bars and NaN elsewhere — a dot exactly
+// on the line, exactly where the event fired. The 0/1 event columns stay beside
+// them as `events` for the screener and the alert grammar. The Mansfield cross
+// dot carries the MANSFIELD value, which is at or below zero on a cross DOWN —
+// so it is a plain point-marker plot (drawn at any finite value), never a glyph
+// (`markerPrimitive.marks` is `> 0`, which would drop every cross down).
+//
+// ⭐ TOGGLES ARE COMPUTE INPUTS. The engine has no per-plot visibility an input
+// can drive (audit A3), so "show RS new highs" — and now "Mansfield line" — is a
+// server input that blanks the column when off. Colours and width are the Style
+// tab's and never reach the server (`resolve_inputs` drops undeclared keys).
+//
+// ⭐ TWO COLOURS ON THE LINE (Phase 1, unit 5). `rsLine` is `colorMode:
+// 'column:rsAbove'` with `colorUp: '$lineUpColor'` / `colorDown: '$lineDownColor'`
+// — both substitutable since unit 5 added them to `SUBSTITUTABLE_PLOT_FIELDS` and
+// `pool.resolvePlotForInstance` (spec §3.1 carries the same sentence). Classic
+// defaults BOTH to the informational blue IBD draws the line in, so it still
+// draws ONE hue and the platform's ≤2 hues + 1 neutral budget holds (plan §3,
+// decision 9); the Phase preset sets `bull` above / `bear` below, the plan's
+// documented three-hue exception. `rsAbove` is the server's 0/1/null column
+// declared as a HIDDEN plot, field for field as the Awesome Oscillator declares
+// `rising`, because `colorMode: 'column:<key>'` needs a declared column and
+// `events[]` cannot be declared on this lane (see the note at the end). The line
+// keeps `color: '$lineUpColor'` too: the legend chip is one swatch
+// (`readout.resolvePlotColor` reads `color`), and it is the series colour under
+// any point the condition column did not reach.
+//
+// ⭐ THE HUE BUDGET PER PRESET (platform §7; `__tests__/markerPixels.test.js`
+// counts it over the plots a preset DRAWS). Classic: info blue + the one gold
+// dot (before price). Phase: bull, bear and gold (the documented exception).
+// Trend (Mansfield view, visual round A2): the Mansfield line, its cross-up dots
+// and the zero line ALONE — info blue plus the neutral, no gold; the server
+// blanks the ratio, its average and every RS-line dot. Stress (A3): info blue on
+// the line and the plain dots, and the red-day high is the preset's ONE gold mark
+// (a large circle, no text — platform §7 keeps text off the canvas); before-price
+// highs draw as ordinary blue highs there. The red-day dot defaults to the info
+// blue, so Classic with red-day highs switched on reads large gold for before
+// price and large blue for red day. Red stays reserved for losses and errors
+// (plan §3): an RS high on a red day is strength. The new-low dot is neutral.
+const RS_NEUTRAL = '#8a8574'
+const RS_INFO = '#6ba3be'
+const RS_GOLD = '#c9a84c'
+/** The toggles every preset states explicitly, so `detectPreset` (first match
+ *  wins, in declaration order) never reads a Trend or Stress instance as Classic:
+ *  a preset that stays silent on `showMansfield` would match an instance that
+ *  turned it on. Classic can therefore stay FIRST — the member's default leads
+ *  the picker — and the more specific presets still win on their own key. */
+const RS_CLASSIC_TOGGLES = Object.freeze({ showMansfield: false, showRedDay: false, showNewLow: false,
+  // ⭐ A3: Stress switches before-price highs OFF and gives the red-day dot the
+  // gold, so the Classic family states both back. Classic after Stress is Classic.
+  showNewHighBeforePrice: true, dotRedColor: RS_INFO })
+/** ⭐ THE HONESTY SENTENCE (Phase 2b, unit 2b-09) — the static evidence line of
+ *  every card whose signal the nightly backtest measures, printed until the
+ *  measured sentence replaces it through `card.evidenceSource`. ⛔ ONE FACT IN
+ *  TWO FILES: `api/services/rs_evidence_pull.HONESTY_SENTENCE` is the
+ *  provider's copy (what `payload.evidence.sentence.<key>` carries while no
+ *  artifact has landed), and `tests/test_rs_columns_provider.py` pins the two
+ *  equal, so a rewording of one flags the other. */
+const RS_HONESTY_SENTENCE = 'No published hit rate exists for this signal and UCT has not measured one yet.'
+/** The two input states the Mansfield view switch selects between (visual round
+ *  A2): the controls that only shape the ratio view dim under Mansfield view, and
+ *  the Mansfield controls dim outside it. Named once so every row says the same
+ *  condition, in the inputs' `activeWhen` grammar. */
+const RS_RATIO_VIEW = Object.freeze({ key: 'showMansfield', equals: false })
+const RS_MANSFIELD_VIEW = Object.freeze({ key: 'showMansfield', equals: true })
 const RS_LINE_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
-  version: 1,
-  compute: { kind: 'server', fn: 'rsLine', rev: 1 },
+  version: 3,
+  compute: { kind: 'server', fn: 'rsLine', rev: 3 },
   meta: {
-    name: 'Relative Strength Line', shortName: 'RS', category: CAT.RELATIVE_STRENGTH,
-    description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
-    tags: ['comparative', 'momentum'], tier: 'premium', repaint: 'non-repainting',
+    name: 'UCT Relative Strength', shortName: 'UCT RS', category: CAT.RELATIVE_STRENGTH,
+    // ⛔ THE DESCRIPTION PROMISES ONLY WHAT SHIPS (review finding). Rotation,
+    // quality and the volatility-adjusted readings are Phase 3 and are added
+    // here when they land, never before.
+    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark, its moving average, dots where the line makes a new high (the gold dot marks a high before price in Classic and a high on a red market day in the Stress test), Weinstein\'s Mansfield line with its zero crosses, and a readout in words: the nightly IBD-style rating, the market regime, how the reading holds against SPY, the equal-weight index and the sector, and the four UCT checks. Once the nightly backtest reports, each card\'s evidence line carries our own measured number with its sample size and dates.',
+    tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'blue dot',
+      'leader', 'leadership', 'price relative', 'benchmark', 'mansfield', 'weinstein',
+      'rs rating', 'stress test', 'red day', 'regime'],
+    tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // ⭐ Mansfield view blanks the RS line, so the pane label names the line it
+    // draws: the Mansfield reading, live. Otherwise the dated last RS value.
+    legendFallback: [{ source: 'scalar:mansfield.value', format: 'pct', when: 'input:showMansfield' }],
+    // ⭐ THE INPUTS THE SERVER DECLARES — and therefore the only ones that key the
+    // fetch (`serverCompute.pickServerInputs`). Colours and width stay on the
+    // client. `test_rs_columns_provider.py` diffs this list against the Python
+    // row's input keys, the same way the benchmark enum is diffed.
+    serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'priceTolerance',
+      'redDayThreshold', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots',
+      'mansfieldLength', 'showMansfield', 'showRedDay', 'showNewLow'],
+    // Read by the settings dialog (plan §6.3): these groups open collapsed so
+    // the Simple group is what a member sees first. The Mansfield and stress
+    // controls live INSIDE Line and New highs (the groups the mobile sheet and
+    // the dialog already know) rather than in groups of their own.
+    groupsCollapsed: ['Line', 'New highs'],
+    // ⭐ THE SIX DESK LESSONS (engineering map §2.8; `lib/deskVideoHref.RS_LEARN_VIDEOS`
+    // resolves each key to a `/desk?section=videos&v=…` link, and the About page
+    // lists them under every card). The labels are the Learn map's own words.
+    learn: [
+      { key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' },
+      { key: 'phase', label: 'Manrav on the RS line and its 21 EMA' },
+      { key: 'newHigh', label: 'Chartmaster on tracking relative strength' },
+      { key: 'beforePrice', label: 'Chartmaster: RS shows before price confirms' },
+      { key: 'redDay', label: 'Chartmaster: RS highs on red market days' },
+      { key: 'fourChecks', label: 'Chartmaster: the four RS checks' },
+    ],
+    // Read by the preset picker (plan §5, §6.8): a named set of input values,
+    // applied to the CURRENT instance through `setInstanceInput`, plus (2a-12)
+    // the optional `visibility` / `dotSize` fields `applyPresetInputs` chains
+    // through the same writers the Inspector uses.
+    // ⭐ A PRESET SETS ONLY WHAT IT IS ABOUT (review finding, 2026-11-06): the
+    // reading — the average, the lookback, the line's colouring, which readings
+    // are drawn — never the benchmark, so choosing Phase keeps the member's
+    // benchmark and changing the benchmark does not flip the picker to Custom.
+    // The weekly variants exist to set 52 bars on a weekly chart.
+    // ⭐ CLASSIC, CLASSIC WEEKLY AND PHASE DECLARE THE FIELDS THEY RESET (review
+    // finding #26, 2026-11-07). Trend and Stress write visibility "daily and up"
+    // and dot sizes. A preset that declared inputs alone left both as Trend or
+    // Stress wrote them, and `presetFieldsMatch` (inputs alone when no field is
+    // declared) still read the instance back as Classic: the pane stayed hidden
+    // intraday and the gold dot drew Large under a picker that said Classic.
+    // `visibility: 'all'` drops the key, and the default word `medium` clears the
+    // instance-level size and every per-dot size (`setInstanceDotSize` deletes it).
+    presets: [
+      { id: 'classic', label: 'Classic (O\'Neil)', origin: 'IBD, MarketSurge',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
+      { id: 'classicWeekly', label: 'Classic, weekly chart', origin: 'IBD, MarketSurge; 52 bars is one year of weekly bars',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
+      { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: '#3cb868', lineDownColor: '#e74c3c', dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
+      // ⭐ TREND (Weinstein's Mansfield, plan §5 / §7 item 13; visual round A2).
+      // Mansfield view: the pane draws the Mansfield line ALONE around its zero
+      // line, with a medium dot on each cross UP — the server blanks the ratio,
+      // its average and every RS-line dot, so nothing else shares the scale and
+      // the ratio can no longer lie flat where zero would be. Info blue plus the
+      // neutral; no gold. Daily and up: the 200-bar average of the ratio means
+      // nothing intraday. The RS line's own colours are not this preset's to set.
+      { id: 'trend', label: 'Trend (Mansfield)', origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; 200 daily bars',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, showMansfield: true, mansfieldLength: 200,
+          mansfieldColor: RS_INFO, dotCrossColor: RS_INFO, showRedDay: false, showNewLow: false },
+        dotSize: { dotMansfieldCross: 'medium' }, visibility: { preset: 'dailyUp' } },
+      { id: 'trendWeekly', label: 'Trend, weekly chart', origin: 'Weinstein; 52 weekly bars is his published length',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 52, showMansfield: true, mansfieldLength: 52,
+          mansfieldColor: RS_INFO, dotCrossColor: RS_INFO, showRedDay: false, showNewLow: false },
+        dotSize: { dotMansfieldCross: 'medium' }, visibility: { preset: 'dailyUp' } },
+      // ⭐ STRESS TEST (UCT, plan §5 / §6.7; visual round A3). The RS high on a
+      // red market day is the reading, so it is the preset's ONE gold mark, a
+      // large circle with no text; before-price highs stop being highlighted and
+      // draw as ordinary blue highs. The line and the plain dots stay info blue.
+      { id: 'stress', label: 'Stress test (UCT)', origin: 'UCT workshops; Kell; TraderLion down days',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, showRedDay: true, showNewHighBeforePrice: false,
+          dotRedColor: RS_GOLD, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO,
+          showMansfield: false, showNewLow: false },
+        dotSize: { dotNHred: 'large' }, visibility: { preset: 'dailyUp' } },
+    ],
   },
-  placement: { target: 'pane', pane: { height: 0.15 } },
+  // ⭐ A4 (owner decision D6): no price axis beside the RS pane — no ticks, no
+  // last-value tag. The ratio's level means nothing on its own, a ~97 px pane
+  // fits three ticks, and the value is read in the pane label.
+  // ⭐ 0.20 of the candle frame, not 0.18 (owner-delegated decision L2,
+  // 2026-11-07): at 0.18 (87 px on a 900 px chart) the legend half-hid the
+  // newest dot.
+  placement: { target: 'pane', pane: { height: 0.20 }, axis: 'hidden' },
   inputs: [
-    // ⭐ AN `enum` OF A FIXED LIST, NOT A `symbol` (decision A3). `symbol` is in
-    // `RESERVED_INPUT_TYPES` and `defSchema` refuses it with a distinct message;
-    // three benchmarks cover the question this indicator answers and need no new
-    // input type, no symbol picker and no second data-entitlement question.
+    // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
+    // SECTOR and INDUSTRY are enum values the SERVER resolves from the universe
+    // sector/industry map; RSP is the equal-weight S&P. A free-text benchmark is
+    // a Phase 3 `string` input validated server-side, so `symbol` stays reserved.
     {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY',
-      options: [['SPY', 'S&P 500 (SPY)'], ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)']],
+      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
+      tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
+      options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
+        ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)']],
     },
-    colorInput('color', 'Color', '#4ECDC4'),
-    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+    { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
+      tooltip: 'Average length in bars: the moving average on the RS line. 21 is the curriculum default; 50 is a slower read.' },
+    { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Small dot when the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
+    { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'RS high before price: large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
+    { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
+      options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
+      tooltip: 'Exponential reacts faster; simple is what Mansfield and StockCharts use.' },
+    // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
+    // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
+    // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
+    // ⭐ The pair carries its own instructions (review finding V3): two identical
+    // swatches for one line say why, and the second says what it colours.
+    { ...colorInput('color', 'Line above avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Line colour above its average. Classic uses one colour; keep both swatches the same for a single-colour line' },
+    { ...colorInput('lineDownColor', 'Line below avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Line colour below its average; the Phase preset sets red here' },
+    { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
+    // ⭐ MANSFIELD VIEW (plan §7 item 13; Weinstein; visual round A2) — the pane's
+    // READING SWITCH. Off draws the ratio (Classic, Phase, Stress); on draws the
+    // Mansfield line alone around zero (Trend), and the server blanks the ratio,
+    // its average and every RS-line dot, so a Custom configuration cannot reach
+    // the flattened two-scales state. The inputs that only shape what the view
+    // hides DIM under it, and the Mansfield controls dim while it is off
+    // (`activeWhen`; a dimmed control never disappears).
+    { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Line',
+      tooltip: 'Draw Weinstein\'s Mansfield line around zero in place of the RS line and its dots.' },
+    { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Line',
+      activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Mansfield length in bars: the average the ratio is measured against. 200 on a daily chart; Weinstein\'s 52 weeks on a weekly chart (the weekly Trend preset sets it).' },
+    { ...colorInput('mansfieldColor', 'Mansfield colour', RS_INFO), group: 'Line', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Colour of the Mansfield line under Mansfield view; the Trend preset gives it the blue' },
+    { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Line', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Colour of the dot where the Mansfield line crosses up through zero; the Trend preset gives it the blue' },
+    { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
+      tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
+    { key: 'priceTolerance', type: 'float', label: 'Tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
+      tooltip: 'Price-high tolerance: price counts as not at its high when it is more than this far below its lookback high.' },
+    { key: 'shortHistoryDots', type: 'bool', label: 'Short history', default: true, group: 'New highs',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in a muted colour.' },
+    { ...colorInput('dotColor', 'New-high dot', RS_INFO), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Colour of the small RS new-high dot' },
+    { ...colorInput('dotBeforePriceColor', 'Before-price dot', RS_GOLD), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Colour of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
+    { ...colorInput('dotPartialColor', 'Short-history dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW },
+    // ⭐ THE STRESS-TEST DOT (plan §6.7; UCT workshops, Kell; visual round A3). An
+    // RS new high on a day the benchmark closed down by the red-day threshold —
+    // strength while the market sold off. Off by default; the Stress preset turns
+    // it on and makes it the gold mark. Its DEFAULT colour is the info blue, so a
+    // member who turns it on in Classic tells it from the gold before-price dot.
+    { key: 'showRedDay', type: 'bool', label: 'Red-day highs', default: false, group: 'New highs',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day; the UCT stress test, where it is the gold dot. Daily and weekly charts only.' },
+    { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Colour of the red-day RS-high dot; the Stress test preset makes it gold' },
+    { key: 'showNewLow', type: 'bool', label: 'RS new lows', default: false, group: 'New highs',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'RS new lows: small dot when the RS line is at its lowest level of the lookback. Relative weakness. Daily and weekly charts only.' },
+    { ...colorInput('dotLowColor', 'New-low dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Colour of the small RS new-low dot' },
   ],
   plots: [
-    { key: 'rsLine', label: 'RS', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+    { key: 'rsLine', label: 'RS line', style: 'line', colorMode: 'column:rsAbove',
+      color: '$color', colorUp: '$color', colorDown: '$lineDownColor', width: '$lineWidth',
+      // ⭐ `precision: 4` keeps the axis tag and the legend saying the same number
+      // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
+      // It takes `pool`'s matching `minMove: 0.0001` (decision B1) to do so: LWC
+      // rounds to `minMove`, so precision alone printed 0.2500.
+      precision: 4, role: 'primary', legend: { decimals: 4 } },
+    // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
+    // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
+    // by the line's colour rule. The Awesome Oscillator's `rising` is the
+    // precedent, field for field.
+    { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
+    { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true } },
+    // ⭐ THE MANSFIELD LINE, on the RS pane's own scale. It is a PERCENT distance
+    // from the ratio's average (−20…+20 on most names), so it never shares the
+    // scale with the ratio (near 0.25): under Mansfield view the server blanks the
+    // ratio, its average and every RS-line dot, and this line draws alone at the
+    // instance's line width (visual round A2). Blank unless `showMansfield`.
+    { key: 'mansfield', label: 'Mansfield', style: 'line', color: '$mansfieldColor', width: '$lineWidth',
+      precision: 2, role: 'context', legend: { hide: true } },
+    // ⭐ THE ZERO LINE (visual round A2): solid, 1 px, the neutral, the only
+    // horizontal guide in the pane, and drawn ONLY under Mansfield view
+    // (`plots[].activeWhen`, the inputs' condition grammar). A guide is static, so
+    // whether it draws is the definition's to say; the line it sits under is the
+    // server's to blank.
+    { key: 'mansfieldZero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context', activeWhen: RS_MANSFIELD_VIEW },
+    // ⭐⭐ TWO RENDERERS FOR THE DOTS, AND WHY (review finding V1, 2026-11-06).
+    // lightweight-charts 5.2.0 clamps a series-marker GLYPH to a 12..30 px floor
+    // twice (`calculateShapeHeight` on the bar spacing, `shapeSize` on the
+    // multiplied size), so the "small" 0.6 and "large" 1.2 circles both drew 9 px
+    // at every normal zoom — a size channel that did not render. So:
+    //   · the SMALL dots are plain `markers` plots with NO `marker` block: the
+    //     binder draws them as the series' own POINT MARKERS (`pool`:
+    //     `pointMarkersVisible`, radius = `width`, no floor — SAR's shape), at the
+    //     plotted value by construction, honouring the member's Dot size;
+    //   · the two LARGE dots (before price, red day) keep the glyph at size 1.6,
+    //     which the floor can only make LARGER (13 px at the floor, 17 px at bar
+    //     spacing 15, 23 px from 20) and which paints ABOVE every series.
+    //     ⭐ 1.6, not 2.0 (owner-delegated decision L1, 2026-11-07): 15 px read
+    //     as chunky on a phone and crowded the line; 13 px is still the largest
+    //     mark on the pane, so it stays the one look-here mark. The red-day glyph
+    //     moves with it: it is the gold mark under Stress (C1), and a larger red
+    //     ring would otherwise frame the gold dot on a bar where both fire.
+    //     Neither carries text
+    //     (visual round A3; platform §7: text on chips, never raw over the canvas).
+    //     The red-day plot is declared BEFORE the before-price plot, so on a bar
+    //     where both fire (Classic with red-day highs on) the gold before-price
+    //     glyph paints on top.
+    // ⭐ `restyle: false` on every dot (A6): a sparse dot column restyled as a line
+    // draws nothing, so the inspector offers no Plot style for them.
+    // `__tests__/markerPixels.test.js` mirrors LWC's arithmetic and pins small < large
+    // at every bar spacing. ⛔ `width` here is the dot RADIUS, never the RS line's.
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    { key: 'dotNHred', label: 'RS high on a red day', style: 'markers', color: '$dotRedColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
+    { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
+    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    { key: 'dotNL', label: 'RS new low', style: 'markers', color: '$dotLowColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    { key: 'dotMansfieldCross', label: 'Mansfield zero cross', style: 'markers', color: '$dotCrossColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
   ],
+  // ⭐⭐ THE LEADERSHIP READOUT (plan §6.6; engine `readoutSchema.js`, unit 2a-09;
+  // surfaces unit 2a-10). Each row reads ONE scalar of the server's `payload`
+  // (`scalar:<path>`) or one input, prints it in the declared format, and is
+  // OMITTED when the path resolves to nothing — the only stand-in is a declared
+  // `fallback`, shown muted. The two `chip` rows ride the pane label:
+  // `UCT Relative Strength · XLK · 94`. A `card` is the three-line explanation
+  // (what / origin / evidence) the About page opens, in operator voice: no
+  // verdicts, no "buy", numbers carry their source. `card.learn` is a key of
+  // `meta.learn` above. `tests/test_rs_columns_provider.py` resolves every
+  // `scalar:` path here against a real provider payload, so a row can never
+  // name a scalar the server does not send.
+  //
+  // ⭐ THE EVIDENCE LINES (unit 2b-09; research base 03-evidence.md §b). A card
+  // whose signal the nightly backtest measures (2b-01 → `rs/evidence.json` →
+  // 2b-03 `payload.evidence.sentence.<key>`) declares `evidenceSource`; the
+  // surface prints that sentence VERBATIM — "1,284 RS new highs before price
+  // on 240 sessions, … daily bars: 58.3% beat SPY from the next session's open
+  // to the close 63 sessions later (about 3 months; median +2.1%), against 50.2%
+  // for all bars. Universe as held, survivorship not yet corrected." (the base
+  // is the next open since owner decision N6, 2026-11-07) — and the static
+  // `evidence` (the honesty sentence) only when no envelope has landed. A
+  // sourced card's literature sentences (Bulkowski on Before price) lead the
+  // server sentence, which replaces only the closing honesty sentence
+  // (`readoutSchema.cardEvidenceText`, review finding #22, 2026-11-07). The
+  // cards with no signal in the artifact carry the defensible literature
+  // statements, each with its source, never a win rate, a threshold or a
+  // forecast (the must-not-claim list, 03-evidence.md §b).
+  //
+  // ⭐⭐ THE GLANCE LIST AND THE CARDS (Phase 2a visual round, item A1). The chip
+  // menu lists the GLANCE rows only — every entry without `detailOf`, in this
+  // order: Benchmark, Rating, RS line, Mansfield (Mansfield view only), Last RS
+  // high, Agreement, Regime, Checks, and History when the series is short. Every
+  // other row is a DETAIL row: `detailOf` names the glance row whose card it sits
+  // in, as the "numbers" block above the three card lines. The composed glance
+  // values are the server's summary strings (`rating.summary`, `legend.summary`,
+  // `mansfield.summary`, `lastRsHigh.summary`, `sensitivity.summary`,
+  // `checks.summary`), so each row stays one source; the checks' detail rows read
+  // each check's own `line`. A summary the server has not sent omits its row,
+  // exactly as any other missing scalar does.
+  //
+  // ⛔ THE TWO CHIP ROWS ARE DETAIL ROWS AND KEEP THEIR KEYS. `benchmark` (the
+  // resolved ticker) and `rating` (the IBD-style number) feed the pane suffix
+  // (`UCT Relative Strength · XLK · 94`), and `readout.stampReadout` replaces the
+  // `benchmark` legend param with the row keyed `benchmark`. Their glance rows are
+  // `benchmarkName` and `ratingSummary`, which print the composed read.
+  readout: [
+    // ⭐ `note`: the muted second line (visual spec row 1 and A8), the server's
+    // sentence for a fallback (`Sector ETF not available for an ETF; using SPY`)
+    // or a benchmark gap (`No SPY bar for Nov 5 yet`).
+    { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
+      note: 'scalar:benchmark.note',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+        origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
+        evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Agreement row reads the same line against SPY, the equal-weight index and the sector.',
+        learn: 'rsLine' } },
+    // What the member picked, as the option reads (`Sector ETF (auto)`), then what
+    // the server resolved it to.
+    { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+      detailOf: 'benchmarkName' },
+    // The card repeats the menu's second line as a sentence (the raw fallback code,
+    // `no sector`, is the server's vocabulary, not the member's).
+    { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
+      when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
+    { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
+      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated.',
+        origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
+        evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.' } },
+    { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary' },
+    { key: 'fastRating', label: 'Fast', source: 'scalar:rating.fast', format: 'int', detailOf: 'ratingSummary',
+      card: { what: 'UCT fast rating, 1 to 99, as captured by the nightly job (the screener\'s hourly RS Rank): 3-month, 6-month, 1-month and 1-week returns over about 138 sessions.',
+        origin: 'The site\'s existing RS rank (rs_ranking), read once a night beside the IBD-style rating; the Rated as of row dates both. A different formula from the IBD-style rating, so the two can differ widely.' } },
+    { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text', detailOf: 'ratingSummary' },
+    { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read.',
+        origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.phase',
+        learn: 'phase' } },
+    { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    // ⭐ ROW 4 ONLY UNDER MANSFIELD VIEW (A2): the reading the pane draws then.
+    { key: 'mansfield', label: 'Mansfield', source: 'scalar:mansfield.summary', format: 'text',
+      when: 'input:showMansfield',
+      card: { what: 'Mansfield Relative Strength: the RS ratio as a percent above or below its own moving average, measured over the Mansfield length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length, which the weekly Trend preset sets. Above zero, the stock is outperforming its own trend against the benchmark.',
+        origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.mansfield' } },
+    { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only
+    // the crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
+    // ⭐ THE LENGTH ACTUALLY USED (review finding #9, 2026-11-07). The default is
+    // 200 on every timeframe, so a weekly chart reads a 200-week average unless
+    // the weekly Trend preset set 52. The row prints what the server computed.
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
+    { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
+      card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
+        origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.rsHigh',
+        learn: 'newHigh' } },
+    { key: 'rsHighAge', label: 'Bars ago', source: 'scalar:lastRsHigh.barsAgo', format: 'int', detailOf: 'rsHigh' },
+    // ⭐ THE TWO QUALIFIERS ARE DETAIL ROWS WITH CARDS OF THEIR OWN: the Last RS
+    // high card's `Before price  yes` and `On a red day  yes` open them.
+    { key: 'beforePrice', label: 'Before price', source: 'scalar:lastRsHigh.beforePrice', format: 'bool',
+      words: ['yes', 'no'], detailOf: 'rsHigh',
+      card: { what: 'That RS high came while price was still more than the tolerance below its own lookback high: relative strength led, price had not confirmed.',
+        origin: 'IBD: more bullish, and not a precondition. Deepvue, ChillLax.',
+        evidence: 'Bulkowski measured 15,763 chart patterns: the direction of RS before a breakout barely changed the result, while RS rising after the breakout did (an average gain of 41% against 22%). ' + RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.beforePrice',
+        learn: 'beforePrice' } },
+    { key: 'redDay', label: 'On a red day', source: 'scalar:lastRsHigh.redDay', format: 'bool',
+      words: ['yes', 'no'], detailOf: 'rsHigh',
+      card: { what: 'That RS high came on a day the benchmark closed down by at least the red-day threshold: strength while the market sold off.',
+        origin: 'UCT workshops; Kell; TraderLion on down days. Taught widely, never measured publicly.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.redDay',
+        learn: 'redDay' } },
+    { key: 'history', label: 'Bars held', source: 'scalar:history.bars', format: 'int', when: 'scalar:history.short',
+      detailOf: 'rsHigh' },
+    { key: 'sensitivity', label: 'Agreement', source: 'scalar:sensitivity.summary', format: 'text',
+      card: { what: 'Whether the last 20 bars of relative strength point the same way against SPY, the equal-weight index (RSP) and the sector ETF. Agree means all three slopes share a sign.',
+        origin: 'UCT: a leader against the cap-weighted index alone may only be riding the giants that carry it.',
+        evidence: 'In 2023 and 2024, 78% of S&P 500 stocks underperformed the cap-weighted index (Lyrical, 2024), so a line falling against SPY while rising against the equal-weight index or the sector separates stock-specific strength from a few giants carrying the index. The nightly test will print the rank correlation of RS across the three benchmarks here.' } },
+    { key: 'agreeSpy', label: 'SPY', source: 'scalar:sensitivity.spy.word', format: 'text', detailOf: 'sensitivity' },
+    { key: 'agreeRsp', label: 'RSP', source: 'scalar:sensitivity.rsp.word', format: 'text', detailOf: 'sensitivity' },
+    { key: 'agreeSector', label: 'Sector', source: 'scalar:sensitivity.sector.word', format: 'text', detailOf: 'sensitivity' },
+    { key: 'theme', label: 'Theme', source: 'scalar:theme.label', format: 'text', detailOf: 'sensitivity' },
+    { key: 'regime', label: 'Regime', source: 'scalar:regime.label', format: 'text', fallback: 'needs more history',
+      card: { what: 'The market state the reading lives in, from the benchmark alone: above or below its 200-day average, the sign of its two-year return, and where its six-month realised volatility sits in its own three-year range. Persistence: above the 200-day with a positive two-year trend. Rebound-risk: a negative two-year trend in the high-volatility third. Mixed: anything else.',
+        origin: 'Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.',
+        evidence: 'Relative strength is a tendency, not a guarantee: in backtests it loses roughly one year in five and reverses hardest at bear-market bottoms. The fifteen worst momentum months since 1927 all came after a negative two-year market return, fourteen of them in months the market rose (1932, 2001, 2009), and in 2003 and 2009 the laggards beat the leaders by 35 to 50 points (Daniel and Moskowitz 2016; Dorsey Wright 2016).' } },
+    { key: 'regimePct200', label: 'vs 200-day', source: 'scalar:regime.pctFrom200', format: 'pct', detailOf: 'regime' },
+    { key: 'regimeReturn2y', label: '2-year return', source: 'scalar:regime.return2y', format: 'pct', detailOf: 'regime' },
+    { key: 'regimeVol', label: 'Volatility third', source: 'scalar:regime.volTercile', format: 'text', detailOf: 'regime' },
+    { key: 'regimeNote', label: 'Note', source: 'scalar:regime.reason', format: 'text', when: 'scalar:regime.reason',
+      detailOf: 'regime' },
+    { key: 'checks', label: 'Checks', source: 'scalar:checks.summary', format: 'text', fallback: 'needs more history',
+      card: { what: 'The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark\'s; return since the benchmark\'s 20-session low against the benchmark\'s; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day.',
+        origin: 'UCT workshops (Chartmaster, the four RS checks).',
+        evidence: 'Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT\'s own threshold, and the screener\'s up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.',
+        learn: 'fourChecks' } },
+    { key: 'checkMa', label: 'Averages', source: 'scalar:checks.ma.line', format: 'text', detailOf: 'checks' },
+    { key: 'checkAnchor', label: 'Since the low', source: 'scalar:checks.anchor.line', format: 'text', detailOf: 'checks' },
+    { key: 'checkPivot', label: 'Pivot speed', source: 'scalar:checks.pivotSpeed.line', format: 'text', detailOf: 'checks' },
+    { key: 'checkGreenOnRed', label: 'Green on red', source: 'scalar:checks.greenOnRed.line', format: 'text', detailOf: 'checks' },
+    { key: 'pullback', label: 'From 8-day EMA', source: 'scalar:checks.pullbackEma8', format: 'pct', detailOf: 'checks' },
+    // ⭐ ROW 9, ONLY ON A SHORT SERIES, WITH NO CARD: the note is the whole read.
+    { key: 'shortHistory', label: 'History', source: 'scalar:history.summary', format: 'text', when: 'scalar:history.short',
+      muted: true },
+  ],
+  // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
+  // declared event by running the definition's compute at registration and
+  // checking the column exists; a server definition computes nothing until a
+  // symbol is fetched, so every event would read "returned no column" and the
+  // definition would be refused. The 0/1 event columns (`rsNH`, `rsNHbeforePx`,
+  // `rsNHred`, `rsNL`, `gor`, `rog`, `crossUp`, `crossDown`, `rsAbove`, `pxNH`,
+  // `rsNHpartial`, `mansfieldCrossUp`, `mansfieldCrossDown`) still arrive from
+  // the server for every bar — the binder draws the declared plots and ignores
+  // the rest — and the screener and the alert lane read them from
+  // `api/services/relative_strength.py` directly (plan §10). Declaring them here
+  // is a Phase 2b task once the server lane has an event-probe path of its own.
 }
 
 const _serverRegistered = registerDefinitions([RS_LINE_RAW])

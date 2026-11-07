@@ -95,7 +95,7 @@ export function columnsFromWire(wire) {
     throw new Error('serverCompute: the envelope is not an object')
   }
   const rawCols = wire.columns
-  if (rawCols === undefined || rawCols === null) return { times: [], columns: {} }
+  if (rawCols === undefined || rawCols === null) return withEnvelopeExtras({ times: [], columns: {} }, wire)
   if (typeof rawCols !== 'object' || Array.isArray(rawCols)) {
     throw new Error('serverCompute: `columns` must be a mapping of key to array')
   }
@@ -139,7 +139,54 @@ export function columnsFromWire(wire) {
       }
     }
   }
-  return { times, columns }
+  return withEnvelopeExtras({ times, columns }, wire)
+}
+
+/**
+ * ⭐ THE ENVELOPE'S SCALARS RIDE BESIDE THE COLUMNS (plan §8.3, audit A7).
+ *
+ * `columnsFromWire` used to keep `{times, columns}` and drop every other key —
+ * which meant a server that computed a benchmark label, a legend sentence or a
+ * "last RS high" scalar had no way to reach the chip or the readout. Two keys
+ * are kept now, and only when the wire carries them, so an envelope without
+ * them parses to exactly the shape it always did:
+ *
+ *   payload — a plain object of scalars the definition's `readout` (Phase 2a)
+ *             and legend read through `scalarsFor`. Never a column: nothing in
+ *             it is per-bar, so nothing in it is aligned or drawn.
+ *   rev     — the server definition's `compute.rev`. `serverColumnsFor` treats a
+ *             cached entry whose rev differs from the CLIENT definition's as a
+ *             miss, so a deploy that changes the maths never draws new plots over
+ *             old columns (and never the reverse).
+ */
+function withEnvelopeExtras(parsed, wire) {
+  if (wire && wire.payload && typeof wire.payload === 'object' && !Array.isArray(wire.payload)) {
+    parsed.payload = wire.payload
+  }
+  if (wire && Number.isFinite(wire.rev)) parsed.rev = Number(wire.rev)
+  return parsed
+}
+
+/**
+ * The inputs a definition actually SENDS to the server: `meta.serverInputs`
+ * when the definition names them (the keys its server row declares), else all
+ * of them. A colour pick or a line width is the Style tab's business and must
+ * not re-key the fetch (plan §8.3) — `resolve_inputs` would drop it on arrival
+ * anyway, so without this filter two cache entries held one answer.
+ */
+export function pickServerInputs(def, inputs) {
+  const keys = def && def.meta && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : null
+  if (!keys || !inputs || typeof inputs !== 'object') return inputs
+  const out = {}
+  for (const k of keys) if (inputs[k] !== undefined) out[k] = inputs[k]
+  return out
+}
+
+/** A landed entry computed by a server definition on a different `compute.rev`
+ *  than the client's: the maths changed under the cache. */
+export function revMismatch(parsed, def) {
+  const want = def && def.compute && Number.isFinite(def.compute.rev) ? def.compute.rev : undefined
+  return !!parsed && want !== undefined && parsed.rev !== undefined && parsed.rev !== want
 }
 
 /**
@@ -374,7 +421,35 @@ export function ensureColumns(defId, sym, tf, inputs, fetcher) {
 export function serverColumnsFor(def, bars, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!sym) return {}
-  const parsed = ensureColumns(def.id, sym, ctx.tf, inputs, ctx.fetcher)
+  const sent = pickServerInputs(def, inputs)
+  const parsed = ensureColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
   if (!parsed) return {}
+  // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
+  // The first cut treated a rev mismatch as a cache miss and asked again. But the
+  // only way the two revs differ is a SERVER that is on another revision — the
+  // flag off (the dark default: v1 row, rev 1, one column) or a deploy skew —
+  // and asking again returns the same envelope, so every render re-asked:
+  // an unbounded loop that drew nothing. The in-memory cache cannot hold an
+  // entry from before a deploy (it lives one page load), so there is no stale
+  // entry for gating to catch. What arrives is drawn: the binder binds the plots
+  // whose columns exist and ignores the rest, which on the v1 server is exactly
+  // "the RS line and nothing else". `revMismatch` stays exported as a SIGNAL for
+  // the readout ("this chart is drawing an older server answer").
   return alignColumns(parsed, bars)
+}
+
+/**
+ * The scalars the server sent beside a definition's columns — `payload` of the
+ * landed envelope for this (definition, symbol, timeframe, server inputs) — or
+ * `null` while nothing has landed or the entry is on the wrong rev. Read-only:
+ * it never asks the server; `serverColumnsFor` is what asks.
+ */
+export function scalarsFor(def, inputs, ctx) {
+  const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
+  if (!def || !sym) return null
+  const parsed = cachedColumns(def.id, sym, ctx.tf, pickServerInputs(def, inputs))
+  if (!parsed) return null
+  // Same rule as the columns: what the server sent is what the readout reads.
+  // A v1 server sends no payload, so this is simply null there.
+  return parsed.payload || null
 }

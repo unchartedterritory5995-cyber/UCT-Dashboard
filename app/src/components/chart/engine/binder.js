@@ -63,7 +63,7 @@ import {
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID } from './placement'
+import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
@@ -2158,14 +2158,33 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // scale, the guides and the data. Both walk `bind` in the same order, so
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
-    for (const b of bind) {
+    // ⭐ A4 — EVERY PLACEMENT IS RESOLVED BEFORE ANY SERIES IS TOUCHED, because one
+    // answer now depends on the others: a pane's axis hides only when every tenant
+    // on it asks (`placement.applyAxisTenancy`), and a tenant's `priceScaleId` is
+    // part of the series options built just below. `resolvePlacement` is pure, so
+    // resolving early changes no call the renderer sees; the orphans still happen
+    // in the loop, in the order they always did.
+    //
+    // ⛔ IDENTITY WITHOUT A HIDDEN ASK: tenancy returns every answer it does not
+    // change as the same object, so a chart with no `placement.axis: 'hidden'`
+    // definition binds exactly as before. And it is wrapped like every other
+    // placement call — if it throws, the per-instance answers stand.
+    const resolved = bind.map((b) => (
+      (b.plot && b.plot.hidden === true) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
+    ))
+    const tenancy = attempt(() => applyAxisTenancy(resolved.map((r) => (r && r.ok ? r.value : null)), ctx))
+    const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
+      ? tenancy.value
+      : resolved.map((r) => (r && r.ok ? r.value : null))
+    for (let bi = 0; bi < bind.length; bi++) {
+      const b = bind[bi]
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
       // series. A series this binding was carrying goes back to the renderer.
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
-      const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
-      if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
+      const placementValue = settled[bi]
+      if (!placementValue) { orphan(b); continue }
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placementValue
       // ⭐ A series on the CANDLES' OWN AXIS ('right' in the price pane) takes the chart's
       // axis format (`ctx.mainPriceFormat`, StockChart's `priceFormat` prop). The library
       // formats an axis with the series on it added FIRST, and an MA is usually added

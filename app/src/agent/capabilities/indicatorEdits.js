@@ -218,7 +218,8 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
   }
 }
 
-const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
+// ⭐ UCT RS Phase 2a (2a-12b): `setDotSize` — the Dot size control (small / medium / large), one of the STYLE ops
+const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
 const severText = (list) => (list || []).map(d => (d.kind === 'infoValue' ? `a header value reading it` : `${d.name}'s ${d.key || 'source'} input`))
 
 // ⭐ PACKAGE 3: one of the member's OWN indicators is said by its saved NAME ("Volume Thrust Days"), not the legend's
@@ -237,7 +238,7 @@ export function receiptLine(receipt, chart) {
   const where = chart ? ` on ${chart}` : ''
   if (receipt.op === 'undo') {
     // ⭐ P2: style / placement / pane edits put back exactly; a duplicate or a copy removed again
-    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
+    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
     if (receipt.undoOf === 'movePane' || receipt.undoOf === 'setPaneSize') return `Put the ${name} pane${where} back as it was.`
     if (receipt.undoOf === 'duplicate' || receipt.undoOf === 'copyFrom') return `Removed the ${name} I added${where}.`
     if (receipt.undoOf === 'remove') {
@@ -276,10 +277,14 @@ export const placeWord = (t) => (t === 'price' ? 'on the price pane' : t === 'vo
 export const shareWord = (s) => (s == null ? 'automatic height' : `${Math.round(s * 100)}% of the chart's height`)
 // "Daily only" → "Daily charts", "Daily + Weekly" → "Daily + Weekly charts", "Intraday only" → "intraday charts" (Indicators' visibilitySummary words)
 const showWord = (v) => { const t = String(v || 'All timeframes').replace(/ only$/, ''); return t === 'All timeframes' ? 'all timeframes' : `${/^(Intraday|Daily & above)$/.test(t) ? t.toLowerCase() : t} charts` }
+// ⭐ 2a-12b: the Dot size words as the control shows them — "medium" is the declared size, labelled "Default" (`DOT_SIZE_OPTIONS`)
+export const dotSizeWord = (w) => (w === 'medium' ? 'Default' : String(w || 'Default'))
 export function extReceiptLine(receipt, name, where) {
   const c = receipt.change || {}
   switch (receipt.op) {
     case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
+    // ⭐ 2a-12b: `plotKey` only when ONE dot output was sized (absent = the instance level, as the Dot size control writes it)
+    case 'setDotSize': return `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
     case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
     case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${colorName(c.after)}.`
     case 'setVisibility': return c.after === 'All timeframes' ? `${name}${where} shows on all timeframes again (was ${showWord(c.before)}).` : `${name}${where} now shows on ${showWord(c.after)} only (was ${showWord(c.before)}).`

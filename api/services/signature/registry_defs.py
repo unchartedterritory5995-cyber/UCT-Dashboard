@@ -94,7 +94,37 @@ STORE_TF_FOR: dict[str, str] = {
 # options (`nativeRegistry.RS_LINE_RAW`). `test_the_rs_line_benchmarks_are_ONE_
 # list_across_BOTH_LANES` diffs them, so a benchmark added on one side alone is
 # a red test rather than an option that resolves to nothing.
-RS_LINE_BENCHMARKS: tuple[str, ...] = ("SPY", "QQQ", "IWM")
+#
+# ⭐ DERIVED FROM THE RESOLVER, NEVER RE-TYPED (review finding B10). The names
+# are `rs_benchmarks.LITERAL_BENCHMARKS + AUTO_BENCHMARKS` — the only values
+# `resolve_benchmark` accepts — arranged in the Simple menu's order below. A
+# name typed in the order but absent from the resolver is DROPPED, and a name
+# the resolver grew but the order does not mention is APPENDED, so this tuple
+# can never offer the chart a benchmark the server would then refuse (or
+# silently swap for SPY), and the JS diff above is what flags the menu drift.
+from api.services import rs_benchmarks as _rs_benchmarks  # noqa: E402 — imports only logging/typing
+
+
+def rs_benchmark_menu(order: Sequence[str], vocab: Sequence[str]) -> tuple[str, ...]:
+    """`vocab` arranged by `order`: ordered names the vocabulary knows, then the
+    vocabulary's remaining names in their own order. Pure, so it is railed."""
+    known = tuple(dict.fromkeys(vocab))
+    return tuple(b for b in order if b in known) + tuple(b for b in known if b not in order)
+
+
+_RS_MENU_ORDER: tuple[str, ...] = ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "INDUSTRY")
+RS_LINE_BENCHMARKS: tuple[str, ...] = rs_benchmark_menu(
+    _RS_MENU_ORDER, _rs_benchmarks.LITERAL_BENCHMARKS + _rs_benchmarks.AUTO_BENCHMARKS)
+
+# ⭐ UCT RELATIVE STRENGTH v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-
+# strength-indicator-design.md §8.1, §13). `wire_columns` requires the provider's
+# keys to EQUAL the declared `columns`, so a rollout flag cannot live in the
+# provider alone: the ROW declares one shape per flag state, read once at import.
+# Flag off ⇒ the v1 row (one column, rev 1); flag on ⇒ the Phase 1 column set,
+# rev 2, a `payload` envelope key. Rollback is the flag plus a redeploy.
+import os as _os  # noqa: E402 — beside the one constant it serves
+
+RS_V2_ENABLED: bool = _os.environ.get("RS_V2_ENABLED", "0") == "1"
 
 
 # ── Refusals. DELIBERATELY DISJOINT PHRASES ─────────────────────────────────
@@ -179,29 +209,95 @@ _FCB = {
     "rules_key": "fcb",
 }
 
-_RS_LINE = {
-    "schemaVersion": SCHEMA_VERSION,
-    "id": "rsLine",
-    "version": 1,
-    "compute": {"kind": "server", "fn": "rsLine", "rev": 1},
-    "meta": {
-        "name": "Relative Strength Line", "shortName": "RS", "category": "Momentum",
-        "description": "This symbol's close divided by a benchmark's.",
-        "tier": "premium", "repaint": "non-repainting",
-    },
-    "placement": {"target": "pane"},
-    "inputs": [
+# ⭐ THE v3 SHAPE BEHIND THE SAME FLAG (Phase 2a, unit 2a-14). `RS_V2_ENABLED`
+# still names the rollout; what it turns on is now the v3 row: the Phase 1
+# columns PLUS the Mansfield line, its two zero-cross events and the cross dot
+# (`RS_PHASE2A_WIRE_COLUMNS`), at `compute.rev` 3. The JS definition carries the
+# same `version` / `compute.rev` and `alert_rev_migration.ADDRESS_REVS` the same
+# rev; `tests/test_rs_columns_provider.py` and `test_alert_rev_migration.py`
+# hold the three equal. `mansfieldState` and `mansfieldCrossBarsAgo` stay off
+# the wire: the chart draws neither, the screener reads them from
+# `relative_strength` directly.
+RS_V3_VERSION = 3
+RS_V3_REV = 3
+RS_PHASE2A_WIRE_COLUMNS: tuple[str, ...] = (
+    "mansfield", "mansfieldCrossUp", "mansfieldCrossDown", "dotMansfieldCross",
+)
+
+
+def _rs_line_row(v2: bool) -> dict:
+    """The `rsLine` row, in its v1 or v3 shape (see `RS_V2_ENABLED`).
+
+    Only COMPUTE-affecting inputs are declared here: `resolve_inputs` drops any
+    key the row does not declare, which is exactly what keeps a member's colour
+    pick out of the server's cache key (plan §8.1, §8.3). Numeric inputs carry
+    `min`/`max` so the resolver can clamp; the JS definition declares the same
+    ranges for the dialog's steppers.
+    """
+    inputs: list[dict] = [
         {"key": "benchmark", "type": "enum", "default": "SPY",
          "options": list(RS_LINE_BENCHMARKS)},
-    ],
-    "columns": ["rsLine"],
-    "payload_keys": [],
-    # ⛔ NO LEDGER ROW, ON PURPOSE. `LEDGER_INDICATOR_FOR` has no entry for
-    # `rsLine`: it is a chart indicator, not a Signature RULE, and nothing about
-    # it is written to the append-only signal ledger. `ledger_indicator()`
-    # returning None for it is the assertion that the two are different things.
-    "rules_key": None,
-}
+    ]
+    if v2:
+        # ⭐ ONE SOURCE FOR THE RANGES. `relative_strength` owns the defaults and
+        # the clamp ranges (it is the module that computes with them); this row
+        # READS them, so the resolver's clamp and the compute's clamp cannot drift
+        # (review finding: the two were typed twice).
+        from api.services import relative_strength as rsm
+        inputs += [
+            {"key": "maLength", "type": "int", "default": rsm.DEFAULT_MA_LENGTH,
+             "min": rsm.MA_LENGTH_RANGE[0], "max": rsm.MA_LENGTH_RANGE[1]},
+            {"key": "maType", "type": "enum", "default": rsm.DEFAULT_MA_TYPE, "options": ["EMA", "SMA"]},
+            {"key": "lookback", "type": "int", "default": rsm.DEFAULT_LOOKBACK,
+             "min": rsm.LOOKBACK_RANGE[0], "max": rsm.LOOKBACK_RANGE[1]},
+            {"key": "priceTolerance", "type": "float", "default": rsm.DEFAULT_PRICE_TOLERANCE_PCT,
+             "min": rsm.PRICE_TOLERANCE_RANGE[0], "max": rsm.PRICE_TOLERANCE_RANGE[1]},
+            {"key": "redDayThreshold", "type": "float", "default": rsm.DEFAULT_RED_DAY_PCT,
+             "min": rsm.RED_DAY_RANGE[0], "max": rsm.RED_DAY_RANGE[1]},
+            {"key": "showNewHigh", "type": "bool", "default": True},
+            {"key": "showNewHighBeforePrice", "type": "bool", "default": True},
+            {"key": "shortHistoryDots", "type": "bool", "default": True},
+            # ⭐ PHASE 2a (unit 2a-14, rev 3): the Mansfield line and two more dot
+            # toggles. `showMansfield` is a compute input for the same reason the
+            # dot toggles are — the engine has no per-plot visibility an input can
+            # drive, so OFF blanks the `mansfield` column and its cross dot.
+            {"key": "mansfieldLength", "type": "int", "default": rsm.DEFAULT_MANSFIELD_LENGTH,
+             "min": rsm.MANSFIELD_LENGTH_RANGE[0], "max": rsm.MANSFIELD_LENGTH_RANGE[1]},
+            {"key": "showMansfield", "type": "bool", "default": False},
+            {"key": "showRedDay", "type": "bool", "default": False},
+            {"key": "showNewLow", "type": "bool", "default": False},
+        ]
+    if v2:
+        from api.services.relative_strength import PHASE1_COLUMNS
+        columns = list(PHASE1_COLUMNS) + list(RS_PHASE2A_WIRE_COLUMNS)
+    else:
+        columns = ["rsLine"]
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "id": "rsLine",
+        "version": RS_V3_VERSION if v2 else 1,
+        "compute": {"kind": "server", "fn": "rsLine", "rev": RS_V3_REV if v2 else 1},
+        "meta": {
+            "name": "UCT Relative Strength" if v2 else "Relative Strength Line",
+            "shortName": "UCT RS" if v2 else "RS", "category": "Momentum",
+            "description": ("Is this stock beating the market, or just riding it? The RS line "
+                            "against a benchmark, with new-high dots.") if v2
+                           else "This symbol's close divided by a benchmark's.",
+            "tier": "premium", "repaint": "non-repainting",
+        },
+        "placement": {"target": "pane"},
+        "inputs": inputs,
+        "columns": columns,
+        "payload_keys": ["payload"] if v2 else [],
+        # ⛔ NO LEDGER ROW, ON PURPOSE. `LEDGER_INDICATOR_FOR` has no entry for
+        # `rsLine`: it is a chart indicator, not a Signature RULE, and nothing about
+        # it is written to the append-only signal ledger. `ledger_indicator()`
+        # returning None for it is the assertion that the two are different things.
+        "rules_key": None,
+    }
+
+
+_RS_LINE = _rs_line_row(RS_V2_ENABLED)
 
 SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE)
 
@@ -299,14 +395,42 @@ def resolve_inputs(def_id: str, raw: dict | None) -> dict:
         val = src.get(key, spec.get("default"))
         if val is None:
             val = spec.get("default")
-        if spec["type"] == "enum":
+        kind = spec["type"]
+        if kind == "enum":
             options = spec.get("options") or []
             if val not in options:
                 raise InputRejected(
                     f"input {key!r} was given {val!r}, which is outside the enum "
                     f"vocabulary {options} declared by {def_id!r}")
+        elif kind in ("int", "float"):
+            # ⭐ CLAMPED, NOT REFUSED (plan §8.1). A number outside the declared
+            # range is a stepper that ran past its stop, not a request for data the
+            # definition cannot produce; the dialog clamps visibly on its side and
+            # the server clamps identically here, so the two never disagree.
+            val = _clamp_number(val, spec, kind)
+        elif kind == "bool":
+            if isinstance(val, str):
+                val = val.strip().lower() in ("1", "true", "yes", "on")
+            else:
+                val = bool(val)
         out[key] = val
     return out
+
+
+def _clamp_number(val: Any, spec: dict, kind: str) -> float | int:
+    default = spec.get("default")
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        f = float(default) if default is not None else 0.0
+    if not math.isfinite(f):
+        f = float(default) if default is not None else 0.0
+    lo, hi = spec.get("min"), spec.get("max")
+    if lo is not None:
+        f = max(float(lo), f)
+    if hi is not None:
+        f = min(float(hi), f)
+    return int(round(f)) if kind == "int" else float(f)
 
 
 # ── The wire contract ───────────────────────────────────────────────────────

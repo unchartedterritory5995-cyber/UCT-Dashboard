@@ -70,7 +70,7 @@ import { legacyInstanceId, newInstanceId, stackRank, normalizeInstances } from '
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition } from './nativeRegistry'
 import {
-  isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf,
+  isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf, resolveDisplayTarget,
 } from './displayTarget'
 import {
   parsePaneOfTarget, severReferencesTo, withRecordedSourceLine, stampLegacySourceLines, SOURCE_LINES_KEY,
@@ -79,7 +79,7 @@ import {
 // (a visible gravestone), so a re-add under the same deterministic id can never
 // silently reconnect them. Identity when none pointed at it. See `infoValues.js`.
 import { severInfoValuesTo, stampLegacyInfoValueLines } from './infoValues'
-import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
+import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE, storedDotSize,
          CANDLE_COLOR_KEYS, LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES,
          DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE } from './presentation'
 import { CALC_TIMEFRAMES, normalizeVisibility } from './instanceTimeframe'
@@ -683,6 +683,276 @@ export function setInstanceInput(cs, instanceId, key, value, registry) {
 }
 
 /**
+ * Apply a definition PRESET (`def.meta.presets[i]`, a named set of input values)
+ * to ONE instance — the settings dialog's generic preset picker calls this.
+ *
+ * ⛔ IT IS A LOOP OVER `setInstanceInput`, NOT A SECOND WRITER. Every key in
+ * `preset.inputs` goes through the one validating door, in declaration order of
+ * the preset, so a value the definition would refuse (out of range, wrong type)
+ * is refused here too and never reaches the blob — a preset that wrote the
+ * instance directly would be the exact door-count defect the dialog's header
+ * comment names. A key the definition does not declare is SKIPPED with a
+ * `console.warn`, never thrown: a stale preset must not take the dialog down.
+ *
+ * It reconfigures the CURRENT instance only. It never adds an instance, never
+ * touches a sibling, and never stores a preset id — "which preset is this" is
+ * derived by the reader from the inputs themselves (plan §5, §6.8).
+ *
+ * Returns `cs` BY IDENTITY when nothing changed (no preset, no instance, no
+ * declared key, or every declared key already stored at the preset's value),
+ * so a caller can skip persisting the way it does for the other writers.
+ */
+export function applyPresetInputs(cs, instanceId, def, preset, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!preset || typeof preset !== 'object') return cs
+  const inputs = preset.inputs
+  if (!inputs || typeof inputs !== 'object' || Array.isArray(inputs)) return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst || !def) return cs
+  const declared = declaredInputs(def)
+  let next = cs
+  for (const [key, value] of Object.entries(inputs)) {
+    if (!declared.has(key)) {
+      console.warn(`[instanceControls] preset "${preset.id}" names "${key}", which ${def.id} does not declare; skipped`)
+      continue
+    }
+    const current = findInstance(next, instanceId)
+    const stored = current && current.inputs && typeof current.inputs === 'object' ? current.inputs : {}
+    if (Object.prototype.hasOwnProperty.call(stored, key) && stored[key] === value) continue
+    next = setInstanceInput(next, instanceId, key, value, registry)
+  }
+  // ⭐ PHASE 2a (unit 2a-12) — THE NON-INPUT FIELDS, chained AFTER the inputs through
+  // the writers the Inspector already uses (`setInstanceVisibility`, `setInstanceDotSize`,
+  // `setInstanceDisplayTarget`). An absent field leaves the instance untouched; a
+  // malformed one is skipped with a `console.warn`, exactly as an undeclared input key
+  // is. The identity contract holds: nothing to write ⇒ `cs` itself comes back.
+  return applyPresetFields(next, instanceId, def, preset, registry)
+}
+
+// ─── preset fields beyond `inputs` (2a-12) ───────────────────────────────────
+//
+// A preset may also say WHERE and HOW the instance draws — plan §2.7 ("Trend and
+// Stress presets that also set visibility / dot size"). Three optional fields:
+//
+//   visibility    the timeframe policy `setInstanceVisibility` stores — `null` or
+//                 `'all'` (every timeframe, the absent key), `{preset: 'intraday'}`,
+//                 `{preset: 'dailyUp'}`, `{preset: 'custom', tfs: ['D', 'W']}`
+//   dotSize       a WORD (`'small' | 'medium' | 'large'`) for every dot output, or
+//                 `{plotKey: word}` naming outputs; `'medium'` is the declared size
+//   displayTarget `'price' | 'pane' | 'volume'` (what `isWritableDisplayTarget` takes)
+//
+// ⛔ NO NEW WRITER. Each field goes through the per-instance writer the Inspector's
+// own control calls, so a value the writer refuses is refused here too, by identity.
+
+/** A preset's `visibility`, as the writer wants it: `null` for ALL (`null` / `'all'`),
+ *  the normalised policy for a policy object, `undefined` when it is not a policy at
+ *  all (⚠️ `normalizeVisibility` answers `null` for malformed input — fail-OPEN, the
+ *  right direction for a reader and the wrong one for "did the author mean all"). */
+function presetVisibility(v) {
+  if (v === null || v === 'all') return null
+  const norm = normalizeVisibility(v)
+  return norm || undefined
+}
+
+const isDotWord = (w) => typeof w === 'string' && Object.prototype.hasOwnProperty.call(DOT_SIZES, w)
+const DOT_WORDS = () => Object.keys(DOT_SIZES).join(' / ')
+
+/** `[plotKey | null, word]` pairs a preset's `dotSize` asks for — `null` is the
+ *  instance level (every dot output). Unknown words and outputs that draw no dots
+ *  are reported and dropped, never thrown. */
+function presetDotSizes(dotSize, def, presetId) {
+  if (typeof dotSize === 'string') {
+    if (isDotWord(dotSize)) return [[null, dotSize]]
+    console.warn(`[instanceControls] preset "${presetId}" asks for dot size "${dotSize}", which is not ${DOT_WORDS()}; skipped`)
+    return []
+  }
+  if (!dotSize || typeof dotSize !== 'object' || Array.isArray(dotSize)) {
+    console.warn(`[instanceControls] preset "${presetId}" carries a dotSize that is neither a word nor {plotKey: word}; skipped`)
+    return []
+  }
+  const dots = new Set(dotPlotsOf(def).map((p) => p.key))
+  const out = []
+  for (const [plotKey, word] of Object.entries(dotSize)) {
+    if (!dots.has(plotKey)) {
+      console.warn(`[instanceControls] preset "${presetId}" sizes dots on "${plotKey}", which ${def.id} does not draw as dots; skipped`)
+      continue
+    }
+    if (!isDotWord(word)) {
+      console.warn(`[instanceControls] preset "${presetId}" asks for dot size "${word}" on "${plotKey}", which is not ${DOT_WORDS()}; skipped`)
+      continue
+    }
+    out.push([plotKey, word])
+  }
+  return out
+}
+
+/** The dot size ONE output draws at (or the instance level, `plotKey` null), as the
+ *  member sees it: stored per output → stored on the instance → the default word. */
+const effectiveDotSize = (inst, plotKey) =>
+  storedDotSize(inst, plotKey ? { key: plotKey } : null) || DEFAULT_DOT_SIZE
+
+function applyPresetFields(cs, instanceId, def, preset, registry) {
+  const has = (k) => Object.prototype.hasOwnProperty.call(preset, k)
+  let next = cs
+  if (has('visibility')) {
+    const want = presetVisibility(preset.visibility)
+    if (want === undefined) {
+      console.warn(`[instanceControls] preset "${preset.id}" carries a visibility that is not a timeframe policy; skipped`)
+    } else {
+      const cur = findInstance(next, instanceId)
+      if (JSON.stringify(normalizeVisibility(cur && cur.visibility)) !== JSON.stringify(want)) {
+        next = setInstanceVisibility(next, instanceId, want, registry)
+      }
+    }
+  }
+  if (has('dotSize')) {
+    for (const [plotKey, word] of presetDotSizes(preset.dotSize, def, preset.id)) {
+      if (plotKey === null) {
+        // A WORD means every dot output. The instance level carries it, and an output
+        // that stored its own size is brought in line, so the word holds everywhere
+        // and `presetFieldsMatch` reads it back as the preset. ⭐ U8 #11: the
+        // instance-level write itself deletes the per-output sizes, so one call
+        // does both whenever any dot output is off the word.
+        if (instanceDotSizeReading(findInstance(next, instanceId), def) !== word) {
+          next = setInstanceDotSize(next, instanceId, word, registry)
+        }
+        continue
+      }
+      if (effectiveDotSize(findInstance(next, instanceId), plotKey) !== word) {
+        next = setInstanceDotSize(next, instanceId, word, registry, plotKey)
+      }
+    }
+  }
+  if (has('displayTarget')) {
+    const target = preset.displayTarget
+    if (!isWritableDisplayTarget(target)) {
+      console.warn(`[instanceControls] preset "${preset.id}" carries a displayTarget "${target}" the chart cannot draw at; skipped`)
+    } else if (resolveDisplayTarget(findInstance(next, instanceId), next) !== target) {
+      next = setInstanceDisplayTarget(next, instanceId, target, registry)
+    }
+  }
+  return next
+}
+
+/**
+ * Does ONE instance carry the non-input fields a preset declares? Compared the way
+ * the member SEES them — the effective dot size per output, the normalised
+ * visibility policy, the RESOLVED display target — so a fresh instance whose
+ * defaults are the preset's values reads as that preset, exactly as the inputs do.
+ * A preset that declares none of the three matches on its inputs alone. A field
+ * that could never be applied (a word outside the vocabulary, a plot that draws no
+ * dots) never matches — the undeclared-input-key rule, for these.
+ */
+export function presetFieldsMatch(preset, { instance, def, cs } = {}) {
+  if (!preset || typeof preset !== 'object') return false
+  const has = (k) => Object.prototype.hasOwnProperty.call(preset, k)
+  if (!has('visibility') && !has('dotSize') && !has('displayTarget')) return true
+  if (!instance) return false
+  if (has('visibility')) {
+    const want = presetVisibility(preset.visibility)
+    if (want === undefined) return false
+    if (JSON.stringify(normalizeVisibility(instance.visibility)) !== JSON.stringify(want)) return false
+  }
+  if (has('dotSize')) {
+    const d = preset.dotSize
+    const dots = def ? dotPlotsOf(def) : []
+    if (typeof d === 'string') {
+      if (!isDotWord(d)) return false
+      if (effectiveDotSize(instance, null) !== d) return false
+      for (const p of dots) if (effectiveDotSize(instance, p.key) !== d) return false
+    } else if (d && typeof d === 'object' && !Array.isArray(d)) {
+      const keys = def ? new Set(dots.map((p) => p.key)) : null
+      for (const [plotKey, word] of Object.entries(d)) {
+        if (keys && !keys.has(plotKey)) return false
+        if (!isDotWord(word)) return false
+        if (effectiveDotSize(instance, plotKey) !== word) return false
+      }
+    } else return false
+  }
+  if (has('displayTarget')) {
+    if (!isWritableDisplayTarget(preset.displayTarget)) return false
+    if (resolveDisplayTarget(instance, cs) !== preset.displayTarget) return false
+  }
+  return true
+}
+
+/** The `<option>` value that stands for "no preset matches" in a picker. It is not a
+ *  preset id and is never written anywhere — choosing it is a no-op. (Moved here from
+ *  the dialog at 2a-12 so the phone sheet and the dialog read ONE copy.) */
+export const CUSTOM_PRESET = '__custom'
+
+/** The definition's declared presets (`meta.presets`), shape-filtered so a malformed
+ *  entry renders nothing rather than a broken row. `defSchema` already refuses the
+ *  malformed shapes; this is a surface's own guard against a registry that was not
+ *  validated through it. */
+export function presetsOf(def) {
+  const raw = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  return raw.filter((p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id
+    && typeof p.label === 'string' && p.inputs && typeof p.inputs === 'object' && !Array.isArray(p.inputs))
+}
+
+/**
+ * The preset whose EVERY declared input equals the value the form shows — and, when
+ * `ctx` names the instance, whose non-input fields the instance carries
+ * (`presetFieldsMatch`) — or `null` for Custom. Derived, never stored: the instance
+ * carries inputs and presentation, not a preset id, so this cannot drift from what
+ * the chart draws. `values` are the RESOLVED inputs (declared defaults under stored
+ * ones), so a fresh instance whose defaults are a preset's values reads as that
+ * preset. First match wins, in declaration order — an author who ships two presets
+ * with the same inputs and different fields lists the more specific one first.
+ *
+ * @param {object} [ctx] `{instance, def, cs}` — omitted, the inputs alone decide
+ *   (the pre-2a-12 reading, kept for a caller that has no instance in hand).
+ */
+export function detectPreset(presets, values, ctx) {
+  for (const p of presets) {
+    const keys = Object.keys(p.inputs)
+    if (!keys.length) continue
+    if (!keys.every((k) => values[k] === p.inputs[k])) continue
+    if (ctx && !presetFieldsMatch(p, ctx)) continue
+    return p
+  }
+  return null
+}
+
+/** The outputs a definition draws as DOTS — a declared `markers` style, or a series
+ *  `marker` glyph — hidden ones excluded. The Dot size control exists for these and
+ *  for nothing else. */
+export function dotPlotsOf(def) {
+  const plots = def && Array.isArray(def.plots) ? def.plots : []
+  return plots.filter((p) => p && typeof p === 'object' && p.hidden !== true
+    && (p.style === 'markers' || (p.marker && typeof p.marker === 'object')))
+}
+
+/** The member's words for the three dot sizes, `[value, label]` — the value is the
+ *  stored word `storedDotSize` reads. ⭐ "Default", not "Medium": `setInstanceDotSize`
+ *  DELETES the medium word, so choosing it hands every output back to the radius its
+ *  definition declares (UCT RS's 2 px new-high dots, SAR's 3). */
+export const DOT_SIZE_OPTIONS = Object.freeze([
+  ['small', 'Small'],
+  ['medium', 'Default'],
+  ['large', 'Large'],
+])
+
+/** What the whole-indicator Dot size control reads when the dot outputs do not all
+ *  draw at one size. Never stored and never a size: `setInstanceDotSize` refuses it,
+ *  and a control shows it as a disabled "Mixed" option. (U8 #11, 2026-11-07.) */
+export const DOT_SIZE_MIXED = 'mixed'
+
+/**
+ * The word the whole-indicator Dot size control shows for one instance: the
+ * instance-level word when every dot output of `def` draws at it, else
+ * `DOT_SIZE_MIXED`. ⭐ U8 #11 — the control used to read the instance level alone,
+ * so after Stress it said Default while the before-price dot drew Large, and
+ * choosing Default (already "selected") fired nothing.
+ */
+export function instanceDotSizeReading(inst, def) {
+  const word = effectiveDotSize(inst, null)
+  for (const p of dotPlotsOf(def)) if (effectiveDotSize(inst, p.key) !== word) return DOT_SIZE_MIXED
+  return word
+}
+
+/**
  * Add ANOTHER instance of a definition already on the chart.
  *
  * The new instance carries the definition's DECLARED defaults rather than a copy
@@ -967,31 +1237,75 @@ export function setInstancePlotStyle(cs, instanceId, style, registry, plotKey) {
  *
  * Same delete-the-default rule as every other optional key here, and the same
  * per-output-over-instance shape as the style — one seam, two properties.
+ * With no `plotKey` the word holds for EVERY dot: per-output sizes are deleted.
  */
 export function setInstanceDotSize(cs, instanceId, size, registry, plotKey) {
   if (!cs || typeof cs !== 'object') return cs
   if (!Object.prototype.hasOwnProperty.call(DOT_SIZES, size)) return cs
   if (!findInstance(cs, instanceId)) return cs
+  // ⭐ 2a-12 — A NO-OP IS IDENTITY, like every other refusal here: the word already
+  // stored, or Default over nothing stored, hands back `cs` itself, so a caller
+  // that tests `next !== cs` (the dialog, the Inspector) persists nothing for it.
+  let changed = false
   const next = cs.indicatorInstances.map((i) => {
     if (!i || i.instanceId !== instanceId) return i
     const presentation = { ...(i.presentation || {}) }
     if (typeof plotKey === 'string' && plotKey) {
       const plots = { ...(presentation.plots || {}) }
       const entry = { ...(plots[plotKey] || {}) }
-      if (size === DEFAULT_DOT_SIZE) delete entry.dotSize
-      else entry.dotSize = size
+      if (size === DEFAULT_DOT_SIZE) {
+        if (!Object.prototype.hasOwnProperty.call(entry, 'dotSize')) return i
+        delete entry.dotSize
+      } else {
+        if (entry.dotSize === size) return i
+        entry.dotSize = size
+      }
       if (Object.keys(entry).length) plots[plotKey] = entry
       else delete plots[plotKey]
       if (Object.keys(plots).length) presentation.plots = plots
       else delete presentation.plots
-    } else if (size === DEFAULT_DOT_SIZE) delete presentation.dotSize
-    else presentation.dotSize = size
+    } else {
+      // ⭐ U8 #11 (review, 2026-11-07) — THE WHOLE-INDICATOR WORD MEANS EVERY DOT.
+      // `storedDotSize` reads per output OVER the instance level, so a per-output
+      // size a preset stored (Stress: the before-price dot Large; Stress then Trend:
+      // a per-dot 'small') outranked every later instance-level choice, and no
+      // member control ever deleted it. An instance-level write therefore also
+      // deletes every per-output `dotSize` (other per-output keys stay), the way a
+      // word preset brings each output in line. The dialog's Style tab, the Chart
+      // Settings row and the agent op's no-plotKey path all come through here.
+      let touched = false
+      if (presentation.plots && typeof presentation.plots === 'object') {
+        const plots = {}
+        for (const [k, e] of Object.entries(presentation.plots)) {
+          if (e && typeof e === 'object' && Object.prototype.hasOwnProperty.call(e, 'dotSize')) {
+            const { dotSize: _drop, ...rest } = e
+            touched = true
+            if (Object.keys(rest).length) plots[k] = rest
+          } else {
+            plots[k] = e
+          }
+        }
+        if (Object.keys(plots).length) presentation.plots = plots
+        else delete presentation.plots
+      }
+      if (size === DEFAULT_DOT_SIZE) {
+        if (Object.prototype.hasOwnProperty.call(presentation, 'dotSize')) {
+          delete presentation.dotSize
+          touched = true
+        }
+      } else if (presentation.dotSize !== size) {
+        presentation.dotSize = size
+        touched = true
+      }
+      if (!touched) return i
+    }
+    changed = true
     return Object.keys(presentation).length ? { ...i, presentation } : (() => {
       const { presentation: _drop, ...rest } = i
       return rest
     })()
   })
-  return withInstances(cs, next, registry)
+  return changed ? withInstances(cs, next, registry) : cs
 }
 
 /**

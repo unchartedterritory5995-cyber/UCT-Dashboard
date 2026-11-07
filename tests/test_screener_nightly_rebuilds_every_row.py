@@ -224,3 +224,34 @@ def test_CONTROL_the_watchdog_is_quiet_after_a_build_that_started_today(monkeypa
     from zoneinfo import ZoneInfo
     today_3 = datetime.now(ZoneInfo("America/New_York")).replace(hour=3, minute=0, second=0, microsecond=0)
     assert _run_watchdog(monkeypatch, {"id": 2, "started_at": today_3.timestamp()}) == []
+
+
+def test_the_receipt_keeps_the_rs_step_timing(tmp_path, monkeypatch):
+    # UCT RS Phase 2a, unit U3: the cost of arming RS_V2_ENABLED is on the receipt.
+    _, db = _builder(tmp_path, monkeypatch, ["AAA"])
+    timing = {"enabled": True, "rows": 3600, "ms": 612000.0, "ms_per_row": 170.0}
+    db.record_build_run({"targets": 1, "built": 1, "skipped": 0, "errors": 0, "bars_rs": timing})
+    assert db.last_build_run()["bars_rs"] == timing
+    # a dark pod's receipt says the step was off, with zero rows
+    dark = {"enabled": False, "rows": 0, "ms": 0.0, "ms_per_row": None}
+    db.record_build_run({"targets": 1, "built": 1, "skipped": 0, "errors": 0, "bars_rs": dark})
+    assert db.last_build_run()["bars_rs"] == dark
+    # control: a build that reported nothing stores nothing
+    db.record_build_run({"targets": 1, "built": 1, "skipped": 0, "errors": 0})
+    assert db.last_build_run()["bars_rs"] is None
+
+
+def test_a_receipts_table_from_before_the_rs_column_gains_it_and_keeps_its_rows(tmp_path, monkeypatch):
+    _, db = _builder(tmp_path, monkeypatch, ["AAA"])
+    with db.connect() as conn:
+        conn.execute("DROP TABLE IF EXISTS screener_build_runs")
+        conn.execute("CREATE TABLE screener_build_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                     "started_at REAL, finished_at REAL, targets INTEGER, built INTEGER, "
+                     "skipped INTEGER, errors INTEGER, empty_columns TEXT, settled_bars TEXT)")
+        conn.execute("INSERT INTO screener_build_runs (targets, built, skipped, errors) VALUES (5, 5, 0, 0)")
+        conn.commit()
+    assert db.last_build_run()["bars_rs"] is None and db.last_build_run()["targets"] == 5
+    db.record_build_run({"targets": 2, "built": 2, "skipped": 0, "errors": 0, "bars_rs": {"rows": 2, "ms": 4.0}})
+    assert db.last_build_run()["bars_rs"] == {"rows": 2, "ms": 4.0}
+    with db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) n FROM screener_build_runs").fetchone()["n"] == 2
