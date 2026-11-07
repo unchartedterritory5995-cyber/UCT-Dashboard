@@ -16,6 +16,8 @@ export const allControls = widgetControls
 // (ChartDetailDock setTab) and the collapse chevron / edge rail (setFeatureOpen) — both in the chart's opts.dock. Offered only
 // while the chart HAS the panel (Add to Chart owns adding it); written by the product's own dock functions. ──
 const DOCK_WHY = 'This chart has no Company Info panel. Add it from the chart’s Add to Chart menu first.'
+// C3-219 (round 6): the chart's View Holdings button (ViewHoldingsControl), shown only for an ETF or a UCT index ($IDX:)
+const HOLDINGS_WHY = 'This chart isn’t showing an ETF or a UCT index, so it has no View Holdings button.'
 export const AGENT_CONTROLS = {
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
@@ -26,6 +28,8 @@ export const AGENT_CONTROLS = {
     { key: 'companyTab', type: 'enum', options: COMPANY_TABS.map(t => t.key), default: 'overview', path: 'dock.tab',
       when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
       write: (opts, v) => ({ ...(opts || {}), dock: { ...normalizeDock(opts?.dock), tab: v } }) },
+    { key: 'holdingsOpen', type: 'boolean', default: false, door: true,
+      when: (_opts, door) => (door && 'holdingsOpen' in door ? null : HOLDINGS_WHY) },
     { key: 'companyOpen', type: 'boolean', default: false, path: 'dock.open',
       when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
       write: (opts, v) => ({ ...(opts || {}), dock: setFeatureOpen(normalizeDock(opts?.dock), COMPANY_INFO, v) }) },
