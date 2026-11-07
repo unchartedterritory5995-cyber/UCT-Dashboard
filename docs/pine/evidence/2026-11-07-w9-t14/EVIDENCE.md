@@ -110,3 +110,34 @@ Method: copy, mutate, run, restore by copy, cmp. 22 of 22 killed; the control su
    - v1 is inline only, capped at `min(INLINE_MAX_SYMBOLS, max_cells() // HISTORY_WINDOW_BARS)` (50 at the defaults).
    - The screener receipt cache is shared across members, so reusing it for per-member strategy records needs its own privacy ruling.
 4. **The guard `runtime:strategy-no-bars` is new.** It is honest-none for a symbol with no stored bars.
+
+## r1 (2026-11-07, review `reviews/W9-T14.md` GO-WITH-NOTES @f8f0363276)
+
+Rails added (tests only; no product file changed):
+
+- **N1 / G3:** `test_r1_G3_the_REAL_stage_is_asked_with_the_callers_own_role_and_id`. This uses the real `server_permitted` (no stand-in) at `admins`/`admins`. A member gets 404 and reads no bars; an admin passes.
+- **N2 / W1:** `test_r1_W1_a_record_starting_on_another_bar_is_a_500`, parametrised with start shifts of +1 day, -1 day and +1 s. Each gives a 500 `runtime:server-integrity`.
+- **Coordinator item 2 / N3:** `test_r1_arming_the_shared_server_stage_does_not_make_a_strategy_run`. Setup:
+  - both stages at `all`, the script graded and the service configured;
+  - the REAL admission chain and the REAL client;
+  - a transport replaying the service's REAL sealed gate-off reply, `tests/fixtures/pine_runtime/w9t14_dark_result.json`. It is written and byte-checked by a new case in `w9T14ServerRecord.test.js` from `serverEntry.js` over the route's own ctx (no listing, window 5000).
+
+  Result: the route answers `pine:strategy-call` by name, with the start stated and no record. The one request it sent asked for `#strategy` over `HISTORY_WINDOW_BARS` with `historyFromListing: false`.
+
+Mutants (copy, mutate, run, restore by copy, cmp; log `runs/w9-t14/mut-r1.log`):
+
+| id | mutation | result |
+|---|---|---|
+| C0 | comment (control) | SURVIVED |
+| G3 | the gate passes `"admin"` instead of the caller's role (the reviewer's) | KILLED |
+| W1 | the window check drops the `startTime` compare (the reviewer's) | KILLED |
+| D1 | `pine:strategy-call` treated as a transport refusal | KILLED |
+
+Results on tip (origin/master `d0a29bbf24` merged; already up to date):
+
+- Service suite, Node 24.13.1, glob form: 139/139, HP-7 ok.
+- `pine_runtime_host_parity.mjs --host node --check`: HP-1 GREEN 166/166.
+- Router and codec pytest (strategy backtest, one-authority, client, codec, result integrity, screener backtest runtime, server lane): 462 passed.
+- Vitest `src/components/chart/engine/runtime` (Node 20.20.2, `--maxWorkers=1`): 3282 pass, 4 fail. The 4 failures are only the `*.measure.test.js` corpus harnesses timing out at 15 s, as in r0. `w9T14ServerRecord` is 5/5.
+
+Engine bump: no.
