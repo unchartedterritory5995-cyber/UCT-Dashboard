@@ -1,8 +1,8 @@
 {
-  "master_sha": "4ca464f6e3abb12c6458decdf6a55cfebb146021",
-  "gate_run_id": null,
-  "gate_conclusion": null,
-  "promoted": "already",
-  "production_head_after": "4ca464f6e3abb12c6458decdf6a55cfebb146021",
-  "ts": "2026-11-07T00:58:14.550539Z"
+  "master_sha": null,
+  "gate_run_id": "42328884446",
+  "gate_conclusion": "failure",
+  "promoted": "no",
+  "production_head_after": null,
+  "ts": "2026-11-07T02:41:19.007621Z"
 }
