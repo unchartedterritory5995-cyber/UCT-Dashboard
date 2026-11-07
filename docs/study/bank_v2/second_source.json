@@ -3543,6 +3543,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CELH|2025-05-06": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CE|2007-03-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -5375,6 +5383,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"DINO|2016-11-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "DINO|2017-08-24": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -6359,6 +6375,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"EOG|2022-10-19": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "EPAM|2017-05-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -6528,6 +6552,14 @@
 "yahoo_sessions": 140
 },
 "ESS|2009-08-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"ETN|2012-01-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -6760,6 +6792,14 @@
 "yahoo_sessions": 140
 },
 "FAST|2026-02-02": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"FBIN|2021-03-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -7951,6 +7991,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"GOOG|2025-06-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "GOOG|2026-06-04": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -8864,6 +8912,14 @@
 "yahoo_sessions": 140
 },
 "HUBS|2017-11-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"HUBS|2020-09-21": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -10008,6 +10064,14 @@
 "yahoo_sessions": 140
 },
 "KKR|2018-06-08": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"KKR|2020-06-15": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -14592,6 +14656,14 @@
 "yahoo_sessions": 140
 },
 "PSX|2023-07-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"PSX|2026-10-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,

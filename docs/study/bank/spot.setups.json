@@ -28377,131 +28377,6 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2000-05-05",
-  "bars": {
-   "asof": "2000-05-05",
-   "forward": 20,
-   "sym": "BNY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_f185d6be1317",
-  "lesson_origin": "session",
-  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened 0.0% from the prior low and closed up 3.91%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 12.6% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_oops_reversal",
-   "example": {
-    "asof": "2000-05-05",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "BNY"
-   },
-   "facts": {
-    "above_200": true,
-    "after_20": {
-     "daily_sd_pct": 2.51,
-     "range_pct": 19.7,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 80.6,
-    "close_pos": 0.86,
-    "close_pos_pct": 86,
-    "context": {
-     "era": "2000-04",
-     "industry": "Banks - Diversified",
-     "liq_rank": 70,
-     "liq_universe": 1020,
-     "market": "mixed",
-     "off_high_pct": -9.2,
-     "rs63_pct": 8.8,
-     "s200_rising": true,
-     "sector": "Financial Services",
-     "vs200_pct": 9.7,
-     "vs50_pct": 7.2
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 24.36,
-     "culm_sessions": 54,
-     "ret20_pct": 12.78
-    },
-    "day_pct": 3.91,
-    "downtrend": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "ext_vs_sma50_pct": 7.8,
-    "fwd_10d_pct": 5.9,
-    "fwd_20d_pct": 12.8,
-    "fwd_5d_pct": 7.8,
-    "fwd_max_gain_pct": 19.7,
-    "fwd_min_low_vs_trigger_low_pct": 4.9,
-    "known_name": false,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "open_vs_prior_low_pct": 0.0,
-    "pullback_from_20d_high_pct": -12.6,
-    "pullback_from_60d_high_pct": -12.6,
-    "pullback_pct": 12.6,
-    "reclaims_e21": true,
-    "reclaims_e8": true,
-    "rvol": 0.65,
-    "scanner": true,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 14,
-    "sma200_rising": true,
-    "sma50_rising": true,
-    "super": true,
-    "variant": "super",
-    "williams": false
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
-   "setup": "Oops Reversal",
-   "source": "docs/study/setups/setup_examples.json#Oops Reversal#BNY#2000-05-05",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.oops",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#BNY#2000-05-05",
-  "sym": "BNY",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
   "asof": "2011-08-26",
   "bars": {
    "asof": "2011-08-26",
@@ -38044,146 +37919,6 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2017-05-22",
-  "bars": {
-   "asof": "2017-05-22",
-   "forward": 20,
-   "sym": "XYZ",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_506cccf18b51",
-  "lesson_origin": "session",
-  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was an earnings-style gap of 5.2% 12 sessions earlier; the pullback ran 3 sessions and 6.0% deep under the 4-day average of the highs; the trigger day closed up 5.22% at 95% of its range, gapping 0.35%.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_slingshot",
-   "example": {
-    "asof": "2017-05-22",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "XYZ"
-   },
-   "facts": {
-    "above_200": true,
-    "after_20": {
-     "daily_sd_pct": 2.28,
-     "range_pct": 19.5,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 102.0,
-    "close_pos": 0.95,
-    "close_pos_pct": 95,
-    "context": {
-     "era": "2015-19",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 288,
-     "liq_universe": 1906,
-     "market": "uptrend",
-     "off_high_pct": -0.2,
-     "rs63_pct": 41.4,
-     "s200_rising": true,
-     "sector": "Technology",
-     "vs200_pct": 46.2,
-     "vs50_pct": 16.4
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 33.51,
-     "culm_sessions": 46,
-     "ret20_pct": 13.84
-    },
-    "day_pct": 5.22,
-    "drive_pct": 14.4,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "earnings_like_gap": {
-     "bars_ago": 12,
-     "day_pct": 8.9,
-     "gap_pct": 5.2
-    },
-    "fwd_10d_pct": 15.6,
-    "fwd_20d_pct": 13.8,
-    "fwd_5d_pct": 8.5,
-    "fwd_max_gain_pct": 19.2,
-    "fwd_min_low_vs_trigger_low_pct": 4.6,
-    "gap_pct": 0.35,
-    "known_name": false,
-    "labels": [
-     "cross_only"
-    ],
-    "ma_order_8_21_50": true,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "pretty": true,
-    "pullback_depth_abs_pct": 6.0,
-    "pullback_depth_pct": -6.0,
-    "pullback_range_atr": 1.1,
-    "pullback_rvol_max": 1.95,
-    "pullback_sessions": 3,
-    "rally": {
-     "bars_ago": 4,
-     "peak_high": 20.69,
-     "rally_pct": 14.4
-    },
-    "range_atr": 1.58,
-    "rvol": 1.54,
-    "s50_slope10_pct": 3.2,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 22,
-    "strength_day_bars_ago": 0,
-    "strength_day_gain_pct": 5.22,
-    "tight_pullback": true,
-    "trigger_gap_pct": 0.35,
-    "trigger_vs_peak_pct": 1.3,
-    "variant": "v1_strength_day",
-    "worst_red_body_pct": -1.56
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
-   "setup": "Slingshot",
-   "source": "docs/study/setups/setup_examples.json#Slingshot#XYZ#2017-05-22",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.slingshot",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#XYZ#2017-05-22",
-  "sym": "XYZ",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
   "asof": "2019-06-04",
   "bars": {
    "asof": "2019-06-04",
@@ -44121,131 +43856,6 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#TDG#2021-01-28",
   "sym": "TDG",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2020-09-21",
-  "bars": {
-   "asof": "2020-09-21",
-   "forward": 20,
-   "sym": "XYZ",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_e94b71612085",
-  "lesson_origin": "session",
-  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened -0.86% from the prior low and closed up 4.21%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 15.0% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_oops_reversal",
-   "example": {
-    "asof": "2020-09-21",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "XYZ"
-   },
-   "facts": {
-    "above_200": true,
-    "after_20": {
-     "daily_sd_pct": 2.49,
-     "range_pct": 30.9,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 1389.3,
-    "close_pos": 0.93,
-    "close_pos_pct": 93,
-    "context": {
-     "era": "2020-26",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 17,
-     "liq_universe": 2184,
-     "market": "mixed",
-     "off_high_pct": -11.4,
-     "rs63_pct": 37.8,
-     "s200_rising": true,
-     "sector": "Technology",
-     "vs200_pct": 66.4,
-     "vs50_pct": 6.9
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 47.04,
-     "culm_sessions": 58,
-     "ret20_pct": 23.72
-    },
-    "day_pct": 4.21,
-    "downtrend": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "ext_vs_sma50_pct": 7.2,
-    "fwd_10d_pct": 19.7,
-    "fwd_20d_pct": 23.7,
-    "fwd_5d_pct": 6.4,
-    "fwd_max_gain_pct": 28.0,
-    "fwd_min_low_vs_trigger_low_pct": 6.1,
-    "known_name": false,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "open_vs_prior_low_pct": -0.86,
-    "pullback_from_20d_high_pct": -15.0,
-    "pullback_from_60d_high_pct": -15.0,
-    "pullback_pct": 15.0,
-    "reclaims_e21": true,
-    "reclaims_e8": true,
-    "rvol": 1.11,
-    "scanner": true,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 14,
-    "sma200_rising": true,
-    "sma50_rising": true,
-    "super": true,
-    "variant": "super",
-    "williams": true
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
-   "setup": "Oops Reversal",
-   "source": "docs/study/setups/setup_examples.json#Oops Reversal#XYZ#2020-09-21",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.oops",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#XYZ#2020-09-21",
-  "sym": "XYZ",
   "type": "spot",
   "version": 1
  },
@@ -72308,131 +71918,6 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "1996-11-14",
-  "bars": {
-   "asof": "1996-11-14",
-   "forward": 20,
-   "sym": "BNY",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_c5f26058e981",
-  "lesson_origin": "session",
-  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened 0.39% from the prior low and closed up 1.55%: a scanner Oops. The setup was already there: the stock was above its 200-day, had pulled back 6.2% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_oops_reversal",
-   "example": {
-    "asof": "1996-11-14",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "BNY"
-   },
-   "facts": {
-    "above_200": true,
-    "after_20": {
-     "daily_sd_pct": 1.55,
-     "range_pct": 11.2,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 32.5,
-    "close_pos": 0.89,
-    "close_pos_pct": 89,
-    "context": {
-     "era": "1995-99",
-     "industry": "Banks - Diversified",
-     "liq_rank": 40,
-     "liq_universe": 833,
-     "market": "uptrend",
-     "off_high_pct": -4.7,
-     "rs63_pct": 5.3,
-     "s200_rising": true,
-     "sector": "Financial Services",
-     "vs200_pct": 21.0,
-     "vs50_pct": 6.9
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 21.37,
-     "culm_sessions": 59,
-     "ret20_pct": 1.53
-    },
-    "day_pct": 1.55,
-    "downtrend": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "ext_vs_sma50_pct": 7.2,
-    "fwd_10d_pct": 9.5,
-    "fwd_20d_pct": 1.5,
-    "fwd_5d_pct": 2.3,
-    "fwd_max_gain_pct": 10.3,
-    "fwd_min_low_vs_trigger_low_pct": 2.4,
-    "known_name": false,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "open_vs_prior_low_pct": 0.39,
-    "pullback_from_20d_high_pct": -6.2,
-    "pullback_from_60d_high_pct": -6.2,
-    "pullback_pct": 6.2,
-    "reclaims_e21": true,
-    "reclaims_e8": false,
-    "rvol": 2.38,
-    "scanner": true,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 12,
-    "sma200_rising": true,
-    "sma50_rising": true,
-    "super": false,
-    "variant": "scanner",
-    "williams": false
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
-   "setup": "Oops Reversal",
-   "source": "docs/study/setups/setup_examples.json#Oops Reversal#BNY#1996-11-14",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.oops",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#BNY#1996-11-14",
-  "sym": "BNY",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
   "asof": "2017-12-07",
   "bars": {
    "asof": "2017-12-07",
@@ -96469,131 +95954,6 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#WMB#2014-05-01",
   "sym": "WMB",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2014-04-15",
-  "bars": {
-   "asof": "2014-04-15",
-   "forward": 20,
-   "sym": "VIPS",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_aff75519979f",
-  "lesson_origin": "session",
-  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened 2.77% from the prior low and closed up 3.49%: a scanner Oops. The setup was already there: the stock was above its 200-day, had pulled back 16.5% from its 20-day high, the dip tested the 21 or 50-day average, and the close stayed under the 21-day average.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_oops_reversal",
-   "example": {
-    "asof": "2014-04-15",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "VIPS"
-   },
-   "facts": {
-    "above_200": true,
-    "after_20": {
-     "daily_sd_pct": 4.38,
-     "range_pct": 22.8,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 136.9,
-    "close_pos": 0.98,
-    "close_pos_pct": 98,
-    "context": {
-     "era": "2010-14",
-     "industry": "Internet Retail",
-     "liq_rank": 124,
-     "liq_universe": 1683,
-     "market": "mixed",
-     "off_high_pct": -23.1,
-     "rs63_pct": 49.8,
-     "s200_rising": true,
-     "sector": "Consumer Cyclical",
-     "vs200_pct": 70.2,
-     "vs50_pct": 4.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 43.92,
-     "culm_sessions": 54,
-     "ret20_pct": 7.14
-    },
-    "day_pct": 3.49,
-    "downtrend": false,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "ext_vs_sma50_pct": 5.3,
-    "fwd_10d_pct": 0.1,
-    "fwd_20d_pct": 7.1,
-    "fwd_5d_pct": 11.7,
-    "fwd_max_gain_pct": 14.3,
-    "fwd_min_low_vs_trigger_low_pct": 2.5,
-    "known_name": false,
-    "low_near_ma": true,
-    "low_near_swing_low": true,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "open_vs_prior_low_pct": 2.77,
-    "pullback_from_20d_high_pct": -16.5,
-    "pullback_from_60d_high_pct": -25.7,
-    "pullback_pct": 16.5,
-    "reclaims_e21": false,
-    "reclaims_e8": true,
-    "rvol": 1.16,
-    "scanner": true,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 11,
-    "sma200_rising": true,
-    "sma50_rising": true,
-    "super": false,
-    "variant": "scanner",
-    "williams": false
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
-   "setup": "Oops Reversal",
-   "source": "docs/study/setups/setup_examples.json#Oops Reversal#VIPS#2014-04-15",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.oops",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#VIPS#2014-04-15",
-  "sym": "VIPS",
   "type": "spot",
   "version": 1
  },
@@ -132335,142 +131695,6 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2020-10-27",
-  "bars": {
-   "asof": "2020-10-27",
-   "forward": 20,
-   "sym": "VIPS",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_1462f682e2fd",
-  "lesson_origin": "session",
-  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 36.0% rally that peaked 7 sessions earlier; the pullback ran 6 sessions and 10.8% deep under the 4-day average of the highs; the trigger day closed up 7.27% at 96% of its range, gapping 0.52%.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_slingshot",
-   "example": {
-    "asof": "2020-10-27",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "VIPS"
-   },
-   "facts": {
-    "above_200": true,
-    "after_20": {
-     "daily_sd_pct": 2.67,
-     "range_pct": 33.1,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 139.0,
-    "close_pos": 0.96,
-    "close_pos_pct": 96,
-    "context": {
-     "era": "2020-26",
-     "industry": "Internet Retail",
-     "liq_rank": 238,
-     "liq_universe": 2200,
-     "market": "mixed",
-     "off_high_pct": -15.5,
-     "rs63_pct": -9.4,
-     "s200_rising": true,
-     "sector": "Consumer Cyclical",
-     "vs200_pct": 20.5,
-     "vs50_pct": 20.0
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 49.47,
-     "culm_sessions": 56,
-     "ret20_pct": 24.88
-    },
-    "day_pct": 7.27,
-    "drive_pct": 36.0,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "earnings_like_gap": null,
-    "fwd_10d_pct": 0.1,
-    "fwd_20d_pct": 24.9,
-    "fwd_5d_pct": 3.4,
-    "fwd_max_gain_pct": 26.0,
-    "fwd_min_low_vs_trigger_low_pct": 2.1,
-    "gap_pct": 0.52,
-    "known_name": false,
-    "labels": [
-     "cross_only"
-    ],
-    "ma_order_8_21_50": true,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "pretty": true,
-    "pullback_depth_abs_pct": 10.8,
-    "pullback_depth_pct": -10.8,
-    "pullback_range_atr": 1.67,
-    "pullback_rvol_max": 1.48,
-    "pullback_sessions": 6,
-    "rally": {
-     "bars_ago": 7,
-     "peak_high": 20.38,
-     "rally_pct": 36.0
-    },
-    "range_atr": 1.49,
-    "rvol": 1.1,
-    "s50_slope10_pct": -4.7,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 18,
-    "strength_day_bars_ago": 0,
-    "strength_day_gain_pct": 7.27,
-    "tight_pullback": true,
-    "trigger_gap_pct": 0.52,
-    "trigger_vs_peak_pct": 1.4,
-    "variant": "v1_strength_day",
-    "worst_red_body_pct": -2.49
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
-   "setup": "Slingshot",
-   "source": "docs/study/setups/setup_examples.json#Slingshot#VIPS#2020-10-27",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.slingshot",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#VIPS#2020-10-27",
-  "sym": "VIPS",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
   "asof": "2024-09-23",
   "bars": {
    "asof": "2024-09-23",
@@ -135736,143 +134960,6 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#Slingshot#BIRK#2024-12-13",
   "sym": "BIRK",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2019-01-17",
-  "bars": {
-   "asof": "2019-01-17",
-   "forward": 20,
-   "sym": "XYZ",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_c9e8e191ce41",
-  "lesson_origin": "session",
-  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 33.4% rally that peaked 4 sessions earlier; the pullback ran 3 sessions and 5.8% deep under the 4-day average of the highs; the trigger day closed up 4.46% at 77% of its range, gapping 0.3%.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_slingshot",
-   "example": {
-    "asof": "2019-01-17",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "XYZ"
-   },
-   "facts": {
-    "above_200": false,
-    "after_20": {
-     "daily_sd_pct": 3.71,
-     "range_pct": 16.2,
-     "sessions": 20
-    },
-    "avg_dollar_volume_m": 1174.7,
-    "close_pos": 0.77,
-    "close_pos_pct": 77,
-    "context": {
-     "era": "2015-19",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 19,
-     "liq_universe": 2048,
-     "market": "mixed",
-     "off_high_pct": -31.9,
-     "rs63_pct": -6.8,
-     "s200_rising": true,
-     "sector": "Technology",
-     "vs200_pct": 2.1,
-     "vs50_pct": 6.8
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 20.25,
-     "culm_sessions": 28,
-     "ret20_pct": 9.88
-    },
-    "day_pct": 4.46,
-    "drive_pct": 33.4,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "earnings_like_gap": null,
-    "fwd_10d_pct": 2.8,
-    "fwd_20d_pct": 9.9,
-    "fwd_5d_pct": 13.3,
-    "fwd_max_gain_pct": 13.5,
-    "fwd_min_low_vs_trigger_low_pct": 2.0,
-    "gap_pct": 0.3,
-    "known_name": false,
-    "labels": [
-     "v2_run_20in5",
-     "cross_only"
-    ],
-    "ma_order_8_21_50": false,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "pretty": true,
-    "pullback_depth_abs_pct": 5.8,
-    "pullback_depth_pct": -5.8,
-    "pullback_range_atr": 1.17,
-    "pullback_rvol_max": 0.75,
-    "pullback_sessions": 3,
-    "rally": {
-     "bars_ago": 4,
-     "peak_high": 67.64,
-     "rally_pct": 33.4
-    },
-    "range_atr": 1.12,
-    "rvol": 1.18,
-    "s50_slope10_pct": -2.8,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "setup_score": 18,
-    "strength_day_bars_ago": 0,
-    "strength_day_gain_pct": 4.46,
-    "tight_pullback": true,
-    "trigger_gap_pct": 0.3,
-    "trigger_vs_peak_pct": 1.8,
-    "variant": "v1_strength_day",
-    "worst_red_body_pct": -0.66
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
-   "setup": "Slingshot",
-   "source": "docs/study/setups/setup_examples.json#Slingshot#XYZ#2019-01-17",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family4.slingshot",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#XYZ#2019-01-17",
-  "sym": "XYZ",
   "type": "spot",
   "version": 1
  },
@@ -155121,138 +154208,6 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#Launchpad#AA#1999-12-01",
   "sym": "AA",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
-  "asof": "2020-01-08",
-  "bars": {
-   "asof": "2020-01-08",
-   "forward": 20,
-   "sym": "XYZ",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_680b693d5833",
-  "lesson_origin": "session",
-  "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the stock had corrected 29.9% from its high, the 8, 21 and 50-day averages sat within 1.82% of each other with price 4.0% from the 200-day, the prior 30 closes spanned 12.2%, and the last bar closed up 4.66% inside the base.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_launch_pad",
-   "example": {
-    "asof": "2020-01-08",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "XYZ"
-   },
-   "facts": {
-    "above_200": false,
-    "above_bundle_40": 16,
-    "after_20": {
-     "daily_sd_pct": 2.3,
-     "range_pct": 23.1,
-     "sessions": 20
-    },
-    "approach_20_pct": 2.2,
-    "avg_dollar_volume_m": 508.4,
-    "base15_range_pct": 7.3,
-    "base30_range_pct": 12.2,
-    "base_len_sessions": 80,
-    "below_bundle_40": 9,
-    "breakout20": false,
-    "bundle_touches_15": 12,
-    "close_above_200": true,
-    "close_above_all": true,
-    "close_pos": 0.9,
-    "close_pos_pct": 90,
-    "context": {
-     "era": "2020-26",
-     "industry": "Software - Infrastructure",
-     "liq_rank": 50,
-     "liq_universe": 2139,
-     "market": "uptrend",
-     "off_high_pct": -18.8,
-     "rs63_pct": -1.1,
-     "s200_rising": false,
-     "sector": "Technology",
-     "vs200_pct": 0.5,
-     "vs50_pct": 4.3
-    },
-    "correction_abs_pct": 29.9,
-    "correction_pct": -29.9,
-    "culmination": {
-     "broke_at": 43,
-     "culm_pct": 29.07,
-     "culm_sessions": 29,
-     "ret20_pct": 16.14
-    },
-    "dangle_days_8": 0,
-    "day_pct": 4.66,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "fwd_10d_pct": 2.5,
-    "fwd_20d_pct": 16.1,
-    "fwd_5d_pct": 4.1,
-    "fwd_max_gain_pct": 21.4,
-    "fwd_min_low_vs_trigger_low_pct": 4.0,
-    "gap_pct": -0.05,
-    "known_name": false,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "ma_spread_10d_max_pct": 2.27,
-    "ma_spread_pct": 1.82,
-    "range_atr": 2.33,
-    "rvol": 1.74,
-    "s200_dist_pct": 4.0,
-    "s200_slope40_pct": -2.9,
-    "s200_vs_bundle_pct": 5.0,
-    "s50_slope20_pct": 1.8,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "sessions_under_or_on_bundle_30": 22,
-    "setup_score": 17,
-    "stack_9_20_50": false
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
-   "setup": "Launchpad",
-   "source": "docs/study/setups/setup_examples.json#Launchpad#XYZ#2020-01-08",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family1.launchpad",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#XYZ#2020-01-08",
-  "sym": "XYZ",
   "type": "spot",
   "version": 1
  },
@@ -206871,138 +205826,6 @@
   "answer_json": {
    "answer": "yes"
   },
-  "asof": "2016-11-14",
-  "bars": {
-   "asof": "2016-11-14",
-   "forward": 20,
-   "sym": "WCC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_e8a1c38dead8",
-  "lesson_origin": "session",
-  "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the stock had corrected 17.5% from its high, the 8, 21 and 50-day averages sat within 2.13% of each other with price 13.5% from the 200-day, the prior 30 closes spanned 18.1%, and the last bar closed up 3.05% above the 20-day high.",
-  "module": null,
-  "prompt_json": {
-   "chart": {
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Yes",
-    "No"
-   ],
-   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
-  },
-  "reveal_json": {
-   "detector": "uct_launch_pad",
-   "example": {
-    "asof": "2016-11-14",
-    "found_by": "pod_find_setups.py (read-only scan)",
-    "sym": "WCC"
-   },
-   "facts": {
-    "above_200": true,
-    "above_bundle_40": 14,
-    "after_20": {
-     "daily_sd_pct": 1.41,
-     "range_pct": 16.3,
-     "sessions": 20
-    },
-    "approach_20_pct": -1.3,
-    "avg_dollar_volume_m": 39.9,
-    "base15_range_pct": 17.1,
-    "base30_range_pct": 18.1,
-    "base_len_sessions": 80,
-    "below_bundle_40": 14,
-    "breakout20": true,
-    "bundle_touches_15": 6,
-    "close_above_200": true,
-    "close_above_all": true,
-    "close_pos": 0.75,
-    "close_pos_pct": 75,
-    "context": {
-     "era": "2015-19",
-     "industry": "Industrial Distribution",
-     "liq_rank": 625,
-     "liq_universe": 1870,
-     "market": "uptrend",
-     "off_high_pct": -1.0,
-     "rs63_pct": 9.7,
-     "s200_rising": true,
-     "sector": "Industrials",
-     "vs200_pct": 16.7,
-     "vs50_pct": 9.4
-    },
-    "correction_abs_pct": 17.5,
-    "correction_pct": -17.5,
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 18.52,
-     "culm_sessions": 49,
-     "ret20_pct": 9.03
-    },
-    "dangle_days_8": 0,
-    "day_pct": 3.05,
-    "earnings_dates_near": [],
-    "earnings_day": false,
-    "earnings_history": true,
-    "fwd_10d_pct": 2.6,
-    "fwd_20d_pct": 9.0,
-    "fwd_5d_pct": 0.6,
-    "fwd_max_gain_pct": 14.2,
-    "fwd_min_low_vs_trigger_low_pct": 1.3,
-    "gap_pct": 0.4,
-    "known_name": false,
-    "ma_periods": [
-     8,
-     20,
-     21,
-     30,
-     50,
-     200
-    ],
-    "ma_spread_10d_max_pct": 9.2,
-    "ma_spread_pct": 2.13,
-    "range_atr": 0.95,
-    "rvol": 2.02,
-    "s200_dist_pct": 13.5,
-    "s200_slope40_pct": 6.6,
-    "s200_vs_bundle_pct": -5.3,
-    "s50_slope20_pct": -1.7,
-    "second_source": {
-     "cover_pct": 100.0,
-     "median_close_diff_pct": 0.0,
-     "p95_close_diff_pct": 0.0,
-     "sessions": 140,
-     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
-     "yahoo_sessions": 140
-    },
-    "sessions_under_or_on_bundle_30": 21,
-    "setup_score": 15,
-    "stack_9_20_50": false
-   },
-   "fires": true,
-   "forward_bars": 20,
-   "quote": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
-   "setup": "Launchpad",
-   "source": "docs/study/setups/setup_examples.json#Launchpad#WCC#2016-11-14",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "setup.family1.launchpad",
-  "source_kind": "setups",
-  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#WCC#2016-11-14",
-  "sym": "WCC",
-  "type": "spot",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "yes"
-  },
   "asof": "2015-10-30",
   "bars": {
    "asof": "2015-10-30",
@@ -226039,6 +224862,1180 @@
   "source_kind": "setups",
   "source_ref": "docs/study/setups/setup_examples.json#Launchpad#HRI#2010-04-06",
   "sym": "HRI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2020-06-15",
+  "bars": {
+   "asof": "2020-06-15",
+   "forward": 20,
+   "sym": "KKR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_520d160e443e",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened -0.77% from the prior low and closed up 3.29%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 8.4% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2020-06-15",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "KKR"
+   },
+   "facts": {
+    "above_200": true,
+    "after_20": {
+     "daily_sd_pct": 3.14,
+     "range_pct": 20.5,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 107.1,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "context": {
+     "era": "2020-26",
+     "industry": "Asset Management",
+     "liq_rank": 387,
+     "liq_universe": 2167,
+     "market": "mixed",
+     "off_high_pct": -11.8,
+     "rs63_pct": 7.5,
+     "s200_rising": true,
+     "sector": "Financial Services",
+     "vs200_pct": 8.2,
+     "vs50_pct": 15.1
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 23.45,
+     "culm_sessions": 39,
+     "ret20_pct": 14.55
+    },
+    "day_pct": 3.29,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "ext_vs_sma50_pct": 15.8,
+    "fwd_10d_pct": 0.2,
+    "fwd_20d_pct": 14.5,
+    "fwd_5d_pct": 4.1,
+    "fwd_max_gain_pct": 17.0,
+    "fwd_min_low_vs_trigger_low_pct": 4.2,
+    "known_name": false,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "open_vs_prior_low_pct": -0.77,
+    "pullback_from_20d_high_pct": -8.4,
+    "pullback_from_60d_high_pct": -8.4,
+    "pullback_pct": 8.4,
+    "reclaims_e21": true,
+    "reclaims_e8": true,
+    "rvol": 1.24,
+    "scanner": true,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 14,
+    "sma200_rising": true,
+    "sma50_rising": true,
+    "super": true,
+    "variant": "super",
+    "williams": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#KKR#2020-06-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#KKR#2020-06-15",
+  "sym": "KKR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-05-06",
+  "bars": {
+   "asof": "2025-05-06",
+   "forward": 20,
+   "sym": "CELH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_88ecb822db81",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened -1.23% from the prior low and closed up 4.81%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 13.5% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average on its earnings report.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2025-05-06",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "CELH"
+   },
+   "facts": {
+    "above_200": true,
+    "after_20": {
+     "daily_sd_pct": 2.85,
+     "range_pct": 19.3,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 267.7,
+    "close_pos": 0.83,
+    "close_pos_pct": 83,
+    "context": {
+     "era": "2020-26",
+     "industry": "Beverages - Non-Alcoholic",
+     "liq_rank": 348,
+     "liq_universe": 2780,
+     "market": "mixed",
+     "off_high_pct": -64.1,
+     "rs63_pct": 66.9,
+     "s200_rising": false,
+     "sector": "Consumer Defensive",
+     "vs200_pct": 11.0,
+     "vs50_pct": 8.2
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 36.46,
+     "culm_sessions": 57,
+     "ret20_pct": 12.87
+    },
+    "day_pct": 4.81,
+    "downtrend": false,
+    "earnings_dates_near": [
+     "2025-05-06"
+    ],
+    "earnings_day": true,
+    "earnings_history": true,
+    "ext_vs_sma50_pct": 8.5,
+    "fwd_10d_pct": 7.2,
+    "fwd_20d_pct": 12.9,
+    "fwd_5d_pct": 6.8,
+    "fwd_max_gain_pct": 14.6,
+    "fwd_min_low_vs_trigger_low_pct": 5.4,
+    "known_name": true,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "open_vs_prior_low_pct": -1.23,
+    "pullback_from_20d_high_pct": -13.5,
+    "pullback_from_60d_high_pct": -13.5,
+    "pullback_pct": 13.5,
+    "reclaims_e21": true,
+    "reclaims_e8": true,
+    "rvol": 2.05,
+    "scanner": true,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 14,
+    "sma200_rising": false,
+    "sma50_rising": true,
+    "super": true,
+    "variant": "super",
+    "williams": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#CELH#2025-05-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#CELH#2025-05-06",
+  "sym": "CELH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-10-01",
+  "bars": {
+   "asof": "2026-10-01",
+   "forward": 20,
+   "sym": "PSX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ab483b2f7c1d",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened -0.6% from the prior low and closed up 3.49%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 7.9% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2026-10-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "PSX"
+   },
+   "facts": {
+    "above_200": true,
+    "after_20": {
+     "daily_sd_pct": 2.34,
+     "range_pct": 17.0,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 567.0,
+    "close_pos": 0.98,
+    "close_pos_pct": 98,
+    "context": {
+     "era": "2020-26",
+     "industry": "Oil & Gas Refining & Marketing",
+     "liq_rank": 151,
+     "liq_universe": 2787,
+     "market": "uptrend",
+     "off_high_pct": -4.7,
+     "rs63_pct": 46.0,
+     "s200_rising": true,
+     "sector": "Energy",
+     "vs200_pct": 44.1,
+     "vs50_pct": 10.3
+    },
+    "culmination": {
+     "broke_at": 25,
+     "culm_pct": 13.31,
+     "culm_sessions": 12,
+     "ret20_pct": 3.55
+    },
+    "day_pct": 3.49,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "ext_vs_sma50_pct": 10.8,
+    "fwd_10d_pct": 9.5,
+    "fwd_20d_pct": 3.5,
+    "fwd_5d_pct": 6.6,
+    "fwd_max_gain_pct": 13.3,
+    "fwd_min_low_vs_trigger_low_pct": 1.3,
+    "known_name": false,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "open_vs_prior_low_pct": -0.6,
+    "pullback_from_20d_high_pct": -7.9,
+    "pullback_from_60d_high_pct": -7.9,
+    "pullback_pct": 7.9,
+    "reclaims_e21": true,
+    "reclaims_e8": true,
+    "rvol": 0.85,
+    "scanner": true,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 14,
+    "sma200_rising": true,
+    "sma50_rising": true,
+    "super": true,
+    "variant": "super",
+    "williams": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#PSX#2026-10-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#PSX#2026-10-01",
+  "sym": "PSX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2020-09-21",
+  "bars": {
+   "asof": "2020-09-21",
+   "forward": 20,
+   "sym": "HUBS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_fbb59b50f426",
+  "lesson_origin": "session",
+  "lesson_text": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24). Here it opened 0.53% from the prior low and closed up 3.95%: a Super Oops: it also closed above the prior day's high. The setup was already there: the stock was above its 200-day, had pulled back 14.7% from its 20-day high, the dip tested the 21 or 50-day average, and the close reclaimed the 21-day average.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Oops Reversal setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_oops_reversal",
+   "example": {
+    "asof": "2020-09-21",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "HUBS"
+   },
+   "facts": {
+    "above_200": true,
+    "after_20": {
+     "daily_sd_pct": 1.92,
+     "range_pct": 21.5,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 136.1,
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "context": {
+     "era": "2020-26",
+     "industry": "Software - Application",
+     "liq_rank": 310,
+     "liq_universe": 2184,
+     "market": "mixed",
+     "off_high_pct": -11.3,
+     "rs63_pct": 20.8,
+     "s200_rising": true,
+     "sector": "Technology",
+     "vs200_pct": 45.4,
+     "vs50_pct": 8.7
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 41.63,
+     "culm_sessions": 57,
+     "ret20_pct": 9.47
+    },
+    "day_pct": 3.95,
+    "downtrend": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "ext_vs_sma50_pct": 9.1,
+    "fwd_10d_pct": 1.7,
+    "fwd_20d_pct": 9.5,
+    "fwd_5d_pct": 6.0,
+    "fwd_max_gain_pct": 16.2,
+    "fwd_min_low_vs_trigger_low_pct": 2.6,
+    "known_name": false,
+    "low_near_ma": true,
+    "low_near_swing_low": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "open_vs_prior_low_pct": 0.53,
+    "pullback_from_20d_high_pct": -14.7,
+    "pullback_from_60d_high_pct": -14.7,
+    "pullback_pct": 14.7,
+    "reclaims_e21": true,
+    "reclaims_e8": true,
+    "rvol": 0.93,
+    "scanner": true,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 14,
+    "sma200_rising": true,
+    "sma50_rising": true,
+    "super": true,
+    "variant": "super",
+    "williams": false
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
+   "setup": "Oops Reversal",
+   "source": "docs/study/setups/setup_examples.json#Oops Reversal#HUBS#2020-09-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Oops Reversal#HUBS#2020-09-21",
+  "sym": "HUBS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2016-11-30",
+  "bars": {
+   "asof": "2016-11-30",
+   "forward": 20,
+   "sym": "DINO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4f720b2e4ca4",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 30.8% rally that peaked 5 sessions earlier; the pullback ran 4 sessions and 8.9% deep under the 4-day average of the highs; the trigger day closed up 4.47% at 94% of its range, gapping 1.6%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2016-11-30",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "DINO"
+   },
+   "facts": {
+    "above_200": false,
+    "after_20": {
+     "daily_sd_pct": 2.44,
+     "range_pct": 18.9,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 101.5,
+    "close_pos": 0.94,
+    "close_pos_pct": 94,
+    "context": {
+     "era": "2015-19",
+     "industry": "Oil & Gas Refining & Marketing",
+     "liq_rank": 303,
+     "liq_universe": 1874,
+     "market": "uptrend",
+     "off_high_pct": -43.0,
+     "rs63_pct": 9.7,
+     "s200_rising": false,
+     "sector": "Energy",
+     "vs200_pct": 2.3,
+     "vs50_pct": 13.6
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 20.89,
+     "culm_sessions": 23,
+     "ret20_pct": 15.26
+    },
+    "day_pct": 4.47,
+    "drive_pct": 30.8,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 9.9,
+    "fwd_20d_pct": 15.3,
+    "fwd_5d_pct": 14.8,
+    "fwd_max_gain_pct": 18.6,
+    "fwd_min_low_vs_trigger_low_pct": 5.9,
+    "gap_pct": 1.6,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 8.9,
+    "pullback_depth_pct": -8.9,
+    "pullback_range_atr": 1.52,
+    "pullback_rvol_max": 0.92,
+    "pullback_sessions": 4,
+    "rally": {
+     "bars_ago": 5,
+     "peak_high": 29.69,
+     "rally_pct": 30.8
+    },
+    "range_atr": 1.37,
+    "rvol": 1.28,
+    "s50_slope10_pct": 2.1,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 20,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.47,
+    "tight_pullback": true,
+    "trigger_gap_pct": 1.6,
+    "trigger_vs_peak_pct": -3.1,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -1.56
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#DINO#2016-11-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#DINO#2016-11-30",
+  "sym": "DINO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-10-19",
+  "bars": {
+   "asof": "2022-10-19",
+   "forward": 20,
+   "sym": "EOG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_84a7b23bd7d7",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 23.9% rally that peaked 8 sessions earlier; the pullback ran 7 sessions and 7.8% deep under the 4-day average of the highs; the trigger day closed up 4.9% at 87% of its range, gapping 0.81%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2022-10-19",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "EOG"
+   },
+   "facts": {
+    "above_200": true,
+    "after_20": {
+     "daily_sd_pct": 2.16,
+     "range_pct": 15.4,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 471.5,
+    "close_pos": 0.87,
+    "close_pos_pct": 87,
+    "context": {
+     "era": "2020-26",
+     "industry": "Oil & Gas E&P",
+     "liq_rank": 106,
+     "liq_universe": 2542,
+     "market": "downtrend",
+     "off_high_pct": -12.1,
+     "rs63_pct": 35.9,
+     "s200_rising": true,
+     "sector": "Energy",
+     "vs200_pct": 11.6,
+     "vs50_pct": 8.6
+    },
+    "culmination": {
+     "broke_at": 36,
+     "culm_pct": 16.0,
+     "culm_sessions": 12,
+     "ret20_pct": 10.29
+    },
+    "day_pct": 4.9,
+    "drive_pct": 23.9,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 4.2,
+    "fwd_20d_pct": 10.3,
+    "fwd_5d_pct": 3.3,
+    "fwd_max_gain_pct": 16.0,
+    "fwd_min_low_vs_trigger_low_pct": 5.2,
+    "gap_pct": 0.81,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 7.8,
+    "pullback_depth_pct": -7.8,
+    "pullback_range_atr": 1.76,
+    "pullback_rvol_max": 1.21,
+    "pullback_sessions": 7,
+    "rally": {
+     "bars_ago": 8,
+     "peak_high": 130.32,
+     "rally_pct": 23.9
+    },
+    "range_atr": 1.29,
+    "rvol": 1.42,
+    "s50_slope10_pct": 3.1,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 18,
+    "strength_day_bars_ago": 0,
+    "strength_day_gain_pct": 4.9,
+    "tight_pullback": true,
+    "trigger_gap_pct": 0.81,
+    "trigger_vs_peak_pct": -0.2,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -3.49
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#EOG#2022-10-19",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#EOG#2022-10-19",
+  "sym": "EOG",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2021-03-26",
+  "bars": {
+   "asof": "2021-03-26",
+   "forward": 20,
+   "sym": "FBIN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_805a38863e08",
+  "lesson_origin": "session",
+  "lesson_text": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25). Here the drive was a 13.2% rally that peaked 6 sessions earlier; the pullback ran 5 sessions and 6.6% deep under the 4-day average of the highs; the trigger day closed up 3.59% at 96% of its range, gapping 0.3%.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Slingshot setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_slingshot",
+   "example": {
+    "asof": "2021-03-26",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "FBIN"
+   },
+   "facts": {
+    "above_200": true,
+    "after_20": {
+     "daily_sd_pct": 1.1,
+     "range_pct": 13.8,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 81.9,
+    "close_pos": 0.96,
+    "close_pos_pct": 96,
+    "context": {
+     "era": "2020-26",
+     "industry": "Building Products & Equipment",
+     "liq_rank": 596,
+     "liq_universe": 2290,
+     "market": "uptrend",
+     "off_high_pct": -0.1,
+     "rs63_pct": -0.6,
+     "s200_rising": true,
+     "sector": "Industrials",
+     "vs200_pct": 14.3,
+     "vs50_pct": 6.3
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 21.3,
+     "culm_sessions": 30,
+     "ret20_pct": 11.59
+    },
+    "day_pct": 3.59,
+    "drive_pct": 13.2,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "earnings_like_gap": null,
+    "fwd_10d_pct": 7.5,
+    "fwd_20d_pct": 11.6,
+    "fwd_5d_pct": 4.0,
+    "fwd_max_gain_pct": 13.2,
+    "fwd_min_low_vs_trigger_low_pct": 3.2,
+    "gap_pct": 0.3,
+    "known_name": false,
+    "labels": [
+     "cross_only"
+    ],
+    "ma_order_8_21_50": true,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "pretty": true,
+    "pullback_depth_abs_pct": 6.6,
+    "pullback_depth_pct": -6.6,
+    "pullback_range_atr": 1.98,
+    "pullback_rvol_max": 1.58,
+    "pullback_sessions": 5,
+    "rally": {
+     "bars_ago": 6,
+     "peak_high": 79.76,
+     "rally_pct": 13.2
+    },
+    "range_atr": 1.33,
+    "rvol": 1.08,
+    "s50_slope10_pct": 0.8,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 18,
+    "strength_day_bars_ago": 15,
+    "strength_day_gain_pct": 4.06,
+    "tight_pullback": false,
+    "trigger_gap_pct": 0.3,
+    "trigger_vs_peak_pct": 0.7,
+    "variant": "v1_strength_day",
+    "worst_red_body_pct": -2.52
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
+   "setup": "Slingshot",
+   "source": "docs/study/setups/setup_examples.json#Slingshot#FBIN#2021-03-26",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Slingshot#FBIN#2021-03-26",
+  "sym": "FBIN",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-06-27",
+  "bars": {
+   "asof": "2025-06-27",
+   "forward": 20,
+   "sym": "GOOG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_88dbeee7e58d",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the stock had corrected 29.8% from its high, the 8, 21 and 50-day averages sat within 3.0% of each other with price 0.4% from the 200-day, the prior 30 closes spanned 8.4%, and the last bar closed up 2.2% inside the base.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2025-06-27",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "GOOG"
+   },
+   "facts": {
+    "above_200": true,
+    "above_bundle_40": 24,
+    "after_20": {
+     "daily_sd_pct": 0.99,
+     "range_pct": 14.4,
+     "sessions": 20
+    },
+    "approach_20_pct": 4.1,
+    "avg_dollar_volume_m": 4121.7,
+    "base15_range_pct": 8.0,
+    "base30_range_pct": 8.4,
+    "base_len_sessions": 54,
+    "below_bundle_40": 4,
+    "breakout20": false,
+    "bundle_touches_15": 8,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.91,
+    "close_pos_pct": 91,
+    "context": {
+     "era": "2020-26",
+     "industry": "Internet Content & Information",
+     "liq_rank": 14,
+     "liq_universe": 2787,
+     "market": "mixed",
+     "off_high_pct": -14.6,
+     "rs63_pct": 0.2,
+     "s200_rising": true,
+     "sector": "Communication Services",
+     "vs200_pct": 2.6,
+     "vs50_pct": 6.6
+    },
+    "correction_abs_pct": 29.8,
+    "correction_pct": -29.8,
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 44.0,
+     "culm_sessions": 58,
+     "ret20_pct": 8.5
+    },
+    "dangle_days_8": 3,
+    "day_pct": 2.2,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "fwd_10d_pct": 2.5,
+    "fwd_20d_pct": 8.5,
+    "fwd_5d_pct": -0.4,
+    "fwd_max_gain_pct": 11.6,
+    "fwd_min_low_vs_trigger_low_pct": 0.7,
+    "gap_pct": 0.11,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 6.8,
+    "ma_spread_pct": 3.0,
+    "range_atr": 1.36,
+    "rvol": 2.81,
+    "s200_dist_pct": 0.4,
+    "s200_slope40_pct": -0.0,
+    "s200_vs_bundle_pct": 2.5,
+    "s50_slope20_pct": 3.3,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "sessions_under_or_on_bundle_30": 9,
+    "setup_score": 17,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#GOOG#2025-06-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#GOOG#2025-06-27",
+  "sym": "GOOG",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2012-01-10",
+  "bars": {
+   "asof": "2012-01-10",
+   "forward": 20,
+   "sym": "ETN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_337436246998",
+  "lesson_origin": "session",
+  "lesson_text": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24). Here the stock had corrected 23.8% from its high, the 8, 21 and 50-day averages sat within 1.43% of each other with price 1.2% from the 200-day, the prior 30 closes spanned 12.2%, and the last bar closed up 4.83% above the 20-day high.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's Launchpad setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_launch_pad",
+   "example": {
+    "asof": "2012-01-10",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "ETN"
+   },
+   "facts": {
+    "above_200": false,
+    "above_bundle_40": 16,
+    "after_20": {
+     "daily_sd_pct": 1.42,
+     "range_pct": 8.7,
+     "sessions": 20
+    },
+    "approach_20_pct": 1.3,
+    "avg_dollar_volume_m": 185.1,
+    "base15_range_pct": 8.6,
+    "base30_range_pct": 12.2,
+    "base_len_sessions": 48,
+    "below_bundle_40": 9,
+    "breakout20": true,
+    "bundle_touches_15": 10,
+    "close_above_200": true,
+    "close_above_all": true,
+    "close_pos": 0.97,
+    "close_pos_pct": 97,
+    "context": {
+     "era": "2010-14",
+     "industry": "Specialty Industrial Machinery",
+     "liq_rank": 121,
+     "liq_universe": 1541,
+     "market": "mixed",
+     "off_high_pct": -15.5,
+     "rs63_pct": 10.7,
+     "s200_rising": false,
+     "sector": "Industrials",
+     "vs200_pct": 3.7,
+     "vs50_pct": 7.7
+    },
+    "correction_abs_pct": 23.8,
+    "correction_pct": -23.8,
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 11.14,
+     "culm_sessions": 34,
+     "ret20_pct": 8.19
+    },
+    "dangle_days_8": 5,
+    "day_pct": 4.83,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "fwd_10d_pct": 3.8,
+    "fwd_20d_pct": 8.2,
+    "fwd_5d_pct": 3.5,
+    "fwd_max_gain_pct": 8.2,
+    "fwd_min_low_vs_trigger_low_pct": 2.8,
+    "gap_pct": 1.47,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "ma_spread_10d_max_pct": 1.43,
+    "ma_spread_pct": 1.43,
+    "range_atr": 1.52,
+    "rvol": 1.21,
+    "s200_dist_pct": 1.2,
+    "s200_slope40_pct": -4.0,
+    "s200_vs_bundle_pct": 3.2,
+    "s50_slope20_pct": 3.4,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "sessions_under_or_on_bundle_30": 17,
+    "setup_score": 17,
+    "stack_9_20_50": true
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
+   "setup": "Launchpad",
+   "source": "docs/study/setups/setup_examples.json#Launchpad#ETN#2012-01-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Launchpad#ETN#2012-01-10",
+  "sym": "ETN",
   "type": "spot",
   "version": 1
  }

@@ -35,7 +35,7 @@ import {
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
-  declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts,
+  declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -6057,19 +6057,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *
    *  The qualifier is READ from the extracted reference (`windowLengthQualifiers.json`), never
    *  typed here: `ta.sma`/`ta.highest`/`ta.stdev`... say `length (series int)`, `ta.ema`/`ta.rsi`
-   *  say `simple int` and keep their refusal. v6 and v5 only, each from its own version reference (v4 and below have no section),
+   *  say `simple int` and keep their refusal. v6, v5 and v4 (W34-I6c), each from its own version reference (v3 and below have no section),
    *  never in a request's value (it has its own series), and ⛔ never at the live OBJECT door:
    *  that door keeps master's answer until a TradingView capture settles the shape (W4-S1).
    *  https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma */
   const seriesLengthFn = (pineName) => {
     if (atObjectDoor || inRequestValue || pineVersion === null) return false
     // ⭐ W4-T8 r1 - the table of the script own version: v6 from the v6 reference, v5 from the v5 reference
-    // (both generated). v4 and below have no section, so they serve nothing.
-    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length : (pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length : null)
+    // (both generated). ⭐ W34-I6c - v4 from the v4 reference (generated: its `length (series[integer])`
+    // is written `series int`, its bare `integer` is kept as `integer` and serves nothing). v3 and below
+    // have no section, so they serve nothing.
+    //   https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars
+    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length
+      : pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length
+        : pineVersion === 4 ? LENGTH_QUALIFIERS.v4Length : null
     if (!table) return false
     const name = String(pineName)
     // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it: the
-    // bare name asks the same reference entry, spelled with its `ta.` namespace
+    // bare name asks the same reference entry, spelled with its `ta.` namespace. v4 names carry no
+    // namespace (`highestbars`), so the bare name IS the v4 entry.
     return table[name] === 'series int' || table['ta.' + name] === 'series int'
   }
 
@@ -6106,7 +6112,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // builder two probe nodes and reads the tree back; a rewrite that stops
     // being a bare negation — or that starts touching its arguments — fails the
     // structural match and REFUSES rather than quietly changing meaning.
-    const ns = namespacedWindowShape(name)
+    // ⭐⭐ W34-I6c — THE KEY IS pine.js's, BY THE SCRIPT'S VERSION: a v1-v4 bare `highestbars` IS
+    // `ta.highestbars` (pine.js re-routes it, measured against TradingView), so it takes the same
+    // negated shape. Asking the tree with the bare name answered the positive table entry: the
+    // right magnitude and the wrong sign, for every v4 `highestbars` / `lowestbars` in this lane.
+    const nsName = pineNamespacedName(name, pineVersion)
+    const ns = nsName === null ? undefined : namespacedWindowShape(nsName)
     if (ns !== undefined) return ns
     let bare = name
     const dot = name.indexOf('.')
