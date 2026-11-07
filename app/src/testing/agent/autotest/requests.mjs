@@ -8,6 +8,7 @@ import { workspace } from './families/workspace.mjs'
 import { unseen } from './families/unseen.mjs'
 import { unseen2 } from './families/unseen2.mjs'
 import { unseen3 } from './families/unseen3.mjs'
+import { followup3 } from './families/followup3.mjs'
 
 export function publicRequests() {
   const L = []
@@ -38,6 +39,13 @@ export function unseen3Requests() {
   const L = []
   unseen3(L)
   return L.map(r => ({ ...r, set: 'unseen3' }))
+}
+
+/** Read-backs written AFTER batch 3's results (not unseen). */
+export function followup3Requests() {
+  const L = []
+  followup3(L)
+  return L.map(r => ({ ...r, set: 'followup3' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */

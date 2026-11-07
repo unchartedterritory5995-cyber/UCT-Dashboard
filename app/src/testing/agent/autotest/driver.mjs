@@ -138,12 +138,18 @@ export async function runRequest(ctx, req) {
   const ev = { turns: [], undo: null, guide: null, errors: [], before: null, after: null }
   let p = null
   try {
-    p = ctx.openFn ? await ctx.openFn(R) : await open(R, { query: B.query || '', prefs: B.prefs || null, fixtures: { routes: ctx.routes || [] }, iaCatalog: B.iaCatalog || null, profile: ctx.profile || null })
+    p = ctx.openFn ? await ctx.openFn(R) : await open(R, { query: B.query || '', prefs: B.prefs || null, fixtures: { routes: [...(ctx.routes || []), ...(B.routes || [])] }, iaCatalog: B.iaCatalog || null, profile: ctx.profile || null })
     ctx.onPage?.(p)
     await p.settle()
     await p.openPanel()
     const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ${q(req.board)} === 'MC' && x.id === 'g3') })()`, { timeout: 30000 })
     if (!up) throw new Error('the board never painted')
+    // a board of lazily loaded widgets: wait until each one has published its own door (its state and writers), as a person would
+    // wait for it to appear before asking about it
+    if (B.waitDoors) {
+      const ok = await p.b.waitFor(`(async () => { const m = await import('/src/pages/charts/widgetDoors.js'); return ${q(B.waitDoors)}.every(id => !!m.mountedWidgetDoor(id)) })()`, { timeout: 30000, step: 400 })
+      if (!ok) throw new Error(`the widgets never loaded: ${B.waitDoors.join(', ')}`)
+    }
     await p.settle()
     if (req.select) await p.select(BOARDS[req.board].roles[req.select].id)
     ev.before = await snapshot(p, req.board)

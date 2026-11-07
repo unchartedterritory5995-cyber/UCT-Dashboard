@@ -72,7 +72,10 @@ export const BOARDS = {
   },
   WIDGETS: {
     roles: { A: { id: 'w-chart-a', position: null, sym: 'SPY' } },
-    browser: { prefs: prefsOf(widgets(), GROUPS) },
+    // the widgets load lazily: a request is typed only once each one with its own state has published its door. The Market Map's
+    // axis choices are its metric catalog, served here through its own route with synthetic labels (no market values)
+    browser: { prefs: prefsOf(widgets(), GROUPS), waitDoors: ['w-themes', 'w-idx', 'w-term', 'w-nhnl', 'w-map', 'w-vol', 'w-breadth'],
+      routes: [{ match: '^GET /api/scatter/metrics', body: { metrics: [{ key: 'rvol', label: 'RVOL', group: 'Volume', live: true }, { key: 'chg_today', label: 'Change today', group: 'Price', live: true }, { key: 'mcap', label: 'Market cap', group: 'Size', live: false }] } }] },
     sim: null,
   },
   ONE: {

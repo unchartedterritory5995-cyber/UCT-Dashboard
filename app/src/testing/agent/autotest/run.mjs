@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { publicRequests, unseenRequests, unseen2Requests, unseen3Requests, sample, setHash } from './requests.mjs'
+import { publicRequests, unseenRequests, unseen2Requests, unseen3Requests, followup3Requests, sample, setHash } from './requests.mjs'
 import { lint, summarize, loadManifest } from './lint.mjs'
 import { blobInfo, loadHeldout } from './heldout.mjs'
 import { say, rowOf, writeFailure, finish } from './report.mjs'
@@ -48,7 +48,7 @@ if (A['guard-check'] || A.mode === 'real-model') {
 
 const list = (() => {
   if (MODE === 'REAL-MODEL') return stageList(A.stage, pub, A.stage === 'heldout' ? loadHeldout() : [])
-  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'unseen3' ? unseen3Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
+  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'unseen3' ? unseen3Requests() : A.set === 'followup3' ? followup3Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
   if (A.ids) { const re = new RegExp(A.ids); L = L.filter(r => re.test(r.id)) }
   if (A.sample) L = sample(L, Number(A.sample))
   return L
