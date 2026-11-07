@@ -38,7 +38,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt } from './guideStore'
-import { findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
+import { needsOwnPress, findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
 import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
 import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
 import { layerOpenedSince } from '../../lib/topLayer'
@@ -83,6 +83,8 @@ export default function GuideOverlay() {
     // returned to by Back: a `waitFor` still met from last time is not a new event — wait until it has gone once
     // (and a result that is something ENDING has to have begun first)
     let armed = !st.back && !step.waitFor?.not
+    // ⭐ its own control pressed (needsOwnPress): another chart's gear opening Chart Settings is not this chart's step
+    let pressedOwn = false
     const tick = () => {
       if (cancelled) return
       // the card's real height, so placeCard can keep it off the control whatever the sentence's length
@@ -90,7 +92,9 @@ export default function GuideOverlay() {
       if (h) setCardH(h)
       if (step.waitFor) {
         const met = findTarget(step.waitFor, st)
-        if (met && armed) { nextStep(); return }
+        // ⭐ ...and only when another chart on the board has the same control: with one chart there is no other to confuse
+        const others = typeof step.target === 'string' && document.querySelectorAll(`[data-guide="${step.target}"]`).length > 1
+        if (met && armed && (pressedOwn || !needsOwnPress(step) || !others)) { nextStep(); return }
         if (!met) armed = true
       }
       // a list's first entry is the control itself: below the fold of a long window it is scrolled up, not passed over for the fallback
@@ -129,6 +133,7 @@ export default function GuideOverlay() {
       const el = findTarget(step.target, st)
       if (el && el.contains?.(e.target)) {
         clicked = Date.now()
+        pressedOwn = true
         // ⭐ a step with no result to wait for is DONE when the member presses its control, whether or not the control goes
         // away (a menu that stays open, a toggle): the walkthrough moves on, or ends on its last step — it never leaves its
         // ring and card up over a thing already done. Not a field (a click there is only the start of typing), not a right-click.
@@ -163,6 +168,17 @@ export default function GuideOverlay() {
     window.addEventListener('pointermove', onMove, { capture: true, passive: true })
     window.addEventListener('pointerdown', onMove, { capture: true, passive: true })
     return () => { window.removeEventListener('pointermove', onMove, { capture: true }); window.removeEventListener('pointerdown', onMove, { capture: true }) }
+  }, [])
+
+  // ⭐ a NEW request sent from the Agent's Send button mid-walkthrough ends it (a guide request then starts its own). Passive.
+  // Enter in the message box is the Agent's own key (no raw key listener here: keyListenerCensus) — useAgent calls
+  // guideStore.endForNewRequest when a request starts
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const box = () => document.querySelector('[aria-label="Message UCT Agent"]')
+    const onDown = (e) => { const send = e.target?.closest?.('button[aria-label="Send"]'); if (send && String(box()?.value || '').trim()) endGuide('replaced') }
+    document.addEventListener('pointerdown', onDown, { capture: true, passive: true })
+    return () => { document.removeEventListener('pointerdown', onDown, { capture: true }) }
   }, [])
 
   // closing the Agent / leaving Charts ends the walkthrough

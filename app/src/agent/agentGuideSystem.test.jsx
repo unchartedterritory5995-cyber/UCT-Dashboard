@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import GuideOverlay from './guide/GuideOverlay'
-import { startGuide, endGuide, guideState, onGuideDoIt, _resetGuide } from './guide/guideStore'
+import { startGuide, endGuide, guideState, onGuideDoIt, _resetGuide, endForNewRequest, escapeOnBoard } from './guide/guideStore'
 import { placeCard, LOST_MS, LATE_MS, POLL_MS } from './guide/placement'
 import { findTarget, startIndex, reachableAfter, earlierOnScreen, isDisabled, isOn, unclip, restoreClipped, exists } from './guide/targets'
 import { stepsFor, titleFor, slotValues, readIndicator, readWidget, readSetting, settingRows } from './guide/slots'
@@ -340,4 +340,64 @@ describe('the card is never placed under the pointer', () => {
       expect(hit(c, pointer, 140), JSON.stringify({ x, y, c })).toBe(false)
     }
   })
+})
+
+// pl-auto tutorial batch, 2026-11-07 (BROWSER-MOCK): the walkthrough's chart, its own window, Escape on the board, a new request
+describe('a walkthrough stays on ITS chart and ends when it should', () => {
+  const two = () => dom(`
+    <div data-widget-id="a"><button data-guide="chart.timeframe">A tf</button><button data-guide="chart.settings">A gear</button></div>
+    <div data-widget-id="b"><button data-guide="chart.timeframe">B tf</button><button data-guide="chart.settings">B gear</button></div>`)
+  it('P1 its chart closed: nothing on another chart stands in for it (it pauses, saying so)', async () => {
+    const root = two()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'These buttons switch this chart’s timeframe.' }] }) })
+    await waitFor(() => expect(text()).toMatch(/These buttons/))
+    act(() => { root.querySelector('[data-widget-id="a"]').remove() })
+    expect(findTarget('chart.timeframe', { chartRef: 'a' })).toBeNull()
+    await waitFor(() => expect(text()).toMatch(/Looking for it|can’t see/), { timeout: LOST_MS + 2000 })
+    expect(text()).not.toMatch(/These buttons/)
+  }, 15000)
+  it('P2 another chart opening its settings window does not advance this chart’s step; its own gear does', async () => {
+    const root = two()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.settings', text: 'Open the gear.', waitFor: 'chartSettings' }, { target: 'chart.timeframe', text: 'Step two.' }] }) })
+    await waitFor(() => expect(text()).toBe('Open the gear.'))
+    // B's gear is pressed, and a settings window opens (portalled: nothing ties it to a chart)
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="b"] [data-guide="chart.settings"]'), { button: 0 })
+    const win = document.createElement('div'); win.setAttribute('data-guide', 'chartSettings'); win.setAttribute('data-fixture', ''); document.body.appendChild(win)
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(text()).toBe('Open the gear.')
+    // its own gear
+    win.remove()
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="a"] [data-guide="chart.settings"]'), { button: 0 })
+    const win2 = document.createElement('div'); win2.setAttribute('data-guide', 'chartSettings'); win2.setAttribute('data-fixture', ''); document.body.appendChild(win2)
+    await waitFor(() => expect(text()).toBe('Step two.'))
+  }, 15000)
+  it('P2 a new request sent with the Agent’s Send button ends the walkthrough', async () => {
+    dom('<button data-guide="a">A</button><textarea aria-label="Message UCT Agent"></textarea><button aria-label="Send">Send</button>')
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'a', text: 'Click A.', waitFor: 'nothing-here' }] }) })
+    await waitFor(() => expect(text()).toBe('Click A.'))
+    document.querySelector('[aria-label="Message UCT Agent"]').value = 'make this chart weekly'
+    fireEvent.pointerDown(document.querySelector('[aria-label="Send"]'), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+  }, 15000)
+  // PENDING a core change: Enter in the message box is the Agent's own key; useAgent calls endForNewRequest() when a request starts
+  it.skip('P2 a new request sent with Enter ends the walkthrough (PENDING useAgent → guideStore.endForNewRequest)', () => {})
+  it('endForNewRequest ends a running walkthrough, and is a no-op with none', () => {
+    startGuide(F, { steps: [{ target: 'a', text: 'x' }] })
+    endForNewRequest()
+    expect(guideState()).toBeNull()
+    expect(() => endForNewRequest()).not.toThrow()
+  })
+  it('escapeOnBoard: ends the walkthrough unless a field, a menu, a dialog, an armed tool or a selected drawing had the press', () => {
+    const own = (html) => { const r = dom(html); startGuide(F, { steps: [{ target: 'a', text: 'x' }] }); const said = escapeOnBoard(); r.remove(); _resetGuide(); return said }
+    expect(own('<div></div>')).toBe(true)
+    expect(own('<div role="menu"></div>')).toBe(false)
+    expect(own('<div role="dialog" aria-modal="true"></div>')).toBe(false)
+    expect(own('<button data-guide="chart.tool.trendline" aria-pressed="true"></button>')).toBe(false)
+    expect(own('<div aria-label="Drawing actions"></div>')).toBe(false)
+  })
+  // PENDING a registry declaration: an Escape observer in the capture phase calling escapeOnBoard() (observers get no event)
+  it.skip('P2 Escape with focus on the board ends the walkthrough (PENDING shortcutRegistry: Escape observer → escapeOnBoard)', () => {})
 })
