@@ -19,7 +19,7 @@ export function workspace(L) {
   w('invalid', 'close the chart called Bob', [], asks(), { board: 'TWO', turns: [say('close the chart called Bob', clarify('Which chart? There is no chart called Bob.', ['Left chart', 'Right chart']))] })
   w('unsupported', 'add a level 2 order book widget', [], refuses(), { turns: [say('add a level 2 order book widget', unsupported('UCT has no order book widget.'))] })
 
-  const g = family(L, 'chart-grid', { inv: ['C3-030', 'C3-040'], board: 'ONE', select: null })
+  const g = family(L, 'chart-grid', { inv: ['C3-042', 'C3-043'], board: 'ONE', select: null })
   const grid = (symbols, extra = {}) => op('chartGrid.set', b, { symbols, timeframe: null, layout: 'grid', new_charts: null, watchlist: null, replace: null, ...extra })
   g('phrasing', 'I want SPY, QQQ, NVDA and TSLA side by side, four equal charts', [grid(['SPY', 'QQQ', 'NVDA', 'TSLA'])], { outcome: 'change', expect: [['chartCount', 'eq', 4]], undo: true })
   g('params', 'two charts, AAPL and MSFT', [grid(['AAPL', 'MSFT'])], { outcome: 'change', expect: [['chartCount', 'eq', 2]], undo: true })
@@ -29,7 +29,7 @@ export function workspace(L) {
   g('phrasing', 'swap the two charts', [op('board.swap', b, { a: 'w-chart-a', b: 'w-chart-b' })], { outcome: 'change', expect: [['widgets', 'changed']], undo: true }, { board: 'TWO' })
   g('invalid', 'make me a grid of 40 charts', [], refuses({ expect: [['chartCount', 'eq', 1]] }), { turns: [say('make me a grid of 40 charts', unsupported('A board holds 16 widgets.'))] })
 
-  const y = family(L, 'layouts', { inv: ['C3-025', 'C1-171'], board: 'LAYOUTS', select: null })
+  const y = family(L, 'layouts', { inv: ['C3-025', 'C3-031', 'C3-033', 'C3-035'], board: 'LAYOUTS', select: null })
   const lay = '$list:layouts'
   y('phrasing', 'bring up the Intraday Scan layout', [op('layout.open', lay, { layout: '12' })], { outcome: 'change', expect: [['chartCount', 'eq', 2], ['types', 'lacks', 'watchlist']] })
   y('phrasing', 'save what I have here as Swing 2', null, { outcome: 'change', expect: [['layoutWrites', 're', 'Swing 2'], ['layouts', 'has', 'Swing 2']], confirm: true }, { turns: [say('save what I have here as Swing 2', propose([op('layout.saveAs', lay, { name: 'Swing 2' })]))] })
