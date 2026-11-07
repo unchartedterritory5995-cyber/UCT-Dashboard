@@ -205,7 +205,7 @@ function widgetControlSection(s, message, whole) {
   // widgets named — the others' controls are not what this request is about (bytes)
   const named = namedBoardWidgets(message, onBoard)
   const types = onBoard.filter(t => widgetControls(t).length)
-    .filter(t => (named.length ? named.includes(t) : whole) || namedHere(t, said))
+    .filter(t => (whole && (!named.length || named.includes(t))) || namedHere(t, said))
   if (!types.length) return undefined
   const controls = Object.fromEntries(types.map(t => [t, widgetControls(t).map(controlWord).join(', ')]))
   const set = {}
