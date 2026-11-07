@@ -1,0 +1,128 @@
+// CHARTS OUTCOME — execution family W on the Theme Tracker (C3-169 period, C3-170 sort direction, C3-171 today basis,
+// C3-172 open a theme, C3-174 pick a theme set) over the REAL ThemesWidget + ThemeTrackerPage, in its WidgetDoorContext
+// slot, beside the real Agent panel. The period, the sort and the open theme are the tracker's OWN state (its door writes
+// them with the same setters its tab buttons and rows use); the today basis is in `opts`. Assertions read the ORDER the
+// tracker draws its themes in, its door's read-back and the board — never a registry entry.
+//
+// ⛔ THE MODEL IS SCRIPTED (outcomeHarness). Theme data is invented fixture data. Evidence: LOCAL native Windows Node,
+// jsdom, BROWSER-MOCK-MODEL / SIMULATED.
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, cleanup } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor } from './outcomeHarness'
+import { WidgetDoorContext, mountedWidgetDoor } from '../../../pages/charts/widgetDoors'
+import { WorkspaceContext } from '../../../pages/charts/WorkspaceContext'
+import { AuthContext } from '../../../context/AuthContext'
+
+vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+vi.mock('../../../components/StockChart', () => ({ default: () => null }))
+vi.mock('../../../components/chart/pane/ChartPane', () => ({ default: () => null }))
+vi.mock('../../../components/CompanyLogo', () => ({ default: () => null }))
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {}, loading: false }), parsePref: (raw, fallback) => fallback }))
+vi.mock('../../../hooks/usePlacedTheme', () => ({ default: () => null }))
+vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({}) }))
+vi.mock('../../../hooks/useFlagged', () => ({ useFlagged: () => ({ isFlagged: () => false, toggle: () => {}, flagged: [] }) }))
+vi.mock('../../../hooks/useTickerTags', () => ({ default: () => ({ tags: {}, setTag: () => {}, removeTag: () => {}, getTag: () => null, shared: [], isColorShared: () => false, toggleShareColor: () => {}, communityTags: [] }) }))
+vi.mock('../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
+vi.mock('../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {}, isLoading: false, isStreaming: false, staleSymbols: new Set() }) }))
+vi.mock('../../../hooks/useRealtimeBarPrices', () => ({ default: () => ({}), pickFreshPrice: () => null }))
+vi.mock('../../../utils/prefetchBars', () => ({
+  prefetchBar: () => {}, prefetchBars: () => {}, prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {},
+  prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {},
+}))
+vi.mock('../../../pages/charts/useListSubscribeEnabled', () => ({ default: () => false }))
+const data = vi.hoisted(() => {
+  const th = (ticker, name, r) => ({ ticker, name, group_return: r, holdings: [{ sym: `${ticker}1`, returns: r }] })
+  return {
+    sets: [{ id: 'set1', name: 'Mine' }],
+    // invented returns; each period ranks the three themes differently, so an order tells which period is shown
+    themes: [th('SEMI', 'Semis', { '1d': 3, open: 1, '1w': 1, '1m': 2, '3m': 1, '1y': 1, ytd: 1 }),
+      th('SOFT', 'Software', { '1d': 2, open: 3, '1w': 3, '1m': 1, '3m': 2, '1y': 2, ytd: 2 }),
+      th('BIO', 'Biotech', { '1d': 1, open: 2, '1w': 2, '1m': 3, '3m': 3, '1y': 3, ytd: 3 })],
+  }
+})
+vi.mock('../../../hooks/useThemeSets', () => ({
+  useThemeSets: () => ({ enabled: true, sets: data.sets, createSet: async () => null, deleteSet: async () => {}, renameSet: async () => {}, refreshSets: () => {} }),
+  getSetDef: async () => null, putSetDef: async () => {},
+}))
+vi.mock('../../../hooks/useMobileSWR', () => ({
+  default: (key) => ({ data: String(key || '').startsWith('/api/theme-performance') ? { themes: data.themes } : null, error: null, isLoading: false, mutate: () => {} }),
+}))
+
+const { default: ThemesWidget } = await import('../../../pages/charts/widgets/ThemesWidget')
+await outcomeSuite()
+
+function Live({ board }) {
+  const [, tick] = useState(0)
+  useEffect(() => { const t = setInterval(() => tick(n => n + 1), 10); return () => clearInterval(t) }, [])
+  const onOpts = (id) => (opts) => { board.state.widgets = board.state.widgets.map(x => (x.id === id ? { ...x, opts } : x)) }
+  const ws = { groupSyms: { N: null }, setGroupSym: () => {}, groupTfs: {}, activeWatchlistRef: { current: null } }
+  return (
+    <MemoryRouter>
+      <AuthContext.Provider value={{ user: { id: 1, role: 'admin' } }}>
+        <WorkspaceContext.Provider value={ws}>
+          {board.state.widgets.filter(w => w.type === 'themes').map(w => (
+            <div key={w.id} data-testid={`w-${w.id}`}><WidgetDoorContext.Provider value={w.id}><ThemesWidget color={w.color} opts={w.opts} onOptsChange={onOpts(w.id)} /></WidgetDoorContext.Provider></div>
+          ))}
+        </WorkspaceContext.Provider>
+      </AuthContext.Provider>
+    </MemoryRouter>
+  )
+}
+function board(opts = {}) {
+  const m = open([chart('c1', 0, 0, 12, 20), { id: 'th', type: 'themes', x: 12, y: 0, w: 12, h: 20, color: 'N', opts }], { 'N:c1': 'NVDA' })
+  render(<Live board={m.board} />)
+  return m
+}
+const setOption = (key, value) => (c) => [{ action: 'widget.setOption', target: must(c.board?.[0]?.ref, 'board'), args: { widget: must((c.board[0].widgets || []).find(w => w.type === 'themes'), 'themes widget').id, key, value } }]
+/** The themes in the order the tracker DRAWS them. */
+const order = () => {
+  const text = document.querySelector('[data-testid="w-th"]').textContent
+  return ['Semis', 'Software', 'Biotech'].map(n => [n, text.indexOf(n)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([n]) => n)
+}
+const door = () => mountedWidgetDoor('th')?.read?.() || null
+
+afterEach(() => { afterEachOutcome(); cleanup() })
+
+describe('Theme Tracker through its own door: what it ranks by is what it draws', () => {
+  it('C3-169 "show the theme tracker for the past month": the 1M tab ranks it; Undo goes back to Today', async () => {
+    const m = board()
+    await waitFor(() => expect(order()).toEqual(['Semis', 'Software', 'Biotech']))
+    const out = await m.say('show the theme tracker for the past month', setOption('period', '1m'))
+    await waitFor(() => expect(order()).toEqual(['Biotech', 'Semis', 'Software']))
+    expect(door().period).toBe('1m')
+    expect(out).toMatch(/period is now 1m/)
+    await m.say('undo')
+    await waitFor(() => expect(order()).toEqual(['Semis', 'Software', 'Biotech']))
+  }, 60000)
+  it('C3-170 "sort the theme tracker ascending": the worst first', async () => {
+    const m = board()
+    await waitFor(() => expect(order()).toEqual(['Semis', 'Software', 'Biotech']))
+    await m.say('sort the theme tracker ascending', setOption('sortDir', 'asc'))
+    await waitFor(() => expect(order()).toEqual(['Biotech', 'Software', 'Semis']))
+    expect(door().sortDir).toBe('asc')
+  }, 60000)
+  it('C3-171 "theme tracker from the open": Today ranks by the move since the open, and the board keeps it', async () => {
+    const m = board()
+    await waitFor(() => expect(order()).toEqual(['Semis', 'Software', 'Biotech']))
+    await m.say('theme tracker from the open', setOption('todayBasis', 'open'))
+    await waitFor(() => expect(order()).toEqual(['Software', 'Biotech', 'Semis']))
+    expect(m.board.state.widgets.find(w => w.id === 'th').opts.todayBasis).toBe('open')
+  }, 60000)
+  it('C3-172 "open the software theme in the theme tracker": by its name; the door reads it open', async () => {
+    const m = board()
+    await waitFor(() => expect(order().length).toBe(3))
+    await m.say('open the software theme in the theme tracker', setOption('openTheme', 'Software'))
+    await waitFor(() => expect(door().openTheme).toBe('SOFT'))
+    expect(document.querySelector('[data-testid="w-th"]').textContent).toMatch(/SOFT1/)
+  }, 60000)
+  it('C3-174 "switch the theme tracker to my Mine set": the set the tracker shows; NEGATIVE: a set that does not exist is refused with the real list', async () => {
+    const m = board()
+    await waitFor(() => expect(order().length).toBe(3))
+    await m.say('switch the theme tracker to my Mine set', setOption('themeSet', 'Mine'))
+    await waitFor(() => expect(door().themeSet).toBe('set1'))
+    expect(await m.say('switch the theme tracker to my Growth set', setOption('themeSet', 'Growth'))).toMatch(/themeSet” can be Default, Mine — not “Growth”/)
+    expect(door().themeSet).toBe('set1')
+  }, 60000)
+})
