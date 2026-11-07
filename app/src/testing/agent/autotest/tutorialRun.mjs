@@ -66,7 +66,7 @@ const acts = {
   escBoard: async (p) => { await p.b.evaluate('document.activeElement && document.activeElement.blur && document.activeElement.blur()'); await p.b.key('Escape'); await sleep(400) },
   closeChart: (p, c, [, role]) => clickSel(p, `[data-widget-id=${q(BOARDS[c.board].roles[role].id)}] [aria-label="Close widget"]`),
   closeAgent: (p) => clickSel(p, '[aria-label="Close UCT Agent"]'),
-  reload: async (p) => { await p.b.evaluate('location.reload()'); await sleep(1500); await p.b.waitFor(`typeof window.__baRead === 'function' && document.readyState === 'complete'`, { timeout: 30000 }); await p.settle() },
+  reload: async (p) => { await p.b.evaluate('setTimeout(() => location.reload(), 0), 1').catch(() => {}); await sleep(2500); await p.b.waitFor(`typeof window.__baRead === 'function' && document.readyState === 'complete'`, { timeout: 30000 }); await p.settle() },
   say: async (p, c, [, text, plan]) => { await p.say(text, planFor(c.board, plan, null)); await p.idle(20000); await sleep(900) },
   wait: (p, c, [, ms]) => sleep(ms),
 }
