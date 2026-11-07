@@ -46,41 +46,108 @@ if (!process.env.TEACH_CASE) {
 // ── one case ──
 const { startRelay, open, sleep } = await import('../acceptance/lib.mjs')
 const c = CASES[Number(process.env.TEACH_CASE)]
-const chart = (id, color, x, y, w, h) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D' } })
-const board = (widgets, groups) => ({ charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }), charts_workspace_groups: JSON.stringify(groups) })
-// one chart and one watchlist fill the board: a widget the walkthrough adds goes through the real Place step
-const BOARD = board([chart('w-chart-a', 'A', 0, 0, 16, 20), { id: 'w-watch', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 20, opts: {} }], { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' })
+const { givenFor, boardFor } = await import('./given.mjs')
+const given = givenFor(c)
 
-// widget data the harness does not serve, so a control that shows only with data can show (one price alert)
-const FIXTURES = { routes: [{ match: '^GET /api/watchlist-alerts', body: [{ id: 1, sym: 'NVDA', direction: 'above', price: 150, is_active: true }] }] }
+// widget data the harness does not serve as a fixed route (the price alerts are the page's own simulated route: see `given`)
 const R = await startRelay({ groupOfAction: () => null })
-const rec = { ...c, pass: false, steps: [] }
+const rec = { ...c, given: Object.keys(given), pass: false, steps: [] }
 let p = null
+// what the walkthrough is on, read from the guide's OWN store and target reader (the same modules the page runs)
 const STATE = `(async () => {
   const G = await import('/src/agent/guide/guideStore.js'); const T = await import('/src/agent/guide/targets.js')
   const st = G.guideState(); if (!st) return null
   const step = st.steps[st.index]; const ring = document.querySelector('[data-testid="guide-ring"]')
   const r = ring && ring.getBoundingClientRect()
-  const el = T.findTarget(step.target, st); const b = el && el.getBoundingClientRect()
-  const encloses = !!(r && b && b.width > 0 && b.left >= r.left - 3 && b.top >= r.top - 3 && b.right <= r.right + 3 && b.bottom <= r.bottom + 3)
+  // the ring is ON the control: its centre is inside the control, and it covers most of it (the guide clips the ring to what
+  // shows when a row overflows its menu, so 'encloses' is the wrong test)
+  const inRing = (el) => { const b = el && el.getBoundingClientRect(); if (!r || !b || !b.width) return false; const cx = r.left + r.width / 2, cy = r.top + r.height / 2; const ix = Math.max(0, Math.min(b.right, r.right) - Math.max(b.left, r.left)), iy = Math.max(0, Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top)); return cx >= b.left - 4 && cx <= b.right + 4 && cy >= b.top - 4 && cy <= b.bottom + 4 && ix * iy >= 0.6 * b.width * b.height }
+  // the step's PRIMARY control: every entry of its target but the fallback (the last one, when the step says what it is)
+  const list = Array.isArray(step.target) ? step.target : [step.target]
+  const primary = step.altText && list.length > 1 ? list.slice(0, -1) : list
+  const pel = primary.map(t => T.findTarget(t, st)).find(Boolean) || null
+  const el = T.findTarget(step.target, st)
   const text = document.querySelector('[data-testid="guide-text"]')?.textContent || ''
   const next = [...document.querySelectorAll('[data-testid="guide-card"] button')].find(x => /^(Next|Skip|Done)/.test(x.textContent.trim()))
-  return { index: st.index, last: st.index === st.steps.length - 1, own: text === step.text, text: text.slice(0, 140), encloses, ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text) }
+  const met = !!(step.waitFor && T.findTarget(step.waitFor, st))
+  const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
+  return { pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
+
+// ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart
+// library's own layout (its pane rows, its price-axis cell, its time-axis row), never from fixed pixels, and a candidate counts
+// only when the product's own region menu answers with the row the step waits for (StockChart's resolveChartRegion decides).
+const REGIONS = `((ref, text) => {
+  const cell = (ref && document.querySelector('[data-widget-id="' + String(ref).split('~')[0] + '"]')) || document.querySelector('[data-widget-type="chart"]') || document
+  const table = cell.querySelector('.tv-lightweight-charts table')
+  if (!table) return []
+  const rows = [...table.querySelectorAll(':scope > tbody > tr, :scope > tr')].filter(tr => tr.getBoundingClientRect().height > 8)
+  const panes = rows.slice(0, -1).map(tr => { const tds = [...tr.children]; const plot = tds.reduce((a, b) => (b.getBoundingClientRect().width > a.getBoundingClientRect().width ? b : a)); const axis = tds[tds.indexOf(plot) + 1] || null; return { plot: plot.getBoundingClientRect(), axis: axis && axis.getBoundingClientRect() } })
+  if (!panes.length) return []
+  const p0 = panes[0].plot
+  const at = (b, fx, fy) => ({ x: Math.round(b.left + b.width * fx), y: Math.round(b.top + b.height * fy) })
+  const t = String(text).toLowerCase()
+  const out = []
+  if (/price numbers|right edge|price scale|price axis/.test(t)) { for (const pn of panes) if (pn.axis) for (const fy of [0.5, 0.3, 0.7]) out.push(at(pn.axis, 0.5, fy)) }
+  else if (/volume/.test(t)) { for (let fy = 0.97; fy >= 0.6; fy -= 0.03) out.push(at(p0, 0.6, fy)); for (const pn of panes.slice(1)) out.push(at(pn.plot, 0.5, 0.5)) }
+  else if (/drawing|a line|rectangle|trendline|fibonacci|text note|measure|on the chart. if this chart has none/.test(t)) {
+    // a drawing: the pixels the app's drawing layer painted for it (its own canvas, above the chart's), in the drawing's colour
+    const layer = [...cell.querySelectorAll('canvas')].find(cv => !cv.closest('.tv-lightweight-charts') && getComputedStyle(cv).zIndex === '4')
+    if (layer && layer.width) {
+      const ctx = layer.getContext('2d'); const d = ctx.getImageData(0, 0, layer.width, layer.height).data; const lb = layer.getBoundingClientRect(); const k = layer.width / lb.width
+      const hits = []
+      for (let y = 2; y < layer.height - 2; y += 1) for (let x = 2; x < layer.width - 2; x += 3) { const i = (y * layer.width + x) * 4; if (d[i + 3] > 90 && d[i] > 215 && d[i + 1] > 215 && d[i + 2] > 215) hits.push({ x: Math.round(lb.left + x / k), y: Math.round(lb.top + y / k) }) }
+      for (let i = 0; i < hits.length && out.length < 16; i += Math.max(1, Math.floor(hits.length / 16))) out.push(hits[i])
+    }
+  }
+  else if (/moving average/.test(t)) { for (const fx of [0.6, 0.8, 0.4]) for (let fy = 0.05; fy <= 0.95; fy += 0.01) out.push(at(p0, fx, fy)) }
+  else { for (const fy of [0.4, 0.5, 0.3, 0.6]) out.push(at(p0, 0.5, fy)) }
+  return out
+})`
+async function rightClickRegion(s) {
+  const pts = await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`)
+  rec.tried = (rec.tried || []).concat([pts.slice(0, 4)])
+  for (const pt of (pts.length ? pts : [s.ring])) {
+    // a person's pointer arrives first: the drawing layer takes the click only once it has seen the pointer over a drawing
+    await p.b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pt.x, y: pt.y, button: 'none' })
+    await sleep(250)
+    for (const type of ['mousePressed', 'mouseReleased']) await p.b.send('Input.dispatchMouseEvent', { type, x: pt.x, y: pt.y, button: 'right', clickCount: 1 })
+    await sleep(450)
+    const now = await p.b.evaluate(STATE)
+    if (!now || now.index !== s.index || now.met) return true
+    // the wrong region's menu closes, and the next candidate is tried. Escape only while a menu is open: with none, Escape is
+    // the member leaving the guide (GuideOverlay's own rule)
+    if (await p.b.evaluate(`!!document.querySelector('[role="menu"],[data-guide$="Menu"]')`)) await p.b.key('Escape')
+    await sleep(200)
+  }
+  return false
+}
+
 try {
-  p = await open(R, { prefs: BOARD, query: 'layouts=1', fixtures: FIXTURES, width: 1600, height: 950 })
+  p = await open(R, { prefs: boardFor(given), query: 'layouts=1', width: 1600, height: 950 })
+  // a desktop member has a mouse: headless Chrome reports no hover, and the drawing layer only hit-tests under a hovering pointer
+  // (ChartDrawingOverlay's matchMedia('(hover: hover)')). Emulated, then the page loads again with it
+  // (CDP's media emulation has no hover feature, so the page is told what a desktop with a mouse answers)
+  await p.b.send('Page.addScriptToEvaluateOnNewDocument', { source: '(' + (() => { const mm = window.matchMedia.bind(window); const desk = (q) => /hover|pointer/.test(q) && !/none|coarse/.test(q); window.matchMedia = (q) => { const r = mm(q); return desk(String(q)) ? { matches: true, media: r.media, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false } } : r } }).toString() + ')()' })
+  await p.b.send('Page.reload', {})
+  await sleep(1500)
+  await p.b.waitFor(`!!document.querySelector('[data-testid="agent-launch"]') || !!document.querySelector('[aria-label="Message UCT Agent"]')`, { timeout: 60000 })
+  await p.b.evaluate(`window.__baRead ? 1 : 0`)
   await p.openPanel()
+  // ⭐ GIVEN: the state the case needs, built in the page through the app's own routes and stores (guide/given.mjs)
+  if (given.setup) { const said = await p.b.evaluate(given.setup); rec.setup = said; await sleep(1200) }
   await p.say(c.say)
   await p.idle(20000)
   await sleep(800)
-  for (let n = 0, waits = 0; n < 14; n++) {
+  for (let n = 0, waits = 0; n < 16; n++) {
     const s = await p.b.evaluate(STATE)
     if (!s) { rec.why = rec.steps.length ? 'the walkthrough ended before its last step' : `no walkthrough: ${(await p.last()).slice(0, 160)}`; break }
-    rec.steps.push({ i: s.index, text: s.text, encloses: s.encloses, own: s.own })
+    rec.steps.push({ i: s.index, text: s.text, onPrimary: s.onPrimary, pr: s.pr, rr: s.rr })
     if (s.last) {
-      if (s.encloses && s.own) { rec.pass = true; break }
+      // PASS: the ring is on the last step's own control (a greyed-out one too: the card then says why), never on a fallback
+      if (s.onPrimary) { rec.pass = true; break }
       if (!s.ring && waits++ < 6) { await sleep(1500); continue }
-      rec.why = !s.ring ? 'last step: no ring (its control is not on screen)' : !s.own ? `last step shows its fallback: ${s.text}` : 'last step: the ring is not on the control'
+      rec.why = !s.ring ? 'last step: no ring (its control is not on screen)' : `last step shows its fallback: ${s.text}`
       break
     }
     if (!s.ring) { if (waits++ < 6) { await sleep(1500); continue } rec.why = `step ${s.index + 1}: no ring`; break }
@@ -89,9 +156,8 @@ try {
       const pt = await p.b.evaluate(`(() => { const c = document.querySelector('[data-widget-type="watchlist"] [data-guide="watchlist.picker"]'); const el = c && [...c.querySelectorAll('button,[role=button],div')].find(e => /Momentum/.test(e.textContent) && e.children.length < 4); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 } })()`)
       if (pt) { await p.b.click(pt.x, pt.y); await sleep(1500); continue }
     }
-    if (s.right) {
-      for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) await p.b.send('Input.dispatchMouseEvent', { type, x: s.ring.x, y: s.ring.y, button: type === 'mouseMoved' ? 'none' : 'right', clickCount: 1 })
-    } else if (!s.field) await p.b.click(s.ring.x, s.ring.y)
+    if (s.right) { if (!(await rightClickRegion(s))) { rec.why = `step ${s.index + 1}: no point of the region it names opened the menu row it needs`; break } await sleep(600); continue }
+    if (!s.field) await p.b.click(s.ring.x, s.ring.y)
     await sleep(1300)
     const after = await p.b.evaluate(STATE)
     // a step with nothing to click (typing, dragging, a key) moves on with the card's own button
