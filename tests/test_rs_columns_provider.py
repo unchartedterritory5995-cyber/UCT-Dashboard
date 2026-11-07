@@ -1039,7 +1039,7 @@ def test_the_v1_lane_never_touches_a_phase2a_helper(monkeypatch):
 # the entry, so the evidence paths ride the same two rails — resolve on a real
 # payload, resolve (to the honesty sentence) on a short series.
 
-READOUT_SOURCE_FIELDS = ("source", "when", "evidenceSource")
+READOUT_SOURCE_FIELDS = ("source", "when", "evidenceSource", "note")
 
 
 def _js_rs_line_source() -> str:
@@ -1120,7 +1120,10 @@ def test_the_readout_source_parser_reads_the_rows_it_claims_to():
         by_key.setdefault(key, {})[field] = src
     assert by_key["benchmark"]["source"] == "scalar:benchmark.resolved"
     assert by_key["rating"]["source"] == "scalar:rating.ibd"
-    assert by_key["benchmarkNote"] == {"source": "scalar:benchmark.fallback", "when": "scalar:benchmark.fallback"}
+    # the card's Note row and the glance row's second line read the server's
+    # sentence (2026-11-07), never the raw fallback code
+    assert by_key["benchmarkNote"] == {"source": "scalar:benchmark.note", "when": "scalar:benchmark.note"}
+    assert by_key["benchmarkName"]["note"] == "scalar:benchmark.note"
     assert by_key["regime"]["source"] == "scalar:regime.label"
     assert by_key["checks"]["source"] == "scalar:checks.summary"
     # visual round A1: the glance rows read the server's summary strings; the

@@ -2298,7 +2298,10 @@ def _rs_leaders_for(session) -> dict:
     red-day judgement was made on. None when SPY's row is missing for the
     session or its change is NULL: the line then reads "none", never a guess.
     SPY is never one of the leaders: its RS line against itself is a constant
-    1.0, which ties its own 252-bar high every session.
+    1.0, which ties its own 252-bar high every session. No ETF is either
+    (`is_etf = 1`, 2026-11-07): the post lists stock leaders, the rating
+    already excludes ETFs, and on a red day an inverse fund (SH, SQQQ) or a
+    haven (GLD, TLT) making an RS new high is the market, not a leader.
 
     Selects `screener_rows` whose `bars_asof` is the session -- the builder
     stamps a row's price date as YYYYMMDD (`snapshot_builder._asof_of`), and
@@ -2320,7 +2323,8 @@ def _rs_leaders_for(session) -> dict:
     bench = RS_DISCORD_BENCHMARK
     sql = ("SELECT ticker, company, sector, rs_rating_ibd, rs_new_high, rs_nh_before_price, "
            "rs_nh_red_day, rs_line_above_ma FROM screener_rows "
-           "WHERE bars_asof = ? AND ticker != ? AND (rs_new_high = 1 OR rs_rating_ibd >= ?)")
+           "WHERE bars_asof = ? AND ticker != ? AND COALESCE(is_etf, 0) != 1 "
+           "AND (rs_new_high = 1 OR rs_rating_ibd >= ?)")
     conn = snapshot_db.connect()
     try:
         rows = conn.execute(sql, (ymd, bench, rating_min)).fetchall()

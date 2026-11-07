@@ -308,6 +308,20 @@ def test_rs_leaders_for_carries_spys_session_change_and_never_lists_spy(tmp_path
     assert "SPY was not a red day (+0.4%)" in r["content"]
 
 
+def test_rs_leaders_for_never_lists_an_etf(tmp_path, monkeypatch):
+    """2026-11-07: the post lists stock leaders. On a red day an inverse fund or
+    a haven ETF makes an RS new high because the market fell; the rating already
+    excludes ETFs, so they would also print "(unrated)"."""
+    _seed_screener(tmp_path, monkeypatch, [
+        _srow("SQQQ", is_etf=1, rs_new_high=1, rs_nh_red_day=1),
+        _srow("GLD", is_etf=1, rs_new_high=1, rs_nh_red_day=1),
+        _srow("AAA", rs_new_high=1, rs_nh_red_day=1, rs_rating_ibd=95),
+        _srow("BBB", is_etf=None, rs_new_high=1, rs_rating_ibd=93),   # unknown counts as a stock
+    ])
+    assert [r["ticker"] for r in m._rs_leaders_for(SESSION)["leaders"]] == ["AAA", "BBB"]
+
+
+
 def test_rs_leaders_for_reads_a_red_spy_session_and_a_null_change_as_none(tmp_path, monkeypatch):
     _seed_screener(tmp_path, monkeypatch, [
         _srow("SPY", chg_pct_1d=-1.25),
