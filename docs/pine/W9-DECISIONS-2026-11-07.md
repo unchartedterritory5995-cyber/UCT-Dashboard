@@ -98,6 +98,24 @@ fetch, which is a different quantity. Only the server sets `ctx.historyWindowBar
 `app/src` is `testing/marketIndicators/marketIndicatorsHarness.jsx`, a test harness, also not the
 chart lane.
 
+## Section 9 item 4: RESOLVED, fixed earlier by W9-T0
+
+The 11-03 census (W4-T0 peel) passed a smaller reference, `runs/C/ref_rebuilt.json` (286 items, no
+`strategy.entry` / `exit` / `order`), and the tooling of the day found order calls through that
+inventory. 17 strategies lost the `[strategy]` wall wrongly; 6 of them read as transfers. W9-T0
+(`0b8e9145bd`) detects orders from the source, with a rail, and the 11-05 census on master shows
+all 70 back with no strategy transferring. Evidence:
+`docs/pine/evidence/2026-11-07-w9-open-questions/EVIDENCE.md`.
+
+## Section 9 item 7: RESOLVED, fixed on `fix/pine-w9-open-questions`
+
+The walker does not skip an order-only `if`: it lowers its test, which runs every bar, and a
+`strategy.*` value there refuses by name. With the broker dark only the order is dropped. Its
+arguments were dropped with it, which served a wrong value when one had an effect (an array push).
+They are now evaluated in place, the `alert()` rule, railed by
+`runtime/__tests__/w9OrderOnlyIf.test.js`. Evidence:
+`docs/pine/evidence/2026-11-07-w9-open-questions/EVIDENCE.md`.
+
 ## Follow-ups
 
 1. **D5, single-symbol.** T14's route accepts up to `min(INLINE_MAX_SYMBOLS, max_cells() //
