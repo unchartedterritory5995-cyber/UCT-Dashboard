@@ -82,15 +82,22 @@ function dividerAbove(lines, box, words) {
 }
 // what a target's own narrowing leaves inside one box
 function inside(box, t) {
+  // ⭐ NAMED CONTROLS (guide/controls.js): the control's own accessible name or tooltip, by a pattern, for a name the product
+  // builds per instance ("Delete Swing permanently", "Magnet: on") — never a CSS class
+  if (t.nameRe) {
+    const re = new RegExp(t.nameRe, 'i')
+    return [...box.querySelectorAll('[aria-label], [title]')].filter(el => re.test(el.getAttribute('aria-label') || '') || re.test(el.getAttribute('title') || ''))
+  }
   const sel = t.aria ? `[aria-label="${esc(t.aria)}"]`
     : t.guide ? `[data-guide="${esc(t.guide)}"]`
     : t.attr ? (t.value == null ? `[${t.attr}]` : `[${t.attr}="${esc(t.value)}"]`)
     : null
-  if (t.label) {
-    const want = String(t.label).toLowerCase()
+  if (t.label || t.lead) {
+    const want = String(t.label || t.lead).toLowerCase()
     // the element whose OWN words these are: a row with an icon beside its text has children, and the text is still its own
     const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
-    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => own(el) === want)
+    // `lead`: the label STARTS with these words ("Remove starred (3)" carries its count)
+    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => (t.lead ? own(el).startsWith(want) : own(el) === want))
   }
   if (t.cursor) {
     const lines = [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
@@ -124,6 +131,14 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   if (typeof target === 'object' && target.widgetType) {
     const cells = document.querySelectorAll(`[data-widget-type="${esc(target.widgetType)}"]`)
     return pick([...cells].flatMap(c => inside(c, target)), target)
+  }
+  // ⭐ '@chart': the chart being talked about is the box itself (a toolbar toggle, a panel it opened); a panel portalled
+  // out of the cell is looked for on the page
+  if (typeof target === 'object' && target.within === '@chart') {
+    const cell = cellOf(chartRef)
+    if (!cell) return pick(inside(document.body, target), target)
+    // …never the same control on ANOTHER chart: outside this cell, only what sits in no board cell at all (a portal)
+    return pick(inside(cell, target), target) || pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target)
   }
   if (typeof target === 'object' && target.within) {
     // a box on a chart: the chart being talked about, when it has one (a menu it opened may be portalled)

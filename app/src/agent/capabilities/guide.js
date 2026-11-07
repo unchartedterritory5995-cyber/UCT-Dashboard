@@ -17,6 +17,7 @@ import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
 import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
+import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import { namedChart, namesAChart } from '../guide/namedChart'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
@@ -46,7 +47,8 @@ function guideChart(host) {
   try { sel = host?.charts?.selected?.() || null } catch { sel = null }
   return charts.find(c => c.ref === sel) || charts[0]
 }
-const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : !!t?.id && scoped(t.id))
+// '@chart': a control looked for on the chart talked about itself (guide/targets.js)
+const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : t?.within === '@chart' || (!!t?.id && scoped(t.id)))
 
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
@@ -182,6 +184,8 @@ export function registerGuideCapabilities() {
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
       const f = matchFeature(q, null, here)
+      // ⭐ words only a control in a place they did not name fits: never shown straight away, asked about (answer)
+      if (!f && here === 'charts' && (readControl(q)?.say || readControl(q, { weak: true }))) return { feature: 'control', detail: q }
       // the words travel when they choose something: a family's row, or the chart they name
       if (f) return f.slots || namesAChart(q, chartsOf(host)) ? { feature: f.id, detail: q } : { feature: f.id }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
@@ -194,6 +198,13 @@ export function registerGuideCapabilities() {
       const here = host?.surface || ctx?.surface || 'charts'
       if (f && surfaceOf(f) !== here) return surfaceOf(f) === 'charts' ? `${f.title} is on the Charts page — open Charts and ask me again there.` : `${f.title} is on the ${surfaceOf(f).replace(/^./, ch => ch.toUpperCase())} page — open it and ask me again there.`
       if (f && ctx && !guideFeatures(ctx).includes(f)) return `${f.title} isn’t available on your account here.`
+      // ⭐ the named-control catalog: several controls fit → ask which; a drawing that has no such control → say so
+      if (f?.id === 'control') {
+        const r = readControl(detail) || readControl(detail, { weak: true })
+        if (r?.say) return r.say
+        if (!r?.row) return r?.ask ? askWhich(r.ask) : 'Which control do you mean? Tell me its name, or the widget it’s in.'
+        return showFeature({ ...f, control: r.row.name }, host, detail)
+      }
       return showFeature(f, host, detail)
     },
   })

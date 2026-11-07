@@ -134,7 +134,7 @@ export const PANEL_ACTIONS = [
 
 // ── a widget that may not be on the board: it comes off Widgets ▾ first; one that is, skips straight past ──
 const PLACE_IT = { target: 'workspace.place', name: 'the Place button', text: 'Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.', optional: true, late: true }
-const onBoard = (id, label, result) => [
+export const onBoard = (id, label, result) => [
   { target: 'workspace.widgets', name: 'the Widgets menu', text: `That’s in the ${label} widget. Open Widgets ▾.`, waitFor: ['workspace.widgetsMenu', result] },
   { target: `workspace.widgets.${id}`, name: label, text: `Click ${label} to add it to your board.`, waitFor: ['workspace.place', result], off: 'Your board is full, so nothing can be added. Close a widget first.' },
   { ...PLACE_IT, waitFor: result },
