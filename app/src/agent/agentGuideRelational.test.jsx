@@ -162,3 +162,31 @@ describe('T1c: "another one" is not "another chart"', () => {
     expect(guide?.chart ?? null).toBeNull()
   })
 })
+
+// AUDIT T1d / T1e (2026-11-07): the guide matches execution's OTHER_CHART. A chart word that is the click itself ("this chart")
+// never makes "another one" a chart; the DEFINITE "the other one" is the other chart, as execution reads it.
+describe('T1d / T1e: "this chart" is the click; "the other one" is the other chart', () => {
+  const TWO = [FOUR[0], FOUR[1]]
+  it.each([
+    ['how do I draw another one on this chart', null],                // T1d: the click stands
+    ['how do I add RSI to the other one', 'tr'],                      // T1e: the other chart, as execution reads it
+    ['how do I change the timeframe on the other one', 'tr'],         // T1e
+    ['how do I add RSI to another one of my charts', 'tr'],           // plural chart word: still a chart
+  ])('%s (TWO, clicked tl) → %s', (q, want) => {
+    const guide = namedChart(q, TWO, 'tl')
+    expect(guide?.chart?.ref ?? null).toBe(want)
+  })
+  it('a definite "the other one" that stands for a named thing is not a chart', () => {
+    expect(saysOtherChart('I drew two lines, how do I delete the other one')).toBe(false)
+  })
+  // T2: execution's own reading of the definite "the other one" (OTHER_CHART, via saysOtherChart) and the guide agree
+  it.each(['how do I add RSI to the other one', 'how do I change the timeframe on the other one'])('agreement: %s', (q) => {
+    expect(saysOtherChart(q)).toBe(true)
+    expect(namedChart(q, TWO, 'tl')?.chart?.ref).toBe('tr')
+  })
+  it('agreement: draw another one on this chart — execution names the click only, the guide picks no other chart', () => {
+    const exec = [...chartsNamedBy('how do I draw another one on this chart', TWO, 'tl')]
+    expect(exec.filter(r => r !== 'tl')).toEqual([])
+    expect(namedChart('how do I draw another one on this chart', TWO, 'tl')?.chart ?? null).toBeNull()
+  })
+})

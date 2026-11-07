@@ -295,18 +295,26 @@ const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 const DIFFERENT_CHART = /\b(?:a|another|some|any)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b|\bone\s+other\b/i
 /** "the other chart" / "a different chart": the words mean a chart that is NOT the clicked one (pl-teach round 6 / AUDIT T1b:
  *  the guide reads it here, never a copy). One other chart on the board → that one; several → which one is asked.
- *  ⛔ AUDIT T1c: "another one" / "the other one" / "one other" name a CHART only beside a chart word in the same clause
- *  ("another one of my charts"); alone they are another drawing, indicator, alert… on the chart already meant ("draw another one"). */
+ *  ⛔ AUDIT T1c/T1d/T1e (2026-11-07), matching execution's OTHER_CHART:
+ *   • DEFINITE "the / my / that other one" is the other chart, as execution reads it — unless the sentence names another thing
+ *     the "one" can stand for (a drawing, an indicator, an alert…: "two lines … delete the other one").
+ *   • INDEFINITE "another one" / "one other" / "a different one" names a chart only beside a chart word in its own clause that is
+ *     NOT the click itself: "another one of my charts" counts; "draw another one on this chart" is another drawing on the click. */
+const ONE_STANDS_FOR = /\b(?:drawings?|lines?|trend ?lines?|rays?|rectangles?|boxe?s?|circles?|arrows?|fibs?|fibonacci|channels?|notes?|labels?|indicators?|studies|study|alerts?|levels?|tabs?|layouts?|lists?|watchlists?|widgets?|templates?|panes?|colou?rs?)\b/i
+const CLICK_CHART = /\b(?:this|that|the|my|current|selected|clicked|active|same)\s+(?:chart|one)\b(?!s)/gi
 export function saysOtherChart(text) {
   const s = String(text || '')
-  for (const re of [OTHER_CHART, DIFFERENT_CHART]) {
-    const m = re.exec(s)
-    if (!m) continue
-    if (/chart/i.test(m[0])) return true
-    const [a, b] = clauseAt(s, m.index)
-    if (/\bcharts?\b/i.test(s.slice(a, m.index) + s.slice(m.index + m[0].length, b))) return true
+  const definite = OTHER_CHART.exec(s)
+  if (definite) {
+    if (/chart/i.test(definite[0])) return true
+    if (!ONE_STANDS_FOR.test(s.slice(0, definite.index) + s.slice(definite.index + definite[0].length))) return true
   }
-  return false
+  const m = DIFFERENT_CHART.exec(s)
+  if (!m) return false
+  if (/chart/i.test(m[0])) return true
+  const [a, b] = clauseAt(s, m.index)
+  const rest = (s.slice(a, m.index) + ' ' + s.slice(m.index + m[0].length, b)).replace(CLICK_CHART, ' ')
+  return /\bcharts?\b/i.test(rest)
 }
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
