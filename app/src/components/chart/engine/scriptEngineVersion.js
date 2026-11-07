@@ -111,7 +111,8 @@
 /** 27 = W6-T9: receiver types (overloads by receiver type, chains, members on typed receivers, a record's shallow copy) are served on the runtime lane; the object door keeps master's answer */
 /** 28 = W6-T8: map.* members are served on the runtime lane (gated at the object door) */
 /** 29 = W34-I6b: v6 bool-residue items 1, 2 and 4 are served on the runtime lane; the object door keeps Q-A3 */
-export const SCRIPT_ENGINE_VERSION = 29
+/** 30 = W6-T10: `enum` declarations and `input.enum` are served on the runtime lane; the object door is unchanged */
+export const SCRIPT_ENGINE_VERSION = 30
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

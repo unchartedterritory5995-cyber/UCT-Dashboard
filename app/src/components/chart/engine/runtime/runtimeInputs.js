@@ -62,9 +62,13 @@ const TYPE_OF_CALL = Object.freeze({
   'input.price': 'float',
 })
 // ⭐ PHASE 3 WS-D — `input.time`, `input.session` and `input.price` are served now (below).
-// ⛔ `input.enum` still is not: its default is a field of an `enum` DECLARATION, and this
-// lane has no `enum` statement yet (WS-A's statement grammar), so there is no value to key.
+// ⭐ W6-T10 — `input.enum` RUNS at its DEFAULT field now (`pineRuntimeFrontend.js::lowerInputEnum`).
+// ⛔ It is still NOT OFFERED as a setting: the menu of an enum's titles is the member input
+// UI's work (W2), and which value a member's choice carries is uncaptured (W6-E1). A run handed
+// a member's value for it refuses by name; with no knob, none is handed, and the default serves.
 const UNSERVED = new Set(['input.symbol', 'input.text_area', 'input.enum'])
+const ENUM_SKIP = 'an enum menu is not offered here yet (the member input menu, and capture W6-E1); its default '
+  + 'field stays'
 const TIMEFRAME_SKIP = 'a timeframe setting changes which bars the script reads, and this pane is handed only '
   + "the chart's own — another timeframe's bars are not made up; its default stays"
 // ⭐ PHASE 3 WS-D — the same ruling, for the same reason, read for a symbol: a symbol setting
@@ -407,6 +411,7 @@ function specOf(name, node, rhsToks, version, lookup) {
   const legacy = legacyType && legacyType.type === 'name' ? legacyType.name : null
   // ⭐ PHASE 3 WS-D — a symbol setting is skipped for the timeframe ruling's reason, by name.
   if (call === 'input.symbol' || legacy === 'input.symbol') return { skip: SYMBOL_SKIP }
+  if (call === 'input.enum') return { skip: ENUM_SKIP }
   if (UNSERVED.has(call)) return { skip: `\`${call}\` is not a setting this pane can carry yet` }
   let type = TYPE_OF_CALL[call]
   const def = argOf(node, 'defval', 0)
