@@ -3130,7 +3130,8 @@ describe('MACD Flip A — the legacy block stands down, all three plots move tog
       expect(c.options.autoscaleInfoProvider(() => 'BASE'),
         'the only thing on that axis has to be what sizes it').toBe('BASE')
     }
-    expect(macdHistogram()[0].options.priceFormat).toEqual({ type: 'price', precision: 5 })
+    // Decision B1: `minMove` follows the five decimals, or LWC rounds them to two.
+    expect(macdHistogram()[0].options.priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
   })
 
   it('the zero guide is drawn ONCE, on the MACD line — as legacy draws it', () => {
