@@ -231,3 +231,39 @@ plot(s / 86400000.0)
     expect(computeRuntimeColumns(runtimeDoc(src(args)), ONE_BAR, CLOSED).a[0]).toBe(want)
   })
 })
+
+// ─── RULING-0927 r2 (2026-11-07): `confirm = true` IN EVERY SPELLING ───────────────────────
+// B3: `confirm` is positional index 5 in v4 `input(defval, title, type, minval, maxval, confirm)`
+// as in v5/v6 `input.time(defval, title, tooltip, inline, group, confirm)`. Each spelling below
+// must refuse on pane, screen and runtime; the `confirm = false` twins must serve.
+describe('RULING-0927 r2 — confirm = true refuses in the keyword AND positional forms, v4 and v5/v6', () => {
+  const ONE_BAR = [{ t: 1700000000, o: 1, h: 1, l: 1, c: 1, v: 1 }]
+  const T = 'timestamp("18 May 2022 00:00 +0000")'
+  const V4 = '//@version=4\nstudy("r")\n'
+  const body = (call) => `s = ${call}\nplot(s / 86400000.0)\n`
+  const CASES = [
+    ['v4 positional', V4, `input(${T}, "S", input.time, 0, 0, true)`, `input(${T}, "S", input.time, 0, 0, false)`],
+    ['v4 keyword', V4, `input(defval = ${T}, title = "S", type = input.time, confirm = true)`,
+      `input(defval = ${T}, title = "S", type = input.time, confirm = false)`],
+    ['v5 positional', V5, `input.time(${T}, "S", "", "", "", true)`, `input.time(${T}, "S", "", "", "", false)`],
+    ['v5 keyword', V5, `input.time(${T}, "S", confirm = true)`, `input.time(${T}, "S", confirm = false)`],
+  ]
+  const runtimeOf = (text) => {
+    try { return { a: computeRuntimeColumns(runtimeDoc(text), ONE_BAR, CLOSED).a[0] } } catch (e) { return { err: String(e.message) } }
+  }
+  it.each(CASES)('%s: confirm = true refuses by name on every lane', (label, head, refused) => {
+    const text = head + body(refused)
+    for (const t of [pane(text), screen(text)]) {
+      const r = t.outputs[0].refusal
+      expect(r && r.guard, label).toBe('pine:input-kind')
+      expect(r.message).toMatch(/confirm = true[\s\S]*RULING-0927 r1/)
+    }
+    expect(runtimeOf(text).err, `runtime served ${label}`).toMatch(/confirm = true[\s\S]*RULING-0927 r1/)
+  })
+  it.each(CASES)('%s: its confirm = false twin serves 19130 on pane and runtime', (label, head, _r, served) => {
+    const text = head + body(served)
+    const f = pane(text).outputs[0].formula
+    expect(f, label).toBe('1652832000000 / 86400000')
+    expect(runtimeOf(text).a, label).toBe(19130)
+  })
+})

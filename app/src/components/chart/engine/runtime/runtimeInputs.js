@@ -252,7 +252,9 @@ export function timeInputDefaultOf(node, lookup) {
   // translator all call it). T16 of `vw-time-tf-spy-1d-2026-09-27.json` witnesses exactly
   // `input.time(timestamp("18 May 2022 00:00 +0000"))` with no `confirm`. Every other form refuses
   // by name and has a probe row in `docs/pine/capture-queue-2026-09-27.md` (RULING-0927 r1).
-  const confirm = argOf(node, 'confirm', node && node.name === 'input.time' ? 5 : null)
+  // r2 (B3): `confirm` is positional index 5 in BOTH signatures — v5/v6 `input.time(defval, title,
+  // tooltip, inline, group, confirm)` and v4 `input(defval, title, type, minval, maxval, confirm)`.
+  const confirm = argOf(node, 'confirm', 5)
   if (confirm !== undefined && literalNumber(confirm) !== 0) return { skip: TIME_CONFIRM_SKIP }
   const def = argOf(node, 'defval', 0)
   const r = constTimeOf(def, lookup, 0)

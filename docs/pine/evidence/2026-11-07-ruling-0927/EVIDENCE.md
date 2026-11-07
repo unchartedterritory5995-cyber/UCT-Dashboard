@@ -149,3 +149,40 @@ REFUSED BY NAME (pane and screen `pine:input-kind`; runtime `runtime:statement`;
 
 A measure-pair is still required (the reviewer's item 8): the translator lane changes member output for
 `session-hilo` and the vw-time-tf probe. Engine bump at merge, by the coordinator.
+
+## r2 (2026-11-07): fix round after review NO-GO @3700363b99 (B1, B2 closed)
+
+### B3: positional `confirm = true` on the v4 legacy form
+
+`timeInputDefaultOf` read `confirm` positionally only for `input.time`. v4's signature is
+`input(defval, title, type, minval, maxval, confirm, ...)`, so `confirm` is index 5 there too and
+`input(timestamp("18 May 2022 00:00 +0000"), "S", input.time, 0, 0, true)` was served. It now reads
+`argOf(node, 'confirm', 5)` for every time input (it was already failing closed on any value but a literal `false`).
+
+Rails (`ruling0927.test.js`, r2 block): `confirm = true` refuses by name on pane, screen and runtime in four spellings
+(v4 positional, v4 keyword `type = input.time`, v5 positional `input.time(…, "", "", "", true)`, v5 keyword), and
+each `confirm = false` twin serves 19130 on pane and runtime. Nothing in the committed corpus uses the v4 form.
+
+Mutation (copy, mutate, run, restore by copy, cmp clean): positional index dropped for the legacy form ->
+"v4 positional: confirm = true refuses by name on every lane" goes red (1 failed of 34).
+
+### Runtime-lane movers (the review's corpus note)
+
+With the runtime pane ON, `machine-learning-knn-based-strategy` (defaults `timestamp("… GMT+10")`) goes from served on
+the runtime lane to refused; it is the only committed-corpus script that stops drawing. Nobody had shown its old
+drawing matched TradingView (the GMT+10 sign is unproven, Q-D2). Settings specs also dropped, on scripts already refused
+for other reasons: candlestick-patterns-on-backtest `sTim`, heikin-ashi-supertrend `dateTimeClosed` (no zone),
+volume-profile-plus `ANCHORED_TIME`, open-interest-profile `startTime`/`endTime` (`confirm = true`, defval 0).
+
+### The kNN reason a member reads (review N6): documented, not changed
+
+When the runtime fallback declines, the member door shows the HOST lane's refusal (`pine:collection` for kNN) and
+carries the runtime lane's `input.time` sentence beside it as `runtimeDeclined`. That is the RT1 integrator decision
+recorded at `memberPaneDefinition.js::runtimeLaneDefinition` ("the HOST lane's refusal, verbatim … the runtime reason
+is carried beside it … never instead of it"). Reversing it changes the sentence for every fallback-declined script,
+so it is not a cheap local fix; it is left as the review's later task.
+
+### Verification
+
+Every test file that mentions `input.time` (29 files) + `pine.barstate.test.js`: 653/653 (Node 20.20.2). Service suite
+(Node 24.13.1) 139/139. `pine_runtime_host_parity.mjs --host node --check`: HP-1 GREEN 166/166.
