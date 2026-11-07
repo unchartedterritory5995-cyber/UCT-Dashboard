@@ -188,7 +188,7 @@ const controlWord = (f) => {
   const list = (f.options || []).join('|')
   if (f.type === 'set') return `${f.key}(+/-${list ? ` ${list}` : ' member'})`
   if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
-  return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : `${f.min}–${f.max}`})`
+  return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : f.type === 'text' ? 'words, or empty to clear' : `${f.min}–${f.max}`})`
 }
 // ── The `widgetControls` context section: sent only on a turn that may need it ──
 // Each type once, with its choices, and what a widget is set to where that differs from how it starts. It is sent when the
@@ -1103,6 +1103,11 @@ export function registerBoardCapabilities() {
     if (f.type === 'enum') {
       const hit = pick(f, choices, raw)
       return hit ? { value: hit.value } : { why: `“${f.key}” can be ${listed(choices)} — not “${raw}”.` }
+    }
+    // a widget's own search box (type text): the words as typed, trimmed; empty clears it; never longer than the box takes
+    if (f.type === 'text') {
+      const t = String(raw ?? '').replace(/\s+/g, ' ').trim()
+      return t.length > (f.max || 80) ? { why: `“${f.key}” takes at most ${f.max || 80} characters.` } : { value: t }
     }
     if (f.type === 'boolean') {
       if (typeof raw === 'boolean') return { value: raw }

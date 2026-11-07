@@ -18,7 +18,11 @@ export const allControls = widgetControls
 const DOCK_WHY = 'This chart has no Company Info panel. Add it from the chart’s Add to Chart menu first.'
 // C3-219 (round 6): the chart's View Holdings button (ViewHoldingsControl), shown only for an ETF or a UCT index ($IDX:)
 const HOLDINGS_WHY = 'This chart isn’t showing an ETF or a UCT index, so it has no View Holdings button.'
+// the words a search box is used with (any widget's `text` control)
+const SEARCH_WORDS = ['search', 'find', 'look', 'lookup', 'query', 'clear']
 export const AGENT_CONTROLS = {
+  // C3-138 (round 7): the News (Trade Exchange) widget's own "Search headlines" box, through its door (its own setQueryRaw)
+  tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS }],
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
   // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
@@ -93,7 +97,7 @@ const VOCAB = new Map()
 function controlVocab(type, surfaceWord) {
   if (VOCAB.has(type)) return VOCAB.get(type)
   const own = new Set(widgetNamesOf(type, surfaceWord).flat())
-  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o)))])]
+  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o))), ...Object.values(f.labels || {}), ...Object.values(f.also || {}).flat(), ...(f.words || [])])]
     .flatMap(nameWords).filter(w => w.length >= 2 && !own.has(w)))
   VOCAB.set(type, words)
   return words
