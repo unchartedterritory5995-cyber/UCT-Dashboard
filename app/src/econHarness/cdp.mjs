@@ -17,9 +17,15 @@ const killTree = (c) => {
   try { if (process.platform === 'win32' && c.pid) spawnSync('taskkill', ['/PID', String(c.pid), '/T', '/F'], { stdio: 'ignore', timeout: 5000 }); else c.kill() } catch { /* */ }
 }
 const removeProfile = (dir) => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 }); ours.delete(dir) } catch { /* still locked: the exit sweep retries */ } }
+// The exit sweep runs synchronously: a Chrome tree just killed still writes to its profile for a moment, so one pass half-deletes it.
+// Pass again (a blocking wait between passes) until every profile is gone, for at most about 6 s.
+const waitSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 const sweep = () => {
   for (const c of live) killTree(c)
-  for (const d of [...ours]) removeProfile(d)
+  for (let pass = 0; pass < 24 && ours.size; pass++) {
+    if (pass) waitSync(250)
+    for (const d of [...ours]) removeProfile(d)
+  }
 }
 let armed = false
 const arm = () => {

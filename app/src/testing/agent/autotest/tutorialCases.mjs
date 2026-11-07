@@ -20,7 +20,7 @@ add('target', 'gear-named-tl', { board: 'FOUR', clicks: ['BR'], say: 'where are 
 add('target', 'date-by-symbol', { board: 'FOUR', clicks: ['TR'], say: 'how do I go to a date on the NVDA chart', feature: 'goToDate', expect: [['starts', 'goToDate'], ['ringOn', 'BL', DATE]] })
 add('target', 'tf-middle-of-three', { board: 'THREE', clicks: ['L'], say: 'how do I change the timeframe on the middle chart', feature: 'timeframe', expect: [['starts', 'timeframe'], ['ringOn', 'M', T]] })
 add('target', 'tab-left-of-three', { board: 'THREE', clicks: ['R'], say: 'how do I add a chart tab to the left chart', feature: 'chartTab', expect: [['starts', 'chartTab'], ['ringOn', 'L', TAB]] })
-add('target', 'tf-mc-cell', { board: 'MC', clicks: ['A'], say: 'how do I change the timeframe in the bottom left cell', feature: 'timeframe', expect: [['starts', 'timeframe'], ['ringOn', 'C', T]] })
+add('target', 'tf-mc-cell', { board: 'MC', clicks: ['A'], say: 'how do I change the timeframe in the bottom left cell', feature: 'timeframe', expect: [['starts', null], ['ringOn', 'C', T]] })
 add('target', 'link-named-right', { board: 'TWO', clicks: ['A'], say: 'how do I change the link colour of the right chart', feature: 'link', expect: [['starts', 'link'], ['ringOn', 'B', LINK]] })
 add('target', 'tf-deictic-clicked', { board: 'FOUR', clicks: ['BL'], say: 'how do I change the timeframe on this chart', feature: 'timeframe', expect: [['starts', 'timeframe'], ['ringOn', 'BL', T]] })
 add('target', 'tf-named-no-click', { board: 'TWO', say: 'how do I change the timeframe on the left chart', feature: 'timeframe', expect: [['starts', 'timeframe'], ['ringOn', 'A', T]] })

@@ -2,7 +2,7 @@
 //
 //   node src/testing/agent/autotest/profileCleanup.check.mjs [reps]   (from app/; exit 0 = every case left nothing behind)
 //
-// Cases: a normal exit, an uncaught crash, a per-launch profile closed by the rig, and a HARD kill of the node process (no handler
+// Cases: a normal exit (with Chrome still open: cdp.mjs's own exit sweep must remove the profile, not the next run's reaper), an uncaught crash, a per-launch profile closed by the rig, and a HARD kill of the node process (no handler
 // can run): the hard kill leaves the profile and its Chrome, and the next run's reapOrphans() must remove both.
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, rmSync } from 'node:fs'
@@ -44,7 +44,7 @@ for (const how of ['exit', 'crash', 'own']) for (let i = 0; i < REPS; i++) {
   await sleep(300)
   const left = newDirs(before)
   const dirGone = r.info?.profile ? !existsSync(r.info.profile) : true
-  results.push({ case: how, exitCode: r.code, profileReported: !!r.info, goneByOwnSweep, reapedNext: reaped.length, dirGone, newProfileFolders: left.length, marksLeft: marks().length, pass: !!r.info && dirGone && left.length === 0 && marks().length === 0 })
+  results.push({ case: how, exitCode: r.code, profileReported: !!r.info, goneByOwnSweep, reapedNext: reaped.length, dirGone, newProfileFolders: left.length, marksLeft: marks().length, pass: !!r.info && goneByOwnSweep && dirGone && left.length === 0 && marks().length === 0 })
 }
 {
   const r = await child('hang')
