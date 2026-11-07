@@ -74,7 +74,7 @@ describe('ColumnPicker on a phone (A7)', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('the stylesheet wraps column names and gives Close 44 px on the phone; canonical breakpoints only', async () => {
+  it('the stylesheet wraps column names and gives Close 44 px on every touch width; canonical breakpoints only', async () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
     const css = readFileSync(join(globalThis.process.cwd(), 'src/pages/screener/shell/ScannerShell.module.css'), 'utf8').replace(/\r\n/g, '\n')
@@ -82,7 +82,12 @@ describe('ColumnPicker on a phone (A7)', () => {
     expect(at).toBeGreaterThan(-1)
     const block = css.slice(at, css.indexOf('\n}\n', at))
     expect(block).toMatch(/\.pickerLabel\s*\{[^}]*overflow-wrap:\s*anywhere/)
-    expect(block).toMatch(/\.pickerClose\s*\{[^}]*min-width:\s*var\(--tap-min, 44px\)/)
+    // 2026-11-07: the 44 px floor for Reset and Close moved to the TOUCH block
+    // (<=1024 px), which covers the phone too (tapFloor rail: tablet is touch).
+    const touchAt = css.indexOf('@media (max-width: 1024px) {\n  .railSlot')
+    expect(touchAt).toBeGreaterThan(-1)
+    const touch = css.slice(touchAt, css.indexOf('\n}\n', touchAt))
+    expect(touch).toMatch(/\.pickerClose\s*\{[^}]*min-width:\s*var\(--tap-min, 44px\)/)
     for (const m of css.matchAll(/@media \(max-width: (\d+)px\)/g)) expect(['640', '1024']).toContain(m[1])
   })
 })
