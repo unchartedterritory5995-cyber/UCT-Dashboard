@@ -154,3 +154,13 @@ test('same-count want lists with different names, and field-boundary shifts, nev
     k((r) => { r.jobs[0].symbol = { ticker: 'A', exchange: 'D' }; r.jobs[0].tf = 'W' }),
   )
 })
+
+test('W9-T11: the window is in the result key only when the job states one (every older key unchanged)', () => {
+  const base = { newestBarIsForming: false, historyFromListing: true, runtimeInputs: { a: 1 } }
+  assert.equal(canonicalCtx(base), canonicalCtx({ ...base }), 'control')
+  assert.equal(canonicalCtx(base).includes('window='), false)
+  const a = canonicalCtx({ ...base, historyWindowBars: 5 })
+  const b = canonicalCtx({ ...base, historyWindowBars: 6 })
+  assert.notEqual(a, canonicalCtx(base))
+  assert.notEqual(a, b)
+})

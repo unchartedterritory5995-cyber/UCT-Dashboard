@@ -97,6 +97,11 @@ function nonNegInt(v, path) {
   return v
 }
 
+function posInt(v, path) {
+  if (!Number.isSafeInteger(v) || v < 1) throw bad(path, 'must be a positive integer')
+  return v
+}
+
 function bool(v, path) {
   if (typeof v !== 'boolean') throw bad(path, 'must be true or false')
   return v
@@ -194,11 +199,15 @@ function jobOf(v, path, { tfSet, maxBars }) {
   }
   if (typeof v.tf !== 'string' || !tfSet.includes(v.tf)) throw bad(`${path}.tf`, `must be one of ${tfSet.join(', ')}`)
   const bars = barsOf(v.bars, `${path}.bars`, maxBars)
-  const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs'])
+  const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs', 'historyWindowBars'])
   const ctx = {
     newestBarIsForming: bool(c.newestBarIsForming, `${path}.ctx.newestBarIsForming`),
     historyFromListing: bool(c.historyFromListing, `${path}.ctx.historyFromListing`),
     runtimeInputs: Object.hasOwn(c, 'runtimeInputs') ? runtimeInputsOf(c.runtimeInputs, `${path}.ctx.runtimeInputs`) : {},
+    // W9-T11: the history window a strategy (broker) run takes (design 3.4), as the CALLER states it
+    // (the API reads bars_window.HISTORY_WINDOW_BARS). Optional: a job without it is a job as before,
+    // and a broker run told no window refuses `runtime:strategy-start` by name (vm.js).
+    ...(Object.hasOwn(c, 'historyWindowBars') ? { historyWindowBars: posInt(c.historyWindowBars, `${path}.ctx.historyWindowBars`) } : {}),
   }
   const want = Object.hasOwn(v, 'want') ? wantOf(v.want, `${path}.want`) : []
   return { job, symbol, tf: v.tf, bars, ctx, want }
