@@ -2932,6 +2932,21 @@ function functionIndex(table) {
 
 const own = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key)
 
+/** ⭐⭐ THE `PINE_NAMESPACED_TREE` KEY A PINE CALL NAME RESOLVES TO, BY THE SCRIPT'S OWN VERSION.
+ *
+ *  The namespaced spelling (`ta.highestbars`) is its own key. The legacy BARE spelling
+ *  (`highestbars`) is re-routed to `ta.<name>` only in v1-v4, where the bare name is
+ *  unambiguously Pine's own (v5 removed it); `null` = not a member. ONE authority: the
+ *  translator's resolver and the runtime lane's `windowTarget` both ask this (W34-I6c: the
+ *  runtime lane read v4 `highestbars` as the bare POSITIVE table entry, the sign this
+ *  rewrite exists to flip). */
+export const pineNamespacedName = (pineName, pineVersion) => {
+  const name = String(pineName)
+  if (own(PINE_NAMESPACED_TREE, name)) return name
+  return (pineVersion !== null && pineVersion !== undefined && pineVersion <= 4
+    && !name.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${name}`)) ? `ta.${name}` : null
+}
+
 // --------------------------------------------------------------------------- //
 // the lexer
 // --------------------------------------------------------------------------- //
@@ -13800,11 +13815,7 @@ export class Resolver {
     // the SAME transform through the same three lines below — a second copy of
     // the argument walk here is `lesson_a_second_authority_over_one_value`, and
     // the two would drift the first time either was touched.
-    const namespacedName = own(PINE_NAMESPACED_TREE, pineName)
-      ? pineName
-      : ((this.pineVersion !== null && this.pineVersion <= 4
-          && !pineName.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${pineName}`))
-        ? `ta.${pineName}` : null)
+    const namespacedName = pineNamespacedName(pineName, this.pineVersion)
     if (namespacedName) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
       // `ta.pivothigh(source = high, rightbars = 3, leftbars = 7)` translated to
