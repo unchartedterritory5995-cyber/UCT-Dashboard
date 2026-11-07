@@ -103,7 +103,8 @@
 /** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
 /** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
 /** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
-export const SCRIPT_ENGINE_VERSION = 21
+/** 22 = W34-I6a: a `switch` arm that wraps onto a continuation line is served on the runtime lane; an arm mixing wrap and block lines is refused by name */
+export const SCRIPT_ENGINE_VERSION = 22
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
