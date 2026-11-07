@@ -88,6 +88,13 @@ const SHAPES = {
   // record list read through `x.f`.
   forin_sum: ['a = array.from(close, open)\ns = 0.0\nfor x in a\n    s += x\nv = s + k * 0\n', true],
   forin_live: ['a = array.from(close)\nn = 0\nfor [i, x] in a\n    if i < 3\n        array.push(a, x)\n    n += 1\nv = n + k * 0\n', true],
+  // ⭐ W34-I6a — a `switch` arm wrapped onto a continuation line (indent not a multiple of
+  // four). The pane joins it into one expression; the door does not join, so master's arm
+  // check still sees a block under the arm and refuses BY NAME ("a value arm that ends in a
+  // block … runtime pane only"), as master did.
+  sw_wrap: ['m = bar_index % 2\nv = switch m\n    0 => close + k * 0\n     + open\n    => close - open\n', true],
+  sw_wrap_nested: ['', true, 'f(c) =>\n    r = if c\n        close\n    else if not c\n        switch bar_index % 2\n            0 => close\n             + open\n            => high\n    else\n        low\n    r\n',
+    'v = f(close > open) + k * 0\n'],
   forin_udt: ['', true, 'type P\n    float p\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(2))\n',
     's = 0.0\nfor q in ps\n    s += q.p\nv = s + close * 0 + k * 0\n'],
 }

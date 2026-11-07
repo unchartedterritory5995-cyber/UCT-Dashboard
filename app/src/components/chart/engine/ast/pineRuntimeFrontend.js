@@ -44,7 +44,7 @@ import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 // ⭐ W4-T8 — GENERATED from TradingView's v6 reference (tools/pine_survey/emit_length_qualifiers.js).
 import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 import { splitCommaStatements } from './objectFnInline.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse, listingSeedIsUnpinned } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -798,6 +798,95 @@ export function scanMutability(stmts, out) {
   return acc
 }
 
+/** ⭐⭐ W34-I4 — A v1/v2 SELF-REFERENCING DEFINITION, READ BY THE RUN AS PINE RUNS IT.
+ *
+ *  Before v3, Pine let a definition read its own past: `i1 = c1*src + c2*nz(i1[1])`.
+ *  The script is a SERIES `i1`, assigned once per bar, whose `i1[1]` is last bar's
+ *  value and, on bar 0, the history operator's `na` (there is no earlier bar). That
+ *  is exactly the v4 spelling `i1 = na` + `i1 := c1*src + c2*nz(i1[1])`, which this
+ *  lane already runs as a slot. So the statement is rewritten to that pair and the
+ *  run computes the reference's arithmetic from bar 0: no re-seeded window, no
+ *  curtain and no lookback budget (the host lane's `accum`, which refused the shape
+ *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
+ *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
+ *
+ *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])`, `k` a whole
+ *  literal >= 1. Its bar-0 value is 0 under EITHER v1/v2 seed rule (`nz(na)` and
+ *  `nz(0)` are both 0), so no unstated rule reaches an output. ⛔ NOT
+ *  `nz(name[k], fill)`: that reads `fill` if the series starts at `na` and 0 if it
+ *  starts at 0, the question row W34-I4-S1 leaves open, so it is not rewritten and
+ *  keeps master's answer (the host `accum`, which withholds the seed's window, or
+ *  its `pine:state` refusal by name when the update never forgets). A bare self read
+ *  (`col[1] == 1`, `a*close + b*x[1]`) leaves bar 0 to a rule the reference does
+ *  not state for v1/v2 (does `na` propagate, or does the series start at 0?), so
+ *  it is NOT rewritten: it keeps the host lane's `pine:state` refusal by name, and
+ *  the capture-queue row W34-I4-S1 asks TradingView (named on
+ *  `thelark-lma-v2-laguerre`, `col`, line 43). Never a guessed seed.
+ *  ⛔ Top-level, single-line definitions of a name nothing else declares or
+ *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18
+ *  object door never calls this (master's answer stands there). */
+export function v2SelfReferenceStatements(stmts, version) {
+  if (!Array.isArray(stmts) || (version != null && version > 2)) return stmts
+  const mut = scanMutability(stmts)
+  const declared = new Map()
+  for (const st of stmts) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq === 1 && toks[0] && toks[0].kind === 'ident' ? toks[0] : null
+    if (nameTok) declared.set(nameTok.value, (declared.get(nameTok.value) || 0) + 1)
+  }
+  const isIdent = (t, v) => !!t && t.kind === 'ident' && (v === undefined || t.value === v)
+  /** Every read of `name` in `rhs` is a guarded history read; at least one exists. */
+  const guardedSelfRef = (rhs, name) => {
+    let reads = 0
+    for (let i = 0; i < rhs.length; i += 1) {
+      if (!isIdent(rhs[i], name)) continue
+      if (isPunct(rhs[i - 1], '.') || isPunct(rhs[i + 1], '.')) continue
+      const k = rhs[i + 2]
+      const guarded = isPunct(rhs[i - 1], '(') && isIdent(rhs[i - 2], 'nz') && !isPunct(rhs[i - 3], '.')
+        && isPunct(rhs[i + 1], '[') && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
+        && isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')
+      if (!guarded) return false
+      reads += 1
+    }
+    return reads > 0
+  }
+  /** ⛔ MEASURE-PAIR FINDING (runtime-on, `earnings-sr-levels-lazybear`, v1): a definition
+   *  carrying a `?:` or `iff` (`x = (c ? a : nz(x[1]))`) is NOT rewritten. As a slot its
+   *  test is lowered to the VM's `SELECT`, whose below-v4 `na` reading is unsettled
+   *  (`lowerIr.js::naTestsOf`, RT1), so the run declined `runtime:na-test` where master's
+   *  host fold served it (its bar 0 is `nz`'s 0 under either seed rule, so master's value
+   *  does not rest on the unknown seed). Such a definition keeps master's answer. */
+  const hasConditional = (rhs) => rhs.some((t) => isPunct(t, '?') || isIdent(t, 'iff'))
+  /** ⛔ REVIEW N1 — and one that CALLS a function this script defines (`f(a) => …`): the
+   *  callee's body may hold a `?:` the token scan above cannot see, which would reach the
+   *  VM the same way. Such a definition keeps master's answer too. */
+  const scriptFns = new Set()
+  for (const st of stmts) {
+    const toks = st.header || []
+    if (isIdent(toks[0]) && isPunct(toks[1], '(') && findTop(toks, (t) => isPunct(t, '=>')) > 0) scriptFns.add(toks[0].value)
+  }
+  const callsScriptFn = (rhs) => rhs.some((t, i) => isIdent(t) && scriptFns.has(t.value) && isPunct(rhs[i + 1], '('))
+  let changed = false
+  const out = []
+  for (const st of stmts) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq === 1 && isIdent(toks[0]) ? toks[0] : null
+    const plain = nameTok && !(st.sub && st.sub.length) && !(st.body && st.body.length)
+      && declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)
+    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || hasConditional(toks.slice(eq + 1))
+        || callsScriptFn(toks.slice(eq + 1))) {
+      out.push(st); continue
+    }
+    const eqTok = toks[eq]
+    out.push({ ...st, header: [nameTok, eqTok, { ...eqTok, kind: 'ident', value: 'na' }], body: [], sub: [] })
+    out.push({ ...st, header: [nameTok, { ...eqTok, value: ':=' }, ...toks.slice(eq + 1)] })
+    changed = true
+  }
+  return changed ? out : stmts
+}
+
 // ── scope chain ─────────────────────────────────────────────────────────────
 
 /** ⭐⭐ A SCOPE IS A FRAME, AND A SLOT IS ALLOCATED PER DECLARATION — never per
@@ -1171,6 +1260,78 @@ export function buildRuntimeIr(source, opts = {}) {
   return out
 }
 
+/** ⭐⭐ W34-I6a — A `switch` ARM WHOSE VALUE WRAPS ONTO A CONTINUATION LINE.
+ *
+ *  Pine's rule (User Manual, "Script structure" → "Line wrapping"): "each wrapped line
+ *  after the first can use any indentation length _except_ multiples of four", "because
+ *  Pine uses four-space or tab indentations to define local code blocks"; between
+ *  brackets "all code … _does not_ have any restriction on indentation length".
+ *
+ *  `blockStatements` (shared with the host lane, `pine.js`) treats the `=>` of an arm as
+ *  a block opener, so every deeper line under `c => a` / `     and b` lands in the arm's
+ *  `sub` and the arm refused "ends in a block". This pass re-reads exactly that shape on
+ *  the runtime side, from the arm's own raw `body` tokens: an arm with an inline value
+ *  whose deeper lines ALL start (outside brackets) at an indent that is NOT a multiple of
+ *  four is ONE expression, header and body joined. The `if` branch already reads its
+ *  wrapped lines this way (a statement that opened no block continues onto them).
+ *
+ *  ⛔ What the rule does not settle keeps a refusal BY NAME:
+ *  - every deeper line at a multiple of four: a real sub-block, today's reading, unchanged;
+ *  - wrapped lines AND a line at a block indent under one arm: marked `wrapMixed`, refused
+ *    in `lowerSwitchInto` (`runtime:block-value`);
+ *  - `c =>` with its value on the next line: a block, unchanged (no inline value to wrap).
+ *  ⛔ Not at the object door (`atObjectDoor`): the door keeps master's reading until
+ *  measure-pair proves its output identical (the caller does not call this there). */
+const SWITCH_WORD = (t) => t && t.kind === 'ident' && t.value === 'switch'
+const ARM_VALUE_OPENERS = new Set(['if', 'switch', 'for', 'while'])
+function wrappedArmOf(arm, indents) {
+  const h = arm.header || []
+  const body = arm.body || []
+  const at = findTop(h, (x) => isPunct(x, '=>'))
+  if (at < 0 || at === h.length - 1 || !body.length) return arm
+  // review N1: an inline value that opens a block (`0 => switch x`) owns the lines beneath as its
+  // block; they are not this arm's wrap (an inner switch's own arms are joined on their level).
+  if (findTop(h.slice(at + 1), (x) => x.kind === 'ident' && ARM_VALUE_OPENERS.has(x.value)) >= 0) return arm
+  let depth = 0
+  let wraps = 0
+  let blocks = 0
+  let prevLine = h.length ? h[h.length - 1].line : null
+  for (const tok of body) {
+    if (tok.line !== prevLine && depth === 0) {
+      if ((indents[tok.line - 1] || 0) % 4 === 0) blocks += 1
+      else wraps += 1
+    }
+    prevLine = tok.line
+    if (tok.kind === 'punct') {
+      if (tok.value === '(' || tok.value === '[') depth += 1
+      else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+    }
+  }
+  if (!wraps) return arm
+  if (blocks) return { ...arm, wrapMixed: true }
+  return { header: h.concat(body), body: [], sub: [] }
+}
+function joinWrappedSwitchArms(list, indents) {
+  if (!list || !list.length) return list
+  let changed = false
+  const out = list.map((st) => {
+    let sub = st.sub && st.sub.length ? joinWrappedSwitchArms(st.sub, indents) : st.sub
+    if (sub && sub.length && findTop(st.header || [], SWITCH_WORD) >= 0) {
+      let armsChanged = false
+      const arms = sub.map((arm) => {
+        const a = wrappedArmOf(arm, indents)
+        if (a !== arm) armsChanged = true
+        return a
+      })
+      if (armsChanged) sub = arms
+    }
+    if (sub === st.sub) return st
+    changed = true
+    return { ...st, sub }
+  })
+  return changed ? out : list
+}
+
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
@@ -1333,6 +1494,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
+  if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents)
+  // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
+  // bar-0 value (`nz(x[k])`) runs as the slot it is (`v2SelfReferenceStatements`).
+  // ⛔ Not at the C18 object door: it keeps master's answer.
+  // (Landing note: runs after the I6a join; the two are disjoint, since `switch` is v4+.)
+  if (!atObjectDoor) stmts = v2SelfReferenceStatements(stmts, version)
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
@@ -1488,10 +1656,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  `?:` lowered to the VM read it as false. ONE rule, asked of its one authority
    *  (`interpret.js::naConditionIsFalse` / `pineTernaryFor`), the same two keys the
    *  host lane passes (`nativeRegistry.js::listingOptsFor`). Off the listing, or
-   *  below v4, nothing changes. */
+   *  below v4, nothing changes.
+   *  ⭐⭐ W34-I4b — and, the same way, whether this version leaves bar 0's history
+   *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no pragma — here
+   *  the lex is in hand, so `null` IS "no pragma"). */
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
-      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}) }
+      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}),
+      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}) }
     : ((opts && opts.interpretOpts) || undefined)
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
@@ -9654,9 +9826,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const t = arm.header || []
         const at = findTop(t, (x) => isPunct(x, '=>'))
         if (at < 0) return null
-        // (a CONTINUED inline arm, `c => close` / `      > open`, never yields a value here:
-        // its body is refused at compile — `simpleSwitchShape` declines it, and the block
-        // lowering says "ends in a block" — before any call reads this result)
+        // (a CONTINUED inline arm, `c => close` / `      > open`: off the object door it was
+        // joined into one header by `wrappedArmOf` (W34-I6a); at the door its body is refused at
+        // compile — `simpleSwitchShape` declines it, and the block lowering says "ends in a
+        // block" — before any call reads this result)
         const r = at < t.length - 1 ? [t.slice(at + 1)] : bodyResultToks(arm.sub, d + 1)
         if (!r) return null
         out.push(...r)
@@ -9863,6 +10036,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label ? `${label} ` : ''}switch …\` has no \`=>\``, locate(arm.header[0]))
       }
+      // ⛔ W34-I6a: wrapped lines AND a line at a block indent under one inline arm. Pine's
+      // line-wrapping rule does not say whose statement that line is (see `wrappedArmOf`).
+      if (arm.wrapMixed) {
+        throw new RuntimeRefusal('runtime:block-value',
+          `an arm of \`${label ? `${label} ` : ''}switch …\` wraps onto a continuation line and also has a line at a block indent (a multiple of four) beneath it; Pine's line-wrapping rule does not say which statement that line belongs to`,
+          locate(arm.header[0]))
+      }
       // ⛔ P3 WS-A — THE DEFAULT IS THE LAST ARM. An arm after it (a second
       // default included) has no reading this lane may pick: run in order, the
       // default would shadow it; hoisted, the order changes. No capture says
@@ -9891,8 +10071,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
         const at2 = findTop(arm.header, (t) => isPunct(t, '=>'))
         const rhs = arm.header.slice(at2 + 1)
-        // (a continued inline arm, `c => close` / `      > open`, never reaches here: the arm
-        // lowering above refuses it first — "ends in a block")
+        // (a continued inline arm, `c => close` / `      > open`, arrives joined into one
+        // header off the object door (W34-I6a, `wrappedArmOf`); at the door the arm lowering
+        // above refuses it first — "ends in a block")
         return rhs.length ? rhs : armValueToks(arm.sub)
       }), locate(atTok), 'a `switch` with no default')) fallback = mkArm.falseFallback()
     }
