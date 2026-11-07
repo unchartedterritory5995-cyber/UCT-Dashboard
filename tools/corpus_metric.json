@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-11-02",
+  "measured_at": "2026-11-07",
   "scripts": 266,
-  "host_ok": 82,
-  "screener_ok": 68,
+  "host_ok": 83,
+  "screener_ok": 69,
   "threw": [],
   "rows": [
     {
@@ -1635,10 +1635,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:input-kind"
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:input-kind"
+        "pine:builtin"
       ]
     },
     {
@@ -2066,14 +2066,10 @@
     },
     {
       "file": "session-hilo__WM2g5GtC4h.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:input-kind"
-      ],
-      "screenerGuards": [
-        "pine:input-kind"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "session-tpo-profile__41088ef96d.pine",

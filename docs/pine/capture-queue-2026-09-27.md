@@ -118,12 +118,14 @@ masked by a library import, so it unblocks nothing today.
 
 ## Blocked by a RULING, not by a missing capture — for the owner
 
+⭐ **All four ruled 2026-11-07 (RULING-0927, desktop coordinator by owner delegation).** Evidence and rails: `docs/pine/evidence/2026-11-07-ruling-0927/EVIDENCE.md`.
+
 | name | evidence on disk | ruling that blocks it | scripts |
 |---|---|---|---|
-| `barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | `closedTable.json::_barstate.refused.isnew` — "requires per-tick evaluation" | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`) |
-| `input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — "under the threshold", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1) |
-| `ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2 |
-| `time(<session>)` on daily bars | 5m only | the refusal text: "This engine screens daily bars" | sole last wall of 1 |
+| `barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | ✅ **RULED 2026-11-07 (RULING-0927): STAYS REFUSED, reason rewritten.** History is 1 (barstate-full tail). On the NEWEST bar the vendor's `isnew` equals its own `ishistory`: 0 on six rows of `barstate-daily-timeline.json` (16:17–20:55 ET), 1 on three (23:57–07:38 ET), while our clock answered "not forming" at all nine, so nothing we receive decides it; a forming-bar update was never captured. Refused by name on pane, screen and runtime (`closedTable.json::_barstate.refused.isnew`). Rail `ast/ruling0927.test.js` | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`) |
+| `input.time` | none needed for the default value (T16 confirms it) | ✅ **RULED 2026-11-07 (RULING-0927): SERVED at its default.** T16 (`vw-time-tf-spy-1d-2026-09-27.json`) = 19130 on all 8472 bars = the timestamp in ms. The translator (`pine.js::resolveInput`) folds it to that constant, read by the runtime lane's own reader (`runtimeInputs.js::timeInputDefaultOf`), so both lanes accept and refuse the same defaults; a member value on the translator lane is refused by name. Rail `ast/ruling0927.test.js` (pane and runtime byte-exact on every bar) | `session-hilo__WM2g5GtC4h` now attaches at `memberPaneDefinition` |
+| `ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | ✅ **RULED (Phase 1, 2026-10-30; pinned by RULING-0927):** pane serves the level as `exp(cum(ln(1+chg)))`, `window_dependent` and badged; a screen refuses by name. Matches `vw-nvi-pvi-spy-1d-full-2026-09-27.json` to <1e-9 relative when the fetch starts at the symbol's first bar; a 5,000-bar fetch reads 9.07x/2.87x low (measured above). Rails `pinePhase1Builtins.test.js`, `ast/ruling0927.test.js` | both scripts attach |
+| `time(<session>)` on daily bars | 1D + 60m captured 09-27/28 | ✅ **RULED (C8/Q-T1, BUILT 09-28; pinned by RULING-0927):** pane serves it (bar's OPEN time, half-open window); a screen refuses by name (its stored daily bars carry a date, not an opening instant). Rails `sessionClockDailyBars.test.js`, `pineVocabularyWave.test.js`, `ast/ruling0927.test.js` | served |
 
 ## CAPTURED — 2026-09-27, the parent session (rig layout 01f1AcIj)
 
