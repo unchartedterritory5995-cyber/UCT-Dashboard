@@ -67,6 +67,8 @@ export function skillChip(skillId) {
   if (id.startsWith('setup.')) return setupName(id)
   if (id === 'vocab.candle') return 'Candle name'
   if (id === 'vocab.chart') return 'Chart word'
+  if (id === 'read.cycle') return 'Cycle of price action'
+  if (id === 'read.events') return 'Chart event'
   if (id.startsWith('size.')) return 'Sizing'
   if (id.startsWith('regime.')) return 'Regime'
   return id.split('.').pop().replace(/_/g, ' ')

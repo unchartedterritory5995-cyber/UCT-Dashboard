@@ -75,6 +75,13 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", default=str(REPO / "docs/study/setups/earnings_dates_cache.json"))
     ap.add_argument("--bars-db", default=None, help="the bars database the scan read; with it every pick's window is "
                     "checked against Yahoo's closes today (second_source.py) and a disagreement is never drafted")
+    ap.add_argument("--tier", choices=("textbook", "failed"), default="textbook",
+                    help="failed: the charts where the setup fired and then failed (choose.py's failed list), drafted "
+                         "with tier=failed so gen_setup_examples puts them in their own segment for the owner's ruling")
+    ap.add_argument("--only", nargs="*", default=None, help="setup names to draft (default: all six)")
+    ap.add_argument("--per-setup-map", default=None, help='JSON of per-setup targets, e.g. {"Gap Support": 520}')
+    ap.add_argument("--block", default="deep_pass1", help="the name of this pass's record in setup_examples.json")
+    ap.add_argument("--why", default=None, help="the owner's words for this pass (stored on the block)")
     ap.add_argument("--write", action="store_true")
     a = ap.parse_args(argv)
     last = _last_pass()
@@ -86,11 +93,15 @@ def main(argv=None) -> int:
     examples = data["examples"]
     have = {(e["setup"], e["sym"], e["asof"]) for e in examples}
     added, left = {}, {}
+    targets = json.loads(a.per_setup_map) if a.per_setup_map else {}
     for skill, setup in NAMES.items():
-        rows = (picks.get(skill) or {}).get("textbook") or []
+        if a.only and setup not in a.only:
+            continue
+        rows = (picks.get(skill) or {}).get(a.tier) or []
+        per_setup = int(targets.get(setup, a.per_setup))
         chosen, per_era, dates_taken, why_left = [], Counter(), set(), []
         for r in rows:
-            if len(chosen) >= a.per_setup:
+            if len(chosen) >= per_setup:
                 break
             f, asof = r["facts"], iso(r["t"])
             who = f"{r['sym']} {asof}"
@@ -160,8 +171,11 @@ def main(argv=None) -> int:
                                     liq_rank=r.get("liq_rank"), liq_universe=r.get("liq_universe"))
             # "culmination", not "outcome": facts.outcome is the Study word for a resolved trade (target_hit, stop_hit)
             facts["culmination"] = r.get("out") or {}
-            chosen.append({"setup": setup, "sym": r["sym"], "asof": asof, "year": int(asof[:4]), "close": r["close"],
-                           "facts": facts, "q": r.get("score")})
+            ex = {"setup": setup, "sym": r["sym"], "asof": asof, "year": int(asof[:4]), "close": r["close"],
+                  "facts": facts, "q": r.get("score")}
+            if a.tier == "failed":
+                ex["tier"] = "failed"
+            chosen.append(ex)
             per_era[era] += 1; dates_taken.add(asof)
         added[setup], left[setup] = chosen, why_left
         print(f"== {setup}: {len(rows)} chosen by choose.py, {len(chosen)} drafted; by era {dict(sorted(per_era.items()))}")
@@ -184,9 +198,9 @@ def main(argv=None) -> int:
             k = (p["setup"], p["sym"], p["asof"])
             if k not in have:
                 examples.append(p); have.add(k); n += 1
-    data["deep_pass1"] = {
+    data[a.block] = {
         "generated": dt.date.today().isoformat(), "script": "scripts/study/bank_v2/draft_pass.py",
-        "why": ("owner 2026-11-06: 'a variety of diverse and liquid and institutionally traded stocks and setups going back deep "
+        "why": a.why or ("owner 2026-11-06: 'a variety of diverse and liquid and institutionally traded stocks and setups going back deep "
                 "in time'. Every session since 1995 (scan_history.py over the pod's bars dump), the top 1,000 stocks by dollar "
                 "volume that day, his calibrated finders' rules, clean of other setups on the same bar, spread over six eras, "
                 "sectors and market conditions (choose.py), then the last pass's drafting rules unchanged."),

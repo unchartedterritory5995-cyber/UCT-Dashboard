@@ -183,6 +183,22 @@ def fact_line(setup: str, ex: dict) -> str:
     return ""
 
 
+def failed_line(ex: dict) -> str:
+    """Bank v2's fired-then-failed tier (owner 2026-11-06, his ruling pending): how it failed, from the chart's own bars
+    (facts.culmination, scan_history.outcome). Empty for every other example, so no earlier lesson changes."""
+    if ex.get("tier") != "failed":
+        return ""
+    c = (ex.get("facts") or {}).get("culmination") or {}
+    best = c.get("culm_pct")
+    lead = f", after a best of {best:.1f}% first" if best is not None and best >= 1 else ""
+    if c.get("broke_at"):
+        return f" This one fired, then failed: a close broke the signal day's low {c['broke_at']} sessions later{lead}."
+    if c.get("ret20_pct") is not None:
+        return (f" This one fired, then failed the finder's test: 20 sessions later it stood {c['ret20_pct']:.1f}% from "
+                f"the signal close{lead}.")
+    return " This one fired, then failed the finder's test."
+
+
 def items_for(examples: list[dict]) -> list[dict]:
     out = []
     for ex in examples:
@@ -209,7 +225,7 @@ def items_for(examples: list[dict]) -> list[dict]:
             type="spot", skill_id=skill, q=f"Does the firm's {setup} setup fire on the last bar of this chart?",
             answer="yes", choices=["Yes", "No"],
             prompt_extra={"chart": {"window_bars": WINDOW, "tf": "D"}},
-            reveal=reveal, lesson_text=(definition + " " + fact_line(setup, ex)).strip(), lesson_origin="session",
+            reveal=reveal, lesson_text=(definition + " " + fact_line(setup, ex) + failed_line(ex)).strip(), lesson_origin="session",
             source_kind="setups", source_ref=ref, difficulty=3,
             sym=ex["sym"], asof=ex["asof"], adjustment_basis="split-adjusted",
             bars={"sym": ex["sym"], "tf": "D", "asof": ex["asof"], "window": WINDOW, "forward": FORWARD}))
@@ -218,9 +234,15 @@ def items_for(examples: list[dict]) -> list[dict]:
 
 def main() -> int:
     data = load_json(REPO / SOURCE)
-    items = items_for(data["examples"])
+    items = items_for([e for e in data["examples"] if e.get("tier") != "failed"])
     path = write_segment("spot.setups", items)
     print(f"spot.setups: {len(items)} items -> {path}")
+    failed = [e for e in data["examples"] if e.get("tier") == "failed"]
+    if failed:
+        # their own segment, imported only on the owner's word (bank v2 README)
+        f_items = items_for(failed)
+        f_path = write_segment("spot.setups_failed", f_items)
+        print(f"spot.setups_failed: {len(f_items)} items -> {f_path}")
     return 0
 
 

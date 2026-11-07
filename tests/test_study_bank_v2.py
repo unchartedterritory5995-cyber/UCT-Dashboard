@@ -133,3 +133,42 @@ def test_a_takeover_pin_is_named(tmp_path):
     con.commit(); con.close()
     res = second_source.after_signal(db, "ABC", days[101])
     assert res["pinned"] and res["range_pct"] < 1
+
+
+# ---------------------------------------------------------------- gen_chartiq
+
+from scripts.study.bank_v2 import gen_chartiq as G  # noqa: E402
+
+
+def test_pick_spreads_stocks_dates_and_eras():
+    pool = [{"sym": s, "t": t, "name": "Wedge pop"} for s in ("AAA", "BBB") for t in
+            (19970102, 19980102, 20010102, 20060102, 20110102, 20160102, 20210102)]
+    pool += [{"sym": "CCC", "t": 20210102, "name": "Wedge pop"}]      # same date as a BBB/AAA pick
+    got = G.pick(pool, 50, {})
+    per_sym = {s: sum(1 for r in got if r["sym"] == s) for s in ("AAA", "BBB", "CCC")}
+    assert max(per_sym.values()) <= 2
+    assert len({r["t"] for r in got}) == len(got)                      # one per date
+    assert len({G.era_of(r["t"]) for r in got}) == len(got)            # never two in one era here
+
+
+def test_choices_hold_the_answer_and_never_a_fired_event():
+    ev, fired = "UnR", {"UnR", "Hammer at support"}
+    others = [x for x in G.CONFUSE[ev] + [e for e in G.EVENT_DEF if e not in G.CONFUSE[ev]] if x != ev and x not in fired]
+    ch = G.order_choices(ev, others, ("AAA", 20200102, ev))
+    assert ev in ch and len(ch) == 4 and "Hammer at support" not in ch
+    assert "Kicker" not in G.EVENT_DEF and "Oops reversal" not in G.EVENT_DEF   # the owner's own rulings own these
+
+
+def test_every_cycle_stage_has_a_rule_and_a_next_line():
+    assert set(G.CYCLE_DEF) == set(G.CYCLE_ORDER) and len(G.CYCLE_ORDER) == 6
+    for st in G.CYCLE_ORDER:
+        assert G.next_line(st)[0].isupper()
+
+
+def test_the_failed_tier_says_how_it_failed_and_nothing_else_changes():
+    from scripts.study.gen_setup_examples import failed_line
+    assert failed_line({"facts": {"culmination": {"broke_at": 4}}}) == ""          # no tier: every earlier lesson unchanged
+    s = failed_line({"tier": "failed", "facts": {"culmination": {"broke_at": 4, "culm_pct": 3.25}}})
+    assert s == " This one fired, then failed: a close broke the signal day's low 4 sessions later, after a best of 3.2% first."
+    s = failed_line({"tier": "failed", "facts": {"culmination": {"broke_at": None, "ret20_pct": -2.0, "culm_pct": 0.4}}})
+    assert "20 sessions later it stood -2.0%" in s and "best" not in s

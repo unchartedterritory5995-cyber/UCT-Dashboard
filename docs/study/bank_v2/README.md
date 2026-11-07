@@ -33,3 +33,14 @@ re-runnable without asking any vendor again.
 - `ATLAS.md`: the per-setup report of the deep scan.
 - `yahoo_profiles.json`: sector, industry, fund type and name per stock, from Yahoo's profile (step 1b).
 - `second_source.json`: each drafted window's comparison with Yahoo's closes (step 3).
+
+## Chart IQ question families (owner 2026-11-06: "cycle of price action, use the chart IQ")
+
+| step | script | what it does |
+|---|---|---|
+| A | `scan_chartiq.py` | Chart IQ's own readers (`api/services/chart_iq/engine/v44_read.py`) over every stock's full history: the cycle of price action (`cycle_events`) and the named bar events (`candle_events`). Kept only in the top 1,000 stocks by dollar volume that day, at most two per stock per event per era, each with a 20-session confirmation, context, culmination and liquidity rank. A cycle stage is kept only when Chart IQ names the same stage reading the member's own window (the 300 bars up to the day). |
+| B | `gen_chartiq.py` | Two segments of chart questions, held examples only, spread over eras and sectors, one per date, two per stock at most: `cycle.price_action` (skill `read.cycle`, six stages, the chart drawn with the 10 and 20-day EMA the stages are measured on) and `chart.events` (skill `read.events`, seventeen named events). Each event is re-read on the member's window and no distractor fired on that bar. |
+
+Chart IQ's own Kicker and Oops reversal are not in `chart.events`: the owner ruled his own definitions of both, and the
+setup bank teaches those. Drawing questions (which line is the support, mark the base) wait on product work: the Study
+chart cannot yet draw labelled lines inside a question, and the `levels` item type is not served to members.
