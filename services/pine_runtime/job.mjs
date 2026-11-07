@@ -89,6 +89,9 @@ export function runArgs(doc, job) {
     historyFromListing: job.ctx.historyFromListing === true,
     runtimeInputs: { ...job.ctx.runtimeInputs },
     symbol: { ticker: job.symbol.ticker, exchange: job.symbol.exchange },
+    // W9-T11: the window, from the job's ctx exactly as the browser forwards its own (runtimeAsync.js
+    // ::messageOf); never a literal here. HP-7 compares the two shapes.
+    ...(job.ctx.historyWindowBars !== undefined ? { historyWindowBars: job.ctx.historyWindowBars } : {}),
   }
   return { def, rows, ctx }
 }

@@ -199,3 +199,13 @@ test('a wall-clock stop on the REAL bundle is runtime:time-budget, never runtime
   assert.equal(ok.status, 'ok', JSON.stringify(ok.refusals))
   assert.equal(cacheable(ok), true)
 }, { timeout: 120000 })
+
+test('W9-T11: runArgs forwards the job ctx window (as the browser does), and only when the job states one', () => {
+  const doc = docOf('x')
+  const job = parsedJob('A', { n: 2 })
+  assert.equal('historyWindowBars' in runArgs(doc, job).ctx, false)
+  job.ctx.historyWindowBars = 4321
+  assert.equal(runArgs(doc, job).ctx.historyWindowBars, 4321)
+  job.ctx.historyWindowBars = 77
+  assert.equal(runArgs(doc, job).ctx.historyWindowBars, 77)
+})
