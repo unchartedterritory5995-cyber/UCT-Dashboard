@@ -40,6 +40,18 @@ const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+[a-z]
   + `|it\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
   + `|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?\\b)`
 export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
+// …and it is about a CHART: the anchor itself names one ("this one", "the selected chart", "the one I clicked"), or the thing
+// meant is named before the relation ("the chart / the one / the ticker / whatever … above it"). "alert above it" and "a line
+// under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
+const REL_CHART_ANCHOR = new RegExp(`(?:this|that)\\s+${REL_ANCHOR_NOUN}\\b|\\bthe\\s+(?:selected|clicked|current|highlighted|active|focused)\\b|\\bthe\\s+one\\s`, 'i')
+const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
+/** The relation match, or null when the words relate nothing to the clicked CHART. */
+export function relationMatch(text) {
+  const s = String(text || '')
+  const m = RELATIVE.exec(s)
+  if (!m) return null
+  return REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)) ? m : null
+}
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
 function sideOf(charts, s, side) {
   const o = charts.filter(c => c.ref !== s.ref && c.cell)
@@ -53,7 +65,7 @@ function sideOf(charts, s, side) {
 }
 /** → { hits: [chart snapshots], match } when the words name a chart relative to the clicked one (hits may be 0 or several), else null. */
 export function relativeChart(text, charts = [], sel = null) {
-  const m = RELATIVE.exec(String(text || ''))
+  const m = relationMatch(text)
   if (!m) return null
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
   if (!s) return { hits: [], match: m }
@@ -146,7 +158,7 @@ export function describedCharts(text, charts = []) {
 /** Does the member's text point at one chart without naming it? (With the board's `charts`: also a chart it describes.) */
 export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
   const s = String(text || '')
-  return RELATIVE.test(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
+  return !!relationMatch(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -402,7 +414,7 @@ const TRUE_POINTER = /\bthis\s+(?:chart|stock|ticker|symbol|one)\b/i
 const ELSE_NAMED = /\b(?:of|showing)\s+[a-z$]/i
 function onlyPointer(text, charts) {
   const s = String(text || '')
-  return TRUE_POINTER.test(s) && !RELATIVE.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
+  return TRUE_POINTER.test(s) && !relationMatch(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
     && !chartNameWord(s, charts) && !chartsNamedBy(s, charts).size
 }
 
