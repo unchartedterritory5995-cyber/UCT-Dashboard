@@ -7,10 +7,10 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2244,
+  "modules_scanned": 2245,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 49,
+    "positional_count": 50,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -19,6 +19,7 @@
       "api/main.py",
       "api/routers/ai_search.py",
       "api/routers/backtest.py",
+      "api/routers/pine_strategy_backtest.py",
       "api/routers/screener_backtest.py",
       "api/routers/signature.py",
       "api/routers/study.py",
@@ -122,16 +123,30 @@
         "index": 0
       }
     },
+    "api/routers/pine_strategy_backtest.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 136
+        }
+      ],
+      "evidence": {
+        "line": 140,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
     "api/routers/screener_backtest.py": {
       "classification": "positional",
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 871
+          "line": 889
         }
       ],
       "evidence": {
-        "line": 548,
+        "line": 566,
         "pattern": "int-subscript",
         "index": 4
       }
