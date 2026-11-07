@@ -2367,10 +2367,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           return await execute(allOf.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))), { path: 'fast', mode: 'apply', member: text, voice })
         }
         if (fast.target?.all && charts.length > 1) {
+          // ⭐ Multi Chart: an EMPTY cell that says it cannot take this change (an indicator: no chart to add to) is not one of the
+          // charts "all three charts" counts. It is left out (with a receipt note), never refused afterwards as a failed step.
+          // (A chart with a ticker that refuses stays in: that refusal is the member's to see.)
+          const blank = charts.filter(c => c.canManage === false && !String(c.symbol || '').trim())
+          const reach = blank.length < charts.length ? charts.filter(c => !blank.includes(c)) : charts
+          const blankNote = reach !== charts ? `${blank.length === 1 ? 'The empty cell has' : `${blank.length} empty cells have`} no chart to add to, so ${blank.length === 1 ? 'it was' : 'they were'} left as ${blank.length === 1 ? 'it is' : 'they are'}.` : null
           // ⛔ P2-B: "all four charts" with three on the board (or "both" with four) — the member counted a
           // different set than UCT can reach: asked, never a silent partial (or wider) change
-          if (fast.target.count && fast.target.count !== charts.length) {
-            const t = `I can reach ${charts.length} charts here, not ${fast.target.count} — say “all charts” to change these ${charts.length}, or name the ones you mean. Nothing has changed yet.`
+          if (fast.target.count && fast.target.count !== reach.length) {
+            const t = `I can reach ${reach.length} charts here, not ${fast.target.count} — say “all charts” to change these ${reach.length}, or name the ones you mean. Nothing has changed yet.`
             push({ role: 'agent', text: t })
             record({ member: text, outcome: t, outcomeData: { kind: 'clarify-count', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
             return
@@ -2378,8 +2384,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           // charts on the board the Agent can't reach (inactive tabs, floating) are NAMED on the receipt
           const away = (() => { try { return host?.charts?.unreachableCount?.() || 0 } catch { return 0 } })()
           const awayNote = away ? `${away} other chart${away === 1 ? '' : 's'} on this board (an inactive chart tab, or a floating or popped-out chart) ${away === 1 ? 'was' : 'were'} not changed.` : null
-          return await execute(charts.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
-            { path: 'fast', mode: 'apply', member: text, voice, onTarget: awayNote })
+          return await execute(reach.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
+            { path: 'fast', mode: 'apply', member: text, voice, onTarget: [awayNote, blankNote].filter(Boolean).join(' ') || null })
         }
         let candidates = charts
         const noun = kind.noun || kind.name

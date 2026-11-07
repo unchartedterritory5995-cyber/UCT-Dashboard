@@ -859,3 +859,31 @@ describe('the empty cell, described', () => {
     expect(at('c0').settings?.logScale).not.toBe(true)
   }, 30000)
 })
+
+// sel-MC-indicator-all (selection oracle, BROWSER-MOCK-MODEL): "slap rsi on all three charts" with the fourth cell empty was
+// asked about ("I can reach 4 charts here, not 3"): the empty cell, which cannot take an indicator, was counted. It is not one of
+// the charts an indicator reaches: left out, and the three get the RSI; Undo takes it off all three.
+describe('"all charts" and the empty cell', () => {
+  const rsiOn = (id) => instances(id).some(i => /rsi/i.test(i.defId))
+  it.each([['slap rsi on all three charts'], ['add rsi to all charts']])('%s: the three charts with a ticker get it; the empty cell is untouched; one Undo', async (t) => {
+    const { say, undo } = mount()
+    await say(t)
+    await waitFor(() => expect(['c0', 'c1', 'c2'].map(rsiOn)).toEqual([true, true, true]))
+    expect(at('c3').settings).toBeUndefined()
+    expect(receipts().length).toBeGreaterThan(0)
+    expect(transcript()).not.toMatch(/did not take effect|could not|couldn.t|I can reach/)
+    await undo()
+    await waitFor(() => expect(['c0', 'c1', 'c2'].map(rsiOn)).toEqual([false, false, false]))
+  }, 30000)
+  it('NEGATIVE: "all four charts" still asks (three can take it), nothing changes', async () => {
+    const { say } = mount()
+    await say('slap rsi on all four charts')
+    expect(transcript()).toMatch(/I can reach 3 charts here, not 4/)
+    expect(['c0', 'c1', 'c2'].map(rsiOn)).toEqual([false, false, false])
+  }, 30000)
+  it('a change an empty cell CAN take still counts it: "make all four charts weekly"', async () => {
+    const { say } = mount()
+    await say('make all four charts weekly')
+    await waitFor(() => expect(cells().map(c => c.tf).join('')).toBe('WWWW'))
+  }, 30000)
+})
