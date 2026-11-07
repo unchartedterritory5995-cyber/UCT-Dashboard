@@ -502,8 +502,80 @@ export function closedTabNamed(text, host) {
 // runs where it is planned, and an op on the click itself is asked about.
 const NEG_POINTER = /(?:\b(?:except(?:\s+for)?|not|other\s+than|besides|apart\s+from|aside\s+from|excluding|minus|save\s+for)|\b(?:all|every\w*|them|others?|charts?|ones)\s+but(?:\s+not)?)\s+(?:this|that|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b/i
 export const negatedPointer = (text) => NEG_POINTER.exec(String(text || ''))
-export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability }) {
+// ⭐ round 3 (pl-exec): PER-CLAUSE TARGETS — "make the NVDA chart weekly and this one log". A sentence of several clauses, each
+// naming ONE chart (a description, a ticker, a position) or pointing at the click (this one / this chart / here / it), and each
+// saying ONE change the capability's own instant reader recognises once the chart words are lifted off. Each op of the plan is
+// matched to the one clause that says it (action and arguments); it runs only on that clause's chart. Affirmative clauses only:
+// a negated clause's chart is never a target. Anything not certain — a clause naming two charts or none, an op no clause says,
+// an op two clauses say — is not read here, and the gates below decide as before (they ask).
+const CLAUSE_POINTER = /\b(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b|\bhere\b|\bit\b/i
+const CHART_WORDS = new RegExp([
+  String.raw`\b(?:on|to|for|in)\s+(?:the|this|that|my)\s+[a-z0-9.\-]+(?:\s+[a-z0-9.\-]+)?\s+(?:chart|one|cell|pane)\b`,
+  String.raw`\b(?:the|this|that|my)\s+[a-z0-9.\-]+(?:\s+[a-z0-9.\-]+)?\s+(?:chart|one|cell|pane)\b`,
+  String.raw`\b(?:on|to|for|in)\s+(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b`,
+  String.raw`\b(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b`, String.raw`\bhere\b`, String.raw`\bit\b`,
+].join('|'), 'gi')
+const FILLER = /\b(?:make|set|put|switch|change|turn|flip|please|and|then|also|too|just|now|to|on|onto|with)\b/gi
+function clauseReads(text, host, parse) {
+  const s = String(text || '')
+  // only the mixed NAMED + DEICTIC family: a sentence with a relation word or a negated pointer stays with the audited rules
+  if (relationMatch(s) || negatedPointer(s)) return null
+  const parts = s.split(CLAUSE_SPLIT).map(x => x.trim()).filter(Boolean)
+  if (parts.length < 2 || typeof parse !== 'function') return null
+  const charts = host?.charts?.list?.() || []
+  const sel = selectedChart(host)
+  const out = []
+  for (const part of parts) {
+    const negated = NEGATION.test(part)
+    const named = [...chartsNamedBy(part, charts, sel)]
+    const pointer = CLAUSE_POINTER.test(part)
+    // the clause's own chart: named (one) or the click (pointer), never both, never neither
+    const chart = named.length === 1 && !pointer ? named[0] : !named.length && pointer && sel ? sel : null
+    const core = part.replace(CHART_WORDS, ' ').replace(FILLER, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim()
+    let ops = null
+    try { const r = core ? parse(core, { host }) : null; ops = r?.kind === 'ops' && !r.target ? r.ops : null } catch { ops = null }
+    out.push({ part, negated, chart, ops })
+  }
+  return out
+}
+const sameOp = (a, b) => a.action === b.action && JSON.stringify(a.args || {}) === JSON.stringify(b.args || {})
+/** → { ok: true } when every op is the change of exactly one affirmative clause, on that clause's chart; { ask } when an op
+ *  lands on a chart its clause does not name (or a negated clause's chart); null when the sentence is not read this way. */
+function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse }) {
+  const reads = clauseReads(text, host, parse)
+  if (!reads) return null
+  const excluded = new Set(reads.filter(r => r.negated && r.chart).map(r => r.chart))
+  const affirm = reads.filter(r => !r.negated)
+  // the family itself: one affirmative clause points at the click, another names a different chart
+  const sel = selectedChart(host)
+  if (!affirm.some(r => r.chart && r.chart === sel) || !affirm.some(r => r.chart && r.chart !== sel)) return null
+  let any = false
+  for (const o of ops || []) {
+    const cap = getCapability(o?.action)
+    const kind = cap ? getTargetKind(cap.target) : null
+    const list = kind ? (kind.list(host) || []) : []
+    const snap = list.find(x => x.ref === o.target)
+    const chart = snap ? chartRefOf(kind, snap) : null
+    if (!chart) continue
+    if (excluded.has(chart)) return { ask: { text: 'You asked me to leave that chart alone. Which chart do you mean?', choices: list.filter(x => !excluded.has(chartRefOf(kind, x))).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    const says = affirm.filter(r => (r.ops || []).some(x => sameOp(x, o)))
+    if (says.length !== 1 || !says[0].chart) return null                      // not certain: the gates below decide
+    if (says[0].chart !== chart) {
+      const meant = list.find(x => chartRefOf(kind, x) === says[0].chart)
+      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
+    any = true
+  }
+  return any ? { ok: true } : null
+}
+
+export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
+  {
+    const per = clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
+    if (per?.ask) return per
+    if (per?.ok) return null
+  }
   if (negatedPointer(text)) {
     const sel = selectedChart(host)
     for (const o of ops || []) {
@@ -559,4 +631,13 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     }
   }
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
+}
+
+/** round 3: do the sentence's clauses name DIFFERENT charts ("the TSLA chart … and this one …")? An instant reader that applies
+ *  one target to the whole sentence must then not claim it: the model plans it and the per-clause gate checks each op. */
+export function clausesNameDifferentCharts(text, host) {
+  const reads = clauseReads(text, host, () => null)
+  if (!reads) return false
+  const named = new Set(reads.map(r => r.chart).filter(Boolean))
+  return named.size > 1 || (named.size >= 1 && reads.some(r => !r.chart && (CLAUSE_POINTER.test(r.part) || chartsNamedBy(r.part, host?.charts?.list?.() || [], selectedChart(host)).size)))
 }
