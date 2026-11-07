@@ -113,7 +113,8 @@
 /** 29 = W34-I6b: v6 bool-residue items 1, 2 and 4 are served on the runtime lane; the object door keeps Q-A3 */
 /** 30 = W6-T10: `enum` declarations and `input.enum` are served on the runtime lane; the object door is unchanged */
 /** 31 = W6-T6-N1b: two indirect for-in shapes that served without a capture now refuse by name (Q-W6T6-H); runtime lane only, the object door is unchanged */
-export const SCRIPT_ENGINE_VERSION = 31
+/** 32 = W6-T10-N: v5 enum names footprint/volume_row and capitalised enum names serve per the manual's case-sensitivity; runtime lane only, the object door is unchanged */
+export const SCRIPT_ENGINE_VERSION = 32
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
