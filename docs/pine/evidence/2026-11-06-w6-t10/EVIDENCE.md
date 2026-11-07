@@ -131,3 +131,49 @@ C18 diffs 0 (door unchanged by construction, railed).
 - Hand mutations (`hand-mutations.py`): C0 control SURVIVED; M16 reserved names accepted KILLED; M17 enum named like a
   declared type accepted KILLED; M1 re-run KILLED.
 - Door: unaffected (the registry is empty at the door).
+
+## mutate.py (heavy-mut.lock, taken free; 5.4 min) at `237a17f62d`
+`mutate.py runs/w6t10/muts.json w6Enum.test.js objectDoorGate.test.js` (the 18 mutations of `hand-mutations.py`):
+C0 control SURVIVED; M1-M14, M14b, M16, M17 all KILLED (17 of 17). Tree clean after (`git status` empty).
+Log `$UCT_RESUME/runs/w6t10/mutate.log`.
+
+## Measure-pair (heavy-mp.lock with ram_gate; 84.2 min) tip `237a17f62d` vs base `pine-dsk-mpbase` at merge-base `0aeffdc0e9`
+Base clean and lock free before launch; heads asserted unmoved before and after each side.
+Scripts `$UCT_RESUME/runs/w6t10/mpr/mp.sh`, `mp-launch.sh`; logs `mp-all.log`, `mp0.log`, `mp1.log`.
+
+| runtime | C18 out | C18 probe | harness | census |
+|---|---|---|---|---|
+| 0 | 395 rows, 0 differ | 69 rows, 0 differ | identical (MATCH 93 / DIVERGE 103 / INCONCLUSIVE 140 both) | 967 rows, 5 differ |
+| 1 | 395 rows, 0 differ | 69 rows, 0 differ | identical (MATCH 112 / DIVERGE 107 / INCONCLUSIVE 117 both) | 967 rows, 9 differ |
+
+**0 C18 diffs on both lanes.** Census movers, classified:
+- runtime 0 (5): `multi-timeframe-trend-indicator`, `volatility-coil-edge-bullbyte`, `halftrend-longshort-signal-engine-bigbeluga`,
+  `luxy-momentum-...`, `mirage-liquidity-sweep-pro`. All are `pine:timeout` budget noise (the 10 s translate budget,
+  timeout text, a timed-out drop head or peel count). Runtime 0 does not run the runtime lane's enum code, and none of
+  these declares an enum. **Unintended by this lane: 0 (timing noise).**
+- runtime 1 (9): eight sources that declare an `enum`. On base each stopped at the `enum` line (`pine:statement` /
+  `runtime:statement` / `pine:member`); on the tip each passes it and stops later, at its next wall, or at a named
+  `runtime:enum`:
+  - `footprint-iq-pro-tradingiq` -> `runtime:request-with-state`
+  - `stop-loss-clustering-breakouts-kioseff-trading` -> `pine:builtin`
+  - `trailing-take-profit-trailing-stop-loss` -> `runtime:statement`
+  - `volume-footprint-measuring-classical-...` -> `pine:builtin`
+  - `divergence-screener-trendoscope` -> `runtime:enum`
+  - `ichimoku-kinko-hyo` (reference) -> `runtime:call-undeclared-builtin-state`
+  - the manual and reference examples (`example:annotations:_enum`, `example:functions:input.enum`) -> `runtime:statement`
+  
+  All intended. The ninth is `multi-timeframe-trend-indicator` (no enum): the same `pine:timeout` script as on runtime 0.
+  Its timed-out refusal line is null on the tip and 135 on base, both `pine:timeout`. That is timing noise.
+  No script attaches. No served value changes.
+
+## Merge with origin/master `4a67d2fc31` (engine 28, W6-T8 maps in) -> `c3f2da72b9`
+- Conflicts: `objectDoorGate.test.js` (W6-T9's shapes beside `enum_eq`) and the capture queue (W6-M1/U1 beside
+  W6-E1). Both resolved as a union.
+- T8's `map.*` is on master now. An enum used as a map key (`mp.put(E.b, x)`) still refuses by name (`runtime:enum`,
+  an enum as a call argument). `map.new<E, float>()` without an enum value builds. K01 in W6-E1 still applies.
+- Rails: w6Enum, objectDoorGate, runtimeInputs, w6TypeDescriptor, w6ExprType, w6KeywordHonesty and
+  editorStatus.families: `Test Files 7 passed (7)`, `Tests 382 passed (382)`.
+- Folders (`vitest run engine/ast engine/runtime --maxWorkers=1`): `Test Files 4 failed | 501 passed | 4 skipped (509)`,
+  `Tests 5 failed | 8083 passed | 11 skipped (8099)`. All 5 failures are the baseline 15 s corpus-measure timeouts
+  (guardProbe, objectLaneCallSites, objectLaneCensus x2, objectLaneDrawerCensus). Log `runs/w6t10/folders-merge.log`.
+- Measure-pair above was taken at `237a17f62d` against `0aeffdc0e9`, before this merge.
