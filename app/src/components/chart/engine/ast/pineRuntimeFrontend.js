@@ -44,7 +44,7 @@ import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 // ⭐ W4-T8 — GENERATED from TradingView's v6 reference (tools/pine_survey/emit_length_qualifiers.js).
 import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 import { splitCommaStatements } from './objectFnInline.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse, listingSeedIsUnpinned } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -1561,10 +1561,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  `?:` lowered to the VM read it as false. ONE rule, asked of its one authority
    *  (`interpret.js::naConditionIsFalse` / `pineTernaryFor`), the same two keys the
    *  host lane passes (`nativeRegistry.js::listingOptsFor`). Off the listing, or
-   *  below v4, nothing changes. */
+   *  below v4, nothing changes.
+   *  ⭐⭐ W34-I4b — and, the same way, whether this version leaves bar 0's history
+   *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no pragma — here
+   *  the lex is in hand, so `null` IS "no pragma"). */
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
-      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}) }
+      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}),
+      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}) }
     : ((opts && opts.interpretOpts) || undefined)
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
