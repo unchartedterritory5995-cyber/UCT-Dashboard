@@ -11,6 +11,8 @@ import { unseen3 } from './families/unseen3.mjs'
 import { followup3 } from './families/followup3.mjs'
 import { unseen4 } from './families/unseen4.mjs'
 import { unseen5 } from './families/unseen5.mjs'
+import { unseen6 } from './families/unseen6.mjs'
+import { unseen7 } from './families/unseen7.mjs'
 
 export function publicRequests() {
   const L = []
@@ -62,6 +64,20 @@ export function unseen5Requests() {
   const L = []
   unseen5(L)
   return L.map(r => ({ ...r, set: 'unseen5' }))
+}
+
+/** Batch 6 (2026-11-07), written before the code lands: conversational targeting (the last named chart keeps the follow-ups). */
+export function unseen6Requests() {
+  const L = []
+  unseen6(L)
+  return L.map(r => ({ ...r, set: 'unseen6' }))
+}
+
+/** Batch 7 (2026-11-07), written before the code lands: every real Options Flow filter, read from the widget's own code. */
+export function unseen7Requests() {
+  const L = []
+  unseen7(L)
+  return L.map(r => ({ ...r, set: 'unseen7' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */

@@ -59,6 +59,13 @@ const acts = {
   canvasOf: (p, c, [, role]) => p.select(BOARDS[c.board].roles[role].id),
   symbolOf: (p, c, [, role]) => clickSel(p, `[data-widget-id=${q(BOARDS[c.board].roles[role].id)}] [data-guide="chart.symbol"]`),
   gearOf: (p, c, [, role]) => clickSel(p, `[data-widget-id=${q(BOARDS[c.board].roles[role].id)}] [data-guide="chart.settings"]`),
+  // a real click on one of a chart's own timeframe buttons, by its label
+  tfButtonOf: async (p, c, [, role, label]) => {
+    const id = BOARDS[c.board].roles[role].id
+    const at = await p.b.evaluate(`(() => { const b = [...document.querySelectorAll('[data-widget-id=${q(id)}] [data-guide="chart.timeframe"] button')].find(x => x.textContent.trim() === ${q(label)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+    if (!at) throw new Error(`no ${label} timeframe button on ${role}`)
+    await p.b.click(at.x, at.y); await sleep(500)
+  },
   clickWidget: async (p, c, [, id]) => { const r = await p.b.evaluate(`(() => { const e = document.querySelector('[data-widget-id=${id}]'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`); await p.b.click(r.x, r.y); await sleep(400) },
   next: async (p) => { if (!(await p.button('Next', '[data-testid="guide-card"]'))) await p.button('Done', '[data-testid="guide-card"]'); await sleep(500) },
   exit: (p) => clickSel(p, '[aria-label="Exit the guide"]'),

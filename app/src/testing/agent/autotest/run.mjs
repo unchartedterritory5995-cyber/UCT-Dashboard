@@ -1,6 +1,6 @@
 // UCT Agent AUTOTEST: the runner. Local harness by default, free by default.
 //
-//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|unseen2|unseen3|unseen4|unseen5|followup3|all] [--env VITE_FLAG=1]... [--out dir] [--cache dir] [--port 5303]
+//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|unseen2|unseen3|unseen4|unseen5|unseen6|unseen7|followup3|all] [--env VITE_FLAG=1]... [--out dir] [--cache dir] [--port 5303]
 //     BROWSER-MOCK-MODEL owns its dev server (selectionServe.mjs) unless BA_BASE is set: it starts here and dies with the process
 //   node src/testing/agent/autotest/run.mjs --mode real-model --target local|production --stage <name>
 //   node src/testing/agent/autotest/run.mjs --lint          the set's own checks, sizes and hash (free)
@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { publicRequests, unseenRequests, unseen2Requests, unseen3Requests, followup3Requests, unseen4Requests, unseen5Requests, sample, setHash } from './requests.mjs'
+import { publicRequests, unseenRequests, unseen2Requests, unseen3Requests, followup3Requests, unseen4Requests, unseen5Requests, unseen6Requests, unseen7Requests, sample, setHash } from './requests.mjs'
 import { lint, summarize, loadManifest } from './lint.mjs'
 import { blobInfo, loadHeldout } from './heldout.mjs'
 import { say, rowOf, writeFailure, finish } from './report.mjs'
@@ -48,7 +48,7 @@ if (A['guard-check'] || A.mode === 'real-model') {
 
 const list = (() => {
   if (MODE === 'REAL-MODEL') return stageList(A.stage, pub, A.stage === 'heldout' ? loadHeldout() : [])
-  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'unseen3' ? unseen3Requests() : A.set === 'followup3' ? followup3Requests() : A.set === 'unseen4' ? unseen4Requests() : A.set === 'unseen5' ? unseen5Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
+  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'unseen3' ? unseen3Requests() : A.set === 'followup3' ? followup3Requests() : A.set === 'unseen4' ? unseen4Requests() : A.set === 'unseen5' ? unseen5Requests() : A.set === 'unseen6' ? unseen6Requests() : A.set === 'unseen7' ? unseen7Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
   if (A.ids) { const re = new RegExp(A.ids); L = L.filter(r => re.test(r.id)) }
   if (A.sample) L = sample(L, Number(A.sample))
   return L
@@ -77,6 +77,9 @@ let hungOnce = false
 const reaped = reapOrphans()       // profiles a hard-killed earlier run left behind (its owner pid is gone)
 if (reaped.length) say(MODE, `reaped ${reaped.length} orphaned Chrome profile(s) from dead runs`)
 ctx.profile = claimProfile(runProfile())   // one Chrome profile for the run, removed when the process ends
+// a person's own steps between sentences (a request's `{ act }` turns): a real click on a chart
+const { BOARDS: ACT_BOARDS } = await import('./boards.mjs')
+ctx.acts = { click: (p, req, t) => p.select(ACT_BOARDS[req.board].roles[t.role].id) }
 
 say(MODE, `${list.length} requests, set ${A.set}, out ${dir}`)
 const rows = []

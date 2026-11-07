@@ -62,4 +62,16 @@ add('readonly', 'show-hline', { board: 'TWO', clicks: ['B'], say: 'how do I draw
 add('readonly', 'show-price-alert', { board: 'TWO', clicks: ['A'], say: 'how do I set a price alert', feature: 'alertPrice', expect: [['starts', null], ['unchanged'], ['noReceipt']] })
 add('readonly', 'walk-to-end', { board: 'TWO', clicks: ['B'], say: 'how do I change the timeframe on this chart', feature: 'timeframe', acts: [['next'], ['next']], expect: [['starts', 'timeframe'], ['unchanged'], ['noReceipt']] })
 
+// ── added 2026-11-07 BEFORE the code lands, for the owner's decision "clicking another chart ends the walkthrough": the walkthrough's
+// OWN chart's menus and controls must not end it, and a click on another chart must not start a new walkthrough there ──────────────
+const own = { board: 'FOUR', clicks: ['TR'], say: 'how do I change the timeframe on this chart', feature: 'timeframe' }
+add('click', 'own-gear-keeps-it', { ...own, acts: [['gearOf', 'TR'], ['wait', 800]], lifecycle: 'a click on its own chart gear', expect: [['starts', 'timeframe'], ['stillActive']] })
+add('click', 'own-symbol-keeps-it', { ...own, acts: [['symbolOf', 'TR'], ['wait', 800]], lifecycle: 'a click on its own chart symbol', expect: [['starts', 'timeframe'], ['stillActive']] })
+add('click', 'own-canvas-keeps-it', { ...own, acts: [['canvasOf', 'TR'], ['wait', 800]], lifecycle: 'a click on its own chart', expect: [['starts', 'timeframe'], ['stillActive']] })
+add('click', 'own-control-moves-it-on', { ...own, acts: [['tfButtonOf', 'TR', 'W'], ['wait', 900]], lifecycle: 'its own control', expect: [['starts', 'timeframe'], ['advancedOrDone']] })
+add('click', 'other-chart-no-restart', { ...own, acts: [['canvasOf', 'BL'], ['wait', 2000]], lifecycle: 'a click on another chart, then a moment', expect: [['starts', 'timeframe'], ['nothingOnScreen']] })
+add('click', 'other-chart-control-no-restart', { ...own, acts: [['tfButtonOf', 'BL', 'W'], ['wait', 2000]], lifecycle: 'a click on another chart timeframe button', expect: [['starts', 'timeframe'], ['nothingOnScreen']] })
+add('click', 'mc-own-cell-keeps-it', { board: 'MC', clicks: ['B'], say: 'how do I change the timeframe in this cell', feature: 'timeframe', acts: [['canvasOf', 'B'], ['wait', 800]], lifecycle: 'a click on its own cell', expect: [['starts', null], ['stillActive']] })
+add('click', 'mc-other-cell-ends-it', { board: 'MC', clicks: ['B'], say: 'how do I change the timeframe in this cell', feature: 'timeframe', acts: [['canvasOf', 'C'], ['wait', 2000]], lifecycle: 'a click on another cell', expect: [['starts', null], ['nothingOnScreen']] })
+
 export const tutorialCases = () => L.map(c => ({ ...c, set: 'tutorial' }))

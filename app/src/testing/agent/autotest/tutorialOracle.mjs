@@ -12,6 +12,8 @@
 //   ['endsGone', reasonRe]     at the end: no walkthrough in the store, its ended reason matches, no ring, no card
 //   ['stillOn', index]         at the end: still running, at step `index` (a wrong click must not advance it)
 //   ['noRing']                 no ring anywhere at the end (a walkthrough whose chart is gone must not ring a ghost)
+//   ['stillActive']            at the end it is still running (any step), with its ring and card
+//   ['advancedOrDone']         at the end it is past its first step, or it ended as done
 //   ['nothingOnScreen']        no walkthrough, ring or card at the end (after a reload)
 //   ['endFeature', feature]    a new how-to replaced the walkthrough: `feature` is running at the end
 //   ['ringOnAtEnd', role, g]   at the end the ring is still on `g` of `role` (another chart went away, this one did not)
@@ -41,6 +43,8 @@ export function gradeTutorial(spec, ev) {
     else if (k === 'stillOn') push(`still running at step ${a[0] + 1}`, end.store?.active && end.store.index === a[0] && end.ring && end.card, show(end))
     else if (k === 'advancedTo') push(`moved on to step ${a[0] + 1}`, end.store?.active && end.store.index === a[0], show(end))
     else if (k === 'noRing') push('no ring left on screen', !end.ring, show(end))
+    else if (k === 'stillActive') push('still running: a control of its own chart did not end it', end.store?.active && end.ring && end.card, show(end))
+    else if (k === 'advancedOrDone') push('its own control moved it on or finished it', (end.store?.active && end.store.index > (start.store?.index ?? 0)) || (!end.store?.active && /done/.test(end.store?.ended?.reason || '')), show(end))
     else if (k === 'nothingOnScreen') push('no walkthrough, ring or card after it', !end.store?.active && !end.ring && !end.card, show(end))
     else if (k === 'endFeature') push(`the new request replaced it with ${a[0]}`, end.store?.active && end.store.feature === a[0] && end.ring && end.card, show(end))
     else if (k === 'ringOnAtEnd') push(`the ring is still on ${a[1]} of the ${a[0]} chart`, (end.encloses || []).some(e => e.guide === a[1] && e.role === a[0]) && end.inRole === a[0], show(end), 'target')
