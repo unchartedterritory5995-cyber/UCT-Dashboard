@@ -72,6 +72,9 @@ const acts = {
     const id = BOARDS[c.board].roles[role].id
     const symOf = () => p.b.evaluate(`(window.__baRead(${q(id)})[0] || {}).sym || null`)
     const was = await symOf()
+    // the widget opens on its list picker: open a list first, as a person would, so it shows rows
+    const pick = await p.b.evaluate(`(() => { const w = document.querySelector('[data-widget-id="w-watch"]'); const el = w && [...w.querySelectorAll('*')].find(e => e.children.length === 0 && e.textContent.trim() === 'Momentum'); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+    if (pick) { await p.b.click(pick.x, pick.y); await sleep(1500) }
     const at = await p.b.evaluate(`(() => { const w = document.querySelector('[data-widget-id="w-watch"]'); if (!w) return null; const cur = ${q(was)}; const el = [...w.querySelectorAll('*')].find(e => e.children.length === 0 && /^[A-Z]{2,5}$/.test(e.textContent.trim()) && e.textContent.trim() !== cur && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().top > w.getBoundingClientRect().top + 40); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, sym: el.textContent.trim() } })()`)
     if (!at) throw new Error('no watchlist row to click')
     await p.b.click(at.x, at.y); await sleep(1200)
