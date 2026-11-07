@@ -8,7 +8,7 @@
 // `input.enum` (the default serves). Refused by name as not built here: an enum as a call argument
 // (user function, collection), an enum-typed UDT field, a nested or repeated `enum`.
 import { describe, it, expect } from 'vitest'
-import { buildRuntimeIr, collectEnums } from '../../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, collectEnums, ENUM_RESERVED_NAMES_V5, ENUM_RESERVED_NAMES_V6 } from '../../ast/pineRuntimeFrontend.js'
 import { lexPine, blockStatements } from '../../ast/pine.js'
 import { runtimeInputSpecsOf } from '../runtimeInputs.js'
 import { lowerIrProgram } from '../lowerIr.js'
@@ -26,8 +26,8 @@ const out0 = (src, o, v) => {
   const p = lowerIrProgram(b.ir)
   return Array.from(execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true, barTimes: BARS.map((x) => x.t) }).outputs[0])
 }
-const refused = (src, re, o) => {
-  const b = build(src, o)
+const refused = (src, re, o, v) => {
+  const b = build(src, o, v)
   expect(b.ok).toBe(false)
   expect(b.refusal.guard).toBe('runtime:enum')
   if (re) expect(b.refusal.message).toMatch(re)
@@ -166,5 +166,77 @@ describe('W6-T10 enum names Pine reserves (review N2)', () => {
   })
   it('a name near a reserved one still serves', () => {
     expect(out0('enum colors\n    red\n    blue\nplot(colors.red == colors.blue ? 1 : 0)')).toEqual(ones(0))
+  })
+})
+
+// ⭐⭐ W6-T10-N (review N1, N3, Q6). Every reserved name, per version, from each version's own reference:
+// the head of every dotted variable/constant/function/method name, plus every `types` entry
+// (`tools/pine_survey/pine_reference_extract.js --version 5|6`, derived 2026-11-07, docs/pine/evidence/2026-11-07-w6-t10n).
+// ⛔ TYPED HERE, NOT READ FROM THE ENGINE'S SET: a rail that iterated the engine's own list could not see a
+// name dropped from it. The equality row below catches a name ADDED to it.
+const V5_NAMES = [
+  'adjustment', 'alert', 'array', 'backadjustment', 'barmerge', 'barstate', 'box', 'chart', 'color', 'currency',
+  'dayofweek', 'display', 'dividends', 'earnings', 'extend', 'font', 'format', 'hline', 'input', 'label', 'line',
+  'linefill', 'location', 'log', 'map', 'math', 'matrix', 'order', 'plot', 'polyline', 'position', 'request',
+  'runtime', 'scale', 'session', 'settlement_as_close', 'shape', 'size', 'splits', 'str', 'strategy', 'syminfo',
+  'ta', 'table', 'text', 'ticker', 'timeframe', 'xloc', 'yloc',
+  'bool', 'const', 'float', 'int', 'series', 'simple', 'string',
+]
+const V6_ONLY = ['footprint', 'volume_row']
+const V6_NAMES = [...V5_NAMES, ...V6_ONLY]
+const RESERVED_BY_VERSION = { 5: V5_NAMES, 6: V6_NAMES }
+const reservedSrc = (name) => `enum ${name}\n    a\n    b\nplot(close)`
+const servedSrc = (name) => `enum ${name}\n    a\n    b\nx = ${name}.a\nplot(x == ${name}.b ? 1 : 0)`
+const capital = (n) => n[0].toUpperCase() + n.slice(1)
+
+describe('W6-T10-N reserved enum names, per version (review N1/N3)', () => {
+  it('the lists are the references’ lists exactly: 56 in v5, 58 in v6', () => {
+    expect(V5_NAMES.length).toBe(56)
+    expect(V6_NAMES.length).toBe(58)
+    expect([...ENUM_RESERVED_NAMES_V5].sort()).toEqual([...V5_NAMES].sort())
+    expect([...ENUM_RESERVED_NAMES_V6].sort()).toEqual([...V6_NAMES].sort())
+  })
+  for (const v of [5, 6]) {
+    describe(`v${v}`, () => {
+      for (const name of RESERVED_BY_VERSION[v]) {
+        it(`enum ${name} refuses by name`, () => refused(reservedSrc(name), /built-in type or namespace/, {}, v))
+      }
+    })
+  }
+  // ⛔ r1 (review W6-T10-N B1): the helper once dropped its version, so every "v5" row ran as v6. This row
+  // proves `refused` builds the version it is given, on the one shape whose answer differs by version.
+  it('GUARD: `refused` runs in the version it is given (footprint refuses in v6, not in v5)', () => {
+    expect(() => refused(reservedSrc('footprint'), /built-in type or namespace/, {}, 6)).not.toThrow()
+    expect(() => refused(reservedSrc('footprint'), /built-in type or namespace/, {}, 5)).toThrow()
+  })
+  it('a script with no version line reads the v6 list (fails closed): `enum footprint` refuses', () => {
+    const b = buildRuntimeIr(`indicator("t")\n${reservedSrc('footprint')}`, { bars: BARS, inputs: {} })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:enum')
+    expect(b.refusal.message).toMatch(/built-in type or namespace/)
+  })
+  for (const name of V6_ONLY) {
+    it(`v5 enum ${name} is a legal name and serves (no such namespace in the v5 reference)`, () => {
+      expect(out0(servedSrc(name), {}, 5)).toEqual(ones(0))
+    })
+  }
+})
+
+describe('W6-T10-N Pine names are case-sensitive (manual, Identifiers; Enums: `Syminfo` works) (review Q6)', () => {
+  for (const v of [5, 6]) {
+    describe(`v${v}`, () => {
+      for (const name of RESERVED_BY_VERSION[v]) {
+        it(`enum ${capital(name)} serves`, () => expect(out0(servedSrc(capital(name)), {}, v)).toEqual(ones(0)))
+      }
+    })
+  }
+  it('the manual’s own pair:`Syminfo` serves and `syminfo` refuses', () => {
+    expect(out0(servedSrc('Syminfo'))).toEqual(ones(0))
+    refused(reservedSrc('syminfo'), /built-in type or namespace/)
+  })
+  it('near misses serve: plural, suffix, all-caps, camel case', () => {
+    for (const name of ['colors', 'tas', 'COLOR', 'FLOAT', 'footprints', 'volumeRow', 'volume_rows', 'str_', 'Ta']) {
+      expect(out0(servedSrc(name)), name).toEqual(ones(0))
+    }
   })
 })
