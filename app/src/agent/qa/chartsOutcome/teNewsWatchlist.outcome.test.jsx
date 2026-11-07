@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor } from './outcomeHarness'
 import { WidgetDoorContext, mountedWidgetDoor } from '../../../pages/charts/widgetDoors'
 import { WorkspaceContext } from '../../../pages/charts/WorkspaceContext'
+import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from '../../agentExecHeldOut7.test.js'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const feed = vi.hoisted(() => {
@@ -55,7 +56,7 @@ afterEach(() => { afterEachOutcome(); cleanup() })
 // the suite pins the clock (outcomeSuite) only once it runs: the headlines are stamped at mount, on that clock
 const H = (NOW, seq, content, tickers) => ({ type: 'headline', epoch: 'e', seq, id: `id${seq}`, source: 'TX-News', content, tickers, category: 'News',
   received_at_ms: NOW - (50 - seq) * 1000, repeat_count: 0, via: 'push', delayed: false })
-const items = (NOW) => [H(NOW, 1, 'SYNTHETIC: AMD guidance raised', ['AMD']), H(NOW, 2, 'SYNTHETIC: TSLA deliveries', ['TSLA']), H(NOW, 3, 'SYNTHETIC: SPY options expiry', ['SPY'])]
+const items = (NOW) => [H(NOW, 1, 'SYNTHETIC: AMD guidance raised', ['AMD']), H(NOW, 2, 'SYNTHETIC: TSLA deliveries', ['TSLA']), H(NOW, 3, 'SYNTHETIC: SPY options expiry', ['SPY']), H(NOW, 4, 'SYNTHETIC: tariff talks resume', []), H(NOW, 5, 'SYNTHETIC: Fed holds rates', [])]
 
 function Live({ board }) {
   const [, tick] = useState(0)
@@ -79,20 +80,22 @@ function mount() {
 }
 const shown = () => [...document.querySelectorAll('[data-testid="w-tn"] [data-seq]')].map(r => Number(r.dataset.seq)).sort()
 const setOption = (value) => (c) => [{ action: 'widget.setOption', target: must(c.board?.[0]?.ref, 'board'), args: { widget: 'tn', key: 'watchlist', value } }]
+const search = (value) => (c) => [{ action: 'widget.setOption', target: must(c.board?.[0]?.ref, 'board'), args: { widget: 'tn', key: 'search', value } }]
+const box = () => document.querySelector('[data-testid="w-tn"] input[aria-label="Search headlines"]')
 const optsOf = (m) => m.board.state.widgets.find(w => w.id === 'tn').opts
 
 describe('C3-139: the News widget filtered to one of the member\'s watchlists, through its own select', () => {
   it.each([['only show headlines for my Semis list in the news widget', 'Semis', 'wl1', [1]], ['filter the trade exchange news to the core watchlist', 'Core', 'wl2', [3]]])('"%s": the widget shows only that list\'s headlines; Undo shows them all', async (text, name, id, seqs) => {
     const m = mount()
     await waitFor(() => expect(mountedWidgetDoor('tn')?.options?.().watchlist.map(o => o.label)).toEqual(['All Lists', 'Semis', 'Core', 'UCT · S&P 500']))
-    await waitFor(() => expect(shown()).toEqual([1, 2, 3]))
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
     const out = await m.say(text, setOption(name))
     await waitFor(() => expect(optsOf(m).watchlistId).toBe(id))
     await waitFor(() => expect(shown()).toEqual(seqs))
     expect(out).toMatch(new RegExp(`watchlist is now ${name}`))
     await m.say('undo')
     await waitFor(() => expect(optsOf(m).watchlistId ?? null).toBe(null))
-    await waitFor(() => expect(shown()).toEqual([1, 2, 3]))
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
   }, 60000)
   it('NEGATIVE a list the member does not have: refused with the widget\'s own choices, nothing filtered', async () => {
     const m = mount()
@@ -100,6 +103,40 @@ describe('C3-139: the News widget filtered to one of the member\'s watchlists, t
     const out = await m.say('filter the news widget to my biotech watchlist', setOption('Biotech'))
     expect(out).toMatch(/Semis/)
     expect(optsOf(m).watchlistId ?? null).toBe(null)
-    expect(shown()).toEqual([1, 2, 3])
+    expect(shown()).toEqual([1, 2, 3, 4, 5])
+  }, 60000)
+})
+
+// C3-138 (round 7): the widget's own "Search headlines" box, through its door (its own setter, as typing does). Read back: the box
+// shows the words and the list shows only the matching headlines; Undo empties the box and every headline is back.
+describe('C3-138: search the News widget through its own search box', () => {
+  const MATCH = { tariff: [4], guidance: [1], Fed: [5] }
+  it.each([...SEARCH_HELD_OUT.map(c => [c.text, c.value]), ['find Fed headlines in the trade exchange news', 'Fed']])('"%s": the box reads the words, only the matching headlines show; Undo clears it', async (text, value) => {
+    const m = mount()
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
+    const out = await m.say(text, search(value))
+    await waitFor(() => expect(box().value).toBe(value))
+    await waitFor(() => expect(shown()).toEqual(MATCH[value]))
+    expect(out).toMatch(new RegExp(`search is now ${value}`))
+    await m.say('undo')
+    await waitFor(() => expect(box().value).toBe(''))
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
+  }, 60000)
+  it.each(SEARCH_CLEAR_HELD_OUT.map(c => [c.text]))('"%s": a search typed by hand is cleared', async (text) => {
+    const m = mount()
+    await waitFor(() => expect(box()).toBeTruthy())
+    act(() => { mountedWidgetDoor('tn').write('search', 'tariff') })
+    await waitFor(() => expect(shown()).toEqual([4]))
+    const out = await m.say(text, search(''))
+    await waitFor(() => expect(box().value).toBe(''))
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
+    expect(out).toMatch(/search is now none/)
+  }, 60000)
+  it('NEGATIVE words longer than the box takes: refused, the box is untouched', async () => {
+    const m = mount()
+    await waitFor(() => expect(box()).toBeTruthy())
+    const out = await m.say('search the news widget for this very long sentence', search('x'.repeat(120)))
+    expect(out).toMatch(/at most 80 characters/)
+    expect(box().value).toBe('')
   }, 60000)
 })
