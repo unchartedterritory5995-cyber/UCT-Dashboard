@@ -56,7 +56,9 @@ export function showFeature(f, host, words = '') {
   const steps = stepsFor(f, words)
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
-  const asked = needsChart ? namedChart(words, chartsOf(host)) : null
+  let sel = null
+  try { sel = host?.charts?.selected?.() || null } catch { sel = null }
+  const asked = needsChart ? namedChart(words, chartsOf(host), sel) : null
   if (asked?.say) return asked.say
   const chart = needsChart ? asked?.chart || guideChart(host) : null
   if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`

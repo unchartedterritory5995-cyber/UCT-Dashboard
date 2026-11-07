@@ -2,13 +2,16 @@
 // means, never the clicked one. guide/namedChart.js reads names, positions, timeframes and ordinals, but returns null for
 // "the chart below this one" or "every chart except this one", so the click stood.
 //
-// ⛔ PENDING. The fix reuses deixis.js's relation/negation detector, which lives on agent/pl/target-plus-multichart
+// ✅ 2026-11-07: merged agent/pl/target-plus-multichart @ 30d1633b23; namedChart.js calls its exported relativeChart / negatedPointer.
+// (Was PENDING.) The fix reuses deixis.js's relation/negation detector, which lives on agent/pl/target-plus-multichart
 // (pl-exec). These tests are written NOW, in the guide's own phrasings, and skipped until that head is merged: then
 // namedChart.js calls the exported detector and every `it.skip` here becomes `it`. Do not write a third detector to turn them.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { registerBuiltins } from './builtins'
 import { getCapability } from './capabilities'
 import { _resetGuide } from './guide/guideStore'
+import { namedChart } from './guide/namedChart'
+import { chartsNamedBy, relativeChart, negatedPointer } from './deixis'
 
 beforeAll(() => { registerBuiltins() })
 afterEach(() => { _resetGuide() })
@@ -53,17 +56,18 @@ export const BARE_THIS = [
 ]
 
 describe('guide: a relative reference rings the neighbour (PENDING the deixis detector)', () => {
-  it.skip.each(RELATION)('%s (clicked %s) → %s', (q, clicked, want) => { onlyAbout(ask(q, clicked), want) })
+  it.each(RELATION)('%s (clicked %s) → %s', (q, clicked, want) => { onlyAbout(ask(q, clicked), want) })
 })
 describe('guide: a negated reference never rings the clicked chart (PENDING)', () => {
-  it.skip.each(NEGATION)('%s (clicked %s)', (q, clicked) => {
+  it.each(NEGATION)('%s (clicked %s)', (q, clicked) => {
     const said = ask(q, clicked)
     expect(said).not.toContain(label(clicked))
     expect(said).toMatch(/\?|which|one chart at a time|each/i)
   })
 })
 describe('guide: an unclear relation is asked about (PENDING)', () => {
-  it.skip.each(AMBIGUOUS.slice(1))('%s (clicked %s)', (q, clicked) => { expect(ask(q, clicked)).toMatch(/which/i) })
+  // PENDING: deixis reads "the other chart" (OTHER_CHART) but does not export it; namedChart will call it once exported, never copy it
+  it.skip.each(AMBIGUOUS.slice(1))('%s (clicked %s) — PENDING deixis export of OTHER_CHART', (q, clicked) => { expect(ask(q, clicked)).toMatch(/which/i) })
 })
 describe('guide: a bare "this" stays the click (holds today)', () => {
   it.each(BARE_THIS)('%s (clicked %s)', (q, clicked) => { onlyAbout(ask(q, clicked), clicked) })
@@ -71,6 +75,18 @@ describe('guide: a bare "this" stays the click (holds today)', () => {
 
 // AUDIT T2: after the merge, guide/namedChart.js and deixis.js are ONE authority over which chart the words mean. Same probe
 // set through both; they must agree. PENDING: the shared detector's export name lands with target-plus-multichart.
-describe('one authority: the guide and execution read the same chart from the same words (PENDING)', () => {
-  it.todo('every RELATION / NEGATION / AMBIGUOUS / BARE_THIS phrasing: namedChart(words, charts, clicked) === deixis detector(words, charts, clicked)')
+describe('one authority: the guide and execution read the same chart from the same words', () => {
+  // the shared probe set: the relational, negated and bare phrasings above, and names and positions both read
+  const PROBES = [
+    ...RELATION.map(([q, c]) => [q, c]), ...NEGATION, ...BARE_THIS,
+    ['how do I change the timeframe on the top right chart', 'bl'], ['how do I add RSI to the QQQ chart', 'tl'], ['how do I add RSI to the bottom left chart', 'tr'],
+  ]
+  it.each(PROBES)('%s (clicked %s): the same chart, or none, from both', (q, clicked) => {
+    const exec = [...chartsNamedBy(q, FOUR, clicked)]
+    const guide = namedChart(q, FOUR, clicked)
+    const negated = !!negatedPointer(q) || !!relativeChart(q, FOUR, clicked)?.negated
+    if (exec.length === 1) expect(guide?.chart?.ref, 'execution names one chart: the guide must ring that one').toBe(exec[0])
+    else if (negated) { expect(guide?.chart ?? null).toBeNull(); expect(guide?.say).toBeTruthy() }   // never the click, never a pick
+    else expect(guide?.chart ?? null, 'execution names none: the guide picks none either').toBeNull()
+  })
 })
