@@ -1,6 +1,6 @@
 # W34-I6b The T14 residue: v6 tail `if`/`switch` the bool typer did not reach. Evidence (desktop)
 
-**STATUS: light phase done (code, rail, red-on-master, hand mutations).** The coordinator schedules the heavy jobs:
+**STATUS: r1 fix done for review NO-GO @ca7c1bb103 (B1). See "Round r1" at the end. Code `7d5a7a2eea`.** Earlier status: light phase done (code, rail, red-on-master, hand mutations). The coordinator schedules the heavy jobs:
 mutate.py, measure-pair runtime 0 and 1, final-tip, ready-check. None of them has been run here, and no heavy lock was taken.
 
 Branch `fix/pine-w34-i6b-bool`. Code commit `d6d054cc9c`. Tested-on-master `4ca464f6e3` (engine 22, W34-I6a landed).
@@ -121,3 +121,54 @@ the generated-table rail.
   the capture MATCHes.
 - The spec's measure-pair witness `volatility-stop` (built-in, L7) is a statement-or-value question for its own
   function. Measure-pair will show whether it moves.
+
+## Round r1 (review `dsk/reviews/W34-I6b.md`, NO-GO @ca7c1bb103)
+
+Code `7d5a7a2eea`, on master `4ca464f6e3`.
+
+### B1 fixed: an `else` arm of a value-bound block is a value read
+Cause: in `statementOnlyFn`'s walk, an `else` / `else if` line is a separate list entry from the `y = if …` line that
+opens its chain. Its keyword made it count as "a block statement", so it was walked as a statement position, and
+`y = if c … else f(x)` marked `f` statement-only (a wrong `na` where Pine 6 gives `false`).
+Fix: `walk` records the chain head's value-tail flag (`chainValued`). An `else` line's sub is now walked as a value
+tail whenever its own position is a value position or the chain it continues is valued. Every arm of every
+value-bound `if` (head, `else if`, `else`, and nested inside them) is a value read, and so is every arm of a
+value-bound `switch` (already true, now railed). The rule is conservative: an unrecognised shape still counts as a
+value use.
+N2: item 1 now has ONE door guard, the refusal site (`refuseV6UnmatchedBool`'s `!atObjectDoor`). The `vstate`
+pre-filter at the door was removed, so the guard can be mutation-proved (R4 below).
+
+### Rails added (rail now 41 tests, all green on `7d5a7a2eea`)
+- These are refused by name with the V6 sentence, gate not lifted:
+  - the B1 repro (`else` arm);
+  - an `else if` arm (complete chain);
+  - an `else` arm inside another function body;
+  - a nested `if` inside an `else` arm;
+  - the HEAD arm of a value-bound `if` (R1);
+  - a block arm of a value-bound `switch` (R1);
+  - a parameter default `g(a, d = f(close))` (R7).
+- [gate lifted] the B1 repro reads `[5,5,5,5,5,7,7,7]` (Pine 6's answer). The v5 control reads all 7.
+- Object door: a nested numeric `if … else` arm is not recursed into (refused, Q-A3) (R3).
+- Neighbours after the fix:
+  - `w4V6Bool` + `objectDoorGate`: 182 passed;
+  - `functionBodyBlockValue` + `w34I6SwitchArmWrap`: 18 passed;
+  - `p3WsaDarkGate` + `p3WsaReviewFixes`: 127 passed.
+
+### r1 hand mutations (rail file; FE restored byte-exact, sha256 OK after the batch)
+| mutation | result | killed by |
+|---|---|---|
+| r1-M0 no-op | 41 passed | (control) |
+| r1-M1 B1 fix reverted (else arms take their own flag) | 5 failed | 4 else-arm rails + gate-lifted B1 repro |
+| r1-M2 `chainValued` never recorded | 5 failed | same |
+| r1-M3 else arms ignore the chain flag | 5 failed | same |
+| R1 `walk(st.sub, inValue)` (a value-bound tail read as a statement) | 7 failed | the 6 block-read rails + gate-lifted repro (head-arm and switch-arm rails close the gap) |
+| R3 `armValueCands` recurses at the door | 1 failed | door no-recursion rail (KILLED now; it survived the review because no door rail existed) |
+| R4 the single door guard removed | 1 failed | "object door keeps Q-A3" (KILLED now that the door has one guard) |
+| R7 function-definition headers not scanned | 1 failed | parameter-default rail |
+| R2 bareCall no longer requires an empty sub | 41 passed | **EQUIVALENT** (see below) |
+
+R2 is equivalent. A whole-line call that carries a `sub` is a call followed by a deeper-indented line (for example
+`f(close)` then `     + 1`). The statement lowering refuses that line by its own guard, `runtime:statement`
+("`f()` is not a shape this front end reads"), and that guard does not consult `statementOnlyFn`. The same refusal
+was observed on the tip with and without the sub condition. So whether `f` counts as statement-only cannot be
+observed: the script refuses at the line either way. The condition stays as fail-closed belt.
