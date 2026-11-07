@@ -100,7 +100,19 @@
 /** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
 /** 17 = W4-T15 (train): function and statement forms (named/default user args, one-line binding bodies, loop-end values, log.* statements) are served on the runtime lane */
 /** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
-export const SCRIPT_ENGINE_VERSION = 18
+/** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
+/** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
+/** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
+/** 22 = W34-I6a: a `switch` arm that wraps onto a continuation line is served on the runtime lane; an arm mixing wrap and block lines is refused by name */
+/** 23 = W34-I4b: a v1/v2 (or no-pragma) self-reference's bar 0 on a run from the listing is withheld unless both seeds (na, 0) agree, not guessed */
+/** 24 = W34-I4: a v1/v2 self-referencing definition whose every self read is `nz(x[k])` runs as a slot on the runtime lane instead of refusing `pine:state` */
+/** 25 = W34-I6c: v4 per-bar window lengths (highestbars/lowestbars and the series-int family) are served on the runtime lane; v1-v4 bare highestbars/lowestbars give Pine's <=0 offset */
+/** 26 = W6-T7: matrix.* members are served on the runtime lane (gated at the object door) */
+/** 27 = W6-T9: receiver types (overloads by receiver type, chains, members on typed receivers, a record's shallow copy) are served on the runtime lane; the object door keeps master's answer */
+/** 28 = W6-T8: map.* members are served on the runtime lane (gated at the object door) */
+/** 29 = W34-I6b: v6 bool-residue items 1, 2 and 4 are served on the runtime lane; the object door keeps Q-A3 */
+/** 30 = W6-T10: `enum` declarations and `input.enum` are served on the runtime lane; the object door is unchanged */
+export const SCRIPT_ENGINE_VERSION = 30
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

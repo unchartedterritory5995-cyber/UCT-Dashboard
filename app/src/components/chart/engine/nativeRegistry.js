@@ -91,7 +91,7 @@ import {
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
 import { migrateMemberDocument } from './memberDocumentMigration.js'
-import { interpret } from './ast/interpret'
+import { interpret, listingSeedIsUnpinned } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
 // `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
@@ -2787,7 +2787,20 @@ export function historyFromListingFor(def, ctx) {
 export function listingOptsFor(def, ctx) {
   if (!historyFromListingFor(def, ctx)) return {}
   return { historyFromListing: true,
-    ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}) }
+    ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}),
+    ...(listingSeedUnpinnedFor(def) ? { listingSeedUnpinned: true } : {}) }
+}
+
+/** ⭐⭐ W34-I4b — does this document's Pine version leave bar 0's history
+ *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no `//@version`)?
+ *  Read from the door's own stamp (`meta.pineVersion`, null for a script with no
+ *  pragma), and ONLY from a stamped document (`meta.doorVersion`): an unstamped
+ *  one cannot say which version it was, and — the convention every listing fact
+ *  here follows — a document that says nothing is left exactly as it was. */
+export function listingSeedUnpinnedFor(def) {
+  const meta = def && def.meta
+  if (!meta || !Number.isInteger(meta.doorVersion) || !('pineVersion' in meta)) return false
+  return listingSeedIsUnpinned(meta.pineVersion)
 }
 
 /** ⭐⭐ C45 — DOES THIS DOCUMENT'S `barindex` MEAN PINE'S `bar_index`?

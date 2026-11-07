@@ -3449,6 +3449,19 @@
       "last_changed": "2026-09-19T04:01:32Z",
       "note": "Whether a member's own translated Pine script may reach a chart pane. Read in ONE place, app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled, as `=== '1'` — absent, '', '0', 'true' and 'yes' are all OFF and only the literal '1' opens it; a build with no import.meta.env fails CLOSED. ⚰️ UNTIL e6ca532c6 THIS FLAG COULD NOT HAVE BEEN TURNED ON AT ALL: Dockerfile.web declared no ARG for it, Railway drops an undeclared build arg silently, so `=1` would have reached the bundle as undefined. That gap is closed (verified: tests/test_dockerfile_vite_build_args.py green, and the live flip actually took). Flipping it is a DEPLOY, not a variable change, because it is a build constant — confirmed by watching an actual rebuild (`railway variables --set` auto-triggered it) rather than assuming one would follow. The reader-level record is docs/frontend_feature_flags.json."
     },
+    "VITE_PINE_STRATEGY_BROKER_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "pine parity programme (S1)",
+      "owner_decision": "not yet taken -- built dark on branch pine/s1-strategy-broker (2026-10-05)",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-10-05, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-10-05T00:00:00Z",
+      "note": "S1 (2026-10-05): TradingView's strategy BROKER emulator (app/src/components/chart/engine/runtime/broker.js) so a strategy whose plots read broker values (strategy.position_size, position_avg_price, netprofit, equity, opentrades ...) is drawn on the runtime lane. Read in ONE place, app/src/components/chart/engine/strategyBrokerGate.js::strategyBrokerEnabled, as === '1'; a build with no import.meta.env fails CLOSED. OFF: buildRuntimeIr never retries a pine:strategy-call refusal, so every strategy builds and refuses byte-for-byte as before (rail: runtime/__tests__/s1StrategyBroker.test.js 'flag OFF'). ON: only scripts that refused pine:strategy-call are rebuilt with the broker; only rules docs/pine/strategy-broker-spec.md settles are served, the rest stop by name (runtime:strategy-option / -value / -unsettled). No broker value is vendor-graded yet (Q-S1-core, docs/pine/capture-queue-2026-10-05-s1.md) - do not turn on before that capture MATCHes. It also sits behind VITE_PINE_RUNTIME_PANE_ENABLED and the GT allowlist: a script still needs a MATCH capture before a member sees it. Production builds receive it as a Railway build arg on web: Dockerfile.web declares ARG VITE_PINE_STRATEGY_BROKER_ENABLED."
+    },
     "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
       "status": "dark",
       "where": [

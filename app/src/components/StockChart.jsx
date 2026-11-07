@@ -2930,6 +2930,7 @@ export default function StockChart({
   focusBarsBack = 80,       // lead-up bars shown to the left of the focus bar (fallback when focusStartDate unset)
   // ── Per-setup annotations (Model Book) — additive, default-off ──
   callouts = null,              // array of {time, text} leader-line labels (Model Book catalysts) — placed in blank space with a diagonal line to the candle
+  calloutLook = null,           // Study (round 21): how the callouts are drawn (a pill, a ring, an arrowhead; ChartCalloutOverlay `look`); null = the Model Book's plain labels
   setupMoves = null,            // sorted array of {date, anchor} per setup (Model Book) — draws a "+X%" advance label at the start of each setup's lines vs the previous one
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
@@ -20768,9 +20769,9 @@ export default function StockChart({
                         folded={folded}
                         {...legendRowHandlers}
                       />
-                    ) : (
+                    ) : (cs.volume?.visible === false ? null : (   // a hidden volume pane prints no volume (round 18: Hard mode's candles-only chart showed one)
                       <span key="vol" className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
-                    )
+                    ))
                   }
                   if (it.kind === 'ma') {
                     const ov = it.ov
@@ -21952,6 +21953,7 @@ export default function StockChart({
             seriesRef={candleSeriesRef}
             bars={bars}
             callouts={callouts}
+            look={calloutLook}
             bottomFrac={overlayBounds ? 0.96 : 0.82}
           />
         </div>

@@ -1,0 +1,33 @@
+//@version=2
+study("UCTPROBE_VW_W34_I4_V2_SELFREF_SEED", overlay = false)
+
+// --- 2026-11-06 - W34-I4: what a v2 self-reference reads on bar 0 (row W34-I4-S1) ---
+//
+// The run serves a v1/v2 self-referencing definition only where every self read is
+// `nz(x[k])`: there `nz` states bar 0. A BARE self read leaves bar 0 to a rule the
+// reference does not state for v1/v2: does `x[1]` start as `na` (and propagate), or
+// as 0? Each plot below answers it a different way. Read bars 0-5 and the last 5.
+//   R00  bar_index                                     control
+//   R01  a = a[1] + 1                                  na seed: na on every bar; 0 seed: bar_index + 1
+//   R02  b = close > open ? 1 : b[1]                   na seed: na until the first up bar; 0 seed: 0
+//   R03  c = c[1] == 0 ? 5 : 7                         na seed + na==0 false: 7 on bar 0; 0 seed: 5
+//   R04  d = na(d[1]) ? 1 : 2                          na seed: 1 on bar 0 then 2; 0 seed: 2 everywhere
+//   R05  e = 0.5 * close + 0.5 * e[1]                  na seed: na everywhere; 0 seed: a smoother from 0.5 * close
+//   R06  f = e[1] == e[1] ? 1 : 0                      is `na == na` true or false below v4 (on R05's bars)
+//   R07  g = 0.5 * close + 0.5 * nz(g[1], close)       NOT a control: na seed: bar 0 == close; 0 seed: 0.5 * close
+r00 = n
+a = a[1] + 1
+b = close > open ? 1 : b[1]
+c = c[1] == 0 ? 5 : 7
+d = na(d[1]) ? 1 : 2
+e = 0.5 * close + 0.5 * e[1]
+f = e[1] == e[1] ? 1 : 0
+g = 0.5 * close + 0.5 * nz(g[1], close)
+plot(r00, title = "R00")
+plot(a, title = "R01")
+plot(b, title = "R02")
+plot(c, title = "R03")
+plot(d, title = "R04")
+plot(e, title = "R05")
+plot(f, title = "R06")
+plot(g, title = "R07")
