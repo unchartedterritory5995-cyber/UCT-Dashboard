@@ -283,6 +283,14 @@ describe('W34-I6b item 4 — named constants typed string by the v6 reference', 
   it('CONTROL v5: the same block is na', () => {
     expect(run(B4B(5, 'size.small', 'size.large'))).toEqual(Array(N).fill(1))
   })
+  it('(r2) the OBJECT DOOR keeps master: a v6 `size.*` switch with no default is refused there (Q-A3)', () => {
+    const r = refusalOf(B4B(6, 'size.small', 'size.large'), { objectDoor: true, objectTrees: [] })
+    expect(r.guard).toBe('runtime:object-door')
+    expect(r.message).toMatch(/Q-A3/)
+  })
+  it('(r2) the same source OFF the door is served, unmatched na (the door rail\'s pair)', () => {
+    expect(run(B4B(6, 'size.small', 'size.large'), { objectTrees: [] })).toEqual(Array(N).fill(1))
+  })
   it('UNTYPABLE: a constant the table does not hold (`text.format_bold`, a `text_format`) keeps the refusal', () => {
     const r = refusalOf(B4B(6, 'text.format_bold', 'text.format_italic'))
     expect(r.guard).toBe('runtime:block-value')

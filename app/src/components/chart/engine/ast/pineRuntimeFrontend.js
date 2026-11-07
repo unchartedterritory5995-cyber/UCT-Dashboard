@@ -9791,8 +9791,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ W34-I6b (item 4) — A NAMED CONSTANT IS TYPED BY PINE'S OWN REFERENCE, never by hand:
    *  `size.small` is a `const string` there, so an unmatched v6 block of them yields `na` (a
    *  string's unmatched value is `na` in every version). Only the families the generated table
-   *  holds; any other constant stays unknown (`text.format_bold` is a `text_format`, not here). */
+   *  holds; any other constant stays unknown (`text.format_bold` is a `text_format`, not here).
+   *  ⛔ (r2) OFF THE OBJECT DOOR ONLY, like items 1 and 2. The v6 reference (`switch`, Remarks)
+   *  states `na` for an unmatched switch assigned to a variable, but not what a drawing reads
+   *  from an `na` `size`/`xloc`/`style` argument; the door keeps master's answer (Q-A3). */
   const namedConstantNonBool = (nm) => {
+    if (atObjectDoor) return false
     const ty = Object.prototype.hasOwnProperty.call(NAMED_CONSTANT_TYPES.type, nm) ? NAMED_CONSTANT_TYPES.type[nm] : null
     return ty !== null && NON_BOOL_TYPES.has(ty)
   }
