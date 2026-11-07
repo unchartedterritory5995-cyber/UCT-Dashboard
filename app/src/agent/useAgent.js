@@ -25,7 +25,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, clauseCharts } from './deixis'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -2302,6 +2302,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
       if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
         && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
+      // …and ONE instant op for a sentence whose clauses name two charts ("log scale on it and on the TSLA chart") leaves one out
+      if (fast?.kind === 'ops' && fast.ops.length === 1 && getCapability(fast.ops[0]?.action)?.target === 'chart') {
+        const named = clauseCharts(text, host)
+        if (named.size > 1) { mark('fast:clauses-to-model'); fast = null }
+      }
       if (fast?.kind === 'say') {
         push({ role: 'agent', text: fast.text })
         record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })

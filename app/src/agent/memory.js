@@ -159,8 +159,9 @@ export function createMemory({ now = () => Date.now() } = {}) {
     /** The board's layout changed: refs on the old board mean nothing now. Results (tickers) stay. */
     boardChanged() { dropBoard() },
     /** CONVERSATIONAL TARGETING (owner 2026-11-07): the ONE chart a committed change acted on (null: it acted on several, which
-     *  ends the conversational target), with the member's click as it stood then (`click`: the host's click token). */
-    noteTarget({ ref = null, click = null, epoch = null } = {}) { conv = ref ? { ref: String(ref), click, at: now(), epoch } : null },
+     *  ends the conversational target; `multi`: it acted on several, so a bare follow-up asks), with the member's click as it
+     *  stood then (`click`: the host's click token). */
+    noteTarget({ ref = null, multi = false, click = null, epoch = null } = {}) { conv = ref || multi ? { ref: ref ? String(ref) : null, multi: !ref && !!multi, click, at: now(), epoch } : null },
     convTarget(epoch = null) { return fresh(conv) && sameBoard(conv, epoch) ? conv : null },
     /** The host's layout-visit count (host `boardVisit`). If it moved since memory last looked, a layout
      *  was opened in between (A → B → A included): the board's refs are dropped, as `boardChanged`. */
