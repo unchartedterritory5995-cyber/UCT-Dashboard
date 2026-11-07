@@ -217,7 +217,7 @@ export const FAMILIES = Object.freeze([
       'pine:role-order', 'pine:empty', 'pine:declaration', 'pine:offset-literal', 'pine:chart-only',
       'runtime:statement', 'runtime:expression-statement', 'runtime:switch', 'runtime:block-value',
       'runtime:operator', 'runtime:directive', 'runtime:declaration', 'runtime:version',
-      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state'],
+      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum'],
     prefix: ['runtime:loop'],
     label: 'A Pine construct we do not run yet',
     why: 'This line uses a part of the Pine language we cannot run exactly yet.',

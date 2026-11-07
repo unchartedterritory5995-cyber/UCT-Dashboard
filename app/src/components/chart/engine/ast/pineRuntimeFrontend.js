@@ -312,6 +312,8 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:udt-field':
     'a field this type does not declare — the head of the path is a record this lane '
     + 'holds, so the name is a field, not a variable',
+  // ⭐ W6-T10 — an enum value outside the shapes this lane serves (see the enum helpers).
+  'runtime:enum': 'an enum value used where this lane does not serve one yet',
   'runtime:udt-method':
     'a Pine 6 `method` in a form this lane does not bind — a method binds as a user '
     + 'FUNCTION whose receiver is argument 0',
@@ -612,6 +614,107 @@ export function collectUdtTypes(stmts, out) {
   }
   return acc
 }
+
+/**
+ * ⭐⭐ W6-T10 — EVERY TOP-LEVEL `enum E` IN THE SCRIPT, collected before the walk
+ * for the reason `collectUdtTypes` is: an `E.member` may be read above the
+ * declaration, and a registry that filled as the walk went would refuse it.
+ *
+ * Pine (manual, *Enums*; reference, keyword `enum`): `enum <enumName>` followed by
+ * one field per line, `<field> [= <title>]`; the title is a `const string`, and
+ * "if a field's title is not specified, its title is the string representation of
+ * its name". Each field is a unique member of the enum's type.
+ *
+ * ⛔ TOP LEVEL ONLY. The manual and the reference show the declaration at the top
+ * of a script and say nothing of one inside a block or a function, so a nested
+ * `enum` is not collected and the statement walk refuses it by name.
+ * ⛔ A DECLARATION THIS PASS CANNOT READ EXACTLY is recorded with `bad` (the
+ * reason) rather than guessed: a title that is not a string literal, a field line
+ * that is not `<name>` or `<name> = "<title>"`, a field declared twice, or no fields.
+ * ⚠️ A DUPLICATE ENUM NAME KEEPS THE FIRST, as `collectUdtTypes` does for a type.
+ * ⛔ `enum = …` (a v3/v4 NAME, W6-T2's rule) is not a declaration: the second
+ * token of a declaration is a name.
+ *
+ * @returns {Map<string, {name, members: Map<string, string>, bad: string|null, tok}>}
+ *   field name → title, in declaration order.
+ */
+/** ⭐ W6-T10 (review N2) — THE NAMES AN ENUM MAY NOT TAKE. Pine (manual, *Enums*): an enum's name
+ *  must not match a built-in type or namespace (`syminfo`, `polyline`, `ta` are its examples), and
+ *  such a name is a compilation error. This is every namespace that heads a variable, constant,
+ *  function or method in the Pine v6 reference, and every type the reference lists, read 2026-11-06
+ *  through `tools/pine_survey/pine_reference_extract.js` (W6-T10 evidence). There is no roster of
+ *  these in the front end to reuse: W6-T2's rule is about the `method` keyword only. */
+export const ENUM_RESERVED_NAMES = Object.freeze(new Set([
+  // namespaces
+  'adjustment', 'alert', 'array', 'backadjustment', 'barmerge', 'barstate', 'box', 'chart', 'color',
+  'currency', 'dayofweek', 'display', 'dividends', 'earnings', 'extend', 'font', 'footprint', 'format',
+  'hline', 'input', 'label', 'line', 'linefill', 'location', 'log', 'map', 'math', 'matrix', 'order',
+  'plot', 'polyline', 'position', 'request', 'runtime', 'scale', 'session', 'settlement_as_close',
+  'shape', 'size', 'splits', 'str', 'strategy', 'syminfo', 'ta', 'table', 'text', 'ticker', 'timeframe',
+  'volume_row', 'xloc', 'yloc',
+  // types (and qualifiers) not already above
+  'bool', 'const', 'float', 'int', 'series', 'simple', 'string',
+]))
+
+export function collectEnums(stmts) {
+  const acc = new Map()
+  for (const st of stmts || []) {
+    const toks = st.header || []
+    if (!enumDeclarationHead(toks)) continue
+    const name = toks[1].value
+    if (acc.has(name)) continue
+    // ⭐ THE FIELD LINES ARRIVE INSIDE THE HEADER: the block reader joins the indented
+    // lines under a line it does not know opens a block, exactly as it does for `type`
+    // (`readTypeFields`). One field per source line.
+    const lines = new Map()
+    for (const t of toks.slice(2)) {
+      if (!lines.has(t.line)) lines.set(t.line, [])
+      lines.get(t.line).push(t)
+    }
+    const members = new Map()
+    let bad = null
+    if (st.sub && st.sub.length) bad = 'a block sits under it'
+    for (const mt of lines.values()) {
+      if (mt[0].kind !== 'ident' || /\./.test(mt[0].value)) {
+        bad = bad || 'a field line is not `<name>` or `<name> = "<title>"`'
+        continue
+      }
+      let title
+      if (mt.length === 1) title = mt[0].value
+      else if (mt.length === 3 && isPunct(mt[1], '=') && mt[2].kind === 'string') title = String(mt[2].value)
+      else {
+        bad = bad || `the field \`${mt[0].value}\` has a title that is not one string literal`
+        continue
+      }
+      if (members.has(mt[0].value)) { bad = bad || `the field \`${mt[0].value}\` is declared twice`; continue }
+      members.set(mt[0].value, title)
+    }
+    if (!members.size) bad = bad || 'it declares no fields'
+    if (ENUM_RESERVED_NAMES.has(name)) {
+      bad = `its name is a Pine built-in type or namespace, which Pine's manual says an enum may not take`
+    }
+    acc.set(name, { name, members, bad, tok: toks[1], stmt: st })
+  }
+  return acc
+}
+
+/** `enum <Name>` alone on its first line (its fields follow on later lines). ⛔ `enum = …`
+ *  (a v3/v4 NAME, W6-T2) and `enum E x` are not this shape. */
+export function enumDeclarationHead(toks) {
+  if (!toks || toks.length < 2) return false
+  const [kw, nm] = toks
+  if (!(kw.kind === 'ident' && kw.value === 'enum' && nm.kind === 'ident' && nm.line === kw.line)) return false
+  return !(toks[2] && toks[2].line === kw.line)
+}
+
+/** ⭐ W6-T10 — THE RUNTIME VALUE OF `E.member`: a text constant keyed by the enum
+ *  and the FIELD NAME, never by the title. Two fields may share a title and are
+ *  still two members (Pine: each field is a unique member), so equality of these
+ *  keys is equality of members. The leading control character keeps the key from
+ *  ever equalling text a script writes. ⛔ No reader outside this lane's enum
+ *  comparisons ever sees it: every other use of an enum value refuses by name
+ *  (`runtime:enum`). */
+export const enumValueKey = (enumName, field) => `\u0001enum:${enumName}.${field}`
 
 /** ⭐ WHICH ARGUMENT OF A COLLECTION CALL CARRIES A VALUE, counting the
  *  collection itself. `push(coll, v)` → 1; `unshift(coll, v)` → 1; `set(coll, i, v)` → 2.
@@ -1506,6 +1609,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⛔ Not at the C18 object door: it keeps master's answer.
   // (Landing note: runs after the I6a join; the two are disjoint, since `switch` is v4+.)
   if (!atObjectDoor) stmts = v2SelfReferenceStatements(stmts, version)
+  /** ⭐⭐ W6-T10 — EVERY TOP-LEVEL `enum E` (`collectEnums`), read before the walk so an
+   *  `E.member` above its declaration still binds. The statements it read are marked
+   *  (`enumDecl`) so the statement walk can tell them from a nested or repeated `enum`.
+   *  (The field lines arrive joined into the declaration's one header, so no pre-pass
+   *  reads `b = "B"` as a binding: measured, mutation M15 in the W6-T10 evidence.)
+   *  ⛔ Not at the C18 object door, where the registry is empty: the door refuses the
+   *  `enum` line exactly as master did (the statement arm below is pane-only). */
+  const enumDecls = atObjectDoor ? new Map() : collectEnums(stmts)
+  if (enumDecls.size) {
+    const own = new Set([...enumDecls.values()].map((d) => d.stmt))
+    stmts = stmts.map((st) => (own.has(st) ? { ...st, enumDecl: true } : st))
+  }
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
@@ -4315,6 +4430,165 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return 'array'
   }
 
+  // ── ⭐⭐ W6-T10 — ENUM VALUES ──────────────────────────────────────────────
+  //
+  // Pine (manual, *Enums*): a field is read as `E.field`; it may be bound to a variable,
+  // compared with `==` / `!=`, and used in `switch` and in conditionals. This lane
+  // carries `E.field` as a text constant keyed by the FIELD NAME (`enumValueKey`), so
+  // `==` and the `switch` match (which lowers to `==`) compare members, never titles.
+  //
+  // ⛔⛔ AN ENUM VALUE IS SERVED ONLY WHERE A PARENT SAYS IT MAY STAND, and refused BY
+  // NAME (`runtime:enum`) everywhere else. Its runtime carrier is text, so a reader that
+  // takes text (`str.*`, a label's text, `+`) would otherwise serve the key; a reader
+  // that takes a number would refuse it at some later and wrongly named point. The
+  // parents that admit one (they add the child to `enumOk` before lowering it):
+  //   · a binding or a `:=` whose target is that enum or unwritten (`admitEnumBinding`,
+  //     `admitEnumAssign`);
+  //   · `==` / `!=` with the SAME enum on both sides (the `binary` arm), which a
+  //     `switch` on an enum lowers to;
+  //   · the arms of a `?:` that is itself admitted, a `switch` subject, and the
+  //     expression an admitted name stands for (`env`).
+  // ⛔ Kept refused until W6-E1 (no capture): `str.tostring(e)` (title or name), an `na`
+  // enum value, and a member's own choice for `input.enum` (the default serves).
+  // Also refused by name, as not built here: an enum as a call argument (user function,
+  // collection, `map` key), an enum-typed UDT field, and a nested `enum`.
+  const ENUM_UNKNOWN = '?'
+  const enumOk = new WeakSet()
+  /** `E.field` where `E` is a declared enum → `{ decl, field }` (the field may be one `E`
+   *  does not declare: the lowering refuses that by name), else null. */
+  const enumMemberOf = (node) => {
+    if (!enumDecls.size || !node || node.type !== 'name') return null
+    const name = String(node.name || '')
+    const dot = name.indexOf('.')
+    if (dot <= 0) return null
+    const decl = enumDecls.get(name.slice(0, dot))
+    return decl ? { decl, field: name.slice(dot + 1) } : null
+  }
+  /** `input.enum`'s default node (`defval`, named or first positional), or null. */
+  const inputEnumDefault = (node) => {
+    const args = (node && node.args) || []
+    const named = args.find((a) => a && a.name === 'defval')
+    if (named) return named.value !== undefined ? named.value : null
+    const pos = args.find((a) => a && !a.name)
+    return pos ? (pos.value !== undefined ? pos.value : pos) : null
+  }
+  /** The enum this expression is a value of, by name; `ENUM_UNKNOWN` for an
+   *  `input.enum` whose default names no declared enum; null when it is not one. */
+  const enumOf = (node, scope, depth = 0) => {
+    if (!enumDecls.size || !node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'name') {
+      const m = enumMemberOf(node)
+      if (m) return m.decl.name
+      const slot = lookupReadable(node.name, scope)
+      if (slot !== null) {
+        const ty = slotTy(slot)
+        return ty && ty.kind === 'enum' ? ty.name : null
+      }
+      const b = env.get(node.name)
+      return b && b.kind === 'expr' ? enumOf(b.node, scope, depth + 1) : null
+    }
+    if (node.type === 'call' && node.name === 'input.enum') {
+      const m = enumMemberOf(inputEnumDefault(node))
+      return m ? m.decl.name : ENUM_UNKNOWN
+    }
+    if (node.type === 'ternary') {
+      const a = enumOf(node.yes, scope, depth + 1)
+      return a !== null && a === enumOf(node.no, scope, depth + 1) ? a : null
+    }
+    return null
+  }
+  /** Does an enum value stand anywhere in this subtree? (It keeps the subtree off
+   *  the columnar route, which holds no enum and would refuse it as an unknown name.) */
+  const containsEnum = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 48) return false
+    if (enumOf(node, scope) !== null) return true
+    for (const k of ['left', 'right', 'arg', 'test', 'yes', 'no']) {
+      if (node[k] && containsEnum(node[k], scope, depth + 1)) return true
+    }
+    for (const a of node.args || []) {
+      if (containsEnum(a && a.value !== undefined ? a.value : a, scope, depth + 1)) return true
+    }
+    for (const e of node.elements || []) if (containsEnum(e, scope, depth + 1)) return true
+    return false
+  }
+  const enumRefusal = (what, at) => {
+    note('runtime:enum')
+    return new RuntimeRefusal('runtime:enum', what, at)
+  }
+  const ENUM_SERVED = 'this lane serves an enum value only in a binding, in `==` / `!=` against the same enum, '
+    + 'as a `switch` subject, and in the arms of a `?:`'
+  const ENUM_NA = 'an `na` enum value is kept refused until capture W6-E1'
+  const describeEnumNode = (node) => (node.type === 'name' ? `\`${node.name}\``
+    : node.type === 'call' ? `\`${node.name}(…)\`` : 'a `?:` over enum values')
+  /** A binding (`x = …`, `var x = …`, `E x = …`): admit an enum initialiser, and
+   *  refuse one that disagrees with the written type. */
+  const admitEnumBinding = (value, scope, toks, eq) => {
+    if (!enumDecls.size || !value) return
+    const declared = Number.isInteger(eq) ? declaredTyAt(toks, eq) : null
+    const want = declared && declared.kind === 'enum' ? declared.name : null
+    const en = enumOf(value, scope)
+    if (en === null && want === null) return
+    const at = locate(value.tok || (toks && toks[0]))
+    if (want !== null && en !== want) {
+      const isNa = value.type === 'name' && value.name === 'na'
+      throw enumRefusal(isNa ? `\`${want}\` declared with \`na\` — ${ENUM_NA}`
+        : `a name written as the enum \`${want}\` is given a value that is not one of its fields`, at)
+    }
+    if (declared && want === null) {
+      throw enumRefusal(`a value of the enum \`${en}\` is bound to a name written as another type`, at)
+    }
+    enumOk.add(value)
+  }
+  /** `x := …`: an enum slot takes a value of its own enum, and nothing else does. */
+  const admitEnumAssign = (slot, value, scope, atTok) => {
+    if (!enumDecls.size || !value) return
+    const ty = slotTy(slot)
+    const want = ty && ty.kind === 'enum' ? ty.name : null
+    const en = enumOf(value, scope)
+    if (en === null && want === null) return
+    if (en !== want) {
+      const isNa = value.type === 'name' && value.name === 'na'
+      throw enumRefusal(want === null
+        ? `a value of the enum \`${en}\` assigned to a variable that does not hold that enum`
+        : isNa ? `\`na\` assigned to a variable of the enum \`${want}\` — ${ENUM_NA}`
+          : `a value that is not a field of \`${want}\` assigned to a variable of that enum`, locate(value.tok || atTok))
+    }
+    enumOk.add(value)
+  }
+  /** `input.enum(E.field, …)` → the default field's value. */
+  const lowerInputEnum = (node, scope) => {
+    const at = locate(node.tok)
+    const d = inputEnumDefault(node)
+    const m = enumMemberOf(d)
+    if (!m) throw enumRefusal('`input.enum` whose default is not a field of an enum this script declares', at)
+    if (m.decl.bad) throw enumRefusal(`\`enum ${m.decl.name}\` — ${m.decl.bad}`, at)
+    if (!m.decl.members.has(m.field)) throw enumRefusal(`\`${m.decl.name}\` declares no field \`${m.field}\``, at)
+    const optArg = (node.args || []).find((x) => x && x.name === 'options')
+    if (optArg) {
+      // Pine (reference, `input.enum`): `options` is a tuple of the enum's fields, and it
+      // must include `defval`.
+      const v = optArg.value
+      const els = v && v.type === 'collection' && Array.isArray(v.elements) ? v.elements : null
+      const fields = els ? els.map((e) => {
+        const mm = enumMemberOf(e)
+        return mm && mm.decl === m.decl && mm.decl.members.has(mm.field) ? mm.field : null
+      }) : null
+      if (!fields || !fields.length || fields.includes(null)) {
+        throw enumRefusal(`\`input.enum\` whose \`options\` are not a list of fields of \`${m.decl.name}\``, at)
+      }
+      if (!fields.includes(m.field)) {
+        throw enumRefusal(`\`input.enum\` whose \`options\` leave out its default \`${d.name}\``, at)
+      }
+    }
+    const bn = typeof node.boundName === 'string' ? node.boundName : null
+    const own = (o) => !!(o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, bn))
+    if (bn && (own(inputs) || own(inputDefaults))) {
+      throw enumRefusal(`\`${bn}\` is given a member's own choice; a member-set \`input.enum\` is kept refused `
+        + 'until capture W6-E1 and the member input menu (the default serves)', at)
+    }
+    return str(enumValueKey(m.decl.name, m.field))
+  }
+
   /** The type an INITIALISER gives a slot, by the readers that already answer
    *  each kind (`holdsArray` and its element readers, `udtTypeOf`, the drawing
    *  constructors, `holdsText`, `holdsColour`), or null.
@@ -4325,6 +4599,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  as the wrong one is refused downstream by its own kind check), so the order
    *  can cost a refusal, never a value. */
   const initialiserTy = (value, scope) => {
+    // ⭐ W6-T10 — a value of an enum types its slot as that enum.
+    {
+      const en = enumDecls.size ? enumOf(value, scope) : null
+      if (en !== null && en !== ENUM_UNKNOWN) return makeTy('enum', { name: en })
+    }
     if (holdsArray(value, scope)) {
       const eu = udtElemOf(value, scope)
       const elem = eu ? makeTy('udt', { name: eu })
@@ -4356,7 +4635,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  annotation (`declaredTyAt`), a parameter's and a field's written type
    *  (`exprType`). A drawing family is a type only when the run draws. */
   const writtenTyOf = (word, typeArgs) => {
-    const ty = tyOfTypeWord(word, typeArgs, { udtTypes })
+    const ty = tyOfTypeWord(word, typeArgs, { udtTypes, enums: enumDecls })
     return ty && ty.kind === 'drawing' && !objectsInRun ? null : ty
   }
 
@@ -6949,6 +7228,36 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
     }
+    // ⭐⭐ W6-T10 — AN ENUM VALUE STANDS ONLY WHERE ITS PARENT ADMITTED IT (`enumOk`; see
+    // the enum helpers above), and is refused by name anywhere else.
+    if (enumDecls.size) {
+      if (node.type === 'call' && node.name === 'str.tostring'
+          && enumOf(inputEnumDefault(node), scope) !== null) {
+        throw enumRefusal('`str.tostring` of an enum value (its title, or its field name?) is kept refused '
+          + 'until capture W6-E1', locate(node.tok))
+      }
+      const en = enumOf(node, scope)
+      if (en !== null) {
+        if (!enumOk.has(node)) {
+          throw enumRefusal(`${describeEnumNode(node)} is a value of the enum \`${en}\`, and ${ENUM_SERVED}`
+            + ` (${ENUM_NA})`, locate(node.tok))
+        }
+        const m = enumMemberOf(node)
+        if (m) {
+          if (m.decl.bad) throw enumRefusal(`\`enum ${m.decl.name}\` — ${m.decl.bad}`, locate(node.tok))
+          if (!m.decl.members.has(m.field)) {
+            throw enumRefusal(`\`${m.decl.name}\` declares no field \`${m.field}\``, locate(node.tok))
+          }
+          return str(enumValueKey(m.decl.name, m.field))
+        }
+        if (node.type === 'call') return lowerInputEnum(node, scope)
+        if (node.type === 'ternary') { enumOk.add(node.yes); enumOk.add(node.no) }
+        if (node.type === 'name' && lookupReadable(node.name, scope) === null) {
+          const b = env.get(node.name)
+          if (b && b.kind === 'expr') enumOk.add(b.node)
+        }
+      }
+    }
     // ⭐ H4 — `array.size(array.from(a, b, …))` is the argument count on every bar
     // (`fromLiteralSizeOf`). Lowered as that number only when every element is a
     // bare name or a literal, so skipping their evaluation skips no effect.
@@ -7026,7 +7335,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // destructure, so handed whole it refuses `pine:function`/`pine:arity`.
         && !(opts && opts.multi && tupleBuiltinParts(node))
         // ⭐⭐ S1 — nor a broker read: it is this lane's (`runtime/broker.js`).
-        && !holdsBrokerRead(node, scope)) {
+        && !holdsBrokerRead(node, scope)
+        // ⭐ W6-T10 — nor an enum value: the columnar lane holds none.
+        && !(enumDecls.size && containsEnum(node, scope))) {
       // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
       // PROVED. It looked necessary — the comment above says in as many words
       // that *"the ROUTE decision runs FIRST"*, and handling the name in the
@@ -7323,6 +7634,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:unbound', `\`${node.name}\``, locate(node.tok))
       }
       case 'binary': {
+        // ⭐⭐ W6-T10 — `==` / `!=` OVER ENUM VALUES: both sides of ONE enum, compared as
+        // members (`enumValueKey`), never by title. Anything else beside an enum refuses.
+        if (enumDecls.size && (node.op === '==' || node.op === '!=')) {
+          const l = enumOf(node.left, scope)
+          const r = enumOf(node.right, scope)
+          if (l !== null || r !== null) {
+            if (l === null || r === null || l !== r || l === ENUM_UNKNOWN) {
+              const en = l !== null && l !== ENUM_UNKNOWN ? l : r
+              throw enumRefusal(l !== null && r !== null
+                ? `\`${node.op}\` between values of two different enums`
+                : `\`${node.op}\` between a value of the enum \`${en}\` and a value this lane cannot show is of `
+                  + `that enum (\`na\`, text, a number, or a function parameter; ${ENUM_NA})`, locate(node.tok))
+            }
+            enumOk.add(node.left)
+            enumOk.add(node.right)
+            return binary(BIN[node.op], lowerExpr(node.left, scope), lowerExpr(node.right, scope))
+          }
+        }
         // ⭐⭐ `%` IS `mod`, AND ROUTING IT HERE IS WHAT MAKES THE TWO LANES
         // AGREE. `pine.js` already resolves `%` to `cCall('mod', …)`, so the
         // columnar lane has answered it all along — measured: `plot(close % 2)`
@@ -10542,6 +10871,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const tmpName = `switch subject@${atTok && atTok.line}:${atTok && atTok.column}`
       const tslot = scope.declare(tmpName, newSlot(tmpName, false))
       setSlotTy(tslot, initialiserTy(subject, scope))
+      if (enumOf(subject, scope) !== null) enumOk.add(subject)
       pre.push(declare(tslot, lowerExpr(subject, scope)))
       subject = { type: 'name', name: tmpName, tok: subjToks[0] }
     }
@@ -11436,12 +11766,39 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `type` refuses as an unbound name. `udtTypes.get` below is what keeps
       // them in step — a `type` statement the registry never saw has no entry
       // and refuses by name rather than being silently dropped.
+      // ⭐⭐ W6-T10 — AN `enum` DECLARATION EMITS NO IR. It was read by `collectEnums`
+      // before the walk (its field lines taken off it, `enumDecl`). ⛔ One that pass did not
+      // take — nested in a block or a function, or a second `enum` of one name — and one
+      // whose fields it could not read exactly are refused by name. ⛔ Not at the C18
+      // object door, which keeps master's `runtime:statement`.
+      if (word === 'enum' && !atObjectDoor && enumDeclarationHead(toks)) {
+        const decl = st.enumDecl ? enumDecls.get(toks[1].value) : null
+        if (!decl) {
+          throw enumRefusal(`\`enum ${toks[1].value}\` inside a block or a function, or declared a second time — `
+            + 'Pine\'s manual and reference show one declaration at the top of a script, and say nothing of these',
+          locate(first))
+        }
+        if (decl.bad) throw enumRefusal(`\`enum ${decl.name}\` — ${decl.bad}`, locate(first))
+        // ⛔ (review N2) nor the name of a `type` this script declares: Pine's enum names are unique.
+        if (udtTypes.has(decl.name)) {
+          throw enumRefusal(`\`enum ${decl.name}\` — the script also declares \`type ${decl.name}\`, `
+            + 'and Pine\'s manual says an enum name must be unique', locate(first))
+        }
+        continue
+      }
       if (word === 'type' && toks[1] && toks[1].kind === 'ident') {
         const decl = udtTypes.get(toks[1].value)
         if (!decl || !decl.fields.length) {
           note('runtime:udt')
           throw new RuntimeRefusal('runtime:udt',
             `\`type ${toks[1].value}\` — this lane read no fields from it`, locate(first))
+        }
+        // ⛔ W6-T10 — an enum-typed FIELD is not built here (its default, `na`, and its
+        // reads are not railed); refused by name.
+        const enumField = decl.fields.find((f) => enumDecls.has(f.type))
+        if (enumField) {
+          throw enumRefusal(`\`type ${toks[1].value}\` has the field \`${enumField.name}\` of the enum `
+            + `\`${enumField.type}\`, which this lane does not build yet`, locate(first))
         }
         continue
       }
@@ -12061,6 +12418,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.lookup(nameTok.value)
         if (slot === null) refuseUnboundReassign(nameTok, toks)
+        // ⭐ W6-T10 — `x := E.field` only into a variable of that enum (`admitEnumAssign`).
+        admitEnumAssign(slot, value, scope, nameTok)
         out.push(assign(slot, lowerExpr(value, scope)))
         continue
       }
@@ -12093,6 +12452,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           applyMemberDefault(value, nameTok.value, locate(first))
           value = bindTimeInput(value, nameTok.value, locate(first))
         }
+        // ⭐ W6-T10 — an enum initialiser is admitted here (`admitEnumBinding`).
+        admitEnumBinding(value, scope, toks, eq)
         // ⭐⭐ `var t = table.new(…)` BINDS A HANDLE, AND A HANDLE IS NOT A
         // NUMBER. The object program owns that table; this lane has no
         // representation for one and nothing here will ever read it.
@@ -12285,6 +12646,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           applyMemberDefault(value, nameTok.value, locate(first))
           value = bindTimeInput(value, nameTok.value, locate(first))
         }
+        // ⭐ W6-T10 — an enum initialiser is admitted here (`admitEnumBinding`).
+        admitEnumBinding(value, scope, toks, eq)
         const mutable = mut.mutated.has(nameTok.value)
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
         // name bound in `env` is SUBSTITUTED at each use, so `a = array.new<string>()`
