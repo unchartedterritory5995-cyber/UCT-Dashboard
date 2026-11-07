@@ -91,7 +91,7 @@ import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, ele
 // table, read by this lane and the host object lane (`pineObjects.js`) alike.
 import {
   FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
-  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal,
+  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
 } from './forInRule.js'
 import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
@@ -11103,8 +11103,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
     // ⭐ C48 — a body that changes its own list walks it LIVE, by push / shift / set only.
     if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
-    // ⛔ (review N1) …a list the element holds, changed in the body (`array.push(x.arr, v)`).
-    if (forInChangesHeldList(st.sub, elem, rule)) refuse(forInHeldListRefusal(elem))
+    // …and handing the element to a function that writes a field or changes a list held in one
+    // (at any depth of its calls):
+    // the element is a reference, so that is a write through `x` too.
+    if (forInHandsOn(st.sub, elem, rule)) {
+      refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
+    }
+    // ⛔ (review N1 / N1b) …a list the element holds, changed in the body (`array.push(x.arr, v)`),
+    // through an alias (`a = x.arr`, any chain), by a function handed it (`f(x.arr)` where `f`
+    // changes its parameter), or through a list of a type the element holds (one bound before
+    // the walk may be the same array). ONE rule: `forInRule.js::heldListReach`.
+    const heldKeys = forInHeldKeys(srcTy.elem)
+    const held = heldListReach(st.sub, elem, {
+      ...rule,
+      mayBeHeld: heldKeys.size === 0 ? null : (t) => {
+        const ty = exprType({ type: 'name', name: t, tok: first }, scope)
+        return !ty || heldKeys.has('?') || heldKeys.has(tyKey(ty))
+      },
+    })
+    if (held) refuse(forInHeldListRefusal(elem, held.via))
     // ⛔ …and a change by anything else to a list that MAY be the walked one under another name
     // (an alias holds the same array): another list of the same type, one this lane cannot
     // type, or any list a called function changes. A list of another type cannot be it, and
@@ -11124,12 +11141,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ W6-F1 — a write to the loop variable, or through it (a field of the element).
     for (const v of [elem, idx]) {
       if (v !== null && forInWrites(st.sub, v)) refuse(`the body writes the loop variable \`${v}\` or through it, not yet captured (W6-F1)`)
-    }
-    // …and handing the element to a function that writes a field or changes a list held in one
-    // (at any depth of its calls):
-    // the element is a reference, so that is a write through `x` too.
-    if (forInHandsOn(st.sub, elem, rule)) {
-      refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
     }
 
     const at = `for … in@${first.line}:${first.column}`
@@ -11231,15 +11242,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
     return hit || tuple || forInWrites(s2.sub, name)
   })
-  /** ⛔ (review N1) Does a statement change a list held by `name` (`array.push(name.arr, v)`,
-   *  `name.arr.push(v)`, at any depth)? The call shape is `forInRule.js::heldListMutation`. */
-  const forInChangesHeldList = (list, name, rule) => (list || []).some((s2) => {
-    const ts = s2.header || []
-    return ts.some((_, i) => {
-      const t = heldListMutation(ts, i, rule)
-      return t !== null && (t === name || t.startsWith(`${name}.`))
-    }) || forInChangesHeldList(s2.sub, name, rule)
-  })
+  /** ⛔ (review N1b) The `tyKey` of every list type a value of type `ty` holds, through its
+   *  record fields at any depth (and the records a held list holds); `'?'` for a field this lane
+   *  cannot type. Empty: nothing of that type holds a list. */
+  const forInHeldKeys = (ty, out = new Set(), seen = new Set()) => {
+    if (!ty || ty.kind !== 'udt' || seen.has(ty.name)) return out
+    seen.add(ty.name)
+    const t = udtTypes.get(ty.name)
+    if (!t) { out.add('?'); return out }
+    for (const f of t.fields) {
+      const fty = writtenTyOf(f.type, f.typeArgs)
+      if (!fty) { out.add('?'); continue }
+      if (fty.kind === 'array' || fty.kind === 'matrix' || fty.kind === 'map') {
+        out.add(tyKey(fty))
+        forInHeldKeys(fty.elem || null, out, seen)
+      } else forInHeldKeys(fty, out, seen)
+    }
+    return out
+  }
   /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
    *  change a list held in one (`array.push(p.arr, v)`)? */
   const forInFnWritesField = (fn, rule, seen = new Set()) => {

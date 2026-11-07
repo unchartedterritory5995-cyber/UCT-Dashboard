@@ -138,6 +138,48 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
     const reads = 'type P\n    float v\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(4))\ntwice(P q) =>\n    q.v * 2\ns = 0.0\nfor p in ps\n    s += twice(p)\nplot(s)\n'
     expect(lastValues(reads)).toEqual([8])
   })
+  it('⛔ (review N1b) a held list reached INDIRECTLY: a function handed it, an alias (W6-F1, Q-W6T6-H)', () => {
+    const H2 = 'type Q\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(array.new_float()))\n'
+    const FNS = 'bump(array<float> a) =>\n    array.push(a, 1.0)\n'
+      + 'method bumpm(array<float> a) =>\n    a.push(1.0)\n'
+      + 'viaLocal(array<float> a) =>\n    l = a\n    array.push(l, 1.0)\n'
+      + 'outer(array<float> b) =>\n    bump(b)\n'
+      + 'named(float v, array<float> into) =>\n    array.push(into, v)\n'
+    const walk = (change, pre = '') => `${H2}${FNS}${pre}for q in qs\n    ${change}\nplot(close)\n`
+    const msg = (via) => `a loop in a form this lane does not iterate — \`for … in\`: ${forInHeldListRefusal('q', via)}`
+    // (a) a user function that changes its own parameter, handed a list the element holds
+    for (const [change, fn] of [['bump(q.arr)', 'bump'], ['q.arr.bumpm()', 'bumpm'], ['bumpm(q.arr)', 'bumpm'],
+      ['viaLocal(q.arr)', 'viaLocal'], ['outer(q.arr)', 'outer'], ['named(1.0, into = q.arr)', 'named'],
+      ['bump(q.copy().arr)', 'bump']]) {
+      expect(refusal(walk(change)).message, change).toBe(msg(`handed to \`${fn}\`, which changes it`))
+    }
+    // …and handed the ELEMENT, to a function that changes a list it holds through a local alias
+    expect(refusal(`${H2}grab(Q z) =>\n    l = z.arr\n    array.push(l, 1.0)\nfor q in qs\n    grab(q)\nplot(close)\n`).message)
+      .toBe(msg('handed to `grab`, which changes it'))
+    // (b) an alias, through any chain of re-assignments, then a mutating member
+    expect(refusal(walk('a = q.arr\n    array.push(a, 1.0)')).message).toBe(msg('through `a`, an alias of it'))
+    expect(refusal(walk('a = q.arr\n    b = a\n    b.push(1.0)')).message).toBe(msg('through `b`, an alias of it'))
+    expect(refusal(walk('r = q\n    array.set(r.arr, 0, 1.0)')).message).toBe(msg('through `r.arr`, an alias of it'))
+    expect(refusal(walk('g := q.arr\n    array.push(g, 1.0)', 'var array<float> g = array.new_float()\n')).message)
+      .toBe(msg('through `g`, an alias of it'))
+    // …or an alias the body hands to a function that changes it
+    expect(refusal(walk('a = q.arr\n    bump(a)')).message).toBe(msg('handed to `bump`, which changes it'))
+    // ⛔ conservative: a list bound BEFORE the walk, of a type the element holds, may be the same array
+    expect(refusal(walk('array.push(pre, 1.0)', 'var array<float> pre = array.new_float()\n')).message)
+      .toBe(msg('through `pre`, a list of a type it holds'))
+    // CONTROL — a list the element does not hold, handed to a function that changes it, is served
+    // (int and float are ONE type, `num`, to this lane, so the unrelated list is text)
+    const other = 'var array<string> other = array.new_string()\nbumps(array<string> a) =>\n    array.push(a, "x")\n'
+    expect(lastValues(`${H2}${other}for q in qs\n    bumps(other)\nplot(array.size(other))\n`)).toEqual([N])
+    // CONTROL — a NEW array of the held type, handed to a function that changes it, is served
+    expect(build(walk('t = array.new_float()\n    bump(t)')).ok).toBe(true)
+    // CONTROL — an alias of an unrelated list (any chain), changed, is served
+    expect(lastValues(`${H2}${other}for q in qs\n    a = other\n    b = a\n    array.push(b, "x")\nplot(array.size(other))\n`))
+      .toEqual([N])
+    // CONTROL — a number list: the element holds nothing, so nothing is refused for it
+    expect(lastValues('var b = array.new_float()\nbumpf(array<float> a) =>\n    array.push(a, 1.0)\na = array.from(1.0, 2.0)\n'
+      + 'for x in a\n    bumpf(b)\nplot(array.size(b))\n')).toEqual([2 * N])
+  })
   it('inside a function body; a loop whose value is read; `polyline.all`; a matrix; a map; a non-array', () => {
     expect(refusal('f(a) =>\n    s = 0.0\n    for x in a\n        s += x\n    s\nplot(f(array.from(1.0)))\n').message)
       .toMatch(/inside a function body/)
