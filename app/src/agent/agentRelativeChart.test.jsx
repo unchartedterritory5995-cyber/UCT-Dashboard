@@ -277,3 +277,18 @@ describe('a relation word that places an indicator, a pane or a line is not a ch
     expect(relativeChart('the chart under this one', C, 'c0')?.hits.map(c => c.ref)).toEqual(['c2'])
   })
 })
+
+// pl-auto unseen5 (the same class, its phrasings are pl-auto's own held-out set and not copied here): indicators, volume, moving
+// averages and price levels placed over / under / above "this chart / one / cell / the current price" are no chart relation;
+// the chart controls stay chart relations.
+describe('the placed thing decides, across indicators, volume, averages and levels (own phrasings)', () => {
+  const at = (ref, x, y) => ({ ref, cell: { x, y, w: 12, h: 10 } })
+  const C = [at('c0', 0, 0), at('c1', 12, 0), at('c2', 0, 10), at('c3', 12, 10)]
+  it.each([
+    'throw a stochastic beneath this cell', 'keltner channels over this one', 'hide the volume bars under this one',
+    'turn off the averages over this chart', 'mark a level at 50 above the current price', 'an atr study under this cell please',
+  ])('"%s" is no chart relation', (t) => expect(relativeChart(t, C, 'c0')).toBeNull())
+  it.each([
+    ['the cell below this one', 'c0', ['c2']], ['the one to the left of this one', 'c1', ['c0']], ['the chart above this cell', 'c3', ['c1']],
+  ])('control "%s" (clicked %s) stays a chart relation → %j', (t, sel, want) => expect(relativeChart(t, C, sel)?.hits.map(c => c.ref)).toEqual(want))
+})
