@@ -196,3 +196,8 @@ def test_pod_coverage_refuses_what_the_pod_cannot_draw(tmp_path):
     ok, why = cov(k(days[0]), k(days[-1]), 150).covered("ABC", asof)            # a quarter of the rows missing
     assert not ok and "gaps" in why
     assert not cov(k(days[0]), k(days[-1]), 200).covered("XYZ", asof)[0]       # a ticker the pod does not hold
+    refused = tmp_path / "refused.json"
+    refused.write_text(json.dumps([["chart.events", "si_x", "ABC", asof, 120, 20]]), encoding="utf-8")
+    span.write_text(json.dumps({"span": {"ABC": [k(days[0]), k(days[-1]), 200]}}), encoding="utf-8")
+    ok, why = PodCoverage(db, span, refused_files=(refused,)).covered("ABC", asof)   # measured wrong on the pod: never
+    assert not ok and "measured" in why

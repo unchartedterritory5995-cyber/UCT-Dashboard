@@ -23494,151 +23494,6 @@
   "answer_json": {
    "answer": "Reversal extension"
   },
-  "asof": "2013-04-05",
-  "bars": {
-   "asof": "2013-04-05",
-   "forward": 20,
-   "sym": "ASB",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_bee6c276b1cb",
-  "lesson_origin": "session",
-  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 2.6 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Wedge pop",
-    "Base n' break",
-    "Reversal extension",
-    "Wedge drop"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Reversal extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2013-04-05",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "ASB"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 10865,
-     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
-     "who": "TSDR, sharing a Brian Shannon principle"
-    },
-    "chartiq_reading": "stretched 2.6 ATR under the 20EMA, then closed in the top half",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -5.3,
-     "rs63_pct": -1.0,
-     "s200_rising": true,
-     "vs200_pct": 8.5,
-     "vs50_pct": -0.5
-    },
-    "culmination": {
-     "broke_at": 8,
-     "culm_pct": 2.89,
-     "culm_sessions": 3,
-     "ret20_pct": -1.86
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2010-14",
-    "held_20": true,
-    "liq_rank": 658,
-    "liq_universe": 1603,
-    "next": "next: a wedge pop back over the 10/20 EMA",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
-    "sector": "Financial Services",
-    "stage": "Reversal extension"
-   },
-   "forward_bars": 20,
-   "label": "Reversal extension",
-   "source": "chart_iq.v44_read.cycle_events#Reversal extension#ASB#2013-04-05",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#ASB#2013-04-05",
-  "sym": "ASB",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Reversal extension"
-  },
   "asof": "2016-05-19",
   "bars": {
    "asof": "2016-05-19",
@@ -30011,151 +29866,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#SAN#2001-02-23",
   "sym": "SAN",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Reversal extension"
-  },
-  "asof": "2005-05-12",
-  "bars": {
-   "asof": "2005-05-12",
-   "forward": 20,
-   "sym": "BFH",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_ed1c422ee928",
-  "lesson_origin": "session",
-  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 4.1 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Reversal extension",
-    "Wedge drop",
-    "Wedge pop",
-    "Base n' break"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Reversal extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2005-05-12",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "BFH"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 10865,
-     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
-     "who": "TSDR, sharing a Brian Shannon principle"
-    },
-    "chartiq_reading": "stretched 4.1 ATR under the 20EMA, then closed in the top half",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -27.0,
-     "rs63_pct": -8.5,
-     "s200_rising": false,
-     "vs200_pct": -14.0,
-     "vs50_pct": -10.2
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 24.92,
-     "culm_sessions": 48,
-     "ret20_pct": 4.15
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2005-09",
-    "held_20": true,
-    "liq_rank": 282,
-    "liq_universe": 1243,
-    "next": "next: a wedge pop back over the 10/20 EMA",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
-    "sector": "Financial Services",
-    "stage": "Reversal extension"
-   },
-   "forward_bars": 20,
-   "label": "Reversal extension",
-   "source": "chart_iq.v44_read.cycle_events#Reversal extension#BFH#2005-05-12",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#BFH#2005-05-12",
-  "sym": "BFH",
   "type": "recall",
   "version": 1
  },
@@ -40024,151 +39734,6 @@
   "answer_json": {
    "answer": "Reversal extension"
   },
-  "asof": "2020-02-11",
-  "bars": {
-   "asof": "2020-02-11",
-   "forward": 20,
-   "sym": "ADAM",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_4e3b8e667330",
-  "lesson_origin": "session",
-  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 2.6 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Base n' break",
-    "Reversal extension",
-    "Wedge drop",
-    "Wedge pop"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Reversal extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2020-02-11",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "ADAM"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 10865,
-     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
-     "who": "TSDR, sharing a Brian Shannon principle"
-    },
-    "chartiq_reading": "stretched 2.6 ATR under the 20EMA, then closed in the top half",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -4.5,
-     "rs63_pct": -7.9,
-     "s200_rising": true,
-     "vs200_pct": -0.2,
-     "vs50_pct": -1.7
-    },
-    "culmination": {
-     "broke_at": 10,
-     "culm_pct": 2.91,
-     "culm_sessions": 5,
-     "ret20_pct": -15.7
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2020-26",
-    "held_20": true,
-    "liq_rank": 856,
-    "liq_universe": 2143,
-    "next": "next: a wedge pop back over the 10/20 EMA",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
-    "sector": null,
-    "stage": "Reversal extension"
-   },
-   "forward_bars": 20,
-   "label": "Reversal extension",
-   "source": "chart_iq.v44_read.cycle_events#Reversal extension#ADAM#2020-02-11",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#ADAM#2020-02-11",
-  "sym": "ADAM",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Reversal extension"
-  },
   "asof": "1996-12-19",
   "bars": {
    "asof": "1996-12-19",
@@ -42199,151 +41764,6 @@
   "answer_json": {
    "answer": "Reversal extension"
   },
-  "asof": "2015-10-23",
-  "bars": {
-   "asof": "2015-10-23",
-   "forward": 20,
-   "sym": "AMN",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_98bb218b6db3",
-  "lesson_origin": "session",
-  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 2.8 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Base n' break",
-    "Reversal extension",
-    "Wedge drop",
-    "Wedge pop"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Reversal extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2015-10-23",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "AMN"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 10865,
-     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
-     "who": "TSDR, sharing a Brian Shannon principle"
-    },
-    "chartiq_reading": "stretched 2.8 ATR under the 20EMA, then closed in the top half",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -29.9,
-     "rs63_pct": -12.6,
-     "s200_rising": true,
-     "vs200_pct": -3.2,
-     "vs50_pct": -20.1
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 26.04,
-     "culm_sessions": 9,
-     "ret20_pct": 13.13
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2015-19",
-    "held_20": true,
-    "liq_rank": 615,
-    "liq_universe": 1822,
-    "next": "next: a wedge pop back over the 10/20 EMA",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
-    "sector": null,
-    "stage": "Reversal extension"
-   },
-   "forward_bars": 20,
-   "label": "Reversal extension",
-   "source": "chart_iq.v44_read.cycle_events#Reversal extension#AMN#2015-10-23",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#AMN#2015-10-23",
-  "sym": "AMN",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Reversal extension"
-  },
   "asof": "2023-02-02",
   "bars": {
    "asof": "2023-02-02",
@@ -43496,6 +42916,586 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#FMX#1999-06-02",
   "sym": "FMX",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Reversal extension"
+  },
+  "asof": "2001-04-17",
+  "bars": {
+   "asof": "2001-04-17",
+   "forward": 20,
+   "sym": "MYN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3fb14a3f1d71",
+  "lesson_origin": "session",
+  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 3.1 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Wedge pop",
+    "Base n' break",
+    "Reversal extension",
+    "Wedge drop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Reversal extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2001-04-17",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "MYN"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 10865,
+     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
+     "who": "TSDR, sharing a Brian Shannon principle"
+    },
+    "chartiq_reading": "stretched 3.1 ATR under the 20EMA, then closed in the top half",
+    "context": {
+     "market": "downtrend",
+     "off_high_pct": -8.2,
+     "rs63_pct": 4.1,
+     "s200_rising": true,
+     "vs200_pct": 0.9,
+     "vs50_pct": -4.6
+    },
+    "culmination": {
+     "broke_at": 27,
+     "culm_pct": 2.89,
+     "culm_sessions": 19,
+     "ret20_pct": 2.35
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2000-04",
+    "held_20": true,
+    "liq_rank": 698,
+    "liq_universe": 1060,
+    "next": "next: a wedge pop back over the 10/20 EMA",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
+    "sector": null,
+    "stage": "Reversal extension"
+   },
+   "forward_bars": 20,
+   "label": "Reversal extension",
+   "source": "chart_iq.v44_read.cycle_events#Reversal extension#MYN#2001-04-17",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#MYN#2001-04-17",
+  "sym": "MYN",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Reversal extension"
+  },
+  "asof": "2005-03-28",
+  "bars": {
+   "asof": "2005-03-28",
+   "forward": 20,
+   "sym": "OHI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_520a7bab74fd",
+  "lesson_origin": "session",
+  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 2.7 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Base n' break",
+    "Reversal extension",
+    "Wedge drop",
+    "Wedge pop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Reversal extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2005-03-28",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "OHI"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 10865,
+     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
+     "who": "TSDR, sharing a Brian Shannon principle"
+    },
+    "chartiq_reading": "stretched 2.7 ATR under the 20EMA, then closed in the top half",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -18.1,
+     "rs63_pct": -9.1,
+     "s200_rising": true,
+     "vs200_pct": -3.2,
+     "vs50_pct": -6.1
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 28.65,
+     "culm_sessions": 56,
+     "ret20_pct": 6.5
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2005-09",
+    "held_20": true,
+    "liq_rank": 793,
+    "liq_universe": 1232,
+    "next": "next: a wedge pop back over the 10/20 EMA",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
+    "sector": null,
+    "stage": "Reversal extension"
+   },
+   "forward_bars": 20,
+   "label": "Reversal extension",
+   "source": "chart_iq.v44_read.cycle_events#Reversal extension#OHI#2005-03-28",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#OHI#2005-03-28",
+  "sym": "OHI",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Reversal extension"
+  },
+  "asof": "2012-12-27",
+  "bars": {
+   "asof": "2012-12-27",
+   "forward": 20,
+   "sym": "DAR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_156a47210908",
+  "lesson_origin": "session",
+  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 2.9 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Base n' break",
+    "Reversal extension",
+    "Wedge drop",
+    "Wedge pop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Reversal extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2012-12-27",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "DAR"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 10865,
+     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
+     "who": "TSDR, sharing a Brian Shannon principle"
+    },
+    "chartiq_reading": "stretched 2.9 ATR under the 20EMA, then closed in the top half",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -16.5,
+     "rs63_pct": -11.6,
+     "s200_rising": true,
+     "vs200_pct": -4.5,
+     "vs50_pct": -4.5
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 20.31,
+     "culm_sessions": 53,
+     "ret20_pct": 7.89
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2010-14",
+    "held_20": true,
+    "liq_rank": 688,
+    "liq_universe": 1591,
+    "next": "next: a wedge pop back over the 10/20 EMA",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
+    "sector": "Consumer Defensive",
+    "stage": "Reversal extension"
+   },
+   "forward_bars": 20,
+   "label": "Reversal extension",
+   "source": "chart_iq.v44_read.cycle_events#Reversal extension#DAR#2012-12-27",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#DAR#2012-12-27",
+  "sym": "DAR",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Reversal extension"
+  },
+  "asof": "2019-05-14",
+  "bars": {
+   "asof": "2019-05-14",
+   "forward": 20,
+   "sym": "BOOT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_99b1deeaf403",
+  "lesson_origin": "session",
+  "lesson_text": "Reversal extension: a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks. Chart IQ read the last bar: stretched 2.5 ATR under the 20EMA, then closed in the top half. Next: a wedge pop back over the 10/20 EMA. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, TSDR, sharing a Brian Shannon principle: \"the hardest window to trade is between a reversal extension and the eventual wedge pop\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Wedge pop",
+    "Base n' break",
+    "Reversal extension",
+    "Wedge drop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Reversal extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2019-05-14",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "BOOT"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 10865,
+     "quote": "the hardest window to trade is between a reversal extension and the eventual wedge pop",
+     "who": "TSDR, sharing a Brian Shannon principle"
+    },
+    "chartiq_reading": "stretched 2.5 ATR under the 20EMA, then closed in the top half",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -16.1,
+     "rs63_pct": -2.5,
+     "s200_rising": true,
+     "vs200_pct": 4.9,
+     "vs50_pct": -6.8
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": 46.58,
+     "culm_sessions": 55,
+     "ret20_pct": 15.03
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2015-19",
+    "held_20": true,
+    "liq_rank": 909,
+    "liq_universe": 2060,
+    "next": "next: a wedge pop back over the 10/20 EMA",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a stock stretched at least 2.5 ATR under a falling 20-day EMA that still closes in the top half of its day: the selling is overdone. It is confirmed when a close clears its high before its low breaks.",
+    "sector": "Consumer Cyclical",
+    "stage": "Reversal extension"
+   },
+   "forward_bars": 20,
+   "label": "Reversal extension",
+   "source": "chart_iq.v44_read.cycle_events#Reversal extension#BOOT#2019-05-14",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Reversal extension#BOOT#2019-05-14",
+  "sym": "BOOT",
   "type": "recall",
   "version": 1
  },
@@ -70764,151 +70764,6 @@
   "answer_json": {
    "answer": "Wedge pop"
   },
-  "asof": "2019-04-04",
-  "bars": {
-   "asof": "2019-04-04",
-   "forward": 20,
-   "sym": "ESI",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_684d1bdc5342",
-  "lesson_origin": "session",
-  "lesson_text": "Wedge pop: after a pullback that spent at least 8 of the last 15 closes under the 20-day EMA and tightened (the ranges contracting, or a shakeout low), the stock closes over the 10 and 20-day EMA and over the last 5 highs, in the top 40% of its range, on above-average volume. Chart IQ read the last bar: popped out of a tightening pullback, over the 10/20 EMA and the last 5 highs on 1.2x volume. Next: buy the first EMA crossback (pullback to the 10/20 EMA that holds). The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"'The most beneficial time to get involved.' You know exactly what comes next (EMA Crossback, then Base N' Break) so the risk/reward is highest.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Exhaustion extension",
-    "Wedge pop",
-    "Reversal extension",
-    "EMA crossback"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Wedge pop"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2019-04-04",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "ESI"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 820,
-     "quote": "'The most beneficial time to get involved.' You know exactly what comes next (EMA Crossback, then Base N' Break) so the risk/reward is highest.",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "popped out of a tightening pullback, over the 10/20 EMA and the last 5 highs on 1.2x volume",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -21.5,
-     "rs63_pct": -10.6,
-     "s200_rising": false,
-     "vs200_pct": -7.7,
-     "vs50_pct": -3.3
-    },
-    "culmination": {
-     "broke_at": 31,
-     "culm_pct": 7.62,
-     "culm_sessions": 20,
-     "ret20_pct": 6.02
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2015-19",
-    "held_20": true,
-    "liq_rank": 697,
-    "liq_universe": 2056,
-    "next": "next: buy the first EMA crossback (pullback to the 10/20 EMA that holds)",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "after a pullback that spent at least 8 of the last 15 closes under the 20-day EMA and tightened (the ranges contracting, or a shakeout low), the stock closes over the 10 and 20-day EMA and over the last 5 highs, in the top 40% of its range, on above-average volume.",
-    "sector": "Basic Materials",
-    "stage": "Wedge pop"
-   },
-   "forward_bars": 20,
-   "label": "Wedge pop",
-   "source": "chart_iq.v44_read.cycle_events#Wedge pop#ESI#2019-04-04",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Wedge pop#ESI#2019-04-04",
-  "sym": "ESI",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Wedge pop"
-  },
   "asof": "2021-02-23",
   "bars": {
    "asof": "2021-02-23",
@@ -86996,6 +86851,151 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Wedge pop#PVH#2005-05-03",
   "sym": "PVH",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Wedge pop"
+  },
+  "asof": "2011-10-20",
+  "bars": {
+   "asof": "2011-10-20",
+   "forward": 20,
+   "sym": "BN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_07449f546831",
+  "lesson_origin": "session",
+  "lesson_text": "Wedge pop: after a pullback that spent at least 8 of the last 15 closes under the 20-day EMA and tightened (the ranges contracting, or a shakeout low), the stock closes over the 10 and 20-day EMA and over the last 5 highs, in the top 40% of its range, on above-average volume. Chart IQ read the last bar: popped out of a tightening pullback, over the 10/20 EMA and the last 5 highs on 1.3x volume. Next: buy the first EMA crossback (pullback to the 10/20 EMA that holds). The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"'The most beneficial time to get involved.' You know exactly what comes next (EMA Crossback, then Base N' Break) so the risk/reward is highest.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "EMA crossback",
+    "Exhaustion extension",
+    "Wedge pop",
+    "Reversal extension"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Wedge pop"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2011-10-20",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "BN"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 820,
+     "quote": "'The most beneficial time to get involved.' You know exactly what comes next (EMA Crossback, then Base N' Break) so the risk/reward is highest.",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "popped out of a tightening pullback, over the 10/20 EMA and the last 5 highs on 1.3x volume",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -19.9,
+     "rs63_pct": -6.1,
+     "s200_rising": false,
+     "vs200_pct": -12.1,
+     "vs50_pct": -1.9
+    },
+    "culmination": {
+     "broke_at": 22,
+     "culm_pct": 8.46,
+     "culm_sessions": 6,
+     "ret20_pct": -1.2
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2010-14",
+    "held_20": true,
+    "liq_rank": 416,
+    "liq_universe": 1537,
+    "next": "next: buy the first EMA crossback (pullback to the 10/20 EMA that holds)",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "after a pullback that spent at least 8 of the last 15 closes under the 20-day EMA and tightened (the ranges contracting, or a shakeout low), the stock closes over the 10 and 20-day EMA and over the last 5 highs, in the top 40% of its range, on above-average volume.",
+    "sector": null,
+    "stage": "Wedge pop"
+   },
+   "forward_bars": 20,
+   "label": "Wedge pop",
+   "source": "chart_iq.v44_read.cycle_events#Wedge pop#BN#2011-10-20",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Wedge pop#BN#2011-10-20",
+  "sym": "BN",
   "type": "recall",
   "version": 1
  },
@@ -116294,151 +116294,6 @@
   "answer_json": {
    "answer": "EMA crossback"
   },
-  "asof": "2015-03-26",
-  "bars": {
-   "asof": "2015-03-26",
-   "forward": 20,
-   "sym": "CNH",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_04b3730a2c46",
-  "lesson_origin": "session",
-  "lesson_text": "EMA crossback: the first pullback after the pop into a rising 20-day EMA (the low within 2% of it) that closes back at or over it, in the top half of its range, after at least 3 days with the lows over the 10-day EMA. Chart IQ read the last bar: first pullback into the 10/20 EMA (7.00) held. The buy: hold over the 10/20 EMA, stop under the crossback low. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"'If you miss the Wedge Pop, wait for the EMA Crossback.'\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Wedge pop",
-    "Base n' break",
-    "Wedge drop",
-    "EMA crossback"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "EMA crossback"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2015-03-26",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "CNH"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 820,
-     "quote": "'If you miss the Wedge Pop, wait for the EMA Crossback.'",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "first pullback into the 10/20 EMA (7.00) held",
-    "context": {
-     "market": "mixed",
-     "off_high_pct": -31.5,
-     "rs63_pct": -0.9,
-     "s200_rising": false,
-     "vs200_pct": -3.3,
-     "vs50_pct": 2.1
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 18.5,
-     "culm_sessions": 60,
-     "ret20_pct": 9.86
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2015-19",
-    "held_20": true,
-    "liq_rank": 882,
-    "liq_universe": 1767,
-    "next": "the buy: hold over the 10/20 EMA, stop under the crossback low",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "the first pullback after the pop into a rising 20-day EMA (the low within 2% of it) that closes back at or over it, in the top half of its range, after at least 3 days with the lows over the 10-day EMA.",
-    "sector": "Industrials",
-    "stage": "EMA crossback"
-   },
-   "forward_bars": 20,
-   "label": "EMA crossback",
-   "source": "chart_iq.v44_read.cycle_events#EMA crossback#CNH#2015-03-26",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#EMA crossback#CNH#2015-03-26",
-  "sym": "CNH",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "EMA crossback"
-  },
   "asof": "2021-03-22",
   "bars": {
    "asof": "2021-03-22",
@@ -130502,6 +130357,151 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "EMA crossback"
+  },
+  "asof": "2005-11-09",
+  "bars": {
+   "asof": "2005-11-09",
+   "forward": 20,
+   "sym": "CRUS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_531871dfa65b",
+  "lesson_origin": "session",
+  "lesson_text": "EMA crossback: the first pullback after the pop into a rising 20-day EMA (the low within 2% of it) that closes back at or over it, in the top half of its range, after at least 3 days with the lows over the 10-day EMA. Chart IQ read the last bar: first pullback into the 10/20 EMA (6.92) held. The buy: hold over the 10/20 EMA, stop under the crossback low. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"'If you miss the Wedge Pop, wait for the EMA Crossback.'\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Base n' break",
+    "Wedge drop",
+    "EMA crossback",
+    "Wedge pop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "EMA crossback"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2005-11-09",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "CRUS"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 820,
+     "quote": "'If you miss the Wedge Pop, wait for the EMA Crossback.'",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "first pullback into the 10/20 EMA (6.92) held",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -9.3,
+     "rs63_pct": -2.2,
+     "s200_rising": true,
+     "vs200_pct": 24.8,
+     "vs50_pct": 2.1
+    },
+    "culmination": {
+     "broke_at": 22,
+     "culm_pct": 6.45,
+     "culm_sessions": 8,
+     "ret20_pct": -3.57
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2005-09",
+    "held_20": true,
+    "liq_rank": 661,
+    "liq_universe": 1268,
+    "next": "the buy: hold over the 10/20 EMA, stop under the crossback low",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "the first pullback after the pop into a rising 20-day EMA (the low within 2% of it) that closes back at or over it, in the top half of its range, after at least 3 days with the lows over the 10-day EMA.",
+    "sector": "Technology",
+    "stage": "EMA crossback"
+   },
+   "forward_bars": 20,
+   "label": "EMA crossback",
+   "source": "chart_iq.v44_read.cycle_events#EMA crossback#CRUS#2005-11-09",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#EMA crossback#CRUS#2005-11-09",
+  "sym": "CRUS",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Base n' break"
   },
   "asof": "1996-01-18",
@@ -132526,151 +132526,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#MHK#2000-04-20",
   "sym": "MHK",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Base n' break"
-  },
-  "asof": "2005-07-05",
-  "bars": {
-   "asof": "2005-07-05",
-   "forward": 20,
-   "sym": "TTE",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_a3ffe421e201",
-  "lesson_origin": "session",
-  "lesson_text": "Base n' break: in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%. Chart IQ read the last bar: broke out of a 10-day base above the EMAs. Next: ride it; trim into an exhaustion extension. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "EMA crossback",
-    "Exhaustion extension",
-    "Reversal extension",
-    "Base n' break"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Base n' break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2005-07-05",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "TTE"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 817,
-     "quote": "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "broke out of a 10-day base above the EMAs",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -3.0,
-     "rs63_pct": -0.9,
-     "s200_rising": true,
-     "vs200_pct": 7.4,
-     "vs50_pct": 4.7
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 15.34,
-     "culm_sessions": 60,
-     "ret20_pct": 7.78
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2005-09",
-    "held_20": true,
-    "liq_rank": 88,
-    "liq_universe": 1246,
-    "next": "next: ride it; trim into an exhaustion extension",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%.",
-    "sector": null,
-    "stage": "Base n' break"
-   },
-   "forward_bars": 20,
-   "label": "Base n' break",
-   "source": "chart_iq.v44_read.cycle_events#Base n' break#TTE#2005-07-05",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#TTE#2005-07-05",
-  "sym": "TTE",
   "type": "recall",
   "version": 1
  },
@@ -138036,151 +137891,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#SSRM#2002-05-03",
   "sym": "SSRM",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Base n' break"
-  },
-  "asof": "2006-05-10",
-  "bars": {
-   "asof": "2006-05-10",
-   "forward": 20,
-   "sym": "INSG",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_19973544a9c8",
-  "lesson_origin": "session",
-  "lesson_text": "Base n' break: in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%. Chart IQ read the last bar: broke out of a 10-day base above the EMAs. Next: ride it; trim into an exhaustion extension. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "EMA crossback",
-    "Exhaustion extension",
-    "Reversal extension",
-    "Base n' break"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Base n' break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2006-05-10",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "INSG"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 817,
-     "quote": "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "broke out of a 10-day base above the EMAs",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -30.8,
-     "rs63_pct": -2.5,
-     "s200_rising": false,
-     "vs200_pct": -5.5,
-     "vs50_pct": 19.3
-    },
-    "culmination": {
-     "broke_at": 21,
-     "culm_pct": 5.37,
-     "culm_sessions": 12,
-     "ret20_pct": -7.19
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2005-09",
-    "held_20": true,
-    "liq_rank": 670,
-    "liq_universe": 1299,
-    "next": "next: ride it; trim into an exhaustion extension",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%.",
-    "sector": "Technology",
-    "stage": "Base n' break"
-   },
-   "forward_bars": 20,
-   "label": "Base n' break",
-   "source": "chart_iq.v44_read.cycle_events#Base n' break#INSG#2006-05-10",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#INSG#2006-05-10",
-  "sym": "INSG",
   "type": "recall",
   "version": 1
  },
@@ -151811,151 +151521,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#AZZ#2008-01-04",
   "sym": "AZZ",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Base n' break"
-  },
-  "asof": "2010-11-04",
-  "bars": {
-   "asof": "2010-11-04",
-   "forward": 20,
-   "sym": "WEX",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_4d69d8279566",
-  "lesson_origin": "session",
-  "lesson_text": "Base n' break: in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%. Chart IQ read the last bar: broke out of a 10-day base above the EMAs. Next: ride it; trim into an exhaustion extension. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Base n' break",
-    "EMA crossback",
-    "Exhaustion extension",
-    "Reversal extension"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Base n' break"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2010-11-04",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WEX"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 817,
-     "quote": "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "broke out of a 10-day base above the EMAs",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -2.4,
-     "rs63_pct": 16.4,
-     "s200_rising": true,
-     "vs200_pct": 37.1,
-     "vs50_pct": 25.6
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": 9.38,
-     "culm_sessions": 46,
-     "ret20_pct": -0.82
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2010-14",
-    "held_20": true,
-    "liq_rank": 748,
-    "liq_universe": 1494,
-    "next": "next: ride it; trim into an exhaustion extension",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%.",
-    "sector": "Technology",
-    "stage": "Base n' break"
-   },
-   "forward_bars": 20,
-   "label": "Base n' break",
-   "source": "chart_iq.v44_read.cycle_events#Base n' break#WEX#2010-11-04",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#WEX#2010-11-04",
-  "sym": "WEX",
   "type": "recall",
   "version": 1
  },
@@ -174002,6 +173567,441 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "Base n' break"
+  },
+  "asof": "2000-08-01",
+  "bars": {
+   "asof": "2000-08-01",
+   "forward": 20,
+   "sym": "CCEP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4a073faf9350",
+  "lesson_origin": "session",
+  "lesson_text": "Base n' break: in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%. Chart IQ read the last bar: broke out of a 10-day base above the EMAs. Next: ride it; trim into an exhaustion extension. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Exhaustion extension",
+    "Reversal extension",
+    "Base n' break",
+    "EMA crossback"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Base n' break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2000-08-01",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "CCEP"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 817,
+     "quote": "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "broke out of a 10-day base above the EMAs",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -34.9,
+     "rs63_pct": -4.4,
+     "s200_rising": false,
+     "vs200_pct": -5.9,
+     "vs50_pct": 12.0
+    },
+    "culmination": {
+     "broke_at": 21,
+     "culm_pct": 6.67,
+     "culm_sessions": 8,
+     "ret20_pct": -2.54
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2000-04",
+    "held_20": true,
+    "liq_rank": 233,
+    "liq_universe": 1032,
+    "next": "next: ride it; trim into an exhaustion extension",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%.",
+    "sector": "Consumer Defensive",
+    "stage": "Base n' break"
+   },
+   "forward_bars": 20,
+   "label": "Base n' break",
+   "source": "chart_iq.v44_read.cycle_events#Base n' break#CCEP#2000-08-01",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#CCEP#2000-08-01",
+  "sym": "CCEP",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Base n' break"
+  },
+  "asof": "2008-09-03",
+  "bars": {
+   "asof": "2008-09-03",
+   "forward": 20,
+   "sym": "IBOC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8a8a0b108bba",
+  "lesson_origin": "session",
+  "lesson_text": "Base n' break: in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%. Chart IQ read the last bar: broke out of a 10-day base above the EMAs. Next: ride it; trim into an exhaustion extension. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Reversal extension",
+    "Base n' break",
+    "EMA crossback",
+    "Exhaustion extension"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Base n' break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2008-09-03",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "IBOC"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 817,
+     "quote": "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "broke out of a 10-day base above the EMAs",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -1.4,
+     "rs63_pct": 15.7,
+     "s200_rising": true,
+     "vs200_pct": 17.1,
+     "vs50_pct": 12.3
+    },
+    "culmination": {
+     "broke_at": 21,
+     "culm_pct": 34.74,
+     "culm_sessions": 12,
+     "ret20_pct": 1.73
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2005-09",
+    "held_20": true,
+    "liq_rank": 760,
+    "liq_universe": 1415,
+    "next": "next: ride it; trim into an exhaustion extension",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%.",
+    "sector": null,
+    "stage": "Base n' break"
+   },
+   "forward_bars": 20,
+   "label": "Base n' break",
+   "source": "chart_iq.v44_read.cycle_events#Base n' break#IBOC#2008-09-03",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#IBOC#2008-09-03",
+  "sym": "IBOC",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Base n' break"
+  },
+  "asof": "2012-08-16",
+  "bars": {
+   "asof": "2012-08-16",
+   "forward": 20,
+   "sym": "RLJ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_09334843db29",
+  "lesson_origin": "session",
+  "lesson_text": "Base n' break: in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%. Chart IQ read the last bar: broke out of a 10-day base above the EMAs. Next: ride it; trim into an exhaustion extension. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Reversal extension",
+    "Base n' break",
+    "EMA crossback",
+    "Exhaustion extension"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Base n' break"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2012-08-16",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "RLJ"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 817,
+     "quote": "After the initial Wedge Pop and EMA Crossback, the stock finds support at the moving averages and consolidates (bases) before the next leg up.",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "broke out of a 10-day base above the EMAs",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -9.6,
+     "rs63_pct": -6.5,
+     "s200_rising": true,
+     "vs200_pct": 2.1,
+     "vs50_pct": 1.2
+    },
+    "culmination": {
+     "broke_at": 56,
+     "culm_pct": 8.96,
+     "culm_sessions": 27,
+     "ret20_pct": 6.44
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2010-14",
+    "held_20": true,
+    "liq_rank": 774,
+    "liq_universe": 1575,
+    "next": "next: ride it; trim into an exhaustion extension",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "in an uptrend over the EMAs (the 10-day over the 20-day), a close over the high of the last 10 days out of a base no wider than 15%.",
+    "sector": null,
+    "stage": "Base n' break"
+   },
+   "forward_bars": 20,
+   "label": "Base n' break",
+   "source": "chart_iq.v44_read.cycle_events#Base n' break#RLJ#2012-08-16",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Base n' break#RLJ#2012-08-16",
+  "sym": "RLJ",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Exhaustion extension"
   },
   "asof": "1996-07-10",
@@ -178644,151 +178644,6 @@
   "answer_json": {
    "answer": "Exhaustion extension"
   },
-  "asof": "2007-03-26",
-  "bars": {
-   "asof": "2007-03-26",
-   "forward": 20,
-   "sym": "INSG",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_274395d94efe",
-  "lesson_origin": "session",
-  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 4.7 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Wedge drop",
-    "Wedge pop",
-    "Exhaustion extension",
-    "Base n' break"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Exhaustion extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2007-03-26",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "INSG"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 819,
-     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "4.7 ATR over the 20EMA: stretched",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -6.2,
-     "rs63_pct": 81.8,
-     "s200_rising": true,
-     "vs200_pct": 58.0,
-     "vs50_pct": 33.6
-    },
-    "culmination": {
-     "broke_at": 23,
-     "culm_pct": -7.52,
-     "culm_sessions": 6,
-     "ret20_pct": 2.82
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2005-09",
-    "held_20": true,
-    "liq_rank": 553,
-    "liq_universe": 1345,
-    "next": "next: expect a pullback or a wedge drop; don't chase",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
-    "sector": "Technology",
-    "stage": "Exhaustion extension"
-   },
-   "forward_bars": 20,
-   "label": "Exhaustion extension",
-   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#INSG#2007-03-26",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#INSG#2007-03-26",
-  "sym": "INSG",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Exhaustion extension"
-  },
   "asof": "2014-02-24",
   "bars": {
    "asof": "2014-02-24",
@@ -183139,151 +182994,6 @@
   "answer_json": {
    "answer": "Exhaustion extension"
   },
-  "asof": "2010-11-05",
-  "bars": {
-   "asof": "2010-11-05",
-   "forward": 20,
-   "sym": "WEX",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_218871c3dfb6",
-  "lesson_origin": "session",
-  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 4.4 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Exhaustion extension",
-    "Base n' break",
-    "Wedge drop",
-    "Wedge pop"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Exhaustion extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2010-11-05",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "WEX"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 819,
-     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "4.4 ATR over the 20EMA: stretched",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -2.6,
-     "rs63_pct": 15.0,
-     "s200_rising": true,
-     "vs200_pct": 38.1,
-     "vs50_pct": 25.9
-    },
-    "culmination": {
-     "broke_at": 39,
-     "culm_pct": -7.97,
-     "culm_sessions": 6,
-     "ret20_pct": -2.45
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2010-14",
-    "held_20": true,
-    "liq_rank": 751,
-    "liq_universe": 1494,
-    "next": "next: expect a pullback or a wedge drop; don't chase",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
-    "sector": "Technology",
-    "stage": "Exhaustion extension"
-   },
-   "forward_bars": 20,
-   "label": "Exhaustion extension",
-   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#WEX#2010-11-05",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#WEX#2010-11-05",
-  "sym": "WEX",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Exhaustion extension"
-  },
   "asof": "2025-02-14",
   "bars": {
    "asof": "2025-02-14",
@@ -187054,151 +186764,6 @@
   "answer_json": {
    "answer": "Exhaustion extension"
   },
-  "asof": "2004-04-22",
-  "bars": {
-   "asof": "2004-04-22",
-   "forward": 20,
-   "sym": "BFH",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_4ecb33e3375c",
-  "lesson_origin": "session",
-  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 3.8 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Base n' break",
-    "Wedge drop",
-    "Wedge pop",
-    "Exhaustion extension"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Exhaustion extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2004-04-22",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "BFH"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 819,
-     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "3.8 ATR over the 20EMA: stretched",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -2.3,
-     "rs63_pct": 35.0,
-     "s200_rising": true,
-     "vs200_pct": 28.0,
-     "vs50_pct": 17.4
-    },
-    "culmination": {
-     "broke_at": 28,
-     "culm_pct": -7.58,
-     "culm_sessions": 6,
-     "ret20_pct": -4.73
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2000-04",
-    "held_20": true,
-    "liq_rank": 418,
-    "liq_universe": 1182,
-    "next": "next: expect a pullback or a wedge drop; don't chase",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
-    "sector": "Financial Services",
-    "stage": "Exhaustion extension"
-   },
-   "forward_bars": 20,
-   "label": "Exhaustion extension",
-   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#BFH#2004-04-22",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#BFH#2004-04-22",
-  "sym": "BFH",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Exhaustion extension"
-  },
   "asof": "2006-04-18",
   "bars": {
    "asof": "2006-04-18",
@@ -187336,151 +186901,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#RMBS#2006-04-18",
   "sym": "RMBS",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Exhaustion extension"
-  },
-  "asof": "2011-01-25",
-  "bars": {
-   "asof": "2011-01-25",
-   "forward": 20,
-   "sym": "SVC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_342d8ee000dc",
-  "lesson_origin": "session",
-  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 3.6 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Wedge pop",
-    "Exhaustion extension",
-    "Base n' break",
-    "Wedge drop"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Exhaustion extension"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2011-01-25",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "SVC"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 819,
-     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "3.6 ATR over the 20EMA: stretched",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -9.2,
-     "rs63_pct": -0.7,
-     "s200_rising": false,
-     "vs200_pct": 14.3,
-     "vs50_pct": 12.0
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -15.25,
-     "culm_sessions": 34,
-     "ret20_pct": -10.31
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2010-14",
-    "held_20": true,
-    "liq_rank": 528,
-    "liq_universe": 1506,
-    "next": "next: expect a pullback or a wedge drop; don't chase",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
-    "sector": "Real Estate",
-    "stage": "Exhaustion extension"
-   },
-   "forward_bars": 20,
-   "label": "Exhaustion extension",
-   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#SVC#2011-01-25",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#SVC#2011-01-25",
-  "sym": "SVC",
   "type": "recall",
   "version": 1
  },
@@ -217502,6 +216922,586 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
+   "answer": "Exhaustion extension"
+  },
+  "asof": "2007-05-02",
+  "bars": {
+   "asof": "2007-05-02",
+   "forward": 20,
+   "sym": "SBCF",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a8ce9f121deb",
+  "lesson_origin": "session",
+  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 3.8 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Exhaustion extension",
+    "Base n' break",
+    "Wedge drop",
+    "Wedge pop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Exhaustion extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2007-05-02",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "SBCF"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 819,
+     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "3.8 ATR over the 20EMA: stretched",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -21.3,
+     "rs63_pct": 4.6,
+     "s200_rising": false,
+     "vs200_pct": -2.5,
+     "vs50_pct": 11.0
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -34.87,
+     "culm_sessions": 59,
+     "ret20_pct": -7.51
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2005-09",
+    "held_20": true,
+    "liq_rank": 952,
+    "liq_universe": 1353,
+    "next": "next: expect a pullback or a wedge drop; don't chase",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
+    "sector": null,
+    "stage": "Exhaustion extension"
+   },
+   "forward_bars": 20,
+   "label": "Exhaustion extension",
+   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#SBCF#2007-05-02",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#SBCF#2007-05-02",
+  "sym": "SBCF",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Exhaustion extension"
+  },
+  "asof": "2013-08-02",
+  "bars": {
+   "asof": "2013-08-02",
+   "forward": 20,
+   "sym": "NOC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_1df22177621c",
+  "lesson_origin": "session",
+  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 3.5 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Wedge drop",
+    "Wedge pop",
+    "Exhaustion extension",
+    "Base n' break"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Exhaustion extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2013-08-02",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "NOC"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 819,
+     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "3.5 ATR over the 20EMA: stretched",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -1.4,
+     "rs63_pct": 16.6,
+     "s200_rising": true,
+     "vs200_pct": 29.9,
+     "vs50_pct": 11.4
+    },
+    "culmination": {
+     "broke_at": 30,
+     "culm_pct": -3.08,
+     "culm_sessions": 20,
+     "ret20_pct": -2.76
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2010-14",
+    "held_20": true,
+    "liq_rank": 168,
+    "liq_universe": 1621,
+    "next": "next: expect a pullback or a wedge drop; don't chase",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
+    "sector": "Industrials",
+    "stage": "Exhaustion extension"
+   },
+   "forward_bars": 20,
+   "label": "Exhaustion extension",
+   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#NOC#2013-08-02",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#NOC#2013-08-02",
+  "sym": "NOC",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Exhaustion extension"
+  },
+  "asof": "2019-11-07",
+  "bars": {
+   "asof": "2019-11-07",
+   "forward": 20,
+   "sym": "RL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9d89315fcfe9",
+  "lesson_origin": "session",
+  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 4.6 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Exhaustion extension",
+    "Base n' break",
+    "Wedge drop",
+    "Wedge pop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Exhaustion extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2019-11-07",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "RL"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 819,
+     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "4.6 ATR over the 20EMA: stretched",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -13.4,
+     "rs63_pct": 16.8,
+     "s200_rising": false,
+     "vs200_pct": 4.7,
+     "vs50_pct": 21.2
+    },
+    "culmination": {
+     "broke_at": 25,
+     "culm_pct": -10.58,
+     "culm_sessions": 10,
+     "ret20_pct": -3.46
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2015-19",
+    "held_20": true,
+    "liq_rank": 341,
+    "liq_universe": 2117,
+    "next": "next: expect a pullback or a wedge drop; don't chase",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
+    "sector": null,
+    "stage": "Exhaustion extension"
+   },
+   "forward_bars": 20,
+   "label": "Exhaustion extension",
+   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#RL#2019-11-07",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#RL#2019-11-07",
+  "sym": "RL",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Exhaustion extension"
+  },
+  "asof": "2020-02-19",
+  "bars": {
+   "asof": "2020-02-19",
+   "forward": 20,
+   "sym": "PLUG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ccc239cf14a0",
+  "lesson_origin": "session",
+  "lesson_text": "Exhaustion extension: a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean. Chart IQ read the last bar: 4.6 ATR over the 20EMA: stretched. Next: expect a pullback or a wedge drop; don't chase. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"Do not wait for the Wedge Drop to start selling, reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Wedge pop",
+    "Exhaustion extension",
+    "Base n' break",
+    "Wedge drop"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Exhaustion extension"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2020-02-19",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "PLUG"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 819,
+     "quote": "Do not wait for the Wedge Drop to start selling — reduce at the Exhaustion Extension (2nd-3rd extension from 10 EMA).",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "4.6 ATR over the 20EMA: stretched",
+    "context": {
+     "market": "uptrend",
+     "off_high_pct": -1.0,
+     "rs63_pct": 51.0,
+     "s200_rising": true,
+     "vs200_pct": 99.2,
+     "vs50_pct": 51.7
+    },
+    "culmination": {
+     "broke_at": null,
+     "culm_pct": -55.77,
+     "culm_sessions": 19,
+     "ret20_pct": -50.52
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2020-26",
+    "held_20": true,
+    "liq_rank": 628,
+    "liq_universe": 2143,
+    "next": "next: expect a pullback or a wedge drop; don't chase",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "a close 3.5 ATR or more above a rising 20-day EMA: stretched far from its mean.",
+    "sector": null,
+    "stage": "Exhaustion extension"
+   },
+   "forward_bars": 20,
+   "label": "Exhaustion extension",
+   "source": "chart_iq.v44_read.cycle_events#Exhaustion extension#PLUG#2020-02-19",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Exhaustion extension#PLUG#2020-02-19",
+  "sym": "PLUG",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
    "answer": "Wedge drop"
   },
   "asof": "1996-05-17",
@@ -218801,151 +218801,6 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Wedge drop#CVSA#2005-06-17",
   "sym": "CVSA",
-  "type": "recall",
-  "version": 1
- },
- {
-  "adjustment_basis": "split-adjusted",
-  "answer_json": {
-   "answer": "Wedge drop"
-  },
-  "asof": "2011-05-02",
-  "bars": {
-   "asof": "2011-05-02",
-   "forward": 20,
-   "sym": "PTC",
-   "tf": "D",
-   "window": 120
-  },
-  "difficulty": 3,
-  "id": "si_d9bfafd33024",
-  "lesson_origin": "session",
-  "lesson_text": "Wedge drop: after at least 8 of the last 10 closes over the 20-day EMA, a close under both the 10 and 20-day EMA and under the last 3 lows, in the bottom 40% of its range. Chart IQ read the last bar: lost the 10 and 20 EMA (and the last 3 lows) after a run over them. Next: stay out; wait for a reversal extension and a new wedge pop. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"RED LIGHT (Below 20 EMA): Stay in CASH. Do not fight the tape.\"",
-  "module": "F2",
-  "prompt_json": {
-   "chart": {
-    "highlight_last_bars": 1,
-    "overlays": [
-     {
-      "color": "#4ade80",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 10,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#f472b6",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 20,
-      "plotStyle": "line",
-      "type": "EMA"
-     },
-     {
-      "color": "#60a5fa",
-      "enabled": true,
-      "lineStyle": "solid",
-      "lineWidth": 1,
-      "offset": 0,
-      "onTop": false,
-      "period": 50,
-      "plotStyle": "line",
-      "type": "SMA"
-     }
-    ],
-    "tf": "D",
-    "window_bars": 120
-   },
-   "choices": [
-    "Wedge drop",
-    "Exhaustion extension",
-    "Reversal extension",
-    "EMA crossback"
-   ],
-   "q": "Where is this stock in the cycle of price action on the last bar?",
-   "subject": "Wedge drop"
-  },
-  "reveal_json": {
-   "detector": "chart_iq.v44_read.cycle_events",
-   "example": {
-    "asof": "2011-05-02",
-    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
-    "sym": "PTC"
-   },
-   "facts": {
-    "brain": {
-     "kb_id": 819,
-     "quote": "RED LIGHT (Below 20 EMA): Stay in CASH. Do not fight the tape.",
-     "who": "Oliver Kell"
-    },
-    "chartiq_reading": "lost the 10 and 20 EMA (and the last 3 lows) after a run over them",
-    "context": {
-     "market": "uptrend",
-     "off_high_pct": -7.6,
-     "rs63_pct": -0.6,
-     "s200_rising": true,
-     "vs200_pct": 9.9,
-     "vs50_pct": 2.2
-    },
-    "culmination": {
-     "broke_at": null,
-     "culm_pct": -9.67,
-     "culm_sessions": 29,
-     "ret20_pct": -0.38
-    },
-    "cycle_order": [
-     "Reversal extension",
-     "Wedge pop",
-     "EMA crossback",
-     "Base n' break",
-     "Exhaustion extension",
-     "Wedge drop"
-    ],
-    "era": "2010-14",
-    "held_20": true,
-    "liq_rank": 488,
-    "liq_universe": 1520,
-    "next": "next: stay out; wait for a reversal extension and a new wedge pop",
-    "rule_numbers": {
-     "atr_under": 2.5,
-     "base_days": 10,
-     "base_width": 15,
-     "crossback_prior": 3,
-     "crossback_within": 2,
-     "drop_bottom": 40,
-     "drop_lows": 3,
-     "drop_of": 10,
-     "drop_over": 8,
-     "ema_fast": 10,
-     "ema_slow": 20,
-     "exhaustion_atr": 3.5,
-     "pop_highs": 5,
-     "pop_of": 15,
-     "pop_top": 40,
-     "pop_under": 8
-    },
-    "rule_text": "after at least 8 of the last 10 closes over the 20-day EMA, a close under both the 10 and 20-day EMA and under the last 3 lows, in the bottom 40% of its range.",
-    "sector": "Technology",
-    "stage": "Wedge drop"
-   },
-   "forward_bars": 20,
-   "label": "Wedge drop",
-   "source": "chart_iq.v44_read.cycle_events#Wedge drop#PTC#2011-05-02",
-   "system": "Chart IQ, the cycle of price action",
-   "window_bars": 120
-  },
-  "review_status": "draft",
-  "skill_id": "read.cycle",
-  "source_kind": "chart_iq",
-  "source_ref": "chart_iq.v44_read.cycle_events#Wedge drop#PTC#2011-05-02",
-  "sym": "PTC",
   "type": "recall",
   "version": 1
  },
@@ -260996,6 +260851,151 @@
   "source_kind": "chart_iq",
   "source_ref": "chart_iq.v44_read.cycle_events#Wedge drop#CNA#2005-03-17",
   "sym": "CNA",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Wedge drop"
+  },
+  "asof": "2011-11-09",
+  "bars": {
+   "asof": "2011-11-09",
+   "forward": 20,
+   "sym": "HLF",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_151bdbbc02f0",
+  "lesson_origin": "session",
+  "lesson_text": "Wedge drop: after at least 8 of the last 10 closes over the 20-day EMA, a close under both the 10 and 20-day EMA and under the last 3 lows, in the bottom 40% of its range. Chart IQ read the last bar: lost the 10 and 20 EMA (and the last 3 lows) after a run over them. Next: stay out; wait for a reversal extension and a new wedge pop. The cycle runs Reversal extension, Wedge pop, EMA crossback, Base n' break, Exhaustion extension, Wedge drop, then around again. From the brain, Oliver Kell: \"RED LIGHT (Below 20 EMA): Stay in CASH. Do not fight the tape.\"",
+  "module": "F2",
+  "prompt_json": {
+   "chart": {
+    "highlight_last_bars": 1,
+    "overlays": [
+     {
+      "color": "#4ade80",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 10,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#f472b6",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 20,
+      "plotStyle": "line",
+      "type": "EMA"
+     },
+     {
+      "color": "#60a5fa",
+      "enabled": true,
+      "lineStyle": "solid",
+      "lineWidth": 1,
+      "offset": 0,
+      "onTop": false,
+      "period": 50,
+      "plotStyle": "line",
+      "type": "SMA"
+     }
+    ],
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Wedge drop",
+    "Exhaustion extension",
+    "Reversal extension",
+    "EMA crossback"
+   ],
+   "q": "Where is this stock in the cycle of price action on the last bar?",
+   "subject": "Wedge drop"
+  },
+  "reveal_json": {
+   "detector": "chart_iq.v44_read.cycle_events",
+   "example": {
+    "asof": "2011-11-09",
+    "found_by": "scripts/study/bank_v2/scan_chartiq.py",
+    "sym": "HLF"
+   },
+   "facts": {
+    "brain": {
+     "kb_id": 819,
+     "quote": "RED LIGHT (Below 20 EMA): Stay in CASH. Do not fight the tape.",
+     "who": "Oliver Kell"
+    },
+    "chartiq_reading": "lost the 10 and 20 EMA (and the last 3 lows) after a run over them",
+    "context": {
+     "market": "mixed",
+     "off_high_pct": -9.9,
+     "rs63_pct": -1.6,
+     "s200_rising": true,
+     "vs200_pct": 14.1,
+     "vs50_pct": 1.5
+    },
+    "culmination": {
+     "broke_at": 58,
+     "culm_pct": -11.64,
+     "culm_sessions": 24,
+     "ret20_pct": -4.39
+    },
+    "cycle_order": [
+     "Reversal extension",
+     "Wedge pop",
+     "EMA crossback",
+     "Base n' break",
+     "Exhaustion extension",
+     "Wedge drop"
+    ],
+    "era": "2010-14",
+    "held_20": true,
+    "liq_rank": 285,
+    "liq_universe": 1537,
+    "next": "next: stay out; wait for a reversal extension and a new wedge pop",
+    "rule_numbers": {
+     "atr_under": 2.5,
+     "base_days": 10,
+     "base_width": 15,
+     "crossback_prior": 3,
+     "crossback_within": 2,
+     "drop_bottom": 40,
+     "drop_lows": 3,
+     "drop_of": 10,
+     "drop_over": 8,
+     "ema_fast": 10,
+     "ema_slow": 20,
+     "exhaustion_atr": 3.5,
+     "pop_highs": 5,
+     "pop_of": 15,
+     "pop_top": 40,
+     "pop_under": 8
+    },
+    "rule_text": "after at least 8 of the last 10 closes over the 20-day EMA, a close under both the 10 and 20-day EMA and under the last 3 lows, in the bottom 40% of its range.",
+    "sector": null,
+    "stage": "Wedge drop"
+   },
+   "forward_bars": 20,
+   "label": "Wedge drop",
+   "source": "chart_iq.v44_read.cycle_events#Wedge drop#HLF#2011-11-09",
+   "system": "Chart IQ, the cycle of price action",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "read.cycle",
+  "source_kind": "chart_iq",
+  "source_ref": "chart_iq.v44_read.cycle_events#Wedge drop#HLF#2011-11-09",
+  "sym": "HLF",
   "type": "recall",
   "version": 1
  }
