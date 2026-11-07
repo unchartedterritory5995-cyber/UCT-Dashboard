@@ -608,7 +608,6 @@ function HubShell({ setToastMsg }) {
         // ring during a sticky-open fan nobody is touching.
         ringName={state.dragging && state.ring != null ? RING_NAMES[state.ring] : null}
         mirrored={mirrored}
-        modeColor={activeModeConfig?.color}
         // G3-15 — the chip clears the Actions button by the button's own measured width.
         actionsWidthPx={actionsWidthPx}
       />
