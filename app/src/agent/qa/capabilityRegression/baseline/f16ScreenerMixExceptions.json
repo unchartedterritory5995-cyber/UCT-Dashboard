@@ -1,0 +1,4 @@
+{
+  "about": "Commits allowed to change the member Screener's server code and the Agent together (tests/test_uct_agent_qa_f16.py). Owner review is required for every entry: a full 40-character sha and a review reference. Split the commit if you can.",
+  "exceptions": []
+}

@@ -9,7 +9,11 @@ Screener's own server files untouched; and no UCT weight or formula named in the
 """
 from __future__ import annotations
 
+import json
 import re
+import subprocess
+import warnings
+from pathlib import Path
 
 import pytest
 
@@ -98,71 +102,149 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
     assert "market cap" in scan_spec.DEFAULT_ORDER_NOTE.lower()
 
 
-#: The base the "member Screener untouched" rail diffs against, first one that resolves in THIS checkout:
-#: ⛔ THE SCREENER AS LAST REVIEWED (AUDIT ruling, 2026-11-05). The guard used to diff against `agent/int`, a moving ref long
-#: behind master, so any branch that merged master read as an Agent edit. A pin keeps the guard meaningful: the member
-#: Screener's server code must match this commit exactly. Moving it is a review decision, made in the commit that changes
-#: that code on purpose, and that commit's message says why. This pin is #834's last Screener commit, ab52621501, which holds #827's primitives (920fdcc1bb) and #834's token test,
-#: `logic_enabled`, `live_fields` and clock definitions.
-#: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
-#: then report that very change.
-#: move this pin when a reviewed PR intentionally changes api/services/screener
-#: MOVED 2026-11-05 to be5fd05ea2, PR #857 (the Pine landing train): its reviewed W5-T14 (scans) and W5-T15 (backtest)
-#: lanes change backtest.py, scan_evaluator.py, scan_run.py and scan_runtime.py on purpose (reviews W5-T14 ab034f0d28,
-#: W5-T15 8550ef036b, train review 1eb3ba53e5). The pin is the merge commit that brought that reviewed change to master, and it also holds #834's ab52621501.
-#: MOVED 2026-11-06 to 3ca4b0d358, PR #869 (Pine W9 landing): its reviewed W9-T14a lane (review GO-WITH-NOTES, dsk/reviews/W9-T2.md)
-#: changes scan_evaluator.py and snapshot_builder.py on purpose (b6115e9b4d: one history window, bars_window.HISTORY_WINDOW_BARS;
-#: value still 5000, behaviour identical). The pin is the merge commit that brought it to master; it also holds be5fd05ea2.
-SCREENER_PIN = "3ca4b0d358232aaa8afc7f7b084361372740a3ca"
+#: ⛔ THE F-16 COMMIT RULE (AUDIT ruling, 2026-11-06): no single commit may change the member Screener's server code and the
+#: Agent together. It replaces SCREENER_PIN, a commit the Screener had to match exactly: every reviewed Screener landing that
+#: was not Agent work (the Pine trains) turned master red until someone moved the pin by hand, twice in one day.
+#: What this cannot see: one change split across two commits, one Screener, one Agent, passes. This is a tripwire for an
+#: Agent change that reaches into the Screener in passing. The behavioural F-16 tests are the real protection.
+#:
+#: The fixed base: ab52621501, #834's last Screener commit, the last commit where Agent work reached into the Screener under
+#: AUDIT's review. Everything after it was walked on 2026-11-06 and nothing mixed was found. It never moves: a new mixed
+#: commit goes in the exception list below, it does not move this base.
+F16_RULE_BASE = "ab52621501fa7261a8d8583a03dba15cd5568890"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
+AGENT_PATHS = ("app/src/agent/", "api/services/uct_agent/", "api/routers/uct_agent.py")
+#: At or before the base, so the rule never sees them. Named so the control below proves it can say no on real commits.
+PRE_RULE_MIXED = {
+    "ab52621501fa7261a8d8583a03dba15cd5568890": "#834, reviewed Agent scans: a comparison that mixes two clocks says so",
+    "8e55deb714fbaf2ff3836e2d2dbf3dfd0538e504": "#834, reviewed Agent scans: token-list `in`, the server side of Agent composition",
+    "ce69cd30eb72d7710c604aadd92193de12af2e0f": "Agent Phase 1, 2026-10-11: list-field screening in screener.py and filters.py",
+}
+#: The only way past the rule. A code-owned file (.github/CODEOWNERS covers baseline/), so an entry requests the owner's review.
+F16_EXCEPTIONS = Path(__file__).resolve().parents[1] / "app/src/agent/qa/capabilityRegression/baseline/f16ScreenerMixExceptions.json"
 
 
-def _diff_base(pin=SCREENER_PIN, run=None):
-    """The pin, or None when this checkout does not hold it (the master deploy gate fetches depth 2). `^{commit}` is what
-    checks the object exists: `rev-parse --verify` accepts any 40 hex digits otherwise, and the skip would never happen."""
-    import subprocess
+def _holds_commit(sha, run=None, cwd=None):
+    """Does this checkout hold `sha`? False at the master deploy gate, which fetches depth 2. `^{commit}` is what checks the
+    object exists: `rev-parse --verify` accepts any 40 hex digits otherwise, and the skip would never happen."""
     run = run or subprocess.run
-    r = run(["git", "rev-parse", "--verify", "--quiet", pin + "^{commit}"], capture_output=True, text=True)
-    return pin if r.returncode == 0 else None
+    return run(["git", "rev-parse", "--verify", "--quiet", sha + "^{commit}"], capture_output=True, text=True, cwd=cwd).returncode == 0
 
 
-def _screener_diff(base, head="HEAD"):
-    import subprocess
-    return subprocess.run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
+def _is_mixed(files):
+    return (any(f == p or f.startswith(p.rstrip("/") + "/") for f in files for p in SCREENER_PATHS)
+            and any(f == p or f.startswith(p) for f in files for p in AGENT_PATHS))
 
 
-def test_the_diff_base_is_the_pin_when_the_checkout_holds_it():
-    import subprocess
+def _screener_commits(base, head="HEAD", cwd=None):
+    """{non-merge commit in base..head that touches the Screener: every file it touches}. `--full-history`: default history
+    simplification drops a side branch's commit behind a merge, which is where a mixed commit would sit. `--full-diff` lists all
+    of a commit's files, not only the ones under the paths."""
+    r = subprocess.run(["git", "log", "--no-merges", "--full-history", "--full-diff", "--name-only", "--format=%x00%H",
+                        f"{base}..{head}", "--", *SCREENER_PATHS], capture_output=True, text=True, cwd=cwd)
+    assert r.returncode == 0, r.stderr
+    out = {}
+    for chunk in r.stdout.split("\0")[1:]:
+        sha, *files = chunk.split()
+        out[sha] = files
+    return out
 
+
+def _mixed_commits(base, head="HEAD", cwd=None):
+    return sorted(sha for sha, files in _screener_commits(base, head, cwd).items() if _is_mixed(files))
+
+
+def _exceptions():
+    return json.loads(F16_EXCEPTIONS.read_text(encoding="utf-8"))["exceptions"]
+
+
+def test_a_commit_this_checkout_does_not_hold_is_not_taken_for_a_commit():
     def fake(code):
         return lambda cmd, **kw: subprocess.CompletedProcess(cmd, code, "", "")
-    assert _diff_base(run=fake(0)) == SCREENER_PIN
-    assert _diff_base(run=fake(128)) is None
-    assert re.fullmatch(r"[0-9a-f]{40}", SCREENER_PIN), "a full commit id, never a ref that can move"
+    assert _holds_commit(F16_RULE_BASE, run=fake(0)) is True
+    assert _holds_commit(F16_RULE_BASE, run=fake(128)) is False
+    assert _holds_commit("0" * 40) is False
+    assert re.fullmatch(r"[0-9a-f]{40}", F16_RULE_BASE), "a full commit id, never a ref that can move"
 
 
-def test_a_pin_this_checkout_does_not_hold_is_not_taken_for_a_commit():
-    assert _diff_base(pin="0" * 40) is None
+def test_no_commit_since_the_base_changes_the_screener_and_the_agent_together():
+    if not _holds_commit(F16_RULE_BASE):
+        # the master deploy gate fetches depth 2: the walk cannot be made there, and a skip is the honest reading.
+        pytest.skip("the rule's base %s is not in this checkout" % F16_RULE_BASE)
+    walked = _screener_commits(F16_RULE_BASE)
+    excused = {e["sha"] for e in _exceptions()}
+    mixed = sorted(sha for sha, files in walked.items() if _is_mixed(files))
+    # in the log's warnings summary, because `pytest -q` names no test: this line is how a CI log shows the walk really ran
+    warnings.warn(f"F-16 commit rule walked {len(walked)} Screener commits since {F16_RULE_BASE[:10]}: {len(mixed)} mixed, {len(excused)} excused")
+    assert sorted(set(mixed) - excused) == [], (
+        "a commit changes the member Screener and the Agent together. Split it, or add its full SHA with a review reference "
+        f"to {F16_EXCEPTIONS.name}, which needs the owner's review")
 
 
-def test_the_member_screeners_own_server_code_is_untouched_by_the_F16_work():
-    base = _diff_base()
-    if base is None:
-        # A shallow checkout without the pin (the master deploy gate fetches depth 2) cannot carry this comparison at
-        # all; a skip is the honest reading there. agent-ci fetches full history and runs it for real.
-        pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
-    r = _screener_diff(base)
-    assert r.returncode == 0, r.stderr
-    assert r.stdout.strip() == "", r.stdout
+def test_control_the_rule_says_no_on_real_commits():
+    """CONTROL: with the base set before them, the rule must name all three pre-rule commits, and only those."""
+    oldest = "ce69cd30eb72d7710c604aadd92193de12af2e0f"
+    if not _holds_commit(oldest) or not _holds_commit(F16_RULE_BASE):
+        pytest.skip("the pre-rule commits are not in this checkout")
+    assert _mixed_commits(oldest + "~1", F16_RULE_BASE) == sorted(PRE_RULE_MIXED)
+    # each alone, so one cannot stand in for another
+    for sha in PRE_RULE_MIXED:
+        assert _mixed_commits(sha + "~1", sha) == [sha], PRE_RULE_MIXED[sha]
+    assert all(why.strip() for why in PRE_RULE_MIXED.values())
 
 
-def test_the_guard_can_say_no():
-    """CONTROL, on real history: the pinned commit changed the Screener, so the same diff across it must name a file."""
-    if _diff_base() is None:
-        pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
-    r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
-    assert r.returncode == 0, r.stderr
-    assert "api/services/screener/scan_evaluator.py" in r.stdout.split()  # the file the pinned commit changed (W5-T14)
+def test_a_screener_only_commit_like_pine_w9_passes():
+    sha = "b6115e9b4d120ef228027dd412ef5820ee75c3a0"
+    if not _holds_commit(sha):
+        pytest.skip("the Pine W9 commit is not in this checkout")
+    assert "api/services/screener/scan_evaluator.py" in _screener_commits(sha + "~1", sha)[sha]   # it IS a Screener commit
+    assert _mixed_commits(sha + "~1", sha) == []
+
+
+def test_a_future_mixed_commit_fails_and_only_the_list_lets_it_through(tmp_path):
+    """On a throwaway repo, so the rule is proved on commits that do not exist yet."""
+    def git(*a):
+        r = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a], cwd=tmp_path, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        return r.stdout.strip()
+
+    def commit(*paths):
+        for p in paths:
+            f = tmp_path / p
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(f"{p} {len(list(tmp_path.rglob('*')))}\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "x")
+        return git("rev-parse", "HEAD")
+    git("init", "-q")
+    base = commit("README.md")
+    only_screener = commit("api/services/screener/a.py")
+    only_agent = commit("app/src/agent/a.js")
+    lookalike = commit("api/services/screener_backtest.py", "app/src/agent/b.js")   # not under the Screener's own path
+    mixed = commit("api/routers/screener.py", "api/services/uct_agent/b.py")
+    assert _mixed_commits(base, cwd=tmp_path) == [mixed]
+    for clean in (only_screener, only_agent, lookalike):
+        assert clean not in _mixed_commits(base, cwd=tmp_path)
+    # a mixed commit on a side branch, behind a merge that takes the other side's tree, is still found (`--full-history`)
+    git("checkout", "-q", "-b", "side", only_screener)
+    hidden_side = commit("api/services/screener/c.py", "app/src/agent/c.js")
+    git("checkout", "-q", "-")
+    git("merge", "-q", "-s", "ours", "--no-edit", "side")
+    assert sorted(_mixed_commits(base, cwd=tmp_path)) == sorted([mixed, hidden_side])
+
+
+def test_every_exception_is_a_full_sha_with_a_review_reference():
+    data = json.loads(F16_EXCEPTIONS.read_text(encoding="utf-8"))
+    assert "owner" in data["about"].lower()
+    for e in data["exceptions"]:
+        assert re.fullmatch(r"[0-9a-f]{40}", e["sha"]), e
+        assert e["sha"] not in PRE_RULE_MIXED, e
+        assert str(e["review"]).strip(), e
+
+
+def test_the_exception_list_is_code_owned():
+    owners = (Path(__file__).resolve().parents[1] / ".github/CODEOWNERS").read_text(encoding="utf-8")
+    assert "/app/src/agent/qa/capabilityRegression/baseline/ " in owners
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
