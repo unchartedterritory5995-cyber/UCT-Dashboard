@@ -99,3 +99,39 @@ describe('chart P0s, through the real panel', () => {
     await waitFor(() => expect(!!on(m, 'c1').opts.settings.percentScale).toBe(false))
   }, 40000)
 })
+
+// round 5 (pl-exec): two more P0s through the real panel. Held-out phrasings from agentExecHeldOut5.
+import { SCAN_HELD_OUT, REPORTS_HELD_OUT } from '../../agentExecHeldOut5.test.js'
+import { getCapability } from '../../capabilities'
+describe('C3-107 a preset scan, C3-150 when a stock reports — from Charts', () => {
+  it(`C3-107 "${SCAN_HELD_OUT[0].text}": the Scanner widget shows that preset (its picker's scanKey / scanName); Undo goes back`, async () => {
+    const m = open([chart('c1', 0, 0, 12, 20), { id: 'sc', type: 'scanner', x: 12, y: 0, w: 12, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' })
+    const keys = getCapability('widget.showScan').args.properties.scan.enum
+    const key = keys.find(k => /vol/i.test(k)) || keys[0]
+    await m.say(SCAN_HELD_OUT[0].text, (c) => [{ action: 'widget.showScan', target: boardRef(c), args: { widget: wOf(c, 'scanner'), scan: key } }])
+    await waitFor(() => expect(on(m, 'sc').opts.scanKey).toBe(key))
+    expect(on(m, 'sc').opts.scanName).toBeTruthy()
+    await m.say('undo')
+    await waitFor(() => expect(on(m, 'sc').opts.scanKey ?? null).toBe(null))
+  }, 40000)
+  it.each(REPORTS_HELD_OUT.map(c => [c.text]))('C3-150 "%s" on /charts: the earnings read answers with the date, no change to the board', async (text) => {
+    const m = open([chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' })
+    // the gateway's earnings kind (MD-1.0), invented fixture values: a next report date, one reported quarter. Both the gateway
+    // read and the legacy route answer, whichever this build's config serves.
+    const base = globalThis.fetch
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+    const next = { report_date: '2026-11-19', quarter: 'Q3 FY2027', kind: 'scheduled' }
+    globalThis.fetch = async (url, init = {}) => {
+      const u = String(url), body = init.body ? JSON.parse(init.body) : null
+      if (u === '/api/agent/data' && body?.kind === 'earnings') return json({ contract: 'MD-1.0', kind: 'earnings', params_echo: body.params, status: 'ok', freshness: 'fresh', as_of: '2026-11-03', stale: false, notes: [], data: { reported: [{ quarter: 'Q2 FY2027', rev_actual: 1e9, eps_actual: 1 }], next_report: next, reported_through: 'Q2 FY2027' } })
+      if (u.startsWith('/api/earnings-intel/')) return json({ quarters: [{ label: 'Q2 FY2027', revenue_actual: 1e9, eps_actual: 1 }], summary: { next_report_date: next.report_date } })
+      return base(url, init)
+    }
+    const before = JSON.stringify(m.board.state.widgets)
+    const sym = /AMD/.test(text) ? 'AMD' : 'NVDA'
+    const out = await m.say(text, (c) => [{ action: 'stock.earnings', target: must(c.stockData?.[0]?.ref, 'stockData'), args: { symbol: sym } }])
+    expect(out).toMatch(new RegExp(`${sym} earnings — next report: .*19`))
+    expect(out).not.toMatch(/couldn't read/)
+    expect(JSON.stringify(m.board.state.widgets)).toBe(before)
+  }, 40000)
+})

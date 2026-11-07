@@ -351,3 +351,36 @@ describe('an alert level inside the indicator\'s own range', () => {
     expect(refused).toBeUndefined()
   })
 })
+
+// Round 5 (pl-exec, C2-092): an alert on the member's own YES/NO signal with its trigger policy, through the REAL panel: one card,
+// Apply arms the popover's payload (policy + its compiled rule) on the server, Undo deletes it. Held-out phrasings from
+// agentExecHeldOut5 (SIGNAL_HELD_OUT); the model is scripted.
+import { SIGNAL_HELD_OUT } from './agentExecHeldOut5.test.js'
+import { cleanup as rtlCleanup, screen as rtlScreen } from '@testing-library/react'
+describe('C2-092 through the REAL panel: a yes/no signal alert with its trigger', () => {
+  const doc = JSON.parse(fs.readFileSync(path.resolve(globalThis.process.cwd(), '..', 'tests/fixtures/authoring/batch2_definitions.json'), 'utf8')).styled_markers
+  const stored = (id, name, src) => { const { ast } = parseFormula(src); return { ...doc, id, meta: { ...doc.meta, name }, plots: [{ ...doc.plots[0], key: 'value' }], compute: { ...doc.compute, fn: astHash(ast), ast, source: src } } }
+  let p
+  beforeEach(() => {
+    installUserDefinitions([stored(SIG, 'Bullish Trend', 'close > sma(close, 20)')])
+    p = setupPanel()
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn((url, init) => (String(url).startsWith(ROUTE) ? srv.handle(url, init) : base(url, init)))
+  })
+  afterEach(() => { rtlCleanup() })
+  const COMPILED = { becomes_true: 'cross_above', becomes_false: 'cross_below', is_true: 'above' }
+  it.each(SIGNAL_HELD_OUT.map(c => [c.text, c.trigger]))('"%s" → a card; Apply arms %s on the server; Undo removes it', async (text, trigger) => {
+    const [widgets, syms] = ONE('NVDA')
+    const { say, click, h } = p.mount([{ ...widgets[0], opts: { settings: { indicatorInstances: [{ instanceId: 'inst:s', defId: SIG, inputs: {} }] } } }], syms)
+    h.indicatorAlerts = buildIndicatorAlertSource()
+    p.st.envelopes.push(p.env('propose', [{ action: 'indicatorAlert.create', target: 'indicatorAlerts', args: { instance: 'inst:s', plot: null, condition: null, threshold: null, crossWith: null, chart: null, trigger, timeframe: null } }]))
+    await say(text)
+    expect(rtlScreen.getAllByTestId('agent-proposal').length).toBe(1)
+    expect(srv.posts).toEqual([])
+    await click('Apply')
+    await waitFor(() => expect(srv.rows).toHaveLength(1))
+    expect(srv.posts).toMatchObject([{ indicator: `${SIG}.value`, trigger_policy: trigger, condition: COMPILED[trigger], threshold: 0.5, tf: 'D' }])
+    await say('undo')
+    await waitFor(() => expect(srv.rows).toEqual([]))
+  }, 40000)
+})
