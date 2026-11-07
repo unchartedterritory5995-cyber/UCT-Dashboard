@@ -1,3 +1,14 @@
+>>> LANDINGS 2026-11-06/07 (desktop coordinator). All PROMOTED to production unless noted.
+engine 22 W34-I6a #898 | 23 W34-I4b #901 | 24 W34-I4 #902 | 25 W34-I6c #906 (v1-v4 bare highestbars/lowestbars sign fix on the live door) |
+26 W6-T7 matrix #908 | 27 W6-T9 receivers #909 | 28 W6-T8 map #910 | 29 W34-I6b #911 (item 4 gated off the door) | 30 W6-T10 enum #914 |
+no bump: W9-T11 record-through-run #915 (broker dark; service builds historyWindowBars from job ctx) ; tooling: hostParity INTERRUPTED handling #904.
+Caught pre-land: W6-T9 postfixMember runtime/host disagreement (r2); W34-I6b ungated door change (r2 gate); W9-T11 HP-7 service adapter (r1).
+PROCESS: every landing and every runtime/service review now runs the service suite (Node 24: --test "services/pine_runtime/test/**/*.mjs"; 131 tests at engine 30).
+Known noise: tests/test_mem_observe.py:144 (memobs file-cache probe, not Pine) flaked the deploy gate twice; rerun --failed passed. Local hygiene flags docs/study/bank/chart.events.json via CRLF checkout only (blob 5,240,277 B < 5 MB; CI green) -> coordinator waivers.
+IN FLIGHT: W6-T6-N1b (indirect held-list mutation refuses by name; r2 inverts to provably-independent targets). BLOCKED on captures: W6-T11 (Q-A1), W9 T4-T10/T12/T13a. Next W9 build: T14 (server backtests).
+Orphans (owner kill optional): hung vitest trees PIDs 33952 (I6a old), 39156 (T8 old), 5092 (T7 old, holds heavy-final2.lock).
+<<<
+
 # Desktop status (written ONLY by the desktop build machine)
 
 ## Header
