@@ -336,8 +336,9 @@ describe('through the real panel (scripted model)', () => {
 import { RANGE_HELD_OUT } from './agentExecHeldOut3.test.js'
 describe('an alert level inside the indicator\'s own range', () => {
   const rsi = { instanceId: 'r', defId: 'rsi', inputs: { period: 14 } }
-  it.each([...RANGE_HELD_OUT.map(c => [c.threshold, c.ok]), [100, true], [0, true], [100.5, false]])('RSI %s: %s', async (threshold, ok) => {
-    const { refused } = await create(chartWith([rsi]), createArgs('r', { threshold }))
+  // (condition above unless said: at the ends a level that must be passed is exclusive — above 100 / below 0 can never fire)
+  it.each([...RANGE_HELD_OUT.map(c => [c.threshold, c.ok, 'above']), [100, false, 'above'], [100, false, 'cross_above'], [0, false, 'below'], [0, false, 'cross_below'], [0, true, 'above'], [100, true, 'below'], [99.5, true, 'cross_above'], [100.5, false, 'below']])('RSI %s (%s, %s)', async (threshold, ok, condition) => {
+    const { refused } = await create(chartWith([rsi]), createArgs('r', { threshold, condition }))
     if (ok) {
       expect(refused).toBeUndefined()
       expect(srv.rows).toMatchObject([{ indicator: 'rsi', threshold }])

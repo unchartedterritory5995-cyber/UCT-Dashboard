@@ -120,3 +120,45 @@ describe('a described Undo takes back the most recent change of THAT kind; newer
     expect(out).toMatch(/changed since/)
   }, 30000)
 })
+
+// pl-auto u4 (BROWSER-MOCK-MODEL), own phrasings here: per-clause targets with "the other" and with a relation clause; the scope
+// of "undo the scale change" after a later indicator add.
+describe('per-clause: "the other", a relation clause, and the scale undo', () => {
+  const TWO_W = [cell('a', 0, 0), cell('b', 12, 0)]
+  const mountTwo = (clicked) => { const m = p.mount(TWO_W, { 'N:a': 'SPY', 'N:b': 'QQQ' }, { decorate: label }); p.select(clicked); return m }
+  const st2 = (b) => ['a', 'b'].map(id => `${tfOf(b, id)}${logOf(b, id) ? 'L' : ''}`).join(' ')
+  it.each([['weekly on this chart, log scale on the other one', 'a'], ['put the other chart on weekly and this one on log', 'b']])('%s (clicked %s): each clause on its own chart; a plan that puts both on the click is asked about', async (text, clicked) => {
+    const other = clicked === 'a' ? 'b' : 'a'
+    const wkOnClick = /weekly on this|this chart weekly/.test(text)
+    const right = [[wkOnClick ? clicked : other, 'chart.setTimeframe', { timeframe: 'W' }], [wkOnClick ? other : clicked, 'chart.setScale', { scale: 'log' }]]
+    {
+      const { say, board } = mountTwo(clicked)
+      p.st.envelopes.push(planOf(right))
+      const out = await say(text)
+      const want = { [right[0][0]]: 'W', [right[1][0]]: 'DL' }
+      expect(st2(board), out).toBe(['a', 'b'].map(id => (id === right[0][0] ? 'W' : 'DL')).join(' '))
+      void want
+    }
+    cleanup(); p = setupPanel()
+    {
+      const { say, board } = mountTwo(clicked)
+      p.st.envelopes.push(planOf([[clicked, 'chart.setTimeframe', { timeframe: 'W' }], [clicked, 'chart.setScale', { scale: 'log' }]]))
+      await say(text)
+      expect(st2(board)).toBe('D D')
+    }
+  }, 60000)
+  it('a relation clause: "make this one weekly and the chart below it log" (c0 clicked): weekly on c0, log on c2', async () => {
+    const { say, board } = mount('c0')
+    p.st.envelopes.push(planOf([['c0', 'chart.setTimeframe', { timeframe: 'W' }], ['c2', 'chart.setScale', { scale: 'log' }]]))
+    const out = await say('make this one weekly and the chart below it log')
+    expect(state(board), out).toBe('W D DL D')
+  }, 30000)
+  it('"undo the scale change" after a later "add rsi": the scale goes back, the RSI stays', async () => {
+    const { say, board } = p.mount(...ONE('SPY'))
+    await say('log scale')
+    await say('add rsi')
+    const out = await say('undo the scale change')
+    expect(logOf(board, 'c'), out).toBe(false)
+    expect((mergeChartSettings(w(board, 'c').opts?.settings || null).indicatorInstances || []).some(i => !i.deleted && /rsi/i.test(i.defId))).toBe(true)
+  }, 30000)
+})

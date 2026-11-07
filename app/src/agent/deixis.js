@@ -476,7 +476,7 @@ const TRUE_POINTER = /\bthis\s+(?:chart|stock|ticker|symbol|one)\b/i
 const ELSE_NAMED = /\b(?:of|showing)\s+[a-z$]/i
 function onlyPointer(text, charts) {
   const s = String(text || '')
-  return TRUE_POINTER.test(s) && !relationMatch(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
+  return TRUE_POINTER.test(s) && !relationMatch(s) && !OTHER_IN_CLAUSE.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
     && !chartNameWord(s, charts) && !chartsNamedBy(s, charts).size
 }
 
@@ -508,6 +508,7 @@ export const negatedPointer = (text) => NEG_POINTER.exec(String(text || ''))
 // matched to the one clause that says it (action and arguments); it runs only on that clause's chart. Affirmative clauses only:
 // a negated clause's chart is never a target. Anything not certain — a clause naming two charts or none, an op no clause says,
 // an op two clauses say — is not read here, and the gates below decide as before (they ask).
+const OTHER_IN_CLAUSE = /\bthe other(?:\s+(?:one|chart|cell|pane|ticker|stock))?\b/i
 const CLAUSE_POINTER = /\b(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b|\bhere\b|\bit\b/i
 const CHART_WORDS = new RegExp([
   String.raw`\b(?:on|to|for|in)\s+(?:the|this|that|my)\s+[a-z0-9.\-]+(?:\s+[a-z0-9.\-]+)?\s+(?:chart|one|cell|pane)\b`,
@@ -518,8 +519,8 @@ const CHART_WORDS = new RegExp([
 const FILLER = /\b(?:make|set|put|switch|change|turn|flip|please|and|then|also|too|just|now|to|on|onto|with)\b/gi
 function clauseReads(text, host, parse) {
   const s = String(text || '')
-  // only the mixed NAMED + DEICTIC family: a sentence with a relation word or a negated pointer stays with the audited rules
-  if (relationMatch(s) || negatedPointer(s)) return null
+  // a negated pointer stays with the audited rules; a RELATION is read in its own clause (below)
+  if (negatedPointer(s)) return null
   const parts = s.split(CLAUSE_SPLIT).map(x => x.trim()).filter(Boolean)
   if (parts.length < 2 || typeof parse !== 'function') return null
   const charts = host?.charts?.list?.() || []
@@ -527,11 +528,20 @@ function clauseReads(text, host, parse) {
   const out = []
   for (const part of parts) {
     const negated = NEGATION.test(part)
+    // the clause's own chart, never two and never none:
+    //   a relation in it ("the chart below it") → the single neighbour on that side of the click
+    //   "the other one / chart" on a board of two with a click → the chart that is not the click
+    //   a name (one) → that chart; a pointer alone (this one / here / it) → the click
+    const rel = relationMatch(part) ? relativeChart(part, charts, sel) : null
+    const other = OTHER_IN_CLAUSE.test(part) ? (charts.length === 2 && sel ? charts.find(c => c.ref !== sel)?.ref || null : null) : undefined
     const named = [...chartsNamedBy(part, charts, sel)]
     const pointer = CLAUSE_POINTER.test(part)
-    // the clause's own chart: named (one) or the click (pointer), never both, never neither
-    const chart = named.length === 1 && !pointer ? named[0] : !named.length && pointer && sel ? sel : null
-    const core = part.replace(CHART_WORDS, ' ').replace(FILLER, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim()
+    const chart = rel ? (rel.hits.length === 1 && !rel.negated ? rel.hits[0].ref : null)
+      : other !== undefined ? other
+        : named.length === 1 && !pointer ? named[0] : !named.length && pointer && sel ? sel : null
+    // the change once the chart words are lifted off (a relation's own words, and the chart it names, too)
+    const bare = rel ? part.replace(rel.match[0], ' ').replace(/\b(?:the|a)\s+(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph)\b/gi, ' ') : part
+    const core = bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(FILLER, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim()
     let ops = null
     try { const r = core ? parse(core, { host }) : null; ops = r?.kind === 'ops' && !r.target ? r.ops : null } catch { ops = null }
     out.push({ part, negated, chart, ops })
@@ -565,7 +575,15 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
       return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
     any = true
+    o.__clause = says[0]
   }
+  // every affirmative clause that says a change has an op for it: a plan that does only part of the sentence is not read here
+  // (the gates ask), so a one-op plan never runs beside a clause it left out
+  const done = new Set((ops || []).map(o => o.__clause).filter(Boolean))
+  for (const o of ops || []) delete o.__clause
+  if (any && affirm.some(r => (r.ops || []).length && !done.has(r))) return null
+  // a clause that names a chart but says no change of its own ("…and the one right of it as well") repeats another's: not certain
+  if (any && affirm.some(r => r.chart && !(r.ops || []).length)) return null
   return any ? { ok: true } : null
 }
 
