@@ -85,7 +85,7 @@ for (const p of A.acceptance) for (const s of json(p)) for (const id of s.rows |
 const NOT_EXECUTION = new Set(['unsupported', 'invalid', 'howto'])
 const tagOf = A.retag ? await (async () => {
   const m = await import('./requests.mjs')
-  const all = [...m.publicRequests(), ...m.unseenRequests(), ...(m.unseen2Requests ? m.unseen2Requests() : []), ...(m.unseen3Requests ? m.unseen3Requests() : [])]
+  const all = [...m.publicRequests(), ...m.unseenRequests(), ...(m.unseen2Requests ? m.unseen2Requests() : []), ...(m.unseen3Requests ? m.unseen3Requests() : []), ...(m.unseen4Requests ? m.unseen4Requests() : []), ...(m.followup3Requests ? m.followup3Requests() : [])]
   return new Map(all.map(r => [r.id, r.inventory]))
 })() : null
 const skippedRows = { notExecution: 0 }
