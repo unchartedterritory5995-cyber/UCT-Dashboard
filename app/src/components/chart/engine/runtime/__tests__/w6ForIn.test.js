@@ -138,6 +138,144 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
     const reads = 'type P\n    float v\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(4))\ntwice(P q) =>\n    q.v * 2\ns = 0.0\nfor p in ps\n    s += twice(p)\nplot(s)\n'
     expect(lastValues(reads)).toEqual([8])
   })
+  it('⛔ (review N1b) a held list reached INDIRECTLY: a function handed it, an alias (W6-F1, Q-W6T6-H)', () => {
+    const H2 = 'type Q\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(array.new_float()))\n'
+    const FNS = 'bump(array<float> a) =>\n    array.push(a, 1.0)\n'
+      + 'method bumpm(array<float> a) =>\n    a.push(1.0)\n'
+      + 'viaLocal(array<float> a) =>\n    l = a\n    array.push(l, 1.0)\n'
+      + 'outer(array<float> b) =>\n    bump(b)\n'
+      + 'named(float v, array<float> into) =>\n    array.push(into, v)\n'
+    const walk = (change, pre = '') => `${H2}${FNS}${pre}for q in qs\n    ${change}\nplot(close)\n`
+    const msg = (via) => `a loop in a form this lane does not iterate — \`for … in\`: ${forInHeldListRefusal('q', via)}`
+    // (a) a user function that changes its own parameter, handed a list the element holds
+    for (const [change, fn] of [['bump(q.arr)', 'bump'], ['q.arr.bumpm()', 'bumpm'], ['bumpm(q.arr)', 'bumpm'],
+      ['viaLocal(q.arr)', 'viaLocal'], ['outer(q.arr)', 'outer'], ['named(1.0, into = q.arr)', 'named'],
+      ['bump(q.copy().arr)', 'bump']]) {
+      expect(refusal(walk(change)).message, change).toBe(msg(`handed to \`${fn}\`, which changes it`))
+    }
+    // …and handed the ELEMENT, to a function that changes a list it holds through a local alias
+    expect(refusal(`${H2}grab(Q z) =>\n    l = z.arr\n    array.push(l, 1.0)\nfor q in qs\n    grab(q)\nplot(close)\n`).message)
+      .toBe(msg('handed to `grab`, which changes it'))
+    // (b) an alias, through any chain of re-assignments, then a mutating member
+    expect(refusal(walk('a = q.arr\n    array.push(a, 1.0)')).message).toBe(msg('through `a`, not provably independent of it'))
+    expect(refusal(walk('a = q.arr\n    b = a\n    b.push(1.0)')).message).toBe(msg('through `b`, not provably independent of it'))
+    expect(refusal(walk('r = q\n    array.set(r.arr, 0, 1.0)')).message).toBe(msg('through `r.arr`, not provably independent of it'))
+    expect(refusal(walk('g := q.arr\n    array.push(g, 1.0)', 'var array<float> g = array.new_float()\n')).message)
+      .toBe(msg('through `g`, not provably independent of it'))
+    // …or an alias the body hands to a function that changes it
+    expect(refusal(walk('a = q.arr\n    bump(a)')).message).toBe(msg('handed to `bump`, which changes it'))
+    // ⭐ PINNED — the literal sentence the capture row Q-W6T6-H quotes (not rebuilt from the helper)
+    expect(refusal(walk('bump(q.arr)')).message).toBe('a loop in a form this lane does not iterate — `for … in`: '
+      + 'the body changes a list the element `q` may hold (handed to `bump`, which changes it), not yet captured (W6-F1)')
+    expect(refusal(walk('a = q.arr\n    array.push(a, 1.0)')).message).toBe('a loop in a form this lane does not iterate — `for … in`: '
+      + 'the body changes a list the element `q` may hold (through `a`, not provably independent of it), not yet captured (W6-F1)')
+    expect(refusal(walk('array.push(q.arr, 1.0)')).message).toBe('a loop in a form this lane does not iterate — `for … in`: '
+      + 'the body changes a list the element `q` holds (a write through the loop variable), not yet captured (W6-F1)')
+  })
+  it('⛔ (review N1b r1) REACH, not type: a list bound outside the walk refuses only when it can carry a held list', () => {
+    const msg = (via) => `a loop in a form this lane does not iterate — \`for … in\`: ${forInHeldListRefusal('q', via)}`
+    const TQ = 'type Q\n    float v\n    array<float> arr\nvar qs = array.new<Q>()\n'
+    // ⛔ the review's hazard: `vals` is stored into a walked record, then changed in the walk.
+    // INFERRED (H1) and DECLARED (H2) answer the same, by reach
+    for (const decl of ['var vals = array.new_float()', 'var array<float> vals = array.new_float()', 'var float[] vals = array.new_float()']) {
+      const src = `${TQ}${decl}\nif barstate.isfirst\n    array.push(qs, Q.new(1.0, vals))\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n`
+      expect(refusal(src).message, decl).toBe(msg('through `vals`, not provably independent of it'))
+    }
+    // …stored through a record bound first, then pushed (backward through the constructor)
+    expect(refusal(`${TQ}var vals = array.new_float()\nq0 = Q.new(1.0, vals)\nif barstate.isfirst\n    array.push(qs, q0)\n`
+      + 'for q in qs\n    vals.push(1.0)\nplot(close)\n').message).toBe(msg('through `vals`, not provably independent of it'))
+    // …a held list read off the walked list BEFORE the walk (H5)
+    expect(refusal(`${TQ}if barstate.isfirst\n    array.push(qs, Q.new(1.0, array.new_float()))\npre = array.get(qs, 0).arr\n`
+      + 'for q in qs\n    array.push(pre, 1.0)\nplot(close)\n').message).toBe(msg('through `pre`, not provably independent of it'))
+    // …through an alias of the walked list and a method read, then a forward chain outside the walk
+    expect(refusal(`${TQ}qq = qs\np0 = qq.first()\npa = p0.arr\nfor q in qs\n    array.push(pa, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `pa`, not provably independent of it'))
+    // ⛔ undecidable, refused by name: returned from a user function that names the walked list;
+    // passed through another collection
+    expect(refusal(`${TQ}firstArr() =>\n    array.get(qs, 0).arr\nfor q in qs\n    g = firstArr()\n    array.push(g, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `g`, not provably independent of it'))
+    expect(refusal(`${TQ}var keep = array.new<Q>()\nfor q in qs\n    array.push(keep, q)\n    k = array.get(keep, 0).arr\n    array.push(k, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `k`, not provably independent of it'))
+    // CONTROL — the review's over-refusal repro (VF1 / VF2 / D6): an accumulator of the SAME type as
+    // the held list, never stored into a record, is served (value checked)
+    const fill = 'if barstate.isfirst\n    array.push(qs, Q.new(2.0, array.new_float()))\n'
+    expect(lastValues(`${TQ}${fill}var array<float> rowSumB = array.new<float>(3, 0.0)\nfor q in qs\n    for k = 0 to 2\n`
+      + '        array.set(rowSumB, k, array.get(rowSumB, k) + q.v)\nplot(array.sum(rowSumB))\n')).toEqual([6 * N])
+    expect(build(`${TQ}${fill}if close > 0\n    array<float> ctlRowSum = array.new<float>(3, 0.0)\n    for q in qs\n        array.set(ctlRowSum, 0, q.v)\nplot(close)\n`).ok).toBe(true)
+    expect(build(`${TQ}${fill}var array<int> cnt = array.new_int()\nfor q in qs\n    array.push(cnt, 1)\nplot(close)\n`).ok).toBe(true)
+    // r2 (default inverted): a function RESULT or a SLICE is never provably independent, even of an
+    // unrelated source, so it refuses by name; a body-local NEW list is served (value checked)
+    expect(refusal(`${TQ}${fill}mk() =>\n    array.from(1.0, 2.0)\nfor q in qs\n    t = mk()\n    array.push(t, 1.0)\nplot(close)\n`).message)
+      .toBe(msg('through `t`, not provably independent of it'))
+    expect(refusal(`${TQ}${fill}var other = array.from(1.0, 2.0)\nfor q in qs\n    t = array.slice(other, 0, 1)\n    array.push(t, q.v)\nplot(close)\n`).message)
+      .toBe(msg('through `t`, not provably independent of it'))
+    expect(lastValues(`${TQ}${fill}var n = 0\nfor q in qs\n    t = array.new_float()\n    array.push(t, q.v)\n    u = array.from(1.0)\n    w = u\n    w.push(q.v)\n    n += array.size(t) + array.size(w)\nplot(n)\n`))
+      .toEqual([3 * N])
+    // CONTROL — a NEW array copied from a held list, outside the walk, is its own list: served
+    expect(build(`${TQ}${fill}cp = array.copy(array.get(qs, 0).arr)\nfor q in qs\n    array.push(cp, q.v)\nplot(close)\n`).ok).toBe(true)
+    // CONTROL — a list of the held type handed to a function that changes it: served when nothing walked reaches it
+    expect(build(`${TQ}${fill}var acc = array.new_float()\nbumpq(array<float> a) =>\n    array.push(a, 1.0)\nfor q in qs\n    bumpq(acc)\nplot(close)\n`).ok).toBe(true)
+  })
+  it('⛔ (review N1b r2) DEFAULT INVERTED: only a PROVABLY INDEPENDENT list may change in a walk over records that hold one', () => {
+    const msg = (via) => `a loop in a form this lane does not iterate — \`for … in\`: ${forInHeldListRefusal('q', via)}`
+    const NOT = (t) => msg(`through \`${t}\`, not provably independent of it`)
+    const TQ = 'type Q\n    float v\n    array<float> arr\nvar qs = array.new<Q>()\n'
+    const fill = 'if barstate.isfirst\n    array.push(qs, Q.new(2.0, array.new_float()))\n'
+    const other = 'var other = array.new_float()\n'
+    // the review's r1 holes (X6 … X19), each REFUSED by name now
+    const holes = [
+      ['X6 if-expression alias in the body', `${TQ}${fill}${other}for q in qs\n    a = if close > open\n        q.arr\n    else\n        other\n    array.push(a, 1.0)\nplot(close)\n`, NOT('a')],
+      ['X8 switch alias in the body', `${TQ}${fill}${other}for q in qs\n    a = switch\n        close > open => q.arr\n        => other\n    array.push(a, 1.0)\nplot(close)\n`, NOT('a')],
+      ['X7 if-expression before the walk', `${TQ}${fill}pre = if barstate.isfirst\n    array.get(qs, 0).arr\nelse\n    array.new_float()\nfor q in qs\n    array.push(pre, 1.0)\nplot(close)\n`, NOT('pre')],
+      ['X10 returned by a function handed qs', `${TQ}${fill}get0(array<Q> xs) =>\n    array.get(xs, 0).arr\npre = get0(qs)\nfor q in qs\n    array.push(pre, 1.0)\nplot(close)\n`, NOT('pre')],
+      ['X11 a record returned, then its field', `${TQ}${fill}first0(array<Q> xs) =>\n    xs.first()\np0 = first0(qs)\nfor q in qs\n    array.push(p0.arr, 1.0)\nplot(close)\n`, NOT('p0.arr')],
+      ['X19 a tuple from a function', `${TQ}${fill}pair(array<Q> xs) =>\n    [array.get(xs, 0).arr, 1.0]\n[pre, z] = pair(qs)\nfor q in qs\n    array.push(pre, 1.0)\nplot(close)\n`, NOT('pre')],
+      ['X13 stored by a function', `${TQ}var vals = array.new_float()\naddQ(array<float> v) =>\n    array.push(qs, Q.new(1.0, v))\nif barstate.isfirst\n    addQ(vals)\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n`, NOT('vals')],
+      ['X14 stored by a function whose result is the walked list', 'type Q\n    float v\n    array<float> arr\nvar vals = array.new_float()\nmk(array<float> v) =>\n    array.from(Q.new(1.0, v))\nqs = mk(vals)\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n', NOT('vals')],
+      ['X17 stored in the walked list\'s own binding', 'type Q\n    float v\n    array<float> arr\nvar vals = array.new_float()\nvar qs = array.from(Q.new(1.0, vals))\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n', NOT('vals')],
+      ['a global changed by name by a function the body calls', `${TQ}${fill}pre = array.get(qs, 0).arr\ntouch() =>\n    array.push(pre, 1.0)\nfor q in qs\n    touch()\nplot(close)\n`, msg('through `pre`, not provably independent of it, changed by `touch`')],
+      ['a function that changes a held list through a LOCAL alias (review N-A, Z10)', `${TQ}${fill}f() =>\n    l = array.get(qs, 0).arr\n    array.push(l, 1.0)\nfor q in qs\n    f()\nplot(close)\n`, msg('through `l`, not provably independent of it, changed by `f`')],
+      ['a non-independent list handed to a function that changes it', `${TQ}${fill}bumpq(array<float> a) =>\n    array.push(a, 1.0)\npre = array.get(qs, 0).arr\nfor q in qs\n    bumpq(pre)\nplot(close)\n`, msg('handed to `bumpq`, which changes it')],
+    ]
+    for (const [id, src, want] of holes) {
+      const b = build(src)
+      expect(b.ok, id).toBe(false)
+      expect(b.refusal.message, id).toBe(want)
+    }
+    // ⛔ a field write stores it: refused (an earlier guard may name it first; either way not served)
+    expect(build(`${TQ}${fill}var vals = array.new_float()\nif barstate.isfirst\n    q0 = array.get(qs, 0)\n    q0.arr := vals\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n`).ok).toBe(false)
+    // CONTROLS that SERVE: the accumulator (VF1); a NEW list handed to a function that changes it;
+    // `q.arr.copy()` is its own list (old note N1) — values checked
+    expect(lastValues(`${TQ}${fill}var array<float> acc = array.new<float>(3, 0.0)\nfor q in qs\n    for k = 0 to 2\n`
+      + '        array.set(acc, k, array.get(acc, k) + q.v)\nplot(array.sum(acc))\n')).toEqual([6 * N])
+    expect(lastValues(`${TQ}${fill}var acc = array.new_float()\nbumpq(array<float> a) =>\n    array.push(a, 1.0)\nfor q in qs\n    bumpq(acc)\nplot(array.size(acc))\n`)).toEqual([N])
+    expect(lastValues(`${TQ}${fill}var n = 0\nfor q in qs\n    t = q.arr.copy()\n    array.push(t, q.v)\n    n += array.size(t)\nplot(n)\n`)).toEqual([N])
+    // ⛔ a FIELD path is never independent, even one only ever assigned a NEW list
+    expect(build(`${TQ}${fill}type R\n    array<float> xs\nvar st = R.new(array.new_float())\nif barstate.isfirst\n    st.xs := array.new_float()\n`
+      + 'for q in qs\n    array.push(st.xs, 1.0)\nplot(close)\n').refusal.message).toBe(NOT('st.xs'))
+    // CONTROL — a list READ by an `array.*` built-in inside a constructor is not STORED there: served
+    expect(build(`${TQ}${fill}var acc = array.new_float()\nif barstate.islast\n    array.push(qs, Q.new(array.sum(acc), array.new_float()))\n`
+      + 'for q in qs\n    array.push(acc, q.v)\nplot(close)\n').ok).toBe(true)
+    // CONTROL — the X17 shape with a NEW list in the record (`vals` never stored) is served
+    expect(build('type Q\n    float v\n    array<float> arr\nvar vals = array.new_float()\nvar qs = array.from(Q.new(1.0, array.new_float()))\n'
+      + 'for q in qs\n    array.push(vals, 1.0)\nplot(close)\n').ok).toBe(true)
+  })
+  it('⛔ (review N1b) controls for the indirect shapes', () => {
+    const H2 = 'type Q\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(array.new_float()))\n'
+    const FNS = 'bump(array<float> a) =>\n    array.push(a, 1.0)\n'
+    const walk = (change, pre = '') => `${H2}${FNS}${pre}for q in qs\n    ${change}\nplot(close)\n`
+    // CONTROL — a list the element does not hold, handed to a function that changes it, is served
+    const other = 'var array<string> other = array.new_string()\nbumps(array<string> a) =>\n    array.push(a, "x")\n'
+    expect(lastValues(`${H2}${other}for q in qs\n    bumps(other)\nplot(array.size(other))\n`)).toEqual([N])
+    // CONTROL — a NEW array of the held type, handed to a function that changes it, is served
+    expect(build(walk('t = array.new_float()\n    bump(t)')).ok).toBe(true)
+    // CONTROL — an alias of an unrelated list (any chain), changed, is served
+    expect(lastValues(`${H2}${other}for q in qs\n    a = other\n    b = a\n    array.push(b, "x")\nplot(array.size(other))\n`))
+      .toEqual([N])
+    // CONTROL — a number list: the element holds nothing, so nothing is refused for it
+    expect(lastValues('var b = array.new_float()\nbumpf(array<float> a) =>\n    array.push(a, 1.0)\na = array.from(1.0, 2.0)\n'
+      + 'for x in a\n    bumpf(b)\nplot(array.size(b))\n')).toEqual([2 * N])
+  })
   it('inside a function body; a loop whose value is read; `polyline.all`; a matrix; a map; a non-array', () => {
     expect(refusal('f(a) =>\n    s = 0.0\n    for x in a\n        s += x\n    s\nplot(f(array.from(1.0)))\n').message)
       .toMatch(/inside a function body/)
