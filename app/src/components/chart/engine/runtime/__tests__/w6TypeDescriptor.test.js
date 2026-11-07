@@ -115,15 +115,17 @@ describe('⭐ the method form reads the receiver\'s own family (`methodNsOf`)', 
     expect(m.refusal.guard).toBe('runtime:array')
     expect(m.refusal.message).toContain('`matrix.det`')
     // ⛔ a map's `get` is NOT `array.get`: answered as an array it would be ADMITTED
+    // ⭐ W6-T8 serves `map.*`: each is ADMITTED under the MAP family, and the `na` map then
+    // stops naming the map member (`array.get` would say "the array is `na`")
     const mp = build('var map<string, float> mp = na\nplot(mp.get("a"))\n')
-    expect(mp.ok).toBe(false)
-    expect(mp.refusal.message).toContain('`map.get`')
+    expect(mp.ok).toBe(true)
+    expect(() => run(mp)).toThrow(/`map\.get`: the map is `na`/)
     const st = build('var map<string, float> mp = na\nmp.put("a", close)\nplot(close)\n')
-    expect(st.ok).toBe(false)
-    expect(st.refusal.message).toContain('`map.put`')
+    expect(st.ok).toBe(true)
+    expect(() => run(st)).toThrow(/`map\.put`: the map is `na`/)
     const pm = build('f(map<string, float> m) => m.size()\nplot(f(na))\n')
-    expect(pm.ok).toBe(false)
-    expect(pm.refusal.message).toContain('`map.size`')
+    expect(pm.ok).toBe(true)
+    expect(() => run(pm)).toThrow(/`map\.size`: the map is `na`/)
   })
   it('an alias of a matrix is a matrix', () => {
     const b = build('var matrix<float> m = na\nm2 = m\nplot(m2.det())\n')
