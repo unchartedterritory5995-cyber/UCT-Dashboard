@@ -14,7 +14,7 @@ import { startServer } from './selectionServe.mjs'
 
 const { values: A } = parseArgs({ options: {
   set: { type: 'string', default: 'public' }, ids: { type: 'string', default: '' }, mutate: { type: 'string', default: '' },
-  from: { type: 'string', default: '' }, out: { type: 'string', default: 'selection-out' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5993' },
+  from: { type: 'string', default: '' }, out: { type: 'string', default: 'selection-out' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5303' },
 } })
 if (!A.cache) throw new Error('--cache: a scratch folder outside every shared folder')
 for (const k of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY', 'UCT_AGENT_EVAL_API_KEY']) delete process.env[k]
@@ -83,8 +83,11 @@ mkdirSync(join(dir, 'shots'), { recursive: true })
 const known = new Set(loadManifest().map(c => c.name))
 const R = await startRelay({ groupOfAction })
 let page = null
-const ctx = { R, mock: true, acts, profile: runProfile(), onPage: (p) => { page = p } }
+const { claimProfile, reapOrphans } = await import('./profileGuard.mjs')
+const reaped = reapOrphans()       // profiles a hard-killed earlier run left behind (its owner pid is gone)
+const ctx = { R, mock: true, acts, profile: claimProfile(runProfile()), onPage: (p) => { page = p } }
 const label = A.mutate ? `${MODE} MUTANT ${A.mutate}` : MODE
+if (reaped.length) say(label, `reaped ${reaped.length} orphaned Chrome profile(s) from dead runs`)
 say(label, `${picked.length} requests, set ${A.set}, out ${dir}, ${server.base}`)
 
 const rows = [], records = []
