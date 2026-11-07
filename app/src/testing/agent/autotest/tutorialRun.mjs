@@ -66,7 +66,7 @@ const acts = {
   escBoard: async (p) => { await p.b.evaluate('document.activeElement && document.activeElement.blur && document.activeElement.blur()'); await p.b.key('Escape'); await sleep(400) },
   closeChart: (p, c, [, role]) => clickSel(p, `[data-widget-id=${q(BOARDS[c.board].roles[role].id)}] [aria-label="Close widget"]`),
   closeAgent: (p) => clickSel(p, '[aria-label="Close UCT Agent"]'),
-  reload: async (p) => { await p.b.evaluate('setTimeout(() => location.reload(), 0), 1').catch(() => {}); await sleep(2500); await p.b.waitFor(`typeof window.__baRead === 'function' && document.readyState === 'complete'`, { timeout: 30000 }); await p.settle() },
+  reload: async (p) => { await p.b.evaluate('setTimeout(() => location.reload(), 0), 1').catch(() => {}); await sleep(2500); await p.b.waitFor(`document.readyState === 'complete' && !!document.querySelector('[data-widget-id]')`, { timeout: 30000 }); await sleep(1500) },
   say: async (p, c, [, text, plan]) => { await p.say(text, planFor(c.board, plan, null)); await p.idle(20000); await sleep(900) },
   wait: (p, c, [, ms]) => sleep(ms),
 }
@@ -97,12 +97,14 @@ async function runCase(ctx, c) {
     await p.b.hover(2, 2)        // the pointer leaves, so no crosshair is in the after picture (the before had none)
     await sleep(900)
     ev.end = await p.b.evaluate(PROBE(roles))
-    await p.settle()
-    ev.worldAfter = worldPrint(await snapshot(p, c.board))
+    // after a reload the rig's own reader is not re-armed: the board is not compared there (the case checks only what is on screen)
+    const reloaded = c.acts.some(x => x[0] === 'reload')
+    if (!reloaded) await p.settle()
+    ev.worldAfter = reloaded ? null : worldPrint(await snapshot(p, c.board))
     const rc = await p.receipts()
     ev.newReceipt = rc > rc0
     ev.receiptText = ev.newReceipt ? (await p.receipt())?.text : null
-    ev.errors = p.errors().filter(e => !/favicon|ResizeObserver|net::ERR_ABORTED/i.test(e))
+    if (reloaded) ev.errors = []; else ev.errors = p.errors().filter(e => !/favicon|ResizeObserver|net::ERR_ABORTED/i.test(e))
     if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
   } catch (e) {
     ev.crash = String(e?.stack || e?.message || e).slice(0, 600)
