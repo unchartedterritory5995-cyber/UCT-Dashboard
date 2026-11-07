@@ -111,6 +111,9 @@ def main(argv=None) -> int:
                 why_left.append((who, f"era {era} full")); continue
             if (setup, r["sym"], asof) in have:
                 why_left.append((who, "already in the file")); continue
+            from scripts.study.bank_v2.gen_chartiq import liquid
+            if not liquid(r):
+                why_left.append((who, f"rank {r.get('liq_rank')} of {r.get('liq_universe')}: outside the institutional cut")); continue
             if (r.get("quote_type") or "").upper() == "ETF" or r.get("sector") == "ETF":
                 # owner 2026-11-06: "institutionally traded stocks" (enrich_meta.py names the funds from Yahoo's profile)
                 why_left.append((who, "an ETF, not a stock")); continue

@@ -58,6 +58,8 @@ BIG_ALLOWLIST = {
     # bank (1,825 items, 1995-2026); cycle.price_action is 1,800 Chart IQ cycle questions. Generated, reviewed item by
     # item on the review screen; a split would only multiply the import's --only list.
     "docs/study/bank/spot.setups.json", "docs/study/bank/cycle.price_action.json",
+    # 2026-11-07: chart.events (1,700 Chart IQ event questions) crossed 5 MB with its brain quotes; same reason.
+    "docs/study/bank/chart.events.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}
