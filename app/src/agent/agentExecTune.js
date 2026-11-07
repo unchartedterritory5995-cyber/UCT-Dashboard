@@ -34,3 +34,18 @@ export const LIST_TUNE = [
   { row: 'C1-065', text: 'hide the close in the bar info', setting: 'header.barInfo', value: '-close' },
   { row: 'C1-065', text: 'show net change in the bar info strip', setting: 'header.barInfo', value: '+change' },
 ]
+
+// ── round 2 tune phrasings ──
+export const WIDGET_TUNE2 = [
+  { row: 'C3-188', type: 'nhnl', text: 'new highs new lows: show the nasdaq tab', key: 'universe', value: 'nasdaq' },
+  { row: 'C3-121', type: 'volumescan', text: 'make the volume surge watch my Core list', key: 'list', value: 'Core' },
+  { row: 'C3-158', type: 'breadth', text: 'take the up 4% reading off the breadth widget', key: 'reading', value: '-up_4pct_today' },
+  { row: 'C3-192', type: 'scatter', text: 'remove the S&P 500 universe from the market map', key: 'universes', value: '-S&P 500' },
+  { row: 'C3-193', type: 'scatter', text: 'market map x axis relative volume', key: 'xKey', value: 'rvol' },
+]
+export const JOURNAL_TUNE = [
+  { row: 'C3-184', type: 'indexes', text: 'send the indexes to my journal', where: 'note' },
+  { row: 'C3-156', type: 'calendar', text: 'send the terminal to a new journal note', where: 'newNote' },
+  { row: 'C3-163', type: 'breadth', text: 'send the breadth widget to my journal inbox', where: 'inbox' },
+  { row: 'C3-177', type: 'themes', text: 'send the theme tracker to my journal', where: 'note' },
+]

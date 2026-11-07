@@ -8,7 +8,8 @@ import { cleanup } from '@testing-library/react'
 import { setupPanel, ONE } from './testing/panelHarness'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { WIDGET_HELD_OUT, LIST_HELD_OUT } from './agentExecHeldOut.test.js'
-import { WIDGET_TUNE, LIST_TUNE } from './agentExecTune.js'
+import { WIDGET_TUNE, LIST_TUNE, WIDGET_TUNE2, JOURNAL_TUNE } from './agentExecTune.js'
+import { NAME_HELD_OUT, DOOR_HELD_OUT, JOURNAL_HELD_OUT } from './agentExecHeldOut2.test.js'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const w = (id, type, x, y, opts = {}) => ({ id, type, x, y, w: 2, h: 4, color: 'N', opts })
@@ -46,13 +47,19 @@ const listWant = (c, b) => ({
   model: !!b,
   action: !!b && b.capabilities.some(x => x.name === 'chart.setSetting' && (x.args?.properties?.setting?.enum || []).includes(c.setting)),
 })
+const journalWant = (c, b) => ({
+  model: !!b,
+  action: !!b && b.capabilities.some(x => x.name === 'widget.sendToJournal'),
+})
 const tally = (rs, k) => rs.filter(r => r[k]).length
 
 export const REACH = {}
 describe('reach of the first model call', () => {
   beforeEach(() => {})
   afterEach(async () => { cleanup(); localStorage.clear(); _resetAgentConfig() })
-  const SETS = [['widget held-out', WIDGET_HELD_OUT, widgetWant], ['widget tune', WIDGET_TUNE, widgetWant], ['list held-out', LIST_HELD_OUT, listWant], ['list tune', LIST_TUNE, listWant]]
+  const SETS = [['widget held-out', WIDGET_HELD_OUT, widgetWant], ['widget tune', WIDGET_TUNE, widgetWant], ['list held-out', LIST_HELD_OUT, listWant], ['list tune', LIST_TUNE, listWant],
+    ['name held-out2', NAME_HELD_OUT, widgetWant], ['door held-out2', DOOR_HELD_OUT, widgetWant], ['journal held-out2', JOURNAL_HELD_OUT, journalWant],
+    ['widget tune2', WIDGET_TUNE2, widgetWant], ['journal tune2', JOURNAL_TUNE, journalWant]]
   // EXEC_REACH_ONLY=tune while tuning: the held-out numbers are read once, at the end
   const only = globalThis.process?.env?.EXEC_REACH_ONLY || ''
   for (const [name, cases, want] of SETS.filter(([n]) => !only || n.includes(only))) {
