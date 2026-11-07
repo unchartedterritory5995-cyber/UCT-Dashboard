@@ -137,3 +137,49 @@ added for it.
 | R2 | v5 drops `xloc` at use; the constant is untouched (reviewer's) | **KILLED** | 1; it SURVIVED at r0 |
 | R3 | v5 reads only the 7 type words (reviewer's) | **KILLED** | 49; it SURVIVED at r0 |
 | R4 | an unknown version (v4 or none) reads the v5 list (reviewer's) | **KILLED** | 1, by the no-version row |
+
+## Heavy phase (review W6-T10-N: GO-WITH-NOTES @2f49d91d9d; lands as engine 32 after W6-T6-N1b's 31)
+`SCRIPT_ENGINE_VERSION` was not edited here. The coordinator bumps it at landing.
+
+### mutate.py
+- Run: `parity-programme/scripts/mutate.py` under `heavy-mut.lock` (free, label `w6-t10n-mut`, 5.4 min), Node 20.20.2, tip `2f49d91d9d`.
+- Mutation list: `_resume-2026-11-01/runs/w6-t10n/muts.json`. Tests: w6Enum and objectDoorGate.
+- The final `cmp` against the saved front end was equal, and the worktree was clean afterwards.
+- **14 of 16 killed.**
+  - C0 (control) SURVIVED, as it should.
+  - N9 (reserved `bad` set only if there is no earlier `bad`) SURVIVED. It is equivalent: it refuses either way, and only the reason
+    text differs.
+  - Killed: N1-N8, N10, R1-R4, and R5, a new mutant that runs `collectEnums` at the object door (killed by objectDoorGate).
+
+### measure-pair, runtimes 0 and 1
+- Tip `2f49d91d9d` vs base `pine-dsk-mpbase2`, detached at the merge-base `d0a29bbf24`.
+- Run under `heavy-mp2.lock` with `ram_gate` (passed at once, free 10.4 GB), label `w6-t10n-mp`, 53.4 min.
+- Scripts and logs: `_resume-2026-11-01/runs/w6-t10n/mpr/`. HEAD was checked before and after each side and never moved.
+
+| | runtime 0 | runtime 1 |
+|---|---|---|
+| out | 395 rows, 0 differ | 395 rows, 0 differ |
+| probe (C18) | 69 rows, 0 differ | 69 rows, 0 differ |
+| audit TOTAL (tip = base) | MATCH 93, DIVERGE 103, INCONCLUSIVE 140 | MATCH 112, DIVERGE 107, INCONCLUSIVE 117 |
+| harness | identical | identical |
+| census | 967 rows, 3 differ | 967 rows, 1 differ |
+
+**Every census mover is timeout jitter, and none involves an enum:**
+- rt0 `committed:multi-timeframe-trend-indicator__fa4022ecf5` (v6, no `enum`): `steps[2].refusals` has 3 entries on one side
+  and 2 on the other, all of them `pine:timeout`. This is wall-clock jitter.
+- rt0 `committed:volatility-coil-edge-bullbyte__604f0fd1c6` (v6, no `enum`): drop head `reset@749: pine:timeout` vs
+  `create@651: pine:timeout`. Both are timeouts; only the point where the 10 s budget ran out differs.
+- rt0 `reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb`: `create:label@882` is `pine:timeout` on one side and
+  `pine:undefined` on the other. The `pine:timeout` side is budget jitter. The script uses no `enum`.
+- rt1 `committed:multi-timeframe-trend-indicator__fa4022ecf5`: the base has `pine:timeout` at line 158 and the tip has it at
+  line null. Same file, same guard, a different point where the budget ran out.
+
+**No enum census mover was expected, and none appeared.** The branch changes only v5 `enum footprint` and v5
+`enum volume_row`, and no corpus script declares either.
+
+### Merge with origin/master
+- Merged `36c7d9d27e` cleanly. Master is still engine 30.
+- Rails after the merge: the targeted set (w6Enum, objectDoorGate, runtimeInputs, editorStatus.families), Node 20.20.2, gave
+  `Test Files 4 passed (4)`, `Tests 558 passed (558)`.
+- Service suite, Node 24.13.1: `# tests 139 / # pass 139 / # fail 0`. Master added 8 tests.
+- Next step: final-tip, run by the coordinator.
