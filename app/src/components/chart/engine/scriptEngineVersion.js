@@ -104,7 +104,8 @@
 /** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
 /** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
 /** 22 = W34-I6a: a `switch` arm that wraps onto a continuation line is served on the runtime lane; an arm mixing wrap and block lines is refused by name */
-export const SCRIPT_ENGINE_VERSION = 22
+/** 23 = W34-I4b: a v1/v2 (or no-pragma) self-reference's bar 0 on a run from the listing is withheld unless both seeds (na, 0) agree, not guessed */
+export const SCRIPT_ENGINE_VERSION = 23
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
