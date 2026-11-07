@@ -182,7 +182,11 @@ export function arrangesBoard(it) {
   if (p.grid || (p.add || []).length || (p.remove || []).length || (p.restore || []).length) return true
   return Object.values(p.set || {}).some(d => d && GEOM_KEYS.some(k => k in d))
 }
-const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
+// round 3: "says:<word>" — a change described by a word its own receipt says ("rsi", "weekly"), whole word, any case
+const escRe = (w) => String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const saysWord = (about) => (String(about || '').startsWith('says:') ? new RegExp(`\\b${escRe(about.slice(5))}\\b`, 'i') : null)
+const undoWordOf = (about) => (String(about || '').startsWith('says:') ? about.slice(5) : about)
+const undoMatches = (about, entry) => (saysWord(about) ? saysWord(about).test((entry.lines || []).join(' ')) : UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
   || (about === 'chart' && entry.items.some(touchesCharts))
   || (about === 'layout' && entry.items.some(arrangesBoard))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
@@ -1625,7 +1629,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // ⛔ F14: "undo that indicator removal" when my newest change was not an indicator change → nothing
     // is undone; the member hears what the newest change WAS (Undo never reaches past it to an older one)
     if (about && !undoMatches(about, entry)) {
-      const text = `My last change wasn't ${/^[aeiou]/.test(about) ? 'an' : 'a'} ${about} change — it was: ${entry.lines.join(' · ').replace(/[.]+$/, '') || 'something else'}. Nothing was undone; say “undo” to take that back.`
+      // ⭐ round 3 (pl-exec): a DESCRIBED Undo takes back the most recent change of that kind in this session, not only the
+      // newest one; the changes after it stay, and the member is told so. Its read-back and every refusal are doUndoOne's own.
+      const older = undoId ? null : [...stack].reverse().find(e => e.id !== entry.id && undoMatches(about, e))
+      if (older) {
+        const ok = await doUndoOne(older.id, { member, voice })
+        const after = stack.length - 1 - stack.indexOf(older)
+        if (ok !== false && lastUndoRef.current !== 'refused') push({ role: 'outcome', text: `That was an earlier change: ${after === 1 ? 'the change after it stays as it is' : `the ${after} changes after it stay as they are`}.` })
+        return ok
+      }
+      const text = `My last change wasn't ${/^[aeiou]/.test(undoWordOf(about)) ? 'an' : 'a'} ${undoWordOf(about)} change — it was: ${entry.lines.join(' · ').replace(/[.]+$/, '') || 'something else'}. Nothing was undone; say “undo” to take that back.`
       push({ role: 'refusal', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-refused-mismatch' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
       return false
