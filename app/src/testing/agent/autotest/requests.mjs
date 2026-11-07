@@ -10,6 +10,7 @@ import { unseen2 } from './families/unseen2.mjs'
 import { unseen3 } from './families/unseen3.mjs'
 import { followup3 } from './families/followup3.mjs'
 import { unseen4 } from './families/unseen4.mjs'
+import { unseen5 } from './families/unseen5.mjs'
 
 export function publicRequests() {
   const L = []
@@ -54,6 +55,13 @@ export function unseen4Requests() {
   const L = []
   unseen4(L)
   return L.map(r => ({ ...r, set: 'unseen4' }))
+}
+
+/** Batch 5 (2026-11-07), written before any run of it: panes, lines and indicators next to chart words. */
+export function unseen5Requests() {
+  const L = []
+  unseen5(L)
+  return L.map(r => ({ ...r, set: 'unseen5' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
