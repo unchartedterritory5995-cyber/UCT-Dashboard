@@ -1076,7 +1076,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useWidgetDoor(() => ({
     read: () => {
       const open = sortedThemes.find(t => t.ticker === openTheme)
-      return { period: RANK_TO_KEY[activeTab], sortDir, openTheme: open ? open.ticker : null, themeSet: activeSet?.id ?? null }
+      // C3-174 (pl-exec round 3): the member's theme sets as the set menu lists them — what its Rename and Delete controls act on
+      return { period: RANK_TO_KEY[activeTab], sortDir, openTheme: open ? open.ticker : null, themeSet: activeSet?.id ?? null,
+        themeSets: themeSetsEnabled ? sets.map(x => ({ id: x.id, name: x.name })) : [] }
     },
     options: () => ({
       openTheme: sortedThemes.map(t => ({ value: t.ticker, label: t.name || t.ticker })),
@@ -1092,6 +1094,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         if (v == null) setOpenTheme(null)
         else if (v !== openTheme) toggleTheme(v)
       } else if (key === 'themeSet') selectSet(v)
+      else if (key === 'themeSets' && themeSetsEnabled && Array.isArray(v)) {
+        // the set menu's own Rename (renameSet) and Delete (deleteSet; a deleted active set falls back to Default, as its menu does)
+        for (const x of sets) {
+          const next = v.find(n => n.id === x.id)
+          if (!next) { deleteSet(x.id).then(() => { if (x.id === themeSetId) selectSet(null) }).catch(() => {}) }
+          else if (next.name && next.name !== x.name) renameSet(x.id, next.name)
+        }
+      }
     },
     capture: () => (filteredThemes.length > 0 ? { kind: 'themes', capture: doorCapture(), label: themesCaptureLabel } : null),
   }))

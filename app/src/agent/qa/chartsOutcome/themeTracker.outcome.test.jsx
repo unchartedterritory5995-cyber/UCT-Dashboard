@@ -10,7 +10,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor } from './outcomeHarness'
+import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor, proposalsNow } from './outcomeHarness'
+import { SET_HELD_OUT } from '../../agentExecHeldOut3.test.js'
 import { WidgetDoorContext, mountedWidgetDoor } from '../../../pages/charts/widgetDoors'
 import { WorkspaceContext } from '../../../pages/charts/WorkspaceContext'
 import { AuthContext } from '../../../context/AuthContext'
@@ -43,7 +44,10 @@ const data = vi.hoisted(() => {
   }
 })
 vi.mock('../../../hooks/useThemeSets', () => ({
-  useThemeSets: () => ({ enabled: true, sets: data.sets, createSet: async () => null, deleteSet: async () => {}, renameSet: async () => {}, refreshSets: () => {} }),
+  useThemeSets: () => ({ enabled: true, sets: data.sets, createSet: async () => null,
+    // the hook's own writers, over the fixture list (the server's answer): what the set menu's Rename and Delete call
+    deleteSet: async (id) => { data.sets = data.sets.filter(x => x.id !== id) },
+    renameSet: async (id, name) => { data.sets = data.sets.map(x => (x.id === id ? { ...x, name } : x)) }, refreshSets: () => {} }),
   getSetDef: async () => null, putSetDef: async () => {},
 }))
 vi.mock('../../../hooks/useMobileSWR', () => ({
@@ -124,5 +128,42 @@ describe('Theme Tracker through its own door: what it ranks by is what it draws'
     await waitFor(() => expect(door().themeSet).toBe('set1'))
     expect(await m.say('switch the theme tracker to my Growth set', setOption('themeSet', 'Growth'))).toMatch(/themeSet” can be Default, Mine — not “Growth”/)
     expect(door().themeSet).toBe('set1')
+  }, 60000)
+})
+
+// round 3 (C3-174): rename or delete a theme set through the tracker's own set menu (its door → renameSet / deleteSet). The held-out
+// phrasings (agentExecHeldOut3 SET_HELD_OUT) are said as written; the model is scripted.
+describe('Theme Tracker theme sets: rename and delete, through the tracker’s own menu', () => {
+  const setsNow = () => data.sets.map(x => x.name)
+  const H = Object.fromEntries(SET_HELD_OUT.map(c => [c.op + c.name, c]))
+  it.each([['rename', 'Growth'], ['rename', 'Leaders']])('%s the Mine set to %s (held-out phrasing): renamed in the set list; Undo renames it back', async (_op, name) => {
+    data.sets = [{ id: 'set1', name: 'Mine' }, { id: 'set2', name: 'Core' }]
+    const c = H[`rename${name}`]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.map(x => x.name)).toEqual(['Mine', 'Core']))
+    const out = await m.say(c.text, setOption('themeSets', `rename:${c.item}=>${c.name}`))
+    await waitFor(() => expect(setsNow()).toEqual([name, 'Core']))
+    expect(out).toMatch(new RegExp(`renamed the theme set “Mine” to “${name}”`))
+    await m.say('undo')
+    await waitFor(() => expect(setsNow()).toEqual(['Mine', 'Core']))
+  }, 60000)
+  it('delete the Mine set (held-out phrasing): shown first; nothing deleted before Apply; on Apply it is gone', async () => {
+    data.sets = [{ id: 'set1', name: 'Mine' }, { id: 'set2', name: 'Core' }]
+    const c = SET_HELD_OUT.find(x => x.op === 'delete')
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    await m.say(c.text, setOption('themeSets', `delete:${c.item}`))
+    expect(proposalsNow()).toHaveLength(1)
+    expect(setsNow()).toEqual(['Mine', 'Core'])
+    await m.apply()
+    await waitFor(() => expect(setsNow()).toEqual(['Core']))
+  }, 60000)
+  it('NEGATIVE: a set that does not exist, or a new name already taken, is refused with the real list; nothing changes', async () => {
+    data.sets = [{ id: 'set1', name: 'Mine' }, { id: 'set2', name: 'Core' }]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    expect(await m.say('rename my Growth set to X', setOption('themeSets', 'rename:Growth=>X'))).toMatch(/no “Growth” among your theme sets \(Mine, Core\)/)
+    expect(await m.say('rename Mine to Core', setOption('themeSets', 'rename:Mine=>Core'))).toMatch(/already have a theme set named “Core”/)
+    expect(setsNow()).toEqual(['Mine', 'Core'])
   }, 60000)
 })

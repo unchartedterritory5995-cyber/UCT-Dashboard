@@ -198,6 +198,12 @@ function namedHere(type, said) {
   const choices = widgetControls(type).flatMap(f => (f.options || []).flatMap(wordsOf)).filter(x => !labels.includes(x))
   return labels.some(x => said.has(x)) && choices.some(x => said.has(x))
 }
+// round 3 (C3-174): a widget's own list of the member's items, renamed or deleted through its door (widget.setOption, below)
+const ITEM_LISTS = { themes: [{ key: 'themeSets', noun: 'theme set', ops: ['rename', 'delete'] }] }
+const itemWords = (t, doors, ids) => (ITEM_LISTS[t] || []).map(l => {
+  const names = [...new Set(ids.flatMap(id => (doors?.[id]?.[l.key] || []).map(x => x.name)))]
+  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
+})
 function widgetControlSection(s, message, whole) {
   const said = new Set(wordsOf(message))
   const onBoard = [...new Set(s.raw.map(w => w.type))]
@@ -207,7 +213,7 @@ function widgetControlSection(s, message, whole) {
   const types = onBoard.filter(t => widgetControls(t).length)
     .filter(t => (whole && (!named.length || named.includes(t))) || namedHere(t, said))
   if (!types.length) return undefined
-  const controls = Object.fromEntries(types.map(t => [t, widgetControls(t).map(controlWord).join(', ')]))
+  const controls = Object.fromEntries(types.map(t => [t, [...widgetControls(t).map(controlWord), ...itemWords(t, s.doors, s.raw.filter(w => w.type === t).map(w => w.id))].join(', ')]))
   const set = {}
   for (const w of s.raw) {
     if (!types.includes(w.type)) continue
@@ -1102,6 +1108,52 @@ export function registerBoardCapabilities() {
     return { value: n }
   }
   const controlFor = (t, key) => widgetControls(t.type).find(o => o.key === String(key)) || null
+  // ── round 3 (pl-exec, C3-174): a widget's own LIST of the member's items (a Theme Tracker's theme sets), renamed or deleted
+  // exactly as the widget's own menu does (its Rename / Delete controls, through its door), as ONE more control of
+  // widget.setOption (no new action: byte-neutral manifest). value = "rename:<name>=><new name>" | "delete:<name>". A rename is
+  // undone by renaming back; a delete is always shown first (confirmIf) and cannot be undone. ──
+  const listFor = (t, key) => (ITEM_LISTS[t.type] || []).find(l => l.key === String(key)) || null
+  const itemsNow = (st, t, l) => (Array.isArray(st.doors?.[t.id]?.[l.key]) ? st.doors[t.id][l.key] : [])
+  const pickItem = (items, raw) => {
+    const w = norm(raw)
+    const exact = items.filter(x => norm(x.name) === w || norm(x.id) === w)
+    const near = exact.length ? exact : items.filter(x => norm(x.name).includes(w))
+    return near.length === 1 ? { item: near[0] } : { why: near.length ? `“${raw}” could be ${near.map(x => `“${x.name}”`).join(' or ')}` : `there is no “${raw}”` }
+  }
+  const ITEM_OP = /^\s*(rename|delete)\s*:\s*(.+?)(?:\s*=>\s*(.+?))?\s*$/i
+  /** "rename:Mine=>Growth" → { op, item, name } | null */
+  const itemOp = (value) => { const m = ITEM_OP.exec(String(value ?? '')); return m ? { op: m[1].toLowerCase(), item: m[2], name: m[3] ?? null } : null }
+  function itemWhy(st, t, key, value, env) {
+    const io = itemOp(value)
+    const l = listFor(t, key)
+    if (!io) return `${l.noun[0].toUpperCase()}${l.noun.slice(1)}s take "rename:<name>=><new name>" or "delete:<name>".`
+    const r = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
+    if (r.why) return r.why
+    if (io.op === 'rename') {
+      const name = String(io.name || '').trim()
+      if (!name) return `Say the new name for “${r.it.name}”.`
+      if (r.items.some(x => x.id !== r.it.id && norm(x.name) === norm(name))) return `You already have a ${l.noun} named “${name}”.`
+    }
+    return null
+  }
+  function itemApply(st, t, key, value, env) {
+    const io = itemOp(value)
+    const { l, items, it } = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
+    const next = io.op === 'delete' ? items.filter(x => x.id !== it.id) : items.map(x => (x.id === it.id ? { ...x, name: String(io.name).trim() } : x))
+    return same(next, items) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: next } } }
+  }
+  const itemCheck = (st, { widget, list, item }, env, op) => {
+    const t = widgetOf(st, widget)
+    if (!t) return { why: notOnBoard(widget) }
+    const l = listFor(t, list)
+    if (!l || !l.ops.includes(op)) return { why: `The ${label(t.type)} has no list “${list}” I can ${op} in.${(ITEM_LISTS[t.type] || []).length ? ` Its lists: ${ITEM_LISTS[t.type].map(x => x.key).join(', ')}.` : ''}` }
+    if (!doorFor(env, t)) return { why: `The ${label(t.type)} isn't showing right now, so I can't reach its ${l.noun}s.` }
+    const items = itemsNow(st, t, l)
+    if (!items.length) return { why: `You have no ${l.noun}s on the ${label(t.type)} yet.` }
+    const p = pickItem(items, item)
+    return p.why ? { why: `${p.why} among your ${l.noun}s (${items.map(x => x.name).join(', ')}).` } : { t, l, items, it: p.item }
+  }
+
   const doorFor = (env, t) => env?.target?.doorOf?.(t.id) || null
   const coerced = (st, t, f, value, env) => coerceOption(f, value, choicesOf(f, doorFor(env, t)), valueOf(f, { ...t }, st.doors))
   reg({
@@ -1110,9 +1162,12 @@ export function registerBoardCapabilities() {
     summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
     hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
+    // a delete of one of the member's items (a theme set) is shown first: it cannot be undone
+    confirmIf: (st, { widget, key, value } = {}) => { const t = widgetOf(st, widget); return !!(t && listFor(t, key) && itemOp(value)?.op === 'delete') },
     check(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
+      if (listFor(t, key)) return itemWhy(st, t, key, value, env)
       const opts = widgetControls(t.type)
       const f = controlFor(t, key)
       if (!f && scalarsOf(t.type).some(x => x.key === String(key))) return `I can't change “${key}” on the ${label(t.type)}: the widget doesn't read a saved value for it, so nothing would change. Use the control on the widget itself.`
@@ -1125,6 +1180,7 @@ export function registerBoardCapabilities() {
     },
     apply(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
+      if (listFor(t, key)) return itemApply(st, t, key, value, env)
       const f = controlFor(t, key)
       const next = coerced(st, t, f, value, env).value
       if (f.door) return same(next, valueOf(f, t, st.doors)) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [f.key]: next } } }
@@ -1134,9 +1190,15 @@ export function registerBoardCapabilities() {
       for (const k of f.clears || []) if (opts[k] != null) opts[k] = null
       return { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
     },
-    describe(b, a, { widget, key }, env) {
+    describe(b, a, { widget, key, value }, env) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
       if (!o || !n) return null
+      const l = listFor(o, key)
+      if (l) {
+        const io = itemOp(value)
+        if (same(b.doors?.[o.id]?.[key], a.doors?.[o.id]?.[key]) || !io) return null
+        return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${io.item}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${io.item}” to “${String(io.name).trim()}”`
+      }
       const f = controlFor(o, key)
       const was = valueOf(f, o, b.doors), now = valueOf(f, n, a.doors)
       if (same(was, now)) return null
