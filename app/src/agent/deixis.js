@@ -292,10 +292,22 @@ const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
 const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 // …and "a different chart", "another chart", "some other chart": a chart that is NOT the clicked one, not yet which
-const DIFFERENT_CHART = /\b(?:a|another|some|any|one)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b/i
+const DIFFERENT_CHART = /\b(?:a|another|some|any)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b|\bone\s+other\b/i
 /** "the other chart" / "a different chart": the words mean a chart that is NOT the clicked one (pl-teach round 6 / AUDIT T1b:
- *  the guide reads it here, never a copy). One other chart on the board → that one; several → which one is asked. */
-export const saysOtherChart = (text) => OTHER_CHART.test(String(text || '')) || DIFFERENT_CHART.test(String(text || ''))
+ *  the guide reads it here, never a copy). One other chart on the board → that one; several → which one is asked.
+ *  ⛔ AUDIT T1c: "another one" / "the other one" / "one other" name a CHART only beside a chart word in the same clause
+ *  ("another one of my charts"); alone they are another drawing, indicator, alert… on the chart already meant ("draw another one"). */
+export function saysOtherChart(text) {
+  const s = String(text || '')
+  for (const re of [OTHER_CHART, DIFFERENT_CHART]) {
+    const m = re.exec(s)
+    if (!m) continue
+    if (/chart/i.test(m[0])) return true
+    const [a, b] = clauseAt(s, m.index)
+    if (/\bcharts?\b/i.test(s.slice(a, m.index) + s.slice(m.index + m[0].length, b))) return true
+  }
+  return false
+}
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

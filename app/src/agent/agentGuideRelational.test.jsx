@@ -132,3 +132,33 @@ describe('T1b: the other chart, a different chart', () => {
     else { expect(guide?.chart ?? null).toBeNull(); expect(guide?.say).toMatch(/Which/) }
   })
 })
+
+// AUDIT T1c (2026-11-07): a bare "another one" is another drawing / indicator / alert on the chart already meant, never a chart.
+// "another one" / "the other one" / "one other" name a chart only beside a chart word in the same clause.
+describe('T1c: "another one" is not "another chart"', () => {
+  const TWO = [FOUR[0], FOUR[1]]
+  const board2 = (clicked) => ({ surface: 'charts', charts: { list: () => TWO, selected: () => clicked } })
+  const said2 = (q, clicked) => { const show = getCapability('guide.show'); const a = show.fast({ raw: q, host: { surface: 'charts' } }); return a ? show.answer(null, { feature: a.feature, detail: a.detail ?? null }, board2(clicked)) : null }
+  it.each([
+    'how do I draw another one', 'how do I add another one', 'show me another one',
+    'add another moving average to this chart', 'put another RSI on this one', 'add another indicator',
+  ])('%s: the click stands (no other chart named)', (q) => {
+    expect(saysOtherChart(q)).toBe(false)
+    expect(namedChart(q, TWO, 'tl')?.chart?.ref ?? null).not.toBe('tr')
+  })
+  it.each(['how do I draw another one', 'how do I add another one'])('%s walks on the clicked chart (TWO, left clicked)', (q) => {
+    const said = said2(q, 'tl')
+    if (said && /highlighted|can’t see/.test(said)) { expect(said).not.toContain(FOUR[1].label) }
+  })
+  it.each([
+    ['how do I add RSI to another chart', true], ['how do I add RSI to a different chart', true], ['how do I add RSI to some other chart', true],
+    ['how do I add RSI to another one of my charts', true], ['how do I add RSI to the other chart', true],
+  ])('%s still names a chart that is not the click', (q, yes) => { expect(saysOtherChart(q)).toBe(yes) })
+  // T2: the same phrasings through deixis's reading and the guide agree — the click stands
+  it.each(['how do I draw another one', 'how do I add another one', 'show me another one'])('agreement: %s', (q) => {
+    const exec = [...chartsNamedBy(q, TWO, 'tl')]
+    const guide = namedChart(q, TWO, 'tl')
+    expect(exec).toEqual([])
+    expect(guide?.chart ?? null).toBeNull()
+  })
+})
