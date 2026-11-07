@@ -239,7 +239,11 @@ function mkPage(b, R) {
     b,
     R,
     box,
-    read: (id) => b.evaluate(`window.__baRead(${id ? q(id) : ''})`),
+    // a page mid-reload (vite re-optimizing a dependency) has no reader yet: wait for it rather than crash the request
+    read: async (id) => {
+      await b.waitFor(`typeof window.__baRead === 'function' && document.readyState === 'complete'`, { timeout: 20000 })
+      return (await b.evaluate(`window.__baRead(${id ? q(id) : ''})`)) || []
+    },
     charts: async () => (await P.read()).filter(w => w.type === 'chart'),
     /** Wait until the charts have stopped repainting. */
     settle: async (ms = 1000, max = 12000) => {
