@@ -10,7 +10,21 @@ import { COMPANY_TABS, normalizeDock } from '../pages/charts/widgets/chartDock'
 import { COMPANY_INFO, setFeatureOpen } from '../pages/charts/widgets/chartFeatures'
 
 // every control a widget offers: the registry's rows (widgets/widgetControls.js), then the Agent's own over the product's writers
-export const widgetControls = (type) => [...registryControls(type), ...(AGENT_CONTROLS[type] || [])]
+// ── Options Flow (owner 2026-11-07): the words the widget's own chips show (OptionsFlowWidget MIN_PREM_OPTS and the Calls /
+// Puts, Sweep / Block, Bull / Bear rows; the Market / symbol and Tape / Biggest / Sentiment segments), so a member's "puts",
+// "sweeps", "$1M", "bearish" reads as that chip and a receipt says what the chip says. Values are the registry's, unchanged. ──
+export const CONTROL_LABELS = {
+  optionsflow: {
+    minPremium: { title: 'minimum premium', labels: { 0: 'All', 250000: '$250K', 500000: '$500K', 1000000: '$1M' }, also: { 250000: ['250k', '250 thousand', 'quarter million'], 500000: ['500k', 'half a million', 'half million'], 1000000: ['1m', '1 million', 'a million', 'one million', 'million'], 0: ['any', 'no minimum', 'all premiums'] } },
+    callPut: { title: 'calls / puts', labels: { all: 'All', C: 'Calls', P: 'Puts' }, also: { C: ['call', 'calls only'], P: ['put', 'puts only'], all: ['calls and puts', 'both'] } },
+    printType: { title: 'print type', labels: { all: 'Any', SWEEP: 'Sweep', BLOCK: 'Block' }, also: { SWEEP: ['sweeps'], BLOCK: ['blocks'], all: ['all types', 'any type'] } },
+    direction: { title: 'direction', labels: { all: 'All', BULL: 'Bull', BEAR: 'Bear' }, also: { BULL: ['bullish', 'bulls'], BEAR: ['bearish', 'bears'], all: ['both directions'] } },
+    lead: { title: 'view', labels: { tape: 'Tape', biggest: 'Biggest', sentiment: 'Sentiment' } },
+    scope: { title: 'scope', labels: { market: 'Market', symbol: 'the linked symbol' } },
+  },
+}
+const labelled = (type) => (f) => (CONTROL_LABELS[type]?.[f.key] ? { ...f, ...CONTROL_LABELS[type][f.key] } : f)
+export const widgetControls = (type) => [...registryControls(type).map(labelled(type)), ...(AGENT_CONTROLS[type] || [])]
 export const allControls = widgetControls
 // ── round 5 (pl-exec, C3-216 / C3-217): a chart widget's Company Info panel, as its own controls set it — the tab strip
 // (ChartDetailDock setTab) and the collapse chevron / edge rail (setFeatureOpen) — both in the chart's opts.dock. Offered only

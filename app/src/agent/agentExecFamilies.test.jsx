@@ -13,6 +13,7 @@ import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { headerFieldKeys } from '../components/chart/headerFields'
 import { barInfoFieldsOf } from '../components/chart/barInfoFields'
 import { WIDGET_TUNE, LIST_TUNE } from './agentExecTune'
+import { CONTROL_LABELS } from './widgetNames'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const env = (ops) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops })
@@ -58,7 +59,8 @@ describe('family W through the REAL panel: the first call carries widget.setOpti
     if (!NOT_NAMED.has(text)) expect(Object.keys(b.context.widgetControls[0].controls)).toEqual([c.type])
     const read = (STORED[c.key] || ((o) => o[c.key]))(optsOf(board, 'x1'))
     expect(read, out).toEqual(WANT[c.value] ?? c.value)
-    expect(out).toMatch(new RegExp(`${c.key} is now`))
+    // a control with the chip's own title says it (widgetNames CONTROL_LABELS: the Options Flow's), else its key
+    expect(out).toMatch(new RegExp(`${(CONTROL_LABELS[c.type]?.[c.key]?.title || c.key).replace('/', '\/')} is now`))
     await say('undo')
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 40000)
