@@ -31,6 +31,9 @@ const tf = { board: 'FOUR', clicks: ['TR'], say: 'how do I change the timeframe 
 add('life', 'exit-button', { ...tf, acts: [['exit']], lifecycle: 'Exit', expect: [['starts', 'timeframe'], ['endsGone', 'exit'], ['unchanged']] })
 add('life', 'esc-in-composer', { ...tf, acts: [['esc']], lifecycle: 'Escape with focus in the Agent box', expect: [['starts', 'timeframe'], ['endsGone', 'exit']] })
 add('life', 'esc-on-board', { ...tf, acts: [['escBoard']], lifecycle: 'Escape with focus on the board', expect: [['starts', 'timeframe'], ['endsGone', 'exit']] })
+// POST-DECISION UPDATE (2026-11-07, owner): a click on another chart or another widget ENDS the walkthrough. These two cases were
+// written to that expectation before the decision; the guide's own header said the opposite then. wrong-chart-click below now
+// expects the end too (it accepted either before the decision)
 add('life', 'click-another-chart', { ...tf, acts: [['canvasOf', 'BL']], lifecycle: 'a click on another chart', expect: [['starts', 'timeframe'], ['endsGone', '.']] })
 add('life', 'click-watchlist', { ...tf, acts: [['clickWidget', 'w-watch']], lifecycle: 'a click on another widget', expect: [['starts', 'timeframe'], ['endsGone', '.']] })
 add('life', 'completed-by-next', { ...tf, acts: [['next'], ['next']], lifecycle: 'its last step', expect: [['starts', 'timeframe'], ['endsGone', 'done'], ['unchanged']] })
@@ -47,7 +50,7 @@ add('stale', 'close-other-chart', { board: 'FOUR', clicks: ['TL'], say: 'how do 
 // ── advance: only the step's own control moves it on ────────────────────────────────────────────────────────────────
 const gear = { board: 'FOUR', clicks: ['TR'], say: 'show me the chart settings on this chart', feature: 'settings' }
 add('advance', 'next-button', { ...tf, acts: [['next']], expect: [['starts', 'timeframe'], ['advancedTo', 1]] })
-add('advance', 'wrong-chart-click', { ...tf, acts: [['canvasOf', 'BR'], ['wait', 600]], lifecycle: 'a click on another chart', expect: [['starts', 'timeframe'], ['stillOnOrGone', 0]] })
+add('advance', 'wrong-chart-click', { ...tf, acts: [['canvasOf', 'BR'], ['wait', 600]], lifecycle: 'a click on another chart', expect: [['starts', 'timeframe'], ['endsGone', '.']] })
 add('advance', 'own-symbol-click', { ...tf, acts: [['symbolOf', 'TR'], ['wait', 600]], lifecycle: 'a click on the wrong control', expect: [['starts', 'timeframe'], ['stillOn', 0]] })
 add('advance', 'right-gear', { ...gear, acts: [['gearOf', 'TR'], ['wait', 900]], lifecycle: 'its own control', expect: [['starts', 'settings'], ['advancedTo', 1]] })
 add('advance', 'gear-of-another-chart', { ...gear, acts: [['gearOf', 'BL'], ['wait', 900]], lifecycle: 'the same control on another chart', expect: [['starts', 'settings'], ['stillOn', 0]] })
