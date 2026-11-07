@@ -54,10 +54,11 @@ export function createMemory({ now = () => Date.now() } = {}) {
   let ment = null               // ⭐ PHASE 2: { turn, list, at, epoch } — every indicator the latest turn acted on
   let seq = 0
   let visit = null              // the host's layout-visit count when memory last looked (`seeBoard`)
+  let conv = null               // CONVERSATIONAL TARGET: { ref, click, at, epoch } — the one chart the last committed change acted on
 
   const fresh = (x) => !!x && now() - x.at <= MEMORY_TTL_MS
   const sameBoard = (x, epoch) => !!x && (x.epoch == null || epoch == null || x.epoch === epoch)
-  const dropBoard = () => { subjects = { chart: null, indicator: null }; last = null; turn = null; indSet = null; priorInd = null; pick = null; ment = null }
+  const dropBoard = () => { conv = null; subjects = { chart: null, indicator: null }; last = null; turn = null; indSet = null; priorInd = null; pick = null; ment = null }
 
   return {
     /** Rows UCT showed, in display order. `symbols` must come from UCT (a table's ticker column). */
@@ -157,6 +158,10 @@ export function createMemory({ now = () => Date.now() } = {}) {
 
     /** The board's layout changed: refs on the old board mean nothing now. Results (tickers) stay. */
     boardChanged() { dropBoard() },
+    /** CONVERSATIONAL TARGETING (owner 2026-11-07): the ONE chart a committed change acted on (null: it acted on several, which
+     *  ends the conversational target), with the member's click as it stood then (`click`: the host's click token). */
+    noteTarget({ ref = null, click = null, epoch = null } = {}) { conv = ref ? { ref: String(ref), click, at: now(), epoch } : null },
+    convTarget(epoch = null) { return fresh(conv) && sameBoard(conv, epoch) ? conv : null },
     /** The host's layout-visit count (host `boardVisit`). If it moved since memory last looked, a layout
      *  was opened in between (A → B → A included): the board's refs are dropped, as `boardChanged`. */
     seeBoard(n) {
@@ -165,7 +170,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
       visit = n
     },
     forgetIndicator() { subjects.indicator = null },
-    clear() { sets = []; subjects = { chart: null, indicator: null }; last = null; corrections = []; turn = null; indSet = null; priorInd = null; pick = null; ment = null },
+    clear() { conv = null; sets = []; subjects = { chart: null, indicator: null }; last = null; corrections = []; turn = null; indSet = null; priorInd = null; pick = null; ment = null },
 
     /** What the MODEL may see: result sets (first MODEL_ITEMS tickers, in order), the last change's
      *  action names, and corrections. No values, no chart settings. */

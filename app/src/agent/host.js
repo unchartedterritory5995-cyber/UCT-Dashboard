@@ -104,7 +104,7 @@ function gridEntries(chartApiById, grid) {
   })
 }
 
-export function buildChartSource({ chartApiById, getWidgets, selectedChart = null, replay = null }) {
+export function buildChartSource({ chartApiById, getWidgets, selectedChart = null, selectedClick = null, replay = null }) {
   function entries() {
     const grid = gridOf(chartApiById)
     if (grid) return gridEntries(chartApiById, grid)
@@ -176,6 +176,9 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     },
     // "this chart": the selected chart's ref, only while it is still on the board (agent/deixis.js)
     selected: () => entries().find(e => e.snap.selected)?.ref || null,
+    // the member's last click as a token (a new one per pointer-down, a re-click included): conversational targeting
+    // (agent/convTarget.js) reads whether the member clicked since a change
+    ...(typeof selectedClick === 'function' ? { clickToken: () => selectedClick() ?? null } : {}),
     // ⭐ MULTI CHART: the grid behind these charts (null on the board) — scopeHostToGrid reads it
     grid: () => gridOf(chartApiById),
     read: (ref) => entries().find(e => e.ref === ref)?.snap || null,
@@ -746,7 +749,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, selectedClick = null, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -754,7 +757,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
   } : null
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
-    charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
+    charts: buildChartSource({ chartApiById, getWidgets, selectedChart, selectedClick, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
