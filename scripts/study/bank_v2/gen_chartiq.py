@@ -277,6 +277,8 @@ def pod_ok(sym, t) -> bool:
     if not POD:
         return True
     asof = iso(t)
+    if (sym, asof) in POD["cov"].refused:
+        return False
     return (sym, asof) in POD["keep"] or POD["cov"].covered(sym, asof)[0]
 
 

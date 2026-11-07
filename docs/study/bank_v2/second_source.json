@@ -1383,6 +1383,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"APO|2025-06-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "APPF|2025-07-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -2288,6 +2296,14 @@
 "yahoo_sessions": 140
 },
 "BEN|2002-01-30": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"BEN|2021-10-28": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -3791,6 +3807,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CI|2022-10-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CLF|2006-10-05": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -4575,6 +4599,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"CRM|2020-06-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "CRM|2023-12-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -5000,6 +5032,14 @@
 "yahoo_sessions": 140
 },
 "CVS|2005-03-10": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"CVX|2022-10-19": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -8031,6 +8071,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"GPN|2023-12-01": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "GPN|2025-08-13": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -9104,6 +9152,14 @@
 "yahoo_sessions": 140
 },
 "ICE|2010-05-21": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"IDXX|2023-12-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -11503,6 +11559,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"MET|2020-11-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "MFC|2022-03-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -13543,6 +13607,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"OIS|2010-09-29": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "OI|2007-03-07": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -13856,6 +13928,14 @@
 "yahoo_sessions": 140
 },
 "OVV|2017-09-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"OVV|2021-12-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -15351,6 +15431,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"RIG|2011-01-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "RIG|2018-04-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -16368,6 +16456,14 @@
 "yahoo_sessions": 140
 },
 "SIRI|2010-09-23": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SIRI|2021-05-27": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -18120,6 +18216,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"TT|2010-10-05": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "TT|2019-05-29": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -18241,6 +18345,14 @@
 "yahoo_sessions": 140
 },
 "TXT|2005-01-27": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TXT|2012-01-10": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -19649,6 +19761,14 @@
 "yahoo_sessions": 140
 },
 "WFC|2017-11-28": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"WFC|2021-03-25": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
