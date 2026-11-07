@@ -44,7 +44,7 @@ import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 // ⭐ W4-T8 — GENERATED from TradingView's v6 reference (tools/pine_survey/emit_length_qualifiers.js).
 import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 import { splitCommaStatements } from './objectFnInline.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse, listingSeedIsUnpinned } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -52,20 +52,29 @@ import {
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   histDyn, histSlotDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, whileStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
-  clock, session, drawing, readGlobal, objectCall,
+  clock, session, drawing, readGlobal, objectCall, brokerCall,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
+// ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
+import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS } from '../runtime/broker.js'
+import { readStrategyDeclaration, orderArgsOf, StrategyOptionError } from './strategyBroker.js'
+// W9-T1 - the build flag is NOT read here: this module is in the server compute closure, which bakes
+// no VITE_* name (serverBundle.rail, hostNeutralClosure.rail). The member door (memberPaneDefinition.js,
+// outside the closure) registers the reader; the server never does, so the broker is dark there.
+import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
+const strategyBrokerEnabled = () => strategyBrokerGateOn()
+import { strategyRepaintConstruct } from './strategyRepaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
-import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, isVoid, argKind, DOOR_GATED_ARRAY } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
 // so a method-form call is admitted or refused by the same table, with the same
@@ -74,6 +83,13 @@ import { methodFormCall, splitMethodName } from './ufcs.js'
 // ⭐⭐ W6-T3a — a slot's static type is ONE descriptor, `slots[s].ty` (`typeDescriptor.js`).
 import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, elemUdtOf, drawingOf,
   isTextTy, isColourTy, methodNsOf } from './typeDescriptor.js'
+// ⭐⭐ W6-T6 — the `for … in` walk rule (live list vs snapshot, the witnessed mutations): ONE
+// table, read by this lane and the host object lane (`pineObjects.js`) alike.
+import {
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
+  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal,
+} from './forInRule.js'
+import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
@@ -319,6 +335,13 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // wrong answer about the one line of their script they did not get wrong.
   'runtime:library': 'a Pine library import — this lane compiles the script it is given, not a library graph',
   'runtime:no-output': 'a script with nothing to plot',
+  // ⭐⭐ S1 — the strategy broker's build refusals (`strategyBroker.js`, docs/pine/strategy-broker-spec.md)
+  'runtime:strategy-option': 'a strategy property or order argument this broker does not serve',
+  'runtime:strategy-value': 'a strategy value this broker does not serve',
+  // ⭐⭐ W9-T1 — run-time stops of the broker (`runtime/broker.js`), listed so the vocabulary is whole
+  'runtime:strategy-unpinned': 'a broker rule no matching TradingView capture pins yet',
+  'runtime:strategy-start': 'a strategy run that does not start from the history window the broker needs',
+  'runtime:strategy-repaint': 'a repaint-class input (security, timenow, barstate, varip) in a strategy that places orders',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
   'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
   // ⭐ P3 WS-B — three guards of this workstream's own, named for what they decline.
@@ -774,6 +797,95 @@ export function scanMutability(stmts, out) {
   return acc
 }
 
+/** ⭐⭐ W34-I4 — A v1/v2 SELF-REFERENCING DEFINITION, READ BY THE RUN AS PINE RUNS IT.
+ *
+ *  Before v3, Pine let a definition read its own past: `i1 = c1*src + c2*nz(i1[1])`.
+ *  The script is a SERIES `i1`, assigned once per bar, whose `i1[1]` is last bar's
+ *  value and, on bar 0, the history operator's `na` (there is no earlier bar). That
+ *  is exactly the v4 spelling `i1 = na` + `i1 := c1*src + c2*nz(i1[1])`, which this
+ *  lane already runs as a slot. So the statement is rewritten to that pair and the
+ *  run computes the reference's arithmetic from bar 0: no re-seeded window, no
+ *  curtain and no lookback budget (the host lane's `accum`, which refused the shape
+ *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
+ *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
+ *
+ *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])`, `k` a whole
+ *  literal >= 1. Its bar-0 value is 0 under EITHER v1/v2 seed rule (`nz(na)` and
+ *  `nz(0)` are both 0), so no unstated rule reaches an output. ⛔ NOT
+ *  `nz(name[k], fill)`: that reads `fill` if the series starts at `na` and 0 if it
+ *  starts at 0, the question row W34-I4-S1 leaves open, so it is not rewritten and
+ *  keeps master's answer (the host `accum`, which withholds the seed's window, or
+ *  its `pine:state` refusal by name when the update never forgets). A bare self read
+ *  (`col[1] == 1`, `a*close + b*x[1]`) leaves bar 0 to a rule the reference does
+ *  not state for v1/v2 (does `na` propagate, or does the series start at 0?), so
+ *  it is NOT rewritten: it keeps the host lane's `pine:state` refusal by name, and
+ *  the capture-queue row W34-I4-S1 asks TradingView (named on
+ *  `thelark-lma-v2-laguerre`, `col`, line 43). Never a guessed seed.
+ *  ⛔ Top-level, single-line definitions of a name nothing else declares or
+ *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18
+ *  object door never calls this (master's answer stands there). */
+export function v2SelfReferenceStatements(stmts, version) {
+  if (!Array.isArray(stmts) || (version != null && version > 2)) return stmts
+  const mut = scanMutability(stmts)
+  const declared = new Map()
+  for (const st of stmts) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq === 1 && toks[0] && toks[0].kind === 'ident' ? toks[0] : null
+    if (nameTok) declared.set(nameTok.value, (declared.get(nameTok.value) || 0) + 1)
+  }
+  const isIdent = (t, v) => !!t && t.kind === 'ident' && (v === undefined || t.value === v)
+  /** Every read of `name` in `rhs` is a guarded history read; at least one exists. */
+  const guardedSelfRef = (rhs, name) => {
+    let reads = 0
+    for (let i = 0; i < rhs.length; i += 1) {
+      if (!isIdent(rhs[i], name)) continue
+      if (isPunct(rhs[i - 1], '.') || isPunct(rhs[i + 1], '.')) continue
+      const k = rhs[i + 2]
+      const guarded = isPunct(rhs[i - 1], '(') && isIdent(rhs[i - 2], 'nz') && !isPunct(rhs[i - 3], '.')
+        && isPunct(rhs[i + 1], '[') && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
+        && isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')
+      if (!guarded) return false
+      reads += 1
+    }
+    return reads > 0
+  }
+  /** ⛔ MEASURE-PAIR FINDING (runtime-on, `earnings-sr-levels-lazybear`, v1): a definition
+   *  carrying a `?:` or `iff` (`x = (c ? a : nz(x[1]))`) is NOT rewritten. As a slot its
+   *  test is lowered to the VM's `SELECT`, whose below-v4 `na` reading is unsettled
+   *  (`lowerIr.js::naTestsOf`, RT1), so the run declined `runtime:na-test` where master's
+   *  host fold served it (its bar 0 is `nz`'s 0 under either seed rule, so master's value
+   *  does not rest on the unknown seed). Such a definition keeps master's answer. */
+  const hasConditional = (rhs) => rhs.some((t) => isPunct(t, '?') || isIdent(t, 'iff'))
+  /** ⛔ REVIEW N1 — and one that CALLS a function this script defines (`f(a) => …`): the
+   *  callee's body may hold a `?:` the token scan above cannot see, which would reach the
+   *  VM the same way. Such a definition keeps master's answer too. */
+  const scriptFns = new Set()
+  for (const st of stmts) {
+    const toks = st.header || []
+    if (isIdent(toks[0]) && isPunct(toks[1], '(') && findTop(toks, (t) => isPunct(t, '=>')) > 0) scriptFns.add(toks[0].value)
+  }
+  const callsScriptFn = (rhs) => rhs.some((t, i) => isIdent(t) && scriptFns.has(t.value) && isPunct(rhs[i + 1], '('))
+  let changed = false
+  const out = []
+  for (const st of stmts) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq === 1 && isIdent(toks[0]) ? toks[0] : null
+    const plain = nameTok && !(st.sub && st.sub.length) && !(st.body && st.body.length)
+      && declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)
+    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || hasConditional(toks.slice(eq + 1))
+        || callsScriptFn(toks.slice(eq + 1))) {
+      out.push(st); continue
+    }
+    const eqTok = toks[eq]
+    out.push({ ...st, header: [nameTok, eqTok, { ...eqTok, kind: 'ident', value: 'na' }], body: [], sub: [] })
+    out.push({ ...st, header: [nameTok, { ...eqTok, value: ':=' }, ...toks.slice(eq + 1)] })
+    changed = true
+  }
+  return changed ? out : stmts
+}
+
 // ── scope chain ─────────────────────────────────────────────────────────────
 
 /** ⭐⭐ A SCOPE IS A FRAME, AND A SLOT IS ALLOCATED PER DECLARATION — never per
@@ -1117,7 +1229,24 @@ function shiftBarIndexLeaves(tree, k) {
 
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
-  const built = buildRuntimeIrLinked(source, opts, holder)
+  let built = buildRuntimeIrLinked(source, opts, holder)
+  // ⭐⭐ S1 — A STRATEGY WHOSE OUTPUTS READ THE BROKER is built a SECOND time with the
+  // broker on, and ONLY then: every script that builds today (orders skipped, C50/R1)
+  // keeps the program it has byte for byte, and only the `pine:strategy-call` refusal -
+  // a broker VALUE read - is retried. DARK behind `VITE_PINE_STRATEGY_BROKER_ENABLED`
+  // (`strategyBrokerGate.js`); `opts.strategyBroker` overrides it for rails.
+  const brokerOn = opts.strategyBroker !== undefined ? opts.strategyBroker === true : strategyBrokerEnabled()
+  // W9 rule 4 - NEVER at the C18 object door: it builds exactly what master builds.
+  if (brokerOn && opts.objectDoor !== true && opts.__strategyBroker !== true && built && built.ok === false
+      && built.refusal && built.refusal.guard === 'pine:strategy-call') {
+    holder.link = null
+    // ⭐⭐ W9-T1 RULE 11 — a repaint-class input refuses broker mode BY NAME, before it is built.
+    const repaint = strategyRepaintConstruct(source)
+    if (repaint) {
+      return { ok: false, refusal: { guard: 'runtime:strategy-repaint', message: `\`${repaint}\` in a strategy whose trades the broker would compute`, line: null, column: null }, diagnostics: [] }
+    }
+    built = buildRuntimeIrLinked(source, { ...opts, __strategyBroker: true }, holder)
+  }
   const link = holder.link
   // ⭐⭐ L1 — present only when a library was linked, so every other result is
   // byte-identical. A refusal inside a library's code points at the member's
@@ -1128,6 +1257,78 @@ export function buildRuntimeIr(source, opts = {}) {
   })) }
   if (out.refusal) out.refusal = remapLibraryLocation(out.refusal, link)
   return out
+}
+
+/** ⭐⭐ W34-I6a — A `switch` ARM WHOSE VALUE WRAPS ONTO A CONTINUATION LINE.
+ *
+ *  Pine's rule (User Manual, "Script structure" → "Line wrapping"): "each wrapped line
+ *  after the first can use any indentation length _except_ multiples of four", "because
+ *  Pine uses four-space or tab indentations to define local code blocks"; between
+ *  brackets "all code … _does not_ have any restriction on indentation length".
+ *
+ *  `blockStatements` (shared with the host lane, `pine.js`) treats the `=>` of an arm as
+ *  a block opener, so every deeper line under `c => a` / `     and b` lands in the arm's
+ *  `sub` and the arm refused "ends in a block". This pass re-reads exactly that shape on
+ *  the runtime side, from the arm's own raw `body` tokens: an arm with an inline value
+ *  whose deeper lines ALL start (outside brackets) at an indent that is NOT a multiple of
+ *  four is ONE expression, header and body joined. The `if` branch already reads its
+ *  wrapped lines this way (a statement that opened no block continues onto them).
+ *
+ *  ⛔ What the rule does not settle keeps a refusal BY NAME:
+ *  - every deeper line at a multiple of four: a real sub-block, today's reading, unchanged;
+ *  - wrapped lines AND a line at a block indent under one arm: marked `wrapMixed`, refused
+ *    in `lowerSwitchInto` (`runtime:block-value`);
+ *  - `c =>` with its value on the next line: a block, unchanged (no inline value to wrap).
+ *  ⛔ Not at the object door (`atObjectDoor`): the door keeps master's reading until
+ *  measure-pair proves its output identical (the caller does not call this there). */
+const SWITCH_WORD = (t) => t && t.kind === 'ident' && t.value === 'switch'
+const ARM_VALUE_OPENERS = new Set(['if', 'switch', 'for', 'while'])
+function wrappedArmOf(arm, indents) {
+  const h = arm.header || []
+  const body = arm.body || []
+  const at = findTop(h, (x) => isPunct(x, '=>'))
+  if (at < 0 || at === h.length - 1 || !body.length) return arm
+  // review N1: an inline value that opens a block (`0 => switch x`) owns the lines beneath as its
+  // block; they are not this arm's wrap (an inner switch's own arms are joined on their level).
+  if (findTop(h.slice(at + 1), (x) => x.kind === 'ident' && ARM_VALUE_OPENERS.has(x.value)) >= 0) return arm
+  let depth = 0
+  let wraps = 0
+  let blocks = 0
+  let prevLine = h.length ? h[h.length - 1].line : null
+  for (const tok of body) {
+    if (tok.line !== prevLine && depth === 0) {
+      if ((indents[tok.line - 1] || 0) % 4 === 0) blocks += 1
+      else wraps += 1
+    }
+    prevLine = tok.line
+    if (tok.kind === 'punct') {
+      if (tok.value === '(' || tok.value === '[') depth += 1
+      else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+    }
+  }
+  if (!wraps) return arm
+  if (blocks) return { ...arm, wrapMixed: true }
+  return { header: h.concat(body), body: [], sub: [] }
+}
+function joinWrappedSwitchArms(list, indents) {
+  if (!list || !list.length) return list
+  let changed = false
+  const out = list.map((st) => {
+    let sub = st.sub && st.sub.length ? joinWrappedSwitchArms(st.sub, indents) : st.sub
+    if (sub && sub.length && findTop(st.header || [], SWITCH_WORD) >= 0) {
+      let armsChanged = false
+      const arms = sub.map((arm) => {
+        const a = wrappedArmOf(arm, indents)
+        if (a !== arm) armsChanged = true
+        return a
+      })
+      if (armsChanged) sub = arms
+    }
+    if (sub === st.sub) return st
+    changed = true
+    return { ...st, sub }
+  })
+  return changed ? out : list
 }
 
 function buildRuntimeIrLinked(source, opts, holder) {
@@ -1148,6 +1349,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     throw new RuntimeRefusal('runtime:object-door', `${what} is served on the runtime pane only, not to a drawing `
       + 'script (the object door), until a TradingView capture proves it exact', at)
   }
+  /** ⭐⭐ W6-T5 — IS THIS AN `array.*` MEMBER THIS LANE HOLDS? At the object door, a member
+   *  served after master c04bdbe2c1 (`collections.js::DOOR_GATED_ARRAY`) is NOT held, so every
+   *  site below answers master's answer and the door refuses where master refused, with
+   *  master's own guard and sentence (a widened predicate keeps master's answer). One
+   *  predicate for all seven sites; rail `objectDoorGate.test.js` (W6-T5). */
+  const heldArray = (name) => Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)
+    && !(atObjectDoor && DOOR_GATED_ARRAY.has(name))
   /** WS-D's text-input kinds; master's two at the object door. */
   const textInputHere = (node) => (atObjectDoor
     ? !!(node && node.type === 'call' && MASTER_TEXT_INPUTS.has(node.name)) : isTextInputCall(node))
@@ -1250,6 +1458,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  Decided here, once, so the Resolver is told before any value resolves
    *  (`objectDoorOpts`). */
   const objectsInRun = opts.objectsInRun === true && !objectPassOwnsDrawing
+  /** ⭐⭐ S1 — this build runs TradingView's broker (`runtime/broker.js`): order calls
+   *  are LOWERED (not skipped) and `strategy.*` values are read from it. Set only by
+   *  `buildRuntimeIr`'s retry. `brokerDecl` is the declaration it read. */
+  const brokerMode = opts.__strategyBroker === true
+  let brokerDecl = null
 
   /** How many drawing-as-value creates this build has lowered. ⛔ THIS LANE'S
    *  OWN ORDINAL — see `runtime/handles.js`: it is NOT the object program's
@@ -1280,6 +1493,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
+  if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents)
+  // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
+  // bar-0 value (`nz(x[k])`) runs as the slot it is (`v2SelfReferenceStatements`).
+  // ⛔ Not at the C18 object door: it keeps master's answer.
+  // (Landing note: runs after the I6a join; the two are disjoint, since `switch` is v4+.)
+  if (!atObjectDoor) stmts = v2SelfReferenceStatements(stmts, version)
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
@@ -1435,10 +1655,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  `?:` lowered to the VM read it as false. ONE rule, asked of its one authority
    *  (`interpret.js::naConditionIsFalse` / `pineTernaryFor`), the same two keys the
    *  host lane passes (`nativeRegistry.js::listingOptsFor`). Off the listing, or
-   *  below v4, nothing changes. */
+   *  below v4, nothing changes.
+   *  ⭐⭐ W34-I4b — and, the same way, whether this version leaves bar 0's history
+   *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no pragma — here
+   *  the lex is in hand, so `null` IS "no pragma"). */
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
-      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}) }
+      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}),
+      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}) }
     : ((opts && opts.interpretOpts) || undefined)
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
@@ -1769,7 +1993,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const untypedParamArrayCall = (rslot, node) => {
     if (!untypedParams.has(rslot) || !node || node.type !== 'call') return false
     const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
-    return !!(rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name))
+    return !!(rew && heldArray(rew.node.name))
   }
   const newSlot = (name, persistent, index) => {
     slots.push({
@@ -2231,7 +2455,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!t || t.kind !== 'ident') continue
       const v = String(t.value)
       if (STATE_HEAD.has(v)) return true
-      if (HELD_WORDS.has(v) || declared.has(v)) continue
+      // ⛔ W6-T2 r1: before v5 `method` is not a keyword, so a call to a v3/v4 user function named
+      // `method` is a call like any other and must not be skipped as a word (it would count a held
+      // body that calls it as pure and serve a wrong value).
+      if ((HELD_WORDS.has(v) && !(v === 'method' && pineVersion !== null && pineVersion < 5))
+        || declared.has(v)) continue
       // a named argument's name (`length = 3`) is not a read
       if (isPunct(toks[k + 1], '=')) continue
       if (isPunct(toks[k + 1], '(')) {
@@ -2430,8 +2658,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
+  // ⛔⛔ W3W4-D1 capture gate (queue row W3N-D1, capture-queue-2026-11-05-w3w4-d1.md): the C48 witnesses
+  // pin sma/ema as PLOT values and nothing pins rma at all, so no capture shows a DRAWING reading the
+  // per-call-site set. Until W3N-D1 MATCHes, the drawing build keeps the named refusal
+  // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
+  // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
+  const DRAWING_HISTORY_CAPTURED = false
+  // ONE gate: only the drawing build's `condHistory` (below, at the lowering of a pure subtree) reads it;
+  // `servedCondCall` is reached from there alone, so it needs no second copy.
+  const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
-    if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
+    if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
@@ -3064,6 +3301,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
 
+  /** ⭐⭐ S1 — does this subtree read the broker (a `strategy.*` value or trade
+   *  function), directly or through an immutable binding? Such a subtree is not a
+   *  column: the columnar lane refuses the whole namespace. */
+  const holdsBrokerRead = (node, scope, seen = new Set(), depth = 0) => {
+    if (!brokerMode || !node || typeof node !== 'object' || depth > 64) return false
+    if (Array.isArray(node)) return node.some((x) => holdsBrokerRead(x, scope, seen, depth + 1))
+    if ((node.type === 'name' || node.type === 'call') && typeof node.name === 'string'
+        && node.name.startsWith('strategy.') && !definedNames.has(node.name)) return true
+    if (node.type === 'name' && typeof node.name === 'string' && scope && scope.lookup(node.name) === null
+        && !seen.has(node.name)) {
+      seen.add(node.name)
+      const bound = env.get(node.name)
+      if (bound && bound.kind === 'expr' && holdsBrokerRead(bound.node, scope, seen, depth + 1)) return true
+    }
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      if (holdsBrokerRead(v, scope, seen, depth + 1)) return true
+    }
+    return false
+  }
+  /** ⭐⭐ S1 — a declaration / argument refusal from `strategyBroker.js`, as this lane's. */
+  const brokerRefusal = (e, tok) => {
+    if (!(e instanceof StrategyOptionError)) return e
+    note(e.guard)
+    return new RuntimeRefusal(e.guard, e.detail, locate(e.tok || tok))
+  }
+
   const holdsObjectCall = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     if (node.type === 'call' && OBJECT_NS.test(String(node.name || ''))) return String(node.name)
@@ -3370,7 +3634,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const holdsArray = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'call') {
-      if (producesArray(node.name)) return true
+      if (heldArray(node.name) && producesArray(node.name)) return true
       // ⭐ AN UNSERVED COLLECTION CALL COUNTS AS ONE TOO, so the binding gets
       // a slot, the initialiser is LOWERED, and the refusal names the call the
       // member wrote. Left as an `env` macro it is never lowered at all, and
@@ -3378,7 +3642,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // measured: `m = matrix.new<float>(2, 2, 0.0)` was reported as
       // `matrix.rows`, one line below the call they would need to remove.
       return ARRAY_NS.test(String(node.name || ''))
-        && !Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)
+        && !heldArray(node.name)
     }
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
@@ -3729,7 +3993,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const declaredTyAt = (toks, eq) => {
     const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
     if (!annot || annot.kind !== 'ident') return null
-    const ty = tyOfTypeWord(annot.value, annot.typeArgs, { udtTypes })
+    return writtenTyOf(annot.value, annot.typeArgs)
+  }
+  /** ⭐ W6-T3b — ONE READING OF A WRITTEN TYPE WORD on this lane: a binding's
+   *  annotation (`declaredTyAt`), a parameter's and a field's written type
+   *  (`exprType`). A drawing family is a type only when the run draws. */
+  const writtenTyOf = (word, typeArgs) => {
+    const ty = tyOfTypeWord(word, typeArgs, { udtTypes })
     return ty && ty.kind === 'drawing' && !objectsInRun ? null : ty
   }
 
@@ -3755,6 +4025,332 @@ function buildRuntimeIrLinked(source, opts, holder) {
    */
   const bindSlotTy = (slot, value, scope, toks, eq) => {
     setSlotTy(slot, bindingTy(declaredTyAt(toks, eq), initialiserTy(value, scope)))
+  }
+
+  // ── ⭐⭐ W6-T3b — `exprType`: THE STATIC TYPE OF AN EXPRESSION ─────────────────
+  //
+  // T3a gave every SLOT one descriptor. An expression that is not a slot read (an
+  // element read `a.get(i)`, a collection built by a call, a method result, a
+  // user function's result) had no type at all, which is what `pine:member`
+  // reports. `exprType(node, scope)` answers a T3a descriptor (`makeTy`) for such a
+  // node, or `null` when it cannot tell. ⛔⛔ A CALLER THAT NEEDS A TYPE REFUSES BY
+  // NAME ON `null`; it never guesses one.
+  //
+  // ⭐ PINE HAS NO DECLARED RETURN TYPES. `f(x) =>` types only its parameters, and
+  // Pine compiles a function once per distinct set of argument types (User-defined
+  // functions; Type system). So a user call's type is INFERRED, per call site: the
+  // body's result is typed with that call's argument types bound to the
+  // parameters (an untyped parameter takes its argument's type, a typed one its
+  // written type), every return path (the arms of a trailing `if` / `switch`) must
+  // agree, a recursive call answers `null`, and the answer is cached per
+  // (function, argument types).
+  //
+  // ⛔ ONE AUTHORITY PER VALUE. A name's type IS `slotTy` (T3a's descriptor, never
+  // restated); a binding inside an inferred body is typed by T3a's own
+  // `bindingTy(declaredTyAt(…), …)`; an element read rides `ARRAY_READS_ELEMENT`,
+  // the roster `udtTypeOf` reads. `udtTypeOf` stays the reader the served paths
+  // ask today; the T3b rail pins that `exprType` agrees with it on every shape it
+  // answers, and T6 / T9 re-point callers here.
+  // ⛔ THE C18 DOOR'S VIEW IS NOT THIS. `slotIsCollection` / `slotElemKind` hide a
+  // declared-only collection at the door; `exprType` answers the TYPE, and every
+  // door decision still goes through those getters.
+
+  /** `na`: a value with no type of its own. INTERNAL ONLY: it takes the other
+   *  arm's type when arms are joined, and leaves `exprType` as `null`. */
+  const NA_TY = Object.freeze({ kind: 'na' })
+  /** A descriptor's identity, for comparison and caching. `declaredOnly` is how a
+   *  slot got its type, not what the type is, so it is not part of it. */
+  const tyKey = (ty) => {
+    if (ty === null || ty === undefined) return '?'
+    if (ty === NA_TY) return 'na'
+    return `${ty.kind}${ty.name ? `:${ty.name}` : ''}${ty.key ? `{${tyKey(ty.key)}}` : ''}${ty.elem ? `<${tyKey(ty.elem)}>` : ''}`
+  }
+  /** The arms' common type. ⛔ `na` takes the other arms' type; an arm that cannot
+   *  be typed (`null`) or two arms that DISAGREE answer `null`, never the first. */
+  const joinTys = (tys) => {
+    let out = null
+    for (const t of tys) {
+      if (t === NA_TY) continue
+      if (!t) return null
+      if (!out) out = t
+      else if (tyKey(out) !== tyKey(t)) return null
+    }
+    return out || NA_TY
+  }
+  /** An expression's type carries no `declaredOnly` (a slot's history, not a type). */
+  const plainTy = (ty) => (ty && ty !== NA_TY && ty.declaredOnly
+    ? makeTy(ty.kind, { elem: ty.elem || null, key: ty.key || null, name: ty.name || null }) : ty)
+  const argNode = (a) => (a && a.value !== undefined ? a.value : a)
+
+  /** ⭐ A BUILT-IN COLLECTION MEMBER'S DECLARED RESULT, from its argument types
+   *  (the receiver first) and the call's `<T>`. `null` for a member not listed:
+   *  "cannot tell", never a guess. */
+  const collectionResultTy = (name, argTys, typeArgs) => {
+    const r = argTys[0] || null
+    const of = (kind) => (r && r !== NA_TY && r.kind === kind ? r : null)
+    // element reads: `array.get` / `first` / `last` / `pop` / `shift` / `remove`
+    if (ARRAY_READS_ELEMENT.has(name)) { const a = of('array'); return a ? elemTy(a) : null }
+    if (name === 'matrix.get') { const m = of('matrix'); return m ? elemTy(m) : null }
+    if (name === 'map.get') { const m = of('map'); return m ? elemTy(m) : null }
+    // a collection of the receiver's own type
+    if (name === 'array.copy' || name === 'array.slice' || name === 'array.concat') return plainTy(of('array'))
+    if (name === 'map.keys') { const m = of('map'); return m ? makeTy('array', { elem: m.key || null }) : null }
+    if (name === 'map.values') { const m = of('map'); return m ? makeTy('array', { elem: m.elem || null }) : null }
+    if (name === 'matrix.row' || name === 'matrix.col') {
+      const m = of('matrix'); return m ? makeTy('array', { elem: m.elem || null }) : null
+    }
+    // built from nothing: the element type is the call's `<T>`, or its suffix
+    const word = (w) => (w ? tyOfTypeWord(w, null, { udtTypes }) : null)
+    const one = typeArgs && typeArgs.length === 1 ? typeArgs[0] : null
+    const nw = /^array\.new(?:_([a-z]+))?$/.exec(name)
+    if (nw) return makeTy('array', { elem: word(nw[1] || one) })
+    if (name === 'matrix.new') return makeTy('matrix', { elem: word(one) })
+    if (name === 'map.new') {
+      return typeArgs && typeArgs.length === 2
+        ? makeTy('map', { key: word(typeArgs[0]), elem: word(typeArgs[1]) }) : makeTy('map')
+    }
+    if (name === 'array.from') {
+      const e = joinTys(argTys)
+      return makeTy('array', { elem: e && e !== NA_TY ? plainTy(e) : null })
+    }
+    if (name === 'str.split') return makeTy('array', { elem: makeTy('text') })
+    return null
+  }
+
+  /** name → `{st, toks, arrow, params}` of the ONE definition with that name, or
+   *  `false` when there are several (an overload: T9 types those by receiver).
+   *  Written by `defineFunction`, read only by `userCallTy`. */
+  const fnSourceByName = new Map()
+  /** `name|argument types` → the inferred result: one answer per distinct
+   *  call-site shape, as C35's `specialisations` keeps one compiled copy. */
+  const fnResultTys = new Map()
+  /** The functions whose result is being inferred right now. A call back into one
+   *  of them is RECURSION, which Pine forbids, and it answers `null`. ⛔ This is
+   *  the ONLY thing that stops a recursive inference (the depth bound restarts in
+   *  each body). */
+  const fnInferring = new Set()
+
+  /** ⭐⭐ THE RESULT TYPE OF A CALL TO USER FUNCTION `name`, given each argument's
+   *  type, inferred from the body (see the band header). */
+  const userCallTy = (name, argTys) => {
+    const src = fnSourceByName.get(name)
+    if (!src || (methodDecls.get(name) || 0) > 1) return null
+    const key = `${name}|${argTys.map(tyKey).join(',')}`
+    if (fnResultTys.has(key)) return fnResultTys.get(key)
+    if (fnInferring.has(name)) return null
+    fnInferring.add(name)
+    let out = null
+    try {
+      const declared = paramTypeHeads(src.toks, src.arrow)
+      const tenv = new Map()
+      src.params.forEach((p, k) => {
+        const d = declared.get(p)
+        const a = argTys[k]
+        tenv.set(p, d ? writtenTyOf(d.word, d.typeArgs) : (a === NA_TY ? null : plainTy(a || null)))
+      })
+      if (src.arrow === src.toks.length - 1) out = listTyIn(src.st.sub || [], root, tenv)
+      else {
+        const rest = src.toks.slice(src.arrow + 1)
+        const lines = oneLineBodyOf(rest)
+        out = lines ? listTyIn(lines, root, tenv) : exprTypeIn(parseWholeExpression(rest), root, tenv)
+      }
+    } catch (e) {
+      // ⛔ only a parse refusal means "cannot tell"; anything else is a bug and is raised
+      if (!(e instanceof PineRefusal || e instanceof RuntimeRefusal)) throw e
+      out = null
+    } finally { fnInferring.delete(name) }
+    fnResultTys.set(key, out)
+    return out
+  }
+  /** The argument types of a user call, in declared parameter order: `pre` are the
+   *  already-typed leading arguments (a method's receiver), a named argument goes
+   *  to its parameter, an omitted one is its declared default. */
+  const userArgTys = (name, args, scope, tenv, depth, pre = []) => {
+    const names = fnParamNamesByName.get(name) || []
+    const defaults = fnDefaultsByName.get(name) || []
+    const out = [...pre]
+    let k = pre.length
+    for (const a of args || []) {
+      const at = a && a.name ? names.indexOf(a.name) : k++
+      if (at < 0) return null
+      out[at] = exprTypeIn(argNode(a), scope, tenv, depth + 1)
+    }
+    for (let j = 0; j < Math.max(names.length, out.length); j += 1) {
+      if (out[j] === undefined) {
+        const d = defaults[j]
+        out[j] = d && typeof d === 'object' && d.type ? exprTypeIn(d, root, null, depth + 1) : null
+      }
+    }
+    return out
+  }
+
+  /** A name's type: `na`; a binding of the body being inferred (`tenv`); a slot
+   *  (`slotTy`, T3a's descriptor); a field path, step by step through each field's
+   *  WRITTEN type; an `env` macro. */
+  const nameTyIn = (name, scope, tenv, depth) => {
+    if (name === 'na') return NA_TY
+    if (tenv && tenv.has(name)) return tenv.get(name)
+    const slot = tenv ? root.lookup(name) : lookupReadable(name, scope)
+    if (slot !== null && slot !== undefined) return slotTy(slot)
+    const parts = String(name).split('.')
+    if (parts.length > 1) {
+      let ty = nameTyIn(parts[0], scope, tenv, depth + 1)
+      for (let i = 1; i < parts.length; i += 1) {
+        const spec = ty && ty !== NA_TY && ty.kind === 'udt' ? fieldSpec(ty.name, parts[i]) : null
+        if (!spec) return null
+        ty = writtenTyOf(spec.type, spec.typeArgs)
+      }
+      return ty
+    }
+    const b = env.get(name)
+    if (b && b.kind === 'expr') return exprTypeIn(b.node, tenv ? root : scope, null, depth + 1)
+    return null
+  }
+
+  /** `recv.m(args)` on a TYPED receiver: a script's own method first (the `ufcs.js`
+   *  shadowing rule: a defined name wins the method form), else the receiver
+   *  collection's own member. ⛔ An overloaded method answers `null` (T9). */
+  const methodResultTy = (recvTy, method, args, scope, tenv, depth) => {
+    if (!recvTy || recvTy === NA_TY) return null
+    if (definedNames.has(method)) {
+      if (!bindableMethod(method)) return null
+      const tys = userArgTys(method, args, scope, tenv, depth, [recvTy])
+      return tys ? userCallTy(method, tys) : null
+    }
+    const ns = methodNsOf(recvTy)
+    if (!ns) return null
+    return collectionResultTy(`${ns}.${method}`,
+      [recvTy, ...(args || []).map((a) => exprTypeIn(argNode(a), scope, tenv, depth + 1))], null)
+  }
+
+  const BOOL_OPS = new Set(['==', '!=', '<', '>', '<=', '>=', 'and', 'or'])
+  const exprTypeIn = (node, scope, tenv, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 48) return null
+    switch (node.type) {
+      case 'number':
+        return makeTy(node.tok && (node.tok.value === 'true' || node.tok.value === 'false') ? 'bool' : 'num')
+      case 'string': return makeTy('text')
+      case 'colour': return makeTy('colour')
+      case 'name': return nameTyIn(node.name, scope, tenv, depth)
+      case 'offset': return exprTypeIn(node.arg, scope, tenv, depth + 1)
+      case 'ternary':
+        return joinTys([exprTypeIn(node.yes, scope, tenv, depth + 1), exprTypeIn(node.no, scope, tenv, depth + 1)])
+      case 'unary': {
+        if (node.op === 'not') return makeTy('bool')
+        const a = exprTypeIn(node.arg, scope, tenv, depth + 1)
+        return a && a.kind === 'num' ? a : null
+      }
+      case 'binary': {
+        if (BOOL_OPS.has(node.op)) return makeTy('bool')
+        const l = exprTypeIn(node.left, scope, tenv, depth + 1)
+        const r = exprTypeIn(node.right, scope, tenv, depth + 1)
+        if (l && r && l.kind === 'num' && r.kind === 'num') return makeTy('num')
+        if (node.op === '+' && l && r && l.kind === 'text' && r.kind === 'text') return makeTy('text')
+        return null
+      }
+      case 'member': {
+        const r = exprTypeIn(node.recv, scope, tenv, depth + 1)
+        const spec = r && r !== NA_TY && r.kind === 'udt' ? fieldSpec(r.name, node.name) : null
+        return spec ? writtenTyOf(spec.type, spec.typeArgs) : null
+      }
+      case 'method':
+        return methodResultTy(exprTypeIn(node.recv, scope, tenv, depth + 1), node.name, node.args, scope, tenv, depth)
+      case 'call': {
+        const name = String(node.name || '')
+        const ctor = udtCtorOf(node)
+        if (ctor) return makeTy('udt', { name: ctor.name })
+        // the method form: a dotted call whose head is a VALUE this lane can type
+        const uf = splitMethodName(name)
+        const recvTy = uf ? nameTyIn(uf.recv, scope, tenv, depth + 1) : null
+        if (recvTy) return methodResultTy(recvTy, uf.method, node.args, scope, tenv, depth)
+        if (isUserFn(name)) {
+          const tys = userArgTys(name, node.args, scope, tenv, depth)
+          return tys ? userCallTy(name, tys) : null
+        }
+        const typeArgs = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs : null
+        return collectionResultTy(name,
+          (node.args || []).map((a) => exprTypeIn(argNode(a), scope, tenv, depth + 1)), typeArgs)
+      }
+      default: return null
+    }
+  }
+
+  /** ⭐ THE VALUE OF A STATEMENT LIST (Pine: its last statement), with the
+   *  bindings in front of it typed into `tenv` as they are met. */
+  const listTyIn = (lines0, scope, tenv) => {
+    const lines = splitStatementCommas(lines0)
+    if (!lines || !lines.length) return null
+    const h = lastStatementAt(lines)
+    for (let k = 0; k < h; k += 1) {
+      const t = lines[k].header || []
+      if (blockKeywordOf(lines[k]) === 'else' || !isBindingHeader(t) || isPunct(t[0], '[')) continue
+      if (findTop(t, (x) => isPunct(x, ':=')) > 0 || findTop(t, isCompoundTok) > 0) continue
+      const eq = findTop(t, (x) => isPunct(x, '='))
+      const nt = boundName(t, eq)
+      if (!nt) continue
+      const v = rhsTyIn(lines, k, eq + 1, scope, tenv)
+      tenv.set(String(nt.value), bindingTy(declaredTyAt(t, eq), v === NA_TY ? null : v))
+    }
+    return lineTyIn(lines, h, scope, tenv)
+  }
+  /** What one line yields: an `if` chain, a `switch`, a binding (the value it
+   *  bound), a loop (`null`: not typed here), or an expression. */
+  const lineTyIn = (lines, h, scope, tenv) => {
+    const t = lines[h].header || []
+    const w = blockKeywordOf(lines[h])
+    if (w === 'if') return ifChainTyIn(lines, h, scope, tenv)
+    if (w === 'switch') return switchTyIn(lines[h].sub, scope, tenv)
+    if (w === 'for' || w === 'while') return null
+    if (isPunct(t[0], '[')) return null
+    const walrus = findTop(t, (x) => isPunct(x, ':='))
+    if (walrus > 0) return rhsTyIn(lines, h, walrus + 1, scope, tenv)
+    if (findTop(t, isCompoundTok) > 0) return null
+    if (isBindingHeader(t)) return rhsTyIn(lines, h, findTop(t, (x) => isPunct(x, '=')) + 1, scope, tenv)
+    if (lines[h].sub && lines[h].sub.length) return null
+    return exprTypeIn(parseWholeExpression(t), scope, tenv)
+  }
+  /** The right-hand side of the binding on line `k`, from token `from`. */
+  const rhsTyIn = (lines, k, from, scope, tenv) => {
+    const t = lines[k].header || []
+    const head = t[from]
+    if (head && head.kind === 'ident' && head.value === 'if') return ifChainTyIn(lines, k, scope, tenv)
+    if (head && head.kind === 'ident' && head.value === 'switch') return switchTyIn(lines[k].sub, scope, tenv)
+    return exprTypeIn(parseWholeExpression(t.slice(from)), scope, tenv)
+  }
+  /** An `if` / `else if` / `else` chain opened on line `at`: its arms' common
+   *  type. ⭐ With no final `else` an unmatched chain is `na` (v6 `bool`: `false`),
+   *  which takes the other arms' type, so a missing `else` adds no arm here. */
+  const ifChainTyIn = (lines, at, scope, tenv) => {
+    const arms = [listTyIn(lines[at].sub || [], scope, new Map(tenv || []))]
+    for (let k = at + 1; k < lines.length && blockKeywordOf(lines[k]) === 'else'; k += 1) {
+      const et = lines[k].header.slice(1)
+      arms.push(listTyIn(lines[k].sub || [], scope, new Map(tenv || [])))
+      if (!(et.length && et[0].kind === 'ident' && et[0].value === 'if')) break
+    }
+    return joinTys(arms)
+  }
+  /** A `switch`'s arms (`match => value`, or `match =>` and a block): their common
+   *  type. ⭐ With no default arm (a bare `=>`) an unmatched switch is `na`, which
+   *  takes the other arms' type, so it adds no arm here. */
+  const switchTyIn = (armLines, scope, tenv) => {
+    const arms = []
+    for (const arm of armLines || []) {
+      const ah = arm.header || []
+      const at = findTop(ah, (x) => isPunct(x, '=>'))
+      if (at < 0) return null
+      arms.push(ah.length > at + 1 ? exprTypeIn(parseWholeExpression(ah.slice(at + 1)), scope, tenv)
+        : listTyIn(arm.sub || [], scope, new Map(tenv || [])))
+    }
+    return joinTys(arms)
+  }
+
+  /** ⭐⭐ THE ENTRY POINT: a T3a descriptor, or `null` = "cannot tell". An `na`
+   *  value has no type of its own and answers `null` too. Body parse refusals
+   *  inside an inference already answer `null` there; one raised by the node
+   *  itself (it was parsed by the caller) cannot occur. */
+  const exprType = (node, scope) => {
+    const ty = exprTypeIn(node, scope, null, 0)
+    return ty === NA_TY ? null : plainTy(ty)
   }
 
   /** Lower an `array.*` call.
@@ -6011,7 +6607,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ P3 WS-B — a TUPLE built-in asked for its parts is taken apart in the
         // call arm below; the columnar lane reads it only through its own
         // destructure, so handed whole it refuses `pine:function`/`pine:arity`.
-        && !(opts && opts.multi && tupleBuiltinParts(node))) {
+        && !(opts && opts.multi && tupleBuiltinParts(node))
+        // ⭐⭐ S1 — nor a broker read: it is this lane's (`runtime/broker.js`).
+        && !holdsBrokerRead(node, scope)) {
       // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
       // PROVED. It looked necessary — the comment above says in as many words
       // that *"the ROUTE decision runs FIRST"*, and handling the name in the
@@ -6040,13 +6638,34 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // form is reached operator by operator (`splitForArms`), never as one column
       const splitForArms = armHistoryGuard(node, scope, true)
       lexForeign = false
-      const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
+      // ⭐ W3W4-D1 — THE DRAWING BUILD ASKS THE SAME QUESTION AS THE PLOT LANE, in a block
+      // of the main body only (a function body keeps its refusal): history WRITTEN in a block that
+      // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
+      // other shape is refused BY NAME below (never read from the every-bar column, which for a
+      // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
+      // ⛔ GATED (DRAWING_HISTORY_CAPTURED): with the gate off the drawing build is exactly master's, so
+      // every output, including a block local's `[1]`, is unchanged until W3N-D1 MATCHes.
+      const drawingHistory = objectsInRun && owner === null && r4Level() > 0
+        && drawingHistoryServed
+      const condHistory = (!objectsInRun || drawingHistory)
+        && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
       if (condHistory && r4Level() > 0) {
-        if (lexForeign) r4Guard('a series with history bound in another branch', locate(node.tok))
+        // the drawing build's refusal, by name (`r4Guard` itself stays the plot lane's)
+        const drawRefuse = (what) => {
+          note('runtime:conditional-history')
+          throw new RuntimeRefusal('runtime:conditional-history',
+            `${what} inside a block that does not run on every bar — `
+            + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', locate(node.tok))
+        }
+        if (lexForeign) {
+          if (objectsInRun) drawRefuse('a series with history bound in another branch')
+          r4Guard('a series with history bound in another branch', locate(node.tok))
+        }
         const served = servedCondCall(node, scope)
         if (served) return served
         if (!condTransparent(node)) {
+          if (objectsInRun) drawRefuse(node.type === 'call' ? `\`${node.name}\`` : 'a series with history')
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
         }
       } else if (!splitForArms && !mbbDynamicColumn(node, scope)) try {
@@ -6128,6 +6747,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (ORDER_ENUM[node.name] !== undefined
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
+        }
+        // ⭐⭐ S1 — A BROKER VALUE (`strategy.position_size`, ...), read from the run's
+        // broker; the two directions are the numbers the broker reads ([B-DIR]).
+        if (brokerMode && node.name.startsWith('strategy.')
+            && scope.lookup(node.name) === null && !env.has(node.name)) {
+          if (BROKER_VALUE_NAMES.includes(node.name)) return brokerCall(node.name, [], 'number')
+          if (node.name === 'strategy.long') return num(1)
+          if (node.name === 'strategy.short') return num(-1)
+          note('runtime:strategy-value')
+          throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}\``, locate(node.tok))
         }
         // ⭐⭐ A FIELD PATH THROUGH A USER-DEFINED TYPE — `ob.top`,
         // `sd.info.breakTime`. It arrives as ONE dotted `name` node because the
@@ -6555,6 +7184,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
+        // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
+        if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
+            && !definedNames.has(node.name)) {
+          const args = node.args || []
+          if (BROKER_TRADE_FNS.includes(node.name) && args.length === 1
+              && (!args[0].name || args[0].name === 'trade_num')) {
+            return brokerCall(node.name, [lowerExpr(args[0].value, scope)], 'number')
+          }
+          note('runtime:strategy-value')
+          throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}()\``, locate(node.tok))
+        }
         // RT5: `math.round_to_mintick(x)` IS `math.round(x / syminfo.mintick) * syminfo.mintick`
         // (Pine: the nearest multiple of the tick, ties up, as `math.round`); the
         // tick is the symbol's, settled at bind like every `syminfo.mintick`.
@@ -7062,7 +7702,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
         if (textInputHere(node)) return admitTextInput(node, scope)
-        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
+        if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)
         }
         // ⭐⭐ THE METHOD FORM IN VALUE POSITION — `a.size()` IS `array.size(a)`.
@@ -7092,9 +7732,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ W6-T3a — THE RECEIVER'S OWN FAMILY (`methodNsOf`): `m.rows()` on a
             // matrix is `matrix.rows(m)`. Only arrays are served, so only an
             // `array.*` member is ever admitted here.
-            const ns = methodNsOf(slotTy(rslot))
+            // ⭐ W6-T3b — the family is the RECEIVER EXPRESSION's type (`exprType`),
+            // which for a name is its slot's descriptor: identical for every receiver
+            // served today, and the one question T9's chains will ask.
+            const ns = methodNsOf(exprType({ type: 'name', name: uf.recv, tok: node.tok }, scope))
             const rew = methodFormCall(node, () => ns, (m) => definedNames.has(m))
-            if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
+            if (rew && heldArray(rew.node.name)) {
               return admitArrayCall(rew.node, scope, false)
             }
             // ⛔ AND A MEMBER THIS RUNTIME DOES NOT HOLD REFUSES BY THE
@@ -9160,9 +9803,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const t = arm.header || []
         const at = findTop(t, (x) => isPunct(x, '=>'))
         if (at < 0) return null
-        // (a CONTINUED inline arm, `c => close` / `      > open`, never yields a value here:
-        // its body is refused at compile — `simpleSwitchShape` declines it, and the block
-        // lowering says "ends in a block" — before any call reads this result)
+        // (a CONTINUED inline arm, `c => close` / `      > open`: off the object door it was
+        // joined into one header by `wrappedArmOf` (W34-I6a); at the door its body is refused at
+        // compile — `simpleSwitchShape` declines it, and the block lowering says "ends in a
+        // block" — before any call reads this result)
         const r = at < t.length - 1 ? [t.slice(at + 1)] : bodyResultToks(arm.sub, d + 1)
         if (!r) return null
         out.push(...r)
@@ -9369,6 +10013,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label ? `${label} ` : ''}switch …\` has no \`=>\``, locate(arm.header[0]))
       }
+      // ⛔ W34-I6a: wrapped lines AND a line at a block indent under one inline arm. Pine's
+      // line-wrapping rule does not say whose statement that line is (see `wrappedArmOf`).
+      if (arm.wrapMixed) {
+        throw new RuntimeRefusal('runtime:block-value',
+          `an arm of \`${label ? `${label} ` : ''}switch …\` wraps onto a continuation line and also has a line at a block indent (a multiple of four) beneath it; Pine's line-wrapping rule does not say which statement that line belongs to`,
+          locate(arm.header[0]))
+      }
       // ⛔ P3 WS-A — THE DEFAULT IS THE LAST ARM. An arm after it (a second
       // default included) has no reading this lane may pick: run in order, the
       // default would shadow it; hoisted, the order changes. No capture says
@@ -9397,8 +10048,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
         const at2 = findTop(arm.header, (t) => isPunct(t, '=>'))
         const rhs = arm.header.slice(at2 + 1)
-        // (a continued inline arm, `c => close` / `      > open`, never reaches here: the arm
-        // lowering above refuses it first — "ends in a block")
+        // (a continued inline arm, `c => close` / `      > open`, arrives joined into one
+        // header off the object door (W34-I6a, `wrappedArmOf`); at the door the arm lowering
+        // above refuses it first — "ends in a block")
         return rhs.length ? rhs : armValueToks(arm.sub)
       }), locate(atTok), 'a `switch` with no default')) fallback = mkArm.falseFallback()
     }
@@ -9835,6 +10487,249 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return hit
   }
 
+  // ── ⭐⭐ W6-T6 — `for x in <collection>` / `for [i, x] in <collection>` ─────────────────
+  //
+  // Lowered onto the plain `for` (`lowerIr.js` STMT.FOR, `live`), with no new op:
+  //
+  //   <list>  = the collection, read ONCE        (a user array: the array itself, a
+  //                                               reference; `<family>.all`: a SNAPSHOT)
+  //   <pass>  = 0
+  //   while <pass> < array.size(<list>)          (the length RE-READ before every pass)
+  //       i = <pass>;  x = array.get(<list>, <pass>)   (the slot read when the pass reaches it)
+  //       body
+  //       <pass> += 1                            (`continue` lands here, as in `for`)
+  //
+  // ⭐ THE WALK RULE IS `forInRule.js`, the table the host object lane reads too: a body may
+  // change the list it walks by push / shift / set (C48, F03-F05, witnessed live); `<family>.all`
+  // is a snapshot (A02-A06). `<list>` and `<pass>` live in slots no Pine name can reach.
+  // `x` is typed by T3b's `exprType` (`array.get` over the list's descriptor), so `x.top` reads a
+  // record field and `line.set_x2(x, …)` a drawing; a list whose element type is not written
+  // types `x` exactly as the member's own `x = array.get(list, i)` binding is typed.
+  // ⛔ REFUSED BY NAME (`runtime:loop`), each with its capture row (W6-F1 / the G-row grading):
+  // any other change of the walked list (and one that MAY reach it through another name); a
+  // write to the loop variable or through it; a `for … in` inside a function body or whose
+  // value is read; `polyline.all`, a matrix, a map; a list this lane cannot type.
+  // ⛔ AT THE OBJECT DOOR the host object lane serves `for … in`; the door keeps refusing it
+  // (`objectDoorRefuses`) until measure-pair proves its output identical.
+  let forInFnDefs = null
+  const lowerForIn = (st, toks, first, scope, out) => {
+    const refuse = (why) => {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', why ? `\`for … in\`: ${why}` : '`for … in`', locate(first))
+    }
+    if (atObjectDoor) objectDoorRefuses('a `for … in` loop', locate(first))
+    // ⛔ the host object pass's lane (`objectLane.js`) reads per-row values off counted loops
+    // only; it keeps master's answer.
+    if (Array.isArray(opts.objectIterTrees)) refuse(null)
+    if (takeLoopSink()) refuse('the value of a `for … in` loop is not yet captured (W6-F1)')
+    if (owner !== null) refuse('inside a function body, where each call site walks its own list, is not yet captured (W6-F1)')
+    // `for x in SRC` | `for [i, x] in SRC`
+    let idxTok = null
+    let elemTok = null
+    let inAt = -1
+    if (isPunct(toks[1], '[')) {
+      if (toks[2] && toks[2].kind === 'ident' && isPunct(toks[3], ',') && toks[4] && toks[4].kind === 'ident'
+          && isPunct(toks[5], ']')) { idxTok = toks[2]; elemTok = toks[4]; inAt = 6 }
+    } else if (toks[1] && toks[1].kind === 'ident') { elemTok = toks[1]; inAt = 2 }
+    if (!elemTok || !toks[inAt] || toks[inAt].kind !== 'ident' || toks[inAt].value !== 'in') {
+      refuse('a loop header this lane does not read')
+    }
+    const srcToks = toks.slice(inAt + 1)
+    if (srcToks.length !== 1 || srcToks[0].kind !== 'ident') refuse('the walked collection is not a name or `<family>.all`')
+    const src = String(srcToks[0].value)
+    const elem = String(elemTok.value)
+    const idx = idxTok ? String(idxTok.value) : null
+    if (elem.includes('.') || (idx !== null && idx.includes('.'))) refuse('a loop variable is not a plain name')
+    if (src === 'polyline.all') refuse('`polyline.all` is not yet captured (W6-F1)')
+    const family = scope.lookup(src) === null && Object.prototype.hasOwnProperty.call(FOR_IN_SNAPSHOT_SOURCES, src)
+      ? FOR_IN_SNAPSHOT_SOURCES[src] : null
+    const srcNode = { type: 'name', name: src, tok: srcToks[0] }
+    const srcTy = family ? makeTy('array', { elem: makeTy('drawing', { name: family }) }) : exprType(srcNode, scope)
+    if (!srcTy) refuse(`the type of \`${src}\` cannot be told`)
+    if (srcTy.kind === 'matrix' || srcTy.kind === 'map') refuse(`a walk over a ${srcTy.kind} is not yet captured (W6-F1)`)
+    if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
+    if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
+    const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
+    // ⭐ C48 — a body that changes its own list walks it LIVE, by push / shift / set only.
+    if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
+    // ⛔ (review N1) …a list the element holds, changed in the body (`array.push(x.arr, v)`).
+    if (forInChangesHeldList(st.sub, elem, rule)) refuse(forInHeldListRefusal(elem))
+    // ⛔ …and a change by anything else to a list that MAY be the walked one under another name
+    // (an alias holds the same array): another list of the same type, one this lane cannot
+    // type, or any list a called function changes. A list of another type cannot be it, and
+    // neither can one the body itself binds to a NEW array and never reassigns
+    // (`var line[] tmp = array.new_line(n)` inside the loop).
+    if (!family) {
+      const fresh = forInFreshLocals(st.sub)
+      for (const t of forInUnwitnessedTargets(st.sub, rule)) {
+        if (t === src || (t !== null && fresh.has(t) && !forInWrites(st.sub, t))) continue
+        const ty = t === null ? null : exprType({ type: 'name', name: t, tok: first }, scope)
+        if (!ty || tyKey(ty) === tyKey(srcTy)) {
+          refuse(`the body changes \`${t === null ? 'a list a called function is handed' : t}\`, which may be \`${src}\`, `
+            + `by more than ${[...FOR_IN_LIVE_WITNESSED].join(' / ')}`)
+        }
+      }
+    }
+    // ⛔ W6-F1 — a write to the loop variable, or through it (a field of the element).
+    for (const v of [elem, idx]) {
+      if (v !== null && forInWrites(st.sub, v)) refuse(`the body writes the loop variable \`${v}\` or through it, not yet captured (W6-F1)`)
+    }
+    // …and handing the element to a function that writes a field or changes a list held in one
+    // (at any depth of its calls):
+    // the element is a reference, so that is a write through `x` too.
+    if (forInHandsOn(st.sub, elem, rule)) {
+      refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
+    }
+
+    const at = `for … in@${first.line}:${first.column}`
+    const outer = new Scope(scope)
+    const listName = `${at} list`
+    const passName = `${at} pass`
+    const listSlot = outer.declare(listName, newSlot(listName, false))
+    setSlotTy(listSlot, srcTy)
+    out.push(declare(listSlot, lowerExpr(srcNode, scope)))
+    const passSlot = outer.declare(passName, newSlot(passName, false))
+    setSlotTy(passSlot, makeTy('num'))
+    const listRead = () => ({ type: 'name', name: listName, tok: first })
+    const inner = new Scope(outer)
+    const pre = []
+    if (idx !== null) {
+      const idxSlot = inner.declare(idx, newSlot(idx, false))
+      setSlotTy(idxSlot, makeTy('num'))
+      pre.push(declare(idxSlot, read(passSlot)))
+    }
+    const getNode = { type: 'call', name: 'array.get', tok: first,
+      args: [{ name: null, value: listRead(), tok: first }, { name: null, value: { type: 'name', name: passName, tok: first }, tok: first }] }
+    const elemSlot = inner.declare(elem, newSlot(elem, false))
+    setSlotTy(elemSlot, initialiserTy(getNode, outer))
+    pre.push(declare(elemSlot, lowerExpr(getNode, outer)))
+    loopDepth += 1
+    let body
+    try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1 }
+    const sizeNode = { type: 'call', name: 'array.size', tok: first, args: [{ name: null, value: listRead(), tok: first }] }
+    out.push(forStmt({
+      slot: passSlot, toSlot: newSlot(`${at} length`, false), stepSlot: newSlot(`${at} step`, false),
+      from: num(0), to: lowerExpr(sizeNode, outer), step: num(1), body: [...pre, ...body], live: true,
+    }))
+  }
+  /** Every list the statements (and, transitively, every user function they call) change by
+   *  a member no capture witnesses: its name, or `null` for a change inside a called function
+   *  (whose list this lane cannot name). */
+  const forInUnwitnessedTargets = (list, rule) => {
+    const out = new Set()
+    const seen = new Set()
+    const scanList = (items, inFn) => {
+      for (const s2 of items || []) {
+        const ts = s2.header || []
+        for (let i = 0; i < ts.length; i += 1) {
+          const tk = ts[i]
+          if (!tk || tk.kind !== 'ident') continue
+          const v = String(tk.value)
+          if (!isPunct(ts[i + 1], '(')) continue
+          const m = splitMethodName(v)
+          let target
+          if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && !FOR_IN_LIVE_WITNESSED.has(v.slice(6))) {
+            target = ts[i + 2] && ts[i + 2].kind === 'ident' ? String(ts[i + 2].value) : null
+          } else if (m && COLLECTION_MUTATORS.has(m.method) && !FOR_IN_LIVE_WITNESSED.has(m.method) && !rule.isDefined(m.method)) {
+            target = m.recv
+          }
+          if (target !== undefined) out.add(inFn ? null : target)
+          const fn = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+          if (fn && !seen.has(fn)) { seen.add(fn); scanList(rule.fnDefs.get(fn).body, true) }
+        }
+        scanList(s2.sub, inFn)
+      }
+    }
+    scanList(list, false)
+    return out
+  }
+  /** The names the statements bind (`[var] [type] name = …`, at any depth) to a NEW array: the
+   *  right-hand side is one `array.new*` / `array.from` / `array.copy` call. */
+  const forInFreshLocals = (list, out = new Set()) => {
+    for (const s2 of list || []) {
+      const ts = s2.header || []
+      const eq = findTop(ts, (x) => isPunct(x, '='))
+      const nt = eq > 0 ? ts[eq - 1] : null
+      const head = ts[eq + 1]
+      if (nt && nt.kind === 'ident' && head && head.kind === 'ident' && isPunct(ts[eq + 2], '(')
+          && (/^array\.new(_[a-z]+)?$/.test(String(head.value)) || head.value === 'array.from' || head.value === 'array.copy')
+          && closeOfToks(ts, eq + 2) === ts.length - 1) {
+        out.add(String(nt.value))
+      }
+      forInFreshLocals(s2.sub, out)
+    }
+    return out
+  }
+  /** The index closing the bracket opened at `open`, or -1. */
+  const closeOfToks = (ts, open) => {
+    let depth = 0
+    for (let k = open; k < ts.length; k += 1) {
+      if (isPunct(ts[k], '(') || isPunct(ts[k], '[')) depth += 1
+      else if (isPunct(ts[k], ')') || isPunct(ts[k], ']')) { depth -= 1; if (depth === 0) return k }
+    }
+    return -1
+  }
+  /** Does a statement write `name` (`name := …`, `name += …`, `[…, name] := …`) or a field
+   *  through it (`name.f := …`)? */
+  const forInWrites = (list, name) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    const hit = ts.some((tk, i) => tk && tk.kind === 'ident'
+      && (String(tk.value) === name || String(tk.value).startsWith(`${name}.`))
+      && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value))
+    const tuple = isPunct(ts[0], '[') && findTop(ts, (x) => isPunct(x, ':=')) > 0
+      && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
+    return hit || tuple || forInWrites(s2.sub, name)
+  })
+  /** ⛔ (review N1) Does a statement change a list held by `name` (`array.push(name.arr, v)`,
+   *  `name.arr.push(v)`, at any depth)? The call shape is `forInRule.js::heldListMutation`. */
+  const forInChangesHeldList = (list, name, rule) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    return ts.some((_, i) => {
+      const t = heldListMutation(ts, i, rule)
+      return t !== null && (t === name || t.startsWith(`${name}.`))
+    }) || forInChangesHeldList(s2.sub, name, rule)
+  })
+  /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
+   *  change a list held in one (`array.push(p.arr, v)`)? */
+  const forInFnWritesField = (fn, rule, seen = new Set()) => {
+    if (seen.has(fn) || !rule.fnDefs.has(fn)) return false
+    seen.add(fn)
+    const scan = (items) => (items || []).some((s2) => {
+      const ts = s2.header || []
+      return ts.some((tk, i) => {
+        if (!tk || tk.kind !== 'ident') return false
+        const v = String(tk.value)
+        if (v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value)) return true
+        if (heldListMutation(ts, i, rule) !== null) return true
+        if (!isPunct(ts[i + 1], '(')) return false
+        const m = splitMethodName(v)
+        const callee = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+        return !!callee && forInFnWritesField(callee, rule, seen)
+      }) || scan(s2.sub)
+    })
+    return scan(rule.fnDefs.get(fn).body)
+  }
+  /** Is `name` handed to a user function that writes a field (an argument, or the receiver of
+   *  a script's method)? */
+  const forInHandsOn = (list, name, rule) => (list || []).some((s2) => {
+    const ts = s2.header || []
+    const here = ts.some((tk, i) => {
+      if (!tk || tk.kind !== 'ident' || !isPunct(ts[i + 1], '(')) return false
+      const v = String(tk.value)
+      const m = splitMethodName(v)
+      const fn = rule.fnDefs.has(v) ? v : (m && rule.fnDefs.has(m.method) ? m.method : null)
+      if (!fn || !forInFnWritesField(fn, rule)) return false
+      if (m && m.recv === name) return true
+      let depth = 0
+      for (let k = i + 1; k < ts.length; k += 1) {
+        if (isPunct(ts[k], '(') || isPunct(ts[k], '[')) depth += 1
+        else if (isPunct(ts[k], ')') || isPunct(ts[k], ']')) { depth -= 1; if (depth === 0) return false }
+        else if (ts[k].kind === 'ident' && String(ts[k].value).split('.')[0] === name) return true
+      }
+      return false
+    })
+    return here || forInHandsOn(s2.sub, name, rule)
+  })
   const lowerStmts = (list0, scope, rootHoist = false, fnHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
@@ -9907,9 +10802,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `strategy.*` VALUE still refuses by name, because it is a fill this engine never
       // simulates. ⛔ ONLY THE CALL FORM `strategy(`: a bare `strategy` word in any other
       // position is not a declaration and keeps refusing.
-      if (word === 'strategy' && isPunct(toks[1], '(')) { note('runtime:strategy-chart'); continue }
+      if (word === 'strategy' && isPunct(toks[1], '(')) {
+        note('runtime:strategy-chart')
+        // ⭐⭐ S1 — the broker's properties come from this declaration ([B-DECL]).
+        if (brokerMode) {
+          try { brokerDecl = readStrategyDeclaration(parseWholeExpression(toks), pineVersion) } catch (e) {
+            throw brokerRefusal(e, first)
+          }
+        }
+        continue
+      }
       if (word && STRATEGY_ORDER_CALLS.has(word) && isPunct(toks[1], '(')) {
         note('runtime:strategy-order')
+        // ⭐⭐ S1 — with the broker on, an order call is an ORDER, lowered as one.
+        if (brokerMode) {
+          if (!BROKER_ORDER_OPS.includes(word)) {
+            note('runtime:strategy-option')
+            throw new RuntimeRefusal('runtime:strategy-option', `\`${word}()\``, locate(first))
+          }
+          let placed
+          try { placed = orderArgsOf(word, parseWholeExpression(toks), pineVersion) } catch (e) {
+            throw brokerRefusal(e, first)
+          }
+          out.push(exprStmt(brokerCall(word, placed.map((n) => (n === null ? null : lowerExpr(n, scope))), 'void'), 0))
+        }
         continue
       }
       // ⛔ AND ONLY THE CALL FORM IS A DECLARATION. `liquidity-engulfing-candles-upslidedown`
@@ -9980,13 +10896,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ AN OVERLOADED NAME STILL REFUSES. Pine picks among same-named methods
       // by the receiver's TYPE, and this lane does not type a receiver — binding
       // whichever came last would run a method the member did not call.
-      if (word === 'method') {
+      // ⭐⭐ W6-T2 — `method` IS A KEYWORD ONLY IN THE SHAPE `method <ident>`, AND ONLY FROM v5.
+      // `method` arrived in Pine v5, so in a v3/v4 script `method = input(…)`, `method := …` and
+      // `method` as an argument are an ordinary name (the same test `collectUdtTypes` applies to
+      // `type`, and `scanDefs` already applies to the declaration count). ⛔ In v5+ (or an
+      // unversioned script) `method = …` is a keyword misuse TradingView rejects: no capture shows
+      // what it would answer, so it keeps refusing by name below rather than serving a value.
+      const methodIsName = word === 'method' && !(toks[1] && toks[1].kind === 'ident')
+        && pineVersion !== null && pineVersion < 5
+      if (word === 'method' && !methodIsName) {
         const mName = toks[1] && toks[1].kind === 'ident' ? String(toks[1].value) : null
         if (!mName || !bindableMethod(mName)) {
           note('runtime:udt-method')
           throw new RuntimeRefusal('runtime:udt-method',
             mName ? `\`${mName}\` is declared more than once (or also as a plain function), and Pine `
-              + 'chooses among them by the receiver\'s type, which this lane does not resolve' : null,
+              + 'chooses among them by the receiver\'s type, which this lane does not resolve'
+              : '`method` is a keyword from Pine v5 and is not a declaration here (no `method <name>(`); '
+                + 'only a v3/v4 script may use it as a name',
             locate(first))
         }
         toks = toks.slice(1)
@@ -10027,8 +10953,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // rather than falling to "a `for` needs `name = from to to`", which reads as
       // a typo in a script that is perfectly good Pine.
       if (word === 'for' && findTop(toks, (x) => x.kind === 'ident' && x.value === 'in') > 0) {
-        note('runtime:loop')
-        throw new RuntimeRefusal('runtime:loop', '`for … in`', locate(first))
+        lowerForIn(st, toks, first, scope, out)
+        continue
       }
       if (word === 'for') {
         const loopSink = takeLoopSink()
@@ -10907,7 +11833,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // reasoning about the wrong branch.
         // ⭐ C11 — AND A COLLECTION CALL THAT RETURNS A VALUE IS A STATEMENT TOO
         // (`array.shift(a)` to drop the oldest element), its one value dropped.
-        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, word)) {
+        if (heldArray(word)) {
           const callNode = parseWholeExpression(toks)
           // ⭐ RT5 — `array.get(lines, 0).delete()`: a drawing method on an element.
           if (objectsInRun && callNode && callNode.type === 'method') {
@@ -10964,10 +11890,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             continue
           }
           if (rslot !== null && slotIsCollection(rslot)) {
-            const ns = methodNsOf(slotTy(rslot))
+            const ns = methodNsOf(exprType({ type: 'name', name: uf.recv, tok: first }, scope))
             const rew = methodFormCall(parseWholeExpression(toks),
               () => ns, (m) => definedNames.has(m))
-            if (rew && ARRAY_FNS[rew.node.name]) {
+            if (rew && heldArray(rew.node.name)) {
               out.push(arrayStmt(rew.node, scope))
               continue
             }
@@ -11139,6 +12065,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // before the body compiles, so a definition whose body is HELD still has them.
     if (withDefaults && !spec) fnDefaultsByName.set(nameTok.value, withDefaults.defaults)
     if (!spec) fnParamNamesByName.set(nameTok.value, params)
+    // ⭐ W6-T3b — the definition `exprType` infers a call's result from; a second
+    // definition of the name (an overload) leaves `false`: typed by T9, not here.
+    if (!spec) {
+      const prevSrc = fnSourceByName.get(nameTok.value)
+      fnSourceByName.set(nameTok.value,
+        prevSrc === undefined || (prevSrc && prevSrc.st === st) ? { st, toks, arrow, params } : false)
+    }
     const fnIndex = functions.length
     const record = {
       name: nameTok.value, params: params.length, compiling: true,
@@ -11949,6 +12882,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // list — a branch body, a loop body, a function body — and lowers with no
     // sink on purpose (see `stmtHoistSink`).
     statements = lowerStmts(stmts, root, true)
+    // ⭐⭐ S1 — the broker reads the symbol's tick and point value through the columnar
+    // lane's own authority (`syminfo.*`, settled per symbol at bind), first on every bar.
+    if (brokerMode) {
+      if (!brokerDecl) throw new RuntimeRefusal('runtime:strategy-option', 'no strategy() declaration was read', null)
+      const at = { line: 1, column: 1 }
+      statements = [exprStmt(brokerCall('#symbol', [
+        lowerExpr({ type: 'name', name: 'syminfo.mintick', tok: at }, root),
+        lowerExpr({ type: 'name', name: 'syminfo.pointvalue', tok: at }, root),
+      ], 'void'), 0), ...statements]
+    }
     // ⛔ C18 — every positional value must have been emitted (see `objectAt`).
     const missed = (opts.objectTreesAt || []).map((_, k) => k).filter((k) => !objectAtEmitted.has(k))
     if (missed.length) {
@@ -12283,13 +13226,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
       ...(objectsInRun ? { objectCaps: declaredCapsOf(strippedForScan(source)) } : {}),
+      ...(brokerMode ? { broker: brokerDecl } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to
   // render a buffer's value, and which nothing downstream of the program reads.
-  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters }
+  // ⭐ W6-T3b — TEST PROBE ONLY (`opts.exprTypeProbe === true`): `exprTypeOf(text)`
+  // answers `exprType` of one expression read in the finished program's root
+  // scope. Nothing in the engine passes the option, so no served result carries it.
+  const probe = opts.exprTypeProbe === true ? {
+    exprTypeOf: (text) => exprType(parseWholeExpression(lexPine(String(text)).tokens), root),
+  } : {}
+  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters, ...probe }
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.

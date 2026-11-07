@@ -1131,6 +1131,8 @@ def main():
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
     # OBSERVE ONLY (2026-11-06): see api/services/mem_observe.py. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    # It also logs per-file page-cache residency (MEM_OBSERVE_FILES=0 stops that part). mem_observe.py is NOT
+    # on flow-worker's watch list: a change there alone never redeploys this service; touch this file too.
     try:
         from api.services import mem_observe
         mem_observe.start("flow-worker", mem_observe.FLOW_WORKER_TARGETS)

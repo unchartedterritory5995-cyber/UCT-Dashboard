@@ -100,7 +100,13 @@
 /** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
 /** 17 = W4-T15 (train): function and statement forms (named/default user args, one-line binding bodies, loop-end values, log.* statements) are served on the runtime lane */
 /** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
-export const SCRIPT_ENGINE_VERSION = 18
+/** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
+/** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
+/** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
+/** 22 = W34-I6a: a `switch` arm that wraps onto a continuation line is served on the runtime lane; an arm mixing wrap and block lines is refused by name */
+/** 23 = W34-I4b: a v1/v2 (or no-pragma) self-reference's bar 0 on a run from the listing is withheld unless both seeds (na, 0) agree, not guessed */
+/** 24 = W34-I4: a v1/v2 self-referencing definition whose every self read is `nz(x[k])` runs as a slot on the runtime lane instead of refusing `pine:state` */
+export const SCRIPT_ENGINE_VERSION = 24
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

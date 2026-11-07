@@ -99,6 +99,7 @@ export function lowerIrProgram(ir, opts = {}) {
   const recordTypes = []
   const fieldNames = []
   const objectOps = []
+  const brokerOps = []
 
   const constIndex = (v) => {
     // ⛔ `indexOf` CANNOT FIND NaN (`NaN !== NaN`), so an `na` would push a new
@@ -148,6 +149,16 @@ export function lowerIrProgram(ir, opts = {}) {
     }
     objectOps.push({ fn, present: present.slice(), returns })
     return objectOps.length - 1
+  }
+  // ⭐⭐ S1 — KEYED LIKE A DRAWING OP: name, which parameters were passed, returns.
+  const brokerIndex = (fn, present, returns) => {
+    const key = `${fn}|${present.map((x) => (x ? 1 : 0)).join('')}|${returns}`
+    for (let i = 0; i < brokerOps.length; i += 1) {
+      const o = brokerOps[i]
+      if (`${o.fn}|${o.present.map((x) => (x ? 1 : 0)).join('')}|${o.returns}` === key) return i
+    }
+    brokerOps.push({ fn, present: present.slice(), returns })
+    return brokerOps.length - 1
   }
   // ⛔⛔ KEYED BY THE TYPE NAME **AND** ITS FIELD LIST, for the reason
   // `arrayIndex` is keyed by name and type argument. Interning on the NAME
@@ -253,6 +264,16 @@ export function lowerIrProgram(ir, opts = {}) {
         let n = 0
         for (const a of e.args) if (a !== null) { expr(a); n += 1 }
         emit(OP.OBJECT, objectIndex(e.fn, present, e.returns), n)
+        return
+      }
+      // ⭐⭐ S1 — the same shape for a broker op: the PASSED arguments, then one
+      // instruction naming the op and which parameters they are.
+      case EXPR.BROKER: {
+        if (!ir.broker) throw new LoweringGap('a broker op', `\`${e.fn}\` in a program that declares no broker`)
+        const present = e.args.map((a) => a !== null)
+        let n = 0
+        for (const a of e.args) if (a !== null) { expr(a); n += 1 }
+        emit(OP.BROKER, brokerIndex(e.fn, present, e.returns), n)
         return
       }
       // ⭐ THE SAME SHAPE AS `TEXT`/`ARRAY`: the field values are pushed in
@@ -645,6 +666,41 @@ export function lowerIrProgram(ir, opts = {}) {
           const store = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.STORE_PERSIST : OP.STORE_LOCAL, sl.index)
           const load = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.LOAD_PERSIST : OP.LOAD_LOCAL, sl.index)
 
+          // ⭐⭐ W6-T6 — A `for … in` WALK (`live`, `ir.js::forStmt`): the list's length is
+          // RE-READ before every pass and the walk only ever counts UP by `step`, so a body that
+          // shifts or pushes the list it walks changes the pass count as TradingView's does
+          // (C48, `vw-forin-collections` F03 / F04), and an empty list runs no pass.
+          //
+          //     i = from
+          //   top:
+          //     LOOP_TICK depth
+          //     to = <length>                 (re-read: the exclusive bound)
+          //     if not (i < to) → end
+          //     body
+          //     i = i + step                  (`continue` lands here)
+          //     jump top
+          //   end:                            (`break` lands here)
+          if (s.live === true) {
+            expr(s.from); store(i)
+            const top = here()
+            emit(OP.LOOP_TICK, loops.length + 1)
+            expr(s.to); store(toS)
+            load(i); load(toS); emit(OP.LT)
+            const exitJump = here()
+            emit(OP.JUMP_IF_FALSE, 0)
+            loops.push({ breaks: [], continues: [] })
+            stmts(s.body)
+            const frame = loops.pop()
+            const contTarget = here()
+            load(i); expr(s.step); emit(OP.ADD); store(i)
+            emit(OP.JUMP, top)
+            const endTarget = here()
+            patch(exitJump, 1, endTarget)
+            for (const at of frame.continues) patch(at, 1, contTarget)
+            for (const at of frame.breaks) patch(at, 1, endTarget)
+            break
+          }
+
           expr(s.from); store(i)          // i = from
           expr(s.to); store(toS)          // to = <evaluated once>
 
@@ -766,6 +822,11 @@ export function lowerIrProgram(ir, opts = {}) {
           // nothing; one that returns (`line.new(…)` on a line of its own) is a
           // call-for-effect and carries its drop count below.
           if (s.value && s.value.kind === EXPR.OBJECT_OP && s.value.returns === 'void') {
+            expr(s.value)
+            break
+          }
+          // ⭐⭐ S1 — an ORDER command (`strategy.entry(…)`) leaves nothing either.
+          if (s.value && s.value.kind === EXPR.BROKER && s.value.returns === 'void') {
             expr(s.value)
             break
           }
@@ -898,6 +959,11 @@ export function lowerIrProgram(ir, opts = {}) {
     arrayOps,
     objectOps,
     objectCaps: ir.objectCaps || {},
+    brokerOps,
+    // ⭐⭐ S1 — the broker's declaration, stamped with whether this run starts at the
+    // symbol's listing: a backtest is path-dependent, so the VM runs a broker only
+    // from TradingView's own first bar ([B-START], `docs/pine/strategy-broker-spec.md`).
+    broker: ir.broker ? { ...ir.broker, fromListing: !!(opts && opts.historyFromListing === true) } : null,
     recordTypes,
     fieldNames,
     requests,
