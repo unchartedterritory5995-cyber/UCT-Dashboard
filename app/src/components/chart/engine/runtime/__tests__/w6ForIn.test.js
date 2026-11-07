@@ -234,6 +234,7 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
       ['X14 stored by a function whose result is the walked list', 'type Q\n    float v\n    array<float> arr\nvar vals = array.new_float()\nmk(array<float> v) =>\n    array.from(Q.new(1.0, v))\nqs = mk(vals)\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n', NOT('vals')],
       ['X17 stored in the walked list\'s own binding', 'type Q\n    float v\n    array<float> arr\nvar vals = array.new_float()\nvar qs = array.from(Q.new(1.0, vals))\nfor q in qs\n    array.push(vals, 1.0)\nplot(close)\n', NOT('vals')],
       ['a global changed by name by a function the body calls', `${TQ}${fill}pre = array.get(qs, 0).arr\ntouch() =>\n    array.push(pre, 1.0)\nfor q in qs\n    touch()\nplot(close)\n`, msg('through `pre`, not provably independent of it, changed by `touch`')],
+      ['a function that changes a held list through a LOCAL alias (review N-A, Z10)', `${TQ}${fill}f() =>\n    l = array.get(qs, 0).arr\n    array.push(l, 1.0)\nfor q in qs\n    f()\nplot(close)\n`, msg('through `l`, not provably independent of it, changed by `f`')],
       ['a non-independent list handed to a function that changes it', `${TQ}${fill}bumpq(array<float> a) =>\n    array.push(a, 1.0)\npre = array.get(qs, 0).arr\nfor q in qs\n    bumpq(pre)\nplot(close)\n`, msg('handed to `bumpq`, which changes it')],
     ]
     for (const [id, src, want] of holes) {
