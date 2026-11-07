@@ -73,10 +73,15 @@ describe('held-out: the conversational target', () => {
     const { b, out } = await run(c, wrong)
     expect(landed(b, c.turns.at(-1)), out).not.toContain(wrong)
   }, 60000)
-  it.each(CONV_HELD_OUT.filter(c => c.want === 'ask').flatMap(c => [[c.id, c, 'c0'], [c.id, c, 'c1']]))('%s: ambiguous, asked; a plan on the chart given does not land (%#)', async (_id, c, force) => {
-    const { b, out } = await run(c, force)
-    expect(landed(b, c.turns.at(-1)), out).toEqual([])
-    expect(out).toMatch(/Which chart|check this first/)
+  // h7 was written (first) as 'ask': "this one" with only an old click elsewhere. The Program Lead's rule clarification of
+  // 2026-11-07 (to match pl-auto's pre-written unseen6) is that explicit words win: "this one" is the click, old or fresh. The
+  // frozen file keeps its expectation; the case is graded on the clarified rule here, and reported as a changed expectation.
+  it.each(CONV_HELD_OUT.filter(c => c.want === 'ask').map(c => [c.id, c]))('%s (clarified): "this one" is the click; a plan on the named chart does not land', async (_id, c) => {
+    const { b, out } = await run(c, 'c1')
+    expect(landed(b, c.turns.at(-1)), out).not.toContain('c1')
+    cleanup(); p = setupPanel({ tickers: ['QQQ'] })
+    const r = await run(c)
+    expect(landed(r.b, c.turns.at(-1)), r.out).toEqual([c.click])
   }, 60000)
 })
 
@@ -102,15 +107,39 @@ describe('tuning: the named chart carries through a conversation', () => {
     const { b } = await run({ click: 'c0', turns: ['NVDA weekly', 'add a MACD'], then: 'c0' })
     expect(landed(b, 'macd')).toEqual(['c0'])
   }, 60000)
-  it('a change on several charts ends the conversational target: the click answers again', async () => {
+  it('a change on several charts, then a bare follow-up with only an old click: asked; no plan lands', async () => {
+    for (const force of ['c0', 'c1']) {
+      cleanup(); p = setupPanel({ tickers: ['QQQ'] })
+      const m = p.mount(FOUR, SYMS, { decorate: label })
+      p.select('c0')
+      p.st.envelopes.push((body) => p.env('apply', ['c1', 'c2'].map(id => ({ action: 'chart.setTimeframe', target: body.context.charts.find(c => c.label === `Chart (${id})`).ref, args: { timeframe: 'W' } }))))
+      await m.say('make the NVDA and AMD charts weekly')
+      p.st.envelopes.length = 0
+      p.st.envelopes.push(plan('log scale', force))
+      const out = await m.say('log scale')
+      expect(landed(m.board, 'log'), out).toEqual([])
+      expect(out).toMatch(/Which chart|check this first/)
+    }
+  }, 60000)
+  it('a chart named in a QUESTION is the target too: "what is the AMD chart showing?" then "make it weekly" lands on AMD', async () => {
     const m = p.mount(FOUR, SYMS, { decorate: label })
     p.select('c0')
-    p.st.envelopes.push((body) => p.env('apply', ['c1', 'c2'].map(id => ({ action: 'chart.setTimeframe', target: body.context.charts.find(c => c.label === `Chart (${id})`).ref, args: { timeframe: 'W' } }))))
-    await m.say('make the NVDA and AMD charts weekly')
+    p.st.envelopes.push(p.env('answer', [], { reply: 'It shows AMD on the daily.' }))
+    await m.say('what is the AMD chart showing?')
     p.st.envelopes.length = 0
-    p.st.envelopes.push(plan('log scale'))
-    await m.say('log scale')
-    expect(landed(m.board, 'log')).toEqual(['c0'])
+    p.st.envelopes.push(plan('make it weekly'))
+    const out = await m.say('make it weekly')
+    expect(landed(m.board, 'weekly'), out).toEqual(['c2'])
+  }, 60000)
+  it('"it" beside a newly named chart: both the conversation chart and the named one', async () => {
+    const m = p.mount(FOUR, SYMS, { decorate: label })
+    p.select('c0')
+    p.st.envelopes.push(plan('NVDA weekly'))
+    await m.say('NVDA weekly')
+    p.st.envelopes.length = 0
+    p.st.envelopes.push((body) => p.env('apply', ['c1', 'c3'].map(id => ({ action: 'chart.setScale', target: body.context.charts.find(c => c.label === `Chart (${id})`).ref, args: { scale: 'log' } }))))
+    const out = await m.say('log scale on it and on the TSLA chart')
+    expect(landed(m.board, 'log').sort(), out).toEqual(['c1', 'c3'])
   }, 60000)
   it('"the other one" on TWO after a named change is the chart that was NOT named', async () => {
     const TWO = [cell('a', 0, 0), cell('b', 12, 0)]

@@ -435,6 +435,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const otherOne = !answered && sel && charts.length === 2 && otherOneIsChart(words) ? charts.find(c => c.ref !== sel)?.ref || null : null
   if (otherOne) named.add(otherOne)
   if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  // conversational targeting (convTarget.js): "it" / "that one" is the conversation's chart, standing in for the click this turn
+  if (sel && host?.charts?.turnTarget === sel && /\b(?:it|that one|that chart|the same chart|same one)\b/i.test(words)) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
@@ -681,6 +683,11 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
 
 /** round 3: do the sentence's clauses name DIFFERENT charts ("the TSLA chart … and this one …")? An instant reader that applies
  *  one target to the whole sentence must then not claim it: the model plans it and the per-clause gate checks each op. */
+/** The charts the sentence's clauses each name (a pointer clause: the click), when it reads as clauses at all; else an empty set. */
+export function clauseCharts(text, host) {
+  const reads = clauseReads(text, host, () => null)
+  return new Set((reads || []).filter(r => !r.negated).map(r => r.chart).filter(Boolean))
+}
 export function clausesNameDifferentCharts(text, host) {
   const reads = clauseReads(text, host, () => null)
   if (!reads) return false
