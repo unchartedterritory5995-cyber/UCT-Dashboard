@@ -94,8 +94,10 @@ async function runCase(ctx, c) {
     ev.start = await p.b.evaluate(PROBE(roles))
     ev.said = (await p.last()).slice(-300)
     for (const a of c.acts) { await acts[a[0]](p, c, a); ev.acts.push(a[0]) }
-    await sleep(700)
+    await p.b.hover(2, 2)        // the pointer leaves, so no crosshair is in the after picture (the before had none)
+    await sleep(900)
     ev.end = await p.b.evaluate(PROBE(roles))
+    await p.settle()
     ev.worldAfter = worldPrint(await snapshot(p, c.board))
     const rc = await p.receipts()
     ev.newReceipt = rc > rc0
