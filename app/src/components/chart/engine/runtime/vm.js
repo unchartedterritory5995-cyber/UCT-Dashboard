@@ -26,6 +26,8 @@ import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, C
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
+// ⭐ W6-T8 — a map's values hold drawings too (Pine's collector, `heldNow`)
+import { isMap } from './maps.js'
 import { ARRAY_FNS, kindOf, argKind, CollectionError } from './collections.js'
 import { isMatrix } from './matrices.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
@@ -508,6 +510,7 @@ export function execute(program, ctx, limits, opts) {
       // ⭐ W6-T7 — a matrix's cells hold drawings too (`matrix<pivotGraphic>`)
       if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1); return }
       if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
+      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1)
     }
     const top = (v) => {
       if (isDrawingHandle(v)) vars.add(v.id)

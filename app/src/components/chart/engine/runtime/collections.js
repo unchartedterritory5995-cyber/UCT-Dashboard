@@ -23,6 +23,8 @@
 // `array.from` is the one addition, because it makes a fixture readable in one
 // line; it appears in neither script.
 
+// ⭐ W6-T8 — `map.*` (`maps.js`), merged into this table below
+import { buildMapFns, isMap, MAP_WRITES } from './maps.js'
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
@@ -77,6 +79,8 @@ export const kindOf = (v) => {
   // ⛔ `records.js` explains why this cannot widen by accident: the test is a
   // Symbol, not the shape of the object.
   if (isUdtRecord(v)) return v.type
+  // ⭐ W6-T8 — a map is its own kind, so `array.size(m)` refuses BY NAME
+  if (isMap(v)) return 'map'
   const t = typeof v
   return t === 'number' || t === 'string' ? t : 'other'
 }
@@ -458,6 +462,10 @@ const W19R2_MEMBERS = {
   },
 }
 
+/** ⭐⭐ W6-T8 — the `map.*` members (`maps.js`), in THIS table: one dispatch, one VM op,
+ *  one admitter. */
+const MAP_FNS = buildMapFns({ CollectionError })
+
 /** ⭐⭐ W6-T5 — THE REFERENCE-FORMULA MEMBERS. Each is served only to the extent the
  *  Pine v6 reference entry states its rule (read 2026-11-06 through
  *  `tools/pine_survey/pine_reference_extract.js`; each rail in
@@ -724,6 +732,8 @@ const W6T5_MEMBERS = {
  *  `array.median` / `array.stdev` are not here — master built them, and the door keeps
  *  master's answer at run time instead (`MASTER_AT_DOOR`). */
 export const DOOR_GATED_ARRAY = Object.freeze(new Set([
+  // ⭐ W6-T8 — every `map.*` member: master refused the whole family at the door
+  ...Object.keys(MAP_FNS),
   ...Object.keys(W19R2_MEMBERS),
   // ⭐ W6-T7 — every `matrix.*` member: master refused the whole family at the door
   ...Object.keys(MATRIX_FNS),
@@ -927,6 +937,8 @@ const ARRAY_FNS_RAW = Object.freeze({
     fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); guardSliceWrite(a[0], 'array.clear').length = 0 },
   },
   ...C11_MEMBERS,
+  // ⭐⭐ W6-T8 — `map.*`, see `maps.js`
+  ...MAP_FNS,
   // ⭐⭐ C18 — see `SLICED`. `from` inclusive, `to` exclusive; Pine stops the
   // script on a bound outside the array, and so does this.
   'array.slice': {
@@ -977,6 +989,11 @@ export const producesArray = (name) => (
 export const isVoid = (name) => (
   Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'void')
 
+/** ⭐ W6-T8 — does this call return a MAP? A map is a collection the columnar lane cannot
+ *  hold, for the same reason as an array (`producesArray`). */
+export const producesMap = (name) => (
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'map')
+
 /** The declared operand kind for argument `i` — variadic entries repeat their
  *  single declared kind. */
 export const argKind = (spec, i) => (spec.variadic ? spec.args[0] : spec.args[i])
@@ -1004,6 +1021,8 @@ const HANDS_BACK = new Set(['array.get', 'array.first', 'array.last', 'array.pop
 // `writes`, which every reader treats as `size` (fail closed), and the rail
 // `p3WsaReviewFixes.test.js` (L1) goes red until it is classified.
 const ARRAY_WRITES = Object.freeze({
+  // ⭐ W6-T8
+  ...MAP_WRITES,
   'array.push': 'size', 'array.pop': 'size', 'array.shift': 'size', 'array.unshift': 'size',
   'array.remove': 'size', 'array.clear': 'size', 'array.concat': 'size',
   'array.set': 'elements',
