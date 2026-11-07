@@ -449,8 +449,27 @@ export function closedTabNamed(text, host) {
   return null
 }
 
+// pl-auto u-target-05/08 (BROWSER-MOCK-MODEL): a NEGATED pointer — "everything except this one", "not this chart", "all but
+// this one", "other than this" — EXCLUDES the clicked chart. It is never aimed at nor stood in for: a plan on the other charts
+// runs where it is planned, and an op on the click itself is asked about.
+const NEG_POINTER = /(?:\b(?:except(?:\s+for)?|not|other\s+than|besides|apart\s+from|aside\s+from|excluding|minus|save\s+for)|\b(?:all|every\w*|them|others?|charts?|ones)\s+but(?:\s+not)?)\s+(?:this|that|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b/i
+export const negatedPointer = (text) => NEG_POINTER.exec(String(text || ''))
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
+  if (negatedPointer(text)) {
+    const sel = selectedChart(host)
+    for (const o of ops || []) {
+      const cap = getCapability(o?.action)
+      const kind = cap ? getTargetKind(cap.target) : null
+      const list = kind ? (kind.list(host) || []) : []
+      const snap = list.find(x => x.ref === o.target)
+      if (snap && sel && chartRefOf(kind, snap) === sel) {
+        const others = list.filter(x => chartRefOf(kind, x) && chartRefOf(kind, x) !== sel)
+        return { ask: { text: 'You said not the chart you clicked. Which chart do you mean?', choices: others.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      }
+    }
+    return null
+  }
   {
     // a chart-backed change aimed at a tab that isn't open would land on the open one: said, and nothing runs
     const shut = closedTabNamed(text, host)
