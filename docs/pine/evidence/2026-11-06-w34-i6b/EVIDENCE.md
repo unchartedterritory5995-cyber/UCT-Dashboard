@@ -241,3 +241,49 @@ observed: the script refuses at the line either way. The condition stays as fail
 - `origin/master` `0aeffdc0e9` (engine 24, W34-I4 landed) was merged as `349e138e9c`. The merge was clean.
 - Rails on the merged tree: `w34I6V6BoolResidue` + `w4V6Bool` = **62 passed (62)**.
 - final-tip was not run, by the coordinator's instruction.
+
+## Round r2 (landing hold on PR #907: item 4 changed the live object door)
+
+Code `daf9883b57`. Merged `origin/master` `e79ff79c83` (engine 25, W34-I6c) as `837f4659fc`; the merge was clean.
+
+### Decision: NOT stated exactly, so item 4 is gated off the door
+The Pine v6 reference states only part of what the door would need.
+
+- What it states: `switch` keyword, Remarks: "If the result of the `switch` statement is assigned to a variable and
+  a `default_local_block` is not specified, the statement returns `na` if no `local_block` is executed." So the
+  switch's `na` is stated.
+- What it does not state: what a drawing does with that `na` when the door reads it as a `size`, `xloc` or
+  `style` argument. It may draw at a default, error, or skip the drawing.
+- It also says nothing for an `if` with no `else`. Its `if` entry has no Returns or Remarks, and item 4 covers
+  that shape too.
+- The v6 bool exception (never `na`) is not written in that remark either. So the generic remark alone is not the
+  full v6 rule for a value read downstream.
+
+**Fix:** `namedConstantNonBool` returns false at the object door (`atObjectDoor`). That is the one gate, and it
+covers every caller (`provablyNonBoolNode`, and through it `nameIsNumeric` and `declaredTypeOfName`). The door
+gives master's answer again (`runtime:object-door`, Q-A3). Off the door, item 4 is unchanged.
+
+### Rails (43, all green)
+- **(r2) door rail:** a v6 `size.*` switch with no default at the door is refused, `runtime:object-door` with
+  Q-A3.
+- **(r2) its pair:** the same source off the door (also with `objectTrees: []`) is served, and unmatched is `na`.
+- **Union after the merge:**
+
+| rail set | files | result |
+|---|---|---|
+| I6b | `w34I6V6BoolResidue` | 43 passed |
+| I6a + T14 | `w34I6SwitchArmWrap` + `w4V6Bool` | 30 passed |
+| I6c | `w4SeriesLength` + `finiteWindow` | 116 passed |
+| neighbours | `pureWindowInFunction` + `objectDoorGate` | 167 passed |
+
+### r2 hand mutations (FE restored byte-exact, sha256 OK)
+| mutation | result | killed by |
+|---|---|---|
+| r2-M0 no-op | 43 passed | (control) |
+| r2-M1 door gate removed (item 4 typed at the door again) | 1 failed | (r2) door rail |
+| r2-M2 gate applied everywhere | 9 failed | 7 family rails + matched-arm rail + the off-door pair |
+
+### Measure-pair note
+The earlier measure-pair (`fea38c2785`) movers were all runtime-pane probes (`rtProbe`), not the door. The kioseff
+L69 probe progress comes from the runtime pane, so r2 does not change it. That is an expectation only: measure-pair
+was not re-run (light work only).
