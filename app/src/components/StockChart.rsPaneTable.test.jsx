@@ -116,7 +116,8 @@ const FIXTURE = Object.freeze({
   events: [],
   readout: [{ key: 'rating', label: 'Rating', source: 'scalar:rating.ibd', format: 'int', chip: true }],
 })
-const RATING = Object.freeze({ ibd: 94, fast: 91, asof: '2026-11-06', m1: 91, m3: 97, m6: 95, m12: 38, source: 'row' })
+// Round 2 (rev 5): the v4 payload carries the 9-month rank too.
+const RATING = Object.freeze({ ibd: 94, fast: 91, asof: '2026-11-06', m1: 91, m3: 97, m6: 95, m9: 93, m12: 38, source: 'row' })
 
 const bars = Array.from({ length: 80 }, (_, i) => {
   const t = new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString().slice(0, 10)
@@ -164,12 +165,12 @@ describe('PaneRanksTable — the DOM it draws, pinned', () => {
     expect(root.getAttribute('data-pane-table')).toBe('rs')
     expect(root.getAttribute('role')).toBe('group')
     expect(root.getAttribute('aria-label')).toBe('RS ranks')
-    expect(cells(root, 'dt')).toEqual(['1M', '3M', '6M', '12M', 'RS'])
-    expect(cells(root, 'dd')).toEqual(['91', '97', '95', '96', '94'])
+    expect(cells(root, 'dt')).toEqual(['1M', '3M', '6M', '9M', '12M', 'RS'])
+    expect(cells(root, 'dd')).toEqual(['91', '97', '95', '93', '96', '94'])
     // every pair is a code and its rank, in one list: ONE row (the real-screen fix:
     // a two-row table covered the RS line's newest bars in the pane's top-right)
     expect(root.querySelectorAll('dl')).toHaveLength(1)
-    expect([...root.querySelectorAll('dl > div')].map((d) => d.getAttribute('data-col'))).toEqual(['m1', 'm3', 'm6', 'm12', 'rating'])
+    expect([...root.querySelectorAll('dl > div')].map((d) => d.getAttribute('data-col'))).toEqual(['m1', 'm3', 'm6', 'm9', 'm12', 'rating'])
     expect(root.querySelector('[data-col="rating"]').className).toMatch(/legendRankEmph/)
     expect(root.querySelectorAll('[class*="legendRankEmph"]')).toHaveLength(1)
     // the class names carry "legend": the newsletter export hides it with the pane label
@@ -189,9 +190,13 @@ describe('PaneRanksTable — the DOM it draws, pinned', () => {
     expect(container.querySelectorAll('[data-band]')).toHaveLength(0)
   })
 
-  it('the 9M column slots in from the data, between 6M and 12M', () => {
+  it('the 9M column is required since round 2: between 6M and 12M, a muted dash until the row holds it', () => {
     const { container } = render(<PaneRanksTable table={t({ m9: 93, m12: 96 })} />)
     expect(cells(container, 'dt')).toEqual(['1M', '3M', '6M', '9M', '12M', 'RS'])
+    cleanup()
+    const dash = render(<PaneRanksTable table={t({ m9: null, m12: 96 })} />).container
+    expect(dash.querySelector('[data-col="m9"] dd').textContent).toBe('–')
+    expect(dash.querySelector('[data-col="m9"] dd').getAttribute('aria-label')).toBe('9M not rated')
   })
 
   it('the canvas tone rides the element (dark by default, light on request)', () => {
@@ -234,8 +239,8 @@ describe('on the real StockChart: the table rides its pane, daily only', () => {
     await act(async () => { notifyColumnsLanded(key) })
     await vi.waitFor(() => expect(tableOf(container), 'the ranks table').not.toBeNull(), { timeout: 8000, interval: 100 })
     const el = tableOf(container)
-    expect(cells(el, 'dt')).toEqual(['1M', '3M', '6M', '12M', 'RS'])
-    expect(cells(el, 'dd')).toEqual(['91', '97', '95', '38', '94'])
+    expect(cells(el, 'dt')).toEqual(['1M', '3M', '6M', '9M', '12M', 'RS'])
+    expect(cells(el, 'dd')).toEqual(['91', '97', '95', '93', '38', '94'])
     // the same pane as its label, and pinned by the same frame: top written, right of
     // the plot (the stub's price scale is 0 wide ⇒ 6 px), not collapsed on a 600 px plot
     const legend = container.querySelector('[data-pane-legend]')

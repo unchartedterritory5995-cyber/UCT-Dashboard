@@ -100,12 +100,13 @@ def _timed_fetch(fetch_bars, stages: dict):
 
 
 def _timed(stages: dict, name: str, fn, *args):
-    """``fn(*args)``, unchanged, with its wall time stored as ``stages[name]``."""
+    """``fn(*args)``, unchanged, with its wall time ADDED to ``stages[name]`` (the
+    RS Rating Reading's series read lands in ``rating`` too, rev 5)."""
     t = time.perf_counter()
     try:
         return fn(*args)
     finally:
-        stages[name] = (time.perf_counter() - t) * 1000.0
+        stages[name] = stages.get(name, 0.0) + (time.perf_counter() - t) * 1000.0
 
 
 def _stage_order(stages: dict, build_ms: float) -> dict:
@@ -152,6 +153,14 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     `rotation`, `quality` and `vars` (`_rs_phase3`). The payload shape is
     `_RS_PAYLOAD_SHAPE_V4`. With the row at rev 3 every one of those branches
     is skipped, and the v3 envelope and cache key are byte-identical.
+
+    ⭐ ROUND 2 (Deepvue, 2026-11-08, `compute.rev` 5 on the same v4 row). Two
+    additions, both v4 only: `rating.m9` (the 9-month component rank) joins the
+    rating block and its Components text, and the RS Rating Reading
+    (`view: "rating"`) plots the stock's stored daily IBD-style rating with its
+    21-session average (`ratingLine` / `ratingMa`, `payload.ratingHistory`). The
+    rating history is read ONLY under that Reading, on a daily chart, with
+    `RS_HISTORY_ENABLED` on: one bounded indexed read (`_rs_rating_view`).
 
     ``fetch_bars(sym, tf, count)`` and ``cache_key(kind, sym)`` are the router's
     `_fetch_bars_for_tf` and `_ck` (see the module docstring). ``warm(ticker)``
@@ -278,6 +287,10 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
                             why=(None if derived else
                                  "benchmark is the symbol" if same_symbol else "no benchmark bars"))
             cols.update(p3["columns"])
+            # ── the RS Rating Reading (rev 5): the stored rating over the window.
+            # It reads no benchmark, so it draws in the no-ratio states too.
+            rating_view = _rs_rating_view(sym, times, store, params["view"], stages)
+            cols.update(rating_view["columns"])
 
         # The data carries the timeframe rule (plan §6.5): on an intraday chart a
         # 252-bar "new high" is two days and means nothing, so events and dots are
@@ -314,6 +327,7 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
         if v4:
             for k in registry_defs.RS_PHASE3_WIRE_COLUMNS:
                 cols[k] = _round_series(cols[k], 4)  # around 100 / a fraction / an ATR sum
+            cols["ratingMa"] = _round_series(cols["ratingMa"], 2)   # a 1-99 average; the line is whole numbers
 
         # The legend and last-high scalars are read HERE, after rounding and
         # BEFORE the Mansfield view blanks the ratio (A2): the RS line and Last RS
@@ -381,7 +395,7 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
             "inputs": params,
             "intraday": intraday,
             "state": state,
-            "rating": _timed(stages, "rating", _rs_rating, sym),
+            "rating": _timed(stages, "rating", _rs_rating, sym, v4),
             "mansfield": mansfield_scalars,
             "regime": regime,
             "sensitivity": sensitivity,
@@ -403,6 +417,7 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
             payload["rotation"] = p3["rotation"]
             payload["quality"] = p3["quality"]
             payload["vars"] = p3["vars"]
+            payload["ratingHistory"] = rating_view["block"]
         envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
     t_built = time.perf_counter()
 
@@ -469,8 +484,10 @@ _RS_PAYLOAD_SHAPE = 4
 #: The v4 payload's shape (unit 3-06, `compute.rev` 4 only): the `rotation`,
 #: `quality` and `vars` blocks, the Phase 3 `inputs`, `checks.anchor.source` /
 #: `date`. A separate number, so the v3 key (`rs3p4`) stays byte-identical
-#: while the flag is off; the v4 key leads with `rs4p5`.
-_RS_PAYLOAD_SHAPE_V4 = 5
+#: while the flag is off; the v4 key led with `rs4p5`.
+#: 6 (Deepvue round 2, 2026-11-08, `compute.rev` 5): `rating.m9`, the 9M part of
+#: `rating.components`, and the `ratingHistory` block. The key now leads `rs5p6`.
+_RS_PAYLOAD_SHAPE_V4 = 6
 #: What Mansfield view blanks in the wire (A2): the ratio, its average, the
 #: above flag and every RS-line dot. Event columns are never blanked here.
 _RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
@@ -487,6 +504,9 @@ _RS_VIEW_FAMILIES: dict[str, tuple[str, ...]] = {
     "rotation": ("rsRatio", "rsMomentum"),
     "quality": ("clenowScore", "dotClenowGap"),
     "vars": ("vars", "varsMa"),
+    # rev 5: the RS Rating Reading. Its two columns are blank under every other
+    # view, and every other family is blank under it.
+    "rating": tuple(registry_defs.RS_RATING_WIRE_COLUMNS),
 }
 _RS_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
@@ -771,11 +791,17 @@ def _rs_data_generation(now: float | None = None) -> str:
 #: Each is the 1 to 99 percentile of the plain 21 / 63 / 126 / 252-bar return
 #: (`rs_history.COMPONENTS`), ranked like the rating: a RANK, never a return.
 _RS_COMPONENTS: tuple[tuple[str, str], ...] = (("m1", "1M"), ("m3", "3M"), ("m6", "6M"), ("m12", "12M"))
+#: The v4 envelope's five (Deepvue round 2, 2026-11-08): the 9-month rank (the
+#: plain 189-bar return, `rs_history.STORED_COMPONENTS`) between 6M and 12M, so
+#: the Components row reads ``1M 91 · 3M 97 · 6M 95 · 9M 96 · 12M 96`` and the RS
+#: pane's ranks strip carries its 9M column. The v3 payload keeps the four.
+_RS_COMPONENTS_V4: tuple[tuple[str, str], ...] = (
+    ("m1", "1M"), ("m3", "3M"), ("m6", "6M"), ("m9", "9M"), ("m12", "12M"))
 
 
-def _rs_rating(sym: str) -> dict:
+def _rs_rating(sym: str, nine: bool = False) -> dict:
     """``{ibd, fast, asof, d5, d20, m1, m3, m6, m12, source, summary, components}``
-    from `rs_history.read_fields`.
+    from `rs_history.read_fields`, plus ``m9`` when ``nine`` (the v4 envelope).
 
     ``source`` is ``row`` when the history table holds the symbol, ``dark`` when
     `RS_HISTORY_ENABLED` is off (the table is never written on a dark pod) and
@@ -784,8 +810,9 @@ def _rs_rating(sym: str) -> dict:
     component the row does not hold (a young listing has no 12-month rank) stays
     ``None`` and is left out of ``components``.
     """
+    comps = _RS_COMPONENTS_V4 if nine else _RS_COMPONENTS
     out = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None,
-           "m1": None, "m3": None, "m6": None, "m12": None, "source": "missing"}
+           **{k: None for k, _ in comps}, "source": "missing"}
     dark = os.environ.get("RS_HISTORY_ENABLED", "0") != "1"
     row: dict = {}
     try:
@@ -795,7 +822,7 @@ def _rs_rating(sym: str) -> dict:
         logger.exception("signature: rs rating read failed for %s", sym)
         row = {}
     if row and (row.get("ibd") is not None or row.get("fast") is not None):
-        for k in ("ibd", "fast", "d5", "d20") + tuple(k for k, _ in _RS_COMPONENTS):
+        for k in ("ibd", "fast", "d5", "d20") + tuple(k for k, _ in comps):
             v = row.get(k)
             out[k] = int(v) if _rs_num(v) else None
         out["asof"] = row.get("asof")
@@ -803,15 +830,111 @@ def _rs_rating(sym: str) -> dict:
     else:
         out["source"] = "dark" if dark else "missing"
     out["summary"] = _rs_rating_summary(out["ibd"], out["fast"])
-    out["components"] = _rs_components_summary(out)
+    out["components"] = _rs_components_summary(out, comps)
     return out
 
 
-def _rs_components_summary(rating: dict) -> str | None:
-    """The Components row (plan §6.6): ``1M 91 · 3M 97 · 6M 95 · 12M 96``, the
-    component ranks that exist in order; None when none does (the row is omitted)."""
-    parts = [f"{label} {rating[k]}" for k, label in _RS_COMPONENTS if rating.get(k) is not None]
+def _rs_components_summary(rating: dict, comps=_RS_COMPONENTS) -> str | None:
+    """The Components row (plan §6.6): ``1M 91 · 3M 97 · 6M 95 · 12M 96`` (v4:
+    ``... · 9M 96 · 12M 96``), the component ranks that exist in order; None when
+    none does (the row is omitted)."""
+    parts = [f"{label} {rating[k]}" for k, label in comps if rating.get(k) is not None]
     return " · ".join(parts) or None
+
+
+# ── the RS Rating Reading (Deepvue round 2, 2026-11-08; `compute.rev` 5) ─────
+#
+# Deepvue draws the rating itself as a line. This Reading plots the stock's
+# stored daily IBD-style rating (1-99, the nightly `rs_rating_history` row) at
+# each bar's session, its 21-session average, and says where it stands now and
+# how far it moved in 20 stored sessions (the `rating.d20` rule: stored
+# sessions, not calendar days). Daily charts only: the rating is stored once a
+# session. Nothing is fabricated: a bar whose session has no stored row is null.
+
+#: The average's length, in stored sessions: a trading month, the RS line's own
+#: default average (`relative_strength.DEFAULT_MA_LENGTH`).
+_RS_RATING_MA = 21
+#: The change the summary states: the rating minus its value this many stored
+#: sessions earlier (the same span as `rating.d20`).
+_RS_RATING_CHANGE = 20
+
+
+def _rs_rating_view_unavailable(reason: str) -> dict:
+    return {"value": None, "average": None, "change20": None, "sessions": 0, "asof": None,
+            "stale": None, "summary": reason, "reason": reason}
+
+
+def _rs_rating_view(sym: str, times: list, store: str, view: str, stages: dict) -> dict:
+    """``{"columns": {ratingLine, ratingMa}, "block": payload.ratingHistory}``.
+
+    Reads the history ONLY when ``view == "rating"``, the chart is daily and
+    `RS_HISTORY_ENABLED` is on; every other case returns blank columns and a
+    reason (no read at all). The one read is `rs_history.rating_series`: this
+    ticker's newest ``len(times) + 20`` stored sessions ending at the newest
+    bar's session, one walk of the ``(ticker, session)`` index, its time added
+    to the ``rating`` stage. The average is the plain mean of 21 consecutive
+    stored values, null until 21 exist (never a shorter mean)."""
+    n = len(times)
+    cols = {k: [None] * n for k in registry_defs.RS_RATING_WIRE_COLUMNS}
+
+    def unavailable(reason: str) -> dict:
+        return {"columns": cols, "block": _rs_rating_view_unavailable(reason)}
+
+    if view != "rating":
+        return unavailable("not the chosen reading")
+    if store != "D":
+        return unavailable("daily charts only")
+    if not n:
+        return unavailable("no bars for this symbol")
+    if os.environ.get("RS_HISTORY_ENABLED", "0") != "1":
+        return unavailable("the rating history is not switched on")
+    ymds = [_rs_bar_ymd(t) for t in times]
+    newest = next((y for y in reversed(ymds) if y), None)
+    t = time.perf_counter()
+    try:
+        from api.services.screener import rs_history
+        series = rs_history.rating_series(sym, upto=newest, limit=n + _RS_RATING_MA - 1)
+    except Exception:                                  # noqa: BLE001 — a garnish, never a 500
+        logger.exception("signature: rs rating series read failed for %s", sym)
+        series = []
+    finally:
+        stages["rating"] = stages.get("rating", 0.0) + (time.perf_counter() - t) * 1000.0
+    vals = [v for _s, v in series]
+    if not any(_rs_num(v) for v in vals):
+        return unavailable("not yet rated")
+    ma: list = [None] * len(vals)
+    for i in range(_RS_RATING_MA - 1, len(vals)):
+        w = vals[i - _RS_RATING_MA + 1:i + 1]
+        if all(_rs_num(v) for v in w):
+            ma[i] = sum(w) / float(_RS_RATING_MA)
+    at = {str(s).replace("-", ""): i for i, (s, _v) in enumerate(series)}
+    for i, y in enumerate(ymds):
+        j = at.get(y) if y else None
+        if j is not None and _rs_num(vals[j]):
+            cols["ratingLine"][i] = int(vals[j])
+            cols["ratingMa"][i] = ma[j]
+    idx = max(i for i, v in enumerate(vals) if _rs_num(v))
+    value = int(vals[idx])
+    prior = vals[idx - _RS_RATING_CHANGE] if idx >= _RS_RATING_CHANGE else None
+    change = value - int(prior) if _rs_num(prior) else None
+    held = sum(1 for v in cols["ratingLine"] if v is not None)
+    if change is None:
+        have = sum(1 for v in vals[:idx + 1] if _rs_num(v))
+        text = f"{value}, {_rs_count(have, 'session')} of history"
+    elif change > 0:
+        text = f"{value}, up{_RS_NBSP}{change} in {_rs_count(_RS_RATING_CHANGE, 'session')}"
+    elif change < 0:
+        text = f"{value}, down{_RS_NBSP}{-change} in {_rs_count(_RS_RATING_CHANGE, 'session')}"
+    else:
+        text = f"{value}, unchanged in {_rs_count(_RS_RATING_CHANGE, 'session')}"
+    asof = str(series[idx][0])
+    stale = asof.replace("-", "") != newest
+    if stale and _rs_short_date(asof.replace("-", "")):
+        text += f" · as of {_rs_short_date(asof.replace('-', '')).replace(' ', _RS_NBSP)}"
+    return {"columns": cols, "block": {
+        "value": value, "average": round(ma[idx], 2) if ma[idx] is not None else None,
+        "change20": change, "sessions": held, "asof": asof, "stale": stale,
+        "summary": text, "reason": None}}
 
 
 def _rs_rating_summary(ibd, fast) -> str | None:

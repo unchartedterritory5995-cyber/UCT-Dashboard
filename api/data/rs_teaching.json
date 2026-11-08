@@ -48,6 +48,12 @@
       "origin": "IBD's Relative Strength Rating, with IBD's published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.",
       "what": "IBD-style RS Rating, 1 to 99: where this symbol's weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated."
     },
+    "ratingView": {
+      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "RS Rating",
+      "origin": "Deepvue and MarketSurge draw the RS Rating as a line under the chart. This one plots the rating UCT's nightly job stored for each session: IBD's published term weights, ranked across our universe on our own bars.",
+      "what": "The RS Rating itself over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank."
+    },
     "redDay": {
       "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
       "label": "On a red day",

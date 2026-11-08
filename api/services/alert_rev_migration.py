@@ -91,7 +91,13 @@ ADDRESS_REVS: dict[str, int] = {
     # future change to EITHER function owes one: an operator script must call
     # `migrate_bindings_to_rev("rs_line", N, notify=...)` in the deploy that
     # ships it, because nothing does that automatically.
-    "rsLine": 4,
+    #
+    # rev 5, 2026-11-08 (Deepvue round 2): the RS Rating Reading (`view: rating`)
+    # and its two wire columns `ratingLine` / `ratingMa`, read from the nightly
+    # rating history. The same vocabulary mirror: neither function above moved
+    # (`tests/test_rs_rating_view.py` pins both byte-identical), so no migration
+    # is owed and none is run.
+    "rsLine": 5,
 }
 
 # ⭐ AN ALERT BASE THAT IS NOT THE DEFINITION ID (found by unit 2b-05, fixed at

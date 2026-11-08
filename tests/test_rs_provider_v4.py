@@ -37,7 +37,7 @@ from tests.test_rs_columns_provider import (  # noqa: F401 - fixtures are used b
 )
 
 V4_COLUMNS = (tuple(rsmod.PHASE1_COLUMNS) + tuple(rd.RS_PHASE2A_WIRE_COLUMNS)
-              + tuple(rd.RS_PHASE3_WIRE_COLUMNS))
+              + tuple(rd.RS_PHASE3_WIRE_COLUMNS) + tuple(rd.RS_RATING_WIRE_COLUMNS))
 EVENT_COLUMNS = ("rsNH", "rsNHpartial", "pxNH", "rsNHbeforePx", "rsNHred", "rsNL", "gor", "rog",
                  "mansfieldCrossUp", "mansfieldCrossDown")
 ONE_BARS = re.compile(r"\b1[ \u00a0](bars|sessions|weeks|months|red days)\b")
@@ -672,7 +672,7 @@ def test_the_wrapper_binds_the_charts_timeframe_to_the_warm(v4_row, monkeypatch)
 
 # ── the cache key ────────────────────────────────────────────────────────────
 
-def test_the_v4_key_leads_with_rev_4_and_shape_5_and_carries_the_new_inputs(v4_row, monkeypatch):
+def test_the_v4_key_leads_with_rev_5_and_shape_6_and_carries_the_new_inputs(v4_row, monkeypatch):
     keys = []
     monkeypatch.setattr(sig.cache, "get", lambda k: keys.append(k))
     store = _arith_store(300)
@@ -681,8 +681,9 @@ def test_the_v4_key_leads_with_rev_4_and_shape_5_and_carries_the_new_inputs(v4_r
     _lane(monkeypatch, store, inputs={"anchorDate": "2024-01-02"})
     _lane(monkeypatch, store, inputs={"benchmark": "CUSTOM", "customBenchmark": "SMH"})
     _lane(monkeypatch, store, inputs={"clenowWindow": 60})
-    assert rsp._RS_PAYLOAD_SHAPE_V4 == 5 and rsp._RS_PAYLOAD_SHAPE == 4
-    assert all(k.startswith("sig:rs4p5:") for k in keys), keys
+    # Deepvue round 2 (2026-11-08): rev 5 / shape 6 (`rating.m9`, `ratingHistory`)
+    assert rsp._RS_PAYLOAD_SHAPE_V4 == 6 and rsp._RS_PAYLOAD_SHAPE == 4
+    assert all(k.startswith("sig:rs5p6:") for k in keys), keys
     assert len(set(keys)) == 5
     assert '"view": "vars"' in keys[1] and '"anchorDate": "2024-01-02"' in keys[2]
     assert ':CUSTOM:' in keys[3] and '"customBenchmark": "SMH"' in keys[3]
@@ -751,8 +752,9 @@ def test_control_the_v3_envelope_and_key_are_byte_identical_with_the_flag_off(mo
     env, body, key = _v3_envelope(monkeypatch)
     assert hashlib.sha256(body.encode()).hexdigest()[:16] == V3_DIGEST
     assert key == V3_KEY
-    assert not {"rotation", "quality", "vars"} & set(env["payload"])
-    assert set(env["columns"]) == set(V4_COLUMNS) - set(rd.RS_PHASE3_WIRE_COLUMNS)
+    assert not {"rotation", "quality", "vars", "ratingHistory"} & set(env["payload"])
+    assert "m9" not in env["payload"]["rating"], "the v3 payload keeps its four components"
+    assert set(env["columns"]) == set(V4_COLUMNS) - set(rd.RS_PHASE3_WIRE_COLUMNS) - set(rd.RS_RATING_WIRE_COLUMNS)
     assert "source" not in env["payload"]["checks"]["anchor"]
 
 
