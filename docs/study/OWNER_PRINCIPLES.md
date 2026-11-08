@@ -57,8 +57,9 @@ Spot the Kicker), and the kit in `app/src/pages/study/ui/`.
 10. **Questions that ask, not lead,** with enough detail to know what to look at. *"that question is very leading"* ·
     *"make the question a bit more detailed"*.
 11. **Our name.** Never "the firm" (*"quit calling us THE FIRM"*, said twice). UCT, or "we".
-12. **Plain names.** Call a mode what it is (*"you should say SPOT THE KICKER"*). Start a mode with a short tutorial
-    (*"it should begin with a tutorial"*).
+12. **Plain names, and every setup.** Call a mode what it is, and a game covers every setup we teach, not one: *"SPOT THE
+    KICKER SHOULD be SPOT THE SETUP"* (2026-11-08; it was "Trap", then "Spot the Kicker"). Start a mode with a short
+    tutorial (*"it should begin with a tutorial"*).
 
 ## C. Production
 
@@ -86,3 +87,8 @@ Spot the Kicker), and the kit in `app/src/pages/study/ui/`.
 20. **Feedback in batches.** Each round is one batch of 10 to 20 spots across the course; he ranks them all and every
     note is fixed together (2026-11-07: *"get like 10-20 spots of feedback done so i can look and report on all of them
     and then you can fix all of them instead of one at a time"*).
+
+## The scope, in his words
+
+2026-11-08: *"We have so much work to do to enhance games, questions, app development, teaching, graphics, production,
+everything!"* Every rule above applies to all of it.

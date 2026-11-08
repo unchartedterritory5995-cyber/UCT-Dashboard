@@ -290,6 +290,20 @@ def get_item_bars(item_id: str, _user: dict = Depends(require_paid)):
     return bars
 
 
+@router.get("/items/{item_id}/lookalikes", dependencies=_ARMED)
+def get_item_lookalikes(item_id: str, view: int = 90, _user: dict = Depends(require_paid)):
+    """SPOT THE SETUP (owner, 2026-11-08): for a chart whose last candle is its setup and nothing else, the candles in the
+    last `view` bars that look like it but where the setup's own rules do not fire, each measured beside the real one
+    (api/services/study_spot_setup.py). 404 when the chart cannot play this game."""
+    from api.services import study_spot_setup
+    item = _prompt_or_404(item_id)
+    bars = study_store.get_visible_bars(item_id)
+    out = study_spot_setup.lookalikes((bars or {}).get("bars") or [], item.get("skill_id") or "", view=max(20, min(250, int(view))))
+    if not out:
+        raise HTTPException(status_code=404, detail="This chart does not play Spot the Setup")
+    return out
+
+
 @router.post("/attempts", dependencies=_ARMED)
 def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
     """Score server-side, write the attempt in ONE transaction, return the
