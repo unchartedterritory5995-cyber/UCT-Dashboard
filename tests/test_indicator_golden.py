@@ -84,6 +84,10 @@ RS_MANSFIELD_CASES = ["rs_mansfield"]
 # Phase 3 maths (unit 3-03): read by tests/test_rs_phase3_math.py and, for RRG, by
 # app/src/pages/terminal/panels/relativeMath.rsFixture.test.js (one fixture, both lanes).
 RS_PHASE3_CASES = ["rs_rrg", "rs_clenow", "rs_vars"]
+# Phase 3 public-method parity (unit 3-13): NOT compute_case inputs. Each holds what an
+# outside reference publishes (Quant Investing's Clenow example, OANDA's VARS case study,
+# a person's StockCharts RRG reading) and is read by tests/test_rs_phase3_parity.py.
+RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcharts"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
@@ -262,7 +266,7 @@ def test_every_fixture_file_is_covered_by_a_test():
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
               | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES)
-              | set(RS_PHASE3_CASES))
+              | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES))
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )
