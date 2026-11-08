@@ -339,6 +339,34 @@ def test_it_skips_with_no_screener_session_or_no_history(sdb, monkeypatch):
     assert w.calls == []
 
 
+def test_a_missing_screener_table_is_the_friendly_skip_not_a_sqlite_error(tmp_path, monkeypatch):
+    """A pod whose screener has never written has no `screener_rows` table at all (4-11 check)."""
+    monkeypatch.setenv(rl.FLAG, "1")
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "empty_screener.db"))   # no init_db: no table
+    from contextlib import closing
+    with closing(snapshot_db.connect()) as conn:
+        assert rl.screener_session(conn) is None
+        assert conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'screener_rows'").fetchone() is None
+    w = _Writes()
+    r = rl.nightly_job(settled=SESSION, writer=w.writer, sizer=w.sizer, etf_tickers=set())
+    assert r["skipped"] == "the screener has no session yet"
+    assert w.calls == []
+
+
+def test_a_missing_rating_history_table_is_the_friendly_skip_not_a_sqlite_error(sdb, monkeypatch):
+    """Screener rows, but the 04:15 rating history has never written its table: the default reader says so."""
+    monkeypatch.setenv(rl.FLAG, "1")
+    snapshot_db.upsert_rows([leader("LEAD")])
+    from contextlib import closing
+    with closing(snapshot_db.connect()) as conn:
+        conn.execute(f"DROP TABLE IF EXISTS {rh.TABLE}")
+        conn.commit()
+    w = _Writes()
+    r = rl.nightly_job(settled=SESSION, writer=w.writer, sizer=w.sizer, etf_tickers=set())   # rs_latest: the default
+    assert r["skipped"] == "the rating history has no session yet"
+    assert w.calls == []
+
+
 def test_it_never_goes_back_to_an_older_session_than_the_lists_hold(sdb, monkeypatch):
     monkeypatch.setenv(rl.FLAG, "1")
     seed([leader("LEAD")])

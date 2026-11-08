@@ -133,8 +133,15 @@ def _liquid_sql() -> tuple[str, list]:
 
 def screener_session(conn) -> str | None:
     """The screener's session, YYYY-MM-DD: the MEDIAN row's `bars_asof` (the
-    `snapshot_db.describe_rows` statistic, so one late row never moves it)."""
+    `snapshot_db.describe_rows` statistic, so one late row never moves it).
+
+    None, never a raise, on a pod whose screener has never written (no
+    `screener_rows` table yet): the job's friendly "the screener has no session
+    yet" skip, not `OperationalError: no such table` (4-11 check). A
+    `sqlite_master` lookup, so nothing is created."""
     from api.services.screener import rs_history
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screener_rows'").fetchone() is None:
+        return None
     d = snapshot_db.describe_rows(conn, " WHERE bars_asof IS NOT NULL", (),
                                   date_expr="bars_asof").get("snapshot_date")
     if d in (None, ""):
