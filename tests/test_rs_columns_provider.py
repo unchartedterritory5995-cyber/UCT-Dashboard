@@ -99,17 +99,31 @@ def test_v3_row_declares_the_phase1_and_mansfield_columns_payload_and_clamped_in
     assert "lineColor" not in by_key, "style inputs never reach the server"
 
 
-def test_the_three_lanes_agree_on_rev_3():
-    """JS definition, Python row and the alert migration table: one revision."""
+def test_the_python_lanes_agree_on_rev_4_and_the_v3_row_keeps_rev_3():
+    """Phase 3 unit 3-05: the v4 row (both flags) and the alert migration table
+    carry rev 4; the v3 row (V2 only) still says 3, which is what production
+    serves until `RS_V3_ENABLED` is armed."""
+    from api.services import alert_rev_migration as rev
+    v4 = rd._rs_line_row(True, True)
+    assert v4["version"] == v4["compute"]["rev"] == rd.RS_V4_REV == 4
+    assert rev.ADDRESS_REVS["rsLine"] == 4
+    v3 = rd._rs_line_row(True)
+    assert v3["version"] == 3 and v3["compute"]["rev"] == 3
+
+
+@pytest.mark.xfail(strict=True, reason="unit 3-08 moves the JS rsLine definition to version 4 / rev 4")
+def test_the_three_lanes_agree_on_rev_4():
+    """JS definition, Python v4 row and the alert migration table: one revision.
+    Red until 3-08 ships the JS v4 definition; 3-08 drops this mark."""
     import pathlib
     import re
     from api.services import alert_rev_migration as rev
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
     m = re.search(r"fn:\s*'rsLine'\s*,\s*rev:\s*(\d+)", src)
-    assert m and int(m.group(1)) == 3
-    assert re.search(r"id:\s*'rsLine',\s*\n\s*version:\s*3,", src), "the JS definition's version is 3"
-    assert rd._rs_line_row(True)["compute"]["rev"] == 3
-    assert rev.ADDRESS_REVS["rsLine"] == 3
+    assert m and int(m.group(1)) == 4
+    assert re.search(r"id:\s*'rsLine',\s*\n\s*version:\s*4,", src), "the JS definition's version is 4"
+    assert rd._rs_line_row(True, True)["compute"]["rev"] == 4
+    assert rev.ADDRESS_REVS["rsLine"] == 4
 
 
 def test_v1_row_is_the_shape_master_shipped():
@@ -119,8 +133,10 @@ def test_v1_row_is_the_shape_master_shipped():
     assert [i["key"] for i in row["inputs"]] == ["benchmark"]
 
 
-def test_the_installed_row_matches_the_flag():
-    assert rd.definition("rsLine")["version"] == (2 if rd.RS_V2_ENABLED else 1)
+def test_the_installed_row_matches_the_flags():
+    """The row installed at import is the shape the two import-time flags name
+    (the subprocess control in tests/test_registry_string_inputs.py arms them)."""
+    assert rd.definition("rsLine") == rd._rs_line_row(rd.RS_V2_ENABLED, rd.RS_V3_ENABLED)
 
 
 def test_benchmark_vocabulary_grew_with_the_equal_weight_and_auto_options():
@@ -520,6 +536,23 @@ def test_the_two_python_benchmark_vocabularies_are_one_set():
     assert set(rd.RS_LINE_BENCHMARKS) == set(rb.LITERAL_BENCHMARKS) | set(rb.AUTO_BENCHMARKS)
 
 
+def test_the_v4_menu_is_the_v3_menu_plus_custom_by_name():
+    """Unit 3-05 / D4: CUSTOM is added by NAME to the v4 menu only; the shared
+    list (and so the alert lane's) never grows it."""
+    assert rd.RS_LINE_BENCHMARKS_V4 == rd.RS_LINE_BENCHMARKS + ("CUSTOM",)
+    assert rb.CUSTOM_BENCHMARK == "CUSTOM"
+    assert "CUSTOM" not in rd.RS_LINE_BENCHMARKS
+    assert "CUSTOM" not in rb.LITERAL_BENCHMARKS + rb.AUTO_BENCHMARKS
+    assert rd._rs_line_row(True, True)["inputs"][0]["options"] == list(rd.RS_LINE_BENCHMARKS_V4)
+    assert rd._rs_line_row(True)["inputs"][0]["options"] == list(rd.RS_LINE_BENCHMARKS)
+
+
+@pytest.mark.xfail(strict=True, reason="unit 3-08 adds the CUSTOM option to the JS benchmark enum")
+def test_the_js_benchmark_enum_is_the_v4_menu():
+    """The one-list rail against the v4 menu. 3-08 drops this mark."""
+    assert _js_rs_line_inputs()["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS_V4)
+
+
 def test_the_python_vocabulary_is_derived_from_the_resolver_not_retyped():
     """Review finding B10: one derivation, not two tuples a test holds equal."""
     assert rd.RS_LINE_BENCHMARKS == rd.rs_benchmark_menu(
@@ -562,6 +595,20 @@ def test_the_js_definition_names_exactly_the_inputs_the_python_row_declares():
     py = [i["key"] for i in rd._rs_line_row(True)["inputs"]]
     assert sorted(js) == sorted(py), (js, py)
     assert len(js) >= 3, "a short list makes this comparison vacuous"
+
+
+@pytest.mark.xfail(strict=True, reason="unit 3-08 adds the Phase 3 keys to meta.serverInputs")
+def test_the_js_server_inputs_are_the_v4_row_keys():
+    """The `serverInputs` rail against the v4 row (unit 3-05). Red until 3-08
+    ships the JS v4 definition; 3-08 drops this mark (and retires the v3 rail
+    above, which a v4 `serverInputs` list turns red)."""
+    import pathlib
+    import re
+    src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    block = src.split("serverInputs:", 1)[1].split("],", 1)[0]
+    js = re.findall(r"'([A-Za-z]+)'", block)
+    py = [i["key"] for i in rd._rs_line_row(True, True)["inputs"]]
+    assert sorted(js) == sorted(py), (js, py)
 
 
 def test_columns_route_422s_an_unknown_benchmark(client, monkeypatch, v2_row):  # noqa: F811
@@ -1188,21 +1235,22 @@ def test_the_short_history_payload_still_resolves_every_row_or_answers_null_with
     assert payload["rating"]["ibd"] is None and payload["rating"]["source"] in ("dark", "missing")
 
 
-# ── the alert lane reads rev 3 through the `rs_line` base (2b-05 finding) ────
+# ── the alert lane reads the rsLine rev through the `rs_line` base (2b-05 finding) ──
 
-def test_a_bound_rs_alert_address_reads_rev_3_not_the_default():
+def test_a_bound_rs_alert_address_reads_the_rsLine_rev_not_the_default():
     """`compute_rev` keys `ADDRESS_REVS` on `plot_base(address)`, which for the
     RS alert addresses is `rs_line` (`alert_rs_series.RS_BASE`) while the table
     is keyed by the definition id `rsLine` (held equal to the JS registry by
     `test_the_python_rev_table_matches_the_JS_registry`). Without the alias a
-    bound `rs_line.*` alert read DEFAULT_REV 1 against a rev-3 definition."""
+    bound `rs_line.*` alert read DEFAULT_REV 1 against a rev-3 definition.
+    Rev 4 since Phase 3 unit 3-05 (a vocabulary mirror; no binding migrates)."""
     from api.services import alert_rev_migration as rev
     from api.services.indicator_alert_evaluator import plot_base, resolve_address
     assert plot_base(resolve_address("rs_line.crossUp")) == "rs_line"
     assert rev.ADDRESS_BASE_DEFINITION == {"rs_line": "rsLine"}
-    assert rev.compute_rev("rs_line.crossUp") == 3
-    assert rev.compute_rev("rs_line.newHigh") == 3
-    assert rev.compute_rev("RS_LINE.NEWHIGH") == 3, "resolution folds case like every other address"
+    assert rev.compute_rev("rs_line.crossUp") == 4
+    assert rev.compute_rev("rs_line.newHigh") == 4
+    assert rev.compute_rev("RS_LINE.NEWHIGH") == 4, "resolution folds case like every other address"
     # (`rsLine.<plot>` is NOT an alert address — the grammar is `rs_line.<plot>` —
     # and `resolve_address` lowercases an unknown one, so no assertion on it.)
     assert rev.compute_rev("vwap.vwap") == 2 and rev.compute_rev("rsi.rsi") == rev.DEFAULT_REV, "controls"

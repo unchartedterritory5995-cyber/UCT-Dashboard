@@ -656,6 +656,40 @@ def test_the_migration_touches_NO_STORED_CHART_SETTINGS_BLOB(env):
     assert after == before and before, "the migration wrote to the preferences store"
 
 
+# ⏳ THE ONE PENDING DIFFERENCE (Phase 3 unit 3-05): `ADDRESS_REVS["rsLine"]` is
+# 4 now, for the v4 row behind `RS_V3_ENABLED`; the JS definition moves to rev 4
+# in unit 3-08. Until then the full rail below is a STRICT xfail and the rail
+# after it holds every OTHER entry equal, so a vwap (or any new) drift is still
+# red in the gap. 3-08 drops the mark and deletes `_PENDING_JS_REVS` and the
+# gap rail (which goes red on its own the moment the JS says 4).
+_PENDING_JS_REVS = {"rsLine": (3, 4)}  # definition -> (JS today, ADDRESS_REVS)
+
+
+def _parsed_js_revs() -> dict:
+    src = REGISTRY_JS.read_text(encoding="utf-8")
+    assert "compute: { kind: 'native', fn, rev: 1 }" in src, (
+        "the registry's default revision is no longer this literal — the parse "
+        "below now reads nothing and this comparison is vacuous")
+    parsed = {m.group(1): int(m.group(2))
+              for m in re.finditer(r"fn:\s*'([a-zA-Z0-9_]+)'\s*,\s*rev:\s*(\d+)", src)}
+    assert parsed, "no explicit revision was parsed out of the registry"
+    return parsed
+
+
+def test_the_rev_table_matches_the_JS_registry_outside_the_pending_rs_bump(env):
+    """The gap rail while 3-05 has landed and 3-08 has not (see above)."""
+    parsed = _parsed_js_revs()
+    for name, (js_rev, py_rev) in _PENDING_JS_REVS.items():
+        assert parsed.get(name) == js_rev, (
+            f"{name} moved in the JS registry; this is unit 3-08 landing: drop the "
+            "xfail on the full rail and delete this test and _PENDING_JS_REVS")
+        assert rev.ADDRESS_REVS[name] == py_rev
+    js = {k: v for k, v in parsed.items() if v != rev.DEFAULT_REV and k not in _PENDING_JS_REVS}
+    py = {k: v for k, v in rev.ADDRESS_REVS.items() if v != rev.DEFAULT_REV and k not in _PENDING_JS_REVS}
+    assert js == py and "vwap" in py, (js, py)
+
+
+@pytest.mark.xfail(strict=True, reason="unit 3-08 moves the JS rsLine definition to rev 4 (ADDRESS_REVS is 4 since 3-05)")
 def test_the_python_rev_table_matches_the_JS_registry(env):
     """⭐ ONE VOCABULARY, TWO LANES — as a rail, not a habit.
 
