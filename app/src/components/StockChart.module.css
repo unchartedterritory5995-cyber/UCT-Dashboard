@@ -1996,7 +1996,7 @@
 .legTourSkip:focus-visible { color: var(--text-bright); outline: none; }
 .legTourBack:hover,
 .legTourBack:focus-visible { background: var(--bg-hover); outline: none; }
-.legTourNext:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.legTourNext:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 1px; }
 @media (max-width: 1024px) {
   .legTourSkip, .legTourBack, .legTourNext, .legAboutGlossary { min-height: var(--tap-min); }
 }
