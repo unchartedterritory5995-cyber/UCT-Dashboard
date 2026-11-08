@@ -94,7 +94,9 @@ describe('groups — heads in declaration order, the hint honoured, tap to fold 
     // The premise: the shipped definition declares exactly these groups and this hint
     // (VA2: the plan's five folded groups, §6.3).
     const folded = ['Line', 'New highs', 'Rating', 'Stress test', 'Method']
-    expect(rsDef().meta.groupsCollapsed).toEqual(folded)
+    // 3-08 adds Checks to the hint; it holds only the anchor date, a
+    // `requiresServer` input, so with no server declaration it has no head
+    expect(rsDef().meta.groupsCollapsed).toEqual([...folded, 'Checks'])
     expect(heads(ed).map((b) => b.textContent)).toEqual(['Simple', ...folded])
     expect(headNamed(ed, 'Simple').getAttribute('aria-expanded')).toBe('true')
     for (const g of folded) expect(headNamed(ed, g).getAttribute('aria-expanded'), g).toBe('false')
@@ -142,7 +144,9 @@ describe('every field row carries data-input-key, one per declared input, in dec
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
     for (const g of ['Line', 'New highs', 'Rating', 'Stress test', 'Method']) await user.click(headNamed(ed, g))
-    const declared = rsDef().inputs.map((i) => i.key)
+    // 3-08: the legacy Mansfield switch never renders and the Phase 3 inputs
+    // (`requiresServer`) wait for the server's declaration (unit 3-01)
+    const declared = rsDef().inputs.filter((i) => i.legacy !== true && i.requiresServer !== true).map((i) => i.key)
     expect(declared.length).toBeGreaterThanOrEqual(15)
     expect(rowKeys(ed)).toEqual(declared)
   })
@@ -186,7 +190,8 @@ describe('the preset row — chips over meta.presets, the match pressed, one wri
     const onWrite = mount(initial, rsEditing)
     const ed = editor(RS_EDITOR)
     const row = within(ed).getByTestId('preset-row')
-    const ids = rsDef().meta.presets.map((p) => p.id)
+    // 3-08: the Phase 3 presets are `requiresServer`, so nothing declared lists the six
+    const ids = rsDef().meta.presets.filter((p) => p.requiresServer !== true).map((p) => p.id)
     expect(ids).toContain('classic')
     expect(ids).toContain('phase')
     for (const id of ids) expect(presetChip(row, id)).not.toBeNull()
@@ -258,7 +263,7 @@ describe('the preset row — chips over meta.presets, the match pressed, one wri
     const row = within(editor(RS_EDITOR)).getByTestId('preset-row')
     expect(row.dataset.preset).toBe('__custom')
     expect(presetChip(row, '__custom').getAttribute('aria-current')).toBe('true')
-    for (const p of rsDef().meta.presets) expect(presetChip(row, p.id).getAttribute('aria-pressed')).toBe('false')
+    for (const p of rsDef().meta.presets.filter((x) => x.requiresServer !== true)) expect(presetChip(row, p.id).getAttribute('aria-pressed')).toBe('false')
     expect(within(row).queryByTestId('preset-origin')).toBeNull()
   })
 

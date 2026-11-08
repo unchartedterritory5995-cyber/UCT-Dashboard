@@ -347,6 +347,34 @@ describe('visiblePresets — filtered by input, by option value, and by its own 
     expect(visiblePresets({ inputs: [] }, full)).toEqual([])
     expect(visiblePresets(null, full)).toEqual([])
   })
+
+  // ⭐ UCT RS 3-08 — the two writes an undeclaring server reads exactly as before.
+  describe('an UNGATED preset that sets a gated input stays listed when the write changes nothing an undeclaring server sees', () => {
+    const more = (presets) => {
+      const r = validateDefinition({ ...RAW, meta: { ...RAW.meta, presets } })
+      if (!r.ok) throw new Error(r.errors.join('\n'))
+      return r.def
+    }
+    const ids = (def, declared) => visiblePresets(def, declared).map((p) => p.id)
+    const def = more([
+      { id: 'atDefault', label: 'At default', inputs: { length: 21, view: 'ratio' } },
+      { id: 'viaLegacy', label: 'Via legacy', inputs: { view: 'rotation', oldView: true } },
+      { id: 'notDefault', label: 'Not default', inputs: { view: 'rotation' } },
+      { id: 'gatedDefault', label: 'Gated default', requiresServer: true, inputs: { view: 'ratio' } },
+      { id: 'gatedOption', label: 'Gated option', inputs: { benchmark: 'CUSTOM', oldView: true } },
+    ])
+
+    it('the input\'s DEFAULT (an unset input already reads it): listed', () => {
+      expect(ids(def, null)).toContain('atDefault')
+    })
+    it('beside a LEGACY input that carries the meaning to the old server: listed', () => {
+      expect(ids(def, null)).toContain('viaLegacy')
+    })
+    it('⛔ control: any other value, a requiresServer preset, and a gated OPTION still hide it', () => {
+      expect(ids(def, null)).toEqual(['atDefault', 'viaLegacy'])
+      expect(ids(def, full)).toEqual(['atDefault', 'viaLegacy', 'notDefault', 'gatedDefault', 'gatedOption'])
+    })
+  })
 })
 
 describe('⭐ the byte-identical CONTROL — a definition using neither field renders what it rendered before', () => {
@@ -386,7 +414,10 @@ describe('⭐ the byte-identical CONTROL — a definition using neither field re
 
   it('the sweep is not vacuous', () => {
     expect(ungated.length).toBeGreaterThan(20)
-    expect(ungated.map((d) => d.id)).toContain('rsLine')
+    // ⭐ 3-08: UCT RS is the first shipped definition that USES the gate (v4), so
+    // it left this control set; `rsDefinitionV4.test.js` pins what it hides.
+    expect(ungated.map((d) => d.id)).not.toContain('rsLine')
+    expect(defs.filter((d) => !ungated.includes(d)).map((d) => d.id)).toEqual(['rsLine'])
   })
 
   it('every shipped ungated definition: byte-identical, with and without a declaration, at defaults and on an instance', () => {

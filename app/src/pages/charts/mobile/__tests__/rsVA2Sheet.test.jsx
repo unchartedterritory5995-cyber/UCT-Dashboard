@@ -49,10 +49,12 @@ describe('the groups', () => {
     await act(async () => { fireEvent.click(headNamed('Rating')) })
     expect(editor().querySelector('[data-input-key="headlineRating"]')).not.toBeNull()
     expect(editor().querySelector('[data-input-key="ratingBands"]')).not.toBeNull()
-    // Mansfield view moved to Method, the red-day dot to Stress test
-    expect(editor().querySelector('[data-input-key="showMansfield"]')).toBeNull()
+    // Mansfield view moved to Method in VA2; since 3-08 it is `legacy` (the
+    // Reading replaced it) and renders nowhere, while the Mansfield length stays
+    expect(editor().querySelector('[data-input-key="mansfieldLength"]')).toBeNull()
     await act(async () => { fireEvent.click(headNamed('Method')) })
-    expect(editor().querySelector('[data-input-key="showMansfield"]')).not.toBeNull()
+    expect(editor().querySelector('[data-input-key="mansfieldLength"]')).not.toBeNull()
+    expect(editor().querySelector('[data-input-key="showMansfield"]')).toBeNull()
   })
 })
 

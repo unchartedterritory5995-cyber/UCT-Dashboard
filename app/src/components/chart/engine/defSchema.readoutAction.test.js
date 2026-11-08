@@ -31,7 +31,7 @@ const RS = engineRegistry.getDefinition('rsLine')
 
 const VIEW = Object.freeze({
   key: 'view', type: 'enum', label: 'Reading', default: 'ratio', group: 'Simple',
-  options: [['ratio', 'RS line'], ['rotation', 'Rotation'], ['quality', 'Quality']],
+  options: [['ratio', 'RS line'], ['mansfield', 'Mansfield'], ['rotation', 'Rotation'], ['quality', 'Quality'], ['vars', 'VARS']],
 })
 const ANCHOR = Object.freeze({ key: 'anchorDate', type: 'string', label: 'Anchor date', default: '', group: 'Checks' })
 
@@ -39,10 +39,17 @@ const BASE_ROWS = Object.freeze([
   { key: 'resolved', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text' },
 ])
 
+/** `RS.inputs` with the fixture's own inputs in place of the registered ones of
+ *  the same key. ⭐ 3-08 shipped a real `view` and `anchorDate`, so appending
+ *  would declare each key twice; the fixture's `view` carries every option the
+ *  registered `legendFallback` and guides gate on, so the definition still
+ *  registers with the fixture's own control in place of the shipped one. */
+const inputsWith = (extra) => [...RS.inputs.filter((i) => !extra.some((x) => x.key === i.key)), ...extra]
+
 /** The rsLine definition with the two inputs and the given readout rows. */
 const defWith = (rows, { inputs = [VIEW, ANCHOR] } = {}) => ({
   ...RS,
-  inputs: [...RS.inputs, ...inputs],
+  inputs: inputsWith(inputs),
   readout: [...BASE_ROWS, ...rows],
 })
 
@@ -170,7 +177,7 @@ describe('the equals gate — `when: input:<key>=<value>`', () => {
   })
 
   it('refuses a value the enum does not declare (a typo would hide the row forever)', () => {
-    expect(refuse([GLANCE('rotaion')])).toMatch(/readout\[1\]\.when: .*"rotaion" is not one of "view"'s option values: "ratio", "rotation", "quality"/)
+    expect(refuse([GLANCE('rotaion')])).toMatch(/readout\[1\]\.when: .*"rotaion" is not one of "view"'s option values: "ratio", "mansfield", "rotation", "quality", "vars"/)
   })
 
   it('refuses an undeclared key, and a key that is not an enum', () => {
@@ -199,7 +206,7 @@ describe('the equals gate — `when: input:<key>=<value>`', () => {
 describe('activeWhen {key, equals} on an ENUM input', () => {
   const withInput = (extra) => validateDefinition({
     ...RS,
-    inputs: [...RS.inputs, VIEW, ANCHOR, { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple', ...extra }],
+    inputs: inputsWith([VIEW, ANCHOR, { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple', ...extra }]),
   })
 
   it('accepted on an option value (the 3-08 customBenchmark shape on the real benchmark enum)', () => {
@@ -228,7 +235,7 @@ describe('activeWhen {key, equals} on an ENUM input', () => {
       key: 'rotation100', label: '100', style: 'hlines', levels: [100], color: 'rgba(255,255,255,0.12)', width: 1,
       lineStyle: 'solid', role: 'context', activeWhen: { key: 'view', equals },
     })
-    const run = (equals) => validateDefinition({ ...RS, inputs: [...RS.inputs, VIEW], plots: [...RS.plots, guide(equals)] })
+    const run = (equals) => validateDefinition({ ...RS, inputs: inputsWith([VIEW]), plots: [...RS.plots, guide(equals)] })
     const okRun = run('rotation')
     expect(okRun.ok, okRun.errors && okRun.errors.join('\n')).toBe(true)
     expect(run('rotaion').errors.join('\n')).toMatch(/activeWhen\.equals: "rotaion" is not one of "view"'s option values/)

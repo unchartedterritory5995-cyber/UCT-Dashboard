@@ -57,8 +57,10 @@ describe('the RS definition declares the rating inputs the plan names (§6.3)', 
 
   it('⛔ none is a server input, and the compute revision did not move', () => {
     for (const k of ['showRating', 'headlineRating', 'showComponents', 'ratingBands']) expect(RS.meta.serverInputs).not.toContain(k)
-    expect(RS.compute.rev).toBe(3)
-    expect(RS.version).toBe(3)
+    // 3-08 moved both to 4 for the Phase 3 columns and inputs; the rating inputs
+    // still moved neither (none is in serverInputs, above).
+    expect(RS.compute.rev).toBe(4)
+    expect(RS.version).toBe(4)
   })
 
   it('every label and tooltip is plain words: no emoji, no "heuristic"', () => {

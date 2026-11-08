@@ -75,11 +75,12 @@ def _js_symbol_re() -> str:
 
 
 def test_the_parsers_read_what_they_claim_to():
-    assert _js_presets() >= {"classic", "stress"} and len(_js_presets()) == 6
+    # v4 (unit 3-08): the four Phase 3 presets join the six
+    assert _js_presets() >= {"classic", "stress", "rotation", "volAdjusted"} and len(_js_presets()) == 10
     assert _js_learn() >= {"rsLine", "fourChecks"} and len(_js_learn()) == 6
-    assert {"ratingSummary", "beforePrice", "checks"} <= _js_card_keys()
+    assert {"ratingSummary", "beforePrice", "checks", "rotation", "quality", "vars"} <= _js_card_keys()
     assert "rating" not in _js_card_keys(), "a detail row with no card opens nothing"
-    assert _js_benchmarks() >= {"SPY", "SECTOR"}
+    assert _js_benchmarks() >= {"SPY", "SECTOR", "CUSTOM"}
     assert len(_js_event_props()) == 6
 
 
@@ -105,8 +106,8 @@ def test_the_closed_sets_are_the_definitions_own():
     assert tel.RS_PRESETS == _js_presets()
     assert tel.RS_LEARN_TARGETS == _js_learn()
     assert tel.RS_CARD_KINDS == _js_card_keys()
-    # the benchmark rule reads the server row, which the JS enum already mirrors
-    assert set(registry_defs.RS_LINE_BENCHMARKS) == _js_benchmarks()
+    # the benchmark rule reads the v4 menu, which the JS enum mirrors (3-08)
+    assert set(registry_defs.RS_LINE_BENCHMARKS_V4) == _js_benchmarks()
 
 
 def test_the_client_symbol_rule_is_the_servers():
@@ -152,7 +153,7 @@ def _legal():
         for sym in ("NVDA", "BRK-B", "BRK.B", "X:BTCUSD", "A"):
             out.append((e, "symbol", sym))
     out += [("rs_preset", "name", v) for v in sorted(tel.RS_PRESETS)]
-    out += [("rs_benchmark", "value", v) for v in registry_defs.RS_LINE_BENCHMARKS]
+    out += [("rs_benchmark", "value", v) for v in registry_defs.RS_LINE_BENCHMARKS_V4]
     out += [("rs_marker_card", "kind", v) for v in sorted(tel.RS_CARD_KINDS)]
     out += [("rs_learn", "target", v) for v in sorted(tel.RS_LEARN_TARGETS)]
     return out

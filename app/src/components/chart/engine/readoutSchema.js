@@ -43,7 +43,10 @@
 //     note?:    'scalar:benchmark.note',     // same grammar: a muted second line under
 //                                            // the value, absent when it resolves to nothing
 //     muted?:   true,                        // the value itself prints in the quiet ink
-//                                            // (a qualifier, never a pane-label value)
+//                                            // (a qualifier, never a pane-label value);
+//                                            // or a gate in the `when` grammar (3-08):
+//                                            // 'scalar:rotation.reason' mutes the row
+//                                            // while the server says why it has no reading
 //     chipWhen?: {key: 'headlineRating', in: ['ibd', 'both']},
 //                                            // a `chip` row rides the pane label ONLY while
 //                                            // this input condition holds (the inputs'
@@ -361,6 +364,16 @@ function gateHolds(gate, scalars, def, inputs) {
   return gateOpen(v)
 }
 
+/** ⭐ UCT RS 3-08 — is the row's value printed in the quiet ink? `muted: true`
+ *  always; a `muted` GATE (the `when` grammar) while it holds — the server's
+ *  `reason` beside a reading it could not make, so the row says why in the muted
+ *  ink and never reaches the pane label. A gate that does not parse is closed. */
+function entryMuted(entry, scalars, def, inputs) {
+  if (entry.muted === true) return true
+  if (typeof entry.muted !== 'string') return false
+  return gateHolds(parseReadoutGate(entry.muted), scalars, def, inputs)
+}
+
 function resolveRow(entry, scalars, def, inputs) {
   if (!isPlainObject(entry)) return null
   if (typeof entry.key !== 'string' || !entry.key) return null
@@ -384,7 +397,7 @@ function resolveRow(entry, scalars, def, inputs) {
   if (typeof text === 'string' && text) {
     // `muted: true` — a qualifier the row states in the quiet ink even with a
     // value (the short-history note); a muted row never reaches the pane label.
-    row = { key: entry.key, label: entry.label, value, text, muted: entry.muted === true }
+    row = { key: entry.key, label: entry.label, value, text, muted: entryMuted(entry, scalars, def, inputs) }
   } else if (typeof entry.fallback === 'string' && entry.fallback) {
     row = { key: entry.key, label: entry.label, value: null, text: entry.fallback, muted: true }
   }

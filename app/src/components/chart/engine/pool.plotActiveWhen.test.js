@@ -34,12 +34,19 @@ describe('the RS Mansfield zero guide binds only under Mansfield view', () => {
   }
   it('the definition declares the guide with the activeWhen', () => {
     expect(zero && zero.style).toBe('hlines')
-    expect(zero.activeWhen).toEqual({ key: 'showMansfield', equals: true })
+    // v4 (unit 3-08): the Reading (`view`) is the condition
+    expect(zero.activeWhen).toEqual({ key: 'view', equals: 'mansfield' })
   })
   it('ratio view: no zero guide; Mansfield view: the zero guide is bound', () => {
     expect(plotActiveFor(zero, rs, {})).toBe(false)
-    expect(plotActiveFor(zero, rs, { showMansfield: true })).toBe(true)
-    expect(guidesOf({ showMansfield: false })).toBe(false)
-    expect(guidesOf({ showMansfield: true })).toBe(true)
+    expect(plotActiveFor(zero, rs, { view: 'mansfield' })).toBe(true)
+    expect(guidesOf({ view: 'ratio' })).toBe(false)
+    expect(guidesOf({ view: 'mansfield' })).toBe(true)
+    // and the Phase 3 guides bind only under their own Reading
+    const guideKeys = (inputs) => planBindings([{ instanceId: 'inst:rs:1', defId: 'rsLine', inputs }], registry, null, {})
+      .bind.flatMap(b => (b.guides || []).map(g => g.key))
+    expect(guideKeys({ view: 'rotation' })).toEqual(['rotationCentre'])
+    expect(guideKeys({ view: 'vars' })).toEqual(['varsZero'])
+    expect(guideKeys({ view: 'quality' })).toEqual([])
   })
 })

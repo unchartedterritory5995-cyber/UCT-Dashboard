@@ -150,7 +150,10 @@ describe('the preset picker renders only for a definition that declares presets'
     mount({ settings: cs, instanceId: legacyInstanceId('rsLine') })
     expect(picker()).toBeTruthy()
     const options = [...presetSelect().querySelectorAll('option')].map((o) => [o.value, o.textContent])
-    expect(options).toEqual([...rs.meta.presets.map((p) => [p.id, p.label]), [CUSTOM_PRESET, 'Custom']])
+    // ⭐ 3-08: nothing primes the server definitions here, so the four Phase 3
+    // presets (`requiresServer`) are hidden and the six shipped ones list.
+    expect(options).toEqual([...rs.meta.presets.filter((p) => p.requiresServer !== true).map((p) => [p.id, p.label]),
+      [CUSTOM_PRESET, 'Custom']])
     // A fresh instance resolves to the declared defaults, which ARE the Classic
     // values — so the picker reads Classic, and its origin line shows.
     expect(presetSelect().value).toBe('classic')
@@ -333,14 +336,17 @@ describe('meta.groupsCollapsed', () => {
     const cs = setIndicatorEnabled(mergeChartSettings(null), 'rsLine', true, engineRegistry)
     mount({ settings: cs, instanceId: legacyInstanceId('rsLine') })
     expect(groupButton('Simple').getAttribute('aria-expanded')).toBe('true')
-    for (const g of rs.meta.groupsCollapsed) {
+    // 3-08: Checks holds only the anchor date, a `requiresServer` input, so with
+    // no server declaration it has no control and no section
+    const rendered = rs.meta.groupsCollapsed.filter((g) => g !== 'Checks')
+    for (const g of rendered) {
       expect(groupButton(g).getAttribute('aria-expanded'), g).toBe('false')
     }
     // Its Style tab is nothing but hinted groups (the colours), so they stay
     // open there — otherwise the tab would open with no control on it. Rating
     // holds no colour or width, so it has no Style section (VA2).
     fireEvent.click(screen.getByRole('tab', { name: 'Style' }))
-    for (const g of rs.meta.groupsCollapsed.filter((x) => x !== 'Rating')) {
+    for (const g of rendered.filter((x) => x !== 'Rating')) {
       expect(groupButton(g).getAttribute('aria-expanded'), `${g} on Style`).toBe('true')
     }
   })
@@ -382,7 +388,7 @@ describe('defSchema: meta.presets and meta.groupsCollapsed', () => {
     expect(errs(fixtureRaw({ presets: undefined, groupsCollapsed: undefined }))).toEqual([])
     // The shipped RS definition passed the real registry, which validates on load.
     expect(engineRegistry.getDefinition('rsLine').meta.groupsCollapsed)
-      .toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method'])
+      .toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'])
   })
 
   it('refuses presets that are not an array, or entries missing id / label / inputs', () => {
@@ -545,12 +551,17 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
   const declared = () => new Set(rs().inputs.map((i) => i.key))
 
   it('declares exactly the six, Classic first (the member\'s default leads the picker), each on declared inputs only', () => {
-    expect(rs().meta.presets.map((p) => p.id)).toEqual(['classic', 'classicWeekly', 'phase', 'trend', 'trendWeekly', 'stress'])
+    // v4 (3-08) appends the four Phase 3 presets, each `requiresServer`
+    expect(rs().meta.presets.map((p) => p.id)).toEqual(['classic', 'classicWeekly', 'phase', 'trend', 'trendWeekly', 'stress',
+      'rotation', 'rotationWeekly', 'quality', 'volAdjusted'])
     for (const p of rs().meta.presets) {
       for (const k of Object.keys(p.inputs)) expect(declared().has(k), `${p.id} sets undeclared ${k}`).toBe(true)
       expect(typeof p.origin).toBe('string')
-      // every preset states the three v3 toggles, so detection can never read a
-      // Trend or Stress instance as Classic whatever the declaration order
+      // every preset states the Reading, so no two readings ever detect as one
+      expect('view' in p.inputs, `${p.id} is silent on view`).toBe(true)
+      if (p.requiresServer === true) continue
+      // every shipped preset states the three v3 toggles, so detection can never
+      // read a Trend or Stress instance as Classic whatever the declaration order
       for (const k of ['showMansfield', 'showRedDay', 'showNewLow']) expect(k in p.inputs, `${p.id} is silent on ${k}`).toBe(true)
     }
     mount({ settings: rsBlob(), instanceId: RS_INST() })
@@ -608,7 +619,7 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
 
   it('the Mansfield length control dims until the Mansfield line is on (activeWhen), in the Method group', () => {
     const f = rs().inputs.find((i) => i.key === 'mansfieldLength')
-    expect(f.activeWhen).toEqual({ key: 'showMansfield', equals: true })
+    expect(f.activeWhen).toEqual({ key: 'view', equals: 'mansfield' })   // v4: the Reading
     // VA2: the plan's five folded groups (§6.3); the phone sheet has had groups
     // since 2a-11, so the Mansfield and stress controls have groups of their own.
     expect(f.group).toBe('Method')
@@ -620,7 +631,7 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
       expect(rs().inputs.find((i) => i.key === k).group, k).toBe('New highs')
     }
     expect([...new Set(rs().inputs.map((i) => i.group))])
-      .toEqual(['Simple', 'Line', 'New highs', 'Rating', 'Stress test', 'Method'])
-    expect(rs().meta.groupsCollapsed).toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method'])
+      .toEqual(['Simple', 'Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'])
+    expect(rs().meta.groupsCollapsed).toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'])
   })
 })

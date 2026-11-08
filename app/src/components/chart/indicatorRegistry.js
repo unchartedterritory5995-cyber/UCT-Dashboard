@@ -414,6 +414,17 @@ export function visibleInputs(def, declared = null) {
  * ⚠️ A preset that sets a `legacy` input is NOT hidden for it: the key is still
  * a valid value to write (that is what `legacy` means), and a preset that keeps
  * an old layout's meaning through it is the reason the key was kept.
+ * ⭐ UCT RS 3-08 — and an UNGATED preset (no `requiresServer`) is not hidden for a
+ * gated input it sets when either
+ *   - the value is that input's declared DEFAULT: an unset input already reads
+ *     it, so the write changes nothing a form or an undeclaring server can see
+ *     (Classic's `view: 'ratio'`, stated so `detectPreset` stays exact); or
+ *   - the preset ALSO sets a `legacy` input: the old key carries the preset's
+ *     meaning to a server that has not declared the new one, and a server that
+ *     has reads the new key (Trend's `showMansfield: true` beside
+ *     `view: 'mansfield'`, decision D2).
+ * Without these the shipped presets of a definition that grows a gated input
+ * would vanish from the picker until the server row is armed.
  * A key that names no declared input is skipped, as the picker already skips it.
  *
  * @returns {object[]} the definition's own preset objects, in declared order.
@@ -428,10 +439,15 @@ export function visiblePresets(def, declared = null) {
   return presets.filter((p) => {
     if (!p || typeof p !== 'object') return false
     const vals = p.inputs && typeof p.inputs === 'object' ? p.inputs : {}
+    const ungated = p.requiresServer !== true
+    const carriesLegacy = Object.keys(vals).some((k) => byKey.get(k)?.legacy === true)
     for (const [key, value] of Object.entries(vals)) {
       const input = byKey.get(key)
       if (!input || input.legacy === true) continue
-      if (isInputHidden(input, declared)) return false
+      if (isInputHidden(input, declared)) {
+        if (ungated && (value === input.default || carriesLegacy)) continue
+        return false
+      }
       if (input.type === 'enum') {
         const option = optionFor(input, value)
         if (option !== undefined && enumOptionRequiresServer(option) && !declaresOption(declared, key, value)) return false

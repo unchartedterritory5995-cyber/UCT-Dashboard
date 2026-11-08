@@ -8,7 +8,7 @@
 // ungrouped, `inline` packs of up to three SAME-type fields, every field in and
 // every field out.
 import { describe, it, expect } from 'vitest'
-import { sectionize, packRows, initialCollapsed, INLINE_MAX, fieldsForInstance, fieldsFromDefinition } from './indicatorRegistry'
+import { sectionize, packRows, initialCollapsed, INLINE_MAX, fieldsForInstance, fieldsFromDefinition, visibleInputs } from './indicatorRegistry'
 import * as engineRegistry from './engine/nativeRegistry'
 
 const rsDef = () => engineRegistry.getDefinition('rsLine')
@@ -18,8 +18,8 @@ const flatKeys = (rows) => rows.flatMap((r) => r.keys)
 
 describe('initialCollapsed(def)', () => {
   it('is the definition\'s meta.groupsCollapsed as a Set of strings', () => {
-    // VA2: the plan's five folded groups (§6.3)
-    expect([...initialCollapsed(rsDef())]).toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method'])
+    // VA2: the plan's five folded groups (§6.3); 3-08 adds Checks (the anchor date)
+    expect([...initialCollapsed(rsDef())]).toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'])
   })
   it('is empty with no hint, and drops junk', () => {
     expect(initialCollapsed(engineRegistry.getDefinition('rsi')).size).toBe(0)
@@ -38,17 +38,34 @@ describe('sectionize(def, fields) over the shipped UCT RS definition', () => {
     expect(sections.map((s) => s.group)).toEqual(groups)
     expect(sections.map((s) => s.label)).toEqual(groups)
     expect(sections.map((s) => s.collapsed)).toEqual([false, true, true, true, true, true])
-    // Keys partition the declared inputs, in declaration order, nothing lost.
-    const declared = def.inputs.map((i) => i.key)
+    // Keys partition the RENDERED inputs, in declaration order, nothing lost.
+    // ⭐ 3-08: with no server declaration the Phase 3 inputs (requiresServer) and
+    // the legacy Mansfield switch get no field, so Checks (the anchor date alone)
+    // has no section until the v4 row declares it.
+    const shown = visibleInputs(def, null)
+    const declared = shown.map((i) => i.key)
+    expect(declared).not.toContain('showMansfield')
+    expect(declared).not.toContain('view')
     expect(sections.flatMap((s) => s.keys)).toEqual(declared)
     for (const s of sections) {
-      const byGroup = def.inputs.filter((i) => i.group === s.group).map((i) => i.key)
+      const byGroup = shown.filter((i) => i.group === s.group).map((i) => i.key)
       expect(s.keys).toEqual(byGroup)
       expect(s.fields.map((f) => f.key)).toEqual(byGroup)
       // No `inline` on this definition ⇒ every row is a single row.
       expect(s.rows.every((r) => r.kind === 'row')).toBe(true)
       expect(flatKeys(s.rows)).toEqual(byGroup)
     }
+  })
+
+  it('3-08: with the v4 row declared, Checks joins the sections, collapsed, and the Phase 3 controls render in their groups', () => {
+    const def = rsDef()
+    const declared = { inputs: def.meta.serverInputs, options: { benchmark: ['SPY', 'RSP', 'SECTOR', 'QQQ', 'IWM', 'INDUSTRY', 'CUSTOM'] } }
+    const sections = sectionize(def, fieldsForInstance(def, rsInst, { declared }).all)
+    expect(sections.map((s) => s.group)).toEqual(['Simple', 'Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'])
+    expect(sections.at(-1)).toMatchObject({ group: 'Checks', collapsed: true, keys: ['anchorDate'] })
+    expect(sections[0].keys.slice(0, 3)).toEqual(['benchmark', 'customBenchmark', 'view'])
+    expect(sections.find((s) => s.group === 'Method').keys).toEqual(['mansfieldLength', 'mansfieldColor', 'dotCrossColor',
+      'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow', 'clenowGapPct', 'atrLength', 'varsLookback'])
   })
 
   it('defaults to every field of the definition when no fields are passed', () => {

@@ -1379,7 +1379,20 @@ function validateMeta(meta, def, errors) {
         const p = isPlainObject(e) ? parseReadoutSource(e.source) : null
         if (!p || p.kind !== 'scalar') errors.push(`meta.legendFallback[${i}].source: expected a 'scalar:<a.b>' or 'payload:<a.b>' path, got ${fmt(e && e.source)}`)
         if (!isPlainObject(e) || !READOUT_FORMATS.includes(e.format)) errors.push(`meta.legendFallback[${i}].format: expected one of ${list(READOUT_FORMATS)}, got ${fmt(e && e.format)}`)
-        if (isPlainObject(e) && e.when !== undefined && !parseReadoutSource(e.when)) errors.push(`meta.legendFallback[${i}].when: expected a readout source, got ${fmt(e.when)}`)
+        // ⭐ UCT RS 3-08 — a `when` may be the equals gate too (`input:view=mansfield`):
+        // one pane label value per Reading. The enum and its option are checked the
+        // way a readout row's equals gate is (`equalsGateFault`).
+        if (isPlainObject(e) && e.when !== undefined) {
+          const gate = parseReadoutGate(e.when)
+          if (!gate) {
+            errors.push(`meta.legendFallback[${i}].when: expected a readout source or an input:<key>=<value> gate, got ${fmt(e.when)}`)
+          } else if (typeof gate.equals === 'string') {
+            const byKey = new Map((Array.isArray(def && def.inputs) ? def.inputs : [])
+              .filter((x) => isPlainObject(x) && typeof x.key === 'string').map((x) => [x.key, x]))
+            const fault = equalsGateFault(gate, byKey)
+            if (fault) errors.push(`meta.legendFallback[${i}].when: ${fault}`)
+          }
+        }
       })
     }
   }
@@ -1701,8 +1714,19 @@ function validateReadout(def, inputsByKey, errors) {
     if (entry.chip !== undefined && typeof entry.chip !== 'boolean') {
       errors.push(`${path}.chip: ${who} — expected a boolean, got ${fmt(entry.chip)}`)
     }
+    // ⭐ UCT RS 3-08 — `muted` may also be a GATE in the `when` grammar
+    // (`scalar:rotation.reason`): the row prints in the quiet ink while it holds,
+    // so a reading the server could not make reads as a note, not a value.
     if (entry.muted !== undefined && typeof entry.muted !== 'boolean') {
-      errors.push(`${path}.muted: ${who} — expected a boolean, got ${fmt(entry.muted)}`)
+      const gate = typeof entry.muted === 'string' ? parseReadoutGate(entry.muted) : null
+      if (!gate) {
+        errors.push(`${path}.muted: ${who} — expected a boolean or a readout gate (${SOURCE_HELP}), got ${fmt(entry.muted)}`)
+      } else if (typeof gate.equals === 'string') {
+        const fault = equalsGateFault(gate, inputsByKey)
+        if (fault) errors.push(`${path}.muted: ${who} — ${fault}`)
+      } else if (gate.kind === 'input' && (gate.path.length !== 1 || !inputsByKey.has(gate.path[0]))) {
+        errors.push(`${path}.muted: ${who} — ${fmt(entry.muted)} names no declared input`)
+      }
     }
     // ⭐ VA2 — `chipWhen` / `chipPrefix` / `band` (UCT RS rating inputs). Each is
     // behavioural, so each fails closed at registration rather than at render.

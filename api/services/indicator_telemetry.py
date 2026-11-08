@@ -274,8 +274,9 @@ EVENT_SCHEMAS.update({
 #
 #   rs_on / rs_off_within_60s  symbol   a ticker (`_RS_TICKER`)
 #   rs_preset                  name     a preset id of the definition (`RS_PRESETS`)
-#   rs_benchmark               value    a benchmark code the server row accepts
-#                                       (`registry_defs.RS_LINE_BENCHMARKS`, read live)
+#   rs_benchmark               value    a benchmark code the chart's menu offers
+#                                       (`registry_defs.RS_LINE_BENCHMARKS_V4`, read live:
+#                                       the v4 menu, CUSTOM included, as the JS enum)
 #   rs_marker_card             kind     a readout row key that has a card (`RS_CARD_KINDS`)
 #   rs_learn                   target   a lesson key of the definition (`RS_LEARN_TARGETS`)
 #
@@ -287,12 +288,14 @@ EVENT_SCHEMAS.update({
 # being silently refused at the door.
 
 #: `meta.presets[].id` of the UCT RS definition.
-RS_PRESETS = frozenset({"classic", "classicWeekly", "phase", "trend", "trendWeekly", "stress"})
+RS_PRESETS = frozenset({"classic", "classicWeekly", "phase", "trend", "trendWeekly", "stress",
+                        "rotation", "rotationWeekly", "quality", "volAdjusted"})
 #: `meta.learn[].key` of the UCT RS definition.
 RS_LEARN_TARGETS = frozenset({"rsLine", "phase", "newHigh", "beforePrice", "redDay", "fourChecks"})
 #: The `readout[]` keys of the UCT RS definition whose row opens a card.
 RS_CARD_KINDS = frozenset({"benchmarkName", "ratingSummary", "fastRating", "phase", "mansfield", "rsHigh",
-                           "beforePrice", "redDay", "sensitivity", "regime", "checks"})
+                           "beforePrice", "redDay", "sensitivity", "regime", "checks",
+                           "rotation", "quality", "vars"})
 #: A chart symbol: upper-case letters and digits, with the class / exchange
 #: separators the app's symbols use (`BRK-B`, `BRK.B`, `X:BTCUSD`). Never a word
 #: in lower case, never a space.
@@ -303,12 +306,13 @@ _RS_IMPORT_ID = re.compile(r"[A-Za-z0-9_:-]{1,64}")
 
 
 def _rs_benchmark_ok(value: str) -> bool:
-    """A benchmark code the RS server row accepts. Read from the row itself, so
+    """A benchmark code the RS chart menu offers. Read from the row module, so
     a code added there is accepted here with no second list; fails CLOSED when
-    the row cannot be read."""
+    the row cannot be read. The v4 menu (CUSTOM included): a code, never the
+    member's typed ticker, so the count stays free of free text."""
     try:
         from api.services.signature import registry_defs
-        return value in registry_defs.RS_LINE_BENCHMARKS
+        return value in registry_defs.RS_LINE_BENCHMARKS_V4
     except Exception:  # noqa: BLE001
         log.exception("[indicator-telemetry] RS benchmark list unavailable")
         return False

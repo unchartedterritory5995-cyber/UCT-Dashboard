@@ -25,7 +25,8 @@ const RS_INFO = '#6ba3be'
 const RS_GOLD = '#c9a84c'
 const RS_NEUTRAL = '#8a8574'
 
-const GLANCE = ['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rsHigh', 'sensitivity', 'regime', 'checks', 'shortHistory']
+const GLANCE = ['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rotation', 'quality', 'vars', 'rsHigh',
+  'sensitivity', 'regime', 'checks', 'shortHistory']
 
 /** NVDA against SPY on a daily chart, as the VA1 provider builds it. */
 const PAYLOAD = Object.freeze({
@@ -57,7 +58,8 @@ describe('A1 — the glance list and the detail rows', () => {
   it('the definition declares exactly the glance list, in reading order, each label 12 characters or fewer', () => {
     const glance = RS.readout.filter(isGlanceRow)
     expect(glance.map((e) => e.key)).toEqual(GLANCE)
-    expect(glance.map((e) => e.label)).toEqual(['Benchmark', 'Rating', 'RS line', 'Mansfield', 'Last RS high', 'Agreement', 'Regime', 'Checks', 'History'])
+    expect(glance.map((e) => e.label)).toEqual(['Benchmark', 'Rating', 'RS line', 'Mansfield', 'Rotation', 'Quality',
+      'Vol-adjusted', 'Last RS high', 'Agreement', 'Regime', 'Checks', 'History'])
     for (const e of glance) expect(e.label.length, e.label).toBeLessThanOrEqual(12)
     // the old "Benchmarks" row is "Agreement", never two rows a letter apart
     expect(RS.readout.some((e) => e.label === 'Benchmarks')).toBe(false)
@@ -84,7 +86,11 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(of('rsHigh')).toEqual(['rsHighAge', 'beforePrice', 'redDay', 'history'])
     expect(of('sensitivity')).toEqual(['agreeSpy', 'agreeRsp', 'agreeSector', 'theme'])
     expect(of('regime')).toEqual(['regimePct200', 'regimeReturn2y', 'regimeVol', 'regimeNote'])
-    expect(of('checks')).toEqual(['checkMa', 'checkAnchor', 'checkPivot', 'checkGreenOnRed', 'pullback'])
+    expect(of('checks')).toEqual(['checkMa', 'checkAnchor', 'checkAnchorPicked', 'checkPivot', 'checkGreenOnRed', 'pullback'])
+    // v4 (3-08): the three Phase 3 readings
+    expect(of('rotation')).toEqual(['rotationQuadrant', 'rotationRatio', 'rotationMomentum', 'rotationBars'])
+    expect(of('quality')).toEqual(['qualityScore', 'qualityPace', 'qualityFit', 'qualityGap', 'qualityWindow'])
+    expect(of('vars')).toEqual(['varsValue', 'varsAverage', 'varsState', 'varsLookback', 'varsAtr'])
   })
 
   it('the glance rows read the server summary strings named in the contract; the checks read each check\'s line', () => {
@@ -100,11 +106,11 @@ describe('A1 — the glance list and the detail rows', () => {
 
   it('acceptance 2: SPY on a daily chart lists rows 1, 2, 3, 5, 6, 7, 8 — and row 4 only under Mansfield view', () => {
     expect(glanceKeys(rows(PAYLOAD))).toEqual(['benchmarkName', 'ratingSummary', 'phase', 'rsHigh', 'sensitivity', 'regime', 'checks'])
-    expect(glanceKeys(rows(PAYLOAD, { showMansfield: true })))
+    expect(glanceKeys(rows(PAYLOAD, { view: 'mansfield' })))
       .toEqual(['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rsHigh', 'sensitivity', 'regime', 'checks'])
     // a short series adds History, and never more than nine rows
     const short = { ...PAYLOAD, history: { bars: 180, requested: 852, short: true, summary: '180 bars held; dots use every bar' } }
-    const got = rows(short, { showMansfield: true })
+    const got = rows(short, { view: 'mansfield' })
     const g = glanceKeys(got)
     expect(g[g.length - 1]).toBe('shortHistory')
     expect(g.length).toBeLessThanOrEqual(9)
@@ -113,7 +119,7 @@ describe('A1 — the glance list and the detail rows', () => {
   })
 
   it('the glance values print the composed reads verbatim', () => {
-    const got = rows(PAYLOAD, { showMansfield: true })
+    const got = rows(PAYLOAD, { view: 'mansfield' })
     expect(Object.fromEntries(got.filter((r) => !r.detailOf).map((r) => [r.label, r.text]))).toEqual({
       Benchmark: 'S&P 500 (SPY)', Rating: '94 · fast 91', 'RS line': 'above its 21 EMA by 6.8%',
       Mansfield: '+18.7%, above zero, falling', 'Last RS high': '1 bar ago · before price · red day',
@@ -141,7 +147,7 @@ describe('A1 — the glance list and the detail rows', () => {
   })
 
   it('the numbers blocks: each detail row resolves and carries its glance key', () => {
-    const got = rows(PAYLOAD, { showMansfield: true })
+    const got = rows(PAYLOAD, { view: 'mansfield' })
     const block = (key) => got.filter((r) => r.detailOf === key).map((r) => [r.label, r.text])
     // Requested prints the OPTION the member picked, never the stored code
     expect(block('benchmarkName')).toEqual([['Requested', 'S&P 500 (SPY)'], ['Resolved', 'SPY']])
@@ -155,7 +161,7 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(block('regime')).toEqual([['vs 200-day', '+4.1%'], ['2-year return', '+38.2%'], ['Volatility third', 'low']])
     expect(block('checks')).toEqual([
       ['Averages', 'pass · stock +15.2% vs its 200-day, SPY +0.4%'],
-      ['Since the low', 'fail · stock −0.2%, SPY +2.0%; low was 1 bar ago'],
+      ['Since anchor', 'fail · stock −0.2%, SPY +2.0%; low was 1 bar ago'],
       ['Pivot speed', 'fail · 4 of the last 10 red days closed in the top third'],
       ['Green on red', 'pass · up on 5 red days in the last 20 sessions'],
       ['From 8-day EMA', '+0.1%'],
@@ -163,7 +169,7 @@ describe('A1 — the glance list and the detail rows', () => {
   })
 
   it('acceptance 6: no "1 bars", no "on a red day" value under a Red day label, no value that opens with its label\'s first word', () => {
-    const got = rows(PAYLOAD, { showMansfield: true })
+    const got = rows(PAYLOAD, { view: 'mansfield' })
     for (const r of got) {
       expect(r.text, r.key).not.toMatch(/\b1 bars\b/)
       const first = r.label.split(/\s+/)[0].toLowerCase()
@@ -243,9 +249,10 @@ describe('defSchema — `readout[].detailOf`', () => {
 describe('A2 — Mansfield view', () => {
   const input = (key) => RS.inputs.find((i) => i.key === key)
 
-  it('the switch is labelled Mansfield view, with the spec\'s tooltip', () => {
-    expect(input('showMansfield')).toMatchObject({ label: 'Mansfield view', default: false,
+  it('the switch is labelled Mansfield view, with the spec\'s tooltip, and is LEGACY since v4 (the Reading replaced it)', () => {
+    expect(input('showMansfield')).toMatchObject({ label: 'Mansfield view', default: false, legacy: true,
       tooltip: 'Draw Weinstein\'s Mansfield line around zero in place of the RS line and its dots.' })
+    expect(input('view')).toMatchObject({ label: 'Reading', default: 'ratio', group: 'Simple', requiresServer: true })
   })
 
   it('Trend and Trend weekly turn Mansfield view on; every other preset states it off', () => {
@@ -255,16 +262,26 @@ describe('A2 — Mansfield view', () => {
     expect(by.trendWeekly).toMatchObject({ inputs: { showMansfield: true, mansfieldLength: 52, lookback: 52, mansfieldColor: RS_INFO, dotCrossColor: RS_INFO },
       dotSize: { dotMansfieldCross: 'medium' } })
     for (const id of ['classic', 'classicWeekly', 'phase', 'stress']) expect(by[id].inputs.showMansfield, id).toBe(false)
+    // v4: the Reading says the same, in the new key
+    for (const id of ['trend', 'trendWeekly']) expect(by[id].inputs.view, id).toBe('mansfield')
+    for (const id of ['classic', 'classicWeekly', 'phase', 'stress']) expect(by[id].inputs.view, id).toBe('ratio')
   })
 
   it('the zero guide: one solid neutral hlines at 0, active ONLY under Mansfield view', () => {
     const guides = RS.plots.filter((p) => p.style === 'hlines')
-    expect(guides).toHaveLength(1)
+    // v4: one guide per centred reading (Mansfield 0, Rotation 100, VARS 0)
+    expect(guides.map((g) => g.key)).toEqual(['mansfieldZero', 'rotationCentre', 'varsZero'])
     const z = guides[0]
     expect(z).toMatchObject({ key: 'mansfieldZero', levels: [0], role: 'context', color: RS_NEUTRAL, width: 1, lineStyle: 'solid',
-      activeWhen: { key: 'showMansfield', equals: true } })
-    expect(evalActiveWhen(z.activeWhen, { showMansfield: true })).toBe(true)
-    expect(evalActiveWhen(z.activeWhen, { showMansfield: false })).toBe(false)
+      activeWhen: { key: 'view', equals: 'mansfield' } })
+    expect(evalActiveWhen(z.activeWhen, { view: 'mansfield' })).toBe(true)
+    expect(evalActiveWhen(z.activeWhen, { view: 'ratio' })).toBe(false)
+    for (const g of guides) {
+      expect(g, g.key).toMatchObject({ role: 'context', color: RS_NEUTRAL, width: 1, lineStyle: 'solid' })
+      for (const view of ['ratio', 'mansfield', 'rotation', 'quality', 'vars']) {
+        expect(evalActiveWhen(g.activeWhen, { view }), `${g.key} under ${view}`).toBe(g.activeWhen.equals === view)
+      }
+    }
     // the Mansfield line draws at the instance's line width
     expect(RS.plots.find((p) => p.key === 'mansfield').$refs).toMatchObject({ color: 'mansfieldColor', width: 'lineWidth' })
   })
@@ -276,10 +293,15 @@ describe('A2 — Mansfield view', () => {
   it('dims, never removes: the ratio-only inputs dim under Mansfield view, the Mansfield ones outside it', () => {
     const ratioOnly = ['color', 'lineDownColor', 'maColor', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots',
       'showRedDay', 'showNewLow', 'dotColor', 'dotBeforePriceColor', 'dotPartialColor', 'dotRedColor', 'dotLowColor']
-    for (const k of ratioOnly) expect(input(k).activeWhen, k).toEqual({ key: 'showMansfield', equals: false })
-    for (const k of ['mansfieldLength', 'mansfieldColor', 'dotCrossColor']) expect(input(k).activeWhen, k).toEqual({ key: 'showMansfield', equals: true })
+    for (const k of ratioOnly) expect(input(k).activeWhen, k).toEqual({ key: 'view', equals: 'ratio' })
+    for (const k of ['mansfieldLength', 'mansfieldColor', 'dotCrossColor']) expect(input(k).activeWhen, k).toEqual({ key: 'view', equals: 'mansfield' })
+    // v4: each Method length dims unless its own Reading is chosen
+    for (const [k, view] of [['rrgRatioLength', 'rotation'], ['rrgMomentumLength', 'rotation'], ['clenowWindow', 'quality'],
+      ['clenowGapPct', 'quality'], ['atrLength', 'vars'], ['varsLookback', 'vars']]) {
+      expect(input(k), k).toMatchObject({ group: 'Method', requiresServer: true, activeWhen: { key: 'view', equals: view } })
+    }
     // the controls every view uses never dim
-    for (const k of ['benchmark', 'maLength', 'maType', 'lineWidth', 'lookback', 'priceTolerance', 'showMansfield']) {
+    for (const k of ['benchmark', 'maLength', 'maType', 'lineWidth', 'lookback', 'priceTolerance', 'showMansfield', 'view', 'anchorDate']) {
       expect(input(k).activeWhen, k).toBeUndefined()
     }
   })
@@ -376,6 +398,7 @@ describe('A4 / A6 / A9 — axis, restyle opt-out, labels, names', () => {
   it('A6: the line plots are named in the inputs\' vocabulary, short enough not to truncate', () => {
     const label = (key) => RS.plots.find((p) => p.key === key).label
     expect([label('rsLine'), label('rsMa'), label('mansfield')]).toEqual(['RS line', 'Average', 'Mansfield'])
+    expect(['rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa'].map(label)).toEqual(['RS-Ratio', 'Momentum', 'Quality', 'VARS', 'VARS avg'])
     expect(RS.inputs.find((i) => i.key === 'shortHistoryDots').label).toBe('Short history')
     for (const p of RS.plots.filter((x) => x.style === 'line' && !x.hidden)) expect(`${p.label} style`.length, p.key).toBeLessThanOrEqual(16)
   })
@@ -394,13 +417,16 @@ describe('defSchema — `plots[].activeWhen` (a guide\'s condition)', () => {
   const withPlots = (plots) => validateDefinition({ ...RS, plots })
   it('is admitted on an hlines guide keyed on a declared input, and refused anywhere else', () => {
     expect(withPlots(RS.plots).ok).toBe(true)
-    const onLine = withPlots(RS.plots.map((p) => (p.key === 'rsMa' ? { ...p, activeWhen: { key: 'showMansfield', equals: false } } : p)))
+    const onLine = withPlots(RS.plots.map((p) => (p.key === 'rsMa' ? { ...p, activeWhen: { key: 'view', equals: 'ratio' } } : p)))
     expect(onLine.ok).toBe(false)
     expect(onLine.errors.join('\n')).toMatch(/plots\[\d+\]\.activeWhen: only an "hlines" guide carries a condition/)
     const unknown = withPlots(RS.plots.map((p) => (p === zero ? { ...p, activeWhen: { key: 'nope', equals: true } } : p)))
     expect(unknown.errors.join('\n')).toMatch(/activeWhen\.key: unresolvable reference "nope"/)
-    const noEquals = withPlots(RS.plots.map((p) => (p === zero ? { ...p, activeWhen: { key: 'showMansfield' } } : p)))
+    const noEquals = withPlots(RS.plots.map((p) => (p === zero ? { ...p, activeWhen: { key: 'view' } } : p)))
     expect(noEquals.errors.join('\n')).toMatch(/activeWhen: expected an `equals` value/)
+    // v4: an enum guide's value must be one of the enum's options (3-07's check)
+    const typo = withPlots(RS.plots.map((p) => (p === zero ? { ...p, activeWhen: { key: 'view', equals: 'mansfeld' } } : p)))
+    expect(typo.errors.join('\n')).toMatch(/"mansfeld" is not one of "view"'s option values/)
   })
 })
 

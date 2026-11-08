@@ -111,10 +111,9 @@ def test_the_python_lanes_agree_on_rev_4_and_the_v3_row_keeps_rev_3():
     assert v3["version"] == 3 and v3["compute"]["rev"] == 3
 
 
-@pytest.mark.xfail(strict=True, reason="unit 3-08 moves the JS rsLine definition to version 4 / rev 4")
 def test_the_three_lanes_agree_on_rev_4():
-    """JS definition, Python v4 row and the alert migration table: one revision.
-    Red until 3-08 ships the JS v4 definition; 3-08 drops this mark."""
+    """JS definition, Python v4 row and the alert migration table: one revision
+    (unit 3-08 shipped the JS v4 definition and dropped 3-05's xfail)."""
     import pathlib
     import re
     from api.services import alert_rev_migration as rev
@@ -547,9 +546,8 @@ def test_the_v4_menu_is_the_v3_menu_plus_custom_by_name():
     assert rd._rs_line_row(True)["inputs"][0]["options"] == list(rd.RS_LINE_BENCHMARKS)
 
 
-@pytest.mark.xfail(strict=True, reason="unit 3-08 adds the CUSTOM option to the JS benchmark enum")
 def test_the_js_benchmark_enum_is_the_v4_menu():
-    """The one-list rail against the v4 menu. 3-08 drops this mark."""
+    """The one-list rail against the v4 menu (3-08 added CUSTOM, "Your symbol")."""
     assert _js_rs_line_inputs()["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS_V4)
 
 
@@ -592,16 +590,16 @@ def test_the_js_definition_names_exactly_the_inputs_the_python_row_declares():
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
     block = src.split("serverInputs:", 1)[1].split("],", 1)[0]
     js = re.findall(r"'([A-Za-z]+)'", block)
-    py = [i["key"] for i in rd._rs_line_row(True)["inputs"]]
+    # ⭐ 3-08: the JS definition is v4, so it is the v4 row (both flags) it names.
+    py = [i["key"] for i in rd._rs_line_row(True, True)["inputs"]]
     assert sorted(js) == sorted(py), (js, py)
     assert len(js) >= 3, "a short list makes this comparison vacuous"
 
 
-@pytest.mark.xfail(strict=True, reason="unit 3-08 adds the Phase 3 keys to meta.serverInputs")
 def test_the_js_server_inputs_are_the_v4_row_keys():
-    """The `serverInputs` rail against the v4 row (unit 3-05). Red until 3-08
-    ships the JS v4 definition; 3-08 drops this mark (and retires the v3 rail
-    above, which a v4 `serverInputs` list turns red)."""
+    """The `serverInputs` rail against the v4 row (unit 3-05), green since 3-08
+    shipped the JS v4 definition: the nine Phase 3 keys follow the thirteen v3
+    ones, in the row's order."""
     import pathlib
     import re
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
@@ -609,6 +607,8 @@ def test_the_js_server_inputs_are_the_v4_row_keys():
     js = re.findall(r"'([A-Za-z]+)'", block)
     py = [i["key"] for i in rd._rs_line_row(True, True)["inputs"]]
     assert sorted(js) == sorted(py), (js, py)
+    assert js[-9:] == py[-9:] == ["view", "customBenchmark", "rrgRatioLength", "rrgMomentumLength",
+                                  "clenowWindow", "clenowGapPct", "atrLength", "varsLookback", "anchorDate"]
 
 
 def test_columns_route_422s_an_unknown_benchmark(client, monkeypatch, v2_row):  # noqa: F811
@@ -628,6 +628,10 @@ def _js_rs_line_inputs() -> dict:
     as floats, bools as bools, enum defaults as strings and ``options`` as the
     list of option KEYS. Entries built by the ``colorInput`` helper carry no
     ``key:`` of their own and are skipped: a colour is never a server input.
+
+    ⭐ 3-08: a ``string`` input also reports ``pattern`` (the JS string literal
+    UNESCAPED, so a doubled backslash in the source reads as one, the regex the Python row
+    declares), ``maxLength`` (an int) and ``case``, each only when declared.
     """
     import pathlib
     import re
@@ -637,7 +641,7 @@ def _js_rs_line_inputs() -> dict:
     # Prose is not a field: drop comment lines and tooltip strings before any
     # `default:` / `min:` / `max:` is read, so a sentence can never masquerade.
     block = "\n".join(line for line in block.split("\n") if not line.lstrip().startswith("//"))
-    block = re.sub(r"tooltip:\s*'(?:[^'\\]|\\.)*'", "", block)
+    block = re.sub(r"(?:tooltip|hint|placeholder):\s*'(?:[^'\\]|\\.)*'", "", block)
     out: dict = {}
     for entry in re.split(r"\n    \{", block)[1:]:
         key = re.search(r"\bkey:\s*'([A-Za-z]+)'", entry)
@@ -659,6 +663,16 @@ def _js_rs_line_inputs() -> dict:
                 spec[bound] = float(m.group(1))
         if spec["type"] == "enum":
             spec["options"] = re.findall(r"\['([A-Za-z]+)',", entry)
+        if spec["type"] == "string":
+            pat = re.search(r"\bpattern:\s*'((?:[^'\\]|\\.)*)'", entry)
+            if pat:
+                spec["pattern"] = re.sub(r"\\(.)", r"\1", pat.group(1))
+            ml = re.search(r"\bmaxLength:\s*(\d+)", entry)
+            if ml:
+                spec["maxLength"] = int(ml.group(1))
+            case = re.search(r"\bcase:\s*'([a-z]+)'", entry)
+            if case:
+                spec["case"] = case.group(1)
         out[key.group(1)] = spec
     return out
 
@@ -670,7 +684,8 @@ def test_the_js_ranges_and_defaults_are_the_python_rows():
     the Python row declares is diffed here field by field — numbers as numbers,
     bools as true/false, enums by default value AND option vocabulary."""
     js = _js_rs_line_inputs()
-    py = {i["key"]: i for i in rd._rs_line_row(True)["inputs"]}
+    # ⭐ 3-08: the JS definition is v4, so the v4 row (both flags) is its pair.
+    py = {i["key"]: i for i in rd._rs_line_row(True, True)["inputs"]}
     assert len(js) >= 6, js  # the parser found the dialog's inputs, not a stub
     # The ONE server input with no dialog control in Phase 1 (the golden test
     # pins the same fact from the JS side). Anything else missing is drift.
@@ -686,6 +701,11 @@ def test_the_js_ranges_and_defaults_are_the_python_rows():
             assert j["options"] == list(p["options"]), (key, j["options"], p["options"])
         elif p["type"] == "bool":
             assert j["default"] is bool(p["default"]), (key, j, p)
+        elif p["type"] == "string":
+            # the text box's own rules ARE the row's: pattern, length, case, default
+            assert j["default"] == p["default"], (key, j, p)
+            for field in ("pattern", "maxLength", "case"):
+                assert j.get(field) == p.get(field), (key, field, j.get(field), p.get(field))
         else:
             assert j["default"] == pytest.approx(float(p["default"])), (key, j, p)
             assert j["min"] == pytest.approx(float(p["min"])), (key, j, p)
@@ -702,10 +722,19 @@ def test_the_js_input_parser_reads_the_fields_it_claims_to():
     assert js["lookback"]["min"] == 20.0 and js["lookback"]["max"] == 500.0
     assert js["priceTolerance"] == {"type": "float", "default": 2.0, "min": 0.0, "max": 10.0}
     assert js["showNewHigh"] == {"type": "bool", "default": True}
-    assert js["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS)
+    assert js["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS_V4)
     assert js["maType"] == {"type": "enum", "default": "EMA", "options": ["EMA", "SMA"]}
+    # 3-08: the Reading, the string inputs and a Phase 3 length, by their shipped values
+    assert js["view"] == {"type": "enum", "default": "ratio",
+                          "options": ["ratio", "mansfield", "rotation", "quality", "vars"]}
+    assert js["customBenchmark"] == {"type": "string", "default": "", "pattern": r"^[A-Z][A-Z.\-]{0,9}$",
+                                     "maxLength": 10, "case": "upper"}
+    assert js["anchorDate"] == {"type": "string", "default": "", "pattern": r"^\d{4}-\d{2}-\d{2}$"}
+    assert js["clenowGapPct"] == {"type": "float", "default": 15.0, "min": 1.0, "max": 50.0}
+    # a hint or placeholder is prose, never a field
+    assert "placeholder" not in js["customBenchmark"] and "hint" not in js["anchorDate"]
     # style inputs are parsed too (they are dialog controls) but never server ones
-    assert "lineWidth" in js and "lineWidth" not in {i["key"] for i in rd._rs_line_row(True)["inputs"]}
+    assert "lineWidth" in js and "lineWidth" not in {i["key"] for i in rd._rs_line_row(True, True)["inputs"]}
     assert "color" not in js, "colorInput() entries carry no key: of their own and are skipped"
 
 
@@ -1110,7 +1139,8 @@ def test_the_v1_lane_never_touches_a_phase2a_helper(monkeypatch):
 # the entry, so the evidence paths ride the same two rails — resolve on a real
 # payload, resolve (to the honesty sentence) on a short series.
 
-READOUT_SOURCE_FIELDS = ("source", "when", "evidenceSource", "note")
+# ⭐ 3-08: `muted` may be a gate too (`scalar:rotation.reason`), so it rides the rail.
+READOUT_SOURCE_FIELDS = ("source", "when", "evidenceSource", "note", "muted")
 
 
 def _js_rs_line_source() -> str:
@@ -1127,7 +1157,9 @@ def _js_rs_readout_sources() -> list:
     for entry in re.split(r"\n    \{", block)[1:]:
         key = re.search(r"\bkey:\s*'([A-Za-z0-9_]+)'", entry).group(1)
         for field in READOUT_SOURCE_FIELDS:
-            m = re.search(rf"\b{field}:\s*'((?:scalar|payload|input):[A-Za-z0-9_.]+)'", entry)
+            # ⭐ 3-08: `=` is admitted, so an equals gate (`input:view=rotation`) is
+            # READ and checked below rather than silently skipped (3-07's note).
+            m = re.search(rf"\b{field}:\s*'((?:scalar|payload|input):[A-Za-z0-9_.=]+)'", entry)
             if m:
                 out.append((key, field, m.group(1)))
     return out
@@ -1156,32 +1188,66 @@ def _resolve_path(payload: dict, path: str):
     return True, cur
 
 
-def test_every_readout_source_resolves_in_a_real_provider_payload(v2_row, monkeypatch):
+@pytest.fixture
+def v4_row(monkeypatch):
+    """The v4 row installed (`RS_V3_ENABLED` on top of `RS_V2_ENABLED`), the row
+    the v4 JS definition's readout reads (unit 3-08), with the cache stubbed."""
+    row = rd._rs_line_row(True, True)
+    monkeypatch.setitem(rd._BY_ID, "rsLine", row)
+    monkeypatch.setattr(rd, "RS_V2_ENABLED", True)
+    monkeypatch.setattr(rb, "_custom_warmed", {})
+    _no_cache(monkeypatch)
+    return row
+
+
+def _check_input_gate(key, field, path):
+    """An `input:` source or gate names a declared input; the equals form
+    (`view=rotation`) names a declared ENUM input and one of its options."""
+    js = _js_rs_line_inputs()
+    declared = set(V3_INPUT_KEYS) | set(js) | {i["key"] for i in rd._rs_line_row(True, True)["inputs"]}
+    name, _, value = path.partition("=")
+    assert name in declared, f"readout[{key}].{field} names undeclared input {name!r}"
+    if value:
+        assert js.get(name, {}).get("type") == "enum", f"readout[{key}].{field}: {name!r} is not an enum"
+        assert value in js[name]["options"], f"readout[{key}].{field}: {value!r} is not an option of {name!r}"
+
+
+def test_every_readout_source_resolves_in_a_real_provider_payload(v4_row, monkeypatch):
     sources = _js_rs_readout_sources()
     assert len(sources) >= 20, sources
     store = _long_daily()
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
-    _no_cache(monkeypatch)
     monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
         "NVDA": {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": 7}})
     payload = sig._rs_line_provider("NVDA", "D", {"benchmark": "SECTOR", "showMansfield": True})["payload"]
-    declared = set(V3_INPUT_KEYS) | {k for k in _js_rs_line_inputs()}
     missing = []
     for key, field, src in sources:
         kind, path = src.split(":", 1)
         if kind == "input":
-            assert path in declared, f"readout[{key}].{field} names undeclared input {path!r}"
+            _check_input_gate(key, field, path)
             continue
         ok, _ = _resolve_path(payload, path)
         if not ok:
             missing.append((key, field, src))
     assert not missing, f"readout sources the provider payload does not carry: {missing}"
     # every block is answered on this series, so every path resolved to a dict walk, not a null
-    for k in ("rating", "mansfield", "regime", "sensitivity", "checks", "theme", "lastRsHigh", "legend", "history"):
+    for k in ("rating", "mansfield", "regime", "sensitivity", "checks", "theme", "lastRsHigh", "legend", "history",
+              "rotation", "quality", "vars"):
         assert payload[k] is not None, k
     # and the two chip rows print on this payload: the resolved benchmark and the rating
     assert payload["benchmark"]["resolved"] == "XLK" and payload["rating"]["ibd"] == 94
+    # 3-08: every Phase 3 path the readout names, by name, so the rail cannot pass
+    # by having parsed none of them
+    v4_paths = {src for _k, _f, src in sources if src.split(":", 1)[1].split(".")[0] in ("rotation", "quality", "vars")}
+    assert v4_paths >= {"scalar:rotation.summary", "scalar:rotation.reason", "scalar:rotation.quadrant",
+                        "scalar:rotation.ratio", "scalar:rotation.momentum", "scalar:rotation.inQuadrantBars",
+                        "scalar:quality.summary", "scalar:quality.reason", "scalar:quality.score",
+                        "scalar:quality.annualPct", "scalar:quality.r2", "scalar:quality.gap", "scalar:quality.window",
+                        "scalar:vars.summary", "scalar:vars.reason", "scalar:vars.value", "scalar:vars.ma",
+                        "scalar:vars.stateWord", "scalar:vars.lookback", "scalar:vars.atrLength"}, v4_paths
+    for block in ("rotation", "quality", "vars"):
+        assert payload[block]["reason"] is None and payload[block]["summary"], (block, payload[block])
 
 
 def test_the_readout_source_parser_reads_the_rows_it_claims_to():
@@ -1199,8 +1265,15 @@ def test_the_readout_source_parser_reads_the_rows_it_claims_to():
     assert by_key["checks"]["source"] == "scalar:checks.summary"
     # visual round A1: the glance rows read the server's summary strings; the
     # numbers move into the cards (the detail rows keep the raw scalars)
-    assert by_key["mansfield"] == {"source": "scalar:mansfield.summary", "when": "input:showMansfield",
+    # v4 (3-08): the Reading's equals gate is read, not skipped
+    assert by_key["mansfield"] == {"source": "scalar:mansfield.summary", "when": "input:view=mansfield",
                                   "evidenceSource": "scalar:evidence.sentence.mansfield"}
+    assert by_key["rotation"] == {"source": "scalar:rotation.summary", "when": "input:view=rotation",
+                                 "muted": "scalar:rotation.reason"}
+    assert by_key["quality"] == {"source": "scalar:quality.summary", "when": "input:view=quality",
+                                "muted": "scalar:quality.reason"}
+    assert by_key["vars"] == {"source": "scalar:vars.summary", "when": "input:view=vars", "muted": "scalar:vars.reason"}
+    assert by_key["checkAnchorPicked"] == {"source": "input:anchorDate", "when": "input:anchorDate"}
     assert by_key["mansfieldValue"]["source"] == "scalar:mansfield.value"
     assert by_key["ratingSummary"]["source"] == "scalar:rating.summary"
     assert by_key["phase"]["source"] == "scalar:legend.summary"
@@ -1216,7 +1289,7 @@ def test_the_readout_source_parser_reads_the_rows_it_claims_to():
     assert "evidenceSource" not in by_key["benchmark"] and "evidenceSource" not in by_key["rating"]
 
 
-def test_the_short_history_payload_still_resolves_every_row_or_answers_null_with_a_reason(v2_row, monkeypatch):
+def test_the_short_history_payload_still_resolves_every_row_or_answers_null_with_a_reason(v4_row, monkeypatch):
     """The fail-closed half: on a short series the paths the rows read still
     EXIST (the surface prints a muted fallback for a null), so a null is never a
     missing key, and every null block carries its reason."""
@@ -1232,6 +1305,9 @@ def test_the_short_history_payload_still_resolves_every_row_or_answers_null_with
         assert ok, f"readout[{key}].{field} = {src} is MISSING (not null) on a short series"
     assert payload["regime"]["label"] is None and payload["regime"]["reason"]
     assert payload["checks"]["summary"] is not None or payload["checks"]["ma"]["reason"]
+    # 3-08: Quality needs 90 sessions; on 80 its block answers null WITH a reason,
+    # which is what the glance row's `muted` gate reads
+    assert payload["quality"]["score"] is None and payload["quality"]["reason"]
     assert payload["rating"]["ibd"] is None and payload["rating"]["source"] in ("dark", "missing")
 
 

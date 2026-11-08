@@ -46,8 +46,8 @@ const V1_VERSIONED = Object.freeze({ ...V1, defVersion: 1, hidden: false })
 const DEFAULT_LINE_COLOUR = '#6ba3be'
 
 describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}', () => {
-  it('is the v3 definition it instantiates: version 3, `color` still declared, `lineColor` not', () => {
-    expect(def.version).toBe(3)
+  it('is the v4 definition it instantiates: version 4, `color` still declared, `lineColor` not', () => {
+    expect(def.version).toBe(4)
     const keys = new Set(def.inputs.map((i) => i.key))
     for (const k of Object.keys(V1.inputs)) expect(keys.has(k), `v1 key "${k}" must still be declared`).toBe(true)
     expect(keys.has('lineColor')).toBe(false)
@@ -95,6 +95,12 @@ describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}'
       showMansfield: false, mansfieldLength: 200, showRedDay: false, showNewLow: false,
       mansfieldColor: DEFAULT_LINE_COLOUR, dotCrossColor: '#8a8574', dotRedColor: DEFAULT_LINE_COLOUR, dotLowColor: '#8a8574',
     })
+    // …and the v4 ones (3-08): the ratio Reading, no custom ticker, the default
+    // anchor and the Terminal's RRG lengths, so the stored v1 layout is still Classic.
+    expect(values).toMatchObject({
+      view: 'ratio', customBenchmark: '', anchorDate: '', rrgRatioLength: 10, rrgMomentumLength: 5,
+      clenowWindow: 90, clenowGapPct: 15, atrLength: 20, varsLookback: 60,
+    })
   })
 
   it('resolvePlotForInstance: colorUp (and the chip colour) is #4ECDC4, colorDown the default, width 2', () => {
@@ -129,6 +135,8 @@ describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}'
     // rail pin the same fact), so it is absent from the defaulted values as well.
     expect(def.inputs.some((i) => i.key === 'redDayThreshold')).toBe(false)
     expect(Object.keys(sent).sort()).toEqual(def.meta.serverInputs.filter((k) => k !== 'redDayThreshold').sort())
+    // v4: a v1 layout asks the v4 row for the ratio view, nothing custom, no picked anchor
+    expect(sent).toMatchObject({ view: 'ratio', customBenchmark: '', anchorDate: '', showMansfield: false })
     expect(sent).not.toHaveProperty('color')
     expect(sent).not.toHaveProperty('lineWidth')
     expect(sent.benchmark).toBe('QQQ')
@@ -146,5 +154,51 @@ describe('⛔ CONTROL — the rename this rail guards against', () => {
     const rows = unavailableInstances({ indicatorInstances: [RENAMED] }, REGISTRY)
     expect(rows.length).toBe(1)
     expect(rows[0]).toMatchObject({ instanceId: 'rsLine', defId: 'rsLine', reason: UNAVAILABLE_REASONS.INPUT_REMOVED, keys: ['lineColor'] })
+  })
+})
+
+// ─── Phase 3, unit 3-08 — SAVED v3 LAYOUTS LOAD ON v4 ───────────────────────
+//
+// v4 adds nine inputs and turns `showMansfield` into a `legacy` input (still
+// declared, never rendered). Every instance a v3 build could have stored must
+// therefore still validate, normalise and stay unreported, and a saved Trend
+// layout must still ask the server for the Mansfield reading.
+describe('saved v3 layouts on the v4 definition', () => {
+  const TREND_V3 = Object.freeze({
+    instanceId: 'rsLine', defId: 'rsLine', defVersion: 3, hidden: false,
+    inputs: Object.freeze({ maLength: 21, maType: 'EMA', lookback: 252, showMansfield: true, mansfieldLength: 200,
+      mansfieldColor: '#6ba3be', dotCrossColor: '#6ba3be', showRedDay: false, showNewLow: false }),
+    visibility: { preset: 'dailyUp' }, presentation: { plots: { dotMansfieldCross: { dotSize: 'medium' } } },
+  })
+  const STRESS_V3 = Object.freeze({
+    instanceId: 'rsLine:2', defId: 'rsLine', defVersion: 3, hidden: false,
+    inputs: Object.freeze({ benchmark: 'RSP', maLength: 21, maType: 'EMA', lookback: 252, showRedDay: true,
+      showNewHighBeforePrice: false, dotRedColor: '#c9a84c', color: '#6ba3be', lineDownColor: '#6ba3be',
+      dotColor: '#6ba3be', showMansfield: false, showNewLow: false, headlineRating: 'both', showComponents: true }),
+  })
+
+  it('validate, survive normalizeInstances and are never reported', () => {
+    for (const inst of [TREND_V3, STRESS_V3]) {
+      expect(validateInstance(inst, REGISTRY).ok, inst.instanceId).toBe(true)
+      for (const [k, v] of Object.entries(inst.inputs)) expect(checkInstanceInput(def, k, v).ok, `${k}`).toBe(true)
+    }
+    const out = normalizeInstances([TREND_V3, STRESS_V3], REGISTRY)
+    expect(out.dropped).toEqual([])
+    expect(out.kept).toEqual([TREND_V3, STRESS_V3])
+    expect(unavailableInstances({ indicatorInstances: [TREND_V3, STRESS_V3] }, REGISTRY)).toEqual([])
+  })
+
+  it('the legacy Mansfield switch is still declared (a stored true validates) and never rendered', () => {
+    const showMansfield = def.inputs.find((i) => i.key === 'showMansfield')
+    expect(showMansfield).toMatchObject({ type: 'bool', default: false, legacy: true })
+    expect(fieldsForInstance(def, TREND_V3).all.map((f) => f.key)).not.toContain('showMansfield')
+  })
+
+  it('a saved Trend layout asks the server for showMansfield: true with the ratio Reading, which the v4 row reads as Mansfield', () => {
+    const { values } = fieldsForInstance(def, TREND_V3)
+    const sent = pickServerInputs(def, values)
+    // `rs_provider._rs_view`: ratio + showMansfield true → mansfield; a v3 server
+    // reads showMansfield as it always did
+    expect(sent).toMatchObject({ showMansfield: true, view: 'ratio', mansfieldLength: 200 })
   })
 })

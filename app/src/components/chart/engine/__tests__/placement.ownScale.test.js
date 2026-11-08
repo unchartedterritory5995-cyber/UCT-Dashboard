@@ -115,12 +115,22 @@ describe('byte-identical without the field', () => {
   it('every registry definition on every target answers exactly as before', () => {
     const layoutFor = (i) => computePaneLayout([i], { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX })
     let checked = 0
-    for (const def of nativeRegistry.listDefinitions()) {
-      expect(ownScaleOf(def), `${def.id} opted in before 3-08`).toBe(false)
+    // ⭐ 3-08: UCT RS is the one shipped definition that opts in; every other one
+    // must not. The comparison runs on each definition WITHOUT the field, so the
+    // control holds for UCT RS too.
+    expect(nativeRegistry.listDefinitions().filter(ownScaleOf).map((d) => d.id)).toEqual(['rsLine'])
+    for (const shipped of nativeRegistry.listDefinitions()) {
+      const { ownScale: _drop, ...placement } = shipped.placement || {}
+      const def = { ...shipped, placement }
+      expect(ownScaleOf(def), def.id).toBe(false)
       for (const target of ['price', 'pane', 'volume']) {
         const i = inst(def.id, { placement: { target } })
         const ctx = { paneLayout: layoutFor(i), volSeparatePane: true, VOL_PANE_INDEX: 1 }
         const before = resolvePlacement(i, def, ctx)
+        // the opt-in moves the PRICE answer only; the pane and the volume band are untouched
+        if (shipped !== def && ownScaleOf(shipped) && target !== 'price') {
+          expect(resolvePlacement(i, shipped, ctx), `${def.id} ${target} with ownScale`).toEqual(before)
+        }
         // explicitly absent, false, and a non-boolean: none of them opts in
         for (const v of [undefined, false, 'true', 1]) {
           const d = { ...def, placement: { ...def.placement, ownScale: v } }

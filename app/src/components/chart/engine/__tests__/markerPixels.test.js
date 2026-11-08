@@ -483,16 +483,27 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
   const defaults = Object.fromEntries(rs.inputs.map((i) => [i.key, i.default]))
   const TOGGLE_OF = Object.freeze({
     dotNH: 'showNewHigh', dotNHbeforePx: 'showNewHighBeforePrice', dotNHpartial: 'shortHistoryDots',
-    dotNHred: 'showRedDay', dotNL: 'showNewLow', mansfield: 'showMansfield', dotMansfieldCross: 'showMansfield',
+    dotNHred: 'showRedDay', dotNL: 'showNewLow',
   })
-  // ⭐ Visual round A2: under Mansfield view the server blanks the ratio, its
-  // average and every RS-line dot (the contract's blanking rule), so only the
-  // Mansfield plots and the zero guide draw. A guide draws when its own
-  // `activeWhen` holds.
-  const MANSFIELD_BLANKS = new Set(['rsLine', 'rsAbove', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotNHred', 'dotNL'])
+  // ⭐ v4 (unit 3-08): THE READING decides which family draws. The server keeps
+  // the chosen view's family and blanks every other one
+  // (`rs_provider._RS_VIEW_FAMILIES`, restated here); the legacy `showMansfield:
+  // true` reads as the Mansfield view while `view` is ratio (`_rs_view`). A guide
+  // draws when its own `activeWhen` holds (the client's evaluator, on the stored
+  // `view`).
+  const VIEW_FAMILIES = Object.freeze({
+    ratio: ['rsLine', 'rsMa', 'rsAbove', 'dotNH', 'dotNHbeforePx', 'dotNHred', 'dotNHpartial', 'dotNL'],
+    mansfield: ['mansfield', 'dotMansfieldCross'],
+    rotation: ['rsRatio', 'rsMomentum'],
+    quality: ['clenowScore', 'dotClenowGap'],
+    vars: ['vars', 'varsMa'],
+  })
+  const viewOf = (inputs) => (inputs.view === 'ratio' && inputs.showMansfield === true ? 'mansfield' : inputs.view)
+  const blankedBy = (inputs) => new Set(Object.entries(VIEW_FAMILIES)
+    .filter(([v]) => v !== viewOf(inputs)).flatMap(([, keys]) => keys))
   const drawn = (inputs) => rs.plots.filter((p) => !p.hidden
     && (TOGGLE_OF[p.key] === undefined || inputs[TOGGLE_OF[p.key]] === true)
-    && !(inputs.showMansfield === true && MANSFIELD_BLANKS.has(p.key))
+    && !blankedBy(inputs).has(p.key)
     && !(p.activeWhen && inputs[p.activeWhen.key] !== p.activeWhen.equals))
   /** The non-neutral hues on the plots a preset draws, each plot's colour fields
    *  read through its `$refs` (the member's inputs) exactly as the pool resolves them. */
@@ -512,8 +523,11 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
   const TWO = [IND_TOKENS.classic.info, IND_TOKENS.classic.premium].sort()
 
   it('the colour inputs are the ten the dialog shows, every default a Classic token role, and the neutral is the token', () => {
-    expect(colourInputs.map((i) => i.key)).toEqual(['color', 'lineDownColor', 'maColor', 'mansfieldColor', 'dotCrossColor',
-      'dotColor', 'dotBeforePriceColor', 'dotPartialColor', 'dotRedColor', 'dotLowColor'])
+    // In declaration order, which follows the VA2 groups (Line, New highs, Stress
+    // test, Method); v4 adds no colour input (the Phase 3 plots draw the info blue
+    // and the neutral as declared).
+    expect(colourInputs.map((i) => i.key)).toEqual(['color', 'lineDownColor', 'maColor',
+      'dotColor', 'dotBeforePriceColor', 'dotPartialColor', 'dotLowColor', 'dotRedColor', 'mansfieldColor', 'dotCrossColor'])
     expect(NEUTRAL).toBe('#8a8574')
     const roles = new Set(Object.values(IND_TOKENS.classic).map((h) => String(h).toLowerCase()))
     for (const i of colourInputs) expect(roles.has(String(i.default).toLowerCase()), `${i.key} default ${i.default}`).toBe(true)
@@ -571,6 +585,37 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
 
   it('the untouched definition (no preset) is Classic', () => {
     expect([...huesOf({})].sort()).toEqual(TWO)
+  })
+
+  it('v4 — Rotation, Quality and Volatility-adjusted: info blue plus the neutral each, NO gold, and each draws its own family alone', () => {
+    const INFO = [IND_TOKENS.classic.info]
+    const want = {
+      rotation: ['rsRatio', 'rsMomentum', 'rotationCentre'],
+      rotationWeekly: ['rsRatio', 'rsMomentum', 'rotationCentre'],
+      quality: ['clenowScore', 'dotClenowGap'],
+      volAdjusted: ['vars', 'varsMa', 'varsZero'],
+    }
+    for (const [id, keys] of Object.entries(want)) {
+      const inputs = { ...defaults, ...preset(id) }
+      expect([...huesOf(preset(id))].sort(), id).toEqual(INFO)
+      expect(huesOf(preset(id)).has(IND_TOKENS.classic.premium), `${id} draws no gold`).toBe(false)
+      expect(drawn(inputs).map((p) => p.key), id).toEqual(keys)
+    }
+    // the neutral carries the second line of each pair and every guide
+    for (const k of ['rsMomentum', 'rotationCentre', 'varsMa', 'varsZero', 'dotClenowGap']) {
+      expect(rs.plots.find((p) => p.key === k).color.toLowerCase(), k).toBe(NEUTRAL)
+    }
+  })
+
+  it('v4 — a saved Trend layout (showMansfield on, no Reading stored) still draws the Mansfield family alone on a v4 server', () => {
+    const saved = { maLength: 21, maType: 'EMA', lookback: 252, showMansfield: true, mansfieldLength: 200,
+      mansfieldColor: IND_TOKENS.classic.info, dotCrossColor: IND_TOKENS.classic.info, showRedDay: false, showNewLow: false }
+    const keys = drawn({ ...defaults, ...saved }).map((p) => p.key)
+    // the server draws the Mansfield line and its dots; the zero guide reads the
+    // stored Reading (ratio), so it is the one thing a saved Trend layout loses
+    // until Trend is applied again (unit 3-08 report)
+    expect(keys).toEqual(['mansfield', 'dotMansfieldCross'])
+    expect([...huesOf(saved)].sort()).toEqual([IND_TOKENS.classic.info])
   })
 
   it('⛔ CONTROL: a bear red-day dot is a hue the counter sees under Stress — by plot, not by input', () => {
