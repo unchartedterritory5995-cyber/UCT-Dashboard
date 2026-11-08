@@ -42,12 +42,17 @@ export const STRATEGY_RECORD_UNSERVED = Object.freeze({
   'settings.commission': 'W9-T5',
   'settings.slippage': 'W9-T5',
   'settings.bar_detalization': 'W9-T9',
-  'settings.currency': 'W9-T4',
+  'settings.currency': 'W9-D2 (deferred)',
 })
 
 const timeAt = (barTimes, i) => (Array.isArray(barTimes) && Number.isInteger(i) && i >= 0 && i < barTimes.length
   && Number.isFinite(barTimes[i]) ? barTimes[i] : null)
 const dirOf = (d) => (d > 0 ? 'long' : d < 0 ? 'short' : null)
+const QTY_TYPES = new Set(['fixed', 'cash', 'percent_of_equity'])
+const defaultQtyOf = (cfg) => {
+  if (QTY_TYPES.has(cfg.qtyType) && Number.isFinite(cfg.qtyValue)) return { type: cfg.qtyType, value: cfg.qtyValue }
+  return Number.isFinite(cfg.defaultQty) ? { type: 'fixed', value: cfg.defaultQty } : null
+}
 
 /**
  * Build the record of one broker run.
@@ -96,7 +101,10 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     settings: {
       version: Number.isInteger(cfg.version) ? cfg.version : null,
       initial_capital: Number.isFinite(cfg.initialCapital) ? cfg.initialCapital : null,
-      default_qty: Number.isFinite(cfg.defaultQty) ? { type: 'fixed', value: cfg.defaultQty } : null,
+      // W9-T4: the declared-or-defaulted `default_qty_*` (fixed, cash or percent_of_equity), stated ONLY
+      // when the run actually sized an order by it (it asked B-QTY); otherwise null, so the record never
+      // shows a sizing rule the run did not rest on (W9-T4 r1 review P2)
+      default_qty: Array.isArray(rec.rulesUsed) && rec.rulesUsed.includes('B-QTY') ? defaultQtyOf(cfg) : null,
       pyramiding: Number.isInteger(cfg.pyramiding) ? cfg.pyramiding : null,
       margin_long: Number.isFinite(cfg.marginLong) ? cfg.marginLong : null,
       margin_short: Number.isFinite(cfg.marginShort) ? cfg.marginShort : null,

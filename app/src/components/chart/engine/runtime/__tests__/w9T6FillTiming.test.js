@@ -41,7 +41,8 @@ const attempt = (src, { bars = BARS, pins = ALL, realtime } = {}) => {
   if (!built.ok) return { refused: built.refusal }
   const program = lowerIrProgram(built.ir, { historyFromListing: true })
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars.map((b) => b[k])))
-  const ctx = { bars: bars.length, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t), historyWindowBars: 5000 }
+  // minContract 1: a whole-unit symbol (W9-T4's `syminfo.mincontract`)
+  const ctx = { bars: bars.length, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t), historyWindowBars: 5000, minContract: 1 }
   try { return { res: execute(program, ctx, undefined, { brokerPinned: pins, ...(realtime ? { realtime } : {}) }), program } } catch (err) { return { err } }
 }
 const served = (src, o) => {
@@ -268,6 +269,27 @@ describe('W9-T6 X7 the calc_on_order_fills + realtime-state refusal (defensive: 
     const { refused } = attempt(['//@version=5', 'strategy("t", calc_on_order_fills = true)', 'varip int k = 0', 'k += 1',
       'if bar_index == 2', '    strategy.entry("L", strategy.long)', 'plot(strategy.position_size)', ''].join(NL))
     expect(refused && refused.guard).toMatch(/runtime:varip|runtime:strategy-repaint/)
+  })
+})
+
+describe('W9-T4 x W9-T6: a price-sized default order in an extra execution is refused by name (Q-S1a)', () => {
+  const SRC = (decl) => ['//@version=5', `strategy("t"${decl}, pyramiding = 2, default_qty_type = strategy.cash, default_qty_value = 1000)`,
+    'if bar_index == 2', '    strategy.entry("L", strategy.long, qty = 1)', 'if strategy.opentrades == 1 and bar_index == 3',
+    '    strategy.entry("L2", strategy.long)', 'plot(strategy.position_size)', ''].join(NL)
+  it('placed at the fill tick 103 (extra execution), the cash size would read the tick or the close: refused', () => {
+    // L fills at bar 3's open 103; the extra execution there places L2 with a cash default size
+    const { err } = attempt(SRC(', calc_on_order_fills = true'))
+    expect(err && err.guard).toBe('runtime:strategy-unsettled')
+    expect(err.message).toMatch(/L2.*cash default size in an extra execution at 103.*Q-S1a/)
+  })
+  it('CONTROL: placed on the close of bar 3, it is sized there (1000 / 103.5 -> 9 units) and fills at O[4] = 104', () => {
+    const res = served(SRC(''))
+    expect(trades(res)).toEqual([['L', 3, 103, 'B-MARKET', null, null, null], ['L2', 4, 104, 'B-MARKET', null, null, null]])
+    expect(col(res, 0).slice(3, 6)).toEqual([1, 10, 10])
+  })
+  it('a FIXED default reads no price, so an extra execution may place it', () => {
+    const src = SRC(', calc_on_order_fills = true').replace('default_qty_type = strategy.cash, default_qty_value = 1000', 'default_qty_value = 3')
+    expect(trades(served(src))).toEqual([['L', 3, 103, 'B-MARKET', null, null, null], ['L2', 3, 102, 'B-FILLS', null, null, null]])
   })
 })
 

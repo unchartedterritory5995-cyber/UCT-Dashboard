@@ -15,14 +15,14 @@ the User Manual, Strategies page, "Altering calculation behavior".
 
 | rule | capture row | what is implemented | source |
 |---|---|---|---|
-| B-J1 | W9-J1 | asked with every next-bar fill (beside B-FILL): the July-2026 menus at their defaults | design 0.2 finding 5; queue row W9-J1 |
-| B-POC | W9-P1 | `process_orders_on_close`: a market entry / close / close_all placed by bar t's close execution fills at C[t] after the script ran; the script reads it from t+1 | R6 `process_orders_on_close` ("an additional attempt to execute orders after a bar closes and strategy calculations are completed"); manual: "can fill orders created on a bar's close immediately, on the same tick"; "does not affect ... orders that a strategy places before a bar's closing tick" |
-| B-POC-PRICE | W9-P1 | a price order placed by that close execution gets one attempt at C[t] (fills there only if the close meets it); otherwise live from the next open as before | R6: "If the orders are price-dependent, they will only be filled if the price conditions are met" |
+| ~~B-J1~~ | W9-J1 | **r1: not a rule.** Folded into the pin resolver as a precondition on Q-S1-core fixtures (below) | |
+| B-POC | W9-P1 | `process_orders_on_close`: a market entry / close / close_all placed by bar t's close execution fills at C[t] after the script ran; the script reads it from t+1 | **HYPOTHESIS, User-Manual-derived** (the fill AT C[t]): manual "can fill orders created on a bar's close immediately, on the same tick". R6 says only that a market order is executed "before the next bar's open" ("an additional attempt to execute orders after a bar closes and strategy calculations are completed"); manual: "can fill orders created on a bar's close immediately, on the same tick"; "does not affect ... orders that a strategy places before a bar's closing tick" |
+| B-POC-PRICE | W9-P1 | every live price order gets one attempt (r1, X4: the R6 reading, which names no subset; a HYPOTHESIS W9-P1b grades) at C[t] (fills there only if the close meets it); otherwise live from the next open as before | R6: "If the orders are price-dependent, they will only be filled if the price conditions are met" |
 | B-POC-PYR | W9-P1 | asked when a close fill adds to a same-direction position | design T6 "POC with pyramiding" |
 | B-POC-FILLS | W9-P1b | POC + `calc_on_order_fills`: a fill on the closing tick re-runs the bar from its start state | R6 `calc_on_order_fills` ("a new execution ... on each tick where an order fill occurs") |
-| B-FILLS | W9-P2 | `calc_on_order_fills` on history: an extra execution at each fill tick (the open, a level on the path, an extreme); OHLC hold the bar's final values; the extra execution is rolled back; its market orders fill on the next path vertex, its price orders join the rest of the path | R6 ("On historical bars, ticks refer to bar OHLC prices"); manual (history executions see each bar's final high/low/close, the lookahead warning) |
+| B-FILLS | W9-P2 | `calc_on_order_fills` on history: an extra execution at each fill tick (the open, a level on the path, an extreme); OHLC hold the bar's final values; the extra execution is rolled back; its market orders fill on the next path vertex, its price orders join the rest of the path | R6 for the ticks ("On historical bars, ticks refer to bar OHLC prices"); **HYPOTHESES, User-Manual-derived**, for the rollback and the final-value OHLC (history executions see each bar's final high/low/close, the lookahead warning) |
 | B-TICK-HIST | W9-P3 | `calc_on_every_tick = true` on history executes once on the close, as the default; asked once per run (the forming bar still refuses Q-S1o) | R6 `calc_on_every_tick` (realtime bars only); manual ("on historical bars ... up to one market order per bar, based on the final close") |
-| B-FILL-LIMITS | none queued | `backtest_fill_limits_assumption = N`: a limit (limit entry, exit take-profit) triggers once the price passes its level by N ticks, and fills at its level | R6 `backtest_fill_limits_assumption` |
+| ~~B-FILL-LIMITS~~ | none | **r1: dropped.** `backtest_fill_limits_assumption` other than 0 refuses `runtime:strategy-option` at build, named, with its reason (master behaviour). R6 states neither the fill price nor the boundary | |
 
 Costs at the close are T5's: `commission_value` and `slippage` other than 0 still refuse at build, so a POC run takes
 no cost. `calc_on_every_history_tick = true` (July 2026, deferred by the design) refuses `runtime:strategy-option`;
@@ -51,12 +51,11 @@ by name with its capture row. No committed capture pins any of them (no W9-P1 / 
 
 | rule | the capture that would pin it |
 |---|---|
-| B-J1 | W9-J1: the settings read-back of the Q-S1-core capture (`s1-broker-core.pine`, RDDT 1D) |
+| (W9-J1, not a rule) | the settings read-back of the Q-S1-core capture: the resolver will not count a Q-S1-core fixture as MATCH without it |
 | B-POC, B-POC-PRICE, B-POC-PYR | W9-P1: `w9-p1-on-close.pine` (RDDT 1D) |
 | B-POC-FILLS | W9-P1b: `w9-p1b-on-close-fills.pine` (RDDT 1D) |
 | B-FILLS | W9-P2: `w9-p2-order-fills.pine` (RDDT 1D) |
 | B-TICK-HIST | W9-P3: `w9-p3-every-tick-history.pine` (RDDT 1D) |
-| B-FILL-LIMITS | none queued; needs a new probe with `backtest_fill_limits_assumption` > 0 |
 
 Note for the capture queue: `w9-p1-on-close.pine` declares commission and slippage, so on our side it refuses at build
 until T5 serves costs; and `w9-p1b` uses `varip`, which rule 11 refuses in broker mode. The TradingView captures still
@@ -114,3 +113,53 @@ control SURVIVED; drop B-FILLS, drop B-POC, drop B-POC-PRICE all KILLED.
   and one reference v2 script now refuse at their next unserved option instead of at POC / `calc_on_order_fills`;
   three Q-S1b probes' program digest moves (the declaration config gains the three timing fields, outputs equal);
   the off-grid probe's rulesUsed gains B-J1 (outputs equal).
+
+## r1 (review NO-GO @07bd06d3c4, vocabulary) and the T4 merge
+
+Coordinator rulings, all applied (`4817001bd0`, then the merge commit):
+
+1. **W9-J1 folded.** Not a rule any more. `tools/vendor_harness/evidence_engine.py::resolve_pins` counts a fixture
+   of queue row Q-S1-core as MATCH only when every committed row of it carries a settings read-back
+   (`provenance.strategySettings.properties`) with `process_orders_on_close` false, `backtest_fill_limits_assumption`
+   0, `use_bar_magnifier` false and `calc_on_every_history_tick` false. The Properties names are parsed from
+   `strategy_capture.mjs::PROPERTY_TABLE`, never restated. Rails: `tests/test_broker_pins_resolve.py` (10 new: pins
+   with the defaults, each setting moved, no read-back in four shapes, one setting missing, only the core row, never
+   turns a DIVERGE into MATCH, the core row found by its `rows` list). Default records no longer gain B-J1: the T14
+   fixture's `rulesUsed` is master's again.
+2. **B-FILL-LIMITS dropped.** `backtest_fill_limits_assumption` other than 0 refuses `runtime:strategy-option` with
+   "other than 0 is not served (a limit that fills only once the price passes its level by that many ticks: no
+   TradingView capture is queued for it)". The scorecard derives **0 of 28** (`strategiesAreRuled`, and T4's own
+   count rail, updated at the merge).
+3. **Vertex asks dropped.** A vertex fill is labelled B-FILLS and asks nothing; `beginBar` is the one B-FILLS site.
+4. **X4** (rail `W9-T6 X4 HYPOTHESIS`): the close attempt takes every live order, whichever execution placed it, the
+   R6 reading. An order placed before the close execution that the close meets has already met its level on the
+   path, which ends at the close, so the reviewer's restricted reading gives the same run on every reachable input:
+   the rail pins the observable consequence (an extra execution's limit fills on the path at its level, B-PATH, or
+   passes the close attempt unfilled and fills on the next bar). The order-stamp code that implemented the
+   restriction is gone. **X7**: the `calc_on_order_fills` + realtime-state refusal is commented defensive in
+   `vm.js` (the hooks exist only for `varip` or a `barstate.isnew` read; `varip` refuses first in a broker program and
+   `barstate.isnew` is refused by name on this lane) and railed through `execute` with test hooks, plus a rail that
+   `varip` refuses first.
+5. **Labels.** B-POC's fill AT the close and B-FILLS' rollback and final-value prices are User-Manual-derived
+   hypotheses (table above and `strategy-broker-spec.md`), not R6.
+
+**Merge of `origin/feat/pine-w9-t4-sizing` @497ff8a162 (T4 r1).** One conflict, the `readStrategyDeclaration` JSDoc
+(both field lists kept); the T14 fixture regenerated on the merged tree. **T4 x T6 fix:** a cash or
+percent-of-equity default size placed in an extra execution (`tickPx !== null`) refuses Q-S1a by name, because the
+order would read the tick and T4 sizes at the close. A fixed default reads no price and is served. Rails in
+`w9T6FillTiming.test.js` (refused at 103; control sized at the close 1000 / 103.5 = 9 units; fixed default served).
+
+**Mutants.** `muts_r1.json` (pre-merge): control SURVIVED; KILLED: the one B-FILLS ask, X7 refusal off, fill limits
+accepted again, POC endBar off, B-POC, B-POC-PRICE, VM no rollback, and three resolver mutants (precondition off,
+applied to every row, one default dropped). X4 not run: no restriction code remains (equivalent, above).
+`muts_merge.json` (merged tree): control SURVIVED; the T4 x T6 refusal off KILLED.
+
+**Measured on the merged tree.** Focused vitest Node 20.20.2 `--maxWorkers=1`: 17 files, 517 tests pass (T6, T4,
+S1, T1, T11, T14, order-only-if, runtimeStrategy, pins lock, gate product, strategiesAreRuled, productScorecard,
+runtimeHardeningP1, objectDoorGate, runtimeAllowlistParity, hostNeutralClosure, serverBundle). Node 24.13.1:
+`pine_runtime_host_parity.mjs --host node --check` HP-1 GREEN 166/166; closure 0 findings; service suite 139/139.
+`evidence_engine.py pins --check` PASS. Pytest `test_pine_strategy_backtest.py` + `test_broker_pins_resolve.py`
+73/73. Census (`census.harness.js.txt`, committed this time so it can be rerun): 861 non-strategy scripts, 0
+differences against the pre-T6 base in all three lanes; 16 strategy rows differ (T4's sizing and T6's timing,
+strategy-only).
+

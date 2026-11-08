@@ -176,11 +176,14 @@ describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [
     expect(cols[0][3]).toBe(0)
     expect(cols[0][4]).toBe(2)
   })
-  it('v6 with no declared size: its default (percent of equity) is not served - the order stops the run', () => {
+  it('v6 with no declared size: percent of equity 100 (W9-T4) needs the symbol\'s minimum contract, which '
+    + 'this run is not told - the order stops the run (Q-S1a)', () => {
+    // The sizing itself, with a stated minimum contract, is railed in w9T4Sizing.test.js.
     const e = stopOf('//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\n'
       + 'plot(strategy.position_size)\n')
     expect(e.guard).toBe(BROKER_UNSETTLED_GUARD)
     expect(e.message).toMatch(/Q-S1a/)
+    expect(e.message).toMatch(/minimum contract is not known/)
   })
   it('v6 with an explicit fixed size is served', () => {
     const { cols } = run('//@version=6\nstrategy("t", default_qty_type = strategy.fixed, default_qty_value = 5)\n'

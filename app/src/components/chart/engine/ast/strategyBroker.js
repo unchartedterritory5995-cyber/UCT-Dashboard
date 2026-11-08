@@ -30,10 +30,18 @@ export class StrategyOptionError extends Error {
 }
 
 /** [B-DEFAULTS] the documented defaults, per Pine version, from that version's
- *  Language Reference (`strategy()` arguments). `null` = the reference states no
- *  value (v4's `default_qty_value`) or a sizing rule the broker does not serve. */
+ *  Language Reference (`strategy()` arguments).
+ *
+ *  ⭐⭐ W9-T4 — v4's `default_qty_value`: the v4 reference states NO value ("fixed quantity by
+ *  default"). The broker takes 1 (one contract/share/lot) as a HYPOTHESIS, not a reading. It is
+ *  served only once B-QTY (Q-S1a, `w9-q-s1a-size-v4.pine`) AND B-DEFAULTS (Q-S1b,
+ *  `w9-q-s1b-defaults-v4.pine`) are pinned by MATCHing captures, so a wrong guess can only ever
+ *  surface as a capture MISMATCH, never as a served value (ruling D1: pin before serve).
+ *  v6's percent_of_equity 100 is the v6 reference's own text (`default_qty_type`: "The default is
+ *  strategy.percent_of_equity"; `default_qty_value`: "The default is 100"); how a percent or cash
+ *  default is turned into a size is `broker.js` `defaultSize` [B-QTY]. */
 export const DECLARATION_DEFAULTS = Object.freeze({
-  4: Object.freeze({ qtyType: 'fixed', qtyValue: null, initialCapital: 100000, margin: 100 }),
+  4: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 100000, margin: 100 }),
   5: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 1000000, margin: 0 }),
   6: Object.freeze({ qtyType: 'percent_of_equity', qtyValue: 100, initialCapital: 100000, margin: 100 }),
 })
@@ -63,7 +71,8 @@ const nameOf = (node) => (node && node.type === 'name' ? node.name : null)
  * Read a `strategy(...)` declaration (its parse node) into the broker's config.
  * @param {object} call  the parse node of `strategy(...)`
  * @param {number} version the script's `//@version`
- * @returns {{pyramiding:number, defaultQty:(number|null), initialCapital:(number|null),
+ * @returns {{pyramiding:number, defaultQty:(number|null), qtyType:(string|null), qtyValue:(number|null),
+ *   initialCapital:(number|null),
  *   marginLong:(number|null), marginShort:(number|null), calcOnEveryTick:boolean, version:number,
  *   processOrdersOnClose:boolean, calcOnOrderFills:boolean}}
  */
@@ -79,7 +88,7 @@ export function readStrategyDeclaration(call, version) {
   const cfg = {
     pyramiding: 0, defaultQty: null, initialCapital: d ? d.initialCapital : null,
     marginLong: d ? d.margin : null, marginShort: d ? d.margin : null, calcOnEveryTick: false, version: v,
-    // W9-T6: fill timing at its documented defaults (R6 `strategy()`: false, false, 0)
+    // W9-T6: fill timing at its documented defaults (R6 `strategy()`: false, false)
     processOrdersOnClose: false, calcOnOrderFills: false,
   }
   let qtyType = d ? d.qtyType : null
@@ -120,12 +129,18 @@ export function readStrategyDeclaration(call, version) {
       case 'commission_value': need(key, n === 0, 'other than 0 is not served'); break
       case 'calc_bars_count': need(key, n === 0, 'other than 0 is not served'); break
       case 'close_entries_rule': need(key, literalText(node) === 'FIFO', 'other than "FIFO" is not served'); break
-      case 'currency': need(key, nameOf(node) === 'currency.NONE', '(an account currency other than the symbol\'s) is not served'); break
+      // W9-T4: an identity currency needs a broker rule the ledger can pin (capture row W9-D2), and
+      // `brokerRules.js` names none yet, so any account currency but NONE still refuses here.
+      case 'currency': need(key, nameOf(node) === 'currency.NONE', '(an account currency other than the symbol\'s; '
+        + 'capture row W9-D2) is not served'); break
       default: throw new StrategyOptionError(`the strategy() property \`${key}\` is not one this broker reads`, node && node.tok)
     }
   }
-  // [B-QTY] only a FIXED default size is served (the cash / percent-of-equity sizing
-  // rules - which price, what rounding - are not stated); an unstated value is unsettled
+  // [B-QTY] the default size as declared or defaulted. `defaultQty` stays the FIXED size (null
+  // otherwise). ⭐ W9-T4: a cash or percent-of-equity default is sized by the broker at the order's
+  // signal bar (`broker.js` `defaultSize`), behind the B-QTY pin (Q-S1a).
+  cfg.qtyType = qtyType
+  cfg.qtyValue = Number.isFinite(qtyValue) ? qtyValue : null
   cfg.defaultQty = qtyType === 'fixed' && Number.isFinite(qtyValue) ? qtyValue : null
   // ⭐⭐ W9-T1 — which values are the VERSION'S DEFAULTS, not the script's own: the broker asks the
   // ledger for B-DEFAULTS (Q-S1b) only when it leans on one.
