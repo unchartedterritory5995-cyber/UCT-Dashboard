@@ -33,8 +33,7 @@ const LOOK = { real: 9, real_features: F(0.5, 6.5, 93, 2.4), lookalikes: [{ i: 3
 
 function fetcherWith(posts, { look = LOOK } = {}) {
   return vi.fn(async (url, opts = {}) => {
-    if (url === '/api/study/sessions') return opts.body?.skill_id === 'setup.family3.kicker' ? { session_id: 'sess-k', items: [item] } : { session_id: 's0', items: [] }
-    if (url.startsWith('/api/study/items/k1/lookalikes')) { if (!look) throw new Error('404'); return look }
+    if (url === '/api/study/spot-setup') return { session_id: 'sess-k', items: look ? [{ ...item, look }] : [] }
     if (url === '/api/study/attempts') { posts.push(opts.body); return { correct: opts.body.answer.choice === 'Yes', reveal: { lesson: 'Gap over the close, close above the high.', forward_bars: [] }, progress: { xp_gained: 10 } } }
     if (url === '/api/study/house-chart') return { chart_settings: null }
     throw new Error(`unexpected ${url}`)

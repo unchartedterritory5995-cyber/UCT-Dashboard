@@ -292,6 +292,55 @@ def get_item_bars(item_id: str, _user: dict = Depends(require_paid)):
     return bars
 
 
+class SpotSetupIn(BaseModel):
+    view: int = 90
+    rounds: int = 8
+
+
+@router.post("/spot-setup", dependencies=_ARMED)
+def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
+    """SPOT THE SETUP in one request (2026-11-08: seven skill sessions plus a look-alike call per chart kept the game on
+    "Loading the bank"). Charts whose last candle is their setup and nothing else, each with the candles in view that
+    look like it but where its own rules do not fire (study_spot_setup.lookalikes), taken round-robin across the setups so
+    a run is not eight of one kind, shuffled per member and day; one session so every answer is scored like any other.
+    Each item carries `look` beside its prompt and bars; the key never leaves the server."""
+    import random as _random
+    from datetime import date as _date
+    from api.services import study_spot_setup
+    uid = user["id"]
+    rounds = max(1, min(12, int(body.rounds or 8)))
+    view = max(20, min(250, int(body.view or 90)))
+    rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
+            and r.get("skill_id") in study_hard.SETUP_RULES]
+    rng = _random.Random(f"{uid}:{_date.today().isoformat()}")
+    rng.shuffle(rows)
+    by: dict[str, list] = {}
+    for r in rows:
+        by.setdefault(r["skill_id"], []).append(r["id"])
+    picked: list[tuple[str, dict]] = []
+    tried = 0
+    queues = [list(v) for v in by.values()]
+    while len(picked) < rounds and any(queues) and tried < rounds * 12:
+        for q in queues:
+            if not q or len(picked) >= rounds:
+                continue
+            iid = q.pop(0)
+            tried += 1
+            full = study_store.get_item_full(iid) or {}
+            if study_hard.key_is_yes(full.get("answer_json")) is not True:
+                continue
+            look = study_spot_setup.lookalikes((study_store.get_visible_bars(iid) or {}).get("bars") or [],
+                                               full.get("skill_id") or "", view=view)
+            if look:
+                picked.append((iid, look))
+    session = study_store.create_session(uid, "free", [iid for iid, _ in picked])
+    payload = _set_payload(uid, session)
+    looks = dict(picked)
+    for it in payload["items"]:
+        it["look"] = looks.get(it["id"])
+    return payload
+
+
 @router.get("/items/{item_id}/lookalikes", dependencies=_ARMED)
 def get_item_lookalikes(item_id: str, view: int = 90, _user: dict = Depends(require_paid)):
     """SPOT THE SETUP (owner, 2026-11-08): for a chart whose last candle is its setup and nothing else, the candles in the

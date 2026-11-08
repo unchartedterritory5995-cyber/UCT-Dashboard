@@ -97,3 +97,41 @@ def test_the_warm_stands_down_when_study_is_off(monkeypatch):
     from api.services import study_jobs
     monkeypatch.setenv("STUDY_ENABLED", "0")
     assert study_jobs.job_warm_hard_pool(delay_s=0, pause_s=0) is None
+
+
+# ── POST /api/study/spot-setup: the game in one request ─────────────────────────────────────────────────────────────
+def test_the_game_comes_in_one_request_yes_charts_only_mixed_across_setups(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import study as R
+    from api.services import study_store as ss
+    from api.services import study_spot_setup
+    monkeypatch.setattr(ss, "_DB_PATH", str(tmp_path / "study.db"))
+    monkeypatch.delenv("STUDY_ENABLED", raising=False)
+    ss.init_db()
+    member = {"id": "u1", "email": "m@t.dev", "role": "member", "plan": "pro"}
+    items = []
+    for k, (skill, ans) in enumerate([("setup.family3.kicker", "yes"), ("setup.family3.kicker", "yes"), ("setup.family4.oops", "yes"),
+                                      ("setup.family4.oops", "no"), ("setup.family3.hve", "yes")]):
+        iid = f"si_{k}"
+        items.append({"id": iid, "type": "spot", "skill_id": skill, "difficulty": 3, "bars_ref": f"sb_{iid}", "sym": "X", "asof": "2024-01-02",
+                      "prompt_json": {"q": "fires?", "choices": ["Yes", "No"]}, "answer_json": {"answer": ans}, "reveal_json": {},
+                      "source_kind": "detection", "source_ref": f"d:{iid}", "lesson_text": "L"})
+    ss.upsert_items(items)
+    for it in items:
+        ss.upsert_bars(it["bars_ref"], "D", [{"t": 20240101 + d, "o": 1, "h": 1.1, "l": 0.9, "c": 1.0, "v": 10} for d in range(30)], [])
+        ss.approve(it["id"], "owner")
+    calls = []
+    monkeypatch.setattr(study_spot_setup, "lookalikes", lambda bars, skill, view=90: calls.append(skill) or {"real": 29, "real_features": {}, "lookalikes": [{"i": 10, "features": {}}]})
+    app = FastAPI()
+    app.include_router(R.router)
+    app.dependency_overrides[R.require_paid] = lambda: member
+    client = TestClient(app)
+    r = client.post("/api/study/spot-setup", json={"rounds": 3})
+    assert r.status_code == 200
+    body = r.json()
+    ids = [i["id"] for i in body["items"]]
+    assert len(ids) == 3 and "si_3" not in ids                                    # a No chart never plays
+    assert {i["skill_id"] for i in body["items"]} == {"setup.family3.kicker", "setup.family4.oops", "setup.family3.hve"}
+    assert all(i["look"]["real"] == 29 for i in body["items"]) and body["session_id"]
+    assert all("answer_json" not in i for i in body["items"])                     # the key stays on the server

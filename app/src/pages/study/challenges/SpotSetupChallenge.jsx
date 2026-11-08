@@ -24,7 +24,8 @@ import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { SETUP_SKILLS, fetchSpotPool, scoreAttempt, setupName } from './challengeBank'
+import { scoreAttempt, setupName } from './challengeBank'
+import { normalizeBars } from '../useStudySession'
 import { rules } from './kickerRules'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
@@ -152,19 +153,14 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   )
 }
 
-/** Charts that can play, mixed across the setups: the bank's swept pool, each chart's look-alikes from the server, a
- *  round-robin by setup so a run is not eight of one kind. */
+/** The game's charts in one request (POST /api/study/spot-setup): charts whose last candle is their setup and nothing
+ *  else, each with its measured look-alikes, mixed across the setups, in one scored session. */
 async function loadPool(fetcher, view) {
-  const pool = await fetchSpotPool(Object.keys(SETUP_SKILLS), 6, fetcher, undefined, { hard: true })
-  const looked = await Promise.all(pool.slice(0, 24).map((it) => fetcher(`/api/study/items/${encodeURIComponent(it.id)}/lookalikes?view=${view}`)
-    .then((look) => (look?.lookalikes?.length ? { ...it, name: setupName(it.skill), look } : null)).catch(() => null)))
-  const by = new Map()
-  for (const it of looked.filter(Boolean)) { if (!by.has(it.skill)) by.set(it.skill, []); by.get(it.skill).push(it) }
-  const out = []
-  for (let k = 0; out.length < ROUNDS && [...by.values()].some((l) => l.length > k); k++) {
-    for (const list of by.values()) { if (list[k] && out.length < ROUNDS) out.push(list[k]) }
-  }
-  return out
+  const set = await fetcher('/api/study/spot-setup', { method: 'POST', body: { view, rounds: ROUNDS } })
+  return (set?.items || []).filter((it) => it.look?.lookalikes?.length && it.bars?.bars?.length).map((it) => ({
+    id: it.id, skill: it.skill_id, name: setupName(it.skill_id), choices: it.prompt_json?.choices || ['Yes', 'No'],
+    bars: normalizeBars(it.bars), sessionId: set.session_id, look: it.look,
+  }))
 }
 
 export default function SpotSetupChallenge({ profile = null, fetcher = studyFetch, onClose, signedOut = null }) {
