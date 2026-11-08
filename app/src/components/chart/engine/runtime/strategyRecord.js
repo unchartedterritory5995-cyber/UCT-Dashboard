@@ -104,7 +104,6 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
       // ⭐⭐ W9-T6 — fill timing, as the declaration set it (each asks its own rule when a run reaches it)
       process_orders_on_close: cfg.processOrdersOnClose === true,
       calc_on_order_fills: cfg.calcOnOrderFills === true,
-      backtest_fill_limits_assumption: Number.isInteger(cfg.fillLimitsTicks) ? cfg.fillLimitsTicks : 0,
       // which of the above are the version's defaults, not the script's own (B-DEFAULTS)
       defaulted: Object.keys(defaulted).filter((k) => defaulted[k] === true).sort(),
       commission: null,

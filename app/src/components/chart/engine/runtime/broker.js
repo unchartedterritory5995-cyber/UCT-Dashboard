@@ -151,7 +151,6 @@ export function makeBroker(cfg, data) {
   // default asks its own rule when a run REACHES it, so a run that never does is unchanged.
   const poc = cfg.processOrdersOnClose === true // [B-POC] process_orders_on_close
   const coof = cfg.calcOnOrderFills === true // [B-FILLS] calc_on_order_fills
-  const fillLimits = Number.isInteger(cfg.fillLimitsTicks) && cfg.fillLimitsTicks > 0 ? cfg.fillLimitsTicks : 0 // [B-FILL-LIMITS]
   // [B-TICK-HIST] R6 `calc_on_every_tick`: "a new execution ... on every available tick in each REALTIME
   // bar" - on history a bar executes once on its close. Asked once, before the first bar: it is the
   // whole run's execution model. (The forming bar is refused separately, Q-S1o, in `vm.js`.)
@@ -281,31 +280,21 @@ export function makeBroker(cfg, data) {
   }
   /** Every live price order right now, each `{ kind, level, up, x?, t?, o? }`:
    *  `up` true when it triggers on a RISE to `level`. */
-  // ⭐⭐ W9-T6 [B-FILL-LIMITS] a LIMIT order (a limit entry, an exit's take-profit) triggers only once the
-  // price passes its level by `fillLimits` ticks (R6 `backtest_fill_limits_assumption`), and fills AT its
-  // level (`px`). `level` is the trigger every path and gap test reads; `px` the price a path fill takes.
-  const limitAt = (level, up) => {
-    if (!fillLimits) return { level, px: level }
-    rule('B-FILL-LIMITS')
-    needSymbol()
-    return { level: level + (up ? 1 : -1) * fillLimits * mintick, px: level }
-  }
   const liveOrders = () => {
     const out = []
     for (const o of entries) {
       if (o.type === 'market' || o.immediate) continue
       // long limit / short stop trigger on a fall; long stop / short limit on a rise
       const up = (o.type === 'stop') === (o.dir > 0)
-      if (o.type === 'limit') out.push({ kind: 'entry', ...limitAt(o.level, up), up, o })
-      else out.push({ kind: 'entry', level: o.level, px: o.level, up, o })
+      out.push({ kind: 'entry', level: o.level, up, o })
     }
     for (const x of exits) {
       for (const [set, maybe] of [[x.trades, false], [x.maybe, true]]) {
         for (const t of set) {
           const { tp, sl } = levelsFor(x, t)
           // a long's take-profit triggers on a rise, its stop-loss on a fall
-          if (finite(tp)) out.push({ kind: 'exit', ...limitAt(tp, t.dir > 0), up: t.dir > 0, x, t, maybe, leg: 'tp' })
-          if (finite(sl)) out.push({ kind: 'exit', level: sl, px: sl, up: t.dir < 0, x, t, maybe, leg: 'sl' })
+          if (finite(tp)) out.push({ kind: 'exit', level: tp, up: t.dir > 0, x, t, maybe, leg: 'tp' })
+          if (finite(sl)) out.push({ kind: 'exit', level: sl, up: t.dir < 0, x, t, maybe, leg: 'sl' })
         }
       }
     }
@@ -344,11 +333,14 @@ export function makeBroker(cfg, data) {
    *  Returns `{ filled, fresh }`: whether any order filled, and the trade an entry opened. */
   const tickFill = (px, bar, mode) => {
     const atClose = mode === 'poc'
-    const mine = atClose ? (o) => o.atCloseOf === bar : () => true
-    const markets = entries.filter((e) => (e.type === 'market' || e.immediate) && mine(e))
-    const cls = closes.filter(mine)
-    const gaps = mode === 'vertex' ? []
-      : liveOrders().filter((lo) => reachedAt(lo, px) && (!atClose || mine(lo.kind === 'entry' ? lo.o : lo.x)))
+    // [B-POC-PRICE] HYPOTHESIS, the R6 reading (W9-P1 / W9-P1b grade it): "an additional attempt to
+    // execute orders after a bar closes" names no subset, so EVERY live order gets the close attempt,
+    // whichever execution placed it. An order placed before the close execution (an older one, or one an
+    // extra execution placed) that the close meets has already met its level on the path, which ends at
+    // the close, so only the close execution's orders can fill here (railed: w9T6FillTiming, X4).
+    const markets = entries.filter((e) => e.type === 'market' || e.immediate)
+    const cls = closes.slice()
+    const gaps = mode === 'vertex' ? [] : liveOrders().filter((lo) => reachedAt(lo, px))
     const n = markets.length + cls.length + gaps.length
     if (n === 0) return { filled: false, fresh: null }
     const oneCommand = gaps.length > 0 && markets.length + cls.length === 0
@@ -362,8 +354,10 @@ export function makeBroker(cfg, data) {
     if (cls.length) {
       const cl = cls[0]
       closes = closes.filter((c) => !cls.includes(c))
+      // a vertex fill is LABELLED B-FILLS and asks nothing more: `beginBar` asked B-FILLS before the
+      // extra execution that placed the order (and asks it again before the one this fill starts)
       if (atClose) { fillRule = 'B-POC'; rule('B-CLOSE'); rule('B-POC') } else if (mode === 'vertex') {
-        fillRule = 'B-FILLS'; rule('B-CLOSE'); rule('B-FILLS')
+        fillRule = 'B-FILLS'
       } else { fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET') }
       const targets = cl.kind === 'all' ? open.slice() : open.filter((t) => t.entryId === cl.id)
       requireOldest(targets)
@@ -373,7 +367,7 @@ export function makeBroker(cfg, data) {
       const m = markets[0]
       if (atClose) fillRule = m.immediate ? 'B-POC-PRICE' : 'B-POC'
       else if (mode === 'vertex') { fillRule = 'B-FILLS'; if (m.immediate) rule('B-IMMEDIATE') } else fillRule = m.immediate ? 'B-IMMEDIATE' : 'B-MARKET'
-      rule(fillRule)
+      if (mode !== 'vertex') rule(fillRule)
       if (m.immediate && !atClose) {
         // [B-IMMEDIATE] placed at a worse price than the market: fills on the next tick - served only
         // while that tick still satisfies the order. (At the close, POC, it is the tick it was placed on.)
@@ -402,11 +396,7 @@ export function makeBroker(cfg, data) {
    *  there (`vm.js`), and resume the walk from that tick. Without it the walk never yields. */
   function* barTicks(bar) {
     if (bar <= 0) return
-    if (entries.length || closes.length || exits.length) {
-      rule('B-FILL')
-      // [B-J1] the next-bar fill rests on the July-2026 Properties menus at their defaults
-      rule('B-J1')
-    }
+    if (entries.length || closes.length || exits.length) rule('B-FILL')
     const o = O[bar]; const h = H[bar]; const l = L[bar]; const c = C[bar]
     if (![o, h, l, c].every(finite)) {
       if (entries.length || closes.length || exits.length) {
@@ -468,7 +458,7 @@ export function makeBroker(cfg, data) {
         }
         p = best
         let made = null
-        for (const x of hit) made = fire(x, x.px, bar, onTick(x.px)) || made
+        for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
         checkActivation(best, made)
         if (coof) {
           if (last && best === target) closingTick()
@@ -566,8 +556,7 @@ export function makeBroker(cfg, data) {
     const cl = tickPx === null ? C[bar] : tickPx
     const immediate = type === 'limit' ? (dir > 0 ? level >= cl : level <= cl)
       : type === 'stop' ? (dir > 0 ? level <= cl : level >= cl) : false
-    // `atCloseOf`: the bar whose CLOSE execution placed it ([B-POC] gives those one attempt at that close)
-    const o = { id, dir, qty, type, level, placedBar: bar, immediate, atCloseOf: tickPx === null ? bar : -1 }
+    const o = { id, dir, qty, type, level, placedBar: bar, immediate }
     // [B-MODIFY] an unfilled order with the same id is modified, not duplicated
     const prev = entries.find((e) => e.id === id)
     if (prev) {
@@ -577,7 +566,7 @@ export function makeBroker(cfg, data) {
     }
     entries.push(o)
   }
-  const close = (a, bar) => {
+  const close = (a) => {
     const [id0, when] = a
     rule('B-SIG'); rule('B-CLOSE')
     if (when !== undefined) rule('B-WHEN')
@@ -585,16 +574,16 @@ export function makeBroker(cfg, data) {
     const id = idText(id0, '`strategy.close`')
     // [B-CLOSE] no open trade with this id when the command is called: no effect
     if (!open.some((t) => t.entryId === id)) return
-    if (!closes.some((c) => c.kind === 'id' && c.id === id)) closes.push({ kind: 'id', id, atCloseOf: tickPx === null ? bar : -1 })
+    if (!closes.some((c) => c.kind === 'id' && c.id === id)) closes.push({ kind: 'id', id })
   }
-  const closeAll = (a, bar) => {
+  const closeAll = (a) => {
     rule('B-SIG'); rule('B-CLOSE')
     if (a[0] !== undefined) rule('B-WHEN')
     if (!truthy(a[0])) return
     if (!open.length) return
-    if (!closes.some((c) => c.kind === 'all')) closes.push({ kind: 'all', atCloseOf: tickPx === null ? bar : -1 })
+    if (!closes.some((c) => c.kind === 'all')) closes.push({ kind: 'all' })
   }
-  const exit = (a, bar) => {
+  const exit = (a) => {
     const [id0, from0, profit, limit, loss, stop, when] = a
     rule('B-SIG')
     if (when !== undefined) rule('B-WHEN')
@@ -636,7 +625,6 @@ export function makeBroker(cfg, data) {
     }
     x.tp = tp
     x.sl = sl
-    x.atCloseOf = tickPx === null ? bar : -1
     // [B-EXIT-BIND] the open trades (and unfilled entries) with that id, or every
     // open trade when no `from_entry` is given; a call again confirms a maybe
     for (const t of open) {
@@ -767,9 +755,9 @@ export function makeBroker(cfg, data) {
         if (finite(args[1]) && args[1] > 0) pointvalue = args[1]
         return undefined
       case 'strategy.entry': entry(args, bar); return undefined
-      case 'strategy.close': close(args, bar); return undefined
-      case 'strategy.close_all': closeAll(args, bar); return undefined
-      case 'strategy.exit': exit(args, bar); return undefined
+      case 'strategy.close': close(args); return undefined
+      case 'strategy.close_all': closeAll(args); return undefined
+      case 'strategy.exit': exit(args); return undefined
       case 'strategy.cancel': cancel(args); return undefined
       case 'strategy.cancel_all': cancelAll(args); return undefined
       default: return value(fn, args, bar)

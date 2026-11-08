@@ -1,11 +1,12 @@
-// W9-T6 rails: fill timing (process_orders_on_close, calc_on_order_fills, calc_on_every_tick on history,
-// backtest_fill_limits_assumption, the July-2026 defaults) and the VM step order that carries them.
+// W9-T6 rails: fill timing (process_orders_on_close, calc_on_order_fills, calc_on_every_tick on history) and the
+// VM step order that carries them. r1 rulings: the July-2026 defaults (W9-J1) are a precondition on Q-S1-core's
+// fixtures in the pin resolver, not a rule; backtest_fill_limits_assumption other than 0 refuses at build.
 //
 // Every expected number below is HAND-COMPUTED from the bars written here (the trace is in each case's
 // comment), and every case also runs its default-timing CONTROL, so a rail cannot pass by the setting
 // being ignored.
 //
-// ⛔ PINS. Every T6 rule is UNPINNED in the committed ledger (no W9-P1 / P1b / P2 / P3 / J1 capture has
+// ⛔ PINS. Every T6 rule is UNPINNED in the committed ledger (no W9-P1 / P1b / P2 / P3 capture has
 // landed). The served cases pass a test pin set through `execute`'s `brokerPinned` (the T1 test-only
 // path) or, at the member door, through the mocked ledger reader below. No product code takes a pin set.
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -32,16 +33,16 @@ const T0 = 1700000000
 const barsOf = (n) => Array.from({ length: n }, (_, i) => ({ t: T0 + i * 86400, o: 100 + i, h: 101.5 + i, l: 99 + i, c: 100.5 + i, v: 1000 }))
 const BARS = barsOf(12)
 const ALL = () => true
-const T6_RULES = ['B-J1', 'B-POC', 'B-POC-PRICE', 'B-POC-PYR', 'B-POC-FILLS', 'B-FILLS', 'B-TICK-HIST', 'B-FILL-LIMITS']
+const T6_RULES = ['B-POC', 'B-POC-PRICE', 'B-POC-PYR', 'B-POC-FILLS', 'B-FILLS', 'B-TICK-HIST']
 const NL = '\n'
 
-const attempt = (src, { bars = BARS, pins = ALL } = {}) => {
+const attempt = (src, { bars = BARS, pins = ALL, realtime } = {}) => {
   const built = buildRuntimeIr(src, { bars, inputs: {}, symbol: SYMBOL, strategyBroker: true })
   if (!built.ok) return { refused: built.refusal }
   const program = lowerIrProgram(built.ir, { historyFromListing: true })
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars.map((b) => b[k])))
   const ctx = { bars: bars.length, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t), historyWindowBars: 5000 }
-  try { return { res: execute(program, ctx, undefined, { brokerPinned: pins }), program } } catch (err) { return { err } }
+  try { return { res: execute(program, ctx, undefined, { brokerPinned: pins, ...(realtime ? { realtime } : {}) }), program } } catch (err) { return { err } }
 }
 const served = (src, o) => {
   const r = attempt(src, o)
@@ -66,17 +67,21 @@ const eachRuleStops = (src, o = {}) => {
 afterEach(() => { globalThis.__w9t6Pins = undefined; registerStrategyBrokerGate(() => false) })
 
 describe('W9-T6 the rules are named, captured by their rows, and unpinned in the committed ledger', () => {
-  it('each T6 rule names the capture row that would pin it (B-FILL-LIMITS has none queued)', () => {
+  it('each T6 rule names the capture row that would pin it', () => {
     expect(Object.fromEntries(T6_RULES.map((r) => [r, BROKER_RULES[r].capture]))).toEqual({
-      'B-J1': 'W9-J1', 'B-POC': 'W9-P1', 'B-POC-PRICE': 'W9-P1', 'B-POC-PYR': 'W9-P1', 'B-POC-FILLS': 'W9-P1b',
-      'B-FILLS': 'W9-P2', 'B-TICK-HIST': 'W9-P3', 'B-FILL-LIMITS': null,
+      'B-POC': 'W9-P1', 'B-POC-PRICE': 'W9-P1', 'B-POC-PYR': 'W9-P1', 'B-POC-FILLS': 'W9-P1b',
+      'B-FILLS': 'W9-P2', 'B-TICK-HIST': 'W9-P3',
     })
+  })
+  it('r1: W9-J1 and backtest_fill_limits_assumption are not rules', () => {
+    expect(BROKER_RULES['B-J1']).toBeUndefined()
+    expect(BROKER_RULES['B-FILL-LIMITS']).toBeUndefined()
   })
   it('the committed ledger pins none of them', () => {
     for (const r of T6_RULES) expect(Object.prototype.hasOwnProperty.call(RESOLVED.rules, r), r).toBe(false)
   })
   it('the declaration reads the timing settings instead of refusing them; history-tick stays refused', () => {
-    for (const decl of ['process_orders_on_close = true', 'calc_on_order_fills = true', 'backtest_fill_limits_assumption = 3',
+    for (const decl of ['process_orders_on_close = true', 'calc_on_order_fills = true', 'backtest_fill_limits_assumption = 0',
       'process_orders_on_close = false', 'calc_on_every_history_tick = false']) {
       const { refused } = attempt(`//@version=5${NL}strategy("t", ${decl})${NL}plot(strategy.position_size)${NL}`)
       expect(refused, decl).toBeUndefined()
@@ -84,23 +89,22 @@ describe('W9-T6 the rules are named, captured by their rows, and unpinned in the
     const { refused } = attempt(`//@version=5${NL}strategy("t", calc_on_every_history_tick = true)${NL}plot(strategy.position_size)${NL}`)
     expect(refused.guard).toBe('runtime:strategy-option')
     expect(refused.message).toContain('calc_on_every_history_tick')
-    const neg = attempt(`//@version=5${NL}strategy("t", backtest_fill_limits_assumption = -1)${NL}plot(strategy.position_size)${NL}`).refused
-    expect(neg.guard).toBe('runtime:strategy-option')
+    // r1: master's build refusal, named, with its reason
+    const lim = attempt(`//@version=5${NL}strategy("t", backtest_fill_limits_assumption = 2)${NL}plot(strategy.position_size)${NL}`).refused
+    expect(lim.guard).toBe('runtime:strategy-option')
+    expect(lim.message).toMatch(/backtest_fill_limits_assumption.*other than 0 is not served.*no TradingView capture is queued/)
   })
 })
 
-describe('W9-T6 [B-J1] a default next-bar fill rests on the July-2026 defaults', () => {
+describe('W9-T6 default timing is the T1 walk, and asks no T6 rule (r1: W9-J1 folded into the resolver)', () => {
   const SRC = ['//@version=5', 'strategy("t")', 'if bar_index == 3', '    strategy.entry("L", strategy.long)', 'if bar_index == 6',
     '    strategy.close("L")', 'plot(strategy.position_size)', ''].join(NL)
   it('next-open fills, unchanged: entry at O[4] = 104, exit at O[7] = 107', () => {
     const res = served(SRC)
     expect(trades(res)).toEqual([['L', 4, 104, 'B-MARKET', 7, 107, 'B-CLOSE']])
     expect(col(res, 0).slice(2, 9)).toEqual([0, 0, 1, 1, 1, 0, 0])
-  })
-  it('B-J1 is asked with every next-bar fill, and stops the run by name with W9-J1 when unpinned', () => {
-    expect(eachRuleStops(SRC)).toContain('B-J1')
-    const { err } = attempt(SRC, { pins: (id) => id !== 'B-J1' })
-    expect(err.message).toMatch(/B-J1.*W9-J1/)
+    expect(res.broker.record.rulesUsed.filter((r) => T6_RULES.includes(r) || r === 'B-J1')).toEqual([])
+    eachRuleStops(SRC)
   })
 })
 
@@ -228,6 +232,45 @@ describe('W9-T6 [B-FILLS] calc_on_order_fills on history: extra executions, roll
   })
 })
 
+describe('W9-T6 X4 HYPOTHESIS (W9-P1b grades it): every live order gets the close attempt, whoever placed it', () => {
+  // The R6 reading: "an additional attempt to execute orders after a bar closes" names no subset. An order an
+  // extra execution placed is on the path for the rest of the bar, and the path ENDS at the close, so the close
+  // can only meet it after the path has: such an order fills on the path (B-PATH) or not at all that bar, and
+  // the close attempt never fills it a second way. Restricting the attempt to the close execution's own orders
+  // (the reviewer's X4) gives the same run: no reachable run tells the two readings apart, which is why this
+  // pins the observable consequence rather than the subset.
+  // Bar 2's close places L (limit 102.2, not met at the close 102.5). Bar 3 runs 103 -> 102 -> 104.5 -> 103.5:
+  // L fills at 102.2 on the fall, and that extra execution places x (limit LVL).
+  const SRC = (lvl) => ['//@version=5', 'strategy("t", process_orders_on_close = true, calc_on_order_fills = true)',
+    'if bar_index == 2', '    strategy.entry("L", strategy.long, limit = 102.2)',
+    'if strategy.position_size > 0 and strategy.closedtrades == 0', `    strategy.exit("x", "L", limit = ${lvl})`,
+    'plot(strategy.position_size)', ''].join(NL)
+  it('met later on the bar: it fills on the path at its level (B-PATH), not at the close', () => {
+    expect(trades(served(SRC(104)))).toEqual([['L', 3, 102.2, 'B-PATH', 3, 104, 'B-PATH']])
+  })
+  it('not met by the close (105 > 103.5): the close attempt passes it, and it fills on bar 4\'s rise', () => {
+    expect(trades(served(SRC(105)))).toEqual([['L', 3, 102.2, 'B-PATH', 4, 105, 'B-PATH']])
+  })
+})
+
+describe('W9-T6 X7 the calc_on_order_fills + realtime-state refusal (defensive: no product door reaches it)', () => {
+  const SRC = (decl) => ['//@version=5', `strategy("t"${decl})`, 'if bar_index == 2', '    strategy.entry("L", strategy.long)',
+    'plot(strategy.position_size)', ''].join(NL)
+  const hooks = { barStart() {}, barEnd() {} }
+  it('with realtime hooks handed to execute, a re-running strategy stops by name (W9-P1b)', () => {
+    const { err } = attempt(SRC(', calc_on_order_fills = true'), { realtime: hooks })
+    expect(err.guard).toBe('runtime:strategy-unsettled')
+    expect(err.message).toMatch(/realtime state.*W9-P1b/)
+    // CONTROL: the same hooks without calc_on_order_fills run
+    expect(trades(served(SRC(''), { realtime: hooks }))).toEqual([['L', 3, 103, 'B-MARKET', null, null, null]])
+  })
+  it('why no product door reaches it: varip refuses first in a broker program', () => {
+    const { refused } = attempt(['//@version=5', 'strategy("t", calc_on_order_fills = true)', 'varip int k = 0', 'k += 1',
+      'if bar_index == 2', '    strategy.entry("L", strategy.long)', 'plot(strategy.position_size)', ''].join(NL))
+    expect(refused && refused.guard).toMatch(/runtime:varip|runtime:strategy-repaint/)
+  })
+})
+
 describe('W9-T6 [B-TICK-HIST] calc_on_every_tick on history executes once per closed bar', () => {
   const SRC = (decl) => ['//@version=5', `strategy("t"${decl})`, 'if bar_index == 3', '    strategy.entry("L", strategy.long)',
     'if bar_index == 6', '    strategy.close("L")', 'plot(strategy.position_size)', ''].join(NL)
@@ -241,26 +284,6 @@ describe('W9-T6 [B-TICK-HIST] calc_on_every_tick on history executes once per cl
     const { err } = attempt(SRC(', calc_on_every_tick = true'), { pins: (id) => id !== 'B-TICK-HIST' })
     expect(err.rule).toBe('B-TICK-HIST')
     expect(err.message).toMatch(/W9-P3/)
-  })
-})
-
-describe('W9-T6 [B-FILL-LIMITS] backtest_fill_limits_assumption', () => {
-  // L (limit, placed on bar 2's close 102.5) on bar 3, whose low is 102.
-  const SRC = (n, lvl) => ['//@version=5', `strategy("t", backtest_fill_limits_assumption = ${n})`, 'if bar_index == 2',
-    `    strategy.entry("L", strategy.long, limit = ${lvl})`, 'plot(strategy.position_size)', ''].join(NL)
-  it('fills only once the price passes the level by N ticks, and then at the level', () => {
-    // 102.2 with N = 2: the trigger 102.18 is above the low 102 -> fills at 102.2 on bar 3
-    expect(trades(served(SRC(2, 102.2)))).toEqual([['L', 3, 102.2, 'B-PATH', null, null, null]])
-    // 102.05 with N = 10: the trigger 101.95 is below bar 3's low 102 -> not on bar 3; bar 4's low is 103 -> never
-    expect(trades(served(SRC(10, 102.05)))).toEqual([])
-    // CONTROL, N = 0: 102.05 fills on bar 3
-    expect(trades(served(SRC(0, 102.05)))).toEqual([['L', 3, 102.05, 'B-PATH', null, null, null]])
-    expect(served(SRC(0, 102.05)).broker.record.rulesUsed).not.toContain('B-FILL-LIMITS')
-  })
-  it('unpinned, it stops by name saying no capture row is queued', () => {
-    const { err } = attempt(SRC(2, 102.2), { pins: (id) => id !== 'B-FILL-LIMITS' })
-    expect(err.rule).toBe('B-FILL-LIMITS')
-    expect(err.message).toMatch(/no capture row is queued/)
   })
 })
 
@@ -296,7 +319,7 @@ describe('W9-T6 the member door', () => {
     expect(strategyRecordShapeErrors(rec)).toEqual([])
     expect(rec.settings.process_orders_on_close).toBe(true)
     expect(rec.settings.calc_on_order_fills).toBe(false)
-    expect(rec.settings.backtest_fill_limits_assumption).toBe(0)
+    expect('backtest_fill_limits_assumption' in rec.settings).toBe(false)
     expect(STRATEGY_RECORD_UNSERVED['settings.process_orders_on_close']).toBeUndefined()
     expect(rec.trades.map((t) => [t.entryRule, t.exitRule, t.entryPrice, t.exitPrice])).toEqual([['B-POC', 'B-POC', 103.5, 106.5]])
     expect(Array.from(cols.p).slice(2, 9)).toEqual([0, 0, 1, 1, 1, 0, 0])

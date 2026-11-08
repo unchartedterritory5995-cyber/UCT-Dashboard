@@ -1248,18 +1248,84 @@ def read_ledger_rows(path: pathlib.Path = LEDGER) -> list:
     return rows
 
 
+# ─── W9-T6 r1 (W9-J1): the July-2026 Properties menus are a PRECONDITION, not a broker rule ───────────
+# TradingView changed its strategy tester in July 2026 (design 0.2 finding 5). Every broker fill on the
+# default timing rests on four of its settings at their defaults; if Q-S1-core's capture ran with any of
+# them moved, every rule it pins is void. So a fixture of queue row Q-S1-core counts as MATCH only when
+# EVERY committed row of it carries a settings read-back (`provenance.strategySettings`, W9-T3a) showing
+# all four at their defaults. The Properties names are read from `strategy_capture.mjs::PROPERTY_TABLE`,
+# the capture side's one table, never restated here.
+J1_QUEUE_ROW = "Q-S1-core"
+J1_DEFAULTS = {
+    "process_orders_on_close": False,        # order execution delay: one tick
+    "backtest_fill_limits_assumption": 0,    # limit order execution: 0 ticks
+    "use_bar_magnifier": False,              # bar detalization: off
+    "calc_on_every_history_tick": False,     # history-bar ticks: off
+}
+STRATEGY_CAPTURE_MJS = HERE / "strategy_capture.mjs"
+
+
+def j1_property_names(path: pathlib.Path = STRATEGY_CAPTURE_MJS) -> dict:
+    """{key: TradingView's Properties input name} for the J1 keys, parsed from PROPERTY_TABLE."""
+    text = pathlib.Path(path).read_text(encoding="utf-8")
+    out = {}
+    for key in J1_DEFAULTS:
+        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1", text)
+        if not m:
+            raise PinResolveError(f"strategy_capture.mjs PROPERTY_TABLE names no `{key}`")
+        out[key] = m.group(2)
+    return out
+
+
+def _is_queue_row(row: dict, queue_row: str) -> bool:
+    if row.get("queueTargetId") == queue_row:
+        return True
+    rs = row.get("rows")
+    return isinstance(rs, list) and any(r == queue_row or (isinstance(r, dict) and r.get("id") == queue_row) for r in rs)
+
+
+def _at_default(value, default) -> bool:
+    if isinstance(default, bool):
+        return value is False or value == 0 or (isinstance(value, str) and value.strip().lower() in ("false", "0"))
+    try:
+        return float(value) == float(default) and not isinstance(value, bool)
+    except (TypeError, ValueError):
+        return False
+
+
+def j1_readback_ok(row: dict, names: dict) -> bool:
+    """True only when the row's settings read-back shows every J1 setting at its default."""
+    ss = ((row.get("provenance") or {}).get("strategySettings") or {})
+    props = ss.get("properties") if isinstance(ss, dict) else None
+    if not isinstance(props, list):
+        return False
+    by_name = {" ".join(str(p.get("name", "")).split()).lower(): p for p in props if isinstance(p, dict)}
+    for key, default in J1_DEFAULTS.items():
+        p = by_name.get(" ".join(names[key].split()).lower())
+        if p is None or "value" not in p or not _at_default(p["value"], default):
+            return False
+    return True
+
+
 def resolve_pins(pins: dict, ledger_rows: list) -> dict:
     """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
     fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
     fixture with NO committed verdict, an empty fixture list or a malformed source is an ERROR (a
-    missing fixture fails, it never silently un-pins)."""
+    missing fixture fails, it never silently un-pins). A Q-S1-core fixture also needs the W9-J1
+    read-back on every row (`j1_readback_ok`); without it the fixture is not MATCH."""
     if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
         raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
     verdicts = {}
+    names = None
     for r in ledger_rows:
         cid = r.get("captureId")
         if cid:
-            verdicts.setdefault(cid, []).append(r.get("verdict"))
+            v = r.get("verdict")
+            if v == "MATCH" and _is_queue_row(r, J1_QUEUE_ROW):
+                names = names or j1_property_names()
+                if not j1_readback_ok(r, names):
+                    v = "MATCH-WITHOUT-J1-READBACK"   # W9-J1: the precondition failed, so not MATCH
+            verdicts.setdefault(cid, []).append(v)
     kept = {}
     for rule in sorted(pins["rules"]):
         ids = pins["rules"][rule]

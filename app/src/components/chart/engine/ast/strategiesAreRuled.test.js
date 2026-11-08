@@ -177,15 +177,16 @@ describe('D7: the strategy-backtest scorecard wording', () => {
       `0 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
-    // 22 S1/T1 rules + 8 W9-T6 fill-timing rules (B-J1, B-POC, B-POC-PRICE, B-POC-PYR, B-POC-FILLS,
-    // B-FILLS, B-TICK-HIST, B-FILL-LIMITS); the wording derives the number, this pins the vocabulary.
-    expect(BROKER_RULE_IDS.length).toBe(30)
+    // 22 S1/T1 rules + 6 W9-T6 fill-timing rules (B-POC, B-POC-PRICE, B-POC-PYR, B-POC-FILLS, B-FILLS,
+    // B-TICK-HIST); the wording derives the number, this pins the vocabulary. (W9-J1 is a pin-resolver
+    // precondition and fill limits refuse at build: neither is a rule, T6 r1 ruling.)
+    expect(BROKER_RULE_IDS.length).toBe(28)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {
     const ledger = { rules: { 'B-MARKET': ['fx'], 'B-FILL': ['fx'], 'NOT-A-RULE': ['fx'] } }
     expect(pinnedBrokerRules(ledger)).toEqual(['B-FILL', 'B-MARKET'])
-    expect(strategyScorecardWording({ ledger })).toMatch(/^2 of 30 broker rules are pinned/)
+    expect(strategyScorecardWording({ ledger })).toMatch(/^2 of 28 broker rules are pinned/)
   })
 
   it('drops the not-served sentence only when the caller says it is served', () => {

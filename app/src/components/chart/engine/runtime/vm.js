@@ -640,6 +640,12 @@ export function execute(program, ctx, limits, opts) {
   // which is the point of the re-run. Only a broker run under calc_on_order_fills takes this path;
   // every other run never snapshots and steps exactly as before.
   const brokerReruns = !!broker && program.broker.calcOnOrderFills === true
+  // ⛔ DEFENSIVE, NOT REACHABLE THROUGH A PRODUCT DOOR TODAY: the realtime hooks exist only for a program
+  // with a `varip` or a `barstate.isnew` read (`runtimeColumns.js::realtimeRun`), and in a broker program
+  // `varip` refuses first (rule 11, `runtime:varip`) while `barstate.isnew` is refused by name on this lane
+  // (`closedTable.json::_barstate.refused`). Kept so that a ruling opening either one cannot let a
+  // rolled-back re-run step a realtime ledger built for one execution per update. Railed only through
+  // `execute` with test hooks (w9T6FillTiming, X7).
   if (brokerReruns && realtime) {
     throw new BrokerRefusal('`calc_on_order_fills` re-runs a bar, and this run also keeps realtime state '
       + '(`varip` / `barstate.isnew`) whose value across those re-runs is not stated', 'W9-P1b')
