@@ -33,3 +33,12 @@ describe('the end screen, three versions', () => {
     expect(st.textContent).toContain('Missed')
   })
 })
+
+describe('EndHard run cards', () => {
+  it('a miss names what was said and what it was', async () => {
+    const { render, screen } = await import('@testing-library/react')
+    const { EndHard } = await import('./EndLooks')
+    render(<EndHard right={0} total={1} log={[{ name: 'Kicker', ticker: 'JBI', ok: false, said: 'Yes', was: 'No' }]} results={[false]} onAgain={() => {}} onBack={() => {}} />)
+    expect(screen.getByText('you said Yes, it was No')).toBeInTheDocument()
+  })
+})

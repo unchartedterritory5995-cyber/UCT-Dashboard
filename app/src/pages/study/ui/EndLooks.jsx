@@ -231,7 +231,7 @@ export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain,
             <span className={e.rCardTop}><small>{i + 1}</small>{r.ok ? <UIcon name="check" size={13} gold={false} /> : <UIcon name="x" size={13} gold={false} />}</span>
             <b>{r.name}</b>
             <em>{r.ticker || '—'}</em>
-            {!r.ok && r.said ? <i>you said {r.said}</i> : null}
+            {!r.ok && r.said ? <i>you said {r.said}{r.was ? `, it was ${r.was}` : ''}</i> : null}
           </div>
         ))}
       </div>

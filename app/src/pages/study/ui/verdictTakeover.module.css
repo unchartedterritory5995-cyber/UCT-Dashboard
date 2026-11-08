@@ -2,7 +2,7 @@
 .wrap { --c: #2faf68; --c2: #9fe9bd; --cd: rgba(47, 175, 104, .28);
   position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 24px; overflow: hidden;
   /* a solid wash, not a live blur of the page: the blur re-rendered the chart under it every frame (heavy on a phone) */
-  background: radial-gradient(70% 60% at 50% 42%, rgba(12, 12, 14, .9), rgba(4, 4, 5, .97));
+  background: radial-gradient(70% 60% at 50% 42%, #0d0d10, #030304);
   font-family: var(--font-sans, 'Instrument Sans', system-ui, sans-serif); color: #f8f7f3; animation: tkIn .28s ease both; }
 .wrap.bad { --c: #df4646; --c2: #ffb3b3; --cd: rgba(223, 70, 70, .28); }
 .rays { position: absolute; left: 50%; top: 42%; width: 130vmax; height: 130vmax; margin: -65vmax 0 0 -65vmax; pointer-events: none; will-change: transform;

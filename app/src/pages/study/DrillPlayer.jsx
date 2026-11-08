@@ -418,7 +418,7 @@ export default function DrillPlayer({
               studyMode
               barsOverride={shownBars}
               frozen
-              hideWatermark={!ticker}
+              hideWatermark={!ticker || phone}
               watermark={ticker || null}
               showBrandMark
               liveUpdates={false}

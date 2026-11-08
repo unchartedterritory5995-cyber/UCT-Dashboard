@@ -157,7 +157,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
     <div className={`${s.kit} ${s.screen}`} data-testid="hard-question" data-state={state} data-run={state !== 'ask' && restDone && k >= runN ? 'done' : 'running'}>
       {state !== 'ask' ? <span className={`${s.flash} ${state === 'ok' ? s.ok : s.bad}`} aria-hidden="true" /> : null}
       {state !== 'ask' && takeover ? <VerdictTakeover ok={state === 'ok'} title={headline} sub={detail} stampWord={state === 'ok' && fired === false ? 'Right' : null}
-        label={trade ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="hard-takeover" /> : null}
+        label={trade?.kind === 'plan' ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="hard-takeover" /> : null}
       <HudCombo step={idx} total={total} results={results} live={state === 'ask'} />
       <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`}>
         <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}

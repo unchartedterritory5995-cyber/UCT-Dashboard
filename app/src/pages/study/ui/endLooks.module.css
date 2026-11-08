@@ -190,7 +190,7 @@
 .hardEnd .coinStage { padding-bottom: 26px; }
 .spot { position: absolute; left: 50%; top: -70px; width: 360px; height: 330px; margin-left: -180px; z-index: -1; pointer-events: none;
   background: linear-gradient(180deg, rgba(255, 242, 196, 0), rgba(246, 226, 160, .16) 70%, rgba(246, 226, 160, .05));
-  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); opacity: 0; animation: endSpot 1s ease .9s forwards; }
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); filter: blur(9px); opacity: 0; animation: endSpot 1s ease .9s forwards; }
 .pedestal { position: absolute; left: 50%; bottom: 4px; width: 280px; height: 54px; margin-left: -140px; z-index: -1; border-radius: 50%; pointer-events: none;
   background: radial-gradient(ellipse at 50% 35%, rgba(233, 205, 119, .42), rgba(233, 205, 119, .1) 50%, transparent 72%);
   box-shadow: 0 18px 30px -10px rgba(0, 0, 0, .8); }

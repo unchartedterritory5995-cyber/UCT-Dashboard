@@ -357,3 +357,4 @@
   background: linear-gradient(180deg, #141518, #0f1012); }
 .chartBrand { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #a39e94; }
 .chartBrand img { width: 16px; height: 16px; }
+@media (max-width: 640px) { .chartBrand { font-size: 0; letter-spacing: 0; gap: 0; } .chartBrand img { width: 18px; height: 18px; } .chartHead { padding: 6px 8px; } }
