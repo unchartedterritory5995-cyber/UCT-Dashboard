@@ -112,18 +112,31 @@ function pick(arr, n, rnd) { const a = [...arr]; const out = []; while (a.length
  *   fires   the bank's own Yes/No on a named setup, scored on the server
  *   fact    green or red / over yesterday's high, measured from the bars
  *   recall  the bank's candle-name or chart-word item, scored on the server */
-export function buildBlitzQuestions(spots, recalls, seed = Date.now()) {
+/** The charts a "What setup fired on the last candle?" question may use: only charts whose last candle IS their setup
+ *  and no other, checked by the setups' own detectors on the server (POST /api/study/spot-setup, the Spot the Setup
+ *  pool). A bank spot item can be a "No, it does not fire" chart, so naming its setup from it would teach a wrong
+ *  answer (found 2026-11-08 in Blitz; the owner's rule: never an incorrect example). */
+export async function fetchNamedPool(rounds = 20, fetcher = studyFetch, seed = String(Date.now())) {
+  const set = await fetcher('/api/study/spot-setup', { method: 'POST', body: { rounds, view: 90, seed } })
+  return (set?.items || []).filter((it) => it.look && it.bars?.bars?.length).map((it) => ({
+    id: it.id, skill: it.skill_id, name: setupName(it.skill_id), bars: normalizeBars(it.bars), sessionId: set.session_id,
+  }))
+}
+
+export function buildBlitzQuestions(spots, recalls, seed = Date.now(), named = []) {
   let s = seed % 2147483647 || 1
   const rnd = () => { s = (s * 48271) % 2147483647; return s / 2147483647 }
   const qs = []
+  // name it: verified charts only (fetchNamedPool), never a bank spot item, which may be a "does not fire" chart
+  ;(named || []).forEach((it) => {
+    const others = pick(SETUP_NAMES.filter((x) => x !== it.name), 3, rnd)
+    const choices = pick([it.name, ...others], 4, rnd)
+    qs.push({ kind: 'name', tag: 'Name it', q: 'What setup fired on the last candle?', choices, item: it, answer: it.name, server: false })
+  })
   spots.forEach((it, k) => {
     const n = it.bars.length, b = it.bars[n - 1], p = it.bars[n - 2]
-    const r = k % 4
-    if (r === 0 || r === 1) {
-      const others = pick(SETUP_NAMES.filter((x) => x !== it.name), 3, rnd)
-      const choices = pick([it.name, ...others], 4, rnd)
-      qs.push({ kind: 'name', tag: 'Name it', q: 'What setup fired on the last candle?', choices, item: it, answer: it.name, server: false })
-    } else if (r === 2) {
+    const r = k % 2
+    if (r === 0) {
       qs.push({ kind: 'fires', tag: it.name, q: it.q, choices: it.choices, item: it, server: true })
     } else if (p) {
       const up = b.c > b.o

@@ -31,7 +31,7 @@ import { SkeletonBlock, SkeletonLine } from '../../components/Skeleton'
 import UIcon from '../../components/ui/UIcon'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
 import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
-import useStudySession from './useStudySession'
+import useStudySession, { normalizeBars } from './useStudySession'
 import useChartSurfaceSettings from '../../components/chart/pane/useChartSurfaceSettings'
 import { paneLookProps } from '../../components/chart/pane/paneLook'
 import usePreferences from '../../hooks/usePreferences'
@@ -46,7 +46,11 @@ import EndCard from './EndCard'
 import ScreenFeedback from './ScreenFeedback'
 import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
-import { spot, rayAt, arrowAt } from '../../lab/pointers'
+import { rayAt } from '../../lab/pointers'
+import { calloutLook, hardCallouts } from './ui/callout'
+import ChartKey from './ui/ChartKey'
+import { reviewTrade } from './challenges/hardMode'
+import { tradeAnnotations } from './challenges/tradeMarks'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
 import sa from './ui/answerLooks.module.css'
@@ -197,15 +201,25 @@ export default function DrillPlayer({
   const forwardCount = phase === 'reveal' && Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
   const baseLen = Math.max(0, (chartBars?.length || 0) - forwardCount)
   const shownBars = chartBars
+  // One pointer everywhere (rule 4; the owner, 2026-11-08: one design for every mode): Hard mode's callout at the candle
+  // in question, gold while asking, green or red after. After a scored answer on a setup with a plan, the trade is drawn
+  // on the chart (the levels, BOUGHT, the targets, STOPPED OUT) and named in the chart key under it, as in Hard mode;
+  // otherwise the low of the candle stays marked with a ray.
+  const keyTrade = useMemo(() => {
+    if (phase !== 'reveal' || !reveal?.trade || !chartBars?.length || baseLen < 1) return null
+    return reviewTrade(reveal.trade, chartBars[baseLen - 1], normalizeBars(reveal.forward_bars))
+  }, [phase, reveal, chartBars, baseLen])
   const pointer = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
-    const i = baseLen - 1
-    if (phase === 'reveal' && result) {
-      const color = result.correct ? '#2faf68' : '#df4646'
-      return [...spot(chartBars, i, { label: result.correct ? 'you were right' : 'the answer', id: 'pt', color, halo: true }), ...arrowAt(chartBars, i, { id: 'pta', color }), ...rayAt(chartBars[i], 'l', { id: 'ptl', label: '' })]
-    }
-    return [...spot(chartBars, i, { label: 'this candle', id: 'pt', halo: true }), ...arrowAt(chartBars, i, { id: 'pta' })]
+    if (phase !== 'reveal' || !result) return null
+    return (keyTrade && tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars, baseLen)) || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
+  }, [chartVisible, chartBars, item?.type, baseLen, phase, result, keyTrade])
+  const callouts = useMemo(() => {
+    if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
+    const tone = phase === 'reveal' && result ? (result.correct ? 'ok' : 'bad') : 'ask'
+    return hardCallouts({ index: baseLen - 1, label: tone === 'ask' ? 'This candle' : tone === 'ok' ? 'You were right' : 'The answer', tone })
   }, [chartVisible, chartBars, item?.type, baseLen, phase, result])
+  const calloutStyle = useMemo(() => calloutLook(phone), [phone])
   // the facts a trader reads before answering, from the bars in hand (the question's own window, not the forward bars)
   const stats = useMemo(() => (needsChart && chartBars?.length ? barStats(chartBars.slice(0, baseLen || chartBars.length)) : []), [needsChart, chartBars, baseLen])
 
@@ -403,6 +417,8 @@ export default function DrillPlayer({
               settingsOverride={sessionChart.settingsOverride}
               onSettingsPersist={sessionChart.onSettingsPersist}
               annotations={annotations}
+              callouts={callouts && callouts.length ? callouts : null}
+              calloutLook={calloutStyle}
               annotationsVisible={!!annotations}
               annotationsTextVisible={!!annotations}
               markers={openMarkers}
@@ -440,6 +456,7 @@ export default function DrillPlayer({
           </div>
         )}
         </div>
+        {keyTrade && needsChart ? <ChartKey trade={keyTrade} testId="drill-key" /> : null}
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />
         </div>

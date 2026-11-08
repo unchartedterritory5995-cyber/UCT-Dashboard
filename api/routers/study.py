@@ -295,6 +295,9 @@ def get_item_bars(item_id: str, _user: dict = Depends(require_paid)):
 class SpotSetupIn(BaseModel):
     view: int = 90
     rounds: int = 8
+    # Blitz asks for a fresh draw each run (2026-11-08, the owner: never the same few charts); Spot the Setup sends none,
+    # so its run stays the same for a member all day
+    seed: Optional[str] = None
 
 
 @router.post("/spot-setup", dependencies=_ARMED)
@@ -308,11 +311,11 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     from datetime import date as _date
     from api.services import study_spot_setup
     uid = user["id"]
-    rounds = max(1, min(12, int(body.rounds or 8)))
+    rounds = max(1, min(24, int(body.rounds or 8)))
     view = max(20, min(250, int(body.view or 90)))
     rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
             and r.get("skill_id") in study_hard.SETUP_RULES]
-    rng = _random.Random(f"{uid}:{_date.today().isoformat()}")
+    rng = _random.Random(f"{uid}:{_date.today().isoformat()}" + (f":{body.seed[:40]}" if body.seed else ""))
     rng.shuffle(rows)
     by: dict[str, list] = {}
     for r in rows:

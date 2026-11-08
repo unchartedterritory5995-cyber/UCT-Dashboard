@@ -15,7 +15,7 @@ import s2 from '../ui/study.module.css'
 import lab from '../../../lab/lab.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, buildBlitzQuestions, fetchRecallPool, fetchSpotPool, scoreAttempt } from './challengeBank'
+import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, buildBlitzQuestions, fetchNamedPool, fetchRecallPool, fetchSpotPool, scoreAttempt } from './challengeBank'
 import { comboFeedback, endFeedback, feedbackPrefs, revealFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 
@@ -70,8 +70,10 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
 
   useEffect(() => {
     let on = true
-    Promise.all([fetchSpotPool(undefined, 6, fetcher), fetchRecallPool(undefined, 12, fetcher)])
-      .then(([sp, rc]) => { if (on) setPool(buildBlitzQuestions(sp, rc)) })
+    // a deeper pool (the owner, batch 10: "We will need hundreds if not thousands of examples"): every run draws fresh
+    // charts from the bank; "name it" comes only from charts the detectors verified (fetchNamedPool)
+    Promise.all([fetchSpotPool(undefined, 8, fetcher), fetchRecallPool(undefined, 16, fetcher), fetchNamedPool(20, fetcher).catch(() => [])])
+      .then(([sp, rc, nm]) => { if (on) setPool(buildBlitzQuestions(sp, rc, Date.now(), nm)) })
       .catch((e) => { if (on) { setError(e); setPool([]) } })
     return () => { on = false }
   }, [reload, fetcher])

@@ -135,3 +135,36 @@ def test_the_game_comes_in_one_request_yes_charts_only_mixed_across_setups(tmp_p
     assert {i["skill_id"] for i in body["items"]} == {"setup.family3.kicker", "setup.family4.oops", "setup.family3.hve"}
     assert all(i["look"]["real"] == 29 for i in body["items"]) and body["session_id"]
     assert all("answer_json" not in i for i in body["items"])                     # the key stays on the server
+
+
+def test_a_seed_gives_a_fresh_draw_and_rounds_reach_24(tmp_path, monkeypatch):
+    """Blitz asks for its verified "name it" charts with a seed per run, so a member does not get the same charts all
+    day; without a seed (Spot the Setup) the draw stays fixed for the member and the day."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import study as R
+    from api.services import study_store as ss
+    from api.services import study_spot_setup
+    monkeypatch.setattr(ss, "_DB_PATH", str(tmp_path / "study.db"))
+    monkeypatch.delenv("STUDY_ENABLED", raising=False)
+    ss.init_db()
+    items = []
+    for k in range(30):
+        iid = f"si_{k}"
+        items.append({"id": iid, "type": "spot", "skill_id": "setup.family3.kicker", "difficulty": 3, "bars_ref": f"sb_{iid}", "sym": "X", "asof": "2024-01-02",
+                      "prompt_json": {"q": "fires?", "choices": ["Yes", "No"]}, "answer_json": {"answer": "yes"}, "reveal_json": {},
+                      "source_kind": "detection", "source_ref": f"d:{iid}", "lesson_text": "L"})
+    ss.upsert_items(items)
+    for it in items:
+        ss.upsert_bars(it["bars_ref"], "D", [{"t": 20240101 + d, "o": 1, "h": 1.1, "l": 0.9, "c": 1.0, "v": 10} for d in range(30)], [])
+        ss.approve(it["id"], "owner")
+    monkeypatch.setattr(study_spot_setup, "lookalikes", lambda bars, skill, view=90: {"real": 29, "real_features": {}, "lookalikes": [{"i": 10, "features": {}}]})
+    app = FastAPI()
+    app.include_router(R.router)
+    app.dependency_overrides[R.require_paid] = lambda: {"id": "u1", "email": "m@t.dev", "role": "member", "plan": "pro"}
+    client = TestClient(app)
+    ids = lambda body: [i["id"] for i in client.post("/api/study/spot-setup", json=body).json()["items"]]
+    assert len(ids({"rounds": 40})) == 24
+    assert ids({"rounds": 10}) == ids({"rounds": 10})
+    draws = {tuple(ids({"rounds": 10, "seed": str(s)})) for s in range(4)}
+    assert len(draws) > 1

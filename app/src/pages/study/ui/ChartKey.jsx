@@ -9,6 +9,9 @@ import k from './chartKey.module.css'
 
 const px = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const sess = (n) => `${n} session${n === 1 ? '' : 's'}`
+// the risk a position takes from the entry to the stop, measured (the owner, batch 1: "give some entry and sizing
+// indications"): the one number a member sizes from
+const riskPct = (t) => (Number.isFinite(t.entry) && Number.isFinite(t.stop) && t.entry > 0 ? (Math.abs(t.entry - t.stop) / t.entry) * 100 : null)
 
 function reached(at, stopped) {
   if (at === 0) return { ok: true, text: 'reached the same day' }
@@ -25,7 +28,7 @@ export default function ChartKey({ trade, testId = null }) {
     const t1 = reached(trade.t1At, stopped), t2 = reached(trade.t2At, stopped)
     rows = [
       { tone: 'gold', name: trade.long === false ? 'Short entry' : 'Entry', price: px(trade.entry), why: trade.entry_note, status: { ok: true, text: trade.long === false ? 'shorted here' : 'bought here' } },
-      { tone: 'red', name: 'Stop', price: px(trade.stop), why: trade.stop_note,
+      { tone: 'red', name: 'Stop', price: px(trade.stop), why: trade.stop_note, risk: riskPct(trade),
         status: stopped ? { ok: false, text: `hit after ${sess(stopped)}` } : { ok: true, text: 'never hit on this chart' } },
       { tone: 'green', name: '2R', price: px(trade.t1), why: 'the first target, twice the risk', status: t1 },
       { tone: 'green', name: '3R', price: px(trade.t2), why: 'the second target, three times the risk', status: t2 },
@@ -47,7 +50,7 @@ export default function ChartKey({ trade, testId = null }) {
           <i className={k.swatch} aria-hidden="true" />
           <b className={k.name}>{r.name}</b>
           {r.price ? <span className={k.price}>{r.price}</span> : <span className={k.price} />}
-          <span className={k.why}>{r.why || ''}</span>
+          <span className={k.why}>{r.why || ''}{r.risk != null ? <em className={k.risk}>{r.risk.toFixed(1)}% risk from the entry</em> : null}</span>
           {r.status ? (
             <span className={`${k.status} ${r.status.ok ? k.sOk : k.sBad}`}>
               <UIcon name={r.status.ok ? 'check' : 'x'} size={12} gold={false} />{r.status.text}

@@ -15,6 +15,7 @@ describe('ChartKey', () => {
     expect(key).toHaveTextContent("over the red day's high, on the Kicker day")
     expect(key).toHaveTextContent("Stop10.66under the Kicker's low")
     expect(key).toHaveTextContent('hit after 5 sessions')
+    expect(key).toHaveTextContent('3.5% risk from the entry')
     expect(key).toHaveTextContent('reached in 3 sessions')
     expect(key).toHaveTextContent('not reached before the stop')
     expect(key).toHaveTextContent('Trailunder each higher low')
