@@ -33,7 +33,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 |---|---|---|---|
 | N001, N004, N023, N031, N062, N068, N083, N094, N111 | An arrow logically spaced, pointing at the candle; labels further away, never on candles; a much higher quality pill and arrow | Done | `ui/callout.js` (one pointer, kit v2 bolder ring and leader); in every mode since 2026-11-08 |
 | N068 | "highlighting the user and detailing the question much more" | Partly | the question header carries the detail; the pointer itself says only "This candle" |
-| N040 | Spot game: candles that can be picked should show it (highlighted, slightly animated) | Partly | gold rings and lettered pills on every candidate; no motion yet |
+| N040 | Spot game: candles that can be picked should show it (highlighted, slightly animated) | Done 2026-11-08 | gold rings and lettered pills on every candidate, arriving with one soft fade and lift (`ChartCalloutOverlay` `look.fadeIn`), never a pulse |
 
 ## 3. The question
 
@@ -67,7 +67,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N003 | Entry, sizing and entry tactics in the explanation | Done | entry, stop, targets and trail for every setup; the key shows the risk from the entry to the stop as a percent (the number a member sizes from) |
 | N103 | Entry, stop, trim, trail and the advance, not a table of numbers; review and explain the trade | Done | `ui/TradeReview.jsx` in the lesson card; `ui/ChartKey.jsx` under the chart |
 | N116, N117 | The chart lists the levels and the action items and explains them; on-screen explanations of levels | Done | `ui/ChartKey.jsx`, `challenges/tradeMarks.js`: Hard, Boss, Spot the Setup and the lesson player (whose chart now also carries Hard mode's pointer) |
-| N013, N087, N096, N116, N118 | Lessons simpler and easier to read, more direct, as a teacher; a better-looking text box | Partly | one-line takeaway, numbers in gold, the lesson card; the bank's lesson words are not rewritten without his review (rule 9), so simpler wording waits on drafts he approves |
+| N013, N087, N096, N116, N118 | Lessons simpler and easier to read, more direct, as a teacher; a better-looking text box | Drafts waiting on his approval | the lesson card (takeaway, trade tiles, on this chart, the setup as numbered steps); each setup's definition in plain words, three steps and a "not it" line (`studyPlainRules.js`, lab piece 72), shown in lessons once he approves each |
 | N065 | No bar count; % off the highs and % from the averages as a table | Done | "The read on this chart" in the lesson player |
 | N033 | Pause in the replay and ask about trimming, trailing, sell rules; no scrolling to reach the buttons | Partly | trim and trail are named in the key and the lesson; no question mid-replay yet; the Check bar is pinned |
 
@@ -156,5 +156,5 @@ for this section.
 6. Done 2026-11-08: a short tutorial at the start of each game (N036).
 7. Done 2026-11-08: the reward system (N035).
 8. Done 2026-11-08: Draw it in the product (N039, N045, N052, N057).
-9. Simpler lesson words, as drafts for his review (N087, N096, N116, N118).
+9. Drafted 2026-11-08: the setups in plain words, waiting on his approval (N087, N096, N116, N118).
 10. The replay within the day, once intraday bars are stored with each chart (N025).

@@ -100,7 +100,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
       return { index: c.i, text, ...tone, ...(sel && state === 'ask' ? { color: '#f6e2a0', textColor: '#fff6d6' } : null) }
     })
   }, [cands, all, n, state, pick, word])
-  const look = useMemo(() => calloutLook(phone), [phone])
+  const look = useMemo(() => ({ ...calloutLook(phone), fadeIn: true }), [phone])
   const ok = pick === n - 1
   const check = async () => {
     if (pick == null || state !== 'ask') return
