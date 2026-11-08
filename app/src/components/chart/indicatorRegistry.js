@@ -352,6 +352,10 @@ export function timeInputMs(text) {
 //
 //   - a `legacy: true` input is NEVER rendered. It stays declared so a stored
 //     instance carrying it still validates, and `values` still holds it;
+//     ⭐ 3-14: EXCEPT while its `mapsTo` successor is itself gated off (the
+//     server has not declared it): then the legacy input is the only control
+//     this server reads, so it renders and writes itself until the successor
+//     shows (`legacySuccessorPending`);
 //   - a `requiresServer: true` input is shown only when `declared.inputs` names it;
 //   - a `requiresServer` enum OPTION is listed only when `declared.options[key]`
 //     names its value;
@@ -373,10 +377,38 @@ function declaresOption(declared, key, value) {
 
 const optionValueOf = (option) => optionPair(option)[0]
 
-/** Is this declared input hidden from every settings surface, given `declared`? */
-export function isInputHidden(input, declared = null) {
+/**
+ * ⭐ UCT RS 3-14 — IS A LEGACY INPUT'S SUCCESSOR LIVE, given `declared`? A
+ * `legacy` input whose `mapsTo` names a successor is REPLACED only once the
+ * successor can be shown: its input is not hidden by the server gate and the
+ * value it maps to is not an undeclared gated option. Until then the legacy
+ * input is still the only control that does the job on this server (v3 reads
+ * `showMansfield`, never `view`), so it renders and writes itself.
+ * A legacy input with no `mapsTo` (or one naming no declared input) has no
+ * successor to wait for: it is retired, as before.
+ */
+function legacySuccessorPending(input, declared, def) {
+  const m = input && input.legacy === true ? input.mapsTo : null
+  if (!m || typeof m !== 'object' || typeof m.key !== 'string' || !def) return false
+  const target = (Array.isArray(def.inputs) ? def.inputs : []).find((i) => i && i.key === m.key)
+  if (!target || target.legacy === true) return false
+  if (isInputHidden(target, declared)) return true
+  if (target.type === 'enum' && Array.isArray(target.options)) {
+    const option = target.options.find((o) => optionValueOf(o) === m.value)
+    if (option !== undefined && enumOptionRequiresServer(option) && !declaresOption(declared, m.key, m.value)) return true
+  }
+  return false
+}
+
+/**
+ * Is this declared input hidden from every settings surface, given `declared`?
+ * ⭐ 3-14 — pass the definition (`def`) and a legacy input whose `mapsTo`
+ * successor is still gated off is SHOWN (`legacySuccessorPending`). Without
+ * `def` a legacy input is always hidden, the 3-01 answer.
+ */
+export function isInputHidden(input, declared = null, def = null) {
   if (!input || typeof input !== 'object') return true
-  if (input.legacy === true) return true
+  if (input.legacy === true) return !legacySuccessorPending(input, declared, def)
   return input.requiresServer === true && !declaresInput(declared, input.key)
 }
 
@@ -389,7 +421,7 @@ export function visibleInputs(def, declared = null) {
   const inputs = Array.isArray(def?.inputs) ? def.inputs : []
   const out = []
   for (const input of inputs) {
-    if (isInputHidden(input, declared)) continue
+    if (isInputHidden(input, declared, def)) continue
     if (input.type === 'enum' && Array.isArray(input.options) && input.options.some(enumOptionRequiresServer)) {
       out.push({
         ...input,

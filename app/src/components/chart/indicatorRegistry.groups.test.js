@@ -39,12 +39,13 @@ describe('sectionize(def, fields) over the shipped UCT RS definition', () => {
     expect(sections.map((s) => s.label)).toEqual(groups)
     expect(sections.map((s) => s.collapsed)).toEqual([false, true, true, true, true, true])
     // Keys partition the RENDERED inputs, in declaration order, nothing lost.
-    // ⭐ 3-08: with no server declaration the Phase 3 inputs (requiresServer) and
-    // the legacy Mansfield switch get no field, so Checks (the anchor date alone)
-    // has no section until the v4 row declares it.
+    // ⭐ 3-08: with no server declaration the Phase 3 inputs (requiresServer) get
+    // no field, so Checks (the anchor date alone) has no section until the v4 row
+    // declares it. ⭐ 3-14: the legacy Mansfield switch DOES, in Method, while its
+    // successor (`view`) is undeclared.
     const shown = visibleInputs(def, null)
     const declared = shown.map((i) => i.key)
-    expect(declared).not.toContain('showMansfield')
+    expect(declared).toContain('showMansfield')
     expect(declared).not.toContain('view')
     expect(sections.flatMap((s) => s.keys)).toEqual(declared)
     for (const s of sections) {

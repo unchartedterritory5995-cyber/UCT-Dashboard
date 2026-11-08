@@ -70,11 +70,14 @@ describe('1 · the server gate', () => {
     for (const p of RS.meta.presets) expect(p.inputs, p.id).not.toHaveProperty('benchmark')
   })
 
-  it('every Phase 3 control and the "Your symbol" option are hidden until declared; the legacy switch never renders', () => {
+  // ⭐ 3-14: the legacy switch renders while its successor (`view`) is gated off —
+  // on a v3 server it is the only control that draws Mansfield — and is replaced
+  // by the Reading once the row declares `view`.
+  it('every Phase 3 control and the "Your symbol" option are hidden until declared; the legacy switch shows only until the Reading does', () => {
     for (const declared of [null, V3_DECLARED]) {
       const keys = fieldKeys(declared)
       for (const k of PHASE3_INPUTS) expect(keys, k).not.toContain(k)
-      expect(keys).not.toContain('showMansfield')
+      expect(keys).toContain('showMansfield')
       expect(benchOptions(declared)).toEqual(V3_MENU)
     }
     const keys = fieldKeys(V4_DECLARED)

@@ -144,10 +144,13 @@ describe('every field row carries data-input-key, one per declared input, in dec
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
     for (const g of ['Line', 'New highs', 'Rating', 'Stress test', 'Method']) await user.click(headNamed(ed, g))
-    // 3-08: the legacy Mansfield switch never renders and the Phase 3 inputs
-    // (`requiresServer`) wait for the server's declaration (unit 3-01)
-    const declared = rsDef().inputs.filter((i) => i.legacy !== true && i.requiresServer !== true).map((i) => i.key)
+    // 3-08: the Phase 3 inputs (`requiresServer`) wait for the server's
+    // declaration (unit 3-01). ⭐ 3-14: the legacy Mansfield switch renders while
+    // its successor (`view`) is undeclared, so the phone sheet carries it too.
+    const declared = rsDef().inputs.filter((i) => i.requiresServer !== true
+      && (i.legacy !== true || i.key === 'showMansfield')).map((i) => i.key)
     expect(declared.length).toBeGreaterThanOrEqual(15)
+    expect(declared).toContain('showMansfield')
     expect(rowKeys(ed)).toEqual(declared)
   })
 })
