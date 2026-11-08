@@ -87,3 +87,50 @@ describe('W9 9.7 an order-only `if` with the broker dark', () => {
     expect(r.out[0]).toEqual(BARS.map((b) => b.c))
   })
 })
+
+// W9-OQ-N1 (review N1 on #935): a `strategy.*` READ call inside a dark order's argument is a value at
+// that site. The order is dropped, so the read reaches nothing served and the rest of the script is
+// served. Where its value CAN reach served output (a plot, an alert message, an effect that a plot
+// reads) it still refuses `pine:strategy-call` by name.
+describe('W9-OQ-N1 strategy.* reads in a dark order argument', () => {
+  const BARE_EXIT = `${V5}if close > 0\n    strategy.exit("x", "L")\nplot(close)\n`
+
+  it('a read in an exit stop does not reach output: the script is served, the program unchanged', () => {
+    const src = `${V5}if close > 0\n    strategy.exit("x", "L", stop = strategy.opentrades.entry_price(0) * 0.9)\nplot(close)\n`
+    const r = run(src)
+    expect(r.refused).toBeUndefined()
+    expect(r.out[0]).toEqual(BARS.map((b) => b.c))
+    expect(JSON.stringify(build(src).ir)).toBe(JSON.stringify(build(BARE_EXIT).ir))
+  })
+
+  it('a closed-trade read in an order comment does not reach output: the script is served', () => {
+    const src = `${V5}strategy.entry("L", strategy.long, comment = str.tostring(strategy.closedtrades.profit(0)))\nplot(close)\n`
+    const r = run(src)
+    expect(r.refused).toBeUndefined()
+    expect(r.out[0]).toEqual(BARS.map((b) => b.c))
+  })
+
+  it('the same read reaching a plot refuses by name', () => {
+    const built = build(`${V5}if close > 0\n    strategy.exit("x", "L")\nplot(strategy.opentrades.entry_price(0))\n`)
+    expect(built.ok).toBe(false)
+    expect(built.refusal.guard).toBe('pine:strategy-call')
+    expect(built.refusal.token).toBe('strategy.opentrades.entry_price')
+  })
+
+  it('a read feeding an effect in the order argument reaches a plot through it: refuses by name', () => {
+    const src = `${V5}var a = array.new_float(0)\nh(x) =>\n    array.push(a, x)\n    1\n`
+      + 'strategy.entry("L", strategy.long, qty = h(strategy.opentrades.entry_price(0)))\n'
+      + 'plot(array.size(a) > 0 ? array.get(a, array.size(a) - 1) : na)\n'
+    const built = build(src)
+    expect(built.ok).toBe(false)
+    expect(built.refusal.guard).toBe('pine:strategy-call')
+    expect(built.refusal.token).toBe('strategy.opentrades.entry_price')
+  })
+
+  it('a read in an alert message reaches served output: alert() still refuses by name', () => {
+    const built = build(`${V5}alert(str.tostring(strategy.closedtrades.profit(0)))\nplot(close)\n`)
+    expect(built.ok).toBe(false)
+    expect(built.refusal.guard).toBe('pine:strategy-call')
+    expect(built.refusal.token).toBe('strategy.closedtrades.profit')
+  })
+})
