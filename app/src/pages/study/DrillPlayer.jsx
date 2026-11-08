@@ -49,6 +49,8 @@ import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
 import { rayAt } from '../../lab/pointers'
 import { calloutLook, hardCallouts } from './ui/callout'
 import ChartKey from './ui/ChartKey'
+import { SymbolBadge } from './ui/StudyChart'
+import brandMark from '../../components/intro/assets/compass-mark.png'
 import { reviewTrade } from './challenges/hardMode'
 import { tradeAnnotations } from './challenges/tradeMarks'
 import { HudCombo } from './ui/HudLooks'
@@ -58,6 +60,7 @@ import s2 from './ui/study.module.css'
 import { CORRECT_WORD, WRONG_WORD } from './RevealTakeover'
 import { answerWord } from './revealCardHelpers'
 import Prompt from './ui/Prompt'
+import VerdictTakeover from './ui/VerdictTakeover'
 import UiStamp from './ui/Stamp'
 import { barStats } from './drillLook'
 import { memberSettingsOverride } from './studyChartLook'
@@ -132,6 +135,7 @@ export default function DrillPlayer({
   const [chartWait, setChartWait] = useState(0)          // 0 fresh · 1 slow (2s) · 2 offer skip (6s)
   const [chartItemId, setChartItemId] = useState(null)   // the item whose bars are on the ONE chart
   const [badge, setBadge] = useState(null)
+  const takeoverOpen = useRef(false)   // the verdict holds the screen: Enter belongs to its button, not to Continue
   const leaveAsked = useRef(false)
   const crosshair = useRef(null)
   const prefs = useMemo(() => feedbackPrefs(profile), [profile])
@@ -168,6 +172,8 @@ export default function DrillPlayer({
   const chartMounted = !!(chartItemId && chartBars && chartBars.length)
   const chartVisible = needsChart && chartItemId === item?.id && chartMounted
   const chartItem = chartItemId ? s.items.find((it) => it.id === chartItemId) || item : null
+  // the chart's ticker, shown before answering in a lesson (the owner, 2026-11-08 "Yes"; the challenges never carry it)
+  const ticker = (chartItem?.ticker || item?.ticker || null)
   const chartOpts = chartItem?.prompt_json?.chart
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
@@ -302,6 +308,7 @@ export default function DrillPlayer({
   useEffect(() => {
     if (!open) return undefined
     const onKey = (e) => {
+      if (takeoverOpen.current) return
       const t = e.target
       const tag = t?.tagName
       const typing = tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable
@@ -327,6 +334,9 @@ export default function DrillPlayer({
   useEffect(() => { if (s.finished) onFinished?.(s.summary) }, [s.finished]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const scoredReveal = !s.finished && s.status === 'ready' && !!item && phase === 'reveal' && !!result && !unscored
+  const [dismissedTakeover, setDismissedTakeover] = useState(null)
+  const showTakeover = scoredReveal && dismissedTakeover !== item?.id
+  takeoverOpen.current = showTakeover
   const answerKey = scoredReveal ? (() => { const w = brandWords(answerWord(reveal) || ''); return w ? w.charAt(0).toUpperCase() + w.slice(1) : '' })() : ''
   const hudResults = useMemo(() => s.items.slice(0, s.index).map((it) => s.results[it.id]?.correct !== false), [s.items, s.index, s.results])
   const label = !unscored && (phase === 'answer' || phase === 'checking') ? 'Check' : 'Continue'
@@ -393,6 +403,12 @@ export default function DrillPlayer({
           data-chart-visible={chartVisible ? '1' : '0'}
           onClick={onChartClick}
         >
+          {chartMounted && ticker && needsChart ? (
+            <div className={styles.chartHead} data-testid="chart-identity">
+              <SymbolBadge symbol={ticker} masked={false} />
+              <span className={styles.chartBrand}><img src={brandMark} alt="" />UCT Intelligence</span>
+            </div>
+          ) : null}
           {chartMounted && (
             <StockChart
               {...lookProps}
@@ -402,7 +418,8 @@ export default function DrillPlayer({
               studyMode
               barsOverride={shownBars}
               frozen
-              hideWatermark
+              hideWatermark={!ticker}
+              watermark={ticker || null}
               showBrandMark
               liveUpdates={false}
               backgroundWarm={false}
@@ -501,6 +518,10 @@ export default function DrillPlayer({
 
       <div className={styles.scroll}><div className={`${d5.lesson} ${styles.lessonIn}`}>{body}</div></div>
 
+      {showTakeover ? (
+        <VerdictTakeover ok={!!result.correct} title={result.correct ? CORRECT_WORD : WRONG_WORD} answer={answerKey || null}
+          xp={Number(result.progress?.xp_gained || 0)} label="See the lesson" onContinue={() => setDismissedTakeover(item.id)} testId="drill-takeover" />
+      ) : null}
       {scoredReveal ? <span key={`f-${s.index}`} className={`${s2.flash} ${result.correct ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       {!s.finished && s.status === 'ready' && item && (
         <div className={styles.bottom}>

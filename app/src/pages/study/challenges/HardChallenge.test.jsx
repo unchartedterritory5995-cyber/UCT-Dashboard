@@ -151,6 +151,8 @@ describe('HardChallenge', () => {
     fireEvent.click(buttons.find((b) => b.textContent.includes('Kicker')))
     fireEvent.click(screen.getByTestId('hard-check'))
     await waitFor(() => expect(posts.length).toBeGreaterThan(0))
+    // the answer takes over the screen first (the owner's rule 15); its button opens the review
+    fireEvent.click(await screen.findByTestId('hard-takeover-go'))
     expect(posts[0]).toMatchObject({ item_id: 'k1', session_id: 'sess-h', answer: { choice: 'Yes', picked_setup: 'Kicker' } })
     expect(await screen.findByText('Gap over the close, close above the high.')).toBeInTheDocument()
     expect(screen.getByText('Named it.')).toBeInTheDocument()
@@ -191,6 +193,8 @@ describe('HardChallenge', () => {
     fireEvent.click([...cards.querySelectorAll('button')].find((b) => b.textContent.includes(NOTHING)))
     fireEvent.click(screen.getByTestId('hard-check'))
     await waitFor(() => expect(posts.length).toBeGreaterThan(0))
+    // the answer takes over the screen first (the owner's rule 15); its button opens the review
+    fireEvent.click(await screen.findByTestId('hard-takeover-go'))
     expect(posts[0].answer).toMatchObject({ choice: 'No', picked_setup: NOTHING })
     expect(await screen.findByText('It was a Kicker.')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('hard-next'))
@@ -218,6 +222,8 @@ describe('HardChallenge', () => {
     fireEvent.click(other)
     fireEvent.click(screen.getByTestId('hard-check'))
     await waitFor(() => expect(posts.length).toBeGreaterThan(0))
+    // the answer takes over the screen first (the owner's rule 15); its button opens the review
+    fireEvent.click(await screen.findByTestId('hard-takeover-go'))
     const name = other.textContent.replace(/^\d/, '').trim()
     expect(posts[0].answer).toEqual({ choice: name, picked_setup: name })
     expect(await screen.findByText('Nothing fired here.')).toBeInTheDocument()

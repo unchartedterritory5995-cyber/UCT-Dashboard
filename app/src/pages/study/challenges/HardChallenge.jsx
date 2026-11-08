@@ -36,6 +36,7 @@ import { EndHard } from '../ui/EndLooks'
 import { StartArena } from '../ui/StartLooks'
 import HowItPlays from '../ui/HowItPlays'
 import Prompt from '../ui/Prompt'
+import VerdictTakeover from '../ui/VerdictTakeover'
 import Stamp from '../ui/Stamp'
 import StudyChart from '../ui/StudyChart'
 import ChartKey from '../ui/ChartKey'
@@ -67,6 +68,7 @@ function peakOf(trade, culm, n, k) {
 function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')      // ask | ok | bad
+  const [takeover, setTakeover] = useState(false) // the verdict holds the whole screen until the member opens the review
   const [fwd, setFwd] = useState(null)
   const [lesson, setLesson] = useState('')
   const [rule, setRule] = useState(null)
@@ -86,7 +88,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const short = SHORT_SETUPS.includes(item.name)
   const culm = useMemo(() => (fired === true ? culmination(bars[n - 1], fwd, short) : null), [fired, fwd, bars, n, short])
   const runN = runLength(fwd?.length || 0, culm, fired === true)
-  const { bars: all, k } = useRunOnTo(bars, fwd, runN, state !== 'ask', { slowMs: RUN_ON_MS })
+  const { bars: all, k } = useRunOnTo(bars, fwd, runN, state !== 'ask' && !takeover, { slowMs: RUN_ON_MS })
   const view = Math.min(90, all?.length || 0)
   const look = useMemo(() => calloutLook(phone), [phone])
   const truth = fired === true ? item.name : fired === false ? NOTHING : 'The answer'
@@ -116,7 +118,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
       setTicker(attempt.reveal?.sym || attempt.reveal?.ticker || ''); setXp(Number(attempt.progress?.xp_gained || 0))
     } catch { right = false }
     if (!live.current) return
-    setBusy(false); setFired(wasFired); setState(right ? 'ok' : 'bad'); revealFeedback(right, prefs)
+    setBusy(false); setFired(wasFired); setState(right ? 'ok' : 'bad'); setTakeover(true); revealFeedback(right, prefs)
     // the rest of the forward strip, so the run-on can reach the move's culmination
     if (attempt) {
       fetchForwardRest(attempt, attempt.forward.length, fetcher).then((more) => {
@@ -154,14 +156,15 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   return (
     <div className={`${s.kit} ${s.screen}`} data-testid="hard-question" data-state={state} data-run={state !== 'ask' && restDone && k >= runN ? 'done' : 'running'}>
       {state !== 'ask' ? <span className={`${s.flash} ${state === 'ok' ? s.ok : s.bad}`} aria-hidden="true" /> : null}
-      {state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} pop /> : null}
+      {state !== 'ask' && takeover ? <VerdictTakeover ok={state === 'ok'} title={headline} sub={detail} stampWord={state === 'ok' && fired === false ? 'Right' : null}
+        label={trade ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="hard-takeover" /> : null}
       <HudCombo step={idx} total={total} results={results} live={state === 'ask'} />
       <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`}>
         <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}
           callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} annotations={tradeLines} />
       </div>
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="hard-key" /> : null}
-      <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey
+      <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey={!takeover}
         onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
         onNext={() => onDone(state === 'ok', xp, ticker, fired === false ? NOTHING : item.name, picked)} nextLabel={last ? 'See the run' : 'Next'}
         head={<Prompt mood={mood} tone={state} size={phone ? 40 : 48} title={headline} sub={detail}

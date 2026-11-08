@@ -216,7 +216,7 @@ export default function CoursesSection() {
       const hit = locateUnit(curricula, unitId)
       const skillId = hit?.unit?.skills?.[0] || null
       try {
-        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId } })
+        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId, lesson: true } })
         openSet(payload)
       } catch {
         /* the trail stays open; the member can retry */

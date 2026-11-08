@@ -127,6 +127,10 @@ describe('DrillPlayer', () => {
     expect(btn).not.toBeDisabled()
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
+    // the answer takes over the screen (rule 15), with the verdict; its button opens the lesson
+    expect(screen.getByTestId('drill-takeover')).toHaveTextContent('Correct')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    expect(screen.queryByTestId('drill-takeover')).not.toBeInTheDocument()
     expect(screen.getByText('Correct')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('primary-action'))
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Check'))
@@ -249,7 +253,11 @@ describe('DrillPlayer', () => {
     await waitFor(() => expect(screen.getByRole('radio', { name: 'The buy point' })).toHaveAttribute('aria-checked', 'true'))
     fireEvent.keyDown(document.body, { key: 'Enter' })
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
-    expect(screen.getByRole('status')).toHaveTextContent('Correct')
+    // Enter belongs to the takeover while it holds the screen: it opens the lesson, it never skips it
+    expect(screen.getByTestId('drill-takeover')).toHaveTextContent('Correct')
+    fireEvent.keyDown(window, { key: 'Enter' })
+    await waitFor(() => expect(screen.queryByTestId('drill-takeover')).not.toBeInTheDocument())
+    expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue')
   })
 })
 

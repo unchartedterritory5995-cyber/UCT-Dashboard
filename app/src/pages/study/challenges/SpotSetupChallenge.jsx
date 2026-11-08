@@ -20,6 +20,7 @@ import { HudCombo } from '../ui/HudLooks'
 import { EndHard } from '../ui/EndLooks'
 import s2 from '../ui/study.module.css'
 import Prompt from '../ui/Prompt'
+import VerdictTakeover from '../ui/VerdictTakeover'
 import UiStamp from '../ui/Stamp'
 import LessonCard from '../ui/LessonCard'
 import sa from '../ui/answerLooks.module.css'
@@ -66,6 +67,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   const VIEW = phone ? 55 : 90
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')
+  const [takeover, setTakeover] = useState(false)
   const [fwd, setFwd] = useState(null)
   const [lesson, setLesson] = useState('')
   const [plan, setPlan] = useState(null)
@@ -82,7 +84,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     return [...fakes, { i: n - 1, kind: 'real', f: item.look?.real_features }].sort((a, b) => a.i - b.i)
   }, [item, n, VIEW])
   const view = useMemo(() => (cands.length ? Math.min(n, Math.max(50, n - cands[0].i + 24)) : Math.min(n, 70)), [cands, n])
-  const all = useRunOn(vis, fwd, state !== 'ask', 200)
+  const all = useRunOn(vis, fwd, state !== 'ask' && !takeover, 200)
   const highlight = useMemo(() => (state === 'ask' ? cands.map((c) => vis[c.i].t) : null), [cands, vis, state])
   const extra = useMemo(() => (highlight ? { highlightBarTime: highlight, highlightColor: GOLD } : null), [highlight])
   const word = name.toUpperCase()
@@ -109,7 +111,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
       const a = await scoreAttempt(item, { choice: ok ? yes : no, picked_bar: vis[pick]?.t ?? null, picked_kind: picked?.kind || null }, performance.now() - shownAt.current, fetcher)
       right = !!a.correct; setFwd(a.forward); setLesson(a.reveal?.lesson || ''); setPlan(a.reveal?.trade || null)
     } catch { /* the verdict stays the local one; the attempt is not recorded */ }
-    setState(right ? 'ok' : 'bad'); revealFeedback(right, prefs)
+    setState(right ? 'ok' : 'bad'); setTakeover(true); revealFeedback(right, prefs)
   }
   const tapBar = ({ index }) => {
     if (state !== 'ask' || index < 0) return
@@ -128,6 +130,10 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   return (
     <div className={`${s2.kit} ${s2.screen} ${state === 'bad' ? d5.shakeHard : ''}`} data-testid="spot-round">
       {state !== 'ask' ? <span className={`${s2.flash} ${ok ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
+      {state !== 'ask' && takeover ? <VerdictTakeover ok={ok} title={ok ? `That is the ${name}.` : 'Not that one.'}
+        answer={ok ? null : `${name}, candle ${String.fromCharCode(65 + Math.max(0, cands.findIndex((c) => c.kind === 'real')))}`}
+        sub={ok ? 'The cards measure the others against it.' : <>The <b>{name}</b> is the green one on the chart; the cards say why the others are not.</>}
+        label={trade ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="spot-takeover" /> : null}
       <HudCombo label="Spot the Setup" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="spot-step" />
       <div className={`${lab.chartBox} ${s2.heroChart}`}>
         {state === 'ask' && pick == null ? <span className={lab.tapHint}>spot the {name}</span> : null}
@@ -155,7 +161,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
       })}</div>
       <div className={sa.area}><div className={`${sa.lFoot} ${state === 'ok' ? sa.footOk : state === 'bad' ? sa.footBad : ''}`}>
         {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="spot-check">Check</StudyButton>
-          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
+          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey={takeover ? null : 'Enter'} onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
       </div></div>
       {state !== 'ask' && (lesson || trade) ? <LessonCard text={lesson} setup={name} fired={true} trade={trade} showReads={false} testId="spot-lesson" /> : null}
     </div>

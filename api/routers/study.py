@@ -104,6 +104,8 @@ class SessionIn(BaseModel):
     # HARD MODE (owner, batch 21, 2026-11-06): only charts whose last-bar sweep agrees with the key
     # (study_hard: a Yes item nothing else fires on, a No item nothing fires on at all).
     hard: bool = False
+    # a lesson set (the lesson player's practise sets): each chart carries its ticker (_set_payload `ticker`)
+    lesson: bool = False
 
 
 class AttemptIn(BaseModel):
@@ -185,9 +187,13 @@ def _prompt_or_404(item_id: str) -> dict:
     return p
 
 
-def _set_payload(user_id: str, session: dict) -> dict:
+def _set_payload(user_id: str, session: dict, ticker: bool = False) -> dict:
     """Prompts + visible bars inline for a session (T5), with the ids already
-    answered so a resume reads "Continue · 6 left" (D18)."""
+    answered so a resume reads "Continue · 6 left" (D18).
+
+    `ticker` (the owner, 2026-11-02 and again 2026-11-08, "Yes": the lesson's question card shows the chart exactly as
+    on the Charts page, its ticker and watermark visible before answering): a LESSON set carries each chart's ticker.
+    The challenges never ask for it (Hard mode's game is "no ticker"), so their sets stay as they were."""
     items = []
     for iid in session.get("item_ids") or []:
         p = study_store.get_item_prompt(iid)
@@ -195,6 +201,8 @@ def _set_payload(user_id: str, session: dict) -> dict:
             continue
         if p.get("has_chart"):
             p["bars"] = study_store.get_visible_bars(iid)
+            if ticker:
+                p["ticker"] = (study_store.get_item_full(iid) or {}).get("sym") or None
         items.append(p)
     return {
         "session_id": session["id"],
@@ -229,7 +237,7 @@ def get_today(user: dict = Depends(require_paid)):
     if session is None:
         ids = study_select.compose_today(uid, _bank_query)
         session = study_store.create_session(uid, "daily", ids, day_et=day)
-    payload = _set_payload(uid, session)
+    payload = _set_payload(uid, session, ticker=True)
     payload["profile"] = _profile_view(study_store.get_profile(uid))
     return payload
 
@@ -263,7 +271,7 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
         due_slots = 0 if body.kind in ("skill", "checkpoint") else study_select.DUE_SLOTS
         ids = study_select.compose_today(uid, bank, n=n, due_slots=due_slots)
     session = study_store.create_session(uid, body.kind, ids, skill_id=body.skill_id)
-    return _set_payload(uid, session)
+    return _set_payload(uid, session, ticker=bool(body.lesson) and not body.hard)
 
 
 @router.get("/house-chart", dependencies=_ARMED)

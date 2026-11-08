@@ -351,3 +351,9 @@
     linear-gradient(var(--b), var(--b)) left bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left bottom / 2px 26px no-repeat,
     linear-gradient(var(--b), var(--b)) right bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right bottom / 2px 26px no-repeat;
   filter: drop-shadow(0 0 6px rgba(233, 205, 119, .55)); }
+
+/* the lesson chart's identity row, as on the Charts page widget: the ticker and company, our mark at the right */
+.chartHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #1f2024;
+  background: linear-gradient(180deg, #141518, #0f1012); }
+.chartBrand { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #a39e94; }
+.chartBrand img { width: 16px; height: 16px; }
