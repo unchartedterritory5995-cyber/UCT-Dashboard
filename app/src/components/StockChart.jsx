@@ -992,9 +992,9 @@ function LegendTourPage({ cards, step, name, onStep, onFinish }) {
             <button type="button" className={styles.legTourBack} data-tour-back="" onClick={() => moveTo(at - 1, 'back')}>Back</button>
           ) : null}
           {last ? (
-            <button type="button" className={styles.legTourNext} data-tour-done="" onClick={onFinish}>Done</button>
+            <button type="button" className={styles.legTourNext} data-tour-done="" data-autofocus="" onClick={onFinish}>Done</button>
           ) : (
-            <button type="button" className={styles.legTourNext} data-tour-next="" onClick={() => moveTo(at + 1, 'next')}>Next</button>
+            <button type="button" className={styles.legTourNext} data-tour-next="" data-autofocus="" onClick={() => moveTo(at + 1, 'next')}>Next</button>
           )}
         </span>
       </div>
@@ -20046,11 +20046,11 @@ export default function StockChart({
               dense
               sheetClassName={sheetCls}
               /* ⭐ a11y gate §12.2: the tour opens on Next, its primary action (not
-                 on Skip tour, first in reading order), and Done / Skip / Escape hand
-                 focus to the chip it is about. The chart opened it on its own, so the
-                 focus recorded at open was the chart region or the page, never the
-                 chip. Resolved at close: the chip's node is whatever is live then. */
-              initialFocus="[data-tour-next], [data-tour-done]"
+                 on Skip tour, first in reading order: `data-autofocus` on Next/Done
+                 in LegendTourPage), and Done / Skip / Escape hand focus to the chip
+                 it is about. The chart opened it on its own, so the focus recorded at
+                 open was the chart region or the page, never the chip. Resolved at
+                 close: the chip's node is whatever is live then. */
               returnFocusTo={{ get current() { return chipFocusTarget(wrapperRef.current || containerRef.current, c.instanceId) } }}
             >
               <LegendTourPage cards={tourCards} step={tourStep}

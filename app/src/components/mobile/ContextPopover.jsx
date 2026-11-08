@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import Sheet from './Sheet'
@@ -66,27 +66,25 @@ export default function ContextPopover({
   // escaping any scoped theme tokens (the chart's Sunrise), exactly like every
   // other Sheet. Desktop's anchored menu ignores it (menu-dark by design).
   sheetClassName = '',
-  /** ⭐ OPT-IN, DESKTOP: a selector for the control that takes focus on open,
-   *  instead of the first focusable one. The RS tour opens on "Next", its primary
-   *  action, not on "Skip tour", which comes first in reading order (a11y gate
-   *  §12.2, 2026-11-08). Falls back to the first focusable when nothing matches. */
-  initialFocus,
-  /** ⭐ OPT-IN, BOTH BRANCHES: the element (or a ref to it) focus returns to on
-   *  close, the same contract as `Sheet`'s `returnFocusTo` (used only while it is
-   *  still connected; otherwise focus goes back to where it was on open). A menu
-   *  the CHART opened on its own (the RS tour) has no opener in focus, so without
-   *  it focus fell back to the chart region rather than the chip it is about. */
+  /** ⭐ OPT-IN, BOTH BRANCHES: a REF (`{ current }`) to the element focus returns
+   *  to on close, used only while it is still connected; otherwise focus goes back
+   *  to where it was on open. The touch branch hands it to `Sheet`'s own
+   *  `returnFocusTo`. A menu the CHART opened on its own (the RS tour) has no
+   *  opener in focus, so without it focus fell back to the chart region rather
+   *  than the chip it is about (a11y gate §12.2, 2026-11-08).
+   *
+   *  ⭐ INITIAL FOCUS IS NOT A PROP: a child marked `data-autofocus` takes focus on
+   *  open (desktop), else the first focusable one. The RS tour marks "Next", its
+   *  primary action, not "Skip tour", first in reading order.
+   *  ⛔ Both stay this small ON PURPOSE: this module ships in the Notebook's
+   *  first-open JS (`tools/notebook_perf_budgets.py`), so a caller's own focus
+   *  logic (which element, resolved how) lives with the caller, not here. */
   returnFocusTo,
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
   const [pos, setPos] = useState(null)
   const focusedOnce = useRef(false)
-  // Read through refs (as `Sheet` reads its own), so a new selector or element
-  // identity never re-runs the latched focus effect below.
-  const initialFocusRef = useRef(initialFocus)
-  const returnFocusToRef = useRef(returnFocusTo)
-  useLayoutEffect(() => { initialFocusRef.current = initialFocus; returnFocusToRef.current = returnFocusTo })
 
   // Desktop: clamp the anchored menu inside the viewport after it mounts
   useEffect(() => {
@@ -131,10 +129,7 @@ export default function ContextPopover({
     const takeFocus = () => {
       const el = menuRef.current
       if (!el) return
-      const sel = initialFocusRef.current
-      let picked = null
-      try { picked = sel ? el.querySelector(sel) : null } catch { picked = null }
-      const first = picked || focusableWithin(el)[0]
+      const first = el.querySelector('[data-autofocus]') || focusableWithin(el)[0]
       ;(first || el).focus?.()
       if (!el.contains(document.activeElement) && tries < 12) {
         tries += 1
@@ -150,14 +145,14 @@ export default function ContextPopover({
     // test written for it could not fail, and a test that cannot fail reads as
     // coverage while providing none. Optional chaining is the whole guard: it
     // handles `restoreTo` being null, which IS distinguishable.
+    // `returnFocusTo` is read from this closure on purpose (not a dep): it is a
+    // ref, read at close, and a new ref identity must never re-run this latch.
     return () => {
       cancelAnimationFrame(raf)
-      const named = returnFocusToRef.current
-      const to = named && typeof named === 'object' && 'current' in named ? named.current : named
-      if (to && to.isConnected && typeof to.focus === 'function') to.focus()
-      else restoreTo?.focus?.()
+      const to = returnFocusTo?.current
+      ;(to?.isConnected ? to : restoreTo)?.focus?.()
     }
-  }, [open, isTouch, pos])
+  }, [open, isTouch, pos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Desktop: dismiss on outside click / Escape
   useEffect(() => {
