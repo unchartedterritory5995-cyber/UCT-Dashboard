@@ -11,7 +11,7 @@ import { dirname, resolve } from 'node:path'
 import { computeFor, getDefinition, resolveInputs } from '../../components/chart/engine/nativeRegistry'
 import { cachedColumns, clearServerColumns, pickServerInputs, revMismatch, SERVER_COLUMNS_PATH } from '../../components/chart/engine/serverCompute'
 import { validateInstance } from '../../components/chart/engine/instances'
-import { legendChips, paneReadoutLabel } from '../../components/chart/engine/readout'
+import { legendChips, paneReadoutLabel, readoutChipName } from '../../components/chart/engine/readout'
 import { normalizeBars } from './useStudySession'
 import {
   RS_DEF_ID, RS_INSTANCE_ID, RS_REVEAL_INSTANCE_ID, classicInputs, isRsItem, isRsPairItem, keyInputs,
@@ -31,7 +31,7 @@ function served(raw) {
 const settle = () => new Promise((r) => setTimeout(r, 0))
 const tap = BANK.find((i) => i.type === 'tap' && i.reveal_json?.rs)
 const pair = BANK.find((i) => i.prompt_json?.chart?.rs_pair)
-const redDay = BANK.find((i) => i.prompt_json?.chart?.mark && i.prompt_json?.chart?.rs)
+const redDay = BANK.find((i) => i.prompt_json?.chart?.mark && i.reveal_json?.rs?.columns?.dotNH?.some((v) => v != null))
 const recall = BANK.find((i) => i.type === 'recall')
 const barsOf = (raw) => normalizeBars(raw.bars_embed.bars)
 const finite = (col) => Array.from(col).filter(Number.isFinite).length
@@ -90,6 +90,22 @@ describe('the Classic preset', () => {
 })
 
 describe('a single line (red-day item): prompt columns, drawn with no request', () => {
+  it('the prompt carries no dot (a new high on the marked day gives the answer away), the reveal does', async () => {
+    const it0 = served(redDay)
+    const prompt = primeRsColumns(it0, it0.id, 'D')
+    const before = draw(rsInstances(prompt)[0], it0.id, barsOf(redDay))
+    expect(finite(before.rsLine)).toBe(120)
+    expect(finite(before.dotNH) + finite(before.dotNHbeforePx)).toBe(0)
+    const after = primeRsColumns(it0, it0.id, 'D', { reveal: { rs: redDay.reveal_json.rs }, revealed: true })
+    expect(after.map((p) => p.instanceId)).toEqual([RS_REVEAL_INSTANCE_ID])
+    const live = rsInstances(after).find((i) => !i.deleted)
+    const cols = draw(live, it0.id, barsOf(redDay))
+    expect(finite(cols.dotNH)).toBe(nonNull(redDay.reveal_json.rs.columns.dotNH))
+    expect(finite(cols.dotNH)).toBeGreaterThan(0)
+    await settle()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('draws the bank columns, joined by time onto the item bars', async () => {
     const it0 = served(redDay)
     const primed = primeRsColumns(it0, it0.id, 'D')
@@ -170,21 +186,47 @@ describe('a leader item: Line A and Line B, two keys, two lines', () => {
   })
 })
 
-describe('the pane label never names the stock', () => {
-  it('reads UCT Relative Strength · SPY on every family', () => {
-    const def = getDefinition(RS_DEF_ID)
-    for (const raw of [tap, pair, redDay]) {
+/**
+ * The labels as the chart renders them: the legend chips for DRAWN instances (one binding per instance's rsLine
+ * plot, as the binder records it, and a hovered value), through the same pipeline StockChart uses
+ * (`legendChips` -> `engineChips` -> `disambiguateSiblings` -> `stampReadout`), then the pane label
+ * (`paneReadoutLabel`) and the short name (`readoutChipName`). Label-only chips (no bindings) skip the sibling
+ * pass, so they would hide exactly the noise a two-line chart shows.
+ */
+function renderedLabels(insts) {
+  const def = getDefinition(RS_DEF_ID)
+  const seriesData = new Map()
+  const bindings = insts.map((i, n) => {
+    const series = { id: i.instanceId }
+    seriesData.set(series, { value: 0.2 + n / 10, time: '2020-01-02' })
+    return { defId: RS_DEF_ID, plotKey: 'rsLine', series, lastValue: 0.2 + n / 10, instanceId: i.instanceId }
+  })
+  const chips = legendChips(bindings, seriesData, { getDefinition }, insts, { scalarsOf: () => null })
+    .filter((c) => c.plotKey === 'rsLine')
+  return chips.map((c) => ({ chip: c.label, pane: paneReadoutLabel(c, def), short: readoutChipName(c, def) }))
+}
+
+describe('the labels as rendered', () => {
+  it('a single line reads UCT Relative Strength · SPY, and never the stock', () => {
+    for (const raw of [tap, redDay]) {
       const it0 = served(raw)
-      const insts = rsInstances(primeRsColumns(it0, it0.id, 'D')).filter((i) => !i.deleted)
-      const chips = legendChips([], null, { getDefinition }, insts, { scalarsOf: () => null })
-      const labels = chips.filter((c) => c.plotKey === 'rsLine').map((c) => paneReadoutLabel(c, def))
-      expect(labels.length).toBe(insts.length)
-      for (const label of labels) {
-        expect(label).toBe('UCT Relative Strength · SPY')
-        const names = [raw.bars_embed.sym, raw.reveal_json?.example?.sym, ...Object.values(raw.reveal_json?.example?.names || {})]
-        for (const n of names.filter((x) => x && x !== 'SPY')) expect(label).not.toContain(n)
+      for (const opts of [{}, { reveal: { rs: raw.reveal_json.rs }, revealed: true }]) {
+        const insts = rsInstances(primeRsColumns(it0, it0.id, 'D', opts)).filter((i) => !i.deleted)
+        expect(renderedLabels(insts)).toEqual([{ chip: 'UCT RS(SPY)', pane: 'UCT Relative Strength · SPY', short: 'UCT RS · SPY' }])
       }
     }
+  })
+  it('KNOWN (needs the readout.js change in the 4-09 report): the leader panes print the slot input', () => {
+    const it0 = served(pair)
+    const insts = rsInstances(primeRsColumns(it0, it0.id, 'D'))
+    const labels = renderedLabels(insts)
+    // what a member sees today on a hover; flip this test when the engine names siblings by display.name
+    expect(labels).toEqual([
+      { chip: 'UCT RS(SPY) (mansfieldLength 200)', pane: 'UCT Relative Strength · SPY (mansfieldLength 200)', short: 'UCT RS · SPY (mansfieldLength 200)' },
+      { chip: 'UCT RS(SPY) (mansfieldLength 201)', pane: 'UCT Relative Strength · SPY (mansfieldLength 201)', short: 'UCT RS · SPY (mansfieldLength 201)' },
+    ])
+    const names = Object.values(pair.reveal_json.example.names)
+    for (const l of labels) for (const n of names) expect(JSON.stringify(l)).not.toContain(n)
   })
 })
 

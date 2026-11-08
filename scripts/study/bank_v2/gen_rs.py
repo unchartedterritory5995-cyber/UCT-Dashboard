@@ -26,6 +26,8 @@ YYYYMMDD keys). Unit 4-09 primes the real `rsLine` instance from it.
 
   * A TAP item's dot columns are BLANK in the prompt (all null): the dot IS the answer, and prompt_json is served to
     the member before scoring. The real dots are in `reveal_json.rs` (same shape) for the reveal.
+  * A RED-DAY item's dot columns are BLANK in the prompt too: a new-high dot on the marked session says the stock was
+    strong that day, which is the question. Its real columns are in `reveal_json.rs`, exactly as a TAP item's.
   * A LEADER item has no `chart.rs` (its chart is SPY, and SPY against SPY is the indicator's `same-symbol` state).
     It carries `prompt_json.chart.rs_pair = {"A": <rs shape>, "B": <rs shape>}`, each the real indicator for one stock.
   * Bars are EMBEDDED (`bars_embed`, the import route's embed path): the pod's bars.db is not asked to cover these
@@ -490,11 +492,12 @@ def redday_item(c, stock, bench, bench_by_t):
         prompt_extra={"subject": f"rs-red-day {asof}",
                       "chart": {"window_bars": WINDOW, "tf": "D",
                                 "mark": {"bar_index": WINDOW - 1, "time": bar["t"], "label": f"SPY {spy_day}%"},
-                                "rs": {"columns": rs_block(cols, lo, SLICE), "times": [x["t"] for x in s[lo:]],
-                                       "inputs": INPUTS}}},
+                                "rs": {"columns": rs_block(cols, lo, SLICE, blank_dots=True),
+                                       "times": [x["t"] for x in s[lo:]], "inputs": INPUTS}}},
         reveal={"system": "UCT Relative Strength, green on a red market day (gor)",
                 "detector": "relative_strength.compute_phase1_columns", "label": c["kind"].capitalize(),
                 "facts": facts, "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD,
+                "rs": {"columns": rs_block(cols, lo, SLICE), "times": [x["t"] for x in s[lo:]], "inputs": INPUTS},
                 "teaches": dict(CARDS["redday"], source="research 04 §d tour card 4"),
                 "example": {"sym": sym, "asof": asof, "found_by": "scripts/study/bank_v2/gen_rs.py"}},
         lesson_text=lesson, lesson_origin="session", source_kind="generator", source_ref=ref,

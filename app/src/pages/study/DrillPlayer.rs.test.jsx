@@ -44,7 +44,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const BANK = JSON.parse(readFileSync(resolve(here, '../../../../docs/study/bank/rs.drills.json'), 'utf8'))
 const tap = BANK.find((i) => i.type === 'tap' && i.reveal_json?.rs)
 const pair = BANK.find((i) => i.prompt_json?.chart?.rs_pair)
-const redDay = BANK.find((i) => i.prompt_json?.chart?.mark && i.prompt_json?.chart?.rs)
+const redDay = BANK.find((i) => i.prompt_json?.chart?.mark && i.reveal_json?.rs?.columns?.dotNH?.some((v) => v != null))
 const recall = BANK.find((i) => i.type === 'recall')
 /** The member-facing shape GET /api/study/today serves: no sym, no reveal, the bars inline. */
 const served = (raw) => ({ id: raw.id, version: 1, type: raw.type, skill_id: raw.skill_id, prompt_json: raw.prompt_json,
@@ -115,14 +115,23 @@ describe('DrillPlayer draws the real UCT RS pane on RS drills', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('RED DAY: the RS line, the muted mark on the marked bar, and the candle pointer kept', async () => {
-    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(redDay)} />)
+  it('RED DAY: the RS line with no dot, the muted mark, the candle pointer kept; the real dots after scoring', async () => {
+    const fetcher = makeFetcher(redDay)
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
     await screen.findByTestId('stock-chart')
-    expect(screen.getByTestId('rs-lines')).toHaveTextContent(`study:rs=120/${nonNull(redDay.prompt_json.chart.rs.columns.dotNH)}`)
+    expect(screen.getByTestId('rs-lines')).toHaveTextContent('study:rs=120/0')
     const t = String(redDay.prompt_json.chart.mark.time)
     expect(screen.getByTestId('markers')).toHaveTextContent(`study-rs-mark@${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`)
     expect(Number(screen.getByTestId('annotations').textContent)).toBeGreaterThan(0)
     expect(screen.queryByTestId('rs-pair-key')).toBeNull()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Yes' }))
+    fireEvent.click(screen.getByTestId('primary-action'))
+    await screen.findByText('Continue')
+    const post = fetcher.mock.calls.find(([u]) => u === '/api/study/attempts')
+    expect(post[1].body.answer).toEqual({ choice: 'Yes' })                              // the spot drill's own answer
+    await waitFor(() => expect(screen.getByTestId('rs-lines'))
+      .toHaveTextContent(`study:rs:reveal=120/${nonNull(redDay.reveal_json.rs.columns.dotNH)}`))
+    expect(screen.getByTestId('rs-lines')).not.toHaveTextContent('study:rs=')
     await settle()
     expect(fetchSpy).not.toHaveBeenCalled()
   })

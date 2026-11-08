@@ -162,8 +162,8 @@ export default function DrillPlayer({
   const chartTf = chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'
   // RS 4-09: an RS drill draws the REAL UCT RS pane from the columns the item carries (studyRsOverlay). Primed
   // into the server lane's cache HERE, in render, ahead of StockChart's bind: the chart's sym is the item id, so
-  // an unprimed rsLine would fetch /api/signature/columns. A TAP item's prompt blanks the dots (the dot is the
-  // answer); once scored, the reveal's own columns (reveal.rs) replace them on the same chart.
+  // an unprimed rsLine would fetch /api/signature/columns. A TAP or red-day item's prompt blanks the dots (a dot is
+  // the answer, or gives it away); once scored, the reveal's own columns (reveal.rs) replace them on the same chart.
   const rsRevealed = phase === 'reveal' && !!result && chartItemId === item?.id
   const rsReveal = rsRevealed ? result.reveal || null : null
   const rsPrimed = useMemo(

@@ -5,7 +5,8 @@ What the owner's review sitting depends on, checked offline against the committe
     the generators' validator, and is a DRAFT;
   * the precomputed RS pane (prompt_json.chart.rs / rs_pair, reveal_json.rs) is exactly what
     relative_strength.compute_phase1_columns gives from the bars and closes the item carries;
-  * no ticker the chart hides appears in any member-facing prompt string, and a tap item's prompt carries no dot;
+  * no ticker the chart hides appears in any member-facing prompt string, and a tap or red-day item's prompt carries
+    no dot (the real ones are in reveal_json.rs);
   * the key is what the indicator says (the first new-high dot, the rising line, green on red);
   * the import route takes the whole segment as drafts with no flags and no bars misses, and the hub places read.rs on
     its unit (an unknown skill_id would not fail the import either: it lands under `unplaced`).
@@ -144,6 +145,25 @@ def test_a_tap_prompt_carries_no_dot_because_the_dot_is_the_answer(items):
         assert any(v is not None for v in it["reveal_json"]["rs"]["columns"]["dotNH"]), it["id"]
 
 
+def test_a_red_day_prompt_carries_no_dot_because_a_new_high_on_the_marked_day_is_the_answer(items):
+    """A new-high dot on the marked red session says the stock was strong that day: the question. 4-09 review."""
+    red = [i for i in items if _family(i) == "redday"]
+    assert len(red) == 10
+    with_dots = 0
+    for it in red:
+        prompt = it["prompt_json"]["chart"]["rs"]
+        for k in prompt["columns"]:
+            if k.startswith("dot"):
+                assert all(v is None for v in prompt["columns"][k]), (it["id"], k)
+        assert all(v is not None for v in prompt["columns"]["rsLine"]), it["id"]
+        reveal = it["reveal_json"]["rs"]
+        assert reveal["times"] == prompt["times"] and reveal["inputs"] == prompt["inputs"], it["id"]
+        for k in ("rsLine", "rsMa"):
+            assert reveal["columns"][k] == prompt["columns"][k], (it["id"], k)
+        with_dots += any(v is not None for v in reveal["columns"]["dotNH"])
+    assert with_dots >= 1                                   # the reveal really carries the dots the prompt hid
+
+
 # ── the RS pane is reproducible from what the item carries ───────────────────
 
 def _expected(stock: list, bench: list, inputs: dict) -> dict:
@@ -186,7 +206,7 @@ def test_the_rs_columns_are_reproducible_from_the_embedded_bars(items):
         block = chart["rs"]
         assert block["inputs"] == gen_rs.INPUTS == RS.resolve_phase1_inputs({}) and block["times"] == times
         exp = _expected(stock, bench, block["inputs"])
-        shown = it["reveal_json"]["rs"] if it["type"] == "tap" else block
+        shown = it["reveal_json"]["rs"] if _family(it) in ("tap", "redday") else block
         assert shown["times"] == times
         for k in RS_KEYS:
             assert shown["columns"][k] == exp[k], (it["id"], k)

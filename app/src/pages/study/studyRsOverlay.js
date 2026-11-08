@@ -6,8 +6,9 @@
  *
  *   prompt_json.chart.rs      = {columns: {rsLine, rsMa, dotNH, dotNHbeforePx}, times, inputs}
  *   prompt_json.chart.rs_pair = {A: {...}, B: {...}}   (two stocks against SPY, on SPY's chart)
- *   reveal_json.rs            = the real columns of a TAP item, whose prompt blanks the dots
- *                               (the dot IS the answer), served only after scoring
+ *   reveal_json.rs            = the real columns of a TAP or red-day item, whose prompt blanks the
+ *                               dots (a TAP item's dot IS the answer; a new-high dot on the marked
+ *                               red session says "strong that day"), served only after scoring
  *   prompt_json.chart.mark    = {bar_index, time, label}: the red market day a spot item asks about
  *
  * The drill chart's `sym` is the item id, never the ticker (study_store), so the
@@ -40,6 +41,14 @@
  * names the stock. No instance field renames an `rsLine` pane (`display.name`
  * names only a source-labelled definition), so the two leader lines are told
  * apart by the drill's own key (`rsPairKey`), Line A above Line B.
+ * ⛔ KNOWN, AND AN ENGINE CHANGE TO FIX: on a leader chart the engine's sibling
+ * disambiguator (`readout.disambiguateSiblings`) names the one input the two
+ * lines differ in, so the pane label reads `UCT Relative Strength · SPY
+ * (mansfieldLength 200)` / `(mansfieldLength 201)` and the chip `UCT RS(SPY)
+ * (mansfieldLength 200)`. The cache key has no component but the instance's
+ * inputs (the chart's sym and tf are shared), and every input difference is
+ * printed, so no instance-side choice can separate the two entries silently.
+ * `studyRsOverlay.test.js` pins the label as rendered until that lands.
  *
  * Pure apart from the cache write in `primeRsColumns`. No React, no fetch.
  */
@@ -99,8 +108,8 @@ export function isRsPairItem(item) {
 /**
  * The lines this item draws in this phase: `[{slot, instanceId, label, wire}]`.
  * A pair draws Line A and Line B. A single line draws the prompt's columns, and
- * once the item is scored and the reveal carries its own (`reveal.rs`, a TAP
- * item's dots), the reveal's.
+ * once the item is scored and the reveal carries its own (`reveal.rs`, a TAP or
+ * red-day item's dots), the reveal's.
  */
 export function rsLinesFor(item, { reveal = null, revealed = false } = {}) {
   const c = chartOf(item)
@@ -192,7 +201,11 @@ export function primeRsColumns(item, sym, tf, opts = {}) {
  */
 export function rsInstances(primed) {
   if (!Array.isArray(primed) || !primed.length) return null
-  const out = primed.map((p) => ({ instanceId: p.instanceId, defId: RS_DEF_ID, inputs: { ...p.inputs } }))
+  // A leader line carries its name as the instance's display name (`Line A`): inert for rsLine today (the engine
+  // prints `display.name` only for a source-labelled definition), and what the readout change in the 4-09 report
+  // would print in place of the sibling suffix.
+  const out = primed.map((p) => ({ instanceId: p.instanceId, defId: RS_DEF_ID, inputs: { ...p.inputs },
+    ...(p.label ? { display: { name: p.label } } : {}) }))
   if (primed.some((p) => p.instanceId === RS_REVEAL_INSTANCE_ID)) out.push({ instanceId: RS_INSTANCE_ID, deleted: true })
   return out
 }
