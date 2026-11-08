@@ -249,6 +249,18 @@ def test_the_evidence_line_carries_a_measured_number_or_the_honesty_sentence():
     assert line == ("Evidence: 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; "
                     "58.3% closed higher 20 bars later. Universe as held, survivorship not yet corrected.")
     assert rp.evidence_line([ev, {"n": "x"}]) == line, "a list renders the complete entries only"
+    # 2026-11-07: the likely range and the unchecked-split note are the card's own pieces
+    # (`rs_evidence_pull`), each printed only when the dict carries it
+    from api.services import rs_evidence_pull as ep
+    full = {**ev, "hit_rate_low_pct": 55.62, "hit_rate_high_pct": 60.94, "split_unchecked": 3}
+    assert rp.evidence_line(full) == (
+        "Evidence: 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% (likely between "
+        "55.6% and 60.9%) closed higher 20 bars later. Stock splits not yet checked for 3 names. Universe "
+        "as held, survivorship not yet corrected.")
+    assert ep.likely_range_phrase(55.62, 60.94) in rp.evidence_line(full)
+    assert ep.split_unchecked_phrase(3) in rp.evidence_line(full)
+    assert rp.evidence_line({**full, "split_unchecked": 0, "hit_rate_low_pct": None}) == line, (
+        "no range without both bounds, no split note without a count")
     post = rp.build_post(FIXTURE, session=SESSION, evidence=ev)
     assert line in post["content"] and rp.HONESTY_LINE not in post["content"]
     assert rp.validate_post(post) == []

@@ -490,7 +490,14 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // No other definition's enable/input/disable blob changed and no CHART_DEFAULTS key
       // moved — rsLine's own intended change (new inputs, new version), no door moved.
       // (Prior value: 1caded5378e5fe9ae49615e5a953112103fe524e925967b543876d646e0df70e)
-      .toBe('8ed703821a52dc3b1c7bc9c404cffdb6b0eee41685fa31238dcaafcb40727735')
+      // 2026-11-07: re-pinned for UCT RS v4 (Phase 3 unit 3-08), MEASURED: the corpus
+      // rebuilt with every rsLine instance's `defVersion` mapped 4 → 3 (and nothing else
+      // touched) digests to the prior value 8ed70382… byte for byte. 15 of 760 elements
+      // differ, exactly rsLine's on/input/off in each of the five bases, and only in
+      // `defVersion` (the definition's own `version`). The first `int` input is still
+      // `maLength` (the new inputs are declared after it), so the input step did not move.
+      // No door moved. (Prior value: 8ed703821a52dc3b1c7bc9c404cffdb6b0eee41685fa31238dcaafcb40727735)
+      .toBe('f53b16f12b19922f82c8159640a351296031b5d9e81a0b993cbd686b3180d0d4')
   })
 
   // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
@@ -548,7 +555,11 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // else: `defVersion` 1 → 3, and the input step's key `lineWidth: 2` → `maLength: 22`
     // (the first `int` input is now `maLength`). The element-by-element case above still
     // holds. (Prior value: 529f4941433a715525eca6c42b09a12b6a5f18bd9e734f6dcce5946cfaa5206d)
+    // 2026-11-07: re-pinned for UCT RS v4 (unit 3-08), same measurement as the literal
+    // above: rsLine's `defVersion` mapped 4 → 3 reproduces the prior value 6145e093…
+    // byte for byte; the same 15 rsLine elements, `defVersion` only. The element-by-element
+    // case above still holds. (Prior value: 6145e093a600d556527856f1bf3db6c97d9e9a100ad2cf3dee606a309af2a8ee)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('6145e093a600d556527856f1bf3db6c97d9e9a100ad2cf3dee606a309af2a8ee')
+      .toBe('07ee0bff1d2a3c05259dfe63c94fac2685a90b188475cb769ffd18e7a3b901ec')
   })
 })

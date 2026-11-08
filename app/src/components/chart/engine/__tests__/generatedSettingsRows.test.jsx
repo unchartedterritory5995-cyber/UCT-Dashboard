@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import {
   listEngineIndicators, listAllIndicators, applyRowPatch, readEnabled,
-  indTarget, splitIndTarget,
+  indTarget, splitIndTarget, visibleInputs,
 } from '../../indicatorRegistry'
 import { mergeChartSettings as mergeChartSettingsReal, CHART_DEFAULTS } from '../../chartDefaults'
 import { CARVED_OUT_ROWS, NOT_IN_BLOB } from '../../indicatorCatalog'
@@ -79,7 +79,11 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     for (const def of DEFS) {
       const row = rowById(def.id)
       expect(row, def.id).toBeTruthy()
-      expect(row.fields.map((f) => f.key), def.id).toEqual(def.inputs.map((i) => i.key))
+      // ⭐ UCT RS 3-08: a `legacy` input never gets a control and a
+      // `requiresServer` one only once the live row declares it (unit 3-01); with
+      // no declaration that is `visibleInputs(def, null)`, which is every declared
+      // input for every definition that marks nothing.
+      expect(row.fields.map((f) => f.key), def.id).toEqual(visibleInputs(def, null).map((i) => i.key))
     }
   })
 

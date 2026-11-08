@@ -1100,12 +1100,46 @@
    the MA editor's hand-rolled rows are untouched. Tokens only; the font is
    Instrument Sans inherited from the sheet. */
 .paramField { display: flex; flex-direction: column; }
+/* ⭐ VA2 — "Save as my default" / "Reset to UCT default" under the study's groups:
+   two neutral chips (44 px tall, the tap floor) on one wrapping line, the note
+   under them as the help text every field carries. */
+.defaultField { padding-top: 8px; }
+.defaultBtns { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 6px; }
+.defaultBtns .chipOpt { min-height: var(--tap-min); }
+.defaultBtns .chipOpt:disabled { opacity: 0.4; }
 .paramTip {
   padding: 0 16px 8px;
   font-size: 11.5px;
   line-height: 1.4;
   color: var(--text-dim);
 }
+
+/* ⭐ UCT RS Phase 3, unit 3-02 — the text box (a `string` input) and its miss
+   line. 44 px tall (the tap floor), 16 px text (iOS zooms on focus below that),
+   and it shrinks before the label does: `min-width: 0` with a 40% cap keeps the
+   label readable on a 360 px phone. A miss marks the border in the warning
+   colour; the sentence under the row stays in the muted help-text voice. */
+.textInput {
+  flex: 0 1 148px;
+  width: 148px;
+  max-width: 48%;
+  min-width: 0;
+  min-height: var(--tap-min);
+  box-sizing: border-box;
+  padding: 0 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-bright);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.textInput::placeholder { color: var(--text-dim); }
+.textInput:focus-visible { outline: none; border-color: var(--ut-gold); }
+.textInput[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
+.textInput:disabled { cursor: default; }
+.paramMiss { margin-top: -4px; }
 
 /* `activeWhen` false: DIMMED, never removed. The row keeps its place and stays
    readable at reduced opacity so the member learns what to change first; its

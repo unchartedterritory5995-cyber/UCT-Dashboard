@@ -61,6 +61,19 @@ def _enum(key, label, category, column, presets, options_column=None,
     return key, spec
 
 
+def _rs_names_enum(key, label, column, names_attr):
+    """An enum over one of the Phase 3 RS text columns (unit 3-11), its options
+    the WRITER's own names in the writer's code order: ``RRG_QUADRANT_NAMES``
+    from `relative_strength`, ``VARS_STATE_NAMES`` from `rs_columns` (which
+    names `vars_columns`' codes). Imported at registry build, never retyped."""
+    from . import rs_columns  # noqa: PLC0415 - one writer, its names
+    names = getattr(rs_columns, names_attr, None)
+    if names is None:
+        names = getattr(rs_columns.rs, names_attr)
+    presets = [{"label": "Any"}] + [{"label": n, "op": "eq", "value": n} for n in names]
+    return _enum(key, label, "relative_strength", column, presets)
+
+
 #: What the `pattern_engine_id` filter screens, said to a member. It is the
 #: engine's verdict, not the base read the row's setup line names.
 PATTERN_ENGINE_DESCRIPTION = (
@@ -750,6 +763,25 @@ FILTERS = dict([
     _open_range("rs_rating_3m", "3M Return Rank", "relative_strength", "rs_rating_3m"),
     _open_range("rs_rating_6m", "6M Return Rank", "relative_strength", "rs_rating_6m"),
     _open_range("rs_rating_12m", "12M Return Rank", "relative_strength", "rs_rating_12m"),
+    # ── relative strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
+    # ⭐ THE THIRD FAMILY, ONE WRITER AGAIN: `rs_columns.PHASE3_COLUMNS`, written by
+    # the same `bars_rs` step only while `snapshot_builder.rs_v3_enabled()` is
+    # true, so `meta()` serves them only then (`rs_dark_keys`). The two TEXT
+    # columns are enums whose options ARE the writer's own names
+    # (`relative_strength.RRG_QUADRANT_NAMES`, `rs_columns.VARS_STATE_NAMES`),
+    # read here rather than retyped, so a renamed state cannot leave a control
+    # offering a value no row carries. A list of the values a column can hold is
+    # a definition, not a threshold. `clenow_score` ships BARE (`_open_range`):
+    # it is a FRACTION (0.50 = 50 % a year after the R² discount), so no `%`
+    # unit rides on it, and nobody here has published a "good" score.
+    # ⛔ No starter screens over these yet: `test_screener_saved.py` forbids a
+    # starter on a column the nightly rows leave empty.
+    _rs_names_enum("rrg_quadrant", "Rotation Quadrant vs SPY (weekly)", "rrg_quadrant",
+                   "RRG_QUADRANT_NAMES"),
+    _open_range("clenow_score", "Clenow Trend Score (90 days)", "relative_strength",
+                "clenow_score"),
+    _rs_names_enum("vars_state", "Volatility-Adjusted RS State", "vars_state",
+                   "VARS_STATE_NAMES"),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1151,7 +1183,7 @@ VIEWS = {
         "archive_traders_n", "archive_last_call_date", "archive_last_setup",
         "archive_last_r20", "archive_setup", "archive_setup_edge_r",
         "archive_setup_edge_20d", "archive_setup_n"]},
-    # UCT RELATIVE STRENGTH (Phase 2a, 2a-08): every one of the seventeen RS
+    # UCT RELATIVE STRENGTH (Phase 2a, 2a-08; Phase 3, 3-11): every one of the twenty RS
     # columns has its seat HERE, so the family is never filterable-and-
     # invisible (the rail above this block). The three a trader asks of any
     # list — the rating, the 52-week RS high and the high-before-price — also
@@ -1163,7 +1195,7 @@ VIEWS = {
         "rs_nh_red_day", "rs_nh_bars_ago", "green_on_red_20", "rs_line_above_ma",
         "rs_cross_up_bars_ago", "mansfield", "mansfield_cross_bars_ago",
         "rs_benchmark_agree", "rs_rating_1m", "rs_rating_3m", "rs_rating_6m",
-        "rs_rating_12m"]},
+        "rs_rating_12m", "rrg_quadrant", "clenow_score", "vars_state"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1692,9 +1724,13 @@ def _shared_filters(dist):
 # one writer, and each writer sits behind its own flag:
 #   * the ten bar-derived columns (`rs_columns.COLUMNS`) are written by the
 #     builder's `bars_rs` step, which follows `registry_defs.RS_V2_ENABLED`;
-#   * the seven rating columns (the rest of the `relative_strength` category,
-#     `snapshot_builder._RS_HISTORY_COLUMNS`) read the side table the 04:15 ET
-#     job writes, which follows `api.main.rs_history_enabled()`.
+#   * the seven rating columns (`snapshot_builder._RS_HISTORY_COLUMNS`) read the
+#     side table the 04:15 ET job writes, which follows
+#     `api.main.rs_history_enabled()`;
+#   * the three Phase 3 columns (`rs_columns.PHASE3_COLUMNS`, unit 3-11) are
+#     written by the same `bars_rs` step only while BOTH RS_V2 and
+#     `snapshot_builder.rs_v3_enabled()` are on (the step itself runs only
+#     under RS_V2).
 # With a flag off its columns are NULL on every row, so a control over them is a
 # filter that returns nothing and a seat in a view is a column of dashes.
 # `meta()` therefore leaves out each family's filters, its view seats (Momentum
@@ -1732,22 +1768,38 @@ def _rs_history_on() -> bool:
         return False
 
 
-def rs_dark_keys(v2_on=None, history_on=None) -> frozenset:
+def _rs_v3_on() -> bool:
+    """`snapshot_builder.rs_v3_enabled()`, the ONE reader of RS_V3_ENABLED (the
+    builder's own gate on the Phase 3 columns), read at call time. An
+    unreadable flag is off: the surface stays dark."""
+    try:
+        from . import snapshot_builder  # noqa: PLC0415 - lazy
+        return bool(snapshot_builder.rs_v3_enabled())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
     """The RS filter keys (each equal to its column) a member is not shown now.
 
-    Derived from the bar writer (`rs_columns.COLUMNS`) and the registry's own
-    category, never from a list retyped here."""
+    Derived from the bar writer (`rs_columns.COLUMNS`, `rs_columns.PHASE3_COLUMNS`)
+    and the registry's own category, never from a list retyped here. The Phase 3
+    family needs BOTH flags: its writer runs inside the RS_V2 step."""
     v2_on = _rs_v2_on() if v2_on is None else v2_on
     history_on = _rs_history_on() if history_on is None else history_on
+    v3_on = _rs_v3_on() if v3_on is None else v3_on
     from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
     family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
     bars = family & set(rs_columns.COLUMNS)
-    ratings = family - bars
+    phase3 = family & set(rs_columns.PHASE3_COLUMNS)
+    ratings = family - bars - phase3
     dark = set()
     if not v2_on:
         dark |= bars
     if not history_on:
         dark |= ratings
+    if not (v2_on and v3_on):
+        dark |= phase3
     return frozenset(dark)
 
 

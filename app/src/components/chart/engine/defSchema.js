@@ -132,7 +132,8 @@ import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from '.
 // modules, and a format the resolver cannot print cannot be declared.
 import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
-  parseReadoutSource,
+  READOUT_CONDITION_OPS, parseReadoutSource, parseReadoutGate,
+  READOUT_ACTION_KINDS, READOUT_ACTION_FIELDS, READOUT_ACTION_INPUT_TYPE,
 } from './readoutSchema'
 // ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
 // 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
@@ -1165,6 +1166,12 @@ function validateMetaLearn(learn, errors) {
  *  typo that applies nothing, never data waiting for a future reader. */
 export const PRESET_FIELDS = Object.freeze(['id', 'label', 'origin', 'inputs', 'visibility', 'dotSize', 'displayTarget'])
 
+/** ⭐ UCT RS PHASE 3 (unit 3-01) — the preset keys that GATE rather than apply.
+ *  `requiresServer: true` is read by `indicatorRegistry.visiblePresets` (the
+ *  picker's filter), never by `applyPresetFields`, so it is a separate list:
+ *  `PRESET_FIELDS` stays the exact set the writer applies. */
+export const PRESET_GATE_FIELDS = Object.freeze(['requiresServer'])
+
 /** The dot-size words a preset may name — `DOT_SIZES`' own keys (`presentation.js`),
  *  the vocabulary `setInstanceDotSize` accepts. ONE list, read from its owner. */
 export const PRESET_DOT_SIZES = Object.freeze(Object.keys(DOT_SIZES))
@@ -1217,9 +1224,9 @@ function validatePresetFields(p, i, def, errors) {
   const at = (field) => `meta.presets[${i}].${field}: ${who} — `
 
   for (const key of Object.keys(p)) {
-    if (!PRESET_FIELDS.includes(key)) {
+    if (!PRESET_FIELDS.includes(key) && !PRESET_GATE_FIELDS.includes(key)) {
       errors.push(
-        `${at(key)}unknown preset field. Expected one of ${list(PRESET_FIELDS)}; ` +
+        `${at(key)}unknown preset field. Expected one of ${list([...PRESET_FIELDS, ...PRESET_GATE_FIELDS])}; ` +
         `\`applyPresetFields\` reads its fields by name, so this one would register and apply nothing.`,
       )
     }
@@ -1372,7 +1379,20 @@ function validateMeta(meta, def, errors) {
         const p = isPlainObject(e) ? parseReadoutSource(e.source) : null
         if (!p || p.kind !== 'scalar') errors.push(`meta.legendFallback[${i}].source: expected a 'scalar:<a.b>' or 'payload:<a.b>' path, got ${fmt(e && e.source)}`)
         if (!isPlainObject(e) || !READOUT_FORMATS.includes(e.format)) errors.push(`meta.legendFallback[${i}].format: expected one of ${list(READOUT_FORMATS)}, got ${fmt(e && e.format)}`)
-        if (isPlainObject(e) && e.when !== undefined && !parseReadoutSource(e.when)) errors.push(`meta.legendFallback[${i}].when: expected a readout source, got ${fmt(e.when)}`)
+        // ⭐ UCT RS 3-08 — a `when` may be the equals gate too (`input:view=mansfield`):
+        // one pane label value per Reading. The enum and its option are checked the
+        // way a readout row's equals gate is (`equalsGateFault`).
+        if (isPlainObject(e) && e.when !== undefined) {
+          const gate = parseReadoutGate(e.when)
+          if (!gate) {
+            errors.push(`meta.legendFallback[${i}].when: expected a readout source or an input:<key>=<value> gate, got ${fmt(e.when)}`)
+          } else if (typeof gate.equals === 'string') {
+            const byKey = new Map((Array.isArray(def && def.inputs) ? def.inputs : [])
+              .filter((x) => isPlainObject(x) && typeof x.key === 'string').map((x) => [x.key, x]))
+            const fault = equalsGateFault(gate, byKey)
+            if (fault) errors.push(`meta.legendFallback[${i}].when: ${fault}`)
+          }
+        }
       })
     }
   }
@@ -1545,6 +1565,69 @@ function validateMeta(meta, def, errors) {
  * @param {Map<string, object>} inputsByKey the declared inputs, for `input:` sources
  * @param {string[]} errors
  */
+/**
+ * ⭐ UCT RS 3-07 — the equals gate `input:<key>=<value>` (`readoutSchema`'s
+ * header). `null` when it is sound, else the reason. Closed on purpose: the key
+ * must be a declared ENUM input and the value one of its declared STRING option
+ * codes, because the runtime compares by identity and a value no option carries
+ * would keep the row closed forever without a word.
+ */
+function equalsGateFault(gate, inputsByKey) {
+  const key = gate.path[0]
+  const input = inputsByKey.get(key)
+  if (!input) return `${fmt(key)} names no declared input. Declared: ${list([...inputsByKey.keys()]) || 'none'}`
+  if (input.type !== 'enum' || !Array.isArray(input.options)) {
+    return `the equals form compares an ENUM input with one of its options, and ${fmt(key)} is ${fmt(input.type)}`
+  }
+  const values = input.options.map(enumOptionValue).filter((v) => typeof v === 'string')
+  if (!values.includes(gate.equals)) {
+    return `${fmt(gate.equals)} is not one of ${fmt(key)}'s option values: ${list(values.map(fmt)) || 'none'}`
+  }
+  return null
+}
+
+/**
+ * ⭐ UCT RS 3-07 — `readout[].action`, what a row offers to DO
+ * (`readoutSchema.READOUT_ACTION_KINDS`). Closed vocabulary, closed fields per
+ * kind, and an input-naming action must name a declared `string` input: a date
+ * picked off the chart, or a reset, is written to a text value, and anything else
+ * would be a write the input's own control could not show.
+ */
+function validateReadoutAction(action, path, who, inputsByKey, errors) {
+  const where = `${path}.action`
+  if (!isPlainObject(action)) {
+    errors.push(`${where}: ${who} — expected {kind, input?}, got ${fmt(action)}`)
+    return
+  }
+  if (!READOUT_ACTION_KINDS.includes(action.kind)) {
+    errors.push(`${where}.kind: ${who} — unknown readout action ${fmt(action.kind)} — expected one of: ${list(READOUT_ACTION_KINDS)}`)
+    return
+  }
+  const fields = READOUT_ACTION_FIELDS[action.kind]
+  for (const k of Object.keys(action)) {
+    if (!fields.includes(k)) {
+      errors.push(`${where}.${k}: ${who} — a ${fmt(action.kind)} action carries only ${list(fields)}`)
+    }
+  }
+  if (!fields.includes('input')) return
+  if (!isNonEmptyString(action.input)) {
+    errors.push(`${where}.input: ${who} — a ${fmt(action.kind)} action names the input it writes, got ${fmt(action.input)}`)
+    return
+  }
+  const input = inputsByKey.get(action.input)
+  if (!input) {
+    errors.push(
+      `${where}.input: ${who} — ${fmt(action.input)} names no declared input. ` +
+      `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+    )
+  } else if (input.type !== READOUT_ACTION_INPUT_TYPE) {
+    errors.push(
+      `${where}.input: ${who} — a ${fmt(action.kind)} action writes a ${fmt(READOUT_ACTION_INPUT_TYPE)} input, ` +
+      `and ${fmt(action.input)} is ${fmt(input.type)}`,
+    )
+  }
+}
+
 function validateReadout(def, inputsByKey, errors) {
   const readout = def.readout
   if (readout === undefined || readout === null) return
@@ -1590,6 +1673,15 @@ function validateReadout(def, inputsByKey, errors) {
         errors.push(`${path}.${field}: ${who} — required string, ${SOURCE_HELP}, got ${fmt(v)}`)
         continue
       }
+      // ⭐ 3-07 — a `when` may be the equals form instead (`input:view=rotation`).
+      if (field === 'when') {
+        const gate = parseReadoutGate(v)
+        if (gate && typeof gate.equals === 'string') {
+          const fault = equalsGateFault(gate, inputsByKey)
+          if (fault) errors.push(`${path}.when: ${who} — ${fault}`)
+          continue
+        }
+      }
       const parsed = parseReadoutSource(v)
       if (!parsed) {
         const prefix = v.includes(':') ? v.slice(0, v.indexOf(':')) : v
@@ -1622,9 +1714,73 @@ function validateReadout(def, inputsByKey, errors) {
     if (entry.chip !== undefined && typeof entry.chip !== 'boolean') {
       errors.push(`${path}.chip: ${who} — expected a boolean, got ${fmt(entry.chip)}`)
     }
+    // ⭐ UCT RS 3-08 — `muted` may also be a GATE in the `when` grammar
+    // (`scalar:rotation.reason`): the row prints in the quiet ink while it holds,
+    // so a reading the server could not make reads as a note, not a value.
     if (entry.muted !== undefined && typeof entry.muted !== 'boolean') {
-      errors.push(`${path}.muted: ${who} — expected a boolean, got ${fmt(entry.muted)}`)
+      const gate = typeof entry.muted === 'string' ? parseReadoutGate(entry.muted) : null
+      if (!gate) {
+        errors.push(`${path}.muted: ${who} — expected a boolean or a readout gate (${SOURCE_HELP}), got ${fmt(entry.muted)}`)
+      } else if (typeof gate.equals === 'string') {
+        const fault = equalsGateFault(gate, inputsByKey)
+        if (fault) errors.push(`${path}.muted: ${who} — ${fault}`)
+      } else if (gate.kind === 'input' && (gate.path.length !== 1 || !inputsByKey.has(gate.path[0]))) {
+        errors.push(`${path}.muted: ${who} — ${fmt(entry.muted)} names no declared input`)
+      }
     }
+    // ⭐ VA2 — `chipWhen` / `chipPrefix` / `band` (UCT RS rating inputs). Each is
+    // behavioural, so each fails closed at registration rather than at render.
+    if (entry.chipWhen !== undefined) {
+      const cw = entry.chipWhen
+      if (entry.chip !== true) {
+        errors.push(`${path}.chipWhen: ${who} — only a chip row (\`chip: true\`) carries a chip condition`)
+      } else if (!isPlainObject(cw) || typeof cw.key !== 'string') {
+        errors.push(`${path}.chipWhen: ${who} — expected {key, <comparator>} naming a declared input, got ${fmt(cw)}`)
+      } else if (!inputsByKey.has(cw.key)) {
+        errors.push(
+          `${path}.chipWhen.key: ${who} — ${fmt(cw.key)} names no declared input. ` +
+          `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+        )
+      } else {
+        const ops = Object.keys(cw).filter((k) => k !== 'key')
+        if (ops.length !== 1 || !READOUT_CONDITION_OPS.includes(ops[0])) {
+          errors.push(`${path}.chipWhen: ${who} — expected exactly one comparator of: ${list(READOUT_CONDITION_OPS)}, got ${fmt(ops)}`)
+        } else if (ops[0] === 'in' && !Array.isArray(cw.in)) {
+          errors.push(`${path}.chipWhen.in: ${who} — expected an array of values, got ${fmt(cw.in)}`)
+        }
+      }
+    }
+    if (entry.chipPrefix !== undefined && !isNonEmptyString(entry.chipPrefix)) {
+      errors.push(`${path}.chipPrefix: ${who} — expected a non-empty word, got ${fmt(entry.chipPrefix)}`)
+    }
+    if (entry.band !== undefined) {
+      const b = entry.band
+      if (!isPlainObject(b)) {
+        errors.push(`${path}.band: ${who} — expected {source, when?}, got ${fmt(b)}`)
+      } else {
+        for (const k of Object.keys(b)) {
+          if (k !== 'source' && k !== 'when') errors.push(`${path}.band.${k}: ${who} — unknown band field, expected source or when`)
+        }
+        for (const k of ['source', 'when']) {
+          if (k === 'when' && (b.when === undefined || b.when === null)) continue
+          if (k === 'when') {
+            const gate = parseReadoutGate(b.when)
+            if (gate && typeof gate.equals === 'string') {
+              const fault = equalsGateFault(gate, inputsByKey)
+              if (fault) errors.push(`${path}.band.when: ${who} — ${fault}`)
+              continue
+            }
+          }
+          const parsed = parseReadoutSource(b[k])
+          if (!parsed) {
+            errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} is not a readout source; ${SOURCE_HELP}`)
+          } else if (parsed.kind === 'input' && (parsed.path.length !== 1 || !inputsByKey.has(parsed.path[0]))) {
+            errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} names no declared input`)
+          }
+        }
+      }
+    }
+    if (entry.action !== undefined) validateReadoutAction(entry.action, path, who, inputsByKey, errors)
     if (entry.words !== undefined) {
       if (entry.format !== 'bool') {
         errors.push(`${path}.words: ${who} — only a "bool" row carries a word pair (this row is ${fmt(entry.format)})`)
@@ -1727,6 +1883,16 @@ function validatePlacement(placement, errors) {
   if (placement.axis !== undefined) {
     checkVocabulary(placement.axis, PLACEMENT_AXIS_MODES, [], 'placement.axis', 'placement axis mode', errors)
   }
+  // ⭐ UCT RS 3-07 — `ownScale`: on the price pane, draw on an invisible scale of
+  // the instance's own in the lowest third under the bars (`placement.ownScaleOf`).
+  // Behavioural, so only a real boolean is admitted: a string `'true'` would read
+  // as off in the resolver and as on to a reader of the definition.
+  if (placement.ownScale !== undefined && typeof placement.ownScale !== 'boolean') {
+    errors.push(
+      `placement.ownScale: expected a boolean (true draws on its own invisible scale under the bars ` +
+      `when the indicator is on the price pane), got ${fmt(placement.ownScale)}`,
+    )
+  }
 
   // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
   // supplies `DEFAULT_PANE_HEIGHT` when absent. It lives on the definition
@@ -1820,7 +1986,21 @@ export function validateInputValue(input, value, path, errors) {
       if (typeof d !== 'boolean') errors.push(`${path}: type "bool" requires true or false, got ${fmt(d)}`)
       break
     case 'string':
-      if (typeof d !== 'string') errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
+      if (typeof d !== 'string') {
+        errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
+        break
+      }
+      // ⭐ UCT RS Phase 3, unit 3-02 — a declared `maxLength` and `pattern` bind
+      // every NON-EMPTY value. Empty is always legal: it means "not set".
+      if (d === '') break
+      if (Number.isInteger(input.maxLength) && d.length > input.maxLength) {
+        errors.push(`${path}: ${fmt(d)} is longer than the declared maxLength ${input.maxLength}`)
+      }
+      if (input.pattern !== undefined) {
+        const re = stringPatternRegExp(input.pattern)
+        if (!re) errors.push(`${path}: the declared pattern ${fmt(input.pattern)} is not an anchored regex, so no value can be checked against it`)
+        else if (!re.test(d)) errors.push(`${path}: ${fmt(d)} does not match the declared pattern ${input.pattern}`)
+      }
       break
     // ⭐ PHASE 3 WS-D (runtime documents only — `RUNTIME_INPUT_TYPES`)
     case 'time':
@@ -1960,6 +2140,361 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
       errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
     }
   }
+
+  validateTextModifiers(input, path, errors)
+}
+
+// ─── the text control's modifiers (UCT RS Phase 3, unit 3-02) ───────────────
+//
+// ⭐ A `string` input may declare how its text box behaves:
+//   - `pattern`: an ANCHORED regex source (`^…$`), checked on every non-empty value
+//     (`validateInputValue`) — the server row carries the same source (3-05), so
+//     both lanes refuse the same text;
+//   - `maxLength`: a whole number 1-64, on every non-empty value;
+//   - `case: 'upper'`: the control upper-cases what the member types (a value
+//     rule only through `pattern`; the schema does not rewrite a stored value);
+//   - `placeholder`: the box's empty-state text, up to 64 characters;
+//   - `hint`: the muted line shown under the box when a typed value is refused,
+//     up to 120 characters (the control says "Not a valid value" without one).
+// ⛔ Only a `string` input takes them: on a number or an enum they would be read
+// by nothing, which is a typo, so they are refused by name.
+export const TEXT_INPUT_MAX_LENGTH = 64
+const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+const _patternCache = new Map()
+
+/** A declared `pattern` → its RegExp, or null for one that is not an anchored,
+ *  compilable source. Memoised: the control asks on every keystroke. */
+export function stringPatternRegExp(source) {
+  if (typeof source !== 'string') return null
+  if (_patternCache.has(source)) return _patternCache.get(source)
+  let re = null
+  const anchored = source.length >= 2 && source.startsWith('^') && source.endsWith('$') && !source.endsWith(String.raw`\$`)
+  if (anchored) {
+    try { re = new RegExp(source) } catch { re = null }
+  }
+  _patternCache.set(source, re)
+  return re
+}
+
+function validateTextModifiers(input, path, errors) {
+  const declared = TEXT_MODIFIERS.filter((k) => input[k] !== undefined)
+  if (!declared.length) return
+  if (input.type !== 'string') {
+    for (const k of declared) {
+      errors.push(`${path}.${k}: only a "string" input takes ${k}, and this one is ${fmt(input.type)} — nothing would read it`)
+    }
+    return
+  }
+  if (input.pattern !== undefined) {
+    if (typeof input.pattern !== 'string' || !input.pattern) {
+      errors.push(`${path}.pattern: expected a regex source string, got ${fmt(input.pattern)}`)
+    } else if (!stringPatternRegExp(input.pattern)) {
+      errors.push(`${path}.pattern: ${fmt(input.pattern)} must be an anchored regex (starting "^", ending "$") that compiles`)
+    }
+  }
+  if (input.maxLength !== undefined
+      && (!Number.isInteger(input.maxLength) || input.maxLength < 1 || input.maxLength > TEXT_INPUT_MAX_LENGTH)) {
+    errors.push(`${path}.maxLength: expected a whole number from 1 to ${TEXT_INPUT_MAX_LENGTH}, got ${fmt(input.maxLength)}`)
+  }
+  if (input.case !== undefined && input.case !== 'upper') {
+    errors.push(`${path}.case: the one case a text box applies is "upper", got ${fmt(input.case)}`)
+  }
+  for (const [k, max] of [['placeholder', 64], ['hint', 120]]) {
+    if (input[k] === undefined) continue
+    if (typeof input[k] !== 'string') errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
+    else if (input[k].length > max) errors.push(`${path}.${k}: at most ${max} characters, got ${input[k].length}`)
+  }
+}
+
+// ─── server-gated controls and legacy inputs (UCT RS Phase 3, unit 3-01) ────
+//
+// ⭐⭐ `requiresServer: true` — on an input, on an enum OPTION, or on a
+// `meta.presets[]` entry — means "hide this until the live server row declares
+// it" (`serverCompute.serverDeclares`, read by `indicatorRegistry`). It lets a
+// control merge ahead of the server half that answers it and stay dark. An enum
+// option carries it as a third element, `['CUSTOM', 'Your symbol',
+// {requiresServer: true}]`, or as a key of the object form `{value, label,
+// requiresServer: true}`.
+//
+// ⭐ `legacy: true` on an input means "still declared, never rendered": a stored
+// instance that carries the key still validates (`instances.js` REFUSES an
+// undeclared key, so retiring an input any other way breaks saved layouts), and
+// no settings surface draws a control for it.
+//
+// ⛔ BOTH FAIL CLOSED. Each is `true` or absent; `false`, `'yes'` or `1` is a
+// typo that would gate (or un-gate) nothing, so it is refused by name. And the
+// combinations that could only ever hide a control forever are refused too:
+//   - a gate on a definition the server does not compute (no row will declare it);
+//   - a gate on an input the definition never sends (`meta.serverInputs`), since
+//     the row declares only what it receives;
+//   - an enum whose DEFAULT is a gated option (the select would show a value it
+//     does not list until the server answered);
+//   - a gated legacy input (it is never rendered, so the gate decides nothing).
+
+/** Is this enum option entry marked `requiresServer`? The ONE reader of the
+ *  marker's two spellings; `indicatorRegistry` imports it. */
+export function enumOptionRequiresServer(option) {
+  if (Array.isArray(option)) return isPlainObject(option[2]) && option[2].requiresServer === true
+  return isPlainObject(option) && option.requiresServer === true
+}
+
+function validateServerGates(def, inputs, errors) {
+  const serverDoc = isPlainObject(def.compute) && def.compute.kind === 'server'
+  const sent = isPlainObject(def.meta) && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : null
+  const kindNote = `compute.kind is ${fmt(isPlainObject(def.compute) ? def.compute.kind : undefined)}, ` +
+    `and only a "server" definition has a live row to declare it, so it could never appear`
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input)) return
+    const path = `inputs[${index}]`
+    for (const k of ['requiresServer', 'legacy']) {
+      if (input[k] !== undefined && input[k] !== true) {
+        errors.push(`${path}.${k}: expected true or absent, got ${fmt(input[k])}`)
+      }
+    }
+    const gated = input.requiresServer === true
+    if (gated && input.legacy === true) {
+      errors.push(`${path}: a legacy input is never rendered, so requiresServer on it gates nothing — drop one`)
+    }
+    let gatedOptions = false
+    if (input.type === 'enum' && Array.isArray(input.options)) {
+      input.options.forEach((option, j) => {
+        const at = `${path}.options[${j}]`
+        if (Array.isArray(option)) {
+          if (option.length > 3) {
+            errors.push(`${at}: an option pair is [value, label] or [value, label, {requiresServer: true}], got ${option.length} entries`)
+          } else if (option.length === 3) {
+            const extra = option[2]
+            if (!isPlainObject(extra) || Object.keys(extra).length !== 1 || extra.requiresServer !== true) {
+              errors.push(`${at}[2]: expected {requiresServer: true}, got ${fmt(extra)}`)
+            }
+          }
+        } else if (isPlainObject(option) && option.requiresServer !== undefined && option.requiresServer !== true) {
+          errors.push(`${at}.requiresServer: expected true or absent, got ${fmt(option.requiresServer)}`)
+        }
+        if (enumOptionRequiresServer(option)) {
+          gatedOptions = true
+          if (Object.prototype.hasOwnProperty.call(input, 'default') && enumOptionValue(option) === input.default) {
+            errors.push(
+              `${at}: the default ${fmt(input.default)} is a requiresServer option — until the server ` +
+              `declares it the control would show a value it does not list. Default to an ungated option.`,
+            )
+          }
+        }
+      })
+    }
+    if (!gated && !gatedOptions) return
+    const what = gated ? `${path}.requiresServer` : `${path}.options`
+    if (!serverDoc) {
+      errors.push(`${what}: ${kindNote}`)
+    } else if (sent && isNonEmptyString(input.key) && !sent.includes(input.key)) {
+      errors.push(
+        `${what}: ${fmt(input.key)} is not in meta.serverInputs, so it is never sent and the ` +
+        `server row can never declare it — the control would stay hidden forever`,
+      )
+    }
+  })
+  // ⭐ UCT RS 3-14 — `plots[].requiresServer: true`: a column only the gated row
+  // sends; the inspector offers no Plot style for it until the live row declares
+  // every gated input (`indicatorRegistry.isPlotHidden`). On a definition with no
+  // gated input it could never appear, so that is refused like the rest.
+  const anyGatedInput = inputs.some((i) => isPlainObject(i) && i.requiresServer === true)
+  ;(Array.isArray(def.plots) ? def.plots : []).forEach((plot, i) => {
+    if (!isPlainObject(plot) || plot.requiresServer === undefined) return
+    const at = `plots[${i}].requiresServer`
+    if (plot.requiresServer !== true) errors.push(`${at}: expected true or absent, got ${fmt(plot.requiresServer)}`)
+    else if (!serverDoc) errors.push(`${at}: ${kindNote}`)
+    else if (!anyGatedInput) {
+      errors.push(`${at}: the definition declares no requiresServer input, so the live row can never arm it and the plot's style row would stay hidden forever`)
+    }
+  })
+  const presets = isPlainObject(def.meta) && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  presets.forEach((p, i) => {
+    if (!isPlainObject(p) || p.requiresServer === undefined) return
+    if (p.requiresServer !== true) {
+      errors.push(`meta.presets[${i}].requiresServer: expected true or absent, got ${fmt(p.requiresServer)}`)
+    } else if (!serverDoc) {
+      errors.push(`meta.presets[${i}].requiresServer: ${kindNote}`)
+    }
+  })
+}
+
+// ─── a legacy input read as its successor (UCT RS Phase 3, unit 3-08b) ─────
+//
+// ⭐ `mapsTo: {when, key, value}` on a `legacy: true` input: an instance that
+// STORED the legacy key with the value `when`, and stored nothing under `key`,
+// is read as `key: value` (`legacyInputs.inputsAsRead`, read-time only — the
+// stored instance is never rewritten). A stored successor always wins.
+//
+// ⛔ FAIL CLOSED, because a wrong mapping silently redraws saved layouts:
+//   - only on a legacy input (a live control already says what it means);
+//   - exactly the three fields; `key` a declared input, not itself, not legacy;
+//   - `when` a legal value of the legacy input and NOT its default (a stored
+//     default is not a choice that has a successor);
+//   - `value` a legal value of the successor and NOT its default (that maps
+//     nothing: the absent successor already reads as its default);
+//   - one mapping per successor (two would race on declaration order).
+export const LEGACY_MAPS_TO_FIELDS = Object.freeze(['when', 'key', 'value'])
+
+function validateLegacyMaps(inputs, inputsByKey, errors) {
+  const targets = new Map()
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input) || input.mapsTo === undefined) return
+    const path = `inputs[${index}].mapsTo`
+    const m = input.mapsTo
+    if (input.legacy !== true) {
+      errors.push(`${path}: only a legacy input maps onto a successor — declare legacy: true or drop mapsTo`)
+      return
+    }
+    if (!isPlainObject(m)) {
+      errors.push(`${path}: expected {when, key, value}, got ${fmt(m)}`)
+      return
+    }
+    const keys = Object.keys(m)
+    const extra = keys.filter((k) => !LEGACY_MAPS_TO_FIELDS.includes(k))
+    const missing = LEGACY_MAPS_TO_FIELDS.filter((k) => !Object.prototype.hasOwnProperty.call(m, k))
+    if (extra.length || missing.length) {
+      errors.push(`${path}: expected exactly {when, key, value}` +
+        `${missing.length ? `, missing ${list(missing)}` : ''}${extra.length ? `, unknown ${list(extra)}` : ''}`)
+      return
+    }
+    const target = typeof m.key === 'string' ? inputsByKey.get(m.key) : undefined
+    if (!target) {
+      errors.push(`${path}.key: ${fmt(m.key)} names no declared input (declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`)
+      return
+    }
+    if (m.key === input.key) {
+      errors.push(`${path}.key: ${fmt(m.key)} is the legacy input itself`)
+      return
+    }
+    if (target.legacy === true) {
+      errors.push(`${path}.key: ${fmt(m.key)} is itself legacy — map onto the input that replaced it`)
+      return
+    }
+    const whenErrors = []
+    validateInputValue(input, m.when, `${path}.when`, whenErrors)
+    errors.push(...whenErrors)
+    if (!whenErrors.length && Object.prototype.hasOwnProperty.call(input, 'default') && m.when === input.default) {
+      errors.push(`${path}.when: ${fmt(m.when)} is ${fmt(input.key)}'s default — a stored default is not a choice with a successor`)
+    }
+    const valueErrors = []
+    validateInputValue(target, m.value, `${path}.value`, valueErrors)
+    errors.push(...valueErrors)
+    if (!valueErrors.length && Object.prototype.hasOwnProperty.call(target, 'default') && m.value === target.default) {
+      errors.push(`${path}.value: ${fmt(m.value)} is ${fmt(m.key)}'s default — the mapping would change nothing`)
+    }
+    if (targets.has(m.key)) {
+      errors.push(`${path}.key: ${fmt(m.key)} is already the successor of inputs[${targets.get(m.key)}] — one mapping per successor`)
+    } else {
+      targets.set(m.key, index)
+    }
+  })
+}
+
+// ─── a text box that names an enum option (UCT RS Phase 3, unit 3-09b) ──────
+//
+// ⭐ `identityFor: '<enum key>'` on a `string` input: this box is what one of
+// that enum's options MEANS. The option is the one its `activeWhen` wakes it
+// under (`{key: <enum key>, equals: <option>}`), so the pair is declared once.
+// Wherever the enum is printed as identity (`readout.legendIdentityParts`, the
+// `meta.legendParams` ` · <value>` grammar) the typed text stands in for the
+// option's raw code, and the option's LABEL stands in while the box is empty:
+// `UCT RS · SMH`, `UCT RS · Your symbol`, never `UCT RS · CUSTOM`.
+//
+// ⛔ FAIL CLOSED, because a half-declared pair prints the raw code it exists
+// to hide:
+//   - only on a `string` input that is not legacy (a legacy box is never typed);
+//   - the key names another declared `enum` input that `meta.legendParams`
+//     lists (nothing else prints it as identity, so the field would be inert);
+//   - the box declares `activeWhen: {key: <that enum>, equals: <option>}`, the
+//     option carries a non-empty label (the empty-box text);
+//   - one companion per option (two would race on declaration order).
+function enumOptionLabel(option) {
+  if (Array.isArray(option)) return typeof option[1] === 'string' ? option[1] : null
+  if (isPlainObject(option) && typeof option.label === 'string') return option.label
+  return null
+}
+
+/**
+ * ⭐ THE ONE READER OF THE PAIR (unit 3-14). The text an identity value prints:
+ * for an `enum` input whose option `raw` has a companion text box (a `string`
+ * input declaring `identityFor: <that key>` and `activeWhen: {key, equals: raw}`),
+ * the box's typed value, or the option's LABEL while the box is empty; every
+ * other value comes back unchanged. Read by `readout` (the chip and the pane
+ * suffix) and by `sourceRef.instanceLabel` (the settings list, the Display-in
+ * menu), so no surface prints the code `CUSTOM` for "Your symbol".
+ */
+export function identityTextFor(def, key, raw, inputs) {
+  if (typeof raw !== 'string' || !raw || !def || !Array.isArray(def.inputs)) return raw
+  const inp = def.inputs.find((i) => i && i.key === key)
+  if (!inp || inp.type !== 'enum') return raw
+  const companion = def.inputs.find((c) => c && c.identityFor === key && c.type === 'string'
+    && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === key && c.activeWhen.equals === raw)
+  if (!companion) return raw
+  const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
+  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    if (Array.isArray(o) && o[0] === raw) return typeof o[1] === 'string' && o[1] ? o[1] : raw
+    if (o && typeof o === 'object' && !Array.isArray(o) && o.value === raw) return typeof o.label === 'string' && o.label ? o.label : raw
+  }
+  return raw
+}
+
+function validateIdentityFor(def, inputs, inputsByKey, errors) {
+  const params = isPlainObject(def.meta) && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
+  const seen = new Map()
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input) || input.identityFor === undefined) return
+    const path = `inputs[${index}].identityFor`
+    const k = input.identityFor
+    if (!isNonEmptyString(k)) {
+      errors.push(`${path}: expected the key of the enum input this box names an option of, got ${fmt(k)}`)
+      return
+    }
+    if (input.type !== 'string') {
+      errors.push(`${path}: only a "string" input stands in for an option, and this one is ${fmt(input.type)}`)
+      return
+    }
+    if (input.legacy === true) {
+      errors.push(`${path}: a legacy input is never rendered, so nobody types the name it would print — drop one`)
+      return
+    }
+    if (k === input.key) {
+      errors.push(`${path}: ${fmt(k)} is the input itself`)
+      return
+    }
+    const target = inputsByKey.get(k)
+    if (!target) {
+      errors.push(`${path}: ${fmt(k)} names no declared input (declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`)
+      return
+    }
+    if (target.type !== 'enum' || !Array.isArray(target.options)) {
+      errors.push(`${path}: ${fmt(k)} is ${fmt(target.type)}, and only an enum's option has a name to stand in for`)
+      return
+    }
+    if (!params.includes(k)) {
+      errors.push(`${path}: ${fmt(k)} is not a meta.legendParams entry, so no label prints it and the field reads nothing`)
+      return
+    }
+    const aw = input.activeWhen
+    if (!isPlainObject(aw) || aw.key !== k || !Object.prototype.hasOwnProperty.call(aw, 'equals')) {
+      errors.push(`${path}: the box must declare activeWhen {key: ${fmt(k)}, equals: <option>} — that names the option it stands in for`)
+      return
+    }
+    const option = target.options.find((o) => enumOptionValue(o) === aw.equals)
+    // An `equals` no option carries is already refused by `validateActiveWhen`.
+    if (option === undefined) return
+    const label = enumOptionLabel(option)
+    if (!isNonEmptyString(label)) {
+      errors.push(`${path}: the option ${fmt(aw.equals)} carries no label, so an empty box would print the raw code`)
+      return
+    }
+    const slot = `${k}=${JSON.stringify(aw.equals)}`
+    if (seen.has(slot)) {
+      errors.push(`${path}: the option ${fmt(aw.equals)} of ${fmt(k)} already has a companion at inputs[${seen.get(slot)}] — one per option`)
+      return
+    }
+    seen.set(slot, index)
+  })
 }
 
 /** `activeWhen` is the JSON-expressible successor to `indicatorRegistry`'s
@@ -1968,6 +2503,32 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
  *  checkable and dangerous: a condition keyed on an input that does not exist
  *  would silently evaluate to "never show", hiding a control forever. Same class
  *  as an unresolvable $ref, so it gets the same treatment. */
+/**
+ * ⭐ UCT RS 3-07 — an `activeWhen` keyed on an ENUM input compares against that
+ * input's OPTION VALUES, so a value no option carries is a condition that can
+ * never (`equals`, `in`) or always (`notEquals`) hold: the same "hides a control
+ * forever" class as an unresolvable key, and refused the same way. `null` when
+ * sound or not checkable (a non-enum referent, or an operator this does not
+ * compare, `gt`/`lt`, keep their v1 latitude).
+ */
+function activeWhenEnumFault(aw, inputsByKey) {
+  const input = inputsByKey.get(aw.key)
+  if (!input || input.type !== 'enum' || !Array.isArray(input.options)) return null
+  const values = input.options.map(enumOptionValue)
+  const known = (v) => values.includes(v)
+  for (const op of ['equals', 'notEquals']) {
+    if (Object.prototype.hasOwnProperty.call(aw, op) && !known(aw[op])) {
+      return `.${op}: ${fmt(aw[op])} is not one of ${fmt(aw.key)}'s option values: ${list(values.map(fmt))}`
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(aw, 'in')) {
+    if (!Array.isArray(aw.in)) return `.in: expected an array of ${fmt(aw.key)}'s option values, got ${fmt(aw.in)}`
+    const bad = aw.in.filter((v) => !known(v))
+    if (bad.length) return `.in: ${list(bad.map(fmt))} ${bad.length === 1 ? 'is' : 'are'} not among ${fmt(aw.key)}'s option values: ${list(values.map(fmt))}`
+  }
+  return null
+}
+
 function validateActiveWhen(input, index, inputsByKey, errors) {
   const aw = input?.activeWhen
   if (aw === undefined || aw === null) return
@@ -1984,6 +2545,9 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
     )
   } else if (aw.key === input.key) {
     errors.push(`${path}.key: ${fmt(aw.key)} refers to its own input — the condition can never be evaluated`)
+  } else {
+    const fault = activeWhenEnumFault(aw, inputsByKey)
+    if (fault) errors.push(`${path}${fault}`)
   }
 }
 
@@ -2419,6 +2983,9 @@ function validatePlotActiveWhen(plot, path, inputsByKey, errors) {
   }
   if (!Object.prototype.hasOwnProperty.call(aw, 'equals')) {
     errors.push(`${where}: expected an \`equals\` value — the guide's condition is one input state`)
+  } else if (inputsByKey.has(aw.key)) {
+    const fault = activeWhenEnumFault(aw, inputsByKey)
+    if (fault) errors.push(`${where}${fault}`)
   }
 }
 
@@ -3115,6 +3682,12 @@ export function validateDefinition(def) {
       }
     })
     inputs.forEach((input, i) => validateActiveWhen(input, i, inputsByKey, errors))
+    // ⭐ UCT RS PHASE 3 (unit 3-01) — `requiresServer` and `legacy`.
+    validateServerGates(out, inputs, errors)
+    // ⭐ UCT RS PHASE 3 (unit 3-08b) — a legacy input's `mapsTo` successor.
+    validateLegacyMaps(inputs, inputsByKey, errors)
+    // ⭐ UCT RS PHASE 3 (unit 3-09b) — a text box that names an enum option.
+    validateIdentityFor(out, inputs, inputsByKey, errors)
 
     // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
     validateReadout(out, inputsByKey, errors)

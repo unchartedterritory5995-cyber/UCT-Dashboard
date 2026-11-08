@@ -60,6 +60,6 @@ describe('compute.rev — the revision a stored binding migrates on', () => {
     // Only a NON-default revision is a migration; an explicit `rev: 1` (the
     // server lane writes one) is the default spelled out and must not be read as
     // a bump. Both sides filter identically.
-    expect(parsed.filter(([, rev]) => rev !== 1)).toEqual([['vwap', 2], ['rsLine', 3]])
+    expect(parsed.filter(([, rev]) => rev !== 1)).toEqual([['vwap', 2], ['rsLine', 4]])
   })
 })

@@ -1134,6 +1134,27 @@
    "category": "relative_strength"
   },
   {
+   "key": "rrg_quadrant",
+   "label": "Rotation Quadrant vs SPY (weekly)",
+   "type": "enum",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "clenow_score",
+   "label": "Clenow Trend Score (90 days)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "vars_state",
+   "label": "Volatility-Adjusted RS State",
+   "type": "enum",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
    "key": "atr_pct",
    "label": "ATR % of Price",
    "type": "range",

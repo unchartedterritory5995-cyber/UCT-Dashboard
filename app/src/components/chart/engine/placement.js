@@ -258,6 +258,43 @@ export function axisHiddenOf(def) {
   return !!(p && typeof p === 'object' && p.axis === 'hidden')
 }
 
+/**
+ * ⭐ UCT RS Phase 3, unit 3-07 — `placement.ownScale`: ON PRICE, ON ITS OWN SCALE.
+ *
+ * A price overlay shares the candles' axis (`MAIN_PRICE_SCALE_ID`), which is right
+ * for a Bollinger band and useless for a ratio near 0.25: on a $150 axis it is a
+ * flat line at the bottom edge, or off the pane. A definition that declares
+ * `ownScale: true` is answered, when it lands on the price pane, with an
+ * INVISIBLE OVERLAY SCALE of its own (`OWN_SCALE_PREFIX + instanceKey`) framed in
+ * the lowest third under the bars (`OWN_SCALE_MARGINS`), the IBD look (owner
+ * decision D3: the pane stays the default; "On price (own scale)" is a Display-in
+ * choice).
+ *
+ * ⛔ THE CANDLES ARE UNTOUCHED. Their scale is a different id, so no margin is
+ * written to it and no value reaches its autoscale walk; `autoscale: 'default'`
+ * here sizes the OWN scale from its own series (`'exclude'` would collapse it to
+ * the library's -0.5..0.5, `__tests__/autoscaleOnARealScale.test.js`).
+ * `lastValue: false`: there is no axis to hang a tag on, and an overlay series'
+ * tag would otherwise be printed on the candles' visible axis.
+ *
+ * ⛔ PER INSTANCE, NOT PER DEFINITION. Two RS lines against two benchmarks are two
+ * ladders; one scale between them would autoscale them together.
+ *
+ * ⚠️ THE MARGINS ARE A VISUAL CALL (map §5 D3), gated by the 3-14 screenshot pass;
+ * the phone shell's bottom inset sits over the lowest band.
+ *
+ * DEFENSIVE BY DESIGN, like `axisHiddenOf`: only the exact boolean `true` opts in,
+ * so a definition without the field answers byte-identically to before
+ * (`__tests__/placement.ownScale.test.js`).
+ */
+export const OWN_SCALE_PREFIX = 'own:'
+export const OWN_SCALE_MARGINS = Object.freeze({ top: 0.62, bottom: 0.04 })
+
+export function ownScaleOf(def) {
+  const p = def && typeof def === 'object' ? def.placement : null
+  return !!(p && typeof p === 'object' && p.ownScale === true)
+}
+
 // ─── colour ──────────────────────────────────────────────────────────────────
 
 const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i
@@ -498,6 +535,24 @@ export function resolvePlacement(instance, def, ctx) {
     // would fall to the library's empty -0.5..0.5 and the series would draw off-axis
     // (measured in the browser: a 4.00% fed-funds step on a ±0.5% axis).
     const _econPrimary = !!(instance && typeof instance.instanceId === 'string' && instance.instanceId.startsWith('econp:'))
+    // ⭐ 3-07: a definition that declared `ownScale` keeps its OWN invisible scale
+    // on the candles' pane (see `ownScaleOf`). Keyed by the instance, else by the
+    // definition (a context-free resolve, the same fallback `paneKey` uses below).
+    if (!_econPrimary && ownScaleOf(def)) {
+      const instanceKey = (instance && typeof instance.instanceId === 'string' && instance.instanceId)
+        ? instance.instanceId
+        : (typeof def.id === 'string' && def.id ? def.id : null)
+      if (!instanceKey) return null
+      return {
+        paneIndex: priceIndexOf(c),
+        scaleId: OWN_SCALE_PREFIX + instanceKey,
+        // Rebuilt per call, never the frozen constant: `scaleOptions` goes straight
+        // to `applyOptions`, and a caller that mutated it would poison later resolves.
+        scaleOptions: { visible: false, borderVisible: false, scaleMargins: { ...OWN_SCALE_MARGINS } },
+        autoscale: 'default',
+        lastValue: false,
+      }
+    }
     return { paneIndex: priceIndexOf(c), scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: _econPrimary ? 'default' : 'exclude' }
   }
 

@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { ENGINE_OWNED } from '../flipState'
-import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
+import { listIndicators, listEngineIndicators, fieldsForInstance } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
@@ -3418,6 +3418,25 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   })
 })
 
+// ⭐⭐ UCT RS PHASE 3 (unit 3-01) — THE TWO KINDS OF DECLARED INPUT A ROW
+// DELIBERATELY DOES NOT CARRY, EXEMPTED BY RULE AND NEVER BY NAME.
+//   `legacy: true`          still declared (a stored instance carrying it must
+//                           validate) and never rendered, anywhere.
+//   `requiresServer: true`  rendered once the LIVE server row declares it. The
+//                           global row has no server answer, so it fails closed;
+//                           the input is reachable from the per-instance form
+//                           the moment the server declares it, and the reach
+//                           rail below proves that with the row's own keys.
+// A name list here would be the enumeration this file exists to retire.
+const rowExempt = (input) => !!input && (input.legacy === true || input.requiresServer === true)
+/** A declaration that declares EVERYTHING a definition could ask for — what a
+ *  fully armed server row answers. */
+const declaresAll = (def) => ({
+  inputs: def.inputs.map(i => i.key),
+  options: Object.fromEntries(def.inputs.filter(i => Array.isArray(i.options))
+    .map(i => [i.key, i.options.map(o => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' ? o.value : o)))])),
+})
+
 describe('adjudication A6 — the settings tab lists nothing the engine owns', () => {
   it('listIndicators() contains no migrated definition, by id or by settings path', () => {
     const rows = listIndicators(mergeChartSettings(null))
@@ -3444,7 +3463,7 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
       expect(row, `${def.id} has no generated row`).toBeTruthy()
-      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.map(i => i.key))
+      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.filter(i => !rowExempt(i)).map(i => i.key))
     }
   })
 
@@ -3622,7 +3641,13 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
       const reachable = new Set((row ? row.fields : []).map(f => f.key))
-      for (const i of def.inputs) if (!reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
+      // ⭐ 3-01 — a gated input is reachable from the per-instance form once the
+      // server declares it; a legacy input is reachable from nowhere, by design.
+      const armed = new Set(fieldsForInstance(def, null, { declared: declaresAll(def) }).all.map(f => f.key))
+      for (const i of def.inputs) {
+        if (i.legacy === true) continue
+        if (i.requiresServer === true ? !armed.has(i.key) : !reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
+      }
     }
     expect(gaps,
       'a declared input has no control anywhere. That is the state MACD\'s macdColor / ' +
@@ -3631,6 +3656,24 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     // …and it is not vacuous: the definitions really do declare inputs.
     expect(engineRegistry.listDefinitions().flatMap(d => d.inputs).length,
       'no definition declares an input — the loop above proves nothing').toBeGreaterThan(20)
+  })
+
+  it('⭐ 3-01 — the exemption is a RULE: a legacy input never gets a control, a gated one gets one only when declared', () => {
+    // ⛔ FAILABLE, on a probe rather than the registry (no shipped definition uses
+    // either field yet, so a registry-only check would pass over nothing).
+    const probe = {
+      id: 'probe', compute: { kind: 'server' },
+      inputs: [
+        { key: 'kept', type: 'int', default: 1 },
+        { key: 'old', type: 'bool', default: false, legacy: true },
+        { key: 'dark', type: 'int', default: 2, requiresServer: true },
+      ],
+    }
+    expect(probe.inputs.filter(i => !rowExempt(i)).map(i => i.key)).toEqual(['kept'])
+    const keys = (declared) => fieldsForInstance(probe, null, { declared }).all.map(f => f.key)
+    expect(keys(null)).toEqual(['kept'])
+    expect(keys(declaresAll(probe))).toEqual(['kept', 'dark'])
+    expect(rowExempt({ key: 'x', legacy: 'yes' }), 'only `true` exempts').toBe(false)
   })
 
   it('MACD\'s two colours have a control now — the gap B3 measured and could not close', () => {

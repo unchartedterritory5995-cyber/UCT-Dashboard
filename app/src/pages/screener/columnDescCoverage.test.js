@@ -17,7 +17,8 @@ import { COLUMN_DEFS, descFor } from './columnDefs'
 
 // ⛔ May only ever go UP — see 'holds the coverage ratchet' below.
 // 127 → 144 on 2026-11-06: the seventeen UCT Relative Strength columns landed WITH their text.
-const RATCHET_FLOOR = 144
+// 144 → 147 on 2026-11-07: the three Phase 3 RS columns (unit 3-11) landed WITH theirs.
+const RATCHET_FLOOR = 147
 
 // The columns whose DEFINITION is not guessable from the label, or where the
 // audit measured a member-visible trap. Every one of these must carry text.
@@ -65,8 +66,14 @@ const MUST_DOCUMENT = [
   'mansfield_cross_bars_ago', 'rs_benchmark_agree', 'rs_rating_ibd',
   'rs_rating_chg_5', 'rs_rating_chg_20', 'rs_rating_1m', 'rs_rating_3m',
   'rs_rating_6m', 'rs_rating_12m',
+  // 2026-11-07 UCT RS Phase 3 (unit 3-11) — each says whose formula it follows
+  // ("-style"), because a member will compare it with StockCharts, Clenow's book
+  // or OANDA and find a different number.
+  'rrg_quadrant', 'clenow_score', 'vars_state',
 ]
-const RS_COLUMNS = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('rs_new_high'))
+const RS_COLUMNS = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('rs_new_high'),
+  MUST_DOCUMENT.indexOf('rrg_quadrant'))
+const RS_PHASE3_COLUMNS = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('rrg_quadrant'))
 
 describe('member-facing column descriptions', () => {
   it.each(MUST_DOCUMENT)('%s explains itself to a member', key => {
@@ -104,6 +111,27 @@ describe('member-facing column descriptions', () => {
     expect(COLUMN_DEFS.rs_rating_chg_5.fmt(6)).toBe('+6')
     expect(COLUMN_DEFS.rs_rating_chg_5.fmt(-4)).toBe('-4')
     expect(COLUMN_DEFS.rs_rating_chg_5.fmt(0)).toBe('0')
+  })
+
+  it('the Phase 3 RS columns name their timeframe and whose formula they follow', () => {
+    expect(RS_PHASE3_COLUMNS).toEqual(['rrg_quadrant', 'clenow_score', 'vars_state'])
+    expect(descFor('rrg_quadrant')).toMatch(/weekly bars/)
+    expect(descFor('rrg_quadrant')).toMatch(/RRG-style, UCT's own formula/)
+    for (const q of ['Leading', 'Weakening', 'Lagging', 'Improving']) expect(descFor('rrg_quadrant')).toMatch(q)
+    expect(descFor('clenow_score')).toMatch(/Clenow-style/)
+    expect(descFor('clenow_score')).toMatch(/90 daily closes/)
+    expect(descFor('vars_state')).toMatch(/VARS-style/)
+    expect(descFor('vars_state')).toMatch(/daily bars/)
+    for (const key of RS_PHASE3_COLUMNS) expect(descFor(key), key).not.toMatch(/\b(buy|sell)\b/i)
+    // the text columns print the writer's name as it is; a NULL is an em dash
+    expect(COLUMN_DEFS.rrg_quadrant.fmt('Improving')).toBe('Improving')
+    expect(COLUMN_DEFS.rrg_quadrant.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.vars_state.fmt('Strong, fading')).toBe('Strong, fading')
+    expect(COLUMN_DEFS.vars_state.fmt(null)).toBe('—')
+    // the Clenow score is a FRACTION: 2 places, never a percent sign
+    expect(COLUMN_DEFS.clenow_score.fmt(0.8512)).toBe('0.85')
+    expect(COLUMN_DEFS.clenow_score.fmt(-0.1234)).toBe('-0.12')
+    expect(COLUMN_DEFS.clenow_score.fmt(null)).toBe('—')
   })
 
   it('holds the coverage ratchet', () => {

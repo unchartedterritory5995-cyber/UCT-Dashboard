@@ -118,9 +118,15 @@ RATING_READ_PAD = 40
 #: Benchmarks an ALERT may name: the chart's menu minus INDUSTRY (engineering map
 #: §2.6 "Benchmark load": a composite costs up to 60 member reads against the
 #: 64-entry benchmark cache that clears wholesale; it joins when it has a cache
-#: of its own). Derived from the chart's one list, never re-typed.
+#: of its own). Derived from the chart's one list, never re-typed. CUSTOM (a
+#: member's own ticker, Phase 3 decision D4) is excluded BY NAME as well: it is
+#: not in `RS_LINE_BENCHMARKS` (only the v4 menu `RS_LINE_BENCHMARKS_V4` names
+#: it), and an alert on an arbitrary symbol would bypass the benchmark cache this
+#: lane depends on, so a future edit that folds it into the shared list still
+#: cannot reach the alert popover.
+RS_ALERT_EXCLUDED_BENCHMARKS: tuple[str, ...] = ("INDUSTRY", rs_benchmarks.CUSTOM_BENCHMARK)
 RS_ALERT_BENCHMARKS: tuple[str, ...] = tuple(
-    b for b in registry_defs.RS_LINE_BENCHMARKS if b != "INDUSTRY")
+    b for b in registry_defs.RS_LINE_BENCHMARKS if b not in RS_ALERT_EXCLUDED_BENCHMARKS)
 
 #: The chart's defaults, read off the module that computes with them.
 PHASE1_DEFAULTS: dict[str, Any] = {
@@ -320,7 +326,9 @@ def rs_refusal(address: str, params: Optional[Mapping], condition: Optional[str]
         b = str(p["benchmark"]).strip().upper()
         if b not in RS_ALERT_BENCHMARKS:
             why = (" INDUSTRY composites are not offered for alerts yet."
-                   if b == "INDUSTRY" else "")
+                   if b == "INDUSTRY" else
+                   " Custom benchmarks are chart-only; alerts take a listed benchmark."
+                   if b == rs_benchmarks.CUSTOM_BENCHMARK else "")
             return (f"RS benchmark must be one of {', '.join(RS_ALERT_BENCHMARKS)} "
                     f"— got {p['benchmark']!r}.{why}")
     if "maType" in spec.inputs and p.get("maType") is not None:
