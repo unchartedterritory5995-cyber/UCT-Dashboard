@@ -40,7 +40,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | Notes | What he asked | Status | Where |
 |---|---|---|---|
 | N068, N091 | Never "the firm"; we are UCT | Done | `brandWords` at every door the bank's text comes through; rails: rule 11 |
-| N008 | Questions must not lead | Partly | the challenge questions ask plainly; the bank's ~740 approved lesson questions have not been re-read for this |
+| N008 | Questions must not lead | Drafts waiting on his approval | every approved question checked 2026-11-08 for the classic tells: 19 where the right choice is far longer than the rest (often carrying its own reason) have drafts that make every choice the same short form, the reasoning left in the lesson (`docs/study/audits/2026-11-08/leading_questions.json`, workbench spot "leading_q"); one of them also had a second right answer among the wrong ones (the Launchpad stop). The questions' own words never change (an item's id is made from them) |
 | N101, N113 | A more detailed question; better question text and type | Done | the question header (eyebrow tag, headline, detail line) in every mode, 2026-11-08 |
 
 ## 4. The answers, Check and Next
@@ -160,3 +160,4 @@ for this section.
 10. Built 2026-11-08: the replay within the day (N010, N014, N019, N025); the server fill runs after the merge.
 11. Done 2026-11-08: the replay stops and asks at 2R and 3R (N033); the pointer asks the question at the candle (N068);
     the trade's action items as bar markers (N072, N102).
+12. Drafted 2026-11-08: 19 questions that lead, waiting on his approval (N008).

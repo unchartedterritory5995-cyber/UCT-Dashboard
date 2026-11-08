@@ -117,7 +117,7 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="draw-clock" />
       </div>
-      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="draw-pause" /> : null}
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="draw-pause" /> : null}
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="draw-key" /> : null}
       {state === 'ask'
         ? <div className={sa.area}><div className={sa.lHead}><span className={sa.lEyebrow}>Draw it · chart {idx + 1} of {total}</span><h2 className={sa.lQ}>{withArticle(item.name).replace(/^./, (c) => c.toUpperCase())} fired on the last candle. Where do you buy, and where does the stop go?</h2>

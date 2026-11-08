@@ -182,7 +182,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="hard-clock" />
       </div>
-      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="hard-pause" /> : null}
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="hard-pause" /> : null}
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="hard-key" /> : null}
       <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey={!takeover && !due}
         onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}

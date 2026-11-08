@@ -158,7 +158,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="spot-clock" />
       </div>
-      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="spot-pause" /> : null}
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="spot-pause" /> : null}
       {trade ? <ChartKey trade={trade} testId="spot-key" /> : null}
       {state === 'ask'
         ? <div className={sa.area}><div className={sa.lHead}><span className={sa.lEyebrow}>Spot the Setup · chart {idx + 1} of {total}</span><h2 className={sa.lQ}>Spot the {name}</h2><p className={sa.lDetail}>{cands.length} gold candles look alike; only one is the real {name}. Tap it on the chart or pick its card.</p></div></div>

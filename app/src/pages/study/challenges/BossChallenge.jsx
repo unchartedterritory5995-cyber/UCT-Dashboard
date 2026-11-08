@@ -103,7 +103,7 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="boss-clock" />
       </div>
-      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="boss-pause" /> : null}
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="boss-pause" /> : null}
       {trade ? <ChartKey trade={trade} testId="boss-key" /> : null}
       <AnswerLessonApp choices={item.choices} pick={pick} state={state} answer={answer} step={idx} total={total} hotkey={!takeover && !due}
         eyebrow={<>Boss · chart {idx + 1} of {total} · one heart</>}
