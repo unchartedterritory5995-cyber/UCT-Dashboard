@@ -50,7 +50,9 @@ import s from '../ui/study.module.css'
 function tradeAnnotations(trade, signal, all, n) {
   if (!trade || !signal || !all?.length) return null
   const t0 = signal.t
-  const chipAt = (k) => all[Math.min(all.length - 1, n + 1 + k * 5)]?.t ?? t0
+  // the level chips sit at the right of the chart, each a few sessions left of the one before, so they never land on the
+  // signal candle's markers (round 23: a SHORTED marker covered the STOP chip)
+  const chipAt = (k) => all[Math.max(n + 1, all.length - 3 - k * 6)]?.t ?? all[all.length - 1]?.t ?? t0
   const plan = trade.kind === 'plan'
   const GOLD = '#dcbb5e', RED = '#df4646', GREEN = '#2faf68'
   const lines = plan
@@ -87,7 +89,9 @@ function peakOf(trade, culm, n, k) {
     const off = trade.bestSessions - 1
     if (k <= off) return null
     const v = trade.advancePct
-    return { index: n + off, text: `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}% from entry in ${trade.bestSessions} session${trade.bestSessions === 1 ? '' : 's'}` }
+    const sess = `${trade.bestSessions} session${trade.bestSessions === 1 ? '' : 's'}`
+    // a short's gain is a fall: said as the price's move, so the chart and the lesson read the same way
+    return { index: n + off, text: trade.long ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}% from entry in ${sess}` : `fell ${Math.abs(v).toFixed(1)}% from entry in ${sess}` }
   }
   return culm && k > culm.offset ? { index: n + culm.offset, text: culminationLabel(culm) } : null
 }

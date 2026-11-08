@@ -29,7 +29,7 @@ export function TradeBlock({ trade: t, name }) {
           <Leg k={t.long ? 'Entry' : 'Short'} v={px(t.entry)} note={t.entry_note} tone="gold" />
           <Leg k="Stop" v={px(t.stop)} note={`${t.stop_note} · risk ${pct(t.riskPct, false)}`} tone="down" />
           <Leg k="Trim" v={`${px(t.t1)} · ${px(t.t2)}`} note={`2R ${hit(t.t1At)}; 3R ${hit(t.t2At)}`} tone={t.t1At != null ? 'up' : ''} />
-          <Leg k={t.long ? 'Advance' : 'Decline'} v={pct(t.long ? t.advancePct : -t.advancePct)} note={t.bestSessions != null ? `to the best ${t.long ? 'high' : 'low'}, session ${t.bestSessions}${r}` : `no new ${t.long ? 'high' : 'low'} after entry`} tone={t.long ? 'up' : 'down'} />
+          <Leg k={t.long ? 'Advance' : 'Fall, in your favour'} v={t.long ? pct(t.advancePct) : `${Math.abs(t.advancePct).toFixed(1)}%`} note={t.bestSessions != null ? `to the best ${t.long ? 'high' : 'low'}, session ${t.bestSessions}${r}` : `no new ${t.long ? 'high' : 'low'} after entry`} tone="up" />
         </div>
         <p className={s.tradeLine}>
           {t.stoppedSession ? <>The stop was hit on session <b>{t.stoppedSession}</b>; the trade ends there. </> : <>The stop was never hit in the sessions shown. </>}
@@ -61,7 +61,7 @@ function takeaway(t) {
     const r = Number.isFinite(t.r) ? ` (${t.r.toFixed(1)}R)` : ''
     const targets = t.t2At != null ? ' and reached both targets' : t.t1At != null ? ' and reached 2R' : ''
     const stop = t.stoppedSession ? `, then the stop was hit on session ${t.stoppedSession}` : ''
-    const move = t.bestSessions != null ? `it ran ${c(t.long ? t.advancePct : -t.advancePct)}${r}${targets}${stop}` : `it never got going${stop}`
+    const move = t.bestSessions != null ? `${t.long ? `it ran ${c(t.advancePct)}` : `it fell ${Math.abs(t.advancePct).toFixed(1)}% in your favour`}${r}${targets}${stop}` : `it never got going${stop}`
     return `${verb} at ${p(t.entry)}, risking ${t.riskPct.toFixed(1)}% to the stop at ${p(t.stop)}; ${move}.`
   }
   return t.broke

@@ -8,7 +8,9 @@ narrative says how to trail.
 
 `api/services/study_trade.py` reads all of this for the setup that fired on a chart's last candle and sends it with the
 answer's reveal. `hardMode.reviewTrade` then plays it against the bars that followed: when each target was reached,
-whether the stop was hit, the best price, and R. Where the owner has ruled, his words win: the Kicker.
+whether the stop was hit, the best price, and R. Where the owner has ruled, his words win: the Kicker. Where the app defines no trade, none is invented: the Bear gap's
+obvious stop, the gap day's high, sat 25% over the close on VRNS (a gap that opened 37% down and closed at the low), so
+its lesson measures the fall and the line it must stay under.
 
 | Setup | Entry | Stop | Trim | Trail | Source |
 |---|---|---|---|---|---|
@@ -18,7 +20,7 @@ whether the stop was hit, the best price, and R. Where the owner has ruled, his 
 | **Launchpad** | the close out of the tight cluster of averages | under the 21-day and 50-day averages, a quarter of an ATR below the lower one | 2R, 3R | under the rising 21-day average, or under each higher low | `uct_launch_pad.py` |
 | **High Volume Edge** | the high-volume close | the edge bar's low (its high on a down close) | 2R, 3R; the first return to the high-volume close is the cleanest decision point | not named by the detector | `uct_hve.py` |
 | **Gap Support** | the close, as the gap holds | the gap top or the day's low, whichever is lower | 2R, 3R; the post-gap high is the first place to take some off | if it drifts sideways at the gap, a tighter stop just under the gap top | `uct_gap_support.py` |
-| **Bear gap** (short) | the gap day's close | the gap day's high (the app's stop for a bearish edge bar); a close back above the prior day's low fills the gap and the setup has failed | 2R, 3R down | above each lower high | `study_hard.bear_gap_fires`; `uct_hve.py`; `find_bear_gap_examples.py` |
+| **Bear gap** (short) | no trade is defined in the app | the lesson shows the line a close must stay under: the gap day's high | the fall is measured, not traded | — | `study_hard.bear_gap_fires`; `find_bear_gap_examples.py` |
 
 Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each,
 so the course names the levels and does not invent a fraction.

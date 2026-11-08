@@ -24,7 +24,10 @@ KICKER = "setup.family3.kicker"
 BEAR_GAP = "setup.family3.bear_gap"
 KICKER_MAX_STOP = 0.035     # the owner, 2026-11-02
 
-# what each detector says, in words a member reads (the detector named beside each)
+# what each detector says, in words a member reads (the detector named beside each). The Bear gap has none: the app
+# defines no trade for it (its finder marks the first crack off a top), and the obvious stop, the gap day's high, sat 25%
+# over the close on VRNS 2025-10-29 (a gap that opened 37% down and closed at the day's low), so the lesson measures the
+# fall and the line it must stay under instead of inventing a trade (the owner's rule 8: nothing invented).
 PLANS = {
     KICKER: {
         "entry": "over the red day's high, on the Kicker day (or the day-1 30-minute opening-range break)",
@@ -64,16 +67,6 @@ PLANS = {
         "trim": "the post-gap high is the first place to take some off",
         "source": "uct_gap_support.py",
     },
-    BEAR_GAP: {
-        "entry": "the gap day's close, short",
-        # the app's rule for a bearish edge bar (uct_hve: the stop is the bar's high); the gap-fill level (the prior
-        # day's low) is where the setup has failed outright, too wide for a stop on a gap of 5% or more
-        "stop": "the gap day's high",
-        "trail": "above each lower high",
-        "fails": "a close back above the prior day's low fills the gap: the setup has failed",
-        "source": "study_hard.bear_gap_fires; uct_hve.py (a bearish edge bar's stop is its high); the gap-fill level "
-                  "of scripts/study/find_bear_gap_examples.py",
-    },
 }
 
 
@@ -108,9 +101,7 @@ def plan(skill: str, raw_bars: list) -> Optional[dict]:
         return None
     b, p = bars[i], bars[i - 1]
     direction = "bullish"
-    if skill == BEAR_GAP:
-        direction, entry, stop = "bearish", b["c"], b["h"]
-    elif skill == "setup.family3.hve":
+    if skill == "setup.family3.hve":
         direction = cand.get("direction") or ("bullish" if b["c"] >= p["c"] else "bearish")
         entry = cand.get("trigger", b["c"])
         stop = cand.get("stop", b["l"] if direction == "bullish" else b["h"])

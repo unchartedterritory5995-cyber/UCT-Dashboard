@@ -1,6 +1,6 @@
 """THE TRADE PLAN (api/services/study_trade.py): entry, stop and the 2R / 3R targets come from the setup's own detector
 (its trigger and stop, the shared make_levels), the Kicker on the owner's rulings (a cent over the red day's high, the
-Kicker's low or 3.5% under the entry, the closer), the Bear gap short from the gap day. Fake rules stand in for the
+Kicker's low or 3.5% under the entry, the closer); no invented trade for the Bear gap. Fake rules stand in for the
 detectors so each branch is reachable on a small chart."""
 from __future__ import annotations
 
@@ -44,10 +44,9 @@ def test_the_stop_is_3_5_pct_under_the_entry_when_the_kickers_low_is_further(rul
     assert p["stop"] == round(10.71 * (1 - 0.035), 2)
 
 
-def test_the_bear_gap_is_a_short_from_the_gap_days_close_with_its_high_as_the_stop(rules):
-    p = T.plan(T.BEAR_GAP, _bars(last={"t": "g", "o": 9.0, "h": 9.4, "l": 8.6, "c": 8.8, "v": 5000}))
-    assert p["direction"] == "bearish" and p["entry"] == 8.8 and p["stop"] == 9.4
-    assert p["t1"] < p["entry"] and p["t2"] < p["t1"]
+def test_the_bear_gap_has_no_invented_trade(rules):
+    """The app defines no Bear gap trade; the lesson measures the fall instead (VRNS: the gap day's high sat 25% over)."""
+    assert T.plan(T.BEAR_GAP, _bars(last={"t": "g", "o": 9.0, "h": 9.4, "l": 8.6, "c": 8.8, "v": 5000})) is None
 
 
 def test_no_plan_when_the_setup_does_not_fire_or_is_unknown(rules):
