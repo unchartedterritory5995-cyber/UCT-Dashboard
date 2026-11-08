@@ -331,3 +331,43 @@
   .row { flex-wrap: wrap; }
   .addAnother { margin-left: 26px; }
 }
+
+/* The search hint (Phase 4, unit 4-03): one muted row under the results when the
+   whole query equals a definition's declared hint query. Muted on purpose: it is a
+   pointer to another indicator, not a result. */
+.hintRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+.hintLine {
+  flex: 1 1 220px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.hintOn {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hintButton {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.hintButton:hover, .hintButton:focus-visible {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+  outline: none;
+}

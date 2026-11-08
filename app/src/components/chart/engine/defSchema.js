@@ -1153,6 +1153,128 @@ function validateMetaLearn(learn, errors) {
   })
 }
 
+// ─── `meta.tour` and `meta.searchHint` (UCT RS Phase 4, unit 4-03) ───────────
+//
+// Definition-level onboarding, read by the indicator library and its host. The
+// ENGINE knows no indicator by name: a definition declares its own cards and its
+// own disambiguation row, and these two validators are the whole contract.
+//
+//   meta.tour       [{title, body}] — 1 to TOUR_MAX_CARDS cards, shown one at a
+//                   time on the first add. Lengths are capped HERE so a card can
+//                   never outgrow the popover it is read in.
+//   meta.searchHint {queries, line, cta?} — when the member's WHOLE search
+//                   (trimmed, lower-cased, inner spaces collapsed) equals one of
+//                   `queries`, the library prints `line` under its results with
+//                   an Add button. Never a substring test: "rsi divergence" is a
+//                   search for RSI, not a confusion to correct.
+//
+// BEHAVIOURAL, so checked and refused (fail-closed), never preserved: a card
+// nobody can read in the space it gets, or a query in a form no search can equal,
+// is an author error the schema names rather than one a member finds.
+
+/** At most this many tour cards. */
+export const TOUR_MAX_CARDS = 6
+/** A card title's length cap, in characters. */
+export const TOUR_TITLE_MAX = 60
+/** A card body's length cap, in characters. */
+export const TOUR_BODY_MAX = 240
+/** The closed set of fields a `meta.tour[]` card may carry. */
+export const META_TOUR_FIELDS = Object.freeze(['title', 'body'])
+/** The closed set of fields `meta.searchHint` may carry. */
+export const SEARCH_HINT_FIELDS = Object.freeze(['queries', 'line', 'cta'])
+/** The hint line's length cap, in characters. */
+export const SEARCH_HINT_LINE_MAX = 160
+/** The optional button label's length cap, in characters. */
+export const SEARCH_HINT_CTA_MAX = 40
+
+/** The one normal form a search is compared in: trimmed, lower-cased, runs of
+ *  whitespace collapsed to one space. A hint query must already be in it, and the
+ *  library compares the member's query in it — an exact comparison, nothing more. */
+export function normalizeHintQuery(q) {
+  return String(q ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function validateMetaTour(tour, errors) {
+  if (!Array.isArray(tour)) {
+    errors.push(`meta.tour: expected an array of cards [{title, body}], got ${fmt(tour)}`)
+    return
+  }
+  if (tour.length === 0) {
+    errors.push('meta.tour: expected at least one card {title, body} — a definition with no tour declares no meta.tour')
+    return
+  }
+  if (tour.length > TOUR_MAX_CARDS) {
+    errors.push(`meta.tour: ${tour.length} cards — at most ${TOUR_MAX_CARDS}`)
+  }
+  tour.forEach((card, i) => {
+    const path = `meta.tour[${i}]`
+    if (!isPlainObject(card)) {
+      errors.push(`${path}: expected an object {title, body}, got ${fmt(card)}`)
+      return
+    }
+    for (const k of Object.keys(card)) {
+      if (!META_TOUR_FIELDS.includes(k)) {
+        errors.push(`${path}.${k}: unknown tour card field — expected one of: ${list(META_TOUR_FIELDS)}`)
+      }
+    }
+    for (const [field, max] of [['title', TOUR_TITLE_MAX], ['body', TOUR_BODY_MAX]]) {
+      const v = card[field]
+      if (!isNonEmptyString(v)) {
+        errors.push(`${path}.${field}: required non-empty string, got ${fmt(v)}`)
+      } else if (v.length > max) {
+        errors.push(`${path}.${field}: ${v.length} characters — at most ${max}`)
+      }
+    }
+  })
+}
+
+function validateMetaSearchHint(hint, errors) {
+  if (!isPlainObject(hint)) {
+    errors.push(`meta.searchHint: expected an object {queries, line, cta?}, got ${fmt(hint)}`)
+    return
+  }
+  for (const k of Object.keys(hint)) {
+    if (!SEARCH_HINT_FIELDS.includes(k)) {
+      errors.push(`meta.searchHint.${k}: unknown search hint field — expected one of: ${list(SEARCH_HINT_FIELDS)}`)
+    }
+  }
+  const { queries, line, cta } = hint
+  if (!Array.isArray(queries) || queries.length === 0) {
+    errors.push(`meta.searchHint.queries: expected a non-empty array of lower-case search strings, got ${fmt(queries)}`)
+  } else {
+    const seen = new Set()
+    queries.forEach((q, i) => {
+      const path = `meta.searchHint.queries[${i}]`
+      if (!isNonEmptyString(q)) {
+        errors.push(`${path}: required non-empty string, got ${fmt(q)}`)
+      } else if (normalizeHintQuery(q) !== q) {
+        // A query outside the normal form can never equal a search, so it would
+        // be a hint that silently never shows.
+        errors.push(
+          `${path}: ${fmt(q)} must be lower-case and trimmed, with single spaces — ` +
+          `the library compares the whole search in that form, so this query could never match`,
+        )
+      } else if (seen.has(q)) {
+        errors.push(`${path}: duplicate query ${fmt(q)}`)
+      } else {
+        seen.add(q)
+      }
+    })
+  }
+  if (!isNonEmptyString(line)) {
+    errors.push(`meta.searchHint.line: required non-empty string (the sentence shown under the results), got ${fmt(line)}`)
+  } else if (line.length > SEARCH_HINT_LINE_MAX) {
+    errors.push(`meta.searchHint.line: ${line.length} characters — at most ${SEARCH_HINT_LINE_MAX}`)
+  }
+  if (cta !== undefined) {
+    if (!isNonEmptyString(cta)) {
+      errors.push(`meta.searchHint.cta: expected a non-empty string (the button label) or absent, got ${fmt(cta)}`)
+    } else if (cta.length > SEARCH_HINT_CTA_MAX) {
+      errors.push(`meta.searchHint.cta: ${cta.length} characters — at most ${SEARCH_HINT_CTA_MAX}`)
+    }
+  }
+}
+
 /**
  * @param {unknown} meta
  * @param {object} def the whole definition — `legendParams` names INPUT keys, so
@@ -1367,6 +1489,16 @@ function validateMeta(meta, def, errors) {
   // an unknown key renders no link (`learnHref` → null), never a broken one.
   if (meta.learn !== undefined && meta.learn !== null) {
     validateMetaLearn(meta.learn, errors)
+  }
+  // `tour` and `searchHint` (Phase 4, unit 4-03): first-add onboarding cards and
+  // the library's exact-query disambiguation row. Behavioural, so checked —
+  // see `validateMetaTour` / `validateMetaSearchHint`. `null` reads as absent,
+  // the same as `learn`.
+  if (meta.tour !== undefined && meta.tour !== null) {
+    validateMetaTour(meta.tour, errors)
+  }
+  if (meta.searchHint !== undefined && meta.searchHint !== null) {
+    validateMetaSearchHint(meta.searchHint, errors)
   }
   // `meta.legendFallback` (2026-11-07): the pane label's declared alternative value,
   // in the readout grammar. Each entry needs a scalar/payload source and a known format;
