@@ -1325,11 +1325,18 @@ export function readoutFallbackValue(def, scalars, decimals, inputs) {
   // of readout-grammar entries ({source, format, when?}). The first that
   // resolves is the pane label's value, LIVE (not muted, no date): a view that
   // blanks the primary line (the RS Mansfield view) names the line it draws.
+  // ⭐ rsLine rev 5 (2026-11-08): an entry may declare a `muted` GATE (the readout
+  // grammar's). While it holds, the entry's text is the pane label's value in the
+  // MUTED ink: the server's reason for an empty pane ("daily charts only") is what
+  // the label should say, never another reading's number. An entry with no `muted`
+  // is unchanged (live, as before).
   const alts = def && def.meta && Array.isArray(def.meta.legendFallback) ? def.meta.legendFallback : []
   if (alts.length) {
     const rows = readoutRows({ ...def, readout: alts.map((a, i) => ({ ...a, key: a.key || `legendFallback${i}`, label: a.label || 'value' })) },
       scalars, { inputs: inputs || {} })
-    if (rows.length && rows[0].text && !rows[0].muted) return { text: rows[0].text, muted: false }
+    const first = rows.length ? rows[0] : null
+    const gated = first && typeof (alts.find((a, i) => (a.key || `legendFallback${i}`) === first.key) || {}).muted === 'string'
+    if (first && first.text && (!first.muted || gated)) return { text: first.text, muted: first.muted === true }
   }
   const legend = scalars && typeof scalars === 'object' && scalars.legend && typeof scalars.legend === 'object'
     ? scalars.legend : null

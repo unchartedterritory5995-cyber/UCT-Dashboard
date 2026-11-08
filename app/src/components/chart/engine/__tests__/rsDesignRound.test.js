@@ -29,10 +29,12 @@ import { IND_TOKENS } from '../../designTokens'
 const RS = getDefinition('rsLine')
 const NEW_INPUTS = ['shadeVsAverage', 'showCrossMarkers', 'showRanksTable']
 
+// Round 2 (rev 5): the v4 payload carries `m9`, so the table prints five ranks.
 const RATING = Object.freeze({
-  ibd: 94, fast: 91, asof: '2026-11-06', d5: 2, d20: 7, m1: 91, m3: 97, m6: 95, m12: 96,
-  source: 'row', summary: '94 · fast 91', components: '1M 91 · 3M 97 · 6M 95 · 12M 96',
+  ibd: 94, fast: 91, asof: '2026-11-06', d5: 2, d20: 7, m1: 91, m3: 97, m6: 95, m9: 93, m12: 96,
+  source: 'row', summary: '94 · fast 91', components: '1M 91 · 3M 97 · 6M 95 · 9M 93 · 12M 96',
 })
+const RANKS = [['1M', '91'], ['3M', '97'], ['6M', '95'], ['9M', '93'], ['12M', '96'], ['RS', '94']]
 const payload = (rating = RATING) => ({ rating })
 const cols = (t) => t.columns.map((c) => [c.label, c.text])
 
@@ -56,7 +58,7 @@ describe('the three new inputs are presentation inputs', () => {
     for (const k of NEW_INPUTS) expect(sent, k).not.toHaveProperty(k)
     // so turning any of them on is the SAME request, and compute.rev stays where it was
     expect(pickServerInputs(RS, resolveInputs(RS, { shadeVsAverage: true }))).toEqual(pickServerInputs(RS, resolveInputs(RS, {})))
-    expect(RS.compute.rev).toBe(4)
+    expect(RS.compute.rev).toBe(5)        // rev 5 is round 2's Reading, not these presentation inputs
   })
 
   it('the definition still validates through the schema, and the engine names no tenant in the new modules', () => {
@@ -73,21 +75,24 @@ describe('the three new inputs are presentation inputs', () => {
 
 // ─── 1. the ranks table ─────────────────────────────────────────────────────
 describe('the ranks table (meta.paneTable)', () => {
-  it('prints 1M 3M 6M 12M and the rating, in that order, from the payload', () => {
+  it('prints 1M 3M 6M 9M 12M and the rating, in that order, from the payload', () => {
     const t = paneTableFor(RS, payload(), { inputs: {} })
-    expect(cols(t)).toEqual([['1M', '91'], ['3M', '97'], ['6M', '95'], ['12M', '96'], ['RS', '94']])
+    expect(cols(t)).toEqual(RANKS)
     expect(t.label).toBe('RS ranks')
     expect(t.columns.find((c) => c.key === 'rating').emphasis).toBe(true)
     expect(t.columns.filter((c) => c.emphasis)).toHaveLength(1)
   })
 
-  it('⭐ a 9M column slots in, between 6M and 12M, the day the payload carries rating.m9 — even as null', () => {
-    expect(cols(paneTableFor(RS, payload({ ...RATING, m9: 93 }), {})).map((c) => c[0]))
-      .toEqual(['1M', '3M', '6M', '9M', '12M', 'RS'])
+  it('⭐ round 2: 9M is a REQUIRED column, between 6M and 12M; a rank not stored yet is a muted dash', () => {
+    expect(RS.meta.paneTable.columns.find((c) => c.key === 'm9')).toEqual({ key: 'm9', label: '9M', source: 'scalar:rating.m9' })
+    expect(RS.meta.paneTable.columns.some((c) => c.optional)).toBe(false)
+    // a row stored before the 9M rank existed (null until `--fill-column m9`)
     const nul = paneTableFor(RS, payload({ ...RATING, m9: null }), {})
     expect(cols(nul)[3]).toEqual(['9M', MISSING_TEXT])
-    // absent key ⇒ no column (today's server)
-    expect(cols(paneTableFor(RS, payload(), {})).map((c) => c[0])).not.toContain('9M')
+    // a payload with no key at all (a v3 server) still prints the column, as a dash
+    const { m9, ...v3 } = RATING
+    expect(m9).toBe(93)
+    expect(cols(paneTableFor(RS, payload(v3), {}))[3]).toEqual(['9M', MISSING_TEXT])
   })
 
   it('⛔ a missing rank is a muted dash, never a number; a young listing keeps its other ranks', () => {
@@ -116,7 +121,7 @@ describe('the ranks table (meta.paneTable)', () => {
 
   it('colours by the site\'s rating bands only while Rating colours is on', () => {
     const on = paneTableFor(RS, payload({ ...RATING, m1: 35, m3: 45, m6: 65 }), {})
-    expect(on.columns.map((c) => c.band)).toEqual(['lag', 'neutral', 'strong', 'lead', 'lead'])
+    expect(on.columns.map((c) => c.band)).toEqual(['lag', 'neutral', 'strong', 'lead', 'lead', 'lead'])
     const off = paneTableFor(RS, payload(), { inputs: { ratingBands: false } })
     expect(off.columns.every((c) => c.band === undefined)).toBe(true)
   })
@@ -133,7 +138,7 @@ describe('the ranks table (meta.paneTable)', () => {
     const registry = { getDefinition, listDefinitions: () => [RS] }
     const scalarsOf = () => payload()
     const chip = legendChips([], null, registry, [inst], { scalarsOf }).find((c) => c.plotKey === 'rsLine')
-    expect(chip.paneTable && cols(chip.paneTable)).toEqual([['1M', '91'], ['3M', '97'], ['6M', '95'], ['12M', '96'], ['RS', '94']])
+    expect(chip.paneTable && cols(chip.paneTable)).toEqual(RANKS)
     expect(chip.readout.find((r) => r.key === 'rating').text).toBe('94')
     // no reader, or nothing landed: no table field at all
     expect(legendChips([], null, registry, [inst]).find((c) => c.plotKey === 'rsLine')).not.toHaveProperty('paneTable')

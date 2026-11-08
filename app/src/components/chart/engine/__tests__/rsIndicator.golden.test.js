@@ -86,6 +86,8 @@ const CLIENT_DERIVED_DOTS = Object.freeze({ dotCrossUp: 'crossUp', dotCrossDown:
 const LINE_FIXTURE = Object.freeze({
   rsLine: 'rs_events_default', rsAbove: 'rs_events_default', rsMa: 'rs_events_default', mansfield: 'rs_mansfield',
   rsRatio: 'rs_rrg', rsMomentum: 'rs_rrg', clenowScore: 'rs_clenow', vars: 'rs_vars', varsMa: 'rs_vars',
+  // rev 5 (Deepvue round 2): the RS Rating Reading, from the hand-checkable case
+  ratingLine: 'rs_rating_view', ratingMa: 'rs_rating_view',
 })
 
 const isEvent = (v) => v === null || v === 0 || v === 1
@@ -176,7 +178,7 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     // a line plot by declaration and a column in the fixture like the others.
     // `mansfield` (2a-14) is the Trend preset's line and lives in rs_mansfield.json.
     expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa', 'mansfield',
-      'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa'])
+      'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa', 'ratingLine', 'ratingMa'])
     for (const p of lines) {
       const fx = LINE_FIXTURE[p.key]
       expect(fx, `line plot "${p.key}" has no fixture in LINE_FIXTURE`).toBeDefined()
@@ -189,7 +191,7 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     for (const p of def.plots) expect(['line', 'markers', 'hlines'], `plot "${p.key}" style ${p.style}`).toContain(p.style)
     // v4: one guide per reading that has a centre — Rotation's 100 and VARS's zero.
     expect(def.plots.filter(p => p.style === 'hlines').map(p => [p.key, p.levels]))
-      .toEqual([['mansfieldZero', [0]], ['rotationCentre', [100]], ['varsZero', [0]]])
+      .toEqual([['mansfieldZero', [0]], ['rotationCentre', [100]], ['varsZero', [0]], ['ratingGuides', [80, 90]]])
   })
 
   it('events are {0, 1, null} and each one FIRES; dots are finite EXACTLY where their event is 1 and equal rsLine there', () => {
@@ -372,7 +374,7 @@ describe('rs_mansfield — the Mansfield fixture, read by the JS lane as the con
     const cols = { mansfield: exp.mansfield, mansfieldCrossUp: exp.mansfieldCrossUp,
       mansfieldCrossDown: exp.mansfieldCrossDown, dotMansfieldCross: exp.dotMansfieldCross }
     const parsed = columnsFromWire({ times: m.bars.map(b => b.t), columns: cols, rev: def.compute.rev })
-    expect(parsed.rev).toBe(4)
+    expect(parsed.rev).toBe(5)
     const aligned = alignColumns(parsed, m.bars)
     for (const key of Object.keys(cols)) {
       exp[key].forEach((e, i) => {
@@ -398,7 +400,7 @@ describe('rs_mansfield — the Mansfield fixture, read by the JS lane as the con
 function expectWireRoundTrip(fx, keys, def) {
   const cols = Object.fromEntries(keys.map(k => [k, fx.expected[k]]))
   const parsed = columnsFromWire({ times: fx.bars.map(b => b.t), columns: cols, rev: def.compute.rev })
-  expect(parsed.rev).toBe(4)
+  expect(parsed.rev).toBe(5)
   const aligned = alignColumns(parsed, fx.bars)
   for (const key of keys) {
     expect(aligned[key]).toBeInstanceOf(Float64Array)
@@ -472,6 +474,16 @@ describe('3-08 — the Rotation, Quality and VARS plots read the Phase 3 golden 
     }
     expect(plot('varsMa').lineStyle).toBe('largeDashed')
     expectWireRoundTrip(v, ['vars', 'varsMa'], def)
+  })
+
+  // rev 5 (Deepvue round 2): the RS Rating Reading's hand-checkable case, the same
+  // file `tests/test_rs_rating_view.py` runs through the real provider.
+  it('rs_rating_view: the stored rating and its 21-session average, gaps kept as gaps', () => {
+    const rv = loadCase('rs_rating_view')
+    const fx = { ...rv, bars: rv.sessions.map(t => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 })) }
+    expectWireRoundTrip(fx, ['ratingLine', 'ratingMa'], def)
+    expect(rv.expected.ratingLine[17]).toBeNull()
+    expect(rv.expected.ratingMa.slice(26)).toEqual([70, 71, 72, 73])
   })
 
   it('every v4 wire column the definition draws is a plot, and the guides are the views\' own', () => {

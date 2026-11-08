@@ -178,8 +178,11 @@ def test_the_columns_route_carries_the_rs_server_timing_header(monkeypatch, v2_r
 #   Clenow's O(n·w) fit is computed on the tail the chart shows (`count` +
 #   window) and only under the Quality view; the block reads one window.
 # * 600-bar daily, v4: envelope JSON 90,720 bytes (v3: 71,851 on the same run), pinned within 2%.
+#   Rev 5 (Deepvue round 2, 2026-11-08): 96,931 bytes, re-measured on the same
+#   fixture: the RS Rating Reading's two columns (all-null outside that view,
+#   ~3 kB each at 600 bars), `rating.m9` and the `ratingHistory` block.
 BYTES_BUDGET_5000_V4 = 1_070_000
-SIZE_600_PIN_V4 = 90_720
+SIZE_600_PIN_V4 = 96_931
 
 
 @pytest.fixture
@@ -234,3 +237,98 @@ def test_the_v4_phase3_work_is_bounded_to_the_tail_the_chart_shows(lane_v4, monk
     count = rsp._rs_bars_count("D", env["payload"]["inputs"]["lookback"])
     assert seen and max(seen) <= count + env["payload"]["inputs"]["clenowWindow"], seen
     assert all(v is None for v in env["columns"]["clenowScore"][:5000 - count - 90])
+
+
+# ── Deepvue round 2 (2026-11-08, `compute.rev` 5): the RS Rating Reading ──────
+#
+# The Reading's one extra read is `rs_history.rating_series`: a walk of the
+# `(ticker, session)` index for the chart's bars plus 20, from a real SQLite
+# file (`EXPLAIN QUERY PLAN`: `SEARCH ... USING INDEX idx_rsh_ticker (ticker=?
+# AND session<?)`, pinned in tests/test_rs_rating_view.py). Measured on the same
+# box (study venv, 2026-11-08), 5,000 daily bars over a store of 1,300 stored
+# sessions x 60 tickers (78,000 rows; five trading years, the deepest the
+# backfill writes, plus the nightly's), median of 5 cold builds:
+# * build: rating view 460 ms against 427 ms for the ratio view on the same run,
+#   inside the 1,500 ms budget the other views carry;
+# * the `rating` stage (the nightly row read, stubbed here, plus the series
+#   read): median 9.3 ms; the series read alone 5.1 ms at limit 5,020 and 4.0 ms
+#   at the default chart's 872. ⚠️ At this store size an unindexed scan is about
+#   as fast (4.7 ms), so the time budget is NOT what proves the index: the query
+#   plan rail is. The budget catches a read that grows with the store or a
+#   second read per bar.
+# * envelope: 5,000-bar rating view 782,083 bytes, inside the v4 byte budget.
+RATING_STORE_SESSIONS = 1_300
+RATING_STORE_TICKERS = 60
+#: The `rating` stage under the RS Rating view, ms: measured median 9.3 ms;
+#: ~3x, so a slow box does not flake while a per-bar read pattern still reds.
+MS_BUDGET_RATING_READ = 30.0
+
+
+def _dated(store: dict, n: int) -> dict:
+    """`_long_daily`'s bars on weekday YYYYMMDD keys ending 2026-11-06 (the
+    rating history is keyed by session date; the fixture's `t` is a counter)."""
+    import datetime as _dt
+    days, d = [], _dt.date(2026, 11, 6)
+    while len(days) < n:
+        if d.weekday() < 5:
+            days.append(int(d.strftime("%Y%m%d")))
+        d -= _dt.timedelta(days=1)
+    days.sort()
+    return {s: [dict(b, t=t) for b, t in zip(bars, days)] for s, bars in store.items()}, days
+
+
+@pytest.fixture
+def rating_store(tmp_path, monkeypatch):
+    import sqlite3
+    from api.services.screener import rs_history
+    path = tmp_path / "screener.db"
+    monkeypatch.setenv("SCREENER_DB_PATH", str(path))
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
+    store, days = _dated(_long_daily(n=5000), 5000)
+    sessions = [f"{str(t)[:4]}-{str(t)[4:6]}-{str(t)[6:]}" for t in days[-RATING_STORE_SESSIONS:]]
+    tickers = ["NVDA"] + [f"T{i:03d}" for i in range(RATING_STORE_TICKERS - 1)]
+    conn = sqlite3.connect(path)
+    rs_history.ensure_schema(conn)
+    conn.executemany(
+        f"INSERT INTO {rs_history.TABLE} (session, ticker, ibd, m1, m3, m6, m9, m12, score, bars) "
+        "VALUES (?, ?, ?, 50, 50, 50, 50, 50, 1.0, 253)",
+        [(s, t, 1 + (i * 7 + j) % 99) for i, s in enumerate(sessions) for j, t in enumerate(tickers)])
+    conn.commit()
+    conn.close()
+    return store
+
+
+@pytest.fixture
+def lane_rating(monkeypatch, lane_v4, rating_store):
+    monkeypatch.setitem(INPUTS, "view", "rating")
+    return lambda: lane_v4(rating_store)
+
+
+def test_the_rating_view_5000_bar_payload_stays_under_the_v4_byte_budget(lane_rating):
+    env = lane_rating()
+    assert len(env["times"]) == 5000
+    assert sum(1 for v in env["columns"]["ratingLine"] if v is not None) == RATING_STORE_SESSIONS
+    size = _wire_bytes(env)
+    assert size < BYTES_BUDGET_5000_V4, f"the 5,000-bar rating-view envelope is {size} bytes"
+
+
+def test_the_rating_view_5000_bar_compute_and_its_read_stay_in_budget(lane_rating, lane_v4, rating_store,
+                                                                     monkeypatch):
+    lane_rating()                                           # warm the imports and the file cache
+    runs, reads = [], []
+    for _ in range(5):
+        t = time.perf_counter()
+        lane_rating()
+        runs.append((time.perf_counter() - t) * 1000.0)
+        reads.append(rsp.last_timing()["stages"]["rating"])
+    med, read = statistics.median(runs), statistics.median(reads)
+    monkeypatch.setitem(INPUTS, "view", "ratio")
+    ratio = []
+    for _ in range(5):
+        t = time.perf_counter()
+        lane_v4(rating_store)
+        ratio.append((time.perf_counter() - t) * 1000.0)
+    print(f"[measure] 5000 bars: rating view build median {med:.0f} ms (ratio view {statistics.median(ratio):.0f} ms), "
+          f"rating stage median {read:.2f} ms, envelope {_wire_bytes(lane_rating())} bytes")
+    assert med < MS_BUDGET_5000, f"5,000-bar rating-view build median {med:.0f} ms (runs {runs})"
+    assert read < MS_BUDGET_RATING_READ, f"the rating stage median {read:.1f} ms (runs {reads})"

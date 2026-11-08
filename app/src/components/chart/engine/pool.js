@@ -552,11 +552,41 @@ export function fixedRangeProvider(min, max) {
   return fn
 }
 
+/**
+ * ⭐ THE INCLUDE-RANGE PROVIDER (rsLine rev 5, 2026-11-08) — `plots[].autoscaleInclude`.
+ * Unlike the fixed range above it answers NOTHING of its own while the series has
+ * no data in view (`baseImplementation()` is null): a series the server blanks
+ * under another reading must not reframe that reading's scale. With data, it
+ * widens the series' own range to include `[min, max]` (guides at fixed levels,
+ * the RS Rating's 80 and 90, stay on screen) and keeps the library's margins.
+ * Memoised by range, like the fixed one.
+ */
+const INCLUDE_PROVIDERS = new Map()
+export function includeRangeProvider(min, max) {
+  const key = `${min}:${max}`
+  let fn = INCLUDE_PROVIDERS.get(key)
+  if (!fn) {
+    fn = (baseImplementation) => {
+      const base = baseImplementation()
+      const pr = base && base.priceRange
+      if (!pr || !Number.isFinite(pr.minValue) || !Number.isFinite(pr.maxValue)) return base
+      return { priceRange: { minValue: Math.min(min, pr.minValue), maxValue: Math.max(max, pr.maxValue) },
+        ...(base.margins ? { margins: base.margins } : {}) }
+    }
+    INCLUDE_PROVIDERS.set(key, fn)
+  }
+  return fn
+}
+
 /** The provider a series gets: the declared fixed range when placement passed
- *  one on a self-owned scale, else the mode's singleton. */
-function providerFor(mode, range) {
+ *  one on a self-owned scale; else the plot's own include range (rev 5); else the
+ *  mode's singleton. A guest on another axis (`exclude`) is never widened. */
+function providerFor(mode, range, include) {
   if (range && Number.isFinite(range.min) && Number.isFinite(range.max) && mode !== 'exclude') {
     return fixedRangeProvider(range.min, range.max)
+  }
+  if (include && Number.isFinite(include.min) && Number.isFinite(include.max) && mode !== 'exclude') {
+    return includeRangeProvider(include.min, include.max)
   }
   return autoscaleProvider(mode)
 }
@@ -712,7 +742,8 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ …AND THE SAME OUTRANKING FOR AUTOSCALE: a moving average on price is
     // part of the candles' framing (a far SMA 200 stays in view), as the overlay
     // renderer drew it, unless the surface fits price to the candles.
-    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange),
+    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange,
+      plot && plot.autoscaleInclude),
   }
 
   // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
