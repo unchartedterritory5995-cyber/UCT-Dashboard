@@ -53,7 +53,7 @@ import ChartKey from './ui/ChartKey'
 import { SymbolBadge } from './ui/StudyChart'
 import brandMark from '../../components/intro/assets/compass-mark.png'
 import { reviewTrade } from './challenges/hardMode'
-import { tradeAnnotations } from './challenges/tradeMarks'
+import { tradeAnnotations, tradeMarkers } from './challenges/tradeMarks'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
 import sa from './ui/answerLooks.module.css'
@@ -65,7 +65,7 @@ import VerdictTakeover from './ui/VerdictTakeover'
 import UiStamp from './ui/Stamp'
 import { barStats } from './drillLook'
 import { memberSettingsOverride } from './studyChartLook'
-import { setupName } from './challenges/challengeBank'
+import { SETUP_SKILLS, setupName } from './challenges/challengeBank'
 import d5 from '../../lab/duo.module.css'
 import styles from './DrillPlayer.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -217,13 +217,15 @@ export default function DrillPlayer({
   const pointer = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
     if (phase !== 'reveal' || !result) return null
-    return (keyTrade && tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars, baseLen)) || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
+    return (keyTrade && tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars)) || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
   }, [chartVisible, chartBars, item?.type, baseLen, phase, result, keyTrade])
   const callouts = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
     const tone = phase === 'reveal' && result ? (result.correct ? 'ok' : 'bad') : 'ask'
-    return hardCallouts({ index: baseLen - 1, label: tone === 'ask' ? 'This candle' : tone === 'ok' ? 'You were right' : 'The answer', tone })
-  }, [chartVisible, chartBars, item?.type, baseLen, phase, result])
+    // N068 ("detailing the question much more"): a setup chart's pointer names the setup asked about
+    const asked = SETUP_SKILLS[item?.skill_id] ? `${SETUP_SKILLS[item.skill_id]} here?` : 'This candle'
+    return hardCallouts({ index: baseLen - 1, label: tone === 'ask' ? asked : tone === 'ok' ? 'You were right' : 'The answer', tone })
+  }, [chartVisible, chartBars, item?.type, item?.skill_id, baseLen, phase, result])
   const calloutStyle = useMemo(() => calloutLook(phone), [phone])
   // the facts a trader reads before answering, from the bars in hand (the question's own window, not the forward bars)
   const stats = useMemo(() => (needsChart && chartBars?.length ? barStats(chartBars.slice(0, baseLen || chartBars.length)) : []), [needsChart, chartBars, baseLen])
@@ -231,6 +233,13 @@ export default function DrillPlayer({
   // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
   // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
   const openMarkers = useMemo(() => (chartVisible ? studyOpenMarkers(item, chartBars) : null), [chartVisible, item, chartBars])
+  // the trade's action items join them on the reveal (challenges/tradeMarks.tradeMarkers), in the time order the chart wants
+  const lessonMarkers = useMemo(() => {
+    const own = openMarkers || []
+    const trade = phase === 'reveal' && result && item?.type === 'spot' ? (tradeMarkers(keyTrade, chartBars, baseLen) || []) : []
+    const both = [...own, ...trade]
+    return both.length ? both.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
+  }, [openMarkers, phase, result, item?.type, keyTrade, chartBars, baseLen])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -443,7 +452,7 @@ export default function DrillPlayer({
               calloutLook={calloutStyle}
               annotationsVisible={!!annotations}
               annotationsTextVisible={!!annotations}
-              markers={openMarkers}
+              markers={lessonMarkers}
               onCrosshairMove={onCrosshairMove}
               onChartTap={onChartTapLib}
             />

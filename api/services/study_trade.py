@@ -70,6 +70,38 @@ PLANS = {
 }
 
 
+def replay_checks(skill: str) -> list:
+    """THE REPLAY STOPS AND ASKS (N033; the owner: pause in the replay "and ask about trimming, trailing, sell rules").
+    Two questions the run-on holds on, answered from the plan's own words and nothing else (docs/study/TRADE_PLANS.md:
+    "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at
+    each, so the course names the levels and does not invent a fraction"). At the first target: what the plan does
+    there. At the second, only when the detector names a trail: what happens to the stop on what is left. The wrong
+    choices are plainly not the plan; no other setup's trail is offered (most share "under each higher low", so one
+    would be as right as another). Not scored: the member answers, reads why, and the replay runs on."""
+    words = PLANS.get(skill) or {}
+    out = [{
+        "at": "t1",
+        "q": "2R just traded. What does the plan do here?",
+        "choices": ["Take some off: 2R is the first target", "Sell it all: the trade is done",
+                    "Buy more: it is working", "Nothing: 2R is not part of the plan"],
+        "answer": 0,
+        "why": "The plan's targets are 2R and 3R, the places to take some off. It names the levels, not how much to sell; "
+               "what is left rides on the stop.",
+    }]
+    trail = words.get("trail")
+    if trail:
+        out.append({
+            "at": "t2",
+            "q": "3R reached. What happens to the stop on what is left?",
+            # "It trails under each higher low"; the Gap Support's own words read as a tightening, so they say that
+            "choices": [f"It trails {trail}" if trail.startswith("under") else f"It tightens: {trail}",
+                        "It stays where it started", "It comes off: the rest needs no stop", "It moves up to 3R"],
+            "answer": 0,
+            "why": f"This setup's plan for the stop on what is left: {trail}.",
+        })
+    return out
+
+
 def plan(skill: str, raw_bars: list) -> Optional[dict]:
     """The trade on the chart's last candle when `skill` fires there: entry, stop, the 2R and 3R targets, the direction,
     the words for each, and the trail. None when the setup does not fire on the last bar or a rule cannot run."""
@@ -127,4 +159,6 @@ def plan(skill: str, raw_bars: list) -> Optional[dict]:
         "entry_note": words["entry"], "stop_note": words["stop"], "trail": words.get("trail"), "trim_note": words.get("trim"),
         "fails_note": words.get("fails"),
         "source": words["source"],
+        # the questions the replay stops on (N033): at the targets, from these same words
+        "checks": replay_checks(skill),
     }

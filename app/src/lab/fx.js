@@ -77,6 +77,7 @@ export function useRunOnTo(base, forward, count, on, { slowMs = 330, fastMs = 14
  *  null. */
 export function useRunOnTicks(base, forward, count, on, {
   ticks = null, keys = null, develop = null, slowMs = 330, fastMs = 140, slowN = 5, tickSlowMs = 150, tickFastMs = 40, fastTicks = 4,
+  holdAt = null,  // the replay stops and asks (ui/ReplayPause): a Set of whole-day counts it waits at, until the caller drops them
 } = {}) {
   const [pos, setPos] = useState({ k: 0, j: 0 })
   const [was, setWas] = useState(on)
@@ -85,7 +86,7 @@ export function useRunOnTicks(base, forward, count, on, {
   const still = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
   const { k, j } = pos
   useEffect(() => {
-    if (!on || still || k >= target) return undefined
+    if (!on || still || k >= target || (j === 0 && holdAt?.has(k))) return undefined
     const day = ticks?.[k]
     const m = develop && Array.isArray(day) && day.length > 1 ? day.length : 0
     const key = keys ? keys.has(k + 1) : k < slowN
@@ -97,7 +98,7 @@ export function useRunOnTicks(base, forward, count, on, {
       return { k: p.k + 1, j: 0 }
     }), ms)
     return () => clearTimeout(t)
-  }, [on, k, j, target, still, ticks, keys, develop, slowMs, fastMs, slowN, tickSlowMs, tickFastMs, fastTicks])
+  }, [on, k, j, target, still, holdAt, ticks, keys, develop, slowMs, fastMs, slowN, tickSlowMs, tickFastMs, fastTicks])
   const shown = still ? target : Math.min(k, target)
   const day = !still && k < target ? ticks?.[k] : null
   const growing = !!(develop && Array.isArray(day) && day.length > 1 && j > 0)

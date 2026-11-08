@@ -52,3 +52,20 @@ def test_the_bear_gap_has_no_invented_trade(rules):
 def test_no_plan_when_the_setup_does_not_fire_or_is_unknown(rules):
     assert T.plan("setup.family4.oops", _bars()) is None
     assert T.plan("setup.nope", _bars()) is None
+
+
+def test_the_replay_asks_only_what_the_plan_says(rules):
+    """N033: the replay stops at 2R and 3R; the answers are the plan's own words (TRADE_PLANS.md: the course names the
+    levels and does not invent a fraction), and the trail question exists only when the detector names a trail."""
+    for skill, words in T.PLANS.items():
+        checks = T.replay_checks(skill)
+        assert checks[0]["at"] == "t1" and checks[0]["answer"] == 0 and "2R" in checks[0]["choices"][0]
+        assert not any(ch.isdigit() and ch not in "23" for ch in "".join(checks[0]["choices"]))   # no invented fraction
+        if words.get("trail"):
+            assert checks[1]["at"] == "t2" and words["trail"] in checks[1]["choices"][checks[1]["answer"]]
+            # no other setup's trail is offered as a wrong answer
+            others = {w["trail"] for k, w in T.PLANS.items() if k != skill and w.get("trail")}
+            assert not any(o in c for o in others for c in checks[1]["choices"][1:])
+        else:
+            assert len(checks) == 1
+    assert T.replay_checks("setup.nope")[0]["at"] == "t1"

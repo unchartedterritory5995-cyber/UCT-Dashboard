@@ -25,16 +25,17 @@ import UiStamp from '../ui/Stamp'
 import LessonCard from '../ui/LessonCard'
 import sa from '../ui/answerLooks.module.css'
 import { reviewTrade } from './hardMode'
-import { tradeAnnotations } from './tradeMarks'
+import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import ChartKey from '../ui/ChartKey'
 import ReplayClock from '../ui/ReplayClock'
+import ReplayPause from '../ui/ReplayPause'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { beginRunXp, runXp, scoreAttempt, setupName } from './challengeBank'
-import { alignTicks, developing, fetchIntraday, keyDays, showChart } from './replayTicks'
+import { alignTicks, developing, dueCheck, fetchIntraday, keyDays, replayChecks, showChart } from './replayTicks'
 import { normalizeBars } from '../useStudySession'
 import { rules } from './kickerRules'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
@@ -92,8 +93,13 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
-  const { bars: all, clock } = useRunOnTicks(vis, fwd, fwd?.length || 0, state !== 'ask' && !takeover,
-    { slowMs: 200, fastMs: 200, ticks, keys, develop: developing })
+  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  const [answered, setAnswered] = useState(() => new Set())
+  const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
+  const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
+  const { bars: all, k, clock } = useRunOnTicks(vis, fwd, fwd?.length || 0, state !== 'ask' && !takeover,
+    { slowMs: 200, fastMs: 200, ticks, keys, develop: developing, holdAt })
+  const due = dueCheck(checks, k, answered)
   const highlight = useMemo(() => (state === 'ask' ? cands.map((c) => vis[c.i].t) : null), [cands, vis, state])
   const extra = useMemo(() => (highlight ? { highlightBarTime: highlight, highlightColor: GOLD } : null), [highlight])
   const word = name.toUpperCase()
@@ -130,10 +136,12 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   }
   const real = cands.find((c) => c.kind === 'real')
   // the trade on the chart and its key, as in Hard mode; a setup with no trade keeps the line at its close
+  const shownView = state === 'ask' ? view : Math.min(all.length, view + (all.length - n))
   const annotations = useMemo(() => {
     if (state === 'ask' || !n) return null
-    return (trade && tradeAnnotations(trade, vis[n - 1], all, n)) || rayAt(vis[n - 1], 'l', { id: 'l', label: '' })
+    return (trade && tradeAnnotations(trade, vis[n - 1], all)) || rayAt(vis[n - 1], 'l', { id: 'l', label: '' })
   }, [state, trade, vis, all, n])
+  const actions = useMemo(() => (state === 'ask' ? null : tradeMarkers(trade, all, n)), [state, trade, all, n])
   // Hard mode's design (the owner, 2026-11-08: one design for every mode): the status line, the chart as the hero, the
   // question header, the cards, the verdict line, one Check bar, the coach's card
   return (
@@ -146,10 +154,11 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
       <HudCombo label="Spot the Setup" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="spot-step" />
       <div className={`${lab.chartBox} ${s2.heroChart}`} ref={chartBox}>
         {state === 'ask' && pick == null ? <span className={lab.tapHint}>spot the {name}</span> : null}
-        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? view : Math.min(all.length, view + (all.length - n))} height={phone ? 340 : 480} annotations={annotations} callouts={callouts} calloutLook={look} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher}
+        <ChallengeChart id={item.id} bars={all} view={shownView} height={phone ? 340 : 480} annotations={annotations} markers={actions} callouts={callouts} calloutLook={look} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher}
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="spot-clock" />
       </div>
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="spot-pause" /> : null}
       {trade ? <ChartKey trade={trade} testId="spot-key" /> : null}
       {state === 'ask'
         ? <div className={sa.area}><div className={sa.lHead}><span className={sa.lEyebrow}>Spot the Setup · chart {idx + 1} of {total}</span><h2 className={sa.lQ}>Spot the {name}</h2><p className={sa.lDetail}>{cands.length} gold candles look alike; only one is the real {name}. Tap it on the chart or pick its card.</p></div></div>
@@ -172,7 +181,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
       })}</div>
       <div className={sa.area}><div className={`${sa.lFoot} ${state === 'ok' ? sa.footOk : state === 'bad' ? sa.footBad : ''}`}>
         {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="spot-check">Check</StudyButton>
-          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey={takeover ? null : 'Enter'} onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
+          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey={takeover || due ? null : 'Enter'} onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
       </div></div>
       {state !== 'ask' && (lesson || trade) ? <LessonCard text={lesson} setup={name} skillId={item.skill_id || item.skill || null} fired={true} trade={trade} showReads={false} testId="spot-lesson" /> : null}
     </div>

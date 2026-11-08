@@ -144,7 +144,7 @@ describe('HardChallenge', () => {
     expect(chart.getAttribute('data-legend')).toBe('shown')
     expect(chart.getAttribute('data-watermark')).toBe('')
     // round 21: the pointer is the callout layer on the last candle, no spotlight drawings
-    expect(chart.getAttribute('data-callouts')).toBe('29:Last candle')
+    expect(chart.getAttribute('data-callouts')).toBe('29:What fired here?')
     expect(chart.getAttribute('data-look')).toBe('1')
     expect(screen.getByTestId('study-chart').getAttribute('data-masked')).toBe('1')
     expect(screen.getByTestId('sym-label').textContent).not.toContain('JBI')

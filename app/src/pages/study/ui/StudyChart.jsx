@@ -36,7 +36,7 @@ export function SymbolBadge({ symbol = null, masked = true }) {
   )
 }
 
-export default function StudyChart({ id, bars, view = null, height = 400, annotations = null, callouts = null, calloutLook = null, chartOpts = null, symbol = null, masked = true, watermark = null, extra = null, frameEnd = null }) {
+export default function StudyChart({ id, bars, view = null, height = 400, annotations = null, callouts = null, calloutLook = null, chartOpts = null, symbol = null, masked = true, watermark = null, extra = null, frameEnd = null, markers = null }) {
   const { prefs } = usePreferences(true)
   const surface = useChartSurfaceSettings()        // read-only here: the session override below is what the chart persists to
   const own = surface.ownChartSource
@@ -71,13 +71,14 @@ export default function StudyChart({ id, bars, view = null, height = 400, annota
     settingsOverride: session.settingsOverride,
     onSettingsPersist: session.onSettingsPersist,
     annotations,
+    markers,   // the trade's action items (challenges/tradeMarks.tradeMarkers): the chart's own bar markers
     annotationsVisible: !!annotations,
     annotationsTextVisible: !!annotations,
     // round 21: the pointer is the chart's own callout layer (open space, never over a candle; ui/callout.js)
     callouts: callouts && callouts.length ? callouts : null,
     calloutLook,
     ...(extra || {}),
-  }), [bars, showWatermark, watermark, phone, shown, frameEnd, session.settingsOverride, session.onSettingsPersist, annotations, callouts, calloutLook, extra])
+  }), [bars, showWatermark, watermark, phone, shown, frameEnd, markers, session.settingsOverride, session.onSettingsPersist, annotations, callouts, calloutLook, extra])
   if (!n) return null
   return (
     <div className={`${ws.widget} ${s.frame}`} style={{ height }} data-charts-theme={prefs?.charts_theme || 'default'} data-testid="study-chart" data-masked={showWatermark || (!masked && symbol) ? '0' : '1'}>

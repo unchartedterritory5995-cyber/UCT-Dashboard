@@ -2,7 +2,7 @@
 // days, and each day ends as the daily candle the chart draws.
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { alignTicks, closeClock, developing, fetchIntraday, keyDays } from './replayTicks'
+import { alignTicks, closeClock, developing, dueCheck, fetchIntraday, keyDays, replayChecks } from './replayTicks'
 import { useRunOnTicks } from '../../../lab/fx'
 
 // 2024-06-03 9:30 New York (EDT, UTC-4) = 13:30 UTC
@@ -81,6 +81,32 @@ describe('the replay within the day', () => {
     expect(day1).toBe(13)
     expect(day2).toBe(4)
     expect(result.current.bars).toEqual(fwd)
+  })
+
+  it('asks the plan questions at the session each target traded, never after the stop', () => {
+    const checks = [{ at: 't1', q: 'q1', choices: ['a', 'b'], answer: 0 }, { at: 't2', q: 'q2', choices: ['a', 'b'], answer: 0 }]
+    expect(replayChecks({ kind: 'plan', t1At: 3, t2At: 6, stoppedSession: null, checks }).map((c) => [c.at, c.session])).toEqual([['t1', 3], ['t2', 6]])
+    expect(replayChecks({ kind: 'plan', t1At: 3, t2At: 6, stoppedSession: 5, checks }).map((c) => c.at)).toEqual(['t1'])
+    expect(replayChecks({ kind: 'plan', t1At: 0, t2At: null, checks })).toEqual([])         // reached on the signal day
+    expect(replayChecks({ kind: 'signal', checks })).toEqual([])
+    const due = replayChecks({ kind: 'plan', t1At: 3, t2At: 6, checks })
+    expect(dueCheck(due, 2, new Set())).toBe(null)
+    expect(dueCheck(due, 3, new Set())?.at).toBe('t1')
+    expect(dueCheck(due, 7, new Set(['t1']))?.at).toBe('t2')
+    expect(dueCheck(due, 7, new Set(['t1', 't2']))).toBe(null)
+  })
+
+  it('holds at a question and runs on once it is answered', () => {
+    vi.useFakeTimers()
+    const fwd = [DAY, { ...DAY, t: '2024-06-04' }, { ...DAY, t: '2024-06-05' }]
+    let holdAt = new Set([1])
+    const { result, rerender } = renderHook(() => useRunOnTicks([], fwd, 3, true, { slowMs: 10, fastMs: 10, holdAt }))
+    for (let i = 0; i < 5; i++) act(() => { vi.advanceTimersByTime(10) })
+    expect(result.current.k).toBe(1)                     // stopped after the first day
+    holdAt = new Set()
+    rerender()
+    for (let i = 0; i < 5; i++) act(() => { vi.advanceTimersByTime(10) })
+    expect(result.current.k).toBe(3)
   })
 
   it('runs a day tick by tick: slow on a key day, quick between, then the next day', () => {

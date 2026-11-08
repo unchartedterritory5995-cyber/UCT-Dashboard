@@ -531,3 +531,25 @@
 /* a phone: the ticker and its name fill the identity row, so the clock sits just under it, in the plot's top-left corner
    (the price legend is hidden on a phone, so that corner is free) */
 @media (max-width: 640px) { .replayClock { left: 10px; top: 58px; transform: none; padding: 4px 8px; gap: 6px; } .replayClock b { font-size: 14px; min-width: 4.9em; } .replayDay { font-size: 10px; letter-spacing: .12em; } }
+
+/* the replay stops and asks (ReplayPause.jsx): a card right under the chart, the plan's question, the shared tiles */
+.replayPause { margin-top: 12px; padding: 16px 18px 18px; border-radius: 16px; display: grid; gap: 12px;
+  background: linear-gradient(180deg, rgba(30, 27, 18, .96), rgba(14, 14, 16, .96));
+  border: 1px solid rgba(233, 205, 119, .5); box-shadow: 0 14px 40px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 240, 200, .06); }
+.replayPauseHead { display: grid; gap: 4px; }
+.replayPauseTag { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #e9cd77; }
+.replayPauseQ { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 800; color: #f8f7f3; letter-spacing: -.01em; }
+.replayPauseTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.replayPauseWhy { display: flex; align-items: center; gap: 14px; justify-content: space-between; padding: 12px 14px; border-radius: 12px; }
+.replayPauseWhy p { margin: 0; flex: 1; min-width: 0; font-size: 15px; line-height: 1.45; color: #e7e3d8; }
+.replayPauseGo { flex: none; white-space: nowrap; }
+.replayPauseOk { background: rgba(47, 175, 104, .12); border: 1px solid rgba(47, 175, 104, .45); }
+.replayPauseOk b { color: #9fe9bd; }
+.replayPauseBad { background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .45); }
+.replayPauseBad b { color: #ffb3b3; }
+@media (max-width: 640px) {
+  .replayPause { padding: 12px 12px 14px; gap: 10px; }
+  .replayPauseQ { font-size: 17px; }
+  .replayPauseTiles { grid-template-columns: 1fr; gap: 8px; }
+  .replayPauseWhy { flex-direction: column; align-items: stretch; }
+}

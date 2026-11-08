@@ -17,6 +17,7 @@ import Prompt from '../ui/Prompt'
 import UiStamp from '../ui/Stamp'
 import ChartKey from '../ui/ChartKey'
 import ReplayClock from '../ui/ReplayClock'
+import ReplayPause from '../ui/ReplayPause'
 import s2 from '../ui/study.module.css'
 import sa from '../ui/answerLooks.module.css'
 import lab from '../../../lab/lab.module.css'
@@ -25,8 +26,8 @@ import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { replayView, reviewTrade, withArticle } from './hardMode'
-import { tradeAnnotations } from './tradeMarks'
-import { alignTicks, developing, keyDays, showChart } from './replayTicks'
+import { tradeAnnotations, tradeMarkers } from './tradeMarks'
+import { alignTicks, developing, dueCheck, keyDays, replayChecks, showChart } from './replayTicks'
 import { setupName } from './challengeBank'
 import { normalizeBars, studyFetch } from '../useStudySession'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
@@ -62,8 +63,13 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
   const intraday = useMemo(() => (res?.forward_intraday?.days ? { tf: Number(res.forward_intraday.tf) || 30, days: res.forward_intraday.days } : null), [res])
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
-  const { bars: all, clock } = useRunOnTicks(vis, fwd, fwd.length, state !== 'ask' && !takeover,
-    { slowMs: 200, fastMs: 200, ticks, keys, develop: developing })
+  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  const [answered, setAnswered] = useState(() => new Set())
+  const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
+  const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
+  const { bars: all, k, clock } = useRunOnTicks(vis, fwd, fwd.length, state !== 'ask' && !takeover,
+    { slowMs: 200, fastMs: 200, ticks, keys, develop: developing, holdAt })
+  const due = dueCheck(checks, k, answered)
 
   const tap = ({ price }) => {
     if (state !== 'ask' || !Number.isFinite(price)) return
@@ -71,14 +77,16 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
     if (active === 'entry') { setEntry(p); if (stop == null) setActive('stop') } else { setStop(p); setActive(entry == null ? 'entry' : 'stop') }
     tapFeedback(prefs)
   }
+  const shownView = state === 'ask' ? Math.min(all.length, 80) : replayView(all.length, n)
   const annotations = useMemo(() => {
     const t0 = vis[n - 1]?.t
     const mine = []
     if (entry != null) mine.push({ id: 'my-entry', type: 'hray', points: [{ time: t0, price: entry }], color: '#f6e2a0', lineWidth: 2, lineStyle: 'dashed', showPriceLabel: true })
     if (stop != null) mine.push({ id: 'my-stop', type: 'hray', points: [{ time: t0, price: stop }], color: '#ff8a7a', lineWidth: 2, lineStyle: 'dashed', showPriceLabel: true })
-    const plan = state !== 'ask' && trade ? (tradeAnnotations(trade, vis[n - 1], all, n) || []) : []
+    const plan = state !== 'ask' && trade ? (tradeAnnotations(trade, vis[n - 1], all) || []) : []
     return [...plan, ...mine]
   }, [entry, stop, state, trade, vis, n, all])
+  const actions = useMemo(() => (state === 'ask' ? null : tradeMarkers(trade, all, n)), [state, trade, all, n])
 
   const check = async () => {
     if (entry == null || stop == null || busy || state !== 'ask') return
@@ -105,10 +113,11 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
       {state !== 'ask' && takeover ? <VerdictTakeover ok={ok} title={title} sub={offLine} label={trade ? 'See the trade' : 'See why'} onContinue={() => { setTakeover(false); showChart(chartBox.current) }} testId="draw-takeover" /> : null}
       <HudCombo label="Draw it" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="draw-step" />
       <div className={`${lab.chartBox} ${s2.heroChart}`} ref={chartBox}>
-        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? Math.min(all.length, 80) : replayView(all.length, n)} height={phone ? 340 : 480} annotations={annotations} onBarTap={state === 'ask' ? tap : null} fetcher={fetcher}
+        <ChallengeChart id={item.id} bars={all} view={shownView} height={phone ? 340 : 480} annotations={annotations} markers={actions} onBarTap={state === 'ask' ? tap : null} fetcher={fetcher}
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="draw-clock" />
       </div>
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="draw-pause" /> : null}
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="draw-key" /> : null}
       {state === 'ask'
         ? <div className={sa.area}><div className={sa.lHead}><span className={sa.lEyebrow}>Draw it · chart {idx + 1} of {total}</span><h2 className={sa.lQ}>{withArticle(item.name).replace(/^./, (c) => c.toUpperCase())} fired on the last candle. Where do you buy, and where does the stop go?</h2>
@@ -122,7 +131,7 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
       <div className={sa.area}><div className={`${sa.lFoot} ${state === 'ok' ? sa.footOk : state === 'bad' ? sa.footBad : ''}`}>
         {state === 'ask'
           ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" busy={busy} disabled={entry == null || stop == null} onClick={check} testId="draw-check">{busy ? 'Checking' : 'Check'}</StudyButton>
-          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey={takeover ? null : 'Enter'} onClick={() => onDone(ok, item.name, res?.sym || '')} testId="draw-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
+          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey={takeover || due ? null : 'Enter'} onClick={() => onDone(ok, item.name, res?.sym || '')} testId="draw-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
       </div></div>
     </div>
   )

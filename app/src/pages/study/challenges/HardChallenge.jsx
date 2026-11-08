@@ -23,7 +23,7 @@ import { useRunOnTicks } from '../../../lab/fx'   // pure motion (bars running o
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import { beginRunXp, fetchForwardRest, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
-import { alignTicks, developing, fetchIntraday, keyDays, showChart } from './replayTicks'
+import { alignTicks, developing, dueCheck, fetchIntraday, keyDays, replayChecks, showChart } from './replayTicks'
 import { yesNo } from './SpotSetupChallenge'
 import {
   HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, SHORT_SETUPS, culmination, culminationLabel, hardAnswer, hardChoices, hardRight,
@@ -42,7 +42,8 @@ import Stamp from '../ui/Stamp'
 import StudyChart from '../ui/StudyChart'
 import ChartKey from '../ui/ChartKey'
 import ReplayClock from '../ui/ReplayClock'
-import { tradeAnnotations } from './tradeMarks'
+import ReplayPause from '../ui/ReplayPause'
+import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import LessonCard from '../ui/LessonCard'
 import { Confetti } from '../ui/Stage'
 import { calloutLook, hardCallouts } from '../ui/callout'
@@ -96,7 +97,12 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade, culm) : null), [ticks, trade, culm])
-  const { bars: all, k, clock } = useRunOnTicks(bars, fwd, runN, state !== 'ask' && !takeover, { slowMs: RUN_ON_MS, ticks, keys, develop: developing })
+  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  const [answered, setAnswered] = useState(() => new Set())
+  const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
+  const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
+  const { bars: all, k, clock } = useRunOnTicks(bars, fwd, runN, state !== 'ask' && !takeover, { slowMs: RUN_ON_MS, ticks, keys, develop: developing, holdAt })
+  const due = dueCheck(checks, k, answered)
   // the question shows 90 sessions; the replay starts closer (the owner: "the replay starts way too far back"), 40
   // sessions of history and the signal, and widens as each day arrives so the whole run stays in view
   const view = state === 'ask' ? Math.min(90, all?.length || 0) : replayView(all?.length || 0, n)
@@ -104,13 +110,14 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const truth = fired === true ? item.name : fired === false ? NOTHING : 'The answer'
   const callouts = useMemo(() => hardCallouts({
     index: n - 1,
-    label: state === 'ask' ? 'Last candle' : truth,
+    label: state === 'ask' ? 'What fired here?' : truth,   // N068: the pointer carries the question to the candle
     tone: state,
     peak: peakOf(trade, culm, n, k),
   }), [n, state, truth, culm, k, trade])
   // round 22: the trade the lesson reviews, drawn on the chart as it runs on (the Kicker's entry and stop on the owner's
   // rules; for any other setup the line a close must not break)
-  const tradeLines = useMemo(() => (state === 'ask' ? null : tradeAnnotations(trade, bars[n - 1], all, n)), [state, trade, bars, n, all])
+  const tradeLines = useMemo(() => (state === 'ask' ? null : tradeAnnotations(trade, bars[n - 1], all)), [state, trade, bars, n, all])
+  const tradeMarks = useMemo(() => (state === 'ask' ? null : tradeMarkers(trade, all, n)), [state, trade, all, n])
   const check = async () => {
     if (pick == null || state !== 'ask' || busy) return
     setBusy(true)
@@ -171,12 +178,13 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
       <HudCombo step={idx} total={total} results={results} live={state === 'ask'} />
       <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`} ref={chartBox}>
         <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}
-          callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} annotations={tradeLines}
+          callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} annotations={tradeLines} markers={tradeMarks}
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="hard-clock" />
       </div>
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="hard-pause" /> : null}
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="hard-key" /> : null}
-      <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey={!takeover}
+      <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey={!takeover && !due}
         onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
         onNext={() => onDone(state === 'ok', xp, ticker, fired === false ? NOTHING : item.name, picked)} nextLabel={last ? 'See the run' : 'Next'}
         head={<Prompt mood={mood} tone={state} size={phone ? 40 : 48} title={headline} sub={detail}

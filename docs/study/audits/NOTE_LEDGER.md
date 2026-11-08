@@ -32,7 +32,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | Notes | What he asked | Status | Where |
 |---|---|---|---|
 | N001, N004, N023, N031, N062, N068, N083, N094, N111 | An arrow logically spaced, pointing at the candle; labels further away, never on candles; a much higher quality pill and arrow | Done | `ui/callout.js` (one pointer, kit v2 bolder ring and leader); in every mode since 2026-11-08 |
-| N068 | "highlighting the user and detailing the question much more" | Partly | the question header carries the detail; the pointer itself says only "This candle" |
+| N068 | "highlighting the user and detailing the question much more" | Done 2026-11-08 | the question header carries the detail, and the pointer now asks it at the candle: "What fired here?" in Hard mode, "Kicker here?" (the setup asked about) in Boss and the lesson player |
 | N040 | Spot game: candles that can be picked should show it (highlighted, slightly animated) | Done 2026-11-08 | gold rings and lettered pills on every candidate, arriving with one soft fade and lift (`ChartCalloutOverlay` `look.fadeIn`), never a pulse |
 
 ## 3. The question
@@ -69,7 +69,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N116, N117 | The chart lists the levels and the action items and explains them; on-screen explanations of levels | Done | `ui/ChartKey.jsx`, `challenges/tradeMarks.js`: Hard, Boss, Spot the Setup and the lesson player (whose chart now also carries Hard mode's pointer) |
 | N013, N087, N096, N116, N118 | Lessons simpler and easier to read, more direct, as a teacher; a better-looking text box | Drafts waiting on his approval | the lesson card (takeaway, trade tiles, on this chart, the setup as numbered steps); each setup's definition in plain words, three steps and a "not it" line (`studyPlainRules.js`, lab piece 72), shown in lessons once he approves each |
 | N065 | No bar count; % off the highs and % from the averages as a table | Done | "The read on this chart" in the lesson player |
-| N033 | Pause in the replay and ask about trimming, trailing, sell rules; no scrolling to reach the buttons | Partly | trim and trail are named in the key and the lesson; no question mid-replay yet; the Check bar is pinned |
+| N033 | Pause in the replay and ask about trimming, trailing, sell rules; no scrolling to reach the buttons | Done 2026-11-08 | the replay holds at 2R ("What does the plan do here?") and at 3R ("What happens to the stop on what is left?"), answered only from the plan's own words (`study_trade.replay_checks`; no fraction is invented, TRADE_PLANS.md), in a card right under the chart (`ui/ReplayPause.jsx`); not scored; Hard mode, Spot the Setup, Boss, Draw it |
 
 ## 7. The replay (the run-on)
 
@@ -79,7 +79,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N044 | Show the next candles a bit slower | Done | `RUN_ON_MS` slow mode |
 | N061 | No switch between a labelled and a bare chart; pick one | Done | rule 18 |
 | N010, N014, N019, N025 | Start closer, teach as it plays, tick by tick within each day (30-minute or hourly), faster between the key days, no flashing, no bouncing text | Built 2026-11-08; live once the server fill runs | each forward day grows through its real 30-minute closes (`useRunOnTicks`, `challenges/replayTicks.js`), every close on the key days (the first two, the targets, the stop, the best price), at most four between; a steady clock on the chart ("DAY 3 · 11:30 AM", `ui/ReplayClock.jsx`); the replay opens 40 sessions wide and widens with the run (`replayView`, the chart's anchor frame); Hard mode, Spot the Setup, Boss and Draw it. The bars: fetched once on the server and kept only for days that add up to the daily candle (`api/services/study_intraday.py`, `scripts/study/fill_replay_intraday.py`); checked on a real screen with the real hourly bars the server fetched for the Go Signal build (3,785 days, none off the daily candle). Charts before Sept 2003 keep the daily replay |
-| N072, N102 | Better replay graphics and animation | Partly | levels, BOUGHT / 2R / 3R / STOPPED OUT marks and the key; no change aimed at the motion itself |
+| N072, N102 | Better replay graphics and animation | Done 2026-11-08 | the replay grows each day through its 30-minute closes with a clock, opens close and widens; the action items are the chart's own bar markers (BOUGHT arrow, 2R and 3R dots, STOPPED), at their bar, never over a candle or under the price scale (`tradeMarks.tradeMarkers`) |
 
 ## 8. Status line and progress
 
@@ -113,7 +113,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N050, N051, N055, N056, N059, N060 | Bugs: Boss stuck, taps that do nothing, Face the Boss dead, no charts in the sandbox | Done | fixed in their rounds; every mode played start to end by the capture rig on 2026-11-08 |
 | N063, N106 | Trap becomes Spot the Kicker, then Spot the Setup | Done | `challenges/SpotSetupChallenge.jsx` |
 | N039, N045, N052, N057 | Draw-it: the drawing tool lands where it is put; show the entry as a line and explain; easier stop placement; no throbbing gold | Built 2026-11-08, waiting on his rank | `challenges/DrawItChallenge.jsx` + `POST /api/study/draw/score`: tap the entry then the stop (dashed lines, a chip to move either), scored against the setup's own plan; the review draws the plan beside yours with the chart key; no glow on the chart |
-| N017 | The loop more fun, exciting and interactive | Partly | the shared kit; the reward system is not built |
+| N017 | The loop more fun, exciting and interactive | Partly | the shared kit, the reward system (levels, trophies), the replay's questions; his ranks decide the rest |
 
 ## 12. Study home, the course path and rewards
 
@@ -151,10 +151,12 @@ for this section.
 1. Done 2026-11-08: the chart key and Hard mode's pointer in the lesson player (N116, N117); the risk to the stop in
    the key (N003); Blitz drawing a fresh, deeper pool every run and naming only verified setups (N042).
 2. Done 2026-11-08 on his "Yes and Yes": the ticker on the lesson card (N029) and the full-screen answer (N071).
-4. Spot the Setup: the candidates gently brought in, so the choosable candles read at a glance (N040).
+4. Done 2026-11-08: Spot the Setup's candidates brought in with one soft fade (N040).
 5. Done 2026-11-08: the Study home and the course path (N021, N022, N027, N030), the station page.
 6. Done 2026-11-08: a short tutorial at the start of each game (N036).
 7. Done 2026-11-08: the reward system (N035).
 8. Done 2026-11-08: Draw it in the product (N039, N045, N052, N057).
 9. Drafted 2026-11-08: the setups in plain words, waiting on his approval (N087, N096, N116, N118).
 10. Built 2026-11-08: the replay within the day (N010, N014, N019, N025); the server fill runs after the merge.
+11. Done 2026-11-08: the replay stops and asks at 2R and 3R (N033); the pointer asks the question at the candle (N068);
+    the trade's action items as bar markers (N072, N102).

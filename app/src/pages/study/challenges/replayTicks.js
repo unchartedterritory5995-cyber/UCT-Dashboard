@@ -78,3 +78,20 @@ export function closeClock(t, tfMin = 30, next = null) {
 export function showChart(el) {
   try { el?.scrollIntoView?.({ block: 'nearest' }) } catch { /* an old engine without options */ }
 }
+
+/** The questions the replay stops on (N033; api/services/study_trade.replay_checks, on the plan), each with the session
+ *  it waits for: 2R's at the session 2R traded, 3R's at 3R's; a target reached on the signal day itself, or after the
+ *  stop, asks nothing. */
+export function replayChecks(trade) {
+  if (!trade || trade.kind !== 'plan' || !Array.isArray(trade.checks)) return []
+  const before = (s) => trade.stoppedSession == null || s < trade.stoppedSession
+  const when = { t1: trade.t1At, t2: trade.t2At }
+  return trade.checks
+    .map((c) => ({ ...c, session: when[c.at] }))
+    .filter((c) => Number.isFinite(c.session) && c.session >= 1 && before(c.session) && Array.isArray(c.choices) && c.choices.length > 1)
+}
+
+/** The question due now: the first not yet answered whose session has fully arrived (`k` whole days in). */
+export function dueCheck(checks, k, answered) {
+  return (checks || []).find((c) => k >= c.session && !answered.has(c.at)) || null
+}

@@ -19,15 +19,16 @@ import VerdictTakeover from '../ui/VerdictTakeover'
 import UiStamp from '../ui/Stamp'
 import LessonCard from '../ui/LessonCard'
 import { replayView, reviewTrade } from './hardMode'
-import { tradeAnnotations } from './tradeMarks'
+import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import ChartKey from '../ui/ChartKey'
 import ReplayClock from '../ui/ReplayClock'
+import ReplayPause from '../ui/ReplayPause'
 import s2 from '../ui/study.module.css'
 import d5 from '../../../lab/duo.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { BOSS_TOTAL, beginRunXp, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
-import { alignTicks, developing, fetchIntraday, keyDays, showChart } from './replayTicks'
+import { alignTicks, developing, dueCheck, fetchIntraday, keyDays, replayChecks, showChart } from './replayTicks'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 
@@ -52,12 +53,18 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
-  const { bars: all, clock } = useRunOnTicks(bars, fwd, fwd?.length || 0, state !== 'ask' && !takeover,
-    { slowMs: 160, fastMs: 160, ticks, keys, develop: developing })
+  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  const [answered, setAnswered] = useState(() => new Set())
+  const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
+  const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
+  const { bars: all, k, clock } = useRunOnTicks(bars, fwd, fwd?.length || 0, state !== 'ask' && !takeover,
+    { slowMs: 160, fastMs: 160, ticks, keys, develop: developing, holdAt })
+  const due = dueCheck(checks, k, answered)
   // the pointer is the one Hard mode uses (the owner's rule 4: a designed arrow and label in open space, never over a
   // candle); after the verdict the close stays marked with a ray
   const ann = useMemo(() => (!n || !all || state === 'ask' ? null : rayAt(bars[n - 1], 'l', { id: `b${idx}l`, label: '' })), [all, bars, n, state, idx])
-  const callouts = useMemo(() => (n ? hardCallouts({ index: n - 1, label: state === 'ask' ? 'This candle' : state === 'ok' ? 'You were right' : 'The answer', tone: state }) : []), [n, state])
+  // N068 ("detailing the question much more"): the pointer asks about the setup at the candle
+  const callouts = useMemo(() => (n ? hardCallouts({ index: n - 1, label: state === 'ask' ? `${item.name} here?` : state === 'ok' ? 'You were right' : 'The answer', tone: state }) : []), [n, state, item.name])
   const look = useMemo(() => calloutLook(phone), [phone])
   const check = async () => {
     if (pick == null || state !== 'ask') return
@@ -81,7 +88,9 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   const picked = pick == null ? null : item.choices[pick]
   const answer = state === 'ask' ? null : state === 'ok' ? picked : (item.choices.find((c) => c !== picked) ?? null)
   // the trade on the chart and its key, as in Hard mode (the levels, BOUGHT, the targets, STOPPED OUT)
-  const marks = useMemo(() => (trade ? tradeAnnotations(trade, signal, all, n) : null), [trade, signal, all, n])
+  const view = state === 'ask' ? Math.min(90, all?.length || 0) : replayView(all?.length || 0, n)
+  const marks = useMemo(() => (trade ? tradeAnnotations(trade, signal, all) : null), [trade, signal, all])
+  const actions = useMemo(() => (trade ? tradeMarkers(trade, all, n) : null), [trade, all, n])
   return (
     <div className={`${s2.kit} ${s2.screen}`} data-testid="boss-question">
       {state !== 'ask' ? <span className={`${s2.flash} ${state === 'ok' ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
@@ -90,12 +99,13 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
         answer={answer} sub={<>{item.name}{sym ? <> · <b>{sym}</b></> : null}</>} xp={xp} label={trade ? 'See the trade' : 'See why'} onContinue={() => { setTakeover(false); showChart(chartBox.current) }} testId="boss-takeover" /> : null}
       <HudCombo label="Boss" step={idx} total={total} results={results} live={state === 'ask'} stepTestId="boss-step" />
       <div className={`${s2.heroChart} ${state === 'bad' ? s2.shake : ''}`} ref={chartBox}>
-        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? Math.min(90, all?.length || 0) : replayView(all?.length || 0, n)} height={phone ? 340 : 480} annotations={marks || ann} callouts={callouts} calloutLook={look} fetcher={fetcher}
+        <ChallengeChart id={item.id} bars={all} view={view} height={phone ? 340 : 480} annotations={marks || ann} markers={actions} callouts={callouts} calloutLook={look} fetcher={fetcher}
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="boss-clock" />
       </div>
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => setAnswered((a) => new Set([...a, due.at]))} testId="boss-pause" /> : null}
       {trade ? <ChartKey trade={trade} testId="boss-key" /> : null}
-      <AnswerLessonApp choices={item.choices} pick={pick} state={state} answer={answer} step={idx} total={total} hotkey={!takeover}
+      <AnswerLessonApp choices={item.choices} pick={pick} state={state} answer={answer} step={idx} total={total} hotkey={!takeover && !due}
         eyebrow={<>Boss · chart {idx + 1} of {total} · one heart</>}
         question={item.q}
         detail={<>The ringed candle is the last bar on this chart. Say <b>Yes</b> if the {item.name} fires on it, <b>No</b> if it does not. One miss ends the run.</>}
