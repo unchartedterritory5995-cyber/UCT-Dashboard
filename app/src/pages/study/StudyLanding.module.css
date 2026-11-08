@@ -166,3 +166,13 @@
 /* a label reads over the road: a dark backing so the road never runs through its words */
 .nodeLabel { padding: 3px 10px; border-radius: 9px; background: rgba(6, 6, 7, .88); box-shadow: 0 0 0 1px rgba(255, 255, 255, .04); }
 @media (max-width: 640px) { .heroCta button { font-size: 14.5px !important; letter-spacing: .1em !important; } }
+
+/* Foundations: a grid of coins */
+.coinGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 10px; margin: 4px 0 0; padding: 0; list-style: none; }
+.coinItem { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; opacity: 0; animation: nodeIn .4s ease forwards; animation-delay: calc(var(--i) * 40ms); }
+.gridCoin { display: grid; place-items: center; width: 64px; height: 64px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.gridCoin .coin { width: 58px; height: 58px; }
+.gridSoon .coin { opacity: .45; }
+.gridLabel { display: flex; flex-direction: column; gap: 1px; }
+.gridLabel b { font-size: 12.5px; font-weight: 700; line-height: 1.25; }
+.gridLabel small { font-size: 11px; color: var(--dim); }

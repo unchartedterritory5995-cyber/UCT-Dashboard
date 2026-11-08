@@ -9,13 +9,22 @@ const curricula = [
     { id: 'REG', title: 'Regime', units: [unit('R1', ['a']), unit('R2', ['b'])] },
     { id: 'SCN', title: 'Scan', units: [unit('S1', ['c'])] },
     { id: 'SET', title: 'Setup', units: [unit('T1', ['d'])] },
-    { id: 'ENT', title: 'Entry', units: [unit('E1', ['e'])] },
     { id: 'SIZ', title: 'Size', units: [unit('Z1', ['f'])] },
     { id: 'MAN', title: 'Manage', units: [unit('M1', ['g'])] },
+    { id: 'REV', title: 'Review', units: [unit('V1', ['j'])] },
+    { id: 'CAL', title: 'Calls', units: [unit('C1', ['k'])] },
+    { id: 'OVL', title: 'Overlay', units: [unit('O1', ['l'])] },
   ] },
   { id: 'foundations', title: 'UCT Foundations', tracks: [
     { id: 'F1', title: 'Market basics', units: [unit('F1.01', ['h'])] },
     { id: 'F2', title: 'Chart reading', units: [unit('F2.01', ['i'])] },
+    { id: 'F2b', title: 'Levels, lines and drawings', units: [unit('F2b.01', ['m'])] },
+    { id: 'F3', title: 'Candlesticks', units: [unit('F3.01', ['n'])] },
+    { id: 'F4', title: 'Patterns and bases', units: [unit('F4.01', ['o'])] },
+    { id: 'F5', title: 'Fundamentals and earnings', units: [] },
+    { id: 'F6', title: 'Options', units: [] },
+    { id: 'F8', title: 'Psychology and discipline', units: [] },
+    { id: 'F9', title: 'Account and risk basics', units: [] },
   ] },
 ]
 const byId = { a: { skill_id: 'a', mastery: 90, reps: 10 }, c: { skill_id: 'c', mastery: 30, reps: 2 }, h: { skill_id: 'h', mastery: 88, reps: 9 } }

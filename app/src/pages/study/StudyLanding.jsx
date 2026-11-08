@@ -5,7 +5,7 @@
 //
 //   the player hero   your level struck in gold, its tier, the XP still to go to the next level, the streak and the total
 //                     XP as crests, and today's lesson as the one big button
-//   the course path   the six stations of the UCT Method as coins on a winding gold road, the logo standing on the one
+//   the course path   the stations of the UCT Method as coins on a winding gold road, the logo standing on the one
 //                     you are on; Foundations as a short side road
 //   the games         Blitz, Boss, Spot the Setup and Hard mode as cards with their own plates (Blitz shows your best)
 //   the trophy shelf  every badge earned, as a crest
@@ -25,7 +25,7 @@ import brandMarkUrl from '../../components/intro/assets/compass-mark.png'
 import s from './StudyLanding.module.css'
 
 
-const STATION_ICON = { REG: 'compass', SCN: 'eye', SET: 'star', ENT: 'play', SIZ: 'shield', MAN: 'flame' }
+const STATION_ICON = { REG: 'compass', SCN: 'eye', SET: 'star', ENT: 'play', SIZ: 'shield', MAN: 'flame', REV: 'refresh', CAL: 'bolt', OVL: 'info' }
 const PLATE = { blitz: 'Blitz', boss: 'Boss', spot: 'Spot', hard: 'Hard' }
 const ACCENT = { blitz: 'amber', boss: 'red', spot: 'gold', hard: 'red' }
 
@@ -131,6 +131,28 @@ function CoursePath({ tracks, byId, recommendedTrackId, onOpenTrack, label, smal
   )
 }
 
+/** Foundations: a grid of coins (fifteen tracks would make a road a mile long); a track with no lessons yet is locked. */
+function CoinGrid({ tracks, byId, onOpenTrack, label }) {
+  return (
+    <ul className={s.coinGrid} aria-label={label}>
+      {tracks.map((t, i) => {
+        const sum = trackSummary(t, byId)
+        const soon = !sum.units
+        const done = sum.units > 0 && sum.mastered >= sum.units
+        return (
+          <li key={t.id} style={{ '--i': i }} className={s.coinItem}>
+            <button type="button" className={`${s.gridCoin} ${done ? s.nodeDone : soon ? s.gridSoon : sum.mastered ? s.nodeSome : s.nodeTodo}`} onClick={() => onOpenTrack?.(t.id)}
+              aria-label={`${t.title}, ${sum.mastered} of ${sum.units} mastered`} data-testid={`foundation-${t.id}`}>
+              <span className={s.coin}><UIcon name={done ? 'check' : soon ? 'lock' : 'star'} size={20} gold={false} /></span>
+            </button>
+            <span className={s.gridLabel}><b>{t.title}</b><small>{soon ? 'coming soon' : `${sum.mastered} of ${sum.units}`}</small></span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 function GameCards({ onOpenChallenge }) {
   const blitzBest = readBlitzBest()
   return (
@@ -195,7 +217,7 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], p
         <div className={s.main}>
           <div className={s.deckHead}>
             <h3 className={s.deckTitle}>The UCT Method</h3>
-            <span className={s.deckSub}>Six stations, one trade. Work down the road; every station opens its lessons.</span>
+            <span className={s.deckSub}>{(method?.tracks || []).length} stations, one trade. Work down the road; every station opens its lessons.</span>
           </div>
           {method ? (
             <CoursePath tracks={method.tracks || []} byId={byId} recommendedTrackId={recTrackId} onOpenTrack={(id) => openTrack(method, id)} label="The UCT Method stations" />
@@ -217,7 +239,7 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], p
                 <h3 className={s.deckTitle}>Foundations</h3>
                 <span className={s.deckSub}>What a trader should know before the method. Any order.</span>
               </div>
-              <CoursePath tracks={foundations.tracks || []} byId={byId} recommendedTrackId={null} onOpenTrack={(id) => openTrack(foundations, id)} label="Foundations tracks" small />
+              <CoinGrid tracks={foundations.tracks || []} byId={byId} onOpenTrack={(id) => openTrack(foundations, id)} label="Foundations tracks" />
             </div>
           ) : null}
           <TrophyShelf badges={earned} />
