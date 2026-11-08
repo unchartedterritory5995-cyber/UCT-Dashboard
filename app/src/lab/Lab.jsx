@@ -67,8 +67,10 @@ import Piece63ChallengeKicker from './pieces/Piece63ChallengeKicker'
 import Piece64DailyDrill from './pieces/Piece64DailyDrill'
 import Piece65ChallengeHard from './pieces/Piece65ChallengeHard'
 import Piece66StatusLineFocus from './pieces/Piece66StatusLineFocus'
+import Piece67AnswerFocus from './pieces/Piece67AnswerFocus'
 
 const PIECES = {
+  67: Piece67AnswerFocus,
   66: Piece66StatusLineFocus,
   65: Piece65ChallengeHard,
   64: Piece64DailyDrill,
