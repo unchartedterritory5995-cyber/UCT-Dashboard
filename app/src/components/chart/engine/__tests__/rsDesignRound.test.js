@@ -246,7 +246,7 @@ describe('the cross markers (plots[].derive)', () => {
   const up = RS.plots.find((p) => p.key === 'dotCrossUp')
   const down = RS.plots.find((p) => p.key === 'dotCrossDown')
 
-  it('two small triangle glyphs ON the line, in the line\'s own colour for each side', () => {
+  it('two small arrow glyphs ON the line, in the line\'s own colour for each side', () => {
     expect(up.$refs.color).toBe('color')
     expect(down.$refs.color).toBe('lineDownColor')
     expect(up).toMatchObject({ style: 'markers', restyle: false,

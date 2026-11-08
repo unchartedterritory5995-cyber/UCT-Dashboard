@@ -4196,7 +4196,7 @@ const RS_LINE_RAW = {
     { key: 'shadeVsAverage', type: 'bool', label: 'Shade vs avg', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
       tooltip: 'Shade the gap between the RS line and its average: green while the line is above the average, red while it is below.' },
     { key: 'showCrossMarkers', type: 'bool', label: 'Cross markers', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'A small triangle where the RS line crosses its average: pointing up where it crosses above, down where it crosses below. They take the line\'s two colours.' },
+      tooltip: 'A small arrow where the RS line crosses its average: pointing up where it crosses above, down where it crosses below. The arrows take the line\'s two colours.' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -4410,7 +4410,8 @@ const RS_LINE_RAW = {
     // as 0/1 events (`crossUp`, `crossDown`, never blanked); a glyph drawn `inBar`
     // sits AT its column's value, so each is a client-derived column (`derive`,
     // `engine/derivedColumns.js`): the RS value on the cross bar, NaN elsewhere. A
-    // small triangle ON the line, in the line's own colour for that side (Classic:
+    // small arrow ON the line (lightweight-charts' arrowUp / arrowDown; it draws no bare triangle),
+    // in the line's own colour for that side (Classic:
     // one blue, the direction told by the shape; Phase: bull up, bear down), so
     // the markers add no hue to any view. Absent while "Cross markers" is off.
     // Declared before the large glyphs so the gold before-price dot paints on top.

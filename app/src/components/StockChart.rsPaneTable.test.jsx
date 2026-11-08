@@ -158,16 +158,20 @@ afterEach(() => {
 describe('PaneRanksTable — the DOM it draws, pinned', () => {
   const t = (rating, inputs) => paneTableFor(RS, { rating: { ...RATING, ...rating } }, { inputs })
 
-  it('a header row of column codes and a value row of ranks, the rating last and set apart', () => {
+  it('ONE row of code-and-rank pairs (a description list), the rating last and set apart', () => {
     const { container } = render(<PaneRanksTable table={t({ m12: 96 })} paneKey="rs" />)
     const root = container.firstElementChild
     expect(root.getAttribute('data-pane-table')).toBe('rs')
-    expect(root.querySelector('table').getAttribute('aria-label')).toBe('RS ranks')
-    expect(cells(root, 'th')).toEqual(['1M', '3M', '6M', '12M', 'RS'])
-    expect(cells(root, 'td')).toEqual(['91', '97', '95', '96', '94'])
-    expect([...root.querySelectorAll('th')].every((th) => th.getAttribute('scope') === 'col')).toBe(true)
-    expect(root.querySelector('td[data-col="rating"]').className).toMatch(/legendRankEmph/)
-    expect(root.querySelectorAll('[class*="legendRankEmph"]')).toHaveLength(2)
+    expect(root.getAttribute('role')).toBe('group')
+    expect(root.getAttribute('aria-label')).toBe('RS ranks')
+    expect(cells(root, 'dt')).toEqual(['1M', '3M', '6M', '12M', 'RS'])
+    expect(cells(root, 'dd')).toEqual(['91', '97', '95', '96', '94'])
+    // every pair is a code and its rank, in one list: ONE row (the real-screen fix:
+    // a two-row table covered the RS line's newest bars in the pane's top-right)
+    expect(root.querySelectorAll('dl')).toHaveLength(1)
+    expect([...root.querySelectorAll('dl > div')].map((d) => d.getAttribute('data-col'))).toEqual(['m1', 'm3', 'm6', 'm12', 'rating'])
+    expect(root.querySelector('[data-col="rating"]').className).toMatch(/legendRankEmph/)
+    expect(root.querySelectorAll('[class*="legendRankEmph"]')).toHaveLength(1)
     // the class names carry "legend": the newsletter export hides it with the pane label
     expect(root.className).toMatch(/legend/i)
     expect(root.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
@@ -175,7 +179,7 @@ describe('PaneRanksTable — the DOM it draws, pinned', () => {
 
   it('bands: lead / strong / neutral / lag on the values only while Rating colours is on; a missing rank is a muted dash', () => {
     const { container, rerender } = render(<PaneRanksTable table={t({ m1: 35, m3: 45, m6: 65, m12: null })} />)
-    const td = (k) => container.querySelector(`td[data-col="${k}"]`)
+    const td = (k) => container.querySelector(`[data-col="${k}"] dd`)
     expect(['m1', 'm3', 'm6', 'rating'].map((k) => td(k).getAttribute('data-band'))).toEqual(['lag', 'neutral', 'strong', 'lead'])
     expect(td('m12').textContent).toBe('–')
     expect(td('m12').hasAttribute('data-missing')).toBe(true)
@@ -187,7 +191,15 @@ describe('PaneRanksTable — the DOM it draws, pinned', () => {
 
   it('the 9M column slots in from the data, between 6M and 12M', () => {
     const { container } = render(<PaneRanksTable table={t({ m9: 93, m12: 96 })} />)
-    expect(cells(container, 'th')).toEqual(['1M', '3M', '6M', '9M', '12M', 'RS'])
+    expect(cells(container, 'dt')).toEqual(['1M', '3M', '6M', '9M', '12M', 'RS'])
+  })
+
+  it('the canvas tone rides the element (dark by default, light on request)', () => {
+    const a = render(<PaneRanksTable table={t({ m12: 96 })} />).container.firstElementChild
+    expect(a.getAttribute('data-canvas')).toBe('dark')
+    cleanup()
+    const b = render(<PaneRanksTable table={t({ m12: 96 })} canvas="light" />).container.firstElementChild
+    expect(b.getAttribute('data-canvas')).toBe('light')
   })
 
   it('nothing to draw draws nothing', () => {
@@ -199,10 +211,17 @@ describe('PaneRanksTable — the DOM it draws, pinned', () => {
     expect(css).toMatch(/font-size:\s*11px/)
     expect(css).toMatch(/font-variant-numeric:\s*tabular-nums/)
     expect(css).not.toMatch(/gold|#c9a84c|#dcbb5e|premium/i)
-    expect(css).toMatch(/\.legendRankVal\.legendRankLead\s*\{\s*color:\s*var\(--gain\)/)
-    expect(css).toMatch(/\.legendRankVal\.legendRankLag\s*\{\s*color:\s*var\(--loss\)/)
+    expect(css).toMatch(/\.legendRankVal\.legendRankLead\s*\{\s*color:\s*var\(--rank-lead\)/)
+    expect(css).toMatch(/\.legendRankVal\.legendRankLag\s*\{\s*color:\s*var\(--rank-lag\)/)
+    // the band inks are the theme's own: dark gain / warn / loss, or the light theme's on a light canvas
+    expect(css).toMatch(/--rank-lead:\s*var\(--gain\)/)
+    expect(css).toMatch(/\[data-canvas="light"\]\s*\{[^}]*--rank-lead:\s*#0a5c22[^}]*--rank-neutral:\s*#7a5c16[^}]*--rank-lag:\s*#7d1620/)
+    // and the neutral inks are the pane label's canvas-aware ones
+    expect(css).toMatch(/--legend-ink-bright:\s*var\(--legend-ink-bright-low/)
+    expect(css).toMatch(/--legend-ink-muted:\s*var\(--legend-ink-muted-low/)
     expect(css).toMatch(/\[data-collapsed\]\s*\{\s*visibility:\s*hidden/)
     expect(css).toMatch(/pointer-events:\s*none/)
+    expect(css).toMatch(/white-space:\s*nowrap/)
   })
 })
 
@@ -215,17 +234,19 @@ describe('on the real StockChart: the table rides its pane, daily only', () => {
     await act(async () => { notifyColumnsLanded(key) })
     await vi.waitFor(() => expect(tableOf(container), 'the ranks table').not.toBeNull(), { timeout: 8000, interval: 100 })
     const el = tableOf(container)
-    expect(cells(el, 'th')).toEqual(['1M', '3M', '6M', '12M', 'RS'])
-    expect(cells(el, 'td')).toEqual(['91', '97', '95', '38', '94'])
+    expect(cells(el, 'dt')).toEqual(['1M', '3M', '6M', '12M', 'RS'])
+    expect(cells(el, 'dd')).toEqual(['91', '97', '95', '38', '94'])
     // the same pane as its label, and pinned by the same frame: top written, right of
     // the plot (the stub's price scale is 0 wide ⇒ 6 px), not collapsed on a 600 px plot
     const legend = container.querySelector('[data-pane-legend]')
     expect(el.getAttribute('data-pane-table')).toBe(legend.getAttribute('data-pane-legend'))
     await vi.waitFor(() => expect(el.style.right).toBe('6px'))
-    expect(el.style.top).toBe(legend.style.top)
+    // 1 px under the pane top where the label sits 3 px under it: the 16 px strip
+    // ends inside the band the scale keeps clear above the line
+    expect(parseInt(el.style.top, 10)).toBe(parseInt(legend.style.top, 10) - 2)
     expect(el.hasAttribute('data-collapsed')).toBe(false)
     // the 12M rank (38) is below 40: the lag band, while Rating colours is on by default
-    expect(el.querySelector('td[data-col="m12"]').getAttribute('data-band')).toBe('lag')
+    expect(el.querySelector('[data-col="m12"] dd').getAttribute('data-band')).toBe('lag')
   })
 
   it('⛔ a weekly chart draws no table (the ratings are daily)', async () => {

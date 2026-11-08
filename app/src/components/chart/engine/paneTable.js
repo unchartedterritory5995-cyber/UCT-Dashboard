@@ -6,7 +6,7 @@
 // readout (`readoutSchema.js`) prints them as rows in the chip menu; this module
 // prints a SHORT, FIXED set of them as one compact table pinned to the indicator
 // pane's top-right corner, the way Deepvue's RS Line pane prints its 1M / 3M / 6M
-// / 9M / 12M ranks. Header row of labels, value row of numbers, nothing else.
+// / 9M / 12M ranks (as one row of code-and-rank pairs: `PaneRanksTable`).
 //
 // ⭐ DECLARED, NOT CODED. A definition opts in with `meta.paneTable`; this module
 // names no definition, and the surface (`StockChart`) renders whatever the model

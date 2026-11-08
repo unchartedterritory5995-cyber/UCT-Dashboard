@@ -3595,13 +3595,19 @@ export default function StockChart({
   // pale bottom of a light or gradient canvas. Derived from the canvas AT THE
   // SEPARATOR'S OWN HEIGHT; the dark values are the originals, so the default is
   // visually unchanged.
-  const separatorColors = useMemo(() => {
+  // ⭐ UCT RS design round (2026-11-08) — is the canvas at the pane-label height
+  // light? The corner ranks strip takes the light theme's darker band inks there
+  // (real-screen check: the bright greens and ambers read ~2:1 on white).
+  const lowCanvasIsLight = useMemo(() => {
     const rgb = parseColor(canvasSample.low)
-    const light = rgb ? luminance(rgb) > 0.5 : false
+    return rgb ? luminance(rgb) > 0.5 : false
+  }, [canvasSample])
+  const separatorColors = useMemo(() => {
+    const light = lowCanvasIsLight
     return light
       ? { color: 'rgba(0, 0, 0, 0.22)', hover: 'rgba(0, 0, 0, 0.38)' }
       : { color: 'rgba(255, 255, 255, 0.18)', hover: 'rgba(255, 255, 255, 0.32)' }
-  }, [canvasSample])
+  }, [lowCanvasIsLight])
 
   // UCT breadth line-chart ink: black on a light canvas, white on a dark one, so
   // the single-color line always contrasts the background (mirrors the axis/
@@ -18356,7 +18362,11 @@ export default function StockChart({
       // frame): on a 390 px phone the label spans most of the plot, and the
       // readout's Rating card carries the same numbers one tap away.
       if (tableEl) {
-        if (tableEl.style.top !== want) tableEl.style.top = want
+        // ⭐ 1 px under the pane's top, not the label's 3: the strip is 16 px tall and
+        // must end inside the band the price scale keeps clear above the line
+        // (real-screen check: at +3 the newest new-high dot of a leader sat under it).
+        const wantTable = `${Math.round(top + 1)}px`
+        if (tableEl.style.top !== wantTable) tableEl.style.top = wantTable
         let axisW = 0
         try { axisW = chart.priceScale('right').width() || 0 } catch { axisW = 0 }
         let leftW = 0
@@ -21948,6 +21958,7 @@ export default function StockChart({
           <PaneRanksTable
             table={tableChip.paneTable}
             paneKey={row.key}
+            canvas={lowCanvasIsLight ? 'light' : 'dark'}
             ref={(el) => {
               const m = paneTableRefs.current
               if (el) {
