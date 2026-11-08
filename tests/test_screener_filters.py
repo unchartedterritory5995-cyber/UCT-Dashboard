@@ -258,6 +258,9 @@ def _rs_flags_on(monkeypatch):
     import types
     from api.services.signature import registry_defs
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+    # Unit 3-11: the Phase 3 family follows RS_V3 too (`snapshot_builder.rs_v3_enabled`
+    # reads this attribute; `raising=False` until unit 3-05 declares it).
+    monkeypatch.setattr(registry_defs, "RS_V3_ENABLED", True, raising=False)
     main = sys.modules.get("api.main")
     if main is not None:
         monkeypatch.setattr(main, "rs_history_enabled", lambda: True, raising=False)
@@ -1366,3 +1369,89 @@ def test_rs_controls_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypatch):
     bars, flags = _rs_bar_columns()
     for key in (*bars, *_rs_rating_columns()):
         assert served[key] == ("bool" if key in flags else "range"), key
+
+
+# ───────── UCT RELATIVE STRENGTH, PHASE 3 (unit 3-11) ───────────────────────
+#
+# ⛔ DERIVED FROM THE WRITER again: `rs_columns.PHASE3_COLUMNS` and
+# `PHASE3_TEXT_COLUMNS`, and the option lists from the writer's own names
+# (`relative_strength.RRG_QUADRANT_NAMES`, `rs_columns.VARS_STATE_NAMES`).
+
+def _rs_phase3():
+    from api.services.screener import rs_columns
+    return tuple(rs_columns.PHASE3_COLUMNS), frozenset(rs_columns.PHASE3_TEXT_COLUMNS)
+
+
+def test_every_phase3_column_has_a_control_in_the_rs_family_and_a_seat_in_its_view():
+    cols, text = _rs_phase3()
+    assert len(cols) == 3 and text < set(cols), (cols, text)
+    for col in cols:
+        f = filters.FILTERS.get(col)
+        assert f is not None, f"{col} is written nightly and has no control"
+        assert f["column"] == col and f["category"] == RS_CATEGORY, (col, f)
+        assert col in filters.VIEWS[RS_CATEGORY]["columns"], col
+        assert f["label"][:1].isupper(), f["label"]
+
+
+def test_phase3_text_columns_are_enums_whose_options_ARE_the_writers_names():
+    """An enum's option list is the set of values the column can hold — a
+    definition, not a threshold — read from the writer, so a renamed state
+    cannot leave the control offering a value no row carries."""
+    from api.services import relative_strength as rs
+    from api.services.screener import rs_columns
+    names = {"rrg_quadrant": rs.RRG_QUADRANT_NAMES,
+             "vars_state": rs_columns.VARS_STATE_NAMES}
+    _cols, text = _rs_phase3()
+    assert set(names) == set(text)
+    for key, want in names.items():
+        f = filters.FILTERS[key]
+        assert f["type"] == "enum" and f["allow_custom"] is False, key
+        assert f["presets"][0] == {"label": "Any"}, key
+        got = [(p["label"], p["op"], p["value"]) for p in f["presets"][1:]]
+        assert got == [(n, "eq", n) for n in want], key
+        assert filters.is_valid_op(key, "eq"), key
+        for bad in ("gte", "lte", "between", "range", "nonsense"):
+            assert not filters.is_valid_op(key, bad), (key, bad)
+    assert len(filters.FILTERS["rrg_quadrant"]["presets"]) == 5
+    assert len(filters.FILTERS["vars_state"]["presets"]) == 5
+
+
+def test_clenow_score_ships_BARE_and_says_no_percent():
+    """⭐ E-8 again: nobody here has published a "good" Clenow score, so the
+    control is `Any` plus the member's own range. It is a FRACTION (0.50 is 50 %
+    a year after the R² discount), so it carries no `%` unit, and it is not a
+    percent column."""
+    f = filters.FILTERS["clenow_score"]
+    assert f["type"] == "range" and f["allow_custom"] is True
+    assert f.get("presets_deferred") is True
+    assert [p["label"] for p in f["presets"]] == ["Any"]
+    assert f["unit"] is None
+    for op in ("gte", "lte", "between", "gt", "lt"):
+        assert filters.is_valid_op("clenow_score", op), op
+    from api.services.screener import identities
+    assert "clenow_score" not in identities.percent_columns()
+
+
+def test_phase3_controls_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypatch):
+    """A dark build leaves the three NULL; NULL is no quadrant, no state and no
+    score, so a screen for any value must not return it."""
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "LEAD", "rrg_quadrant": "Leading", "clenow_score": 0.8512,
+         "vars_state": "Strong, rising", "snapshot_date": "2026-11-07", "built_at": 1},
+        {"ticker": "TURN", "rrg_quadrant": "Improving", "clenow_score": -0.1234,
+         "vars_state": "Weak, improving", "snapshot_date": "2026-11-07", "built_at": 1},
+        {"ticker": "DARK", "snapshot_date": "2026-11-07", "built_at": 1},
+    ])
+    from api.services.screener import query
+    importlib.reload(query)
+
+    def tickers(*fs):
+        return sorted(r["ticker"] for r in query.run_scan({"filters": list(fs)})["rows"])
+
+    assert tickers({"key": "rrg_quadrant", "op": "eq", "value": "Leading"}) == ["LEAD"]
+    assert tickers({"key": "rrg_quadrant", "op": "eq", "value": "Improving"}) == ["TURN"]
+    assert tickers({"key": "rrg_quadrant", "op": "eq", "value": "Lagging"}) == []
+    assert tickers({"key": "vars_state", "op": "eq", "value": "Weak, improving"}) == ["TURN"]
+    assert tickers({"key": "clenow_score", "op": "gt", "min": 0}) == ["LEAD"]
+    assert tickers({"key": "clenow_score", "op": "between", "min": -1, "max": 1}) == ["LEAD", "TURN"]
+    assert tickers({"key": "clenow_score", "op": "lt", "max": 0}) == ["TURN"]

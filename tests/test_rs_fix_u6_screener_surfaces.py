@@ -30,6 +30,9 @@ COLUMN_DEFS_JS = ROOT / "app" / "src" / "pages" / "screener" / "columnDefs.js"
 
 BARS = frozenset(rs_columns.COLUMNS)
 RATINGS = frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
+#: Unit 3-11 (2026-11-07): the third family, written by the same step only while
+#: RS_V3 is armed too (`filters.rs_dark_keys`).
+PHASE3 = frozenset(rs_columns.PHASE3_COLUMNS)
 
 
 def _main_stub(history):
@@ -41,8 +44,11 @@ def _main_stub(history):
     return stub
 
 
-def _flags(monkeypatch, *, v2, history):
+def _flags(monkeypatch, *, v2, history, v3=False):
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", v2)
+    # `raising=False`: RS_V3_ENABLED is declared by unit 3-05; until then
+    # `snapshot_builder.rs_v3_enabled()` reads the attribute when present.
+    monkeypatch.setattr(registry_defs, "RS_V3_ENABLED", v3, raising=False)
     monkeypatch.setitem(sys.modules, "api.main", _main_stub(history))
 
 
@@ -134,8 +140,8 @@ def test_rs_starters_ship_when_RS_V2_is_on(tmp_path, monkeypatch):
 
 # ── #14: meta() leaves out what a dark writer leaves NULL ──────────────────
 
-def _meta(monkeypatch, *, v2, history):
-    _flags(monkeypatch, v2=v2, history=history)
+def _meta(monkeypatch, *, v2, history, v3=False):
+    _flags(monkeypatch, v2=v2, history=history, v3=v3)
     return filters.meta()
 
 
@@ -148,12 +154,15 @@ def _served(m):
 
 
 def test_the_two_families_are_the_writers_and_the_category_split_matches():
-    assert len(BARS) == 10 and len(RATINGS) == 7 and not (BARS & RATINGS)
+    assert len(BARS) == 10 and len(RATINGS) == 7 and len(PHASE3) == 3
+    assert not (BARS & RATINGS) and not (PHASE3 & (BARS | RATINGS))
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "relative_strength"}
-    assert family == BARS | RATINGS
-    assert filters.rs_dark_keys(v2_on=False, history_on=True) == BARS
-    assert filters.rs_dark_keys(v2_on=True, history_on=False) == RATINGS
-    assert filters.rs_dark_keys(v2_on=True, history_on=True) == frozenset()
+    assert family == BARS | RATINGS | PHASE3
+    assert filters.rs_dark_keys(v2_on=False, history_on=True, v3_on=True) == BARS | PHASE3
+    assert filters.rs_dark_keys(v2_on=True, history_on=False, v3_on=True) == RATINGS
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True) == frozenset()
+    # Phase 3 needs BOTH flags: its writer runs inside the RS_V2 step
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=False) == PHASE3
 
 
 def test_both_flags_off_no_rs_control_seat_view_or_category(monkeypatch):
@@ -194,19 +203,37 @@ def test_v2_off_history_on_shows_only_the_rating_family(monkeypatch):
 
 
 def test_both_flags_on_serves_the_whole_family_exactly_as_registered(monkeypatch):
-    m = _meta(monkeypatch, v2=True, history=True)
+    m = _meta(monkeypatch, v2=True, history=True, v3=True)
     keys, views, cats, _comparable = _served(m)
-    assert (BARS | RATINGS) <= keys
+    assert (BARS | RATINGS | PHASE3) <= keys
     assert views == {k: v["columns"] for k, v in filters.VIEWS.items()}
     assert "relative_strength" in cats
     ibd = next(f for f in m["filters"] if f["key"] == "rs_rating_ibd")
     assert [p["label"] for p in ibd["presets"]] == ["Any", "Over 80", "Over 90"]
 
 
+def test_v3_off_hides_the_phase3_family_and_its_seats(monkeypatch):
+    """Unit 3-11: with RS_V3 dark the three Phase 3 columns are NULL on every
+    row, so they leave the payload exactly as a dark V2 family does."""
+    keys, views, _cats, comparable = _served(_meta(monkeypatch, v2=True, history=True, v3=False))
+    assert not (keys & PHASE3), sorted(keys & PHASE3)
+    assert not (set(views["relative_strength"]) & PHASE3), views["relative_strength"]
+    assert not (comparable & PHASE3)
+    assert (BARS | RATINGS) <= keys
+    # V3 armed without V2: the step that writes them does not run
+    keys, _views, _cats, _comparable = _served(_meta(monkeypatch, v2=False, history=True, v3=True))
+    assert not (keys & PHASE3)
+    # both armed: served, with their view seats
+    keys, views, _cats, comparable = _served(_meta(monkeypatch, v2=True, history=False, v3=True))
+    assert PHASE3 <= keys
+    assert PHASE3 <= set(views["relative_strength"])
+    assert "clenow_score" in comparable
+
+
 def test_the_registry_itself_is_not_changed_by_a_dark_meta(monkeypatch):
     """A stored spec on an RS key still validates and runs; only the panel hides it."""
     _meta(monkeypatch, v2=False, history=False)
-    assert (BARS | RATINGS) <= set(filters.FILTERS)
+    assert (BARS | RATINGS | PHASE3) <= set(filters.FILTERS)
     assert "relative_strength" in filters.VIEWS
     assert "rs_rating_ibd" in filters.VIEWS["momentum"]["columns"]
     assert filters.is_valid_op("rs_rating_ibd", "gte")
