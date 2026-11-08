@@ -368,3 +368,15 @@ Map: `docs/superpowers/plans/2026-11-08-uct-rs-phase3-4-engineering-map.md` (D1-
 - Closed: fixture set 1 independent half; p95/payload budget rail (local); Save as my default; Components row and Rating inputs; five groups; §13 telemetry; honest evidence sentence; Phase 3 and 4 features (dark where flagged).
 - Open, needs the owner or production data: fixture set 1 RRG vs StockCharts (template `tests/fixtures/indicators/rs_parity_rrg_stockcharts.json`, 132 readings); VARS parity (OANDA publishes no numbers); fixture set 2 (MarketSurge screenshots) and the MarketSurge comparison line; sets 3 and 4; the §12.2 usability gate with five members (incl. colour-blind and keyboard checks); the Chartmaster posts pull; production p95 (measured after arming, from `Server-Timing`); the 03:00 build's `bars_rs.phase3_ms` and the follow-up that promotes `clenow_score` and adds the rotation and RS-list screener starters after the first fill; the report-card run before the Compass tools arm; the Study drafts review and import; publishing the walkthrough; the Discord webhook.
 - Arm order: merge #948 → `RS_V3_ENABLED=1` + redeploy (verify on the pod) → merge #949 → `RS_LISTS_ENABLED=1` → report card → `RS_COMPASS_TOOLS_ENABLED=1`.
+
+## 20e. Live record — 2026-11-08
+
+**Shipped and live (production web):**
+- #948 (Wave V + Phase 3) and #949 (Phase 4) merged; flags armed in order and verified on the pod: `RS_V3_ENABLED` (rev 4 row, Readings, Your symbol, picked anchor; NVDA rotation/quality/VARS summaries read live), `RS_LISTS_ENABLED`, `RS_COMPASS_TOOLS_ENABLED` (report card, the three RS questions, 3/3 with 0 safety breaks, run on the pod with `AUTH_DB_PATH=/tmp/...` so no member data was written). `RS_DISCORD_POST_ENABLED` stays off by owner choice.
+- 40 Study RS drafts imported to the pod (draft; owner review).
+- #951 accessibility: visible focus and focus that stays in the RS popover, tour opens on Next, inspector controls named, Compare traps focus, Momentum dashed in the Rotation reading, RS text ≥ 11 px (Notebook first-open byte budget kept).
+- #955 Deepvue-inspired presentation: ranks strip `1M 3M 6M 9M 12M │ RS` at the pane's top-right (daily), member toggles "Shade vs avg" and "Cross markers" (no preset sets them, so saved charts keep their preset name); the Deepvue comparison recorded as fixture set 2's Deepvue half (`reviews/2026-11-08-deepvue-parity.md`; Spearman 0.999 vs Deepvue's 12M; within ~1 point at 75+, ~11 lower below 75: universe). #957 re-recorded the UCT Agent SAT-1 capture the master gate caught.
+- #961 round 2: the "RS Rating" Reading (daily rating history with 21-session average, 80/90 guides), the 9M component rank (`m9`, nightly from now; history via `--fill-column m9`), Compass narrates the rating history. rsLine rev 5, payload shape v4 6; RS alerts untouched (rail).
+
+**Still open:** the m9 history fill on the pod (dry run first); the §12.2 five-member usability test; MarketSurge comparison (no subscription); StockCharts RRG readings (members-only page); Discord webhook (owner, later); walkthrough video publish (drafts delivered).
+
