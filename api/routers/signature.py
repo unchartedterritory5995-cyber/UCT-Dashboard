@@ -888,8 +888,38 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     the body is handed — this module's bar reader and its cache-key builder —
     looked up at call time, so a test that patches `_fetch_bars_for_tf` on this
     module still drives every bar the provider reads.
+
+    Phase 3 (unit 3-06) adds the third: `_rs_warm_bars`, the fire-and-forget
+    warm for a custom benchmark the pod holds no rows for (v4 rows only reach it).
     """
-    return rs_provider.rs_line_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck)
+    return rs_provider.rs_line_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                        warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: Daily / weekly / monthly warms ask for the deep history every other warm on
+#: the web pod asks for (`warm_bars_async(..., bars=8000)`); intraday, the RS
+#: lane's own 400.
+_RS_WARM_DEEP_BARS = 8000
+
+
+def _rs_warm_bars(ticker: str, tf: str) -> None:
+    """Warm bars.db for a custom RS benchmark (D4) WITHOUT blocking the request.
+
+    ⭐ `bars_fetch._kick_cold_fetch`, NOT `warm_bars_async` (unit 3-06, checked
+    against both): it is the exact path `get_bars` itself takes on a cold
+    ticker, it dedupes a key already in flight, drops work past its queue cap
+    (`_COLD_BG_QUEUE_MAX`) and skips a (ticker, tf) every provider has already
+    answered "no data" for (`cold_negative`), so members typing nonsense tickers
+    cannot pile work onto the pool. `warm_bars_async` has an unbounded queue and
+    no dedupe across calls. The submit returns at once; the job writes bars.db
+    and the next request (the degraded envelope is cached for 60 s) reads it.
+    `rs_benchmarks` already limits this to one call per ticker per ten minutes.
+    """
+    from api.services import bars_fetch
+    store = registry_defs.store_tf(tf)
+    date_tf = store in ("D", "W", "M")
+    bars_fetch._kick_cold_fetch(str(ticker).upper(), store,
+                                _RS_WARM_DEEP_BARS if date_tf else 400, date_tf)
 
 
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)

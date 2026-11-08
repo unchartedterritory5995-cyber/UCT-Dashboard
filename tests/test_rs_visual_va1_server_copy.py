@@ -550,3 +550,31 @@ def test_a_payload_field_change_comes_with_a_shape_bump(v2_row, monkeypatch):
     assert (rsp._RS_PAYLOAD_SHAPE, digest) == (4, "0946aceab7795a4e"), (
         f"the RS payload's key paths changed (digest {digest}): bump signature._RS_PAYLOAD_SHAPE, "
         f"then pin the new pair here. Paths: {sorted(got)}")
+
+
+#: The v4 payload's key paths (unit 3-06, `compute.rev` 4, `_RS_PAYLOAD_SHAPE_V4`
+#: 5): the v3 paths plus the `rotation`, `quality` and `vars` blocks, the nine
+#: Phase 3 `inputs` and `checks.anchor.source` / `date`. The v3 pin above is
+#: unchanged on purpose: with the flag off the v3 payload is byte-identical and
+#: its key still reads `rs3p4`. A v4 field added or removed needs
+#: `_RS_PAYLOAD_SHAPE_V4` bumped and this pair re-pinned.
+_SHAPE_5_NEW_TOP = {"rotation", "quality", "vars"}
+_SHAPE_5_FIELDS = {"rotation.summary", "rotation.inQuadrantBars", "quality.summary", "quality.annualPct",
+                   "vars.summary", "vars.stateWord", "inputs.view", "inputs.customBenchmark",
+                   "inputs.anchorDate", "checks.anchor.source", "checks.anchor.date"}
+
+
+def test_a_v4_payload_field_change_comes_with_a_v4_shape_bump(monkeypatch):
+    monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(True, True))
+    monkeypatch.setattr(rd, "RS_V2_ENABLED", True)
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    p = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    got = _key_paths(p)
+    assert {k for k in got if "." not in k} == _SHAPE_3_TOP | _SHAPE_5_NEW_TOP
+    assert _SHAPE_3_FIELDS | _SHAPE_5_FIELDS <= got
+    import hashlib
+    digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
+    assert (rsp._RS_PAYLOAD_SHAPE_V4, digest) == (5, "941624d86bef76c7"), (
+        f"the v4 RS payload's key paths changed (digest {digest}): bump rs_provider._RS_PAYLOAD_SHAPE_V4, "
+        f"then pin the new pair here. Paths: {sorted(got)}")
