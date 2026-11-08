@@ -192,6 +192,8 @@ export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain,
             </div>
           )}
         <span className={e.ribbon}>{tier.key === 'legend' ? `${total} for ${total}` : tier.name}</span>
+        <i className={e.pedestal} aria-hidden="true" />
+        <i className={e.spot} aria-hidden="true" />
       </div>
       <div className={e.tTitle}>{title || verdictWord(right, total)}</div>
       <div className={e.tSub}>{right} of {total} {unit}{tier.next ? <> · <b>{tier.next.more} more</b> for {tier.next.name}</> : null}</div>
@@ -201,7 +203,7 @@ export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain,
         <span data-testid={`${testIdPrefix}-xp`}><UIcon name="star" size={16} gold={false} /><b>+{shown}</b> {xpLabel}</span>
         <span data-testid={`${testIdPrefix}-right`}><UIcon name="check" size={16} gold={false} /><b>{right}/{total}</b> {doneWord}</span>
         <span data-testid={`${testIdPrefix}-streak`}><UIcon name="flame" size={16} gold={false} /><b>{bestStreak(results)}</b> best streak</span>
-        <span><b>{acc}%</b> accuracy</span>
+        <span><UIcon name="eye" size={16} gold={false} /><b>{acc}%</b> accuracy</span>
       </div>
       {showSetups && rows.length ? (
         <div className={e.rCols}>

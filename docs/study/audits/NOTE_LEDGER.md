@@ -24,7 +24,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N007 | 1 to 2 candles of room at the right edge | Done | `rightPadBars` phone 3 / desktop 2; rail: rule 2 |
 | N023, N045 | The chart a bit bigger, sized better | Done | `heroChart`, 480 to 520 px on desktop in every mode |
 | N089 | Do not ask with the indicators blanked | Done | the toggles are gone |
-| N029 | Show the ticker on the lesson's question card ("the widget stays exactly as on the Charts page, identity row and watermark visible before answering") | Your call | the server never sends a ticker before an answer (`study_store.get_item_prompt`: "NEVER `sym`"), and Hard mode and the challenges are built on that ("no ticker"); showing it in lessons means sending it for lesson items only. Asked 2026-11-08 |
+| N029 | Show the ticker on the lesson's question card ("the widget stays exactly as on the Charts page, identity row and watermark visible before answering") | Done 2026-11-08 (his "Yes") | a lesson set carries each chart's `ticker` (`_set_payload` `ticker`; `/today` and `lesson: true` sets); the lesson chart shows the widget's identity row and watermark; the challenges never carry it (Hard mode stays "no ticker"); test in `test_study_router.py` |
 | N112 | "better graphics" on the chart | Partly | the widget look, the pointer and the key; no change aimed only at this |
 
 ## 2. The pointer (the arrow and its label)
@@ -55,7 +55,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 
 | Notes | What he asked | Status | Where |
 |---|---|---|---|
-| N071 | The answer takes over the entire screen, like a pop-up | Your call | every mode now shows the answer the way Hard mode does (his 2026-11-08 ruling: one design); asked whether the full-screen moment should come back to every mode |
+| N071 | The answer takes over the entire screen, like a pop-up | Done 2026-11-08 (his "Yes") | `ui/VerdictTakeover.jsx` in the lesson player, Hard mode, Boss and Spot the Setup: the screen dims, a slow burst of light in the verdict's colour, the stamp, the verdict, the answer and XP, confetti on a right answer; one button opens the review and the replay starts then. Blitz keeps its instant flash (thirty answers a minute) |
 | N074, N086, N115 | The verdict and stamp cooler, higher quality | Done | `ui/Prompt.jsx` verdict band, `ui/Stamp.jsx`, 2026-11-08 |
 | N095 | Never a wrong example ("NOTHING FIRED" on an AAPL Oops Reversal) | Done | `api/services/study_hard.py` sweeps every chart with the setup detectors before it can play |
 
@@ -93,7 +93,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 |---|---|---|---|
 | N036 | Less space before the Start button | Done | the start arena fits one screen |
 | N076, N088, N093, N099, N110 | The start screen dramatically improved (68/100 at last rank) | Done 2026-11-08, waiting on his rank | `ui/StartLooks.jsx` `StartArena` rebuilt (the widget in miniature with the pointer, the title, stat chips, the shared button) |
-| N011, N015, N016, N020, N026, N034, N075, N104, N119 | End screen cleaner, cooler, on brand, the boxes much better (B- at last rank) | Partly | `ui/EndLooks.jsx` `EndHard` coin, stat chips and run cards in every mode; still ranked B- |
+| N011, N015, N016, N020, N026, N034, N075, N104, N119 | End screen cleaner, cooler, on brand, the boxes much better (B- at last rank) | Rebuilt 2026-11-08, waiting on his rank | `ui/EndLooks.jsx` `EndHard` in every mode: the coin on a lit pedestal under a spotlight, the stats as metal-rimmed crests with icons, the run as cards |
 
 ## 10. The logo
 
@@ -150,7 +150,7 @@ for this section.
 
 1. Done 2026-11-08: the chart key and Hard mode's pointer in the lesson player (N116, N117); the risk to the stop in
    the key (N003); Blitz drawing a fresh, deeper pool every run and naming only verified setups (N042).
-2. His call: the ticker on the lesson card (N029) and the full-screen answer (N071).
+2. Done 2026-11-08 on his "Yes and Yes": the ticker on the lesson card (N029) and the full-screen answer (N071).
 4. Spot the Setup: the candidates gently brought in, so the choosable candles read at a glance (N040).
 5. The Study home and the course path, Duolingo-like, on the shared design (N021, N022, N027, N030, N035).
 6. Done 2026-11-08: a short tutorial at the start of each game (N036).
@@ -158,4 +158,3 @@ for this section.
 8. Draw-it in the product, on the shared design (N039, N045, N052, N057).
 9. Simpler lesson words, as drafts for his review (N087, N096, N116, N118).
 10. The replay within the day, once intraday bars are stored with each chart (N025).
-11. His call on the full-screen answer (N071).

@@ -23,11 +23,11 @@ export default function VerdictTakeover({ ok, title, sub = null, answer = null, 
     <div className={`${v.wrap} ${ok ? v.ok : v.bad}`} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'The answer'} data-testid={testId} data-correct={ok ? '1' : '0'}>
       <i className={v.rays} aria-hidden="true" />
       <i className={v.glow} aria-hidden="true" />
-      {ok ? <Confetti n={110} /> : null}
+      {ok ? <Confetti n={60} /> : null}
       <div className={v.panel}>
         <div className={v.art}>
           <StudyMark mood={ok ? 'happy' : 'oops'} size={120} />
-          <div className={v.stamp}><UiStamp ok={ok} word={stampWord} pop /></div>
+          <div className={v.stamp}><UiStamp ok={ok} word={stampWord} inline /></div>
         </div>
         <h2 className={v.title} role="status" aria-live="polite">{title}</h2>
         {answer ? <p className={v.answer}><span>{ok ? 'You said' : 'The answer'}</span><b>{answer}</b></p> : null}

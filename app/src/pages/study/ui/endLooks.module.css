@@ -184,3 +184,21 @@
 .coin .coinShine::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .5) 48%, transparent 60%);
   transform: translateX(-120%); animation: shine 3.2s ease-in-out 1s infinite; }
 @media (prefers-reduced-motion: reduce) { .coin .coinShine::after { animation: none; opacity: 0; } }
+
+/* ── THE ARENA end (2026-11-08, "Use some creativity"; the end screen ranked B-): the coin stands on a lit pedestal under
+   a spotlight, and the run's numbers are the start screen's metal-rimmed crests, each with its icon on a gold coin ── */
+.hardEnd .coinStage { padding-bottom: 26px; }
+.spot { position: absolute; left: 50%; top: -70px; width: 360px; height: 330px; margin-left: -180px; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 242, 196, 0), rgba(246, 226, 160, .16) 70%, rgba(246, 226, 160, .05));
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); opacity: 0; animation: endSpot 1s ease .9s forwards; }
+.pedestal { position: absolute; left: 50%; bottom: 4px; width: 280px; height: 54px; margin-left: -140px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 35%, rgba(233, 205, 119, .42), rgba(233, 205, 119, .1) 50%, transparent 72%);
+  box-shadow: 0 18px 30px -10px rgba(0, 0, 0, .8); }
+.pedestal::after { content: ''; position: absolute; inset: 14px 30px; border-radius: 50%; border: 1.5px solid rgba(246, 226, 160, .45); filter: blur(.4px); }
+@keyframes endSpot { to { opacity: 1; } }
+.hardEnd .tBar { gap: 14px; margin-top: 8px; }
+.hardEnd .tBar span { position: relative; padding-top: 24px; overflow: visible; border: 1px solid transparent;
+  background: linear-gradient(180deg, #1d1e22, #111215) padding-box, linear-gradient(160deg, #f6e2a0, #7a5d17 38%, #2c2e34 62%, #c9a443) border-box; }
+.hardEnd .tBar span svg { display: block !important; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 28px; height: 28px; padding: 6px; border-radius: 50%;
+  color: #15120a !important; background: radial-gradient(circle at 35% 30%, #fff2c4, #dcbb5e 55%, #8a6a1c); box-shadow: 0 2px 0 #4d390d, 0 6px 14px rgba(0, 0, 0, .6); }
+@media (prefers-reduced-motion: reduce) { .spot { animation: none; opacity: 1; } }
