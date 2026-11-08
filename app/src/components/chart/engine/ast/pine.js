@@ -26481,6 +26481,23 @@ function translatePineResult(source, opts = {}) {
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
       if (resolver.condRefusal) throw resolver.condRefusal
+      // ⛔⛔ W9-OQ-N2 (2026-11-07) - A COLOUR THAT READS THE BROKER REFUSES THE ROW BY NAME.
+      // A colour this door cannot carry falls soft to `colorDynamic`, and the member door
+      // then draws the row in ONE colour (the platform default) with no disclosure on the
+      // pane. For a colour that reads `strategy.*` that one colour stands in for a value
+      // no lane computes with the broker dark (`plot(close, color = strategy.position_size
+      // > 0 ? color.green : color.red)` drew every bar gold, as if flat). The runtime lane
+      // already withholds that row naming the read (RT6 `colour.refused`); this lane now
+      // refuses it with the guard every other `strategy.*` read refuses with. ⛔ Only an
+      // UNCARRIED colour: one this door carried (a constant selector folding the read
+      // away) never read the broker.
+      if (row.presentation && row.presentation.colorDynamic) {
+        const read = colourStrategyRead(args, out.kind, env)
+        if (read) {
+          throw new PineRefusal('pine:strategy-call',
+            `${REFUSALS['pine:strategy-call']} — \`${read.word}\``, locate(read.tok || out.tok))
+        }
+      }
       // ⛔⛔ F2 (review) — A GATE ONLY THE COLOUR NOTED IS THE COLOUR'S (H1's rule,
       // `colourBlockRunsOf`). One resolver reads the value and then the
       // presentation, so a colour that reads a conditional call (`condCall`) or a
@@ -29300,6 +29317,11 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         version: ctx && ctx.version,
       }) || {}
     } catch { pres = {} }
+    // ⛔ W9-OQ-N2 — a band whose uncarried colour reads `strategy.*` is NOT drawn: in one
+    // colour it would stand in for a broker value no lane computes. Left uncarried, so its
+    // chart-only note says the band is not drawn (`how.band`), as for a refused edge.
+    const fillCarried = typeof pres.color === 'string' || !!pres.colorCondition || !!pres.colorIndex
+    if ((pres.colorDynamic || !fillCarried) && colourStrategyRead(f.args || [], 'fill', f.env || (ctx && ctx.env))) continue
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null
@@ -29488,6 +29510,67 @@ function displacedPresentation(pres, shift) {
     }
   }
   return pres
+}
+
+/** ⛔ W9-OQ-N2 — the first `strategy.*` word an output's `color` argument reads, or
+ *  null: the argument is found as `outputPresentation` finds it (named, or at its
+ *  place in the call's signature), and every name in it is followed through the
+ *  script's own bindings (`c = strategy.position_size > 0 ? …` then `color = c`),
+ *  a function's body (`f() => …` then `color = f()`) and a `bound` arm. Syntactic
+ *  on purpose: it runs only for a colour no rule carried, so it cannot widen what
+ *  is served; it only decides whether an uncarried colour is a broker read. */
+function colourStrategyRead(args, kind, env) {
+  const list = Array.isArray(args) ? args : []
+  const named = list.find((a) => a && a.name === 'color')
+  let c = named
+  if (!c) {
+    const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '') ? POSITIONAL_PRESENTATION[kind] : null
+    const at = signature ? signature.indexOf('color') : -1
+    c = at > 0 ? list.filter((a) => a && !a.name)[at] : undefined
+  }
+  if (!c) return null
+  const seen = new Set()
+  const followBinding = (b, outer, depth) => {
+    if (!b || typeof b !== 'object' || depth > 32 || seen.has(b)) return null
+    seen.add(b)
+    if (b.kind === 'expr' && b.node) return walk(b.node, b.env || outer, depth + 1)
+    if (b.kind === 'fn' && b.value) return followBinding(b.value, outer, depth + 1)
+    if (b.kind === 'tuple' && Array.isArray(b.parts)) {
+      for (const p of b.parts) {
+        const w = p && p.node ? walk(p.node, p.env || outer, depth + 1) : null
+        if (w) return w
+      }
+    }
+    return null
+  }
+  const walk = (node, scope, depth) => {
+    if (!node || typeof node !== 'object' || depth > 32 || seen.has(node)) return null
+    seen.add(node)
+    if (Array.isArray(node)) {
+      for (const x of node) {
+        const w = walk(x, scope, depth + 1)
+        if (w) return w
+      }
+      return null
+    }
+    if ((node.type === 'name' || node.type === 'call') && typeof node.name === 'string') {
+      if (node.name.startsWith('strategy.')) return { word: node.name, tok: node.tok || null }
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      const w = followBinding(b, scope, depth)
+      if (w) return w
+    }
+    if (node.type === 'bound') {
+      const w = followBinding(node.binding, scope, depth)
+      if (w) return w
+    }
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'tok' || k === 'endTok' || k === 'binding' || k === 'env' || !v || typeof v !== 'object') continue
+      const w = walk(v, scope, depth + 1)
+      if (w) return w
+    }
+    return null
+  }
+  return walk(c.value !== undefined ? c.value : c, env, 0)
 }
 
 function outputPresentation(args, ctx) {
