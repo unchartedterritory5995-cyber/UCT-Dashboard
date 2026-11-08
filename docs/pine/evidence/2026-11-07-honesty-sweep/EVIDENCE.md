@@ -208,3 +208,74 @@ counted over the member-door translation of `corpus/committed`).
 - Runs: honestySweep 56/56 within 266/266 across 8 files (with objectLoss, switchValueForms.vendor, editorStatus x3,
   w6Map, w6Matrix). Queue python rails: 22 passed. Service suite on node 24.13.1: 139/139. hostParity HP-1 GREEN
   166/166.
+
+## r3 (2026-11-08): measure-pair blocker and adjudication
+Measure-pair `_resume-2026-11-01/runs/honesty-mp` (tip `1b643f7651`, base master `bfc3d77e0f`). Merged `origin/master`
+`c531386f4c` (contains `258119578a`, engine 35; no conflicts) as `a16a9ddb81`. `SCRIPT_ENGINE_VERSION` untouched (35).
+
+### The blocker: delta-rsi RDDT, runtime 1, MATCH -> INCONCLUSIVE ("computeFor returned no column")
+**Cause: the runtime pane's wall-clock budget, not the sweep.** The sweep drops none of the runtime pane's columns.
+- `computeFor` returned `{}` with `columnErrors` = `runtime:time-budget` on every key ("this script took more than
+  1000 ms to draw bar by bar", `runtimeColumns.RUNTIME_PANE_TIME_BUDGET_MS`). The harness printed only "no column".
+- Alone, the first (uncached) run of the capture takes 370-390 ms on the merged tip and 470-550 ms with master's 8
+  changed sources swapped in (copy/restore, `git status` clean after). The SPY capture reaches bar 1505/1425 of
+  1800 within the budget on master's sources and bar 1734/1800 on the tip. So the sweep does not slow the run.
+- The full-corpus harness is one long process (import phase ~380 s) where the budget can trip on a capture that
+  needs ~400 ms alone. This capture has flipped this way before for the same reason:
+  `docs/pine/ARMING-PACKET-2026-11-02.md` line 128 (MATCH -> INCONCLUSIVE, "over budget"), and PT-GAPS r2 recorded
+  a non-reproducing landing report for it. r1 above already lists it as load-sensitive.
+- The rail is green on the pre-merge tip (`1b643f7651`, the rail file copied in and removed) and on the merged tip:
+  `vendorHarness.ptGapsDeltaRsi.test.js` 2/2, MATCH on Buy / Sell / Exit Long / Exit Short. The corpus harness
+  over the two delta-rsi captures alone (`VENDOR_HARNESS_DIR` = those two files): RDDT MATCH; SPY INCONCLUSIVE
+  (also over budget on base).
+
+**Fix (instrument only; no door program changes):** `vendorHarness/ourSide.js` now appends the guard
+`nativeRegistry.columnErrors` recorded for the row: "computeFor returned no column for value (runtime:time-budget)".
+A future flip of this kind is then named in the summary instead of looking like a lane that dropped its columns.
+Rail `vendorHarness.missingColumnReason.test.js` (the run stubbed, since the budget is wall-clock): the guard
+appears on all 4 plots; CONTROL, no recorded guard leaves the reason bare. Mutations, copy/restore, `cmp` same:
+suffix removed KILLED (1); suffix always added KILLED (1, the control). The rail `ptGapsDeltaRsi` is not relaxed.
+Note for the next measure-pair: base-side text for missing-column rows lacks the suffix, so those lines differ in
+text only (verdicts and counts unchanged).
+
+### Adjudication of every other measure-pair diff
+Method for the census rows: the 7 scripts re-run through `coverageMapDoorCensus.measure.test.js`
+(`COVERAGE_INPUT` = those 7 rows), twice per side per lane: merged tip, then master's 8 changed sources swapped in
+by copy and restored (`git status` clean). "Within-side" means run 1 vs run 2 of the SAME code.
+
+| diff (lane) | ruling | evidence |
+|---|---|---|
+| out: `market-structure-by-leviathan` `.lines[0].style` `dashed` (tip) vs `solid` (base) | INTENDED, item 1 | Script text: `bosStyle = input.string('Dashed', 'Line Style', ['Solid', 'Dashed', 'Dotted'])`; `lineStyle(x) => switch x` with arms for all three options; `style=lineStyle(bosStyle)`. The switch cannot miss (every `options` value has an arm), so the value is the `'Dashed'` arm, `line.style_dashed`. Backed by the script's own text, the v6 reference signature `input.string(defval, title, options, ...)` (positional `options`, cited in `pine.js`), and the manual's `switch` rule (the matching arm's value). Master dropped the unreadable prop and the renderer drew its default (solid), which nothing backs. Rail: `honestySweep.test.js` "a helper `switch` with no default whose arms COVER the options (positional) is served, through the call"; mutants M3/M5 KILLED (r0). |
+| census rt0+rt1: `swing-points-and-liquidity` dropHeads 5 vs 3 | INTENDED, item 1 | Deterministic: identical in both repeats on each side and in both lanes. Tip adds `create:line@118/@123: pine:enum-na` (`dropReasons` `enum:na: 2` replaces `geometry:lost: 2`). The helper switch can miss, so the style can be `na` (Q-HS1). Object program null on both sides (r1 N2), so no member-visible change. |
+| census rt0: `ai-supertrend-x-pivot-percentile` reachedAfterPeel true vs false, stuck `pine:roundtrip` | LOAD, not the sweep | The measure-pair rows differ in `pine:timeout` refusals (wall-clock, `PINE_TRANSLATE_BUDGET_MS` 10,000) at step 1, which change the peel path. In the A/B, all 4 runs agree (peel 6, stuck `pine:roundtrip` in rt0; peel 5 reached in rt1), tip == base. |
+| census rt0: `machine-learning-knn` peelSteps 3 vs 4 | LOAD | Measure-pair steps differ only in which variable the `pine:timeout` caught. A/B: all 4 runs agree, tip == base (rt0 peel 7; rt1 peel 2). |
+| census rt0: `volatility-coil-edge` `create:label` dropReason | LOAD | Within-side flip: tip r1 vs r2 differ (`copy@812: pine:state` vs `pine:timeout`), base r1 vs r2 differ (`create@651` vs `delete@748: pine:timeout`). rt1: identical everywhere. |
+| census rt0: `halftrend` peelSteps 7 vs 6 | LOAD | Within-side flip on BOTH sides: peel 6 then 7 on the tip, and 6 then 7 on base ("gave up after 10000ms" vs the 400-level bound). rt1: identical everywhere. |
+| census rt0: `mirage-liquidity-sweep` dropHeads 54 vs 53 | LOAD | Within-side flip on both sides at `cell@1028` (`pine:timeout` vs `pine:tuple` / ``pine:undefined `effBuf` ``). rt1: identical everywhere. |
+| census rt1: `multi-timeframe-trend` refusals 3 vs 2 | LOAD | The extra refusal is `pine:timeout@160 ... gave up after 10000ms`. Within-side flip in both lanes (tip rt1 peel 7 then 4; base rt1 refusal token `showTf1` then `if`). |
+| harness rt1: delta-rsi RDDT | LOAD (time budget) | Section above. |
+
+No diff is a sweep bug. The only deterministic tip-vs-base differences are the two item-1 rows. Every other row
+moves with the 10,000 ms translate budget or the 1,000 ms runtime budget, and moves within a single side.
+
+### Runs r3 (merged tip, node 20.20.2, `--maxWorkers=1`, under `heavy-mp2.lock`)
+- Targeted: `ptGapsDeltaRsi` 2/2, `missingColumnReason` 2/2, `honestySweep`, `switchValueForms.vendor`,
+  `coverageAudit`: 250 passed, 7 skipped, 1 failed. The failure is `coverageAudit`'s delta-rsi RDDT, red in company
+  on the tip AND with master's 8 sources swapped in (same 3-file run, identical). Run alone (a temporary copy that
+  prints the reasons, then deleted) it is MATCH on all four plots, 185 passed. This is the same time budget.
+- Full corpus harness, runtime 1 (`VENDOR_HARNESS_RUNTIME_ON=1`, all 336 captures): TOTAL MATCH 112, DIVERGE 114,
+  INCONCLUSIVE 110, equal to the measure-pair's BASE totals. delta-rsi RDDT MATCH in company this time; SPY reads
+  "computeFor returned no column for value (runtime:time-budget)".
+- `engine/__tests__` + `engine/ast` + `engine/runtime`: 883 files, 14699 passed, 160 skipped, 15 failed in 11 files.
+  All are known master-baseline reds or identical on master:
+  - `controlDoorCensus` BULK_BLOB_SITES (`agent/guide/slots.js`), `macdFlipAParity`, `priceFormatMinMove.realChart` x4,
+    `stockChartWiring`, `vendorHarness.test.js` tolerance: the known list.
+  - `.measure` timeouts: `guardProbe`, `objectLaneCallSites`, `objectLaneCensus` x2, `objectLaneDrawerCensus`.
+  - NEW to the list, both from master: `enumerationSites` A6 (`rsLine` has `showMansfield`, the RS phase 3 merge), red
+    identically with master's sources swapped in; `pineStrictCensus` "strict census" is a 15 s timeout, and passes
+    at `--testTimeout=120000` on the tip and on master's sources.
+- Service suite, node 24.13.1 (`node --test --test-reporter=tap "services/pine_runtime/test/**/*.mjs"`): 139/139.
+
+### Re-measure
+r3 changes no door program: one harness sentence, one rail, docs, and the master merge. A re-measure is still due,
+because master moved to engine 35. The base must be the new merge base `c531386f4c`, not `bfc3d77e0f`.
