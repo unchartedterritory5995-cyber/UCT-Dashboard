@@ -27,8 +27,10 @@ def main(argv=None) -> int:
     if "uct_tests_datadir_" not in a.bars_db.replace("\\", "/"):
         raise SystemExit("refusing: --bars-db must be a local Temp sandbox (uct_tests_datadir_*)")
     txt = open(a.dump, encoding="utf-8", errors="ignore").read()
-    s, e = txt.index("BEGIN_HITS") + len("BEGIN_HITS"), txt.index("END_HITS")
-    hits = json.loads(zlib.decompress(base64.b64decode("".join(txt[s:e].split()))).decode())
+    import re
+    hits = []
+    for blob in re.findall(r"BEGIN_HITS[^\n]*\n(.*?)END_HITS", txt, flags=re.S):   # every batch printed
+        hits += json.loads(zlib.decompress(base64.b64decode("".join(blob.split()))).decode())
     con = sqlite3.connect(a.bars_db)
     rows = [(h["sym"], "D", int(t), o, hi, lo, c, int(v or 0)) for h in hits for t, o, hi, lo, c, v in h["bars"]]
     before = con.execute("SELECT count(*) FROM ohlcv").fetchone()[0]
