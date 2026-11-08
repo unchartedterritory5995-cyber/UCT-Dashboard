@@ -150,6 +150,18 @@ _GLANCE = (
 )
 #: The Phase 3 blocks, read only when the envelope carries them (the v4 row).
 _OPTIONAL = (("rotation", "Rotation"), ("quality", "RS quality"), ("vars", "VARS"))
+#: The RS Rating Reading's block (rsLine rev 5, Deepvue round 2): the stored daily
+#: rating over time, ``payload.ratingHistory.summary`` ("82, up 6 in 20 sessions").
+#: Read only when the envelope carries it AND it describes this Reading: a server
+#: that did not draw the Reading says "not the chosen reading", and that says
+#: nothing about the stock, so the field is left out rather than narrated.
+_RATING_HISTORY = ("ratingHistory", "rating_history", "RS Rating history")
+_RATING_HISTORY_NOT_DRAWN = "not the chosen reading"
+#: The inputs the tool asks for: the benchmark, and the RS Rating Reading so the
+#: rating-history block is computed. Every summary the tool reads is taken before
+#: the view blanks any column, so the Reading changes no other field; a server whose
+#: row does not declare the Reading drops it (`resolve_inputs`) and answers as before.
+_READING_VIEW = "rating"
 MISSING = "missing from this reading"
 NOT_AVAILABLE = "not available"
 
@@ -316,7 +328,7 @@ def _fetch_envelope(sym: str, benchmark: str) -> dict:
     reader live there); it is imported once per process like any module."""
     import api.routers.signature  # noqa: F401 — registers the rsLine provider
     from api.services.signature import registry_defs
-    return registry_defs.serve("rsLine", sym, "D", {"benchmark": benchmark})
+    return registry_defs.serve("rsLine", sym, "D", {"benchmark": benchmark, "view": _READING_VIEW})
 
 
 def _text(v: Any) -> Optional[str]:
@@ -369,6 +381,14 @@ def summarize_envelope(sym: str, benchmark: str, envelope: Any) -> dict:
         reason = _text(block.get("reason"))
         fields[block_key] = _text(block.get("summary")) or (f"{NOT_AVAILABLE}: {reason}" if reason else NOT_AVAILABLE)
         lines.append(f"{label}: {fields[block_key]}")
+    block_key, field, label = _RATING_HISTORY
+    block = payload.get(block_key)
+    summary = _text(block.get("summary")) if isinstance(block, dict) else None
+    if summary and _text(block.get("reason")) != _RATING_HISTORY_NOT_DRAWN:
+        # The server's own words; its U+00A0 spaces (which hold a number to its
+        # unit in the readout row) read as plain spaces in speech and chat.
+        fields[field] = summary.replace("\u00a0", " ")
+        lines.append(f"{label}: {fields[field]}")
     head = f"{sym} UCT Relative Strength, daily, against {fields.get('benchmark') or benchmark}"
     return {"ok": True, "symbol": sym, "benchmark_requested": benchmark,
             "state": _text(payload.get("state")), "fields": fields, "missing": missing,

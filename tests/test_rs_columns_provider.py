@@ -99,30 +99,31 @@ def test_v3_row_declares_the_phase1_and_mansfield_columns_payload_and_clamped_in
     assert "lineColor" not in by_key, "style inputs never reach the server"
 
 
-def test_the_python_lanes_agree_on_rev_4_and_the_v3_row_keeps_rev_3():
-    """Phase 3 unit 3-05: the v4 row (both flags) and the alert migration table
-    carry rev 4; the v3 row (V2 only) still says 3, which is what production
-    serves until `RS_V3_ENABLED` is armed."""
+def test_the_python_lanes_agree_on_rev_5_and_the_v3_row_keeps_rev_3():
+    """Phase 3 unit 3-05 made the v4 row (both flags) rev 4; Deepvue round 2
+    (2026-11-08, the RS Rating Reading and its two wire columns) moved it and the
+    alert migration table to rev 5 together. The v3 row (V2 only) still says 3."""
     from api.services import alert_rev_migration as rev
     v4 = rd._rs_line_row(True, True)
-    assert v4["version"] == v4["compute"]["rev"] == rd.RS_V4_REV == 4
-    assert rev.ADDRESS_REVS["rsLine"] == 4
+    assert v4["version"] == v4["compute"]["rev"] == rd.RS_V4_REV == 5
+    assert rev.ADDRESS_REVS["rsLine"] == 5
     v3 = rd._rs_line_row(True)
     assert v3["version"] == 3 and v3["compute"]["rev"] == 3
 
 
-def test_the_three_lanes_agree_on_rev_4():
+def test_the_three_lanes_agree_on_rev_5():
     """JS definition, Python v4 row and the alert migration table: one revision
-    (unit 3-08 shipped the JS v4 definition and dropped 3-05's xfail)."""
+    (unit 3-08 shipped the JS v4 definition at 4; Deepvue round 2 moved all three
+    to 5 in one commit)."""
     import pathlib
     import re
     from api.services import alert_rev_migration as rev
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
     m = re.search(r"fn:\s*'rsLine'\s*,\s*rev:\s*(\d+)", src)
-    assert m and int(m.group(1)) == 4
-    assert re.search(r"id:\s*'rsLine',\s*\n\s*version:\s*4,", src), "the JS definition's version is 4"
-    assert rd._rs_line_row(True, True)["compute"]["rev"] == 4
-    assert rev.ADDRESS_REVS["rsLine"] == 4
+    assert m and int(m.group(1)) == 5
+    assert re.search(r"id:\s*'rsLine',\s*\n\s*version:\s*5,", src), "the JS definition's version is 5"
+    assert rd._rs_line_row(True, True)["compute"]["rev"] == 5
+    assert rev.ADDRESS_REVS["rsLine"] == 5
 
 
 def test_v1_row_is_the_shape_master_shipped():
@@ -726,7 +727,7 @@ def test_the_js_input_parser_reads_the_fields_it_claims_to():
     assert js["maType"] == {"type": "enum", "default": "EMA", "options": ["EMA", "SMA"]}
     # 3-08: the Reading, the string inputs and a Phase 3 length, by their shipped values
     assert js["view"] == {"type": "enum", "default": "ratio",
-                          "options": ["ratio", "mansfield", "rotation", "quality", "vars"]}
+                          "options": ["ratio", "mansfield", "rotation", "quality", "vars", "rating"]}
     assert js["customBenchmark"] == {"type": "string", "default": "", "pattern": r"^[A-Z][A-Z.\-]{0,9}$",
                                      "maxLength": 10, "case": "upper"}
     assert js["anchorDate"] == {"type": "string", "default": "", "pattern": r"^\d{4}-\d{2}-\d{2}$"}
@@ -1255,9 +1256,10 @@ def test_every_readout_source_resolves_in_a_real_provider_payload(v4_row, monkey
 #
 # `RS_LINE_RAW.meta.paneTable` (nativeRegistry.js) prints `scalar:` paths in the
 # RS pane's corner table. The same rail as the readout's: every REQUIRED column
-# must resolve in a real provider payload, and the one OPTIONAL column (9M) must
-# name a key the provider does not send yet, so the day `_rs_rating` adds
-# `m9` this test asks for the column to become required.
+# must resolve in a real provider payload, and an OPTIONAL column must name a key
+# the provider does not send yet, so the day it arrives this test asks for the
+# column to become required. ⭐ Round 2 (2026-11-08) did exactly that for 9M:
+# `_rs_rating` sends `rating.m9` on the v4 envelope, and the column is required.
 
 def _js_rs_pane_table_sources() -> list:
     import re
@@ -1281,8 +1283,9 @@ def test_every_pane_table_source_resolves_in_a_real_provider_payload(v4_row, mon
     monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
         "NVDA": {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": 7,
-                 "m1": 91, "m3": 97, "m6": 95, "m12": 96}})
+                 "m1": 91, "m3": 97, "m6": 95, "m9": 93, "m12": 96}})
     payload = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    assert not [c for c in cols if c[3]], "no optional column is left: 9M is required since round 2"
     for key, label, src, optional in cols:
         ok, value = _resolve_path(payload, src.split(":", 1)[1])
         if optional:
@@ -1370,14 +1373,15 @@ def test_a_bound_rs_alert_address_reads_the_rsLine_rev_not_the_default():
     is keyed by the definition id `rsLine` (held equal to the JS registry by
     `test_the_python_rev_table_matches_the_JS_registry`). Without the alias a
     bound `rs_line.*` alert read DEFAULT_REV 1 against a rev-3 definition.
-    Rev 4 since Phase 3 unit 3-05 (a vocabulary mirror; no binding migrates)."""
+    Rev 4 since Phase 3 unit 3-05, rev 5 since Deepvue round 2 (a vocabulary
+    mirror both times; no binding migrates)."""
     from api.services import alert_rev_migration as rev
     from api.services.indicator_alert_evaluator import plot_base, resolve_address
     assert plot_base(resolve_address("rs_line.crossUp")) == "rs_line"
     assert rev.ADDRESS_BASE_DEFINITION == {"rs_line": "rsLine"}
-    assert rev.compute_rev("rs_line.crossUp") == 4
-    assert rev.compute_rev("rs_line.newHigh") == 4
-    assert rev.compute_rev("RS_LINE.NEWHIGH") == 4, "resolution folds case like every other address"
+    assert rev.compute_rev("rs_line.crossUp") == 5
+    assert rev.compute_rev("rs_line.newHigh") == 5
+    assert rev.compute_rev("RS_LINE.NEWHIGH") == 5, "resolution folds case like every other address"
     # (`rsLine.<plot>` is NOT an alert address — the grammar is `rs_line.<plot>` —
     # and `resolve_address` lowercases an unknown one, so no assertion on it.)
     assert rev.compute_rev("vwap.vwap") == 2 and rev.compute_rev("rsi.rsi") == rev.DEFAULT_REV, "controls"

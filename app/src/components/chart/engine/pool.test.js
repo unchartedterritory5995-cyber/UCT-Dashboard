@@ -19,6 +19,7 @@ import {
   lineStyleValue,
   AUTOSCALE_EXCLUDE,
   AUTOSCALE_DEFAULT,
+  includeRangeProvider,
   autoscaleProvider,
   AUTOSCALE_PROVIDER_MODES,
 } from './pool'
@@ -519,7 +520,11 @@ describe('seriesOptionsForPlot', () => {
         for (const [k, v] of Object.entries(o)) {
           if (typeof v !== 'function') continue
           expect(k, `${def.id}.${plot.key}.${k} is an uncomparable function`).toBe('autoscaleInfoProvider')
-          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          // rsLine rev 5: a plot's `autoscaleInclude` gets the include-range provider,
+          // MEMOISED by range (the same identity on every bind), so it is comparable too
+          const inc = plot.autoscaleInclude ? [includeRangeProvider(plot.autoscaleInclude.min, plot.autoscaleInclude.max)] : []
+          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, ...inc], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          expect(seriesOptionsForPlot(plot, { scaleId: 'x' })[k], `${def.id}.${plot.key}: a fresh provider per bind`).toBe(v)
           sawProvider++
         }
       }

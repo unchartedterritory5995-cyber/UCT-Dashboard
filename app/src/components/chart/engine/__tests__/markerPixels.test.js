@@ -501,6 +501,8 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
     rotation: ['rsRatio', 'rsMomentum'],
     quality: ['clenowScore', 'dotClenowGap'],
     vars: ['vars', 'varsMa'],
+    // rev 5 (Deepvue round 2): the RS Rating Reading
+    rating: ['ratingLine', 'ratingMa'],
   })
   const viewOf = (inputs) => (inputs.view === 'ratio' && inputs.showMansfield === true ? 'mansfield' : inputs.view)
   const blankedBy = (inputs) => new Set(Object.entries(VIEW_FAMILIES)
@@ -634,6 +636,15 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
     }
     // the neutral carries the second line of each pair and every guide
     for (const k of ['rsMomentum', 'rotationCentre', 'varsMa', 'varsZero', 'dotClenowGap']) {
+      expect(rs.plots.find((p) => p.key === k).color.toLowerCase(), k).toBe(NEUTRAL)
+    }
+  })
+
+  it('rev 5 — the RS Rating Reading: info blue plus the neutral, NO gold, its line, average and guides alone', () => {
+    const inputs = { ...defaults, view: 'rating' }
+    expect([...huesOf({ view: 'rating' })].sort()).toEqual([IND_TOKENS.classic.info])
+    expect(drawn(inputs).map((p) => p.key)).toEqual(['ratingLine', 'ratingMa', 'ratingGuides'])
+    for (const k of ['ratingMa', 'ratingGuides']) {
       expect(rs.plots.find((p) => p.key === k).color.toLowerCase(), k).toBe(NEUTRAL)
     }
   })

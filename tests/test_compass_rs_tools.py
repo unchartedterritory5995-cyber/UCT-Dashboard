@@ -173,7 +173,8 @@ def served(monkeypatch):
 def test_the_reading_returns_only_the_readout_summaries(served):
     calls, _ = served
     out = rt.rs_reading(" nvda ")
-    assert calls == [("rsLine", "NVDA", "D", {"benchmark": "SPY"})]
+    # rev 5: the tool asks for the RS Rating Reading, so the rating-history block is computed
+    assert calls == [("rsLine", "NVDA", "D", {"benchmark": "SPY", "view": "rating"})]
     assert out["ok"] and out["symbol"] == "NVDA"
     assert out["fields"] == {
         "benchmark": "S&P 500 (SPY)", "rating": "94 · fast 91", "rating_asof": "2026-11-06",
@@ -210,6 +211,31 @@ def test_the_phase3_blocks_appear_only_when_the_envelope_carries_them(served):
     assert f["quality"] == "not available: needs 90 bars (has 40)"
 
 
+def test_the_rating_history_is_the_servers_summary_only_when_it_describes_the_reading(served):
+    """rsLine rev 5 (Deepvue round 2): `payload.ratingHistory.summary`, verbatim
+    (its U+00A0 read as plain spaces), only when the block is there and drew the
+    RS Rating Reading. Absent block, empty summary, or the server's "not the chosen
+    reading" (a row that does not declare the Reading) leave the field out."""
+    _, box = served
+    assert "rating_history" not in rt.rs_reading("NVDA")["fields"], "no block, no field"
+    box["env"] = _envelope(ratingHistory={"value": 82, "average": 79.43, "change20": 6, "sessions": 187,
+                                          "asof": "2026-11-06", "stale": False, "reason": None,
+                                          "summary": "82, up\u00a06 in 20\u00a0sessions"})
+    out = rt.rs_reading("NVDA")
+    assert out["fields"]["rating_history"] == "82, up 6 in 20 sessions"
+    assert "RS Rating history: 82, up 6 in 20 sessions" in out["narration"]
+    for leak in ("79.43", "187", "change20"):
+        assert leak not in json.dumps(out, ensure_ascii=False), leak
+    for why in ("not yet rated", "daily charts only"):
+        box["env"] = _envelope(ratingHistory={"value": None, "summary": why, "reason": why})
+        assert rt.rs_reading("NVDA")["fields"]["rating_history"] == why, why
+    box["env"] = _envelope(ratingHistory={"value": None, "summary": "not the chosen reading",
+                                          "reason": "not the chosen reading"})
+    assert "rating_history" not in rt.rs_reading("NVDA")["fields"]
+    box["env"] = _envelope(ratingHistory={"value": None, "summary": None, "reason": None})
+    assert "rating_history" not in rt.rs_reading("NVDA")["fields"], "never fabricated"
+
+
 def test_no_payload_or_a_failing_provider_answers_without_fabricating(served):
     _, box = served
     box["env"] = {"columns": {"rsLine": [1.0]}, "times": [1]}
@@ -225,7 +251,7 @@ def test_a_bad_ticker_or_benchmark_is_refused_before_any_read(served):
     assert rt.rs_reading("1234")["ok"] is False
     assert rt.rs_reading("NVDA", "BTC")["ok"] is False
     assert calls == []
-    assert rt.rs_reading("NVDA", "qqq")["ok"] and calls[-1][3] == {"benchmark": "QQQ"}
+    assert rt.rs_reading("NVDA", "qqq")["ok"] and calls[-1][3] == {"benchmark": "QQQ", "view": "rating"}
 
 
 def test_the_validators_have_the_uct_agent_kind_shape():
