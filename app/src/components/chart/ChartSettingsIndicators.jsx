@@ -47,11 +47,16 @@
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
   fieldsForInstance, sectionize, initialCollapsed, evalActiveWhen,
+  visiblePresets, textInputCommit, textInputDraft,
 } from './indicatorRegistry'
+// ⭐ UCT RS Phase 3, unit 3-02b — what the LIVE server row declares, read the way
+// the settings dialog and the phone sheet read it (3-02), so a `requiresServer`
+// control, option or preset stays hidden here too until the server can answer it.
+import { serverDeclares, subscribeServerDefinitions } from './engine/serverCompute'
 // ⭐ THE BREAKPOINT HOOK THE APP ALREADY HAS. The narrow layout is a second
 // VIEW of one state, not a second component, and it needs exactly one bit:
 // is there room for two columns. A `matchMedia` of its own here would be a
@@ -1396,6 +1401,22 @@ export default function ChartSettingsIndicators({
     () => flatRows.find((r) => r.id === selected) || null,
     [flatRows, selected],
   )
+  // ⭐ UCT RS Phase 3, unit 3-02b — THE SERVER GATE, for the one row the Inspector
+  // edits. Only a `server` definition can carry a gate (`defSchema`), so only one
+  // asks: selecting RSI never spends the page's one definitions GET. The snapshot
+  // is memoised and frozen per definition (`serverDeclares`), so it is
+  // reference-stable between landings, and the subscription re-renders the panel
+  // the moment the answer lands.
+  const gateDef = selectedRow && selectedRow.defId && typeof registry?.getDefinition === 'function'
+    ? registry.getDefinition(selectedRow.defId) : null
+  const gateId = gateDef && gateDef.compute && gateDef.compute.kind === 'server' ? gateDef.id : null
+  const serverDeclared = useSyncExternalStore(
+    subscribeServerDefinitions,
+    () => (gateId ? serverDeclares(gateId) : null),
+    () => null,
+  )
+  /** What the live row declares for `def` — null (nothing) for any other definition. */
+  const declaredFor = (def) => (def && gateId && def.id === gateId ? serverDeclared : null)
   // A selected HOST FEATURE. Only an added one can be selected — a feature
   // removed while it was open simply stops being found, exactly like a row.
   const selectedFeature = useMemo(
@@ -2180,6 +2201,9 @@ export default function ChartSettingsIndicators({
   const isSegment = (f) => f && f.type === 'select'
     && Array.isArray(f.options) && f.options.length === 2
     && f.options.every((o) => String(o?.[1] ?? '').length <= 5)
+    // ⭐ 3-02b — a stored gated option (`{disabled: true}`) is a select's job: a
+    // segment has no honest way to show a pressed answer that cannot be pressed.
+    && !f.options.some((o) => o?.[2] && o[2].disabled)
 
   // ⚰️⚰️ `packFields` / `renderPacked` STOOD HERE AND ARE RETIRED. They paired
   // adjacent non-`wide` controls onto one line — `Period [20]   Type [SMA|EMA]` —
@@ -2334,8 +2358,25 @@ export default function ChartSettingsIndicators({
                 onRowPatch?.(row, { [f.key]: opt ? opt[0] : raw })
               }}
             >
-              {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {/* ⭐ 3-02b — a third element `{disabled: true}` is a STORED gated value
+                  the live server does not declare (`fieldsForInstance`): shown, so the
+                  select tells the truth about what the chart computes, and not
+                  choosable. */}
+              {f.options.map(([v, l, extra]) => (
+                <option key={v} value={v} disabled={!!(extra && extra.disabled)}>{l}</option>
+              ))}
             </select>
+          )}
+          {/* ⭐ UCT RS Phase 3, unit 3-02b — the generic text box (a `string`
+              input), with the settings dialog's rules: commits on Enter or blur,
+              never writes a value the input refuses, and says why under itself. */}
+          {f.type === 'text' && (
+            <InspectorTextBox
+              key={`${row.id}::${f.key}`}
+              field={f} value={val} inert={inert} styles={styles}
+              idBase={`ins-text-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`}
+              onCommit={(next) => onRowPatch?.(row, { [f.key]: next })}
+            />
           )}
         </span>
       </div>
@@ -2418,7 +2459,11 @@ export default function ChartSettingsIndicators({
   /** The Preset row, first in CORE, for a definition that declares `meta.presets`. */
   const presetControl = (row, def) => {
     if (!row || !row.instanceId || !row.engineOwned || !def) return null
-    const presets = presetsOf(def)
+    // ⭐ 3-02b — through `visiblePresets`, as the dialog and the phone sheet list
+    // them: a `requiresServer` preset, or one that sets a hidden gated input or
+    // option, is not offered until the live row declares it.
+    const shownPresets = new Set(visiblePresets(def, declaredFor(def)))
+    const presets = presetsOf(def).filter((p) => shownPresets.has(p))
     if (!presets.length) return null
     const inst = findInstance(settings, row.instanceId)
     if (!inst) return null
@@ -2505,14 +2550,36 @@ export default function ChartSettingsIndicators({
     const meta = paneRowMeta(row, group, settings, defOf)
     const kind = kindLabel(row, def, rawSourceOf(row, def))
     const on = rowVisible(row)
-    const parts = partitionFields(row, def)
     // ⭐ A6 — the generated row fields carry no `group` / `activeWhen`; the
     // registry's per-instance model does (`fieldsForInstance`, the dialog's call).
     // Merged by key, so a definition that declares neither gets its fields back
     // unchanged.
     const instForMeta = def && row.instanceId ? findInstance(settings, row.instanceId) : null
-    const declaredMeta = def && instForMeta
-      ? new Map(fieldsForInstance(def, instForMeta).all.map((f) => [f.key, f])) : null
+    const instModel = def && instForMeta
+      ? fieldsForInstance(def, instForMeta, { declared: declaredFor(def) }) : null
+    const declaredMeta = instModel ? new Map(instModel.all.map((f) => [f.key, f])) : null
+    // ⭐ UCT RS Phase 3, unit 3-02b — THE FIELD LIST IS THE GATED MODEL'S. `row.fields`
+    // is `fieldsFromDefinition(def)` with nothing declared, so it can never show a
+    // gated input the server DOES declare, and it drops a stored gated option
+    // instead of showing it "(not available)". The per-instance model answers
+    // both (legacy inputs are absent from either). Each field keeps its row twin's
+    // own shape (a `disabled` reason rides there) and takes the model's options;
+    // a definition with no gate yields the same keys, in the same order, with the
+    // same options — the Inspector it always rendered.
+    const gatedRow = instModel && row.engineOwned
+      ? (() => {
+        const twin = new Map((row.fields || []).map((f) => [f.key, f]))
+        return {
+          ...row,
+          fields: instModel.all.map((m) => {
+            const r = twin.get(m.key)
+            if (!r) return m
+            return m.options ? { ...r, options: m.options } : r
+          }),
+        }
+      })()
+      : row
+    const parts = partitionFields(gatedRow, def)
     const withMeta = (f) => {
       const m = declaredMeta && declaredMeta.get(f.key)
       if (!m || (!m.group && !m.activeWhen)) return f
@@ -3954,5 +4021,76 @@ export default function ChartSettingsIndicators({
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * ⭐ UCT RS PHASE 3, UNIT 3-02b — THE INSPECTOR'S TEXT BOX (a `string` input).
+ *
+ * The settings dialog's rules (`IndicatorSettingsDialog`, 3-02), reimplemented
+ * here because the dialog's version is woven into its own draft/flush state:
+ *   · the box shows what the member types (`textInputDraft`: upper-cased when the
+ *     input says so, never trimmed under the cursor) and writes NOTHING while
+ *     they type;
+ *   · Enter or blur commits, and only a value the input accepts
+ *     (`textInputCommit` — the engine's own `validateInputValue`); an unchanged
+ *     value writes nothing;
+ *   · a miss keeps the text, sets `aria-invalid`, and shows the input's own
+ *     `hint` (else "Not a valid value") under the box through
+ *     `aria-describedby`; it clears the moment the text reads right.
+ * A write from elsewhere (a preset, Undo, another surface) replaces the box: the
+ * stored value is the truth once it moves.
+ *
+ * ⚠️ WIDTH: the cell is `min(210px, 100%)` and `min-width: 0`, so a narrow
+ * Inspector shrinks the box rather than pushing the row past the panel (the 2a
+ * visual round's column truncation); the label column is untouched.
+ */
+function InspectorTextBox({ field, value, inert, styles, idBase, onCommit }) {
+  const stored = value == null ? '' : String(value)
+  const [draft, setDraft] = useState(null)    // null = showing the stored value
+  const [miss, setMiss] = useState(null)
+  const [seen, setSeen] = useState(stored)
+  if (seen !== stored) {
+    // the stored value moved under the box — the documented "adjust state on a
+    // prop change" pattern, not an effect, so no frame shows the stale draft
+    setSeen(stored)
+    setDraft(null)
+    setMiss(null)
+  }
+  const commit = () => {
+    if (draft === null) return
+    const c = textInputCommit(field, draft)
+    if (!c.ok) { setMiss(c.hint); return }
+    setDraft(null)
+    setMiss(null)
+    if (c.value === stored) return
+    onCommit(c.value)
+  }
+  const missId = miss ? `${idBase}-miss` : null
+  const { 'aria-describedby': whyId, ...rest } = inert || {}
+  const describedBy = [whyId, missId].filter(Boolean).join(' ') || undefined
+  return (
+    <span className={styles.insTextCell} data-text-cell="true">
+      <input
+        type="text" id={idBase} className={styles.insText}
+        aria-label={field.label}
+        {...rest}
+        aria-describedby={describedBy}
+        aria-invalid={miss ? 'true' : undefined}
+        placeholder={field.placeholder}
+        maxLength={Number.isInteger(field.maxLength) ? field.maxLength : undefined}
+        autoCapitalize={field.case === 'upper' ? 'characters' : undefined}
+        autoComplete="off" autoCorrect="off" spellCheck={false}
+        value={draft === null ? stored : draft}
+        onChange={(e) => {
+          const text = textInputDraft(field, e.target.value)
+          setDraft(text)
+          if (miss && textInputCommit(field, text).ok) setMiss(null)
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
+      />
+      {miss && <span className={styles.insTextMiss} id={missId} role="status">{miss}</span>}
+    </span>
   )
 }
