@@ -71,8 +71,10 @@ import Piece67AnswerFocus from './pieces/Piece67AnswerFocus'
 import Piece68EndFocus from './pieces/Piece68EndFocus'
 import Piece69StartFocus from './pieces/Piece69StartFocus'
 import Piece70StationTrail from './pieces/Piece70StationTrail'
+import Piece71DrawIt from './pieces/Piece71DrawIt'
 
 const PIECES = {
+  71: Piece71DrawIt,
   70: Piece70StationTrail,
   69: Piece69StartFocus,
   68: Piece68EndFocus,

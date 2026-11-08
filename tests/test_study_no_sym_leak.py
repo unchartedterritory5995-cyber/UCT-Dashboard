@@ -177,6 +177,11 @@ def _lookalikes(c):
         return c.get("/api/study/items/si_chart0/lookalikes")
 
 
+def _draw_on_a_draft(c):
+    # Draw it scores only after both lines are placed; a refused one (an item that is not approved) shows nothing
+    return c.post("/api/study/draw/score", json={"item_id": "si_nope", "entry": 1.0, "stop": 0.9})
+
+
 def _attempt_on_a_draft(c):
     # the one POST /attempts shape that happens BEFORE scoring: a refused one
     return c.post("/api/study/attempts", json={"item_id": "si_nope", "answer": "x"})
@@ -199,6 +204,7 @@ WALKS = [
     ("POST", "/api/study/sessions", _lesson_session),
     ("POST", "/api/study/spot-setup", _spot_setup),
     ("GET", "/api/study/items/{item_id}/lookalikes", _lookalikes),
+    ("POST", "/api/study/draw/score", _draw_on_a_draft),
 ]
 LESSON_WALKS = {_today, _lesson_session}
 

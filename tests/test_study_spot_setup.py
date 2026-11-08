@@ -168,3 +168,64 @@ def test_a_seed_gives_a_fresh_draw_and_rounds_reach_24(tmp_path, monkeypatch):
     assert ids({"rounds": 10}) == ids({"rounds": 10})
     draws = {tuple(ids({"rounds": 10, "seed": str(s)})) for s in range(4)}
     assert len(draws) > 1
+
+
+# ── POST /api/study/draw/score: Draw it, scored against the setup's own plan ──────────────────────────────────────────
+def test_draw_it_scores_both_lines_against_the_plan(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import study as R
+    from api.services import study_store as ss
+    from api.services import study_trade
+    monkeypatch.setattr(ss, "_DB_PATH", str(tmp_path / "study.db"))
+    monkeypatch.delenv("STUDY_ENABLED", raising=False)
+    ss.init_db()
+    ss.upsert_items([{"id": "d1", "type": "spot", "skill_id": "setup.family3.kicker", "difficulty": 3, "bars_ref": "sb_d1", "sym": "JBI", "asof": "2024-01-02",
+                      "prompt_json": {"q": "fires?", "choices": ["Yes", "No"]}, "answer_json": {"answer": "yes"}, "reveal_json": {},
+                      "source_kind": "detection", "source_ref": "d:d1", "lesson_text": "L"}])
+    ss.upsert_bars("sb_d1", "D", [{"t": 20240101 + d, "o": 10, "h": 11, "l": 9, "c": 10.5, "v": 10} for d in range(30)],
+                   [{"t": 20240201 + d, "o": 11, "h": 12, "l": 10.5, "c": 11.5, "v": 10} for d in range(5)])
+    ss.approve("d1", "owner")
+    monkeypatch.setattr(study_trade, "plan", lambda skill, bars: {"entry": 11.05, "stop": 10.66, "t1": 11.83, "t2": 12.22, "direction": "long"})
+    app = FastAPI()
+    app.include_router(R.router)
+    app.dependency_overrides[R.require_paid] = lambda: {"id": "u1", "email": "m@t.dev", "role": "member", "plan": "pro"}
+    c = TestClient(app)
+    good = c.post("/api/study/draw/score", json={"item_id": "d1", "entry": 11.08, "stop": 10.62}).json()
+    assert good["correct"] is True and good["entry"]["ok"] and good["stop"]["ok"]
+    assert good["sym"] == "JBI" and len(good["forward_bars"]) == 5          # the review gets the ticker and what followed
+    bad = c.post("/api/study/draw/score", json={"item_id": "d1", "entry": 10.5, "stop": 9.0}).json()
+    assert bad["correct"] is False and not bad["entry"]["ok"] and not bad["stop"]["ok"]
+    monkeypatch.setattr(study_trade, "plan", lambda skill, bars: None)
+    assert c.post("/api/study/draw/score", json={"item_id": "d1", "entry": 1, "stop": 0.9}).status_code == 404   # no trade, nothing to draw
+
+
+def test_draw_it_asks_only_for_charts_with_a_plan(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import study as R
+    from api.services import study_store as ss
+    from api.services import study_spot_setup, study_trade
+    monkeypatch.setattr(ss, "_DB_PATH", str(tmp_path / "study.db"))
+    monkeypatch.delenv("STUDY_ENABLED", raising=False)
+    ss.init_db()
+    items = [{"id": f"p{k}", "type": "spot", "skill_id": "setup.family3.kicker", "difficulty": 3, "bars_ref": f"sb_p{k}", "sym": "X", "asof": "2024-01-02",
+              "prompt_json": {"q": "fires?", "choices": ["Yes", "No"]}, "answer_json": {"answer": "yes"}, "reveal_json": {},
+              "source_kind": "detection", "source_ref": f"d:p{k}", "lesson_text": "L"} for k in range(4)]
+    ss.upsert_items(items)
+    for it in items:
+        ss.upsert_bars(it["bars_ref"], "D", [{"t": 20240101 + d, "o": 1, "h": 1.1, "l": 0.9, "c": 1.0, "v": 10} for d in range(30)], [])
+        ss.approve(it["id"], "owner")
+    monkeypatch.setattr(study_spot_setup, "lookalikes", lambda bars, skill, view=90: {"real": 29, "real_features": {}, "lookalikes": []})
+    calls = {"n": 0}
+
+    def plan(skill, bars):
+        calls["n"] += 1
+        return {"entry": 1.0} if calls["n"] % 2 else None      # every other chart has no plan
+    monkeypatch.setattr(study_trade, "plan", plan)
+    app = FastAPI()
+    app.include_router(R.router)
+    app.dependency_overrides[R.require_paid] = lambda: {"id": "u1", "email": "m@t.dev", "role": "member", "plan": "pro"}
+    c = TestClient(app)
+    got = c.post("/api/study/spot-setup", json={"rounds": 4, "need_plan": True}).json()["items"]
+    assert len(got) == 2                                           # the two without a plan were skipped

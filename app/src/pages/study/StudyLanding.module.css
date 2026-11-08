@@ -226,3 +226,4 @@
   .bannerGo { grid-column: 1 / -1; width: 100%; }
   .badge { width: 84px; }
 }
+.acc_green { --a: #4fd38b; --ad: rgba(47, 175, 104, .16); }

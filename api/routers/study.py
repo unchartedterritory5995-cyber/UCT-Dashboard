@@ -306,6 +306,8 @@ class SpotSetupIn(BaseModel):
     # Blitz asks for a fresh draw each run (2026-11-08, the owner: never the same few charts); Spot the Setup sends none,
     # so its run stays the same for a member all day
     seed: Optional[str] = None
+    # Draw it asks only for charts whose setup has a trade plan (study_trade.plan), so every chart can be scored
+    need_plan: bool = False
 
 
 @router.post("/spot-setup", dependencies=_ARMED)
@@ -340,8 +342,12 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
             full = study_store.get_item_full(iid) or {}
             if study_hard.key_is_yes(full.get("answer_json")) is not True:
                 continue
-            look = study_spot_setup.lookalikes((study_store.get_visible_bars(iid) or {}).get("bars") or [],
-                                               full.get("skill_id") or "", view=view)
+            vis_bars = (study_store.get_visible_bars(iid) or {}).get("bars") or []
+            if body.need_plan:
+                from api.services import study_trade
+                if not study_trade.plan(full.get("skill_id") or "", vis_bars):
+                    continue
+            look = study_spot_setup.lookalikes(vis_bars, full.get("skill_id") or "", view=view)
             if look:
                 picked.append((iid, look))
     session = study_store.create_session(uid, "free", [iid for iid, _ in picked])
@@ -350,6 +356,42 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     for it in payload["items"]:
         it["look"] = looks.get(it["id"])
     return payload
+
+
+class DrawIn(BaseModel):
+    item_id: str
+    entry: float
+    stop: float
+
+
+@router.post("/draw/score", dependencies=_ARMED)
+def post_draw_score(body: DrawIn, _user: dict = Depends(require_paid)):
+    """DRAW IT (the owner's notes on the draw game: "Show the entry as a line and explain why and where and how simply
+    and easily" · "the ease of placement and adjustment for stop can be easier"). The member places an entry and a stop
+    on a setup chart; this scores both against the setup's own plan (api/services/study_trade.plan, the detectors'
+    trigger and stop) and returns the plan with the bars that followed, for the review. Close enough is a quarter of the
+    plan's risk or 1% of the price, whichever is larger. A setup with no defined trade (the Bear gap) has nothing to
+    draw: 404. Nothing is scored before the member has placed both lines, so nothing leaks before the answer."""
+    from api.services import study_trade
+    full = study_store.get_item_full(body.item_id) or {}
+    if not full or full.get("review_status") != study_store.STATUS_APPROVED:
+        raise HTTPException(status_code=404, detail="item not found")
+    vis = (study_store.get_visible_bars(body.item_id) or {}).get("bars") or []
+    plan = study_trade.plan(full.get("skill_id") or "", vis)
+    if not plan:
+        raise HTTPException(status_code=404, detail="no trade to draw on this chart")
+    entry, stop = float(plan["entry"]), float(plan["stop"])
+    risk = abs(entry - stop)
+    tol = max(0.25 * risk, 0.01 * entry)
+
+    def judge(mine: float, truth: float) -> dict:
+        off = abs(float(mine) - truth)
+        return {"ok": off <= tol, "off": round(off, 4), "off_pct": round(off / truth * 100, 2) if truth else None, "plan": round(truth, 4)}
+    fwd = study_store.get_forward_bars(body.item_id) or []
+    return {"item_id": body.item_id, "sym": full.get("sym"), "plan": plan, "tolerance": round(tol, 4),
+            "entry": judge(body.entry, entry), "stop": judge(body.stop, stop),
+            "correct": bool(judge(body.entry, entry)["ok"] and judge(body.stop, stop)["ok"]),
+            "forward_bars": fwd[:REVEAL_FORWARD_BARS]}
 
 
 @router.get("/items/{item_id}/lookalikes", dependencies=_ARMED)

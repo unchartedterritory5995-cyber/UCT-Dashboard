@@ -28,8 +28,8 @@ import s from './StudyLanding.module.css'
 
 
 const STATION_ICON = { REG: 'compass', SCN: 'eye', SET: 'star', ENT: 'play', SIZ: 'shield', MAN: 'flame', REV: 'refresh', CAL: 'bolt', OVL: 'info' }
-const PLATE = { blitz: 'Blitz', boss: 'Boss', spot: 'Spot', hard: 'Hard' }
-const ACCENT = { blitz: 'amber', boss: 'red', spot: 'gold', hard: 'red' }
+const PLATE = { blitz: 'Blitz', boss: 'Boss', spot: 'Spot', hard: 'Hard', draw: 'Draw' }
+const ACCENT = { blitz: 'amber', boss: 'red', spot: 'gold', hard: 'red', draw: 'green' }
 
 function readBlitzBest() { try { return Number(localStorage.getItem(BLITZ_BEST_KEY)) || 0 } catch { return 0 } }
 

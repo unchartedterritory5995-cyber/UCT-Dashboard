@@ -7,6 +7,7 @@ import styles from '../DrillPlayer.module.css'
 import BlitzChallenge from './BlitzChallenge'
 import BossChallenge from './BossChallenge'
 import HardChallenge from './HardChallenge'
+import DrawItChallenge from './DrawItChallenge'
 import SpotSetupChallenge from './SpotSetupChallenge'
 
 export const CHALLENGES = [
@@ -16,12 +17,14 @@ export const CHALLENGES = [
   { kind: 'spot', title: 'Spot the Setup', sub: 'A few gold candles look alike. One is the real setup.', icon: 'eye' },
   // round 19 (owner, batch 19): only the ticker is hidden; the member's own averages and volume stay on the chart
   { kind: 'hard', title: 'Hard mode', sub: 'No ticker, on your own chart. Name what fired on the last candle, or say nothing did.', icon: 'eyeOff' },
+  // the owner's draw game, in the product (2026-11-08): place the entry and the stop, scored against the setup's own plan
+  { kind: 'draw', title: 'Draw it', sub: 'Place the entry and the stop on a real setup. The plan shows where they go.', icon: 'play' },
 ]
 // 'kicker' stays a door: a saved ?challenge=kicker link opens Spot the Setup
 const ALIASES = { kicker: 'spot' }
 export const CHALLENGE_KINDS = new Set([...CHALLENGES.map((c) => c.kind), ...Object.keys(ALIASES)])
 
-const BODIES = { blitz: BlitzChallenge, boss: BossChallenge, spot: SpotSetupChallenge, hard: HardChallenge }
+const BODIES = { blitz: BlitzChallenge, boss: BossChallenge, spot: SpotSetupChallenge, hard: HardChallenge, draw: DrawItChallenge }
 
 export default function ChallengeSheet({ kind, open = true, onClose, profile = null, fetcher, signedOut = null }) {
   const meta = CHALLENGES.find((c) => c.kind === (ALIASES[kind] || kind)) || CHALLENGES[0]
