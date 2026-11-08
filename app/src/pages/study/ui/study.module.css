@@ -474,3 +474,6 @@
   background: linear-gradient(90deg, rgba(220, 187, 94, .12), rgba(220, 187, 94, .02)); border: 1px solid rgba(220, 187, 94, .3); }
 .coach .leadList li, .coach .leadList li:first-child { font-size: 16.5px; font-weight: 500; line-height: 1.6; color: var(--k-ink-soft); }
 .coach .steps li { color: var(--k-ink-soft); }
+/* kit v2 · the trade review on its own (the drills' answer card) */
+.tradeReview { display: grid; gap: 12px; margin: 14px 0 6px; }
+.tradeReview .coachBlock { padding-top: 12px; }

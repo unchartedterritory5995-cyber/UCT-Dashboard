@@ -113,7 +113,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
     return (
       <StartCard eyebrow="Challenge" title="Blitz" art={<StudyMark mood="fire" size={116} />}
         lead="Sixty seconds. No hearts. Real charts from the UCT bank and a quick question on each: name the setup, does it fire, which candle name fits, green or red, over yesterday's high. The multiplier climbs with your combo and resets on a miss."
-        button={<StartButton icon="timer" label={pool?.length ? 'Start the clock' : pool == null ? 'Loading the bank' : 'Nothing to play yet'} sub={`60 seconds · no hearts · ${bankLine}`} onClick={() => pool?.length && start()} />}
+        button={<StartButton icon="timer" label={pool?.length ? 'Start the clock' : pool == null ? 'Loading the bank' : 'Nothing to play yet'} sub={`60 seconds · no hearts · ${bankLine}`} disabled={!pool?.length} onClick={() => pool?.length && start()} />}
         below={<>
           <details className={d5.whyCard}><summary>How it works</summary>
             <div className={d5.tutSteps}>

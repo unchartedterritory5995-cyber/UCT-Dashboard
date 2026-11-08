@@ -189,7 +189,7 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
     return (
       <StartCard eyebrow="Challenge" title="Spot the Setup" art={<StudyMark mood="think" size={116} />}
         lead="One chart, a few gold candles that look alike. Only one is the real setup named at the top. Tap it, then read how the others measure up against it."
-        button={<StartButton icon="eye" label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'} sub={pool == null ? 'a second or two' : total ? `${total} charts · ${setups.length} setup${setups.length === 1 ? '' : 's'}` : 'come back after a new import'} onClick={() => total && setPhase('play')} />} />
+        button={<StartButton icon="eye" label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'} sub={pool == null ? 'a second or two' : total ? `${total} charts · ${setups.length} setup${setups.length === 1 ? '' : 's'}` : 'come back after a new import'} disabled={!total} onClick={() => total && setPhase('play')} />} />
     )
   }
   if (phase === 'done') {

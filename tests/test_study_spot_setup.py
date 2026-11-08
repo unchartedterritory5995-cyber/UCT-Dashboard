@@ -77,3 +77,23 @@ def test_a_candle_whose_rule_raised_is_never_offered(fake_rules):
 
 def test_an_unknown_setup_never_plays():
     assert SP.lookalikes(_bars(), "setup.nope") is None
+
+
+def test_the_hard_pool_is_warmed_once_in_the_background(monkeypatch):
+    """After a deploy the first member used to wait 80-100 s for the pool sweep; job_warm_hard_pool runs it after boot."""
+    from api.services import study_jobs, study_store
+    rows = [{"id": "a", "type": "spot", "skill_id": "setup.family3.kicker", "has_chart": 1},
+            {"id": "b", "type": "spot", "skill_id": "setup.family3.kicker", "has_chart": 0},
+            {"id": "c", "type": "recall", "skill_id": "vocab.candle", "has_chart": 1},
+            {"id": "d", "type": "spot", "skill_id": "setup.family4.oops", "has_chart": 1}]
+    seen = []
+    monkeypatch.setattr(study_store, "list_bank", lambda: rows)
+    monkeypatch.setattr(H, "item_eligible", lambda iid: seen.append(iid) or iid == "a")
+    out = study_jobs.job_warm_hard_pool(delay_s=0, pause_s=0)
+    assert seen == ["a", "d"] and out["swept"] == 2 and out["eligible"] == 1
+
+
+def test_the_warm_stands_down_when_study_is_off(monkeypatch):
+    from api.services import study_jobs
+    monkeypatch.setenv("STUDY_ENABLED", "0")
+    assert study_jobs.job_warm_hard_pool(delay_s=0, pause_s=0) is None
