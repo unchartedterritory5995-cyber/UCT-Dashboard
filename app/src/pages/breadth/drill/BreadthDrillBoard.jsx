@@ -141,7 +141,7 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
     // read: useMediaQuery seeds at mount and only updates on a `change` event, so
     // in a fixed mobile viewport a render-time read can be stale on first paint.
     // Above 640px this attribute selects nothing.
-    <div className={styles.board} ref={wrapRef} data-pane={mobilePane}>
+    <div className={`${styles.board}${hosted ? ' ' + styles.boardHosted : ''}`} ref={wrapRef} data-pane={mobilePane}>
       {!listPopped && (
         <div
           className={`${styles.pane} ${styles.paneList}${soloed ? ' ' + styles.paneGrow : ''}`}

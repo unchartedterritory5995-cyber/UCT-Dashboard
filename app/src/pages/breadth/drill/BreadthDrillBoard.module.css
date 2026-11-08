@@ -77,3 +77,16 @@
   .board[data-pane='list'] .paneChart { display: none; }
   .board[data-pane='chart'] .paneList { display: none; }
 }
+
+/* Scan Deck (`hosted`): the two columns are matching cards — same frame, same
+   radius, same canvas — so the list and the chart read as one instrument. The
+   merged widget inside drops its own right/bottom seam; the card draws the edge. */
+.boardHosted { padding: 8px; gap: 0; background: var(--bg-elevated); }
+.boardHosted .pane {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg);
+}
+.boardHosted .pane [class*='widgetMerged'] { border: 0 !important; box-shadow: none !important; }
+.boardHosted .divider { flex-basis: 8px; }
+.boardHosted .divider::after { inset: 20% 3px; }

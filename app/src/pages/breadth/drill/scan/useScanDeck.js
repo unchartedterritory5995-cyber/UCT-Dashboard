@@ -3,7 +3,7 @@ import useGroupMeta from '../../grouping/useGroupMeta'
 import useWatchlistMeta from '../../../../hooks/useWatchlistMeta'
 import { parseMcap } from '../../../Watchlists'
 import {
-  applyFilters, availableFilters, composition, readReview, writeReview, reviewKey,
+  applyFilters, availableFilters, composition, UNCLASSIFIED, readReview, writeReview, reviewKey,
 } from './scanDeckModel'
 
 const NO_ITEMS = []
@@ -118,6 +118,18 @@ export default function useScanDeck(drill, { storage = safeStorage() } = {}) {
   }, [items, rows.length, shownRows])
   const rowBySym = useMemo(() => Object.fromEntries(rows.map(r => [r.sym, r])), [rows])
 
+  // The masthead's read on the WHOLE list (not the filtered view): the average
+  // move, and the sector and theme the names cluster in.
+  const summary = useMemo(() => {
+    const pcts = rows.map(r => r.pct).filter(Number.isFinite)
+    const known = (list) => list.find(g => g.key !== UNCLASSIFIED) || null
+    return {
+      avgPct: pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null,
+      topSector: known(composition(rows, r => r.sector)),
+      topTheme: known(composition(rows, r => r.theme)),
+    }
+  }, [rows])
+
   // ── Reviewed / skipped ────────────────────────────────────────────────────
   const rKey = reviewKey(drill?.drillKey || drill?.label, drill?.date, drill?.live)
   // State is tagged with the list it belongs to. When the window steps to a new
@@ -158,6 +170,7 @@ export default function useScanDeck(drill, { storage = safeStorage() } = {}) {
     filters: { active, available, toggle: toggleFilter, clear: clearFilters },
     groups: { dim: groupDim, setDim, list: groups, focus: focusValid ? groupFocus : null, setFocus: setGroupFocus },
     sectorMix,
+    summary,
     review: { seen: review.seen, skipped: review.skipped, markSeen, toggleSkip, reset: resetReview, count: reviewedCount },
   }
 }

@@ -216,7 +216,7 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
     <div className={styles.wrap}>
       {/* The grouping controls live INSIDE the widget, not in the modal's bar, so
           they travel with it if it is ever ejected into its own window. */}
-      {items.length > 0 && (
+      {items.length > 0 && !drill?.deckHosted && (
         <div className={styles.ctrlBar}>
           <GroupControls
             viewMode={viewMode}
@@ -270,7 +270,7 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             defaultColCfg={tableMode ? DRILL_TABLE_DEFAULT_COLS : DRILL_DEFAULT_COLS}
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
-            scanFooter={scanFooter}
+            scanFooter={drill?.deckHosted ? null : scanFooter}
             onScanVisibleSyms={warmVisible}
             // `loading` is "not answered yet"; a genuinely empty answer is the
             // only thing allowed to say nothing matched.

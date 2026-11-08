@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import { SCAN_FILTERS, UNCLASSIFIED, fmtPct, fmtCap } from './scanDeckModel'
+import { SCAN_FILTERS, UNCLASSIFIED, fmtPct } from './scanDeckModel'
 import styles from './ScanDeck.module.css'
 
 // Sector colours for the mix bar. Fixed hues so a sector reads the same on every
@@ -14,82 +14,13 @@ const SECTOR_HUE = {
 
 const MODE_LABEL = { scan: 'Scan', groups: 'Groups', table: 'Table' }
 const LAYOUT_LABEL = { 1: '1 chart', dw: 'Daily + Weekly', 4: '4-up' }
+const KEYS_HINT = 'J / K  next / previous stock\nF  flag\nX  skip\n[ / ]  previous / next session'
 
-// ── Header ───────────────────────────────────────────────────────────────────
-export function ScanHeader({
-  label, count, date, live, drillCols, colKey, onPickMetric, onStep, canPrev, canNext,
-  ctx, mode, onMode, modes, onClose, children,
-}) {
-  const metricId = useId()
-  return (
-    <div className={styles.header}>
-      {drillCols?.length > 1 && onPickMetric ? (
-        <>
-          <label htmlFor={metricId} className="sr-only">Breadth list</label>
-          <select id={metricId} className={styles.metric} value={colKey || ''} onChange={e => onPickMetric(e.target.value)}>
-            {drillCols.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </select>
-        </>
-      ) : (
-        <span className={styles.metric}>{label}</span>
-      )}
-
-      <div className={styles.dateNav}>
-        {onStep && (
-          <button type="button" className={styles.iconBtn} onClick={() => onStep(-1)} disabled={!canPrev}
-            aria-label="Previous session" title="Previous session ( [ )">◀</button>
-        )}
-        {live ? <span className={styles.live}>LIVE</span> : <span>{date}</span>}
-        {onStep && (
-          <button type="button" className={styles.iconBtn} onClick={() => onStep(1)} disabled={!canNext}
-            aria-label="Next session" title="Next session ( ] )">▶</button>
-        )}
-      </div>
-
-      <div className={styles.ctx}>
-        <div className={styles.stat}>
-          <span className={styles.statNum}>{Number.isFinite(count) ? count.toLocaleString() : '—'}</span>
-          <span className={styles.statLbl}>{count === 1 ? 'stock' : 'stocks'}</span>
-        </div>
-        {ctx?.series?.length > 1 && <Spark series={ctx.series} />}
-        <div className={styles.stat} title={ctx?.sample ? `Rank of this reading among the last ${ctx.sample} sessions` : undefined}>
-          <span className={`${styles.statNum} ${styles.gold}`}>{Number.isFinite(ctx?.pctile) ? ordinal(ctx.pctile) : '—'}</span>
-          <span className={styles.statLbl}>percentile · 1y</span>
-        </div>
-        <div className={styles.stat}>
-          <span className={styles.statNum}>{Number.isFinite(ctx?.health) ? Math.round(ctx.health) : '—'}</span>
-          <span className={styles.statLbl}>health</span>
-        </div>
-      </div>
-
-      <span className={styles.spacer} />
-      {children}
-      <div className={styles.seg} role="group" aria-label="Window mode">
-        {modes.map(m => (
-          <button key={m} type="button" aria-pressed={mode === m} onClick={() => onMode(m)}>{MODE_LABEL[m]}</button>
-        ))}
-      </div>
-      <button type="button" className={styles.iconBtn} onClick={onClose} aria-label="Close" title="Close (Esc)">
-        <UIcon name="x" size={14} />
-      </button>
-    </div>
-  )
-}
-
-function Spark({ series }) {
-  const vals = series.filter(Number.isFinite)
-  const max = Math.max(1, ...vals)
-  const w = 130, h = 30, n = series.length
-  const bw = w / n
-  return (
-    <svg className={styles.spark} width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img"
-      aria-label={`Last ${n} sessions of this list's count; the highlighted bar is this session`}>
-      {series.map((v, i) => {
-        const bh = Number.isFinite(v) ? Math.max(1, (v / max) * (h - 2)) : 0
-        return <rect key={i} className={i === n - 1 ? styles.on : undefined} x={i * bw} y={h - bh} width={Math.max(1, bw - 0.8)} height={bh} />
-      })}
-    </svg>
-  )
+function fmtDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
+  if (!m) return iso || '—'
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
 function ordinal(n) {
@@ -97,61 +28,165 @@ function ordinal(n) {
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`
 }
 
-// ── Rail: filters, sector mix, group panel ──────────────────────────────────
+// One cell of the masthead: a label line and a value line, the same two
+// baselines in every cell so the whole strip reads as one row of figures.
+function Kpi({ label, children, title, wide }) {
+  return (
+    <div className={`${styles.kpi}${wide ? ' ' + styles.kpiWide : ''}`} title={title}>
+      <span className={styles.kpiLabel}>{label}</span>
+      <span className={styles.kpiValue}>{children}</span>
+    </div>
+  )
+}
+
+// ── Masthead ─────────────────────────────────────────────────────────────────
+// Which list, which session, and the read on it — count, how unusual that count
+// is, market health, the average move and where the names cluster.
+export function ScanHeader({
+  label, count, date, live, drillCols, colKey, onPickMetric, onStep, canPrev, canNext,
+  ctx, summary, mode, onMode, modes, onClose, children,
+}) {
+  const metricId = useId()
+  const series = ctx?.series || []
+  const prev = series.length > 1 ? series[series.length - 2] : null
+  const cur = series.length ? series[series.length - 1] : null
+  const delta = Number.isFinite(cur) && Number.isFinite(prev) ? cur - prev : null
+  return (
+    <div className={styles.header}>
+      <div className={styles.identity}>
+        <span className={styles.kpiLabel}>Breadth list</span>
+        <div className={styles.identityRow}>
+          {drillCols?.length > 1 && onPickMetric ? (
+            <>
+              <label htmlFor={metricId} className="sr-only">Breadth list</label>
+              <select id={metricId} className={styles.metric} value={colKey || ''} onChange={e => onPickMetric(e.target.value)}>
+                {drillCols.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </>
+          ) : (
+            <span className={styles.metric}>{label}</span>
+          )}
+          <div className={styles.dateNav}>
+            {onStep && (
+              <button type="button" className={styles.dateBtn} onClick={() => onStep(-1)} disabled={!canPrev}
+                aria-label="Previous session" title="Previous session ( [ )"><UIcon name="chevronLeft" size={13} /></button>
+            )}
+            {live
+              ? <span className={styles.live}><i />Live</span>
+              : <span className={styles.dateText}>{fmtDate(date)}</span>}
+            {onStep && (
+              <button type="button" className={styles.dateBtn} onClick={() => onStep(1)} disabled={!canNext}
+                aria-label="Next session" title="Next session ( ] )"><UIcon name="chevronRight" size={13} /></button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.kpis}>
+        <Kpi label="Stocks" title={Number.isFinite(delta) ? `${delta >= 0 ? '+' : ''}${delta} vs the previous session` : undefined}>
+          <b>{Number.isFinite(count) ? count.toLocaleString() : '—'}</b>
+          {Number.isFinite(delta) && delta !== 0 && (
+            <small className={delta > 0 ? styles.up : styles.dn}>{delta > 0 ? '▲' : '▼'}{Math.abs(delta)}</small>
+          )}
+        </Kpi>
+        <Kpi label={series.length > 1 ? `Last ${series.length} sessions` : 'History'} wide
+          title={ctx?.sample ? `This count ranks in the ${ordinal(ctx.pctile)} percentile of the last ${ctx.sample} sessions` : undefined}>
+          {series.length > 1 && <Spark series={series} />}
+          <b className={styles.gold}>{Number.isFinite(ctx?.pctile) ? ordinal(ctx.pctile) : '—'}</b>
+          <small>pctile</small>
+        </Kpi>
+        <Kpi label="Health">
+          <b>{Number.isFinite(ctx?.health) ? Math.round(ctx.health) : '—'}</b>
+          <small>/ 100</small>
+        </Kpi>
+        <Kpi label="Avg move">
+          <b className={summary?.avgPct >= 0 ? styles.up : styles.dn}>{fmtPct(summary?.avgPct)}</b>
+        </Kpi>
+        <Kpi label="Top sector" wide title={summary?.topSector ? `${summary.topSector.key}: ${summary.topSector.count} stocks` : undefined}>
+          <span className={styles.kpiText}>{summary?.topSector?.key || '—'}</span>
+          {summary?.topSector && <small>{Math.round(summary.topSector.share * 100)}%</small>}
+        </Kpi>
+        <Kpi label="Top theme" wide title={summary?.topTheme ? `${summary.topTheme.key}: ${summary.topTheme.count} stocks` : undefined}>
+          <span className={styles.kpiText}>{summary?.topTheme?.key || '—'}</span>
+          {summary?.topTheme && <small>{summary.topTheme.count}</small>}
+        </Kpi>
+      </div>
+
+      <div className={styles.headEnd}>
+        {children}
+        <div className={styles.seg} role="group" aria-label="Window mode">
+          {modes.map(m => (
+            <button key={m} type="button" aria-pressed={mode === m} onClick={() => onMode(m)}>{MODE_LABEL[m]}</button>
+          ))}
+        </div>
+        <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close" title="Close (Esc)">
+          <UIcon name="x" size={15} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Spark({ series }) {
+  const vals = series.filter(Number.isFinite)
+  const max = Math.max(1, ...vals)
+  const w = 96, h = 22, n = series.length
+  const bw = w / n
+  return (
+    <svg className={styles.spark} width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img"
+      aria-label={`Last ${n} sessions of this list's count; the highlighted bar is this session`}>
+      {series.map((v, i) => {
+        const bh = Number.isFinite(v) ? Math.max(1, (v / max) * h) : 0
+        return <rect key={i} className={i === n - 1 ? styles.on : undefined} x={i * bw} y={h - bh} width={Math.max(0.8, bw - 0.6)} height={bh} />
+      })}
+    </svg>
+  )
+}
+
+// ── Rail: the list column's toolbar (filters), plus the group board ─────────
 export function ScanRail({ deck, mode, total }) {
   const { filters, groups, sectorMix } = deck
   const shown = deck.shownRows.length
   const offered = SCAN_FILTERS.filter(f => filters.available.has(f.key))
   const dimLabel = groups.dim[0].toUpperCase() + groups.dim.slice(1)
+  const narrowed = filters.active.size > 0 || groups.focus
   return (
     <div className={styles.rail}>
-      {(offered.length > 0 || groups.focus) && (
+      <div className={styles.bandRow}>
         <div className={styles.chips} role="group" aria-label="Filters">
           {/* A focused group narrows the list in EVERY mode, so it is shown in
               every mode — never a silent "Showing 6 of 38". */}
           {groups.focus && (
             <button type="button" className={styles.chip} aria-pressed="true"
               aria-label={`Remove ${dimLabel} filter: ${groups.focus}`}
-              onClick={() => groups.setFocus(null)}>{dimLabel}: {groups.focus} ✕</button>
+              onClick={() => groups.setFocus(null)}>{groups.focus} <span aria-hidden="true">✕</span></button>
           )}
           {offered.map(f => (
             <button key={f.key} type="button" className={styles.chip} aria-pressed={filters.active.has(f.key)}
               title={f.title} onClick={() => filters.toggle(f.key)}>{f.label}</button>
           ))}
-          {(filters.active.size > 0 || groups.focus) && (
-            <button type="button" className={`${styles.chip} ${styles.chipClear}`}
-              onClick={() => { filters.clear(); groups.setFocus(null) }}>Clear</button>
-          )}
         </div>
-      )}
-
-      {mode !== 'groups' && sectorMix.length > 0 && <SectorMix mix={sectorMix} />}
-
+        <span className={styles.bandCount}>
+          {narrowed
+            ? <><b>{shown.toLocaleString()}</b> / {total.toLocaleString()} · <button type="button" className={styles.linkBtn}
+              onClick={() => { filters.clear(); groups.setFocus(null) }}>clear</button></>
+            : <><b>{total.toLocaleString()}</b> shown</>}
+        </span>
+      </div>
+      {sectorMix.length > 0 && <SectorMix mix={sectorMix} />}
       {mode === 'groups' && <GroupPanel groups={groups} />}
-
-      {(shown !== total) && (
-        <div className={styles.mixLegend}><span>Showing {shown.toLocaleString()} of {total.toLocaleString()}</span></div>
-      )}
     </div>
   )
 }
 
 function SectorMix({ mix }) {
-  const known = mix.filter(g => g.key !== UNCLASSIFIED)
-  const top = known[0]
   return (
-    <div className={styles.mix}>
-      <div className={styles.mixBar} role="img"
-        aria-label={`Sector mix: ${mix.slice(0, 4).map(g => `${g.key} ${Math.round(g.share * 100)}%`).join(', ')}`}>
-        {mix.map(g => (
-          <span key={g.key} title={`${g.key} · ${g.count}`}
-            style={{ flex: g.count, background: SECTOR_HUE[g.key] || 'var(--border)' }} />
-        ))}
-      </div>
-      <div className={styles.mixLegend}>
-        <span>{top ? `${top.key} ${Math.round(top.share * 100)}%` : 'Sectors loading…'}</span>
-        <span>{known.length} sectors</span>
-      </div>
+    <div className={styles.mixBar} role="img"
+      aria-label={`Sector mix: ${mix.slice(0, 4).map(g => `${g.key} ${Math.round(g.share * 100)}%`).join(', ')}`}>
+      {mix.map(g => (
+        <span key={g.key} title={`${g.key} · ${g.count} (${Math.round(g.share * 100)}%)`}
+          style={{ flex: g.count, background: g.key === UNCLASSIFIED ? 'var(--border)' : (SECTOR_HUE[g.key] || 'var(--text-muted)') }} />
+      ))}
     </div>
   )
 }
@@ -161,8 +196,8 @@ function GroupPanel({ groups }) {
   return (
     <div className={styles.groups}>
       <div className={styles.groupsHead}>
-        <span className={styles.label}>Group by</span>
-        <div className={styles.seg} role="group" aria-label="Group by">
+        <span className={styles.kpiLabel}>Group by</span>
+        <div className={`${styles.seg} ${styles.segSm}`} role="group" aria-label="Group by">
           {['sector', 'industry', 'theme'].map(d => (
             <button key={d} type="button" aria-pressed={groups.dim === d} onClick={() => groups.setDim(d)}>
               {d[0].toUpperCase() + d.slice(1)}
@@ -186,85 +221,33 @@ function GroupPanel({ groups }) {
   )
 }
 
-// ── Chart pane frame: toolbar, chart cells, facts, triage ───────────────────
-export function ScanStage({
-  children, extraCells = [], layout, onLayout, layouts,
-  templates, templateId, onTemplate,
-  row, facts, alsoLabels, earningsSoon,
-  flagged, onFlag, skipped, onSkip, onPrev, onNext, canPrev, canNext,
-  reviewed, total, onResetReview,
-}) {
+// ── Chart column: its toolbar (template, layout) over the chart cells ───────
+// The toolbar is the same height as the list column's filter row, so the two
+// read as one band across the window.
+export function ScanStage({ children, extraCells = [], layout, onLayout, layouts, templates, templateId, onTemplate }) {
   const tplId = useId()
   return (
     <div className={styles.stage}>
-      <div className={styles.toolbar}>
-        <label className={styles.tbLabel} htmlFor={tplId}>Template
-          <select id={tplId} className={styles.select} value={templateId} onChange={e => onTemplate(e.target.value)}>
-            {templates.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
-        </label>
-        <div className={`${styles.seg} ${styles.layoutPick}`} role="group" aria-label="Chart layout">
+      <div className={styles.bandRow}>
+        <label className={styles.tbLabel} htmlFor={tplId}>Template</label>
+        <select id={tplId} className={styles.select} value={templateId} onChange={e => onTemplate(e.target.value)}>
+          {templates.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span className={styles.tbSep} aria-hidden="true" />
+        <div className={`${styles.seg} ${styles.segSm} ${styles.layoutPick}`} role="group" aria-label="Chart layout">
           {layouts.map(l => (
             <button key={l} type="button" aria-pressed={layout === l} onClick={() => onLayout(l)}>{LAYOUT_LABEL[l]}</button>
           ))}
         </div>
+        <span className={styles.spacer} />
+        <span className={styles.keysHint} title={KEYS_HINT} aria-label={`Keyboard: ${KEYS_HINT.replace(/\n/g, ', ')}`}>
+          <kbd>J</kbd><kbd>K</kbd> next · <kbd>F</kbd> flag · <kbd>X</kbd> skip
+        </span>
       </div>
-
       <div className={styles.charts} data-layout={layout}>
         <div className={styles.cell}>{children}</div>
         {extraCells.map((c, i) => <div key={i} className={styles.cell}>{c}</div>)}
       </div>
-
-      {row && <Facts row={row} facts={facts} alsoLabels={alsoLabels} earningsSoon={earningsSoon} />}
-
-      <div className={styles.triage}>
-        <button type="button" className={styles.tbtn} onClick={onPrev} disabled={!canPrev}><kbd className={styles.kbdHint}>K</kbd>Prev</button>
-        <button type="button" className={`${styles.tbtn}${flagged ? ' ' + styles.on : ''}`} onClick={onFlag} disabled={!row}
-          aria-pressed={!!flagged}><kbd className={styles.kbdHint}>F</kbd>{flagged ? 'Flagged' : 'Flag'}</button>
-        <button type="button" className={`${styles.tbtn}${skipped ? ' ' + styles.on : ''}`} onClick={onSkip} disabled={!row}
-          aria-pressed={!!skipped}><kbd className={styles.kbdHint}>X</kbd>{skipped ? 'Skipped' : 'Skip'}</button>
-        <span className={styles.spacer} />
-        <div className={styles.progress} aria-live="polite">
-          <span>
-            {reviewed.toLocaleString()} / {total.toLocaleString()} reviewed
-            {reviewed > 0 && <> · <button type="button" className={styles.linkBtn} onClick={onResetReview}>reset</button></>}
-          </span>
-          <span className={styles.progressBar}><i style={{ width: `${total ? (reviewed / total) * 100 : 0}%` }} /></span>
-        </div>
-        <button type="button" className={`${styles.tbtn} ${styles.primary}`} onClick={onNext} disabled={!canNext}><kbd className={styles.kbdHint}>J</kbd>Next</button>
-      </div>
     </div>
-  )
-}
-
-function Facts({ row, facts, alsoLabels, earningsSoon }) {
-  const where = [row.sector, row.industry].filter(Boolean).join(' › ')
-  const items = [
-    ['Sector › Industry', where || '—', true],
-    ['Theme', row.theme || '—', true],
-    ['Mcap', fmtCap(row.mcap)],
-    ['ADR', Number.isFinite(facts?.adr) ? `${facts.adr.toFixed(1)}%` : '—'],
-    ['DCR', Number.isFinite(facts?.dcr) ? `${Math.round(facts.dcr)}%` : '—'],
-    ['Gap', Number.isFinite(facts?.gap) ? <span className={facts.gap >= 0 ? styles.up : styles.dn}>{fmtPct(facts.gap)}</span> : '—'],
-    ['RVOL', Number.isFinite(row.rvol) ? `${row.rvol}x` : '—'],
-    ['UCT Rating', Number.isFinite(row.rating) ? Math.round(row.rating) : '—'],
-  ]
-  const badges = []
-  if (earningsSoon) badges.push(<span key="e" className={`${styles.badge} ${styles.earn}`} title={`Next earnings ${row.nextEarnings}`}>EARNINGS {earningsSoon}</span>)
-  if (row.repeat > 0) badges.push(<span key="r" className={`${styles.badge} ${styles.repeat}`} title={`In this list on ${row.repeat} of the previous 5 sessions`}>↻ {row.repeat} of 5</span>)
-  if (row.repeat === 0) badges.push(<span key="n" className={styles.badge} title="Not in this list on any of the previous 5 sessions">FIRST APPEARANCE</span>)
-  for (const l of alsoLabels.slice(0, 5)) badges.push(<span key={l} className={`${styles.badge} ${styles.also}`} title="Also on this list the same day">{l}</span>)
-  return (
-    <>
-      <div className={styles.facts}>
-        {items.map(([l, v, txt]) => (
-          <div key={l} className={styles.fact}>
-            <span className={styles.factL}>{l}</span>
-            <span className={`${styles.factV}${txt ? ' ' + styles.txt : ''}`} title={typeof v === 'string' ? v : undefined}>{v}</span>
-          </div>
-        ))}
-      </div>
-      {badges.length > 0 && <div className={styles.badges} style={{ paddingTop: 6 }}>{badges}</div>}
-    </>
   )
 }

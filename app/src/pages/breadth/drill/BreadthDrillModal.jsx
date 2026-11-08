@@ -18,7 +18,6 @@ import {
 } from './drillBoardPrefs'
 import WhatElseOpenPrompt from '../../../components/instruments/WhatElseOpenPrompt'
 import useScanDeck from './scan/useScanDeck'
-import useDayFacts from './scan/useDayFacts'
 import { dayContext, stepDate } from './scan/scanDeckModel'
 import { ScanHeader, ScanRail, ScanStage } from './scan/ScanDeckParts'
 import styles from './BreadthDrillModal.module.css'
@@ -58,15 +57,6 @@ function scanKeyTarget(e) {
   if (t.closest('input, textarea, select, [contenteditable="true"]')) return false
   if (t.closest('[role="region"]')) return false
   return true
-}
-
-function daysUntil(iso, from) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
-  if (!m) return null
-  const a = Date.UTC(+m[1], +m[2] - 1, +m[3])
-  const f = /^(\d{4})-(\d{2})-(\d{2})/.exec(from || '')
-  const b = f ? Date.UTC(+f[1], +f[2] - 1, +f[3]) : Date.now()
-  return Math.round((a - b) / 86400000)
 }
 
 // The breadth cell drill — the Scan Deck.
@@ -189,7 +179,6 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // longer shown; the selection then falls to the first shown name.
   const selectedSym = pickedSym && order.includes(pickedSym) ? pickedSym : (order[0] || null)
   const selIdx = selectedSym ? order.indexOf(selectedSym) : -1
-  const selectedRow = selectedSym ? deck.rowBySym[selectedSym] || null : null
 
   // Keep the chart (colour group A) on the effective selection. Not via the
   // wrapped setter: a fallback is not a user pick, so it must not flip a phone to
@@ -209,7 +198,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     if (order[next] && order[next] !== selectedSym) setSym('A', order[next])
   }, [order, selIdx, selectedSym, setSym])
 
-  const { isFlagged, toggle: toggleFlag } = useFlagged()
+  const { toggle: toggleFlag } = useFlagged()
   const flagSelected = useCallback(() => { if (selectedSym) toggleFlag(selectedSym) }, [selectedSym, toggleFlag])
   const skipSelected = useCallback(() => {
     if (!selectedSym) return
@@ -324,6 +313,9 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     onRetry: onRetry ?? null,
     groupMeta: deck.groupMeta,
     mode: board.mode || 'scan',
+    // The Scan Deck owns grouping (Groups mode) and the count (masthead), so the
+    // list drops its own List|Grouped bar and footer.
+    deckHosted: true,
   }), [drill, latestDate, onRetry, deck.shownItems, deck.groupMeta, board.mode])
 
   // Escape closes — but NOT while a widget menu is open (its own Escape handler
@@ -386,33 +378,16 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   }, [])
 
   const total = drill?.items?.length ?? 0
-  const facts = useDayFacts(selectedSym, drill?.live ? null : drill?.date)
-  const colLabelByDrillKey = useMemo(
-    () => Object.fromEntries((drillCols || []).map(c => [c.drillKey, c.label])),
-    [drillCols],
-  )
-  const alsoLabels = useMemo(
-    () => (selectedRow?.also || []).map(k => colLabelByDrillKey[k]).filter(Boolean),
-    [selectedRow, colLabelByDrillKey],
-  )
-  const earnDays = selectedRow?.nextEarnings ? daysUntil(selectedRow.nextEarnings, drill?.live ? null : drill?.date) : null
-  const earningsSoon = earnDays != null && earnDays >= 0 && earnDays <= 5
-    ? (earnDays === 0 ? 'TODAY' : `IN ${earnDays}D`) : null
 
+  // The chart column: its toolbar band over the chart cells — nothing below the
+  // chart, so the price pane gets the whole height.
   const wrapChartPane = useCallback((node) => (
     <ScanStage
       layout={layout} onLayout={setLayout} layouts={SCAN_LAYOUTS}
       templates={templates} templateId={templateId} onTemplate={applyTemplate}
       extraCells={extraCells}
-      row={selectedRow} facts={facts} alsoLabels={alsoLabels} earningsSoon={earningsSoon}
-      flagged={selectedSym ? isFlagged(selectedSym) : false} onFlag={flagSelected}
-      skipped={selectedSym ? deck.review.skipped.has(selectedSym) : false} onSkip={skipSelected}
-      onPrev={() => go(-1)} onNext={() => go(1)}
-      canPrev={selIdx > 0} canNext={order.length > 0 && selIdx < order.length - 1}
-      reviewed={deck.review.count} total={total} onResetReview={deck.review.reset}
     >{node}</ScanStage>
-  ), [layout, setLayout, templates, templateId, applyTemplate, extraCells, selectedRow, facts, alsoLabels,
-    earningsSoon, selectedSym, isFlagged, flagSelected, deck.review, skipSelected, go, selIdx, order.length, total])
+  ), [layout, setLayout, templates, templateId, applyTemplate, extraCells])
 
   return (
     // ⛔ The dialog role belongs to the PANEL, not the backdrop.
@@ -439,6 +414,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           canPrev={!!prevTarget}
           canNext={!!nextTarget}
           ctx={ctx}
+          summary={deck.summary}
           mode={mode}
           modes={SCAN_MODES}
           onMode={setMode}
