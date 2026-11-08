@@ -152,7 +152,10 @@ class StubClient:
 
 
 def record_for(job, **window):
-    w = {"startTime": job.bars[0]["t"], "fromListing": False, "bars": len(job.bars),
+    # the stub stands in for the JS service, so it states the start by the route's mirror of
+    # `strategyRecord.js::startSentenceOf` (held to the JS function by the W9-T13a fixture rail below)
+    w = {"startTime": job.bars[0]["t"], "startDate": pst.start_date_of(job.bars[0]["t"]),
+         "startSentence": pst.start_sentence_of(job.bars[0]["t"]), "fromListing": False, "bars": len(job.bars),
          "historyWindowBars": HISTORY_WINDOW_BARS, "asOfBar": job.bars[-1]["t"], **window}
     return {"schema": codec.STRATEGY_RECORD_SCHEMA, "window": w, "trades": [], "settings": {}}
 
@@ -235,7 +238,7 @@ def test_the_window_is_the_one_authority_and_the_start_is_stated(world):
     a = body["results"][0]
     assert a["symbol"] == "AAA" and a["status"] == "ok"
     assert a["window"]["startDate"] == "2024-01-02" and a["window"]["fromListing"] is False
-    assert a["window"]["note"] == "this backtest starts on 2024-01-02; TradingView may start elsewhere"
+    assert a["window"]["note"] == "this backtest starts on 2024-01-02 (UTC); TradingView may start elsewhere"
     assert a["window"]["startTime"] == call["jobs"][0].bars[0]["t"]
     assert a["strategy"] == record_for(call["jobs"][0])
 
@@ -451,3 +454,67 @@ def test_r1_arming_the_shared_server_stage_does_not_make_a_strategy_run(monkeypa
     assert req["jobs"][0]["want"] == [codec.STRATEGY_WANT]
     assert req["jobs"][0]["ctx"]["historyWindowBars"] == HISTORY_WINDOW_BARS
     assert req["jobs"][0]["ctx"]["historyFromListing"] is False
+
+
+# --- W9-T13a r1, ruling D2: ONE authority over the start sentence -----------------------------
+
+START_FIXTURE = ROOT / "tests" / "fixtures" / "pine_runtime" / "w9t13a_start_sentence.json"
+
+
+def _start_cases():
+    return json.loads(START_FIXTURE.read_text(encoding="utf-8"))["cases"]
+
+
+def test_D2_the_routes_mirror_says_exactly_what_strategyRecord_js_says():
+    """The fixture is WRITTEN by `w9T13aBrokerReport.test.js` from `strategyRecord.js` (and
+    byte-checked there), so this compares the route's refusal-path mirror to the JS function."""
+    cases = _start_cases()
+    assert any(c["name"].startswith("ASX") for c in cases)
+    for c in cases:
+        assert pst.start_date_of(c["startTime"]) == c["startDate"]
+        assert pst.start_sentence_of(c["startTime"]) == c["recordSentence"] == c["reportSentence"]
+    assert pst.start_sentence_of(None) == "this backtest ran over no bars"
+
+
+def _asx(world):
+    """A non-US daily session: the bar time SENT is the ASX open (23:00 UTC the day before), so a
+    route that dated the start from its own bars instead of the run's time would say another day."""
+    [c] = [c for c in _start_cases() if c["name"].startswith("ASX")]
+    bars = [{"t": c["startTime"] + i * 86400, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0} for i in range(3)]
+    world["bars"] = bars
+    return c, bars
+
+
+def test_D2_a_non_US_session_route_and_report_state_the_identical_sentence(world, monkeypatch):
+    c, bars = _asx(world)
+    monkeypatch.setattr(pst, "_window_bars", lambda sym: [dict(b) for b in bars])
+
+    def answer(job):  # the record the JS service would send: its window as `strategyRecordOf` states it
+        rec = record_for(job)
+        rec["window"].update(startDate=c["startDate"], startSentence=c["recordSentence"])
+        return prc.JobResult(job=job.job, status="ok", warmup={"withheldBars": 0}, strategy=rec)
+    world["client"] = StubClient(answer)
+    r = post(world)
+    assert r.status_code == 200, r.text
+    a = r.json()["results"][0]
+    assert a["status"] == "ok"
+    assert a["window"]["startTime"] == c["startTime"]
+    assert a["window"]["note"] == c["reportSentence"] == a["strategy"]["window"]["startSentence"]
+    assert a["window"]["startDate"] == c["startDate"] == "2024-03-20"
+
+
+def test_D2_a_non_US_session_refused_states_the_same_sentence(world, monkeypatch):
+    c, bars = _asx(world)
+    monkeypatch.setattr(pst, "_window_bars", lambda sym: [dict(b) for b in bars])
+    world["client"] = StubClient(withheld("runtime:strategy-unsettled", "why", 0))
+    a = post(world).json()["results"][0]
+    assert a["status"] == "refused"
+    assert a["window"]["note"] == c["recordSentence"]
+    assert a["window"]["startDate"] == c["startDate"]
+
+
+def test_D2_a_record_that_does_not_state_its_start_by_the_rule_is_a_500(world):
+    world["client"] = StubClient(lambda job: ok(job, startDate="1999-01-01"))
+    assert post(world).status_code == 500
+    world["client"] = StubClient(lambda job: ok(job, startSentence=None))
+    assert post(world).status_code == 500

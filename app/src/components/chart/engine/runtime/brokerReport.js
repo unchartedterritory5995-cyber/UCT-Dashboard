@@ -33,7 +33,7 @@
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD } from './brokerRules.js'
 import { BROKER_UNSETTLED_GUARD } from './broker.js'
-import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors } from './strategyRecord.js'
+import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf } from './strategyRecord.js'
 
 export const STRATEGY_REPORT_SCHEMA = 'uct.strategy-report/v1'
 /** No source we hold states the metric's formula exactly, and no capture has witnessed it. */
@@ -45,8 +45,8 @@ export const REPORT_UNDEFINED_GUARD = 'runtime:strategy-report-undefined'
 /** The input is not a v1 strategy record (`strategyRecordShapeErrors`). */
 export const REPORT_RECORD_GUARD = 'runtime:strategy-report-record'
 
-/** ruling D2: the sentence a window that does not reach the listing always carries. */
-export const startSentence = (date) => `this backtest starts on ${date}; TradingView may start elsewhere`
+/** ruling D2: the sentence, from the ONE function the record uses (`strategyRecord.js`). */
+export { startSentenceOf }
 
 const B_VAL_SOURCE = 'docs/pine/strategy-broker-spec.md B-VAL (Pine Language Reference strategy.* variable texts)'
 const PF_SOURCE = 'docs/pine/strategy-broker-spec.md B-VAL (Pine User Manual "Using strategy information in scripts": grossprofit / grossloss)'
@@ -127,17 +127,10 @@ const noSymbol = (label, what) => refusal({
   sentence: `${label} is not shown: it needs the symbol's ${what}, and the backtest record does not carry it.`,
 })
 
-/** the date (UTC, YYYY-MM-DD) of a bar time in seconds */
-const dateOf = (t) => (Number.isFinite(t) ? new Date(t * 1000).toISOString().slice(0, 10) : null)
-
+/** D2: the start date and sentence are READ from the record (one authority), never recomputed. */
 function windowOf(w) {
-  const startDate = dateOf(w.startTime)
-  let sentence = null
-  if (w.fromListing !== true) {
-    sentence = startDate ? startSentence(startDate) : 'this backtest ran over no bars'
-  }
-  return { startTime: w.startTime, startDate, fromListing: w.fromListing === true, bars: w.bars,
-    historyWindowBars: w.historyWindowBars, asOfBar: w.asOfBar, asOfDate: dateOf(w.asOfBar), sentence }
+  return { startTime: w.startTime, startDate: w.startDate, fromListing: w.fromListing === true, bars: w.bars,
+    historyWindowBars: w.historyWindowBars, asOfBar: w.asOfBar, asOfDate: startDateOf(w.asOfBar), sentence: w.startSentence }
 }
 
 /**

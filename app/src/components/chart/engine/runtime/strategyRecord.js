@@ -30,21 +30,40 @@ export const RUNTIME_STRATEGY_KEY = '__runtimeStrategy'
  *  backtest is path-dependent, so no curtain can withhold "the bars that depend on the start". */
 export const STRATEGY_WINDOW_HISTORY = 'strategy-window'
 
-/** The fields 3.2 names that no served rule produces yet, and the W9 task that owns each. */
+/** The fields 3.2 names that no served rule produces yet, and the W9 task that owns each.
+ *  W9-T13a-F1 (coordinator ruling, 2026-11-08): T13a computes the report from the record and
+ *  serves per-trade profit in the report; equity, run-up and drawdown need a per-bar close or
+ *  equity column the record does not carry yet, which is that follow-up's work. */
 export const STRATEGY_RECORD_UNSERVED = Object.freeze({
   orders: 'W9-T7',
-  equity: 'W9-T13a',
+  equity: 'W9-T13a-F1',
   'trades.exitId': 'W9-T7',
-  'trades.profit': 'W9-T13a',
+  'trades.profit': 'W9-T13a-F1',
   'trades.commission': 'W9-T5',
-  'trades.runUp': 'W9-T13a',
-  'trades.drawdown': 'W9-T13a',
+  'trades.runUp': 'W9-T13a-F1',
+  'trades.drawdown': 'W9-T13a-F1',
   'settings.commission': 'W9-T5',
   'settings.slippage': 'W9-T5',
   'settings.process_orders_on_close': 'W9-T6',
   'settings.bar_detalization': 'W9-T9',
   'settings.currency': 'W9-T4',
 })
+
+/** ⭐⭐ RULING D2, ONE AUTHORITY (coordinator, 2026-11-08). The backtest's start date and the
+ *  sentence a window that does not reach the listing always carries. The record holds both
+ *  (`window.startDate`, `window.startSentence`), computed HERE from `window.startTime`, the run's
+ *  truth; the report reads them and the route (`pine_strategy_backtest.py`) serves the record's,
+ *  never its own bars' dates. No record carries the symbol's exchange timezone, so the date is
+ *  the UTC date of the start, and the sentence SAYS UTC. */
+export const START_TIMEZONE = 'UTC'
+export function startDateOf(startTime) {
+  return Number.isFinite(startTime) ? new Date(startTime * 1000).toISOString().slice(0, 10) : null
+}
+export function startSentenceOf(startTime) {
+  const date = startDateOf(startTime)
+  return date ? `this backtest starts on ${date} (${START_TIMEZONE}); TradingView may start elsewhere`
+    : 'this backtest ran over no bars'
+}
 
 const timeAt = (barTimes, i) => (Array.isArray(barTimes) && Number.isInteger(i) && i >= 0 && i < barTimes.length
   && Number.isFinite(barTimes[i]) ? barTimes[i] : null)
@@ -86,11 +105,16 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     runUp: null,
     drawdown: null,
   }))
+  const startTime = timeAt(barTimes, 0)
+  const fromListing = cfg.fromListing === true
   return {
     schema: STRATEGY_RECORD_SCHEMA,
     window: {
-      startTime: timeAt(barTimes, 0),
-      fromListing: cfg.fromListing === true,
+      startTime,
+      startDate: startDateOf(startTime),
+      // D2: always stated when the window does not reach the listing
+      startSentence: fromListing ? null : startSentenceOf(startTime),
+      fromListing,
       bars: n,
       historyWindowBars,
       // the newest CONFIRMED bar the record reflects: a forming bar is never run (`vm.js`, [B-EXEC])
@@ -155,6 +179,8 @@ export function strategyRecordShapeErrors(rec) {
   const w = rec.window || {}
   need(isNullOr(w.startTime, isTime), 'window.startTime')
   need(typeof w.fromListing === 'boolean', 'window.fromListing')
+  need(w.startDate === startDateOf(w.startTime), 'window.startDate')
+  need(w.startSentence === (w.fromListing === true ? null : startSentenceOf(w.startTime)), 'window.startSentence')
   need(Number.isInteger(w.bars) && w.bars >= 0, 'window.bars')
   need(Number.isInteger(w.historyWindowBars) && w.historyWindowBars > 0, 'window.historyWindowBars')
   need(Number.isInteger(w.bars) && Number.isInteger(w.historyWindowBars) && w.bars <= w.historyWindowBars,
