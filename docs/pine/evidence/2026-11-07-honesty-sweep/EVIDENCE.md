@@ -146,9 +146,11 @@ section 4, the same table).
 - R10: a blank line THEN a comment-only line in a wrap gap refuses.
 
 **N1, the named-argument helper: CHOSEN = refuse by name (Q-HS7).** `style = st(m = mode)` fell to `enumUnreadable`:
-the prop was dropped and the renderer drew its default (solid), whatever the helper returns. The reference's default
-(`line.new`: "The default is line.style_solid") is the value when the argument is OMITTED; it states nothing about a
-value the script passed that this door could not read. So it is not backed. The host object program now withholds the
+the prop was dropped and the renderer drew its default (solid), whatever the helper returns. (r2 correction: the
+Pine REFERENCE states no default for `line.new`'s `style`; `line.style_solid` is the User Manual's (`[UM]`), per
+`docs/pine/pine-presentation-spec.md` section 4.4.1, "Provenance note, verified against the payload". r1 quoted it
+as reference text; it is not.) Any documented default is the value of an OMITTED argument; nothing states what a
+value the script passed, which this door could not read, draws. So it is not backed. The host object program now withholds the
 drawing, setter or cell: drop reason `enum:named-call`, classified PARTIAL in `objectLoss.js`. The sentence is
 `ENUM_NAMED_CALL_SENTENCE` (`engine/enumNaRule.js`), counted as `enumNamedCall`. The detector is `namedHelperCallIn`:
 a call to the script's own function with a named argument, directly, through `expr` name bindings, or in a ternary

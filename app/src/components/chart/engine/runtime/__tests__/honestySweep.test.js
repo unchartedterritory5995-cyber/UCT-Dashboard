@@ -146,14 +146,17 @@ describe('⛔ item 1 — a drawing whose enum slot can be `na` is WITHHELD by na
 })
 
 // ── r1 (review N1) — a helper computing the word, called with a NAMED argument ───────────
-// The reference's default (`line.new`: "The default is line.style_solid") applies when `style` is
-// OMITTED; it does not state what a value this door could not read draws. Withheld (Q-HS7).
+// The Pine REFERENCE states no default for `line.new`'s `style`; `line.style_solid` is the User
+// Manual's ([UM], `docs/pine/pine-presentation-spec.md` section 4.4.1, provenance note). Any default is
+// the value of an OMITTED argument, not of a value this door could not read. Withheld (Q-HS7).
 describe('⛔ r1 N1 — a helper called with a named argument in an enum slot is withheld by name', () => {
   const SHAPES = {
     'uncovered switch, the member picks "A" (the I6b-N2 shape)': `${ST_SWITCH}${MODE('A')}${LINE('st(m = mode)')}`,
     'a covered switch': `${ST_SWITCH}${MODE('A', '["A", "B"]')}${LINE('st(m = mode)')}`,
     'a switch WITH a default arm': `st(m) =>\n    switch m\n        "A" => line.style_dashed\n        => line.style_dotted\n${MODE('A')}${LINE('st(m = mode)')}`,
     'through a name': `${ST_SWITCH}${MODE('A', '["A", "B"]')}sty = st(m = mode)\n${LINE('sty')}`,
+    // r2 (review Q7a) — the call in a TERNARY ARM, the other arm a named constant.
+    'in a ternary arm': `${ST_SWITCH}${MODE('A', '["A", "B"]')}${LINE('(close > open ? st(m = mode) : line.style_dotted)')}`,
   }
   for (const [name, body] of Object.entries(SHAPES)) {
     it(`${name}: no drawing, enum:named-call, the sentence named`, () => {
