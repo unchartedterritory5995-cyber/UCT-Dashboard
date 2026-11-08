@@ -2405,10 +2405,13 @@ export function collectObjectOps(stmts, h) {
 
   /** ⭐⭐ `l[1].delete()` IS `line.delete(l[1])` — A METHOD ON A VALUE RECEIVER.
    *
-   *  Pine's manual (Methods: built-in methods) defines `id.f(args)` as
-   *  `<ns>.f(id, args)` for every built-in type, and the `line.delete` reference
-   *  example is `line.delete(l[1])`: `l[1]` is the id the variable held on the
-   *  previous bar. So the method form is lowered to EXACTLY the name form's op —
+   *  Pine's v6 reference lists the METHOD `delete` with `originalName`
+   *  `line.delete` (label/box/table/linefill/polyline alike) and `thisType`
+   *  `series line`: `id.delete()` IS `<ns>.delete(id)`. The history form is
+   *  witnessed by the reference's own examples (`input.string`, `input.time`):
+   *  `label.delete(l[1])` — `l[1]` is the id the variable held on the previous
+   *  bar. (⚰️ This said "the `line.delete` reference example is
+   *  `line.delete(l[1])`"; there is no such example — review IDX-DELETE.) So the method form is lowered to EXACTLY the name form's op —
    *  same family (from the declaration, never the method name), same target node,
    *  same emitter (`emitMethodOn`) — and from there it is served or refused
    *  wherever the name form is: `l[n]` on a declared handle resolves to
@@ -2423,11 +2426,17 @@ export function collectObjectOps(stmts, h) {
    *  whose family is unknown is `object.<method>` in `unsupported` (classified a
    *  removal / a lost setter by name, `classifyReaderName`).
    *
-   *  ⛔ THE SCRIPT'S OWN METHOD WINS, as in `emitMethodForm`: a defined method of
-   *  that name answers false and the statement is the inliner's business. */
+   *  ⛔⛔ A USER METHOD OF THE SAME NAME IS REFUSED BY NAME (`shadowedDrawingMethod`):
+   *  on a receiver this pass KNOWS is a drawing, which of the two Pine calls is a
+   *  question the tokens cannot settle, so neither is guessed and nothing is
+   *  dropped in silence (ruling, IDX-DELETE review C). On any other receiver the
+   *  script's own method wins and the statement is the inliner's business. */
   function emitOnValueReceiver(node, toks, guards, inLoop, st, scope) {
     const method = String(node.name || '')
-    if (!method || isDefined(method)) return false
+    if (!method) return false
+    if (isDefined(method)) {
+      return valueReceiverFamily(node.recv) ? shadowedDrawingMethod(method) : false
+    }
     const fam = valueReceiverFamily(node.recv)
     if (!fam) {
       if (method === 'delete' || method.startsWith('set_')) {
@@ -2440,6 +2449,20 @@ export function collectObjectOps(stmts, h) {
     if (inLoop) { diagnostics.loopBlocked.push(`${fam}.${method}`); return true }
     emitMethodOn(fam, method, { name: null, value: node.recv, tok: toks[0] },
       node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⛔⛔ A USER `method <m>` SHADOWING A DRAWING METHOD, CALLED ON A DRAWING.
+   *  `method delete(T this) => …` beside `l.delete()` / `l[1].delete()` on a
+   *  declared `line`: Pine dispatches on the receiver's type, but whether a user
+   *  method may also take a built-in type's name is not something this pass can
+   *  settle from the tokens — so it is REFUSED BY NAME as `object.<m>` (a removal
+   *  that reaches, `classifyReaderName`), never dropped. ⚰️ Before this both forms
+   *  fell through every branch with no op and no count (IDX-DELETE review, C).
+   *  @returns {boolean} true when it owned (and refused) the statement. */
+  function shadowedDrawingMethod(method) {
+    if (!/^(delete|copy|clear|cell|merge_cells)$|^set_|^cell_set_/.test(method)) return false
+    diagnostics.unsupported.push(`object.${method}`)
     return true
   }
 
@@ -2457,7 +2480,10 @@ export function collectObjectOps(stmts, h) {
     // is checked BEFORE the declaration lookup so that a shadowing definition
     // takes the statement back even when the receiver is a perfectly good
     // collection, which is exactly the case the corpus writes.
-    if (isDefined(method)) return false
+    if (isDefined(method)) {
+      const sd = decls.get(recv)
+      return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method)
+    }
     const d = decls.get(recv)
     if (!d) return false
     const ns = d.kind === 'coll' ? 'array' : d.family

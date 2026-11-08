@@ -12,9 +12,10 @@
 //
 // THE RULING, per form:
 //  • SERVED — `l[n].<m>(…)` on a DECLARED handle of line/label/box/table/
-//    linefill. Pine's manual (Methods → built-in methods) defines `id.f(args)` as
-//    `<ns>.f(id, args)`, and the `line.delete` reference example is
-//    `line.delete(l[1])` (the id the variable held on the previous bar). So it is
+//    linefill. The v6 reference lists the METHOD `delete` with `originalName`
+//    `line.delete` and `thisType` `series line` (`id.delete()` IS
+//    `<ns>.delete(id)`), and its own `input.string` / `input.time` examples write
+//    `label.delete(l[1])` (the id the variable held on the previous bar). So it is
 //    lowered to EXACTLY the name form's op — the parity rail below compares the
 //    two ops whole — and the name form's own rails (`objectHandleHistory.test.js`)
 //    already carry `{r:'reg', back:n}` through the runtime.
@@ -195,6 +196,43 @@ describe('⛔ REFUSED BY NAME — never dropped in silence', () => {
   it('a polyline history delete is named (the family is out of scope)', () => {
     const t = host(['p = polyline.new(array.from(chart.point.from_index(bar_index, low)))', 'p[1].delete()'])
     expect(t.objectDiagnostics.unsupported).toContain('object.delete')
+  })
+})
+
+describe('⛔ REVIEW r1 (IDX-DELETE) — the guards a mutant could remove', () => {
+  it('B: inside a loop this reader cannot run (`while`), `l[1].delete()` is loop-blocked, never served', () => {
+    const t = host([LINE, 'i = 0', 'while i < 2', '    l[1].delete()', '    i += 1'])
+    expect(t.objects ? t.objects.ops.some((o) => o.k === 'delete') : false).toBe(false)
+    expect(t.objectDiagnostics.loopBlockedCalls).toContain('line.delete')
+    expect(assessObjectLoss(t).verdict).toBe('removes')
+  })
+
+  it('G: a REFUSED helper with `l[1].set_x1(…)` keeps the name form lost-geometry count', () => {
+    const fn = (s) => [LINE, 'f() =>', `    ${s}`, '    1', 'plot(close + f())']
+    const m = host(fn('l[1].set_x1(bar_index)'))
+    const n = host(fn('line.set_x1(l[1], bar_index)'))
+    expect(Object.keys(m.objectDiagnostics.dropReasons).some((k) => k.startsWith('fn:'))).toBe(true)
+    expect(m.objectDiagnostics.dropReasons).toEqual(n.objectDiagnostics.dropReasons)
+    expect(m.objectDiagnostics.dropReasons['geometry:lost'] || 0,
+      JSON.stringify(m.objectDiagnostics.dropReasons)).toBeGreaterThan(0)
+  })
+
+  describe('C: a user `method delete(T)` beside a drawing receiver is refused by name', () => {
+    const T = ['type T', '    int x = 0', 'method delete(T this) =>', '    this.x := 1', '    this.x']
+    it('`l[1].delete()`', () => {
+      const t = host([...T, LINE, 'l[1].delete()'])
+      expect(t.objectDiagnostics.unsupported).toContain('object.delete')
+      expect(assessObjectLoss(t).verdict).toBe('removes')
+    })
+    it('plain `l.delete()` (silent on master too)', () => {
+      const t = host([...T, LINE, 'l.delete()'])
+      expect(t.objectDiagnostics.unsupported).toContain('object.delete')
+      expect(assessObjectLoss(t).verdict).toBe('removes')
+    })
+    it('⭐ control: the user method on its OWN receiver is not refused', () => {
+      const t = host([...T, LINE, 'var u = T.new()', 'u.delete()'])
+      expect(t.objectDiagnostics.unsupported).not.toContain('object.delete')
+    })
   })
 })
 
