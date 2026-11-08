@@ -22,12 +22,35 @@ export const DRILL_GROUP = 'A'
 
 const DEFAULT_SPLIT = 340   // px, list panel width
 
+// ── Scan Deck arrangement ────────────────────────────────────────────────────
+// MODES are arrangements of the SAME list + chart, never different data: Scan is
+// chart-first, Groups opens the group panel above the list, Table gives the list
+// most of the width. Each mode carries its own default list width.
+export const SCAN_MODES = ['scan', 'groups', 'table']
+export const MODE_SPLIT = { scan: 340, groups: 400, table: 680 }
+// Chart LAYOUTS inside the chart pane: one chart, Daily + Weekly of the same
+// stock, or four stocks (the selected one and the next three in the list).
+export const SCAN_LAYOUTS = ['1', 'dw', '4']
+
+// Keys of a chart widget's opts the drill does not carry. A chart's own tab
+// strip (`chartTabs`) is replaced here by the layouts above — the screenshot
+// that started this work had three "1D" tabs nobody could explain.
+const DROPPED_CHART_OPTS = ['chartTabs', 'activeChartTab', 'mainTabName']
+
+function withoutDropped(opts) {
+  const out = { ...opts }
+  for (const k of DROPPED_CHART_OPTS) delete out[k]
+  return out
+}
+
 /** A fresh board. `seedChartOpts` comes from the caller so the chart is seeded
  *  exactly the way /charts seeds a newly-added chart widget — one authority over
  *  "what does a new chart look like", never a second copy of the defaults. */
 export function defaultBoard(seedChartOpts = {}) {
   return {
     split: DEFAULT_SPLIT,
+    mode: 'scan',
+    layout: '1',
     widgets: [
       { id: LIST_WIDGET_ID, type: 'watchlist', color: DRILL_GROUP, opts: { source: 'breadthDrill' } },
       { id: CHART_WIDGET_ID, type: 'chart', color: DRILL_GROUP, opts: { ...seedChartOpts } },
@@ -54,11 +77,13 @@ export function parseBoard(raw, seedChartOpts = {}) {
       ...w,
       // The source tag is structural, not a preference — a stored blob must not
       // be able to turn the list widget back into a saved-list picker.
-      opts: w.id === LIST_WIDGET_ID ? { ...opts, source: 'breadthDrill' } : { ...w.opts, ...opts },
+      opts: w.id === LIST_WIDGET_ID ? { ...opts, source: 'breadthDrill' } : withoutDropped({ ...w.opts, ...opts }),
     }
   })
   const split = Number.isFinite(parsed.split) ? clampSplit(parsed.split) : fresh.split
-  return { split, widgets }
+  const mode = SCAN_MODES.includes(parsed.mode) ? parsed.mode : fresh.mode
+  const layout = SCAN_LAYOUTS.includes(parsed.layout) ? parsed.layout : fresh.layout
+  return { split, mode, layout, widgets }
 }
 
 // The split's travel. Exported because the divider reports them to assistive
@@ -74,6 +99,8 @@ export function clampSplit(px) {
 export function serializeBoard(board) {
   return JSON.stringify({
     split: clampSplit(board?.split ?? DEFAULT_SPLIT),
+    mode: SCAN_MODES.includes(board?.mode) ? board.mode : 'scan',
+    layout: SCAN_LAYOUTS.includes(board?.layout) ? board.layout : '1',
     widgets: (board?.widgets ?? []).map(w => ({ id: w.id, opts: w.opts || {} })),
   })
 }

@@ -19,6 +19,9 @@
   overflow: hidden;
 }
 .paneGrow { flex: 1 1 auto; }
+/* The list widget under a Scan Deck rail header takes the rest of the pane. */
+.paneFill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.paneFill > * { flex: 1 1 auto; min-height: 0; }
 
 /* 6px hit area, 2px visible rule on hover — matching the grid's margin so the
    seam sits where a /charts widget gap would. */

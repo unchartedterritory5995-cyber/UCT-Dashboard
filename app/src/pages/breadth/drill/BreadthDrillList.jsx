@@ -34,12 +34,23 @@ const DRILL_DEFAULT_COLS = {
 }
 // Namespaced off the watchlist key the same way the scanner namespaces its own.
 const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill`
+// The Scan Deck's TABLE mode gives the list most of the window, so it opens with
+// the columns a screener would: who the company is, where it sits, how big, and
+// how stretched. Its OWN key, so arranging Table never rearranges the compact
+// Scan list (and vice versa). Every column here is one the drill CAN fill — the
+// meta batch, the theme map, or the drill payload itself.
+const DRILL_TABLE_DEFAULT_COLS = {
+  order: ['flag', 'sym', 'name', 'price', 'chg', 'rvol', 'sector', 'theme', 'mcap', 'rating', 'atr', 'a50', 'earn'],
+  sort: { key: 'chg', dir: 'desc' },
+}
+const DRILL_TABLE_COLS_KEY = `${WL_COLS_LS}.breadthDrill.table`
 
 export default function BreadthDrillList({ color, settingsOverride = null, onSettingsPersist = null }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   const drill = useDrillSource()
   const widgetId = useId()
   const items = drill?.items ?? NO_ITEMS
+  const tableMode = drill?.mode === 'table'
   // Scoped sym context: a row click publishes into THIS widget's colour group so
   // the paired chart follows — identical wiring to ScannerResults/WatchlistWidget.
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
@@ -54,7 +65,7 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // so List|Grouped and Sector|Industry behave exactly as they did.
   const {
     viewMode, setViewMode, dimension, setDimension, grouped,
-  } = useBreadthGrouping(items, { tickerOf, pctOf })
+  } = useBreadthGrouping(items, { tickerOf, pctOf, meta: drill?.groupMeta || undefined })
 
   // ⛔ THE WATCHLIST UPPERCASES EVERY ROW SYM (it is built for tickers), so a group
   // NAME renders and keys as its uppercase form. scanSymbols / scanGroups /
@@ -218,6 +229,13 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       <div className={styles.tableWrap}>
         <ChartsSymContext.Provider value={scopedSymContext}>
           <Watchlists
+            // Remount on a mode change (the table reads its column layout once)
+            // AND on a new list. The scan window steps between sessions and lists
+            // without closing, and a table kept mounted across two different
+            // memberships kept a stale % Chg sort — measured in the harness: the
+            // Dn 4%+ list rendered -4.0, -8.2, -39.7, -31.7… after a switch.
+            // Filters do NOT remount: they narrow the same list.
+            key={`${tableMode ? 'table' : 'list'}|${drill?.label || ''}|${drill?.live ? 'live' : drill?.date || ''}`}
             embedded
             pickList="__scan__"
             scanSymbols={symbols}
@@ -248,8 +266,8 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             // surface the user did not arrange for keeps a column of em-dashes.
             // Its own key lets the drill lead with RVOL — which it CAN fill —
             // while the user's watchlists keep their arrangement untouched.
-            colStorageKey={DRILL_COLS_KEY}
-            defaultColCfg={DRILL_DEFAULT_COLS}
+            colStorageKey={tableMode ? DRILL_TABLE_COLS_KEY : DRILL_COLS_KEY}
+            defaultColCfg={tableMode ? DRILL_TABLE_DEFAULT_COLS : DRILL_DEFAULT_COLS}
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
             scanFooter={scanFooter}

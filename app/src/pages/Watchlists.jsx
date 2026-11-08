@@ -253,7 +253,9 @@ function ipoSortValue(ymd) {
 }
 // Market cap arrives PRE-FORMATTED from the backend ("$1.23T" / "$482.10B" / "$950M" /
 // "$12,345") — parse the display string back to a number so the column can sort.
-function parseMcap(s) {
+// Exported for the breadth Scan Deck's "Mcap > $1B" filter — one parser for the
+// meta batch's market-cap string, never a second one that disagrees on units.
+export function parseMcap(s) {
   if (s == null) return null
   if (typeof s === 'number') return Number.isFinite(s) ? s : null
   const m = /^\s*\$?\s*(-?[\d,.]+)\s*([TBMK]?)/i.exec(String(s))
