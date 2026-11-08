@@ -8,6 +8,7 @@ import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal } from '..
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
 import { REGISTRY_SIZES } from '../registrySizes'
+import { enumOptionRequiresServer } from '../defSchema'
 import { stripComments, stripPyComments } from './sourceScan'
 // ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
 // This suite measures other things, so its blobs delete them unless they name `overlays`.
@@ -3421,14 +3422,34 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 // ⭐⭐ UCT RS PHASE 3 (unit 3-01) — THE TWO KINDS OF DECLARED INPUT A ROW
 // DELIBERATELY DOES NOT CARRY, EXEMPTED BY RULE AND NEVER BY NAME.
 //   `legacy: true`          still declared (a stored instance carrying it must
-//                           validate) and never rendered, anywhere.
+//                           validate) and not rendered. ⭐ 3-14 (d0734f6826):
+//                           UNLESS its `mapsTo` successor is itself gated off.
+//                           The global row has no server answer, so a successor
+//                           that is a `requiresServer` input (or maps to a
+//                           `requiresServer` option) is hidden there, the legacy
+//                           input is the only control a v3 server reads, and it
+//                           RENDERS (rsLine's `showMansfield` for `view`). Stated
+//                           here from the definition's own fields, never by name,
+//                           and never by calling the field model it audits.
 //   `requiresServer: true`  rendered once the LIVE server row declares it. The
 //                           global row has no server answer, so it fails closed;
 //                           the input is reachable from the per-instance form
 //                           the moment the server declares it, and the reach
 //                           rail below proves that with the row's own keys.
 // A name list here would be the enumeration this file exists to retire.
-const rowExempt = (input) => !!input && (input.legacy === true || input.requiresServer === true)
+const successorGatedOnGlobalRow = (input, def) => {
+  const m = input && input.mapsTo
+  if (!m || typeof m !== 'object' || typeof m.key !== 'string' || !def) return false
+  const target = def.inputs.find(i => i && i.key === m.key)
+  if (!target || target.legacy === true) return false
+  if (target.requiresServer === true) return true
+  const option = Array.isArray(target.options)
+    ? target.options.find(o => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' ? o.value : o)) === m.value)
+    : undefined
+  return option !== undefined && enumOptionRequiresServer(option)
+}
+const rowExempt = (input, def = null) => !!input && (input.requiresServer === true
+  || (input.legacy === true && !successorGatedOnGlobalRow(input, def)))
 /** A declaration that declares EVERYTHING a definition could ask for — what a
  *  fully armed server row answers. */
 const declaresAll = (def) => ({
@@ -3463,7 +3484,7 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
       expect(row, `${def.id} has no generated row`).toBeTruthy()
-      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.filter(i => !rowExempt(i)).map(i => i.key))
+      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.filter(i => !rowExempt(i, def)).map(i => i.key))
     }
   })
 
@@ -3645,7 +3666,13 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
       // server declares it; a legacy input is reachable from nowhere, by design.
       const armed = new Set(fieldsForInstance(def, null, { declared: declaresAll(def) }).all.map(f => f.key))
       for (const i of def.inputs) {
-        if (i.legacy === true) continue
+        // ⭐ 3-14: except a legacy input whose successor the global row cannot
+        // show yet. It is the ONLY control that does its job there, so the
+        // global row must reach it.
+        if (i.legacy === true) {
+          if (successorGatedOnGlobalRow(i, def) && !reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
+          continue
+        }
         if (i.requiresServer === true ? !armed.has(i.key) : !reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
       }
     }
@@ -3674,6 +3701,31 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     expect(keys(null)).toEqual(['kept'])
     expect(keys(declaresAll(probe))).toEqual(['kept', 'dark'])
     expect(rowExempt({ key: 'x', legacy: 'yes' }), 'only `true` exempts').toBe(false)
+  })
+
+  it('⭐ 3-14 — a legacy input whose successor is gated off is NOT exempt: the global row carries it', () => {
+    // ⛔ FAILABLE on a probe: one legacy input per shape (successor gated as an
+    // INPUT, successor gated as an OPTION, successor ungated, no successor).
+    const probe = {
+      id: 'probe', compute: { kind: 'server' },
+      inputs: [
+        { key: 'kept', type: 'int', default: 1 },
+        { key: 'mode', type: 'enum', default: 'a', requiresServer: true, options: [['a', 'A'], ['b', 'B']] },
+        { key: 'oldMode', type: 'bool', default: false, legacy: true, mapsTo: { when: true, key: 'mode', value: 'b' } },
+        { key: 'look', type: 'enum', default: 'x', options: [['x', 'X'], ['y', 'Y', { requiresServer: true }]] },
+        { key: 'oldLook', type: 'bool', default: false, legacy: true, mapsTo: { when: true, key: 'look', value: 'y' } },
+        { key: 'oldKept', type: 'bool', default: false, legacy: true, mapsTo: { when: true, key: 'kept', value: 2 } },
+        { key: 'retired', type: 'bool', default: false, legacy: true },
+      ],
+    }
+    const expected = probe.inputs.filter(i => !rowExempt(i, probe)).map(i => i.key)
+    expect(expected).toEqual(['kept', 'oldMode', 'look', 'oldLook'])
+    // …and the shared field model, given no declaration, agrees. The rule is
+    // stated twice ON PURPOSE (oracle and implementation); this is where the
+    // two are held to each other on every shape.
+    expect(fieldsForInstance(probe, null, { declared: null }).all.map(f => f.key)).toEqual(expected)
+    // …and without the definition the 3-01 answer stands: legacy is exempt.
+    expect(rowExempt(probe.inputs[2]), 'no def means no successor to wait for').toBe(true)
   })
 
   it('MACD\'s two colours have a control now — the gap B3 measured and could not close', () => {
