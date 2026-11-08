@@ -29,7 +29,7 @@
 // next true dependency is exposed rather than hidden behind `pine:state`.
 
 import {
-  lexPine, blockStatements, parseWholeExpression, Resolver,
+  lexPine, blockStatements, refuseOffBlockIndent, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
@@ -1614,7 +1614,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
 
   let stmts
-  try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
+  // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
+  try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents)
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
