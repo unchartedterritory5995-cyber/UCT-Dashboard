@@ -81,6 +81,9 @@ RS_EVENT_CASES = ["rs_events_default"]
 # — `kind: "rs_mansfield"`, the same two-series footing, the same kind of list,
 # and again NO `_CASE_COLUMNS` row. Read by `test_rs_mansfield_*` below.
 RS_MANSFIELD_CASES = ["rs_mansfield"]
+# Phase 3 maths (unit 3-03): read by tests/test_rs_phase3_math.py and, for RRG, by
+# app/src/pages/terminal/panels/relativeMath.rsFixture.test.js (one fixture, both lanes).
+RS_PHASE3_CASES = ["rs_rrg", "rs_clenow", "rs_vars"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
@@ -258,7 +261,8 @@ def test_every_fixture_file_is_covered_by_a_test():
     """A fixture nobody reads is a fixture nobody maintains."""
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
-              | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES))
+              | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES)
+              | set(RS_PHASE3_CASES))
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )
