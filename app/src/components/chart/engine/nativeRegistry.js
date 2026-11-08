@@ -168,6 +168,10 @@ import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
 // never imported by the compute closure.
 import './lowerTfGate.js'
 import { runtimeWarmupOf } from './runtime/runtimeObjects'
+// ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
+// `teaching.js` reads the readout cards off this registry, so importing it here
+// is an import cycle. `teachingData.js` imports nothing.
+import { TOUR as RS_TOUR } from '../../../content/rs/teachingData.js'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -3930,8 +3934,8 @@ const RS_LINE_RAW = {
     name: 'UCT Relative Strength', shortName: 'UCT RS', category: CAT.RELATIVE_STRENGTH,
     // ⛔ THE DESCRIPTION PROMISES ONLY WHAT SHIPS (review finding). v4 (unit
     // 3-08) names the Phase 3 readings and the member's own benchmark because
-    // this definition carries them; it names no rating pane, no tour and no list,
-    // which are not built.
+    // this definition carries them; it names no rating pane and no list, which
+    // are not built, and no tour (unit 4-04's cards below introduce themselves).
     description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark or a symbol you choose, its moving average, dots where the line makes a new high (the gold dot marks a high before price in Classic and a high on a red market day in the Stress test), and five readings to pick from: the RS line, Weinstein\'s Mansfield line with its zero crosses, Rotation (RS-Ratio and RS-Momentum around 100, the Terminal\'s RRG formula), Clenow\'s Quality score and a volatility-adjusted RS. A readout in words: the nightly IBD-style rating, the market regime, how the reading holds against SPY, the equal-weight index and the sector, and the four UCT checks, with an anchor date you can pick on the chart. Once the nightly backtest reports, each card\'s evidence line carries our own measured number with its sample size and dates.',
     tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'blue dot',
       'leader', 'leadership', 'price relative', 'benchmark', 'mansfield', 'weinstein',
@@ -3982,6 +3986,20 @@ const RS_LINE_RAW = {
       { key: 'redDay', label: 'Chartmaster: RS highs on red market days' },
       { key: 'fourChecks', label: 'Chartmaster: the four RS checks' },
     ],
+    // ⭐ THE FIVE TOUR CARDS (unit 4-04, D12): shown once, on the member's first
+    // add of UCT RS. The copy is authored in `content/rs/teachingData.js` and
+    // exported to `api/data/rs_teaching.json`; `rsTeaching.test.js` pins this
+    // equal to both, with the tagline once, on card 5.
+    tour: RS_TOUR,
+    // ⭐ THE RSI SIGNPOST (unit 4-04, D13): a member whose WHOLE search is "rsi" or
+    // "relative strength index" may be looking for strength versus the market, so
+    // the library prints this line with an Add button. Exact match only, never a
+    // substring ("rsi divergence" is a search for RSI). ⛔ `tags` stays free of
+    // "rsi": a tag would put UCT RS in every RSI search with no ordering (F45).
+    searchHint: {
+      queries: ['rsi', 'relative strength index'],
+      line: 'Looking for strength versus the market? That is UCT Relative Strength.',
+    },
     // Read by the preset picker (plan §5, §6.8): a named set of input values,
     // applied to the CURRENT instance through `setInstanceInput`, plus (2a-12)
     // the optional `visibility` / `dotSize` fields `applyPresetInputs` chains

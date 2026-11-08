@@ -11,8 +11,9 @@
 // So "rs" and "rsi divergence" must show nothing, and neither must "relative
 // strength", which as a substring or a regex matches both definitions' names.
 //
-// No shipped definition carries a hint in this unit, so the probe
-// (`__tests__/tourProbe.fixture.js`) carries one.
+// The engine is tested against a probe (`__tests__/tourProbe.fixture.js`), over
+// the shipped catalogue with its own teaching taken off: unit 4-04's hint on
+// `rsLine` is railed in `__tests__/rsTeaching.test.js`.
 import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -24,7 +25,7 @@ import { definitionVisibility, setIndicatorEnabled } from './engine/instanceCont
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
 import {
-  withTourProbe, tourProbeDefinition, TOUR_PROBE_ID, TOUR_PROBE_NAME, HINT_LINE,
+  withTourProbe, withoutShippedTeaching, tourProbeDefinition, TOUR_PROBE_ID, TOUR_PROBE_NAME, HINT_LINE,
 } from './__tests__/tourProbe.fixture'
 
 const base = () => mergeChartSettings(null)
@@ -113,7 +114,7 @@ describe('the search hint — an exact whole-query match, never a substring', ()
   })
 
   it('CONTROL: with no definition declaring a hint, "rsi" prints no hint row', () => {
-    open(base(), engineRegistry)
+    open(base(), withoutShippedTeaching(engineRegistry))
     type('rsi')
     expect(hintRow()).toBeNull()
     expect(document.querySelector('li[data-def-id="rsi"]')).toBeTruthy()
