@@ -106,7 +106,7 @@ function TradeBlock({ trade: t, name }) {
       </div>
     )
   }
-  const held = t.broke ? `until session ${t.broke}` : 'the whole run shown'
+  const held = t.broke ? `a close broke the line on session ${t.broke}` : 'the whole run shown'
   return (
     <div className={s.coachBlock}>
       <span className={s.coachLabel}>The move · from the candle that fired</span>
@@ -114,7 +114,7 @@ function TradeBlock({ trade: t, name }) {
         <Leg k="Signal close" v={px(t.close)} note={`the close of the ${name} candle`} tone="gold" />
         <Leg k={t.short ? 'Must stay under' : 'Must hold'} v={px(t.line)} note={t.short ? 'the candle’s high; a close over it ends it' : 'the candle’s low; a close under it ends it'} tone="down" />
         <Leg k={t.short ? 'Decline' : 'Advance'} v={pct(t.advancePct)} note={`to the ${t.short ? 'lowest low' : 'best high'} in ${t.sessions} session${t.sessions === 1 ? '' : 's'}`} tone={t.short ? 'down' : 'up'} />
-        <Leg k="Held" v={t.broke ? `${t.broke}` : 'Yes'} note={held} />
+        <Leg k="Held" v={t.broke ? `${t.broke - 1} session${t.broke - 1 === 1 ? '' : 's'}` : 'Yes'} note={held} />
       </div>
     </div>
   )

@@ -39,6 +39,8 @@
 .pbtn.xl { height: 70px; font-size: 19px !important; border-radius: 20px; padding-left: 34px; }
 .pbtn.xl .cap { width: 46px; height: 46px; }
 .pbtn.wide { width: 100%; }
+.pbtn.wide:not(.noCap) { padding-left: 76px; }   /* the label centred, the arrow at the right edge */
+.pbtn.wide:not(.noCap) .label { flex: 1; align-items: center; }
 .pbtn.good { --face: linear-gradient(180deg, #d7ffe6 0%, #6fe0a1 22%, #32b56c 58%, #1f8a4d 100%); --base: #135c33; --base2: #0a3a1f; --ink: #04170b; --glow: rgba(47, 175, 104, .32); --cap: #052012; --capInk: #9ff0c3; text-shadow: 0 1px 0 rgba(220, 255, 235, .5); }
 .pbtn.bad { --face: linear-gradient(180deg, #ffd9d9 0%, #f58a8a 22%, #df4b4b 58%, #b23434 100%); --base: #6e1a1d; --base2: #420c0f; --ink: #2a0507; --glow: rgba(223, 70, 70, .3); --cap: #2a0507; --capInk: #ffb0b0; text-shadow: 0 1px 0 rgba(255, 225, 225, .5); }
 .pbtn.dark { --face: linear-gradient(180deg, #2b2c32 0%, #1b1c20 60%, #141518 100%); --base: #08080a; --base2: #000; --ink: #f3d98e; --glow: rgba(0, 0, 0, .4); --cap: #f0d27a; --capInk: #1a1406;
