@@ -23,7 +23,7 @@ import {
 } from '../brokerReport.js'
 import { strategyRecordOf, strategyRecordShapeErrors } from '../strategyRecord.js'
 import { UNPINNED_GUARD, BROKER_RULE_IDS } from '../brokerRules.js'
-import { BROKER_UNSETTLED_GUARD } from '../broker.js'
+import { BROKER_UNSETTLED_GUARD, makeBroker } from '../broker.js'
 import { pinned } from '../brokerPins.js'
 
 const ALL = () => true
@@ -176,13 +176,30 @@ describe('W9-T13a pin before serve (D1)', () => {
     expect(rep.trades.rows[0].profit).toMatchObject({ guard: UNPINNED_GUARD, rule: 'B-VAL' })
   })
 
-  it('B-DEFAULTS unpinned (the commission is 0 only by the default): counts serve, currency values refuse naming Q-S1b', () => {
+  it('B-DEFAULTS unpinned (the commission is 0 only by the default): trade counts serve; signs and currency values refuse naming Q-S1b', () => {
     const rep = strategyReportOf(A, { isPinned: except('B-DEFAULTS') })
     expect(rep.metrics.totalClosedTrades.status).toBe('served')
-    expect(rep.metrics.numberWinningTrades.status).toBe('served')
-    for (const k of ['netProfit', 'netProfitPercent', 'grossProfit', 'grossLoss', 'profitFactor']) {
+    expect(rep.metrics.totalOpenTrades.status).toBe('served')
+    // review N1: a commission can flip a break-even or small win, so the sign rests on B-DEFAULTS too
+    for (const k of ['numberWinningTrades', 'numberLosingTrades', 'numberEvenTrades',
+      'netProfit', 'netProfitPercent', 'grossProfit', 'grossLoss', 'profitFactor']) {
       expect(rep.metrics[k]).toMatchObject({ guard: UNPINNED_GUARD, rule: 'B-DEFAULTS', row: 'Q-S1b' })
     }
+  })
+
+  it('review N1, the broker too: strategy.wintrades / losstrades / eventrades ask B-DEFAULTS; closedtrades does not', () => {
+    const b = makeBroker({ pyramiding: 1, defaultQty: 1, initialCapital: 100000, marginLong: 0, marginShort: 0, defaulted: {} },
+      { series: [[1], [1], [1], [1]], barTimes: [T0], isPinned: except('B-DEFAULTS') })
+    for (const fn of ['strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades']) {
+      let err = null
+      try { b.call(fn, [], 0) } catch (e) { err = e }
+      expect(err && err.guard).toBe(UNPINNED_GUARD)
+      expect(err.rule).toBe('B-DEFAULTS')
+    }
+    expect(b.call('strategy.closedtrades', [], 0)).toBe(0)
+    const all = makeBroker({ pyramiding: 1, defaultQty: 1, initialCapital: 100000, defaulted: {} },
+      { series: [[1], [1], [1], [1]], barTimes: [T0], isPinned: ALL })
+    expect(all.call('strategy.wintrades', [], 0)).toBe(0)
   })
 
   it('a fill rule the run used is unpinned: every metric and the whole list refuse (never a partial list)', () => {
@@ -262,6 +279,8 @@ describe('W9-T13a window and run-wide refusals', () => {
     const cases = [
       { name: 'ASX 2024-03-21 session, 10:00 AEDT', startTime: Date.UTC(2024, 2, 20, 23, 0) / 1000 },
       { name: 'NYSE 2024-01-02 session, 09:30 ET', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000 },
+      // review N3: 00:00-05:59 UTC is the PREVIOUS day in every US zone, so a host-local date is told apart
+      { name: 'TSE 2024-03-21 session, 09:00 JST', startTime: Date.UTC(2024, 2, 21, 0, 0) / 1000 },
     ].map((c) => {
       const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: [] } },
         decl: { version: 5, fromListing: false }, barTimes: [c.startTime, c.startTime + DAY],
@@ -272,6 +291,7 @@ describe('W9-T13a window and run-wide refusals', () => {
       return { ...c, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
     })
     expect(cases[0].reportSentence).toBe('this backtest starts on 2024-03-20 (UTC); TradingView may start elsewhere')
+    expect(cases[2].startDate).toBe('2024-03-21')
     const text = `${JSON.stringify({ why: 'W9-T13a r1, ruling D2: written by w9T13aBrokerReport.test.js from strategyRecord.js; read by tests/test_pine_strategy_backtest.py', cases }, null, 1)}
 `
     const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../../../tests/fixtures/pine_runtime/w9t13a_start_sentence.json')

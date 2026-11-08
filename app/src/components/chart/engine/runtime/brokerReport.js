@@ -18,7 +18,8 @@
 // ⛔⛔ PIN BEFORE SERVE (ruling D1). A metric rests on the rules the run's fills used
 // (`record.rulesUsed`), on B-VAL (its definition) and, for a currency value, on B-DEFAULTS (the
 // commission is 0: the broker refuses any other `commission_value` at build, and an undeclared
-// one is the manual's default, which the record cannot tell apart). Each is asked of the
+// one is the manual's default, which the record cannot tell apart; a trade's SIGN rests on it too,
+// since a commission can turn a break-even or small win into a loss). Each is asked of the
 // committed ledger HERE, at report time (`pinned(rule)`); an unpinned one refuses the metric
 // `runtime:strategy-unpinned`, naming the rule and its capture row. Tests pass `isPinned` (a
 // predicate, like `broker.js`'s `data.isPinned`), never a second argument to `pinned`.
@@ -163,7 +164,9 @@ export function strategyReportOf(rec, opts = {}) {
   // a closed trade's profit in price units x size: the broker's own arithmetic (`closeTrade`)
   const pts = (t) => (t.exitPrice - t.entryPrice) * (t.dir === 'long' ? 1 : -1) * t.qty
   const sum = (arr, f) => arr.reduce((s, t) => s + f(t), 0)
-  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'money' || kind === 'percent' || kind === 'ratio' ? ['B-DEFAULTS'] : [])]
+  // B-DEFAULTS: a closed trade's profit is net of commission, which is 0 only by the default when the
+  // script does not declare it, so every value that reads a profit (its SIGN included) rests on it
+  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : ['B-DEFAULTS'])]
 
   // the sign of a closed trade's profit, off the tick grid only when it is further than one
   // tick-quantity from zero (the broker's `signOf`); null + refusal when it cannot be told

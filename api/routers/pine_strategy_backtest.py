@@ -240,7 +240,8 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
                     runtime_client.INTEGRITY,
                     f"the strategy record for {job.job} describes a window other than the one sent")
             # D2, one authority: the record must state its start by the one rule (the report reads it)
-            if w.get("startDate") != start_date_of(sent[0]["t"])                     or not isinstance(w.get("startSentence"), str) or not w.get("startSentence"):
+            if w.get("startDate") != start_date_of(sent[0]["t"]) or not isinstance(w.get("startSentence"), str) \
+                    or not w.get("startSentence"):
                 raise sbt._refuse_runtime(
                     runtime_client.INTEGRITY,
                     f"the strategy record for {job.job} does not state its start (D2)")

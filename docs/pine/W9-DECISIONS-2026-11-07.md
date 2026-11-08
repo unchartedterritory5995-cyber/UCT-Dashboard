@@ -82,7 +82,7 @@ is not the authority (`brokerRules.js` and the ledger are).
 - **D2: implemented, with a rail.** `api/routers/pine_strategy_backtest.py` `_window_of` states
   the window on every answer with `note = "this backtest starts on <date>; TradingView may start
   elsewhere"`, and `fromListing` is always false on the server, so the sentence is always shown.
-  Rail: `tests/test_pine_strategy_backtest.py` asserts the exact sentence. No change made.
+  Rail: `tests/test_pine_strategy_backtest.py` asserts the exact sentence.
   **Amended 2026-11-08 (W9-T13a r1, coordinator ruling on one authority):** the start date has ONE
   authority, `strategyRecord.js::startSentenceOf(window.startTime)`. No record carries the symbol's
   exchange timezone, so the date is the UTC date of the run's start and the sentence says so:

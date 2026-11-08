@@ -470,6 +470,8 @@ def test_D2_the_routes_mirror_says_exactly_what_strategyRecord_js_says():
     byte-checked there), so this compares the route's refusal-path mirror to the JS function."""
     cases = _start_cases()
     assert any(c["name"].startswith("ASX") for c in cases)
+    # review N3: a start between 00:00 and 05:59 UTC is the previous day in host-local US time
+    assert any(0 <= (c["startTime"] % 86400) < 6 * 3600 for c in cases)
     for c in cases:
         assert pst.start_date_of(c["startTime"]) == c["startDate"]
         assert pst.start_sentence_of(c["startTime"]) == c["recordSentence"] == c["reportSentence"]
