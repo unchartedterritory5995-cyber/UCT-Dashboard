@@ -125,6 +125,25 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     expect(JSON.stringify(d.definition.meta.disclosures)).not.toMatch(/drawings are not|can't be shown/)
   })
 
+  // ⭐ W9 D8 ("show the refusal") — the member's drawing note names the REASON for a strategy-withheld
+  // drawing, on the saved document's disclosures (the surface a member actually reads).
+  it('member note: a drawing withheld for a strategy read says why, in plain words', () => {
+    const notesOf = (src) => {
+      const d = memberPaneDefinition({ source: src, id: 'x', name: 'x' })
+      expect(d.ok).toBe(true)
+      return d.definition.meta.disclosures.filter((n) => n.name === 'Drawings').map((n) => n.note)
+    }
+    const [n] = notesOf(`${H}plot(close)\nlabel.new(bar_index, high, "x", color = ${SC})\n`)
+    expect(n).toMatch(/^1 of 1 drawing elements in this script reads the strategy's results \(its position, trades or equity\), which this chart doesn't compute yet, so what it draws is incomplete\./)
+    expect(n).not.toMatch(/supported yet|pine:|guard/)
+    // a delete the broker decides: the drawings are withheld, and the note gives that reason too
+    const [w] = notesOf(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif strategy.position_size > 0\n    label.delete(lbl)\n`)
+    expect(w).toMatch(/^This script's plots are shown, but its drawings are not\./)
+    expect(w).toMatch(/ Some of what it removes is decided by the strategy's results \(its position, trades or equity\), which this chart doesn't compute yet\.$/)
+    // control: the untainted label draws, and there is no drawing note at all
+    expect(notesOf(`${H}plot(close)\nlabel.new(bar_index, high, "x", color = color.blue)\n`)).toEqual([])
+  })
+
   it('the METHOD-form delete of a broker-labelled handle is not withheld either (`lbl.delete()`)', () => {
     const t = host(`${H}plot(close)\nvar label lbl = na\nlbl.delete()\n`
       + 'lbl := label.new(bar_index, 50, "Position Size: " + str.tostring(strategy.position_size))\n')
