@@ -642,7 +642,55 @@ const hoveredBadgeId = (param) => {
   return BADGE_ID_PREFIXES.some((p) => id.startsWith(p))
 }
 
-function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false, rowAction = null }) {
+/**
+ * ⭐ a11y (spec §12.2 keyboard check, 2026-11-08) — A PAGE CHANGE KEEPS FOCUS IN
+ * THE POPOVER. The chip popover is a portal, and React bubbles a portal's click
+ * through the React tree: the chart region (`ChartPane.handleChartClick`, click to
+ * focus for type-to-search) took focus on every click that reached it, so Enter on
+ * a readout row, a card's back row or the tour's Next threw keyboard focus out of
+ * the popover onto the chart, with no ring, and the member had to Tab back in.
+ * When this page (a card, a tour step, the menu after a card) appears and focus is
+ * not already inside it, focus `selector` in it. A pointer click focuses too, but
+ * `:focus-visible` draws no ring for a pointer, so nothing changes for the mouse.
+ */
+function focusInto(root, selector) {
+  if (!root || typeof document === 'undefined') return false
+  const ae = document.activeElement
+  if (ae && ae !== document.body && root.contains(ae)) return false
+  const el = selector ? root.querySelector(selector) : null
+  if (!el || typeof el.focus !== 'function') return false
+  el.focus({ preventScroll: true })
+  return true
+}
+
+/** ⭐ a11y gate §12.2 — the focusable legend control of an instance's chip, the
+ *  element that hosts its menu: the `[data-instance-id]` node itself when it is the
+ *  button, else the row button around its label (the vertical grid variant puts the
+ *  id on the label). Never an ancestor outside `scope` (the chart region is
+ *  focusable too, and focus landing there is the bug this exists for). A visible
+ *  node wins over a folded one. */
+function chipFocusTarget(scope, instanceId) {
+  if (!scope || !instanceId) return null
+  let nodes = []
+  try {
+    nodes = [...scope.querySelectorAll('[data-instance-id]')].filter((n) => n.getAttribute('data-instance-id') === instanceId)
+  } catch { return null }
+  const targets = nodes
+    .map((n) => (n.matches('[role="button"][tabindex]') ? n : n.closest('[role="button"][tabindex]')))
+    .filter((n) => n && scope.contains(n) && n.getAttribute('tabindex') !== '-1')
+  return targets.find((n) => n.offsetParent !== null) || targets[0] || null
+}
+
+function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false, rowAction = null,
+  focusRowKey = null, onRowFocused = null }) {
+  // ⭐ a11y — back from a card: focus returns to the row that opened it.
+  const headRef = useRef(null)
+  useEffect(() => {
+    if (typeof focusRowKey !== 'string' || !focusRowKey) return
+    const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(focusRowKey) : focusRowKey
+    focusInto(headRef.current, `button[data-readout-row="${esc}"]`)
+    if (typeof onRowFocused === 'function') onRowFocused()
+  }, [focusRowKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const list = Array.isArray(rows)
     ? rows.filter((r) => r && typeof r.key === 'string' && typeof r.text === 'string' && r.text)
     : EMPTY_READOUT_ROWS
@@ -652,7 +700,7 @@ function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows,
   // and the fixed-dark menu inks were near-white on white there. ⛔ Every other
   // chip's header keeps its classes exactly, so no other indicator moves a pixel.
   return (
-    <div className={readout ? `${styles.legMenuHead} ${styles.legMenuHeadRs}` : styles.legMenuHead}
+    <div ref={headRef} className={readout ? `${styles.legMenuHead} ${styles.legMenuHeadRs}` : styles.legMenuHead}
       data-legend-head={readout ? 'readout' : undefined}>
       <div className={styles.legMenuTop}>
         <span className={styles.legMenuName} data-legend-name="">{label}</span>
@@ -797,8 +845,11 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard, rowA
   const numbers = Array.isArray(details)
     ? details.filter((r) => r && typeof r.key === 'string' && typeof r.text === 'string' && r.text)
     : EMPTY_READOUT_ROWS
+  // ⭐ a11y — the card opens with focus on its back row (see `focusInto`).
+  const cardRef = useRef(null)
+  useEffect(() => { focusInto(cardRef.current, '[data-legend-back]') }, [row.key])
   return (
-    <div className={styles.legCard} data-legend-card={row.key}>
+    <div ref={cardRef} className={styles.legCard} data-legend-card={row.key}>
       {/* ⭐ Phase 2a (A1) — THE BACK ROW CARRIES THE ROW LABEL ONLY (`‹ Last RS
           high`). The composed values are too long for one line beside a title;
           the value lives in the numbers block below and on the menu's row. */}
@@ -897,8 +948,20 @@ function LegendTourPage({ cards, step, name, onStep, onFinish }) {
   const at = Math.min(Math.max(0, step | 0), total - 1)
   const card = cards[at]
   const last = at === total - 1
+  // ⭐ a11y — a step keeps focus on the button that made it: Back stays on Back
+  // while there is one, Next stays on Next and becomes Done on the last card.
+  const tourRef = useRef(null)
+  const movedByRef = useRef(null)
+  const moveTo = (n, by) => { movedByRef.current = by; onStep(n) }
+  useEffect(() => {
+    const by = movedByRef.current
+    movedByRef.current = null
+    if (!by) return
+    const sel = by === 'back' && at > 0 ? '[data-tour-back]' : '[data-tour-next], [data-tour-done]'
+    focusInto(tourRef.current, sel)
+  }, [at])
   return (
-    <div className={styles.legTour} data-legend-tour="" data-tour-step={at}>
+    <div ref={tourRef} className={styles.legTour} data-legend-tour="" data-tour-step={at}>
       <div className={styles.legTourHead}>
         <span className={styles.legTourName}>{name}</span>
         <span className={styles.legTourCount} data-tour-count="">{`${at + 1} of ${total}`}</span>
@@ -926,12 +989,12 @@ function LegendTourPage({ cards, step, name, onStep, onFinish }) {
         ) : <span />}
         <span className={styles.legTourSteps}>
           {at > 0 ? (
-            <button type="button" className={styles.legTourBack} data-tour-back="" onClick={() => onStep(at - 1)}>Back</button>
+            <button type="button" className={styles.legTourBack} data-tour-back="" onClick={() => moveTo(at - 1, 'back')}>Back</button>
           ) : null}
           {last ? (
-            <button type="button" className={styles.legTourNext} data-tour-done="" onClick={onFinish}>Done</button>
+            <button type="button" className={styles.legTourNext} data-tour-done="" data-autofocus="" onClick={onFinish}>Done</button>
           ) : (
-            <button type="button" className={styles.legTourNext} data-tour-next="" onClick={() => onStep(at + 1)}>Next</button>
+            <button type="button" className={styles.legTourNext} data-tour-next="" data-autofocus="" onClick={() => moveTo(at + 1, 'next')}>Next</button>
           )}
         </span>
       </div>
@@ -4051,6 +4114,9 @@ export default function StockChart({
   // to it verbatim would render as a live button that does nothing at all. That
   // is the exact defect this task exists to remove, one layer up.
   const [chipPage, setChipPage] = useState(null)
+  // ⭐ a11y (§12.2) — the readout row whose card's back row returned to the menu;
+  // the menu focuses it once on the way back (`LegendMenuHeader.focusRowKey`).
+  const cardReturnRef = useRef(null)
   // The instance whose ABOUT page the same popover is showing (spec §6's About
   // row). A second PAGE of one popover rather than a second popover: the text is
   // `def.meta.description`, which every definition already declares.
@@ -19979,6 +20045,13 @@ export default function StockChart({
               width={296}
               dense
               sheetClassName={sheetCls}
+              /* ⭐ a11y gate §12.2: the tour opens on Next, its primary action (not
+                 on Skip tour, first in reading order: `data-autofocus` on Next/Done
+                 in LegendTourPage), and Done / Skip / Escape hand focus to the chip
+                 it is about. The chart opened it on its own, so the focus recorded at
+                 open was the chart region or the page, never the chip. Resolved at
+                 close: the chip's node is whatever is live then. */
+              returnFocusTo={{ get current() { return chipFocusTarget(wrapperRef.current || containerRef.current, c.instanceId) } }}
             >
               <LegendTourPage cards={tourCards} step={tourStep}
                 name={(def && def.meta && def.meta.name) || c.label}
@@ -20138,7 +20211,10 @@ export default function StockChart({
               dense
               sheetClassName={sheetCls}
             >
-              <LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack={() => setChipPage(cardParent ? `card:${cardParent}` : null)}
+              <LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack={() => {
+                cardReturnRef.current = cardParent ? null : cardRow.key
+                setChipPage(cardParent ? `card:${cardParent}` : null)
+              }}
                 details={detailRows.get(cardRow.key)}
                 rowAction={rowAction}
                 onDetailCard={(r) => { noteRsCard(def, r.key); setChipPage(`card:${cardRow.key}>${r.key}`) }} />
@@ -20204,6 +20280,8 @@ export default function StockChart({
                 readout={readoutMenu}
                 rowAction={rowAction}
                 onCard={(row) => { noteRsCard(def, row.key); setChipPage(`card:${row.key}`) }}
+                focusRowKey={cardReturnRef.current}
+                onRowFocused={() => { cardReturnRef.current = null }}
               />
               {/* ⭐ 4-05 — the Ask row follows the header (not a menu row: the
                   button is its own control, and a row's button cannot hold one). */}

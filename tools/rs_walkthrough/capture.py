@@ -65,13 +65,17 @@ EXIT_OK, EXIT_STEP_FAILED, EXIT_REFUSED = 0, 1, 3
 DEFAULT_ACTION_TIMEOUT_MS = 10000
 ACTION_PACE_MS = 450        # a beat after each action, so a viewer can follow the pointer
 TOUR_STEP_MS = 1800         # how long each tour card stays up before Next
+# A long press holds the pointer down this long: past `useLongPress`'s 450 ms (the phone's
+# way to open a chip's readout), with room for a slow frame.
+LONG_PRESS_MS = 600
+LONG_PRESS_MIN_MS = 450
 MIN_CUE_MS = 1500
 CAPTION_MAX_CHARS = 130
 CAPTION_WRAP = 44           # characters per caption line in the .srt
 
-ACTION_KINDS = ("goto", "click", "fill", "select", "press", "wait", "hover", "tour")
+ACTION_KINDS = ("goto", "click", "long_press", "fill", "select", "press", "wait", "hover", "tour")
 TARGET_KINDS = ("role", "css", "text", "label", "placeholder", "testid")
-TARGETED_ACTIONS = frozenset({"click", "fill", "select", "wait", "hover", "tour"})
+TARGETED_ACTIONS = frozenset({"click", "long_press", "fill", "select", "wait", "hover", "tour"})
 
 # Caption copy rules (D18 and the RS curriculum): plain English, no emoji, no trade instruction,
 # and RS is the tool, so RSI is never offered as an alternative.
@@ -124,6 +128,7 @@ _ACTION_SCHEMA = {
         "timeout_ms": {"type": "integer", "minimum": 500, "maximum": 120000},
         "settle_ms": {"type": "integer", "minimum": 0, "maximum": 20000},
         "max_clicks": {"type": "integer", "minimum": 1, "maximum": 30},
+        "press_ms": {"type": "integer", "minimum": LONG_PRESS_MIN_MS, "maximum": 5000},
     },
 }
 
@@ -319,6 +324,8 @@ def semantic_errors(data):
                 errs.append(f"{aw}: tour needs 'next' and 'done' targets")
             if kind != "tour" and ("next" in act or "done" in act or "max_clicks" in act):
                 errs.append(f"{aw}: 'next'/'done'/'max_clicks' belong to tour only")
+            if kind != "long_press" and "press_ms" in act:
+                errs.append(f"{aw}: 'press_ms' belongs to long_press only")
             for field in ("targets", "unless", "next", "done"):
                 for k, t in enumerate(act.get(field) or []):
                     if isinstance(t, dict):
@@ -577,8 +584,29 @@ def _point_at(loc):
         pass
 
 
-def _apply(loc, kind, value, submit):
-    if kind == "click":
+def _long_press(loc, press_ms=LONG_PRESS_MS):
+    """Touch down on the target's centre, hold, lift: the phone's long press.
+
+    A TOUCH pointer, dispatched on the element: `useLongPress` ignores `pointerType: 'mouse'`
+    (a mouse opens the menu by right-click), and Playwright's `mouse.down()` is a mouse
+    pointer even in a touch context. The hold outlasts the hook's 450 ms timer."""
+    _point_at(loc)
+    box = loc.bounding_box(timeout=3000)
+    if not box:
+        raise StepFailed("long_press: the target has no box on screen")
+    x = box["x"] + box["width"] / 2
+    y = box["y"] + box["height"] / 2
+    init = {"pointerType": "touch", "pointerId": 1, "isPrimary": True, "button": 0,
+            "buttons": 1, "clientX": x, "clientY": y}
+    loc.dispatch_event("pointerdown", init)
+    loc.page.wait_for_timeout(max(int(press_ms), LONG_PRESS_MIN_MS + 1))
+    loc.dispatch_event("pointerup", {**init, "buttons": 0})
+
+
+def _apply(loc, kind, value, submit, press_ms=LONG_PRESS_MS):
+    if kind == "long_press":
+        _long_press(loc, press_ms)
+    elif kind == "click":
         _point_at(loc)
         loc.click(timeout=8000)
     elif kind == "hover":
@@ -638,7 +666,8 @@ def run_action(page, act, ctx):
             raise StepFailed(f"{kind}: nothing visible after {timeout} ms (tried {tried})")
         how = target.get("do", kind)
         if kind != "wait":
-            _apply(loc, how, act.get("value"), bool(act.get("submit")))
+            _apply(loc, how, act.get("value"), bool(act.get("submit")),
+                   int(act.get("press_ms", LONG_PRESS_MS)))
         note = f"{kind} via {describe_target(target)}"
     page.wait_for_timeout(ACTION_PACE_MS + int(act.get("settle_ms", 0)))
     return note

@@ -1676,7 +1676,7 @@
   width: calc(100% + 8px);
 }
 .legMenuRowBtn:hover,
-.legMenuRowBtn:focus-visible { background: var(--bg-hover); outline: none; }
+.legMenuRowBtn:focus-visible { background: var(--bg-hover); }
 .legMenuRowChev { display: inline-flex; align-self: center; justify-self: end; color: var(--text-muted); flex: none; }
 /* ⭐ UCT RS 3-09 — A READOUT ROW'S ACTION ("Pick a date on the chart", "Use the
    default anchor", "Open the rotation map"): its own button directly under the
@@ -1703,7 +1703,7 @@
   cursor: pointer;
 }
 .legRowAction:hover,
-.legRowAction:focus-visible { background: var(--bg-hover); outline: none; }
+.legRowAction:focus-visible { background: var(--bg-hover); }
 .legRowActionCard { padding-left: 116px; }
 
 /* ─── THE ABOUT CARD — one readout row, explained in three lines ───────────
@@ -1736,7 +1736,7 @@
   cursor: pointer;
 }
 .legCardBack:hover,
-.legCardBack:focus-visible { background: var(--bg-hover); outline: none; }
+.legCardBack:focus-visible { background: var(--bg-hover); }
 .legCardBackChev { display: inline-flex; color: var(--text-muted); flex: none; }
 .legCardTitle { white-space: nowrap; min-width: 0; }
 /* ⭐ THE NUMBERS BLOCK — the same grid as the rows, a wider label column (the
@@ -1788,7 +1788,7 @@
   width: calc(100% + 8px);
 }
 .legCardNumBtn:hover,
-.legCardNumBtn:focus-visible { background: var(--bg-hover); outline: none; }
+.legCardNumBtn:focus-visible { background: var(--bg-hover); }
 .legCardBody { padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 7px; }
 .legCardLine { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .legCardKey {
@@ -1811,7 +1811,7 @@
   text-decoration: none;
 }
 .legCardLearn:hover,
-.legCardLearn:focus-visible { text-decoration: underline; outline: none; }
+.legCardLearn:focus-visible { text-decoration: underline; }
 .legCardLearnSub { font-weight: 500; font-size: 11px; color: var(--text-muted); }
 .legCardLessons { display: flex; flex-direction: column; gap: 0; padding-top: 4px; border-top: 1px solid var(--border); }
 .legCardLessonsKey { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); padding: 2px 0; }
@@ -1826,7 +1826,7 @@
   text-decoration: none;
 }
 .legCardLesson:hover,
-.legCardLesson:focus-visible { color: var(--ut-gold); outline: none; }
+.legCardLesson:focus-visible { color: var(--ut-gold); }
 
 /* ─── THE PRESET PAGE (spec A6) — a page of the same 296 px popover ─────────
    Back row `‹ Preset`, then one row per preset: the name at 12 px / 600, its
@@ -1861,7 +1861,7 @@
   cursor: pointer;
 }
 .legPresetRow:hover,
-.legPresetRow:focus-visible { background: var(--bg-hover); outline: none; }
+.legPresetRow:focus-visible { background: var(--bg-hover); }
 .legPresetState { cursor: default; }
 .legPresetState:hover { background: none; }
 .legPresetCheck { display: inline-flex; padding-top: 2px; color: var(--text-bright); }
@@ -1932,7 +1932,7 @@
   text-decoration: none;
 }
 .legAboutGlossary:hover,
-.legAboutGlossary:focus-visible { color: var(--ut-gold); outline: none; }
+.legAboutGlossary:focus-visible { color: var(--ut-gold); }
 
 /* ─── 4-05 — "Ask Compass about this", under the readout rows ──────────────
    The assist button renders null without a VoiceProvider (and for a free
@@ -2008,10 +2008,31 @@
 .legTourBack { background: none; border: 1px solid var(--border); color: var(--text-bright); }
 .legTourNext { background: var(--text-bright); border: 1px solid var(--text-bright); color: var(--bg-elevated, #14161a); }
 .legTourSkip:hover,
-.legTourSkip:focus-visible { color: var(--text-bright); outline: none; }
+.legTourSkip:focus-visible { color: var(--text-bright); }
 .legTourBack:hover,
-.legTourBack:focus-visible { background: var(--bg-hover); outline: none; }
+.legTourBack:focus-visible { background: var(--bg-hover); }
 .legTourNext:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 1px; }
+/* ⭐ a11y — EVERY RS LEGEND CONTROL SHOWS A FOCUS RING (spec §12.2 keyboard check,
+   2026-11-08). These rules used to end in `outline: none` and leave focus to a
+   background shift: `--bg-hover` #1a1a1a on the #111 popover is about 1.1:1, so a
+   keyboard member could not see which readout row, card control, lesson link or
+   tour button had focus, while every verb under them wore the app's gold ring.
+   Nothing here declares a ring: the rules simply stop suppressing the app's own
+   (`tokens.css` :focus-visible, 2 px `--ut-gold`, the ring every verb below wears),
+   so no new gold is written into the readout (the one look-here gold stays the
+   Learn link). They only move it INSIDE the row-like controls, because the
+   popover scrolls (`overflow-y: auto`) and clips an outset ring at its edges; the
+   links and the tour buttons sit inside padding and keep it just outside. */
+.legMenuRowBtn:focus-visible,
+.legRowAction:focus-visible,
+.legCardBack:focus-visible,
+.legCardNumBtn:focus-visible,
+.legPresetRow:focus-visible { outline-offset: -2px; }
+.legCardLearn:focus-visible,
+.legCardLesson:focus-visible,
+.legAboutGlossary:focus-visible,
+.legTourSkip:focus-visible,
+.legTourBack:focus-visible { outline-offset: 1px; }
 @media (max-width: 1024px) {
   .legTourSkip, .legTourBack, .legTourNext, .legAboutGlossary { min-height: var(--tap-min); }
 }
