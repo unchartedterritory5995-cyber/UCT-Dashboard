@@ -158,6 +158,8 @@ import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipV
 import { scalarsFor } from './chart/engine/serverCompute'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
+// ⭐ VA2 — the plan's §13 counts (dark until the server lists the events; see the module).
+import { createRsInstanceTracker, noteRsPreset, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
 // ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
 // mounted without one on several surfaces (popups, the Model Book, its own
 // suites), and `<Link>` calls `useHref`, which throws there.
@@ -527,6 +529,19 @@ const EMPTY_READOUT_ROWS = Object.freeze([])
  * a row": it is a real control that opens the row's three-line About page in
  * place of the menu body (`onCard`), so it is a tab stop that does something.
  */
+/** ⭐ VA2 — a readout row's rating band (`readoutSchema` `band`: lead / strong /
+ *  neutral / lag, the site's 80 / 60 / 40 cuts), or `undefined` when the row has
+ *  none — so `data-band` is absent and every other row renders as before. */
+function bandOf(r) {
+  return r && typeof r.band === 'string' && READOUT_BAND_CLASS[r.band] ? r.band : undefined
+}
+/** The value span's class, with the band's ink when the row carries one. */
+function bandedClass(base, r) {
+  const b = bandOf(r)
+  return b ? `${base} ${styles[READOUT_BAND_CLASS[b]]}` : base
+}
+const READOUT_BAND_CLASS = Object.freeze({ lead: 'legBandLead', strong: 'legBandStrong', neutral: 'legBandNeutral', lag: 'legBandLag' })
+
 function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false }) {
   const list = Array.isArray(rows)
     ? rows.filter((r) => r && typeof r.key === 'string' && typeof r.text === 'string' && r.text)
@@ -562,7 +577,7 @@ function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows,
             const body = (
               <>
                 <span className={styles.legMenuRowLabel}>{r.label}</span>
-                <span className={styles.legMenuRowVal}>{r.text}</span>
+                <span className={bandedClass(styles.legMenuRowVal, r)} data-band={bandOf(r)}>{r.text}</span>
                 {note ? <span className={styles.legMenuRowNote} data-readout-note="">{note}</span> : null}
               </>
             )
@@ -625,14 +640,16 @@ function learnLessons(def) {
   return out
 }
 
-/** The definition's lessons as links — the foot of a card and of the About page. */
-function LegendLessons({ lessons, className }) {
+/** The definition's lessons as links — the foot of a card and of the About page.
+ *  `def` (VA2) names whose lessons they are, for the `rs_learn` count. */
+function LegendLessons({ lessons, className, def = null }) {
   if (!lessons || !lessons.length) return null
   return (
     <div className={`${styles.legCardLessons}${className ? ' ' + className : ''}`} data-legend-lessons="">
       <span className={styles.legCardLessonsKey}>Lessons</span>
       {lessons.map((l) => (
-        <LearnLink key={l.key} href={l.href} className={styles.legCardLesson} data-learn={l.key}>
+        <LearnLink key={l.key} href={l.href} className={styles.legCardLesson} data-learn={l.key}
+          onClick={() => noteRsLearn(def, l.key)}>
           <UIcon name="play" size={11} gold={false} />
           <span>{l.label}</span>
         </LearnLink>
@@ -693,7 +710,7 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard }) {
             const body = (
               <>
                 <span className={styles.legCardNumLabel}>{r.label}</span>
-                <span className={styles.legCardNumVal}>{r.text}</span>
+                <span className={bandedClass(styles.legCardNumVal, r)} data-band={bandOf(r)}>{r.text}</span>
               </>
             )
             if (r.card && typeof onDetailCard === 'function') {
@@ -728,12 +745,13 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard }) {
           </div>
         ) : null}
         {lesson ? (
-          <LearnLink href={lessonHref} className={styles.legCardLearn} data-learn={learnKey}>
+          <LearnLink href={lessonHref} className={styles.legCardLearn} data-learn={learnKey}
+            onClick={() => noteRsLearn(def, learnKey)}>
             <UIcon name="play" size={12} />
             <span>Watch the lesson<span className={styles.legCardLearnSub}> · {lesson.label}</span></span>
           </LearnLink>
         ) : null}
-        <LegendLessons lessons={lessons} />
+        <LegendLessons lessons={lessons} def={def} />
       </div>
     </div>
   )
@@ -5831,9 +5849,23 @@ export default function StockChart({
     const def = inst ? engineRegistry.getDefinition(inst.defId) : null
     const preset = def ? presetsOf(def).find((p) => p.id === presetId) : null
     if (!preset) return
+    noteRsPreset(def, preset)
     const next = applyPresetInputs(cs, instanceId, def, preset, engineRegistry)
     if (next !== cs) writeInstance(next)
   }, [cs, writeInstance])
+
+  // ⭐ VA2 — `rs_on` / `rs_off_within_60s` / `rs_benchmark` (plan §13), OBSERVED from
+  // the stored instance list rather than wired per door, so every door counts and
+  // the next one needs no edit (`lib/rsTelemetry`). The first observation is this
+  // chart's baseline; a no-op unless the build turns RS telemetry on.
+  const rsTrackerRef = useRef(null)
+  if (!rsTrackerRef.current) rsTrackerRef.current = createRsInstanceTracker()
+  const storedInstances = cs ? cs.indicatorInstances : null
+  useEffect(() => {
+    rsTrackerRef.current.observe(storedInstances, { symbol: sym })
+    // `sym` is read, not watched: a symbol change is not an RS change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedInstances])
 
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
@@ -19679,7 +19711,7 @@ export default function StockChart({
             >
               <LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack={() => setChipPage(cardParent ? `card:${cardParent}` : null)}
                 details={detailRows.get(cardRow.key)}
-                onDetailCard={(r) => setChipPage(`card:${cardRow.key}>${r.key}`)} />
+                onDetailCard={(r) => { noteRsCard(def, r.key); setChipPage(`card:${cardRow.key}>${r.key}`) }} />
             </ContextPopover>
           )
         }
@@ -19717,7 +19749,7 @@ export default function StockChart({
                   menuPresets.length ? presetLabelOf(menuPresets, currentPreset ? currentPreset.id : null) : undefined)}
                 rows={glanceRows}
                 readout={readoutMenu}
-                onCard={(row) => setChipPage(`card:${row.key}`)}
+                onCard={(row) => { noteRsCard(def, row.key); setChipPage(`card:${row.key}`) }}
               />
             )}
             items={page.map(chipMenuRowToPopoverRow)}
@@ -19792,7 +19824,7 @@ export default function StockChart({
               {/* ⭐ Phase 2a (unit 2a-10) — the lessons the definition declares
                   (`meta.learn`), as Desk video links. Nothing for a definition
                   that declares none. */}
-              <LegendLessons lessons={learnLessons(def)} className={styles.legAboutLessons} />
+              <LegendLessons lessons={learnLessons(def)} className={styles.legAboutLessons} def={def} />
               {notices.map((n) => (
                 <div
                   key={n.plotKey}

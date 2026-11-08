@@ -88,15 +88,16 @@ const rsEditing = { kind: 'study', defId: RS, instanceId: 'rs-1' }
 const rsDef = () => engineRegistry.getDefinition(RS)
 
 describe('groups — heads in declaration order, the hint honoured, tap to fold and unfold', () => {
-  test('Simple, Line, New highs — Simple open, the two hinted groups folded, bodies unmounted', () => {
+  test('Simple, Line, New highs, Rating, Stress test, Method — Simple open, the five hinted groups folded, bodies unmounted', () => {
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
-    // The premise: the shipped definition declares exactly these groups and this hint.
-    expect(rsDef().meta.groupsCollapsed).toEqual(['Line', 'New highs'])
-    expect(heads(ed).map((b) => b.textContent)).toEqual(['Simple', 'Line', 'New highs'])
+    // The premise: the shipped definition declares exactly these groups and this hint
+    // (VA2: the plan's five folded groups, §6.3).
+    const folded = ['Line', 'New highs', 'Rating', 'Stress test', 'Method']
+    expect(rsDef().meta.groupsCollapsed).toEqual(folded)
+    expect(heads(ed).map((b) => b.textContent)).toEqual(['Simple', ...folded])
     expect(headNamed(ed, 'Simple').getAttribute('aria-expanded')).toBe('true')
-    expect(headNamed(ed, 'Line').getAttribute('aria-expanded')).toBe('false')
-    expect(headNamed(ed, 'New highs').getAttribute('aria-expanded')).toBe('false')
+    for (const g of folded) expect(headNamed(ed, g).getAttribute('aria-expanded'), g).toBe('false')
     // Simple's rows are there; a folded group's rows are not in the DOM at all.
     expect(rowFor(ed, 'benchmark')).not.toBeNull()
     expect(rowFor(ed, 'maLength')).not.toBeNull()
@@ -140,8 +141,7 @@ describe('every field row carries data-input-key, one per declared input, in dec
     const user = userEvent.setup()
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
-    await user.click(headNamed(ed, 'Line'))
-    await user.click(headNamed(ed, 'New highs'))
+    for (const g of ['Line', 'New highs', 'Rating', 'Stress test', 'Method']) await user.click(headNamed(ed, g))
     const declared = rsDef().inputs.map((i) => i.key)
     expect(declared.length).toBeGreaterThanOrEqual(15)
     expect(rowKeys(ed)).toEqual(declared)

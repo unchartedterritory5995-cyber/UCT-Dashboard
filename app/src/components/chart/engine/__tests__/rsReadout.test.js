@@ -85,7 +85,8 @@ describe('UCT RS · the readout block is one the schema accepts', () => {
     // registered block is railed row by row against the live provider payload in
     // `tests/test_rs_columns_provider.py` and its surfaces in `StockChart.rsReadout.test.jsx`.
     expect(Array.isArray(RS.readout) && RS.readout.length > 0, 'the registered definition declares the Leadership readout').toBe(true)
-    expect(RS.readout.filter((e) => e.chip).map((e) => e.key)).toEqual(['benchmark', 'rating'])
+    // VA2: the fast rating rides the label too, under its headline condition
+    expect(RS.readout.filter((e) => e.chip).map((e) => e.key)).toEqual(['benchmark', 'rating', 'fastRating'])
   })
 
   it('operator voice: no emoji in any label, word or fallback', () => {

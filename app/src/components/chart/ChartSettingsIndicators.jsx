@@ -150,6 +150,7 @@ import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
 import { tagRestatesName } from './shortTag'
+import { noteRsPreset } from '../../lib/rsTelemetry'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -2428,6 +2429,7 @@ export default function ChartSettingsIndicators({
     const apply = (p) => {
       if (!p) return
       memo[row.instanceId] = p.id
+      noteRsPreset(def, p)
       commitWrite(applyPresetInputs(settings, row.instanceId, def, p, registry))
     }
     const originId = `ins-preset-origin-${resultIdSafe(row.id)}`

@@ -68,7 +68,7 @@
 import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank, normalizeInstances } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
-import { getDefinition } from './nativeRegistry'
+import { getDefinition, listDefinitions } from './nativeRegistry'
 import {
   isWritableDisplayTarget, TARGET_EXPLICIT, automaticTargetOf, resolveDisplayTarget,
 } from './displayTarget'
@@ -288,6 +288,206 @@ function createInputsOf(def) {
   return out
 }
 
+// ─── ⭐ VA2 (UCT RS §17.8) — "SAVE AS MY DEFAULT", for every shipped indicator ──
+//
+// A member saves one copy's inputs as the starting point for NEW copies of that
+// indicator. ONE preference key: `cs.indicatorDefaults[defId] = {inputs}`, inside
+// the `chart_settings` blob every chart already persists through `usePreferences`
+// (`chartDefaults.mergeChartSettings` allow-lists and sanitises it). It is read
+// by the two doors that build a NEW instance — `addInstance` and
+// `ensureLegacyInstance` (every "turn it on") — and by nothing that edits an
+// existing copy, so saving a default never moves a line already on a chart.
+//
+// ⛔ WHAT IS SAVED: the declared, non-`source` inputs whose value differs from
+// UCT's own (`meta.createInputs`, else the declared default), each validated by
+// `validateInputValue`. A `source` input names ANOTHER line on THIS chart, which
+// a new copy elsewhere cannot mean. Placement, timeframe and dot size are not
+// inputs and are not saved. Saving UCT's own values clears the entry.
+//
+// ⛔ WHAT IS READ: the same validation again at apply time, so a value a later
+// definition version refuses (a narrowed range, a removed option) is skipped,
+// never stored on a new instance (which `normalizeInstances` would DROP).
+
+/** The key the saved defaults live under in the chart settings blob. */
+export const INDICATOR_DEFAULTS_KEY = 'indicatorDefaults'
+
+let _shippedIds = null
+/** Is this one of the indicators UCT ships (either lane), never a member-authored one? */
+export function isShippedDefinition(def) {
+  if (!def || typeof def.id !== 'string') return false
+  if (!_shippedIds) {
+    try { _shippedIds = new Set(listDefinitions().map((d) => d && d.id)) } catch { return false }
+  }
+  return _shippedIds.has(def.id)
+}
+
+/** The inputs a member may save as a default: declared, keyed, not a `source`. */
+function savableInputs(def) {
+  const out = new Map()
+  for (const [key, declared] of declaredInputs(def)) {
+    if (declared.type === 'source') continue
+    out.set(key, declared)
+  }
+  return out
+}
+
+/** UCT's own value for one input of a NEW copy: `meta.createInputs`, else the declared default. */
+function uctValueOf(def, key, declared) {
+  const ci = def && def.meta && def.meta.createInputs
+  if (ci && typeof ci === 'object' && ci[key] !== undefined) return ci[key]
+  return declared.default
+}
+
+/** Can a member save a default for this definition? A shipped indicator with at least one savable input. */
+export function canSaveAsDefault(def) {
+  return isShippedDefinition(def) && savableInputs(def).size > 0
+}
+
+/**
+ * The saved default inputs for `def` in `cs`, VALIDATED against the definition
+ * as it is now: `{}` when none is saved, when the definition is not a shipped
+ * one, or when every saved value is refused.
+ */
+export function memberDefaultInputs(cs, def) {
+  if (!def || !canSaveAsDefault(def)) return {}
+  const store = cs && cs[INDICATOR_DEFAULTS_KEY]
+  const entry = store && typeof store === 'object' && !Array.isArray(store) ? store[def.id] : null
+  const saved = entry && typeof entry === 'object' && entry.inputs && typeof entry.inputs === 'object' ? entry.inputs : null
+  if (!saved) return {}
+  const out = {}
+  for (const [key, declared] of savableInputs(def)) {
+    if (!Object.prototype.hasOwnProperty.call(saved, key)) continue
+    const v = coerce(declared, saved[key])
+    if (v === undefined) continue
+    const errors = []
+    validateInputValue(declared, v, `inputs.${key}`, errors)
+    if (!errors.length) out[key] = v
+  }
+  return out
+}
+
+/** Does `cs` hold a saved default for `def` that still applies? */
+export function hasMemberDefault(cs, def) {
+  return Object.keys(memberDefaultInputs(cs, def)).length > 0
+}
+
+/** `cs` with `defId`'s saved entry replaced (`inputs` non-empty) or removed (empty / null). */
+function withDefaultEntry(cs, defId, inputs) {
+  const prev = cs[INDICATOR_DEFAULTS_KEY]
+  const store = prev && typeof prev === 'object' && !Array.isArray(prev) ? { ...prev } : {}
+  if (inputs && Object.keys(inputs).length) store[defId] = { inputs }
+  else delete store[defId]
+  const out = { ...cs }
+  if (Object.keys(store).length) out[INDICATOR_DEFAULTS_KEY] = store
+  else delete out[INDICATOR_DEFAULTS_KEY]
+  return out
+}
+
+/** The inputs of one copy that differ from UCT's own, as a default would save them. */
+function differingInputs(def, inst) {
+  const stored = inst && inst.inputs && typeof inst.inputs === 'object' ? inst.inputs : {}
+  const out = {}
+  for (const [key, declared] of savableInputs(def)) {
+    if (!Object.prototype.hasOwnProperty.call(stored, key)) continue
+    const v = stored[key]
+    if (v === uctValueOf(def, key, declared)) continue
+    const errors = []
+    validateInputValue(declared, v, `inputs.${key}`, errors)
+    if (!errors.length) out[key] = v
+  }
+  return out
+}
+
+/**
+ * Save ONE copy's inputs as the member's default for new copies of its indicator.
+ * Returns `cs` BY IDENTITY when there is no such live instance, the definition
+ * cannot carry a default, or the saved entry would not change.
+ */
+export function saveInstanceAsDefault(cs, instanceId, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const def = resolveRegistry(registry)(inst.defId)
+  if (!def || !canSaveAsDefault(def)) return cs
+  const next = differingInputs(def, inst)
+  const store = cs[INDICATOR_DEFAULTS_KEY]
+  const entry = store && typeof store === 'object' && !Array.isArray(store) ? store[def.id] : undefined
+  const stored = entry && typeof entry === 'object' && entry.inputs && typeof entry.inputs === 'object' ? entry.inputs : null
+  // Nothing to change: no entry and nothing to save, or the entry already IS this.
+  if (!stored && !Object.keys(next).length && entry === undefined) return cs
+  if (stored && sameInputs(stored, next)) return cs
+  return withDefaultEntry(cs, def.id, next)
+}
+
+/** Forget the member's saved default for `defId`. `cs` by identity when there is none. */
+export function clearIndicatorDefault(cs, defId) {
+  if (!cs || typeof cs !== 'object') return cs
+  const store = cs[INDICATOR_DEFAULTS_KEY]
+  if (!store || typeof store !== 'object' || !Object.prototype.hasOwnProperty.call(store, defId)) return cs
+  return withDefaultEntry(cs, defId, null)
+}
+
+/**
+ * "Reset to UCT default": forget the member's saved default for this copy's
+ * indicator AND put this copy's savable inputs back on UCT's own values, each
+ * through `setInstanceInput` (the one validating door). `source` inputs are left
+ * as they are: which line a copy reads is not a default. `cs` by identity when
+ * nothing changes.
+ */
+export function resetInstanceToUctDefault(cs, instanceId, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const def = resolveRegistry(registry)(inst.defId)
+  if (!def || !canSaveAsDefault(def)) return cs
+  let next = clearIndicatorDefault(cs, def.id)
+  for (const [key, declared] of savableInputs(def)) {
+    const uct = uctValueOf(def, key, declared)
+    if (uct === undefined) continue
+    const cur = findInstance(next, instanceId)
+    const stored = cur && cur.inputs && typeof cur.inputs === 'object' ? cur.inputs : {}
+    const shown = Object.prototype.hasOwnProperty.call(stored, key) ? stored[key] : declared.default
+    if (shown === uct) continue
+    next = setInstanceInput(next, instanceId, key, uct, registry)
+  }
+  return next
+}
+
+/**
+ * What the "my default" controls say for ONE copy:
+ *   saved     a default is saved for this indicator
+ *   matches   this copy's inputs ARE the saved default (or UCT's, when none is saved)
+ *   atUct     this copy's inputs are UCT's own and no default is saved
+ */
+export function memberDefaultState(cs, inst, def) {
+  if (!inst || !def || !canSaveAsDefault(def)) return { available: false, saved: false, matches: false, atUct: false }
+  const saved = memberDefaultInputs(cs, def)
+  const mine = differingInputs(def, inst)
+  const isSaved = Object.keys(saved).length > 0
+  return { available: true, saved: isSaved, matches: sameInputs(saved, mine), atUct: !isSaved && !Object.keys(mine).length }
+}
+
+/**
+ * `target` with `source`'s saved defaults (the whole `indicatorDefaults` key,
+ * present or absent). The settings dialog carries a saved default onto its
+ * Cancel snapshot with this, so Cancel undoes edits, never a saved default.
+ */
+export function withIndicatorDefaultsOf(target, source) {
+  if (!target || typeof target !== 'object') return target
+  const has = source && typeof source === 'object' && Object.prototype.hasOwnProperty.call(source, INDICATOR_DEFAULTS_KEY)
+  if (!has && !Object.prototype.hasOwnProperty.call(target, INDICATOR_DEFAULTS_KEY)) return target
+  const out = { ...target }
+  if (has) out[INDICATOR_DEFAULTS_KEY] = source[INDICATOR_DEFAULTS_KEY]
+  else delete out[INDICATOR_DEFAULTS_KEY]
+  return out
+}
+
+function sameInputs(a, b) {
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && a[k] === b[k])
+}
+
 function inputsFromLegacy(def, section) {
   const out = {}
   for (const [key, declared] of declaredInputs(def)) {
@@ -463,7 +663,9 @@ export function ensureLegacyInstance(cs, defId, registry) {
         instanceId: id,
         defId,
         ...(Number.isInteger(def.version) ? { defVersion: def.version } : {}),
-        inputs: { ...createInputsOf(def), ...inputsFromLegacy(def, cs.indicators && cs.indicators[defId]) },
+        // ⭐ VA2 — the member's saved default (if any) over the legacy mirror's
+        // remembered values: a default is a deliberate statement about new copies.
+        inputs: { ...createInputsOf(def), ...inputsFromLegacy(def, cs.indicators && cs.indicators[defId]), ...memberDefaultInputs(cs, def) },
         ...(placementFor(def, defId, cs) ? { placement: placementFor(def, defId, cs) } : {}),
         hidden: false,
       }
@@ -980,6 +1182,8 @@ export function addInstance(cs, defId, registry) {
     if (declared.default !== undefined) inputs[key] = declared.default
   }
   Object.assign(inputs, createInputsOf(def))
+  // ⭐ VA2 — the member's saved default for new copies (`saveInstanceAsDefault`).
+  Object.assign(inputs, memberDefaultInputs(cs, def))
   const added = {
     instanceId: newInstanceId(defId, list),
     defId,

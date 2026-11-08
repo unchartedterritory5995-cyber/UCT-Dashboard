@@ -43,6 +43,15 @@
 //                                            // the value, absent when it resolves to nothing
 //     muted?:   true,                        // the value itself prints in the quiet ink
 //                                            // (a qualifier, never a pane-label value)
+//     chipWhen?: {key: 'headlineRating', in: ['ibd', 'both']},
+//                                            // a `chip` row rides the pane label ONLY while
+//                                            // this input condition holds (the inputs'
+//                                            // `activeWhen` grammar); the row itself stays
+//     chipPrefix?: 'fast',                   // a word printed before the value in the pane
+//                                            // label only (`fast 91`), never in the menu
+//     band?:    {source: 'scalar:rating.ibd', when: 'input:ratingBands'},
+//                                            // a 1-99 rating the row is coloured by: the
+//                                            // site's bands (RATING_BANDS), only while `when`
 //   }]
 //
 // An `input:` source in `text` format over an `enum` input prints the option's
@@ -101,7 +110,27 @@ export const READOUT_SOURCE_PREFIXES = Object.freeze(['scalar', 'payload', 'inpu
  *  legend prints), not a document field to preserve. */
 export const READOUT_ENTRY_FIELDS = Object.freeze([
   'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card', 'detailOf', 'note', 'muted',
+  'chipWhen', 'chipPrefix', 'band',
 ])
+
+/** The comparators `chipWhen` may use — the inputs' `activeWhen` grammar
+ *  (`indicatorRegistry.evalActiveWhen`), so there is one condition language for
+ *  inputs, guides and readout rows. `readoutConditionOpen` mirrors that evaluator
+ *  and `__tests__/readoutSchema.va2.test.js` pins the two agree. */
+export const READOUT_CONDITION_OPS = Object.freeze(['equals', 'notEquals', 'in', 'gt', 'gte', 'lt', 'lte'])
+
+/** ⭐ THE SITE'S RATING BANDS (UCT RS unit VA2; `components/RsBadge.jsx` tierClass,
+ *  the screener's RS heat): 80 and above leads, 60 to 79 is strong, 40 to 59 is
+ *  neutral, below 40 lags. Rules of thumb, not tested cut-offs, and the member
+ *  copy says so. Highest floor first; the first floor a value reaches names it. */
+export const RATING_BANDS = Object.freeze([[80, 'lead'], [60, 'strong'], [40, 'neutral'], [1, 'lag']])
+
+/** The band a 1-99 rating sits in, or `null` for anything that is not one. */
+export function ratingBandOf(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 1 || value > 99) return null
+  for (const [floor, name] of RATING_BANDS) if (value >= floor) return name
+  return null
+}
 
 /** The closed set of fields a row's `card` may carry. `learn` (2a-10) is a
  *  key into an APP-side lesson map (`lib/deskVideoHref.RS_LEARN_VIDEOS`): the
@@ -164,6 +193,29 @@ function readInput(def, inputs, key) {
   const declared = (def && Array.isArray(def.inputs) ? def.inputs : [])
     .find((i) => i && i.key === key)
   return declared ? declared.default : undefined
+}
+
+/**
+ * Does an input condition hold for this instance? The inputs' `activeWhen`
+ * grammar (`{key, equals}` / `notEquals` / `in` / `gt` / `gte` / `lt` / `lte`),
+ * read over the instance's inputs with the declared default under each stored
+ * value — the reading `fieldsForInstance(...).values` gives the dialog. Mirrors
+ * `indicatorRegistry.evalActiveWhen` exactly (this module imports no registry);
+ * the agreement is pinned by `__tests__/readoutSchema.va2.test.js`. A condition
+ * that is not an object with a string `key` is open, as there.
+ */
+export function readoutConditionOpen(cond, def, inputs) {
+  if (!isPlainObject(cond) || typeof cond.key !== 'string') return true
+  const v = readInput(def, inputs, cond.key)
+  if ('equals' in cond) return v === cond.equals
+  if ('notEquals' in cond) return v !== cond.notEquals
+  if ('in' in cond) return Array.isArray(cond.in) && cond.in.includes(v)
+  if ('gt' in cond) return Number(v) > Number(cond.gt)
+  if ('gte' in cond) return Number(v) >= Number(cond.gte)
+  if ('lt' in cond) return Number(v) < Number(cond.lt)
+  if ('lte' in cond) return Number(v) <= Number(cond.lte)
+  if (Object.keys(cond).some((k) => k !== 'key')) return true
+  return !!v
 }
 
 function readSource(parsed, scalars, def, inputs) {
@@ -274,6 +326,28 @@ function resolveRow(entry, scalars, def, inputs) {
     const v = n ? readSource(n, scalars, def, inputs) : undefined
     if (typeof v === 'string' && v.trim()) row.note = v.trim()
   }
+  // ⭐ VA2 — `chipWhen`: a chip row whose condition is false stays a row (the menu
+  // and the card still print it) and leaves the pane label (`readoutChipRows`).
+  if (row && entry.chip === true && entry.chipWhen !== undefined && !readoutConditionOpen(entry.chipWhen, def, inputs)) {
+    row.chipOff = true
+  }
+  // ⭐ VA2 — `chipPrefix`: the word the pane label prints before the value
+  // (`fast 91`), so two numbers side by side say which is which. Never on a
+  // muted fallback, which never reaches the pane label anyway.
+  if (row && row.muted !== true && typeof entry.chipPrefix === 'string' && entry.chipPrefix.trim()) {
+    row.chipText = `${entry.chipPrefix.trim()} ${row.text}`
+  }
+  // ⭐ VA2 — `band`: the site's rating band of a 1-99 number, while the band's
+  // `when` gate is open (the member's rating-band switch). Absent otherwise, so a
+  // surface that knows nothing of bands renders exactly as before.
+  if (row && row.muted !== true && isPlainObject(entry.band)) {
+    const hasGate = entry.band.when !== undefined && entry.band.when !== null
+    const gate = hasGate ? parseReadoutSource(entry.band.when) : null
+    const open = hasGate ? (gate ? gateOpen(readSource(gate, scalars, def, inputs)) : false) : true
+    const src = parseReadoutSource(entry.band.source)
+    const band = open && src ? ratingBandOf(readSource(src, scalars, def, inputs)) : null
+    if (band) row.band = band
+  }
   return row
 }
 
@@ -295,9 +369,12 @@ function enumOptionLabel(def, key, value) {
  * @param {object} def the definition (reads `def.readout` and `def.inputs`)
  * @param {object|null} scalars the envelope's payload (`scalarsFor`'s answer)
  * @param {{inputs?: object}} [ctx] the instance's stored inputs, for `input:` rows
- * @returns {{key: string, label: string, value: *, text: string, muted: boolean, detailOf?: string, note?: string}[]}
+ * @returns {{key: string, label: string, value: *, text: string, muted: boolean, detailOf?: string, note?: string,
+ *   chipOff?: true, chipText?: string, band?: string}[]}
  *   in declaration order; `detailOf` is present on a detail row only, `note` on
- *   a row whose declared note resolved to text
+ *   a row whose declared note resolved to text; `chipOff` on a chip row whose
+ *   `chipWhen` is false, `chipText` on a row with a `chipPrefix`, `band` on a
+ *   row whose `band` gate is open over a 1-99 number
  */
 export function readoutRows(def, scalars, ctx) {
   const entries = def && Array.isArray(def.readout) ? def.readout : []
@@ -338,7 +415,10 @@ export function readoutChipRows(def, rows) {
   const entries = def && Array.isArray(def.readout) ? def.readout : []
   const list = Array.isArray(rows) ? rows.filter((r) => r && r.muted !== true && typeof r.text === 'string' && r.text) : []
   const flagged = new Set(entries.filter((e) => isPlainObject(e) && e.chip === true).map((e) => e.key))
-  const picked = flagged.size ? list.filter((r) => flagged.has(r.key)) : list
+  // ⭐ VA2 — a flagged row whose `chipWhen` is false (`chipOff`) is left out, and
+  // the definition still counts as one that flags its chip rows: switching the
+  // rating off must never promote "the first rows" into the pane label.
+  const picked = flagged.size ? list.filter((r) => flagged.has(r.key) && r.chipOff !== true) : list
   return picked.slice(0, MAX_CHIP_ROWS)
 }
 

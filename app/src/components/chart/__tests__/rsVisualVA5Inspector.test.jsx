@@ -141,14 +141,15 @@ describe('A6.1 — the Preset row is the first CORE row', () => {
   })
 })
 
-describe('A6.2 — CORE renders the declared groups; Simple open, Line and New highs collapsed', () => {
-  it('three heads in declaration order, hinted ones folded, bodies unmounted while folded', () => {
+describe('A6.2 — CORE renders the declared groups; Simple open, the five hinted groups collapsed (VA2)', () => {
+  it('six heads in declaration order, hinted ones folded, bodies unmounted while folded', () => {
     show(withRs()); select(RS_ROW)
-    expect(rsDef().meta.groupsCollapsed).toEqual(['Line', 'New highs'])
-    expect(heads().map((b) => b.textContent.trim())).toEqual(['Simple', 'Line', 'New highs'])
+    // VA2: the plan's five folded groups (§6.3)
+    const folded = ['Line', 'New highs', 'Rating', 'Stress test', 'Method']
+    expect(rsDef().meta.groupsCollapsed).toEqual(folded)
+    expect(heads().map((b) => b.textContent.trim())).toEqual(['Simple', ...folded])
     expect(head('Simple').getAttribute('aria-expanded')).toBe('true')
-    expect(head('Line').getAttribute('aria-expanded')).toBe('false')
-    expect(head('New highs').getAttribute('aria-expanded')).toBe('false')
+    for (const g of folded) expect(head(g).getAttribute('aria-expanded'), g).toBe('false')
     expect(field('benchmark')).not.toBeNull()
     expect(field('maType')).toBeNull()
     expect(field('lookback')).toBeNull()
@@ -183,7 +184,7 @@ describe('A6.2 — CORE renders the declared groups; Simple open, Line and New h
 describe('A6.3 — activeWhen dims, never removes', () => {
   it('Mansfield (bars) is inert while the Mansfield view is off and wakes on the same click', () => {
     const seen = show(withRs()); select(RS_ROW)
-    fireEvent.click(head('Line'))
+    fireEvent.click(head('Method'))
     const ctl = () => field('mansfieldLength').querySelector('input')
     const label = () => field('mansfieldLength').querySelector('[class*="insFieldLabel"]')
     expect(ctl().getAttribute('aria-disabled')).toBe('true')
@@ -213,8 +214,7 @@ describe('A6.4 — no label is cut', () => {
 
   it('every rendered label prints its whole declared text', async () => {
     show(withRs()); select(RS_ROW)
-    fireEvent.click(head('Line'))
-    fireEvent.click(head('New highs'))
+    for (const g of ['Line', 'New highs', 'Rating', 'Stress test', 'Method']) fireEvent.click(head(g))
     const declared = new Map(rsDef().inputs.map((i) => [i.key, i.label]))
     let seen = 0
     for (const el of inspector().querySelectorAll('[data-field]')) {

@@ -336,10 +336,11 @@ describe('meta.groupsCollapsed', () => {
     for (const g of rs.meta.groupsCollapsed) {
       expect(groupButton(g).getAttribute('aria-expanded'), g).toBe('false')
     }
-    // Its Style tab is nothing but the two hinted groups (the colours), so they
-    // stay open there — otherwise the tab would open with no control on it.
+    // Its Style tab is nothing but hinted groups (the colours), so they stay
+    // open there — otherwise the tab would open with no control on it. Rating
+    // holds no colour or width, so it has no Style section (VA2).
     fireEvent.click(screen.getByRole('tab', { name: 'Style' }))
-    for (const g of rs.meta.groupsCollapsed) {
+    for (const g of rs.meta.groupsCollapsed.filter((x) => x !== 'Rating')) {
       expect(groupButton(g).getAttribute('aria-expanded'), `${g} on Style`).toBe('true')
     }
   })
@@ -380,7 +381,8 @@ describe('defSchema: meta.presets and meta.groupsCollapsed', () => {
     expect(errs(fixtureRaw())).toEqual([])
     expect(errs(fixtureRaw({ presets: undefined, groupsCollapsed: undefined }))).toEqual([])
     // The shipped RS definition passed the real registry, which validates on load.
-    expect(engineRegistry.getDefinition('rsLine').meta.groupsCollapsed).toEqual(['Line', 'New highs'])
+    expect(engineRegistry.getDefinition('rsLine').meta.groupsCollapsed)
+      .toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method'])
   })
 
   it('refuses presets that are not an array, or entries missing id / label / inputs', () => {
@@ -604,16 +606,21 @@ describe('UCT RS (rsLine) v3 presets — Classic, Classic weekly, Phase, Trend, 
     expect(presetSelect().value).toBe('classic')
   })
 
-  it('the Mansfield length control dims until the Mansfield line is on (activeWhen), on the Line tab', () => {
+  it('the Mansfield length control dims until the Mansfield line is on (activeWhen), in the Method group', () => {
     const f = rs().inputs.find((i) => i.key === 'mansfieldLength')
     expect(f.activeWhen).toEqual({ key: 'showMansfield', equals: true })
-    expect(f.group).toBe('Line')
-    expect(rs().inputs.find((i) => i.key === 'showMansfield').group).toBe('Line')
-    for (const k of ['showRedDay', 'showNewLow', 'dotRedColor', 'dotLowColor']) {
+    // VA2: the plan's five folded groups (§6.3); the phone sheet has had groups
+    // since 2a-11, so the Mansfield and stress controls have groups of their own.
+    expect(f.group).toBe('Method')
+    expect(rs().inputs.find((i) => i.key === 'showMansfield').group).toBe('Method')
+    for (const k of ['showRedDay', 'dotRedColor']) {
+      expect(rs().inputs.find((i) => i.key === k).group, k).toBe('Stress test')
+    }
+    for (const k of ['showNewLow', 'dotLowColor']) {
       expect(rs().inputs.find((i) => i.key === k).group, k).toBe('New highs')
     }
-    // the groups and the hint are the Phase 1 three, so the phone sheet is untouched
-    expect([...new Set(rs().inputs.map((i) => i.group))]).toEqual(['Simple', 'Line', 'New highs'])
-    expect(rs().meta.groupsCollapsed).toEqual(['Line', 'New highs'])
+    expect([...new Set(rs().inputs.map((i) => i.group))])
+      .toEqual(['Simple', 'Line', 'New highs', 'Rating', 'Stress test', 'Method'])
+    expect(rs().meta.groupsCollapsed).toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method'])
   })
 })

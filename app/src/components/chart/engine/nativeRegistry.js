@@ -3878,6 +3878,10 @@ const RS_HONESTY_SENTENCE = 'No published hit rate exists for this signal and UC
  *  condition, in the inputs' `activeWhen` grammar. */
 const RS_RATIO_VIEW = Object.freeze({ key: 'showMansfield', equals: false })
 const RS_MANSFIELD_VIEW = Object.freeze({ key: 'showMansfield', equals: true })
+/** VA2 — the Rating group's controls dim while the rating is switched off. */
+const RS_RATING_ON = Object.freeze({ key: 'showRating', equals: true })
+/** VA2 — the band gate every rating row shares: the member's Rating colours switch. */
+const RS_BAND_WHEN = 'input:ratingBands'
 const RS_LINE_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
@@ -3904,11 +3908,15 @@ const RS_LINE_RAW = {
     serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'priceTolerance',
       'redDayThreshold', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots',
       'mansfieldLength', 'showMansfield', 'showRedDay', 'showNewLow'],
-    // Read by the settings dialog (plan §6.3): these groups open collapsed so
-    // the Simple group is what a member sees first. The Mansfield and stress
-    // controls live INSIDE Line and New highs (the groups the mobile sheet and
-    // the dialog already know) rather than in groups of their own.
-    groupsCollapsed: ['Line', 'New highs'],
+    // Read by the settings dialog, the Chart Settings inspector and the phone
+    // sheet (plan §6.3): these groups open collapsed so the Simple group is what
+    // a member sees first.
+    // ⭐ VA2 (2026-11-07): the plan's five folded groups. Phase 1 kept the
+    // Mansfield and stress controls inside Line and New highs because the phone
+    // sheet had no groups yet; it has had them since unit 2a-11, so each reading
+    // now has its own group: Rating (the rating's presentation), Stress test (the
+    // red-day dot) and Method (Weinstein's Mansfield view and its length).
+    groupsCollapsed: ['Line', 'New highs', 'Rating', 'Stress test', 'Method'],
     // ⭐ THE SIX DESK LESSONS (engineering map §2.8; `lib/deskVideoHref.RS_LEARN_VIDEOS`
     // resolves each key to a `/desk?section=videos&v=…` link, and the About page
     // lists them under every card). The labels are the Learn map's own words.
@@ -3999,6 +4007,12 @@ const RS_LINE_RAW = {
     { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
       activeWhen: RS_RATIO_VIEW,
       tooltip: 'RS high before price: large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
+    // ⭐ VA2 — THE RATING GROUP'S INPUTS (plan §6.3). Presentation only: none is a
+    // server input (`meta.serverInputs` is unchanged, so the fetch key and
+    // `compute.rev` do not move). They gate and shape the readout rows below
+    // (`when`, `chipWhen`, `band` in `readoutSchema`).
+    { key: 'showRating', type: 'bool', label: 'RS Rating', default: true, group: 'Simple',
+      tooltip: 'The 1 to 99 RS Rating in the pane label and the readout. 90 means the stock beat 90% of the names rated.' },
     { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what Mansfield and StockCharts use.' },
@@ -4013,22 +4027,6 @@ const RS_LINE_RAW = {
       tooltip: 'Line colour below its average; the Phase preset sets red here' },
     { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
-    // ⭐ MANSFIELD VIEW (plan §7 item 13; Weinstein; visual round A2) — the pane's
-    // READING SWITCH. Off draws the ratio (Classic, Phase, Stress); on draws the
-    // Mansfield line alone around zero (Trend), and the server blanks the ratio,
-    // its average and every RS-line dot, so a Custom configuration cannot reach
-    // the flattened two-scales state. The inputs that only shape what the view
-    // hides DIM under it, and the Mansfield controls dim while it is off
-    // (`activeWhen`; a dimmed control never disappears).
-    { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Line',
-      tooltip: 'Draw Weinstein\'s Mansfield line around zero in place of the RS line and its dots.' },
-    { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Line',
-      activeWhen: RS_MANSFIELD_VIEW,
-      tooltip: 'Mansfield length in bars: the average the ratio is measured against. 200 on a daily chart; Weinstein\'s 52 weeks on a weekly chart (the weekly Trend preset sets it).' },
-    { ...colorInput('mansfieldColor', 'Mansfield colour', RS_INFO), group: 'Line', activeWhen: RS_MANSFIELD_VIEW,
-      tooltip: 'Colour of the Mansfield line under Mansfield view; the Trend preset gives it the blue' },
-    { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Line', activeWhen: RS_MANSFIELD_VIEW,
-      tooltip: 'Colour of the dot where the Mansfield line crosses up through zero; the Trend preset gives it the blue' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
     { key: 'priceTolerance', type: 'float', label: 'Tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
@@ -4041,21 +4039,52 @@ const RS_LINE_RAW = {
     { ...colorInput('dotBeforePriceColor', 'Before-price dot', RS_GOLD), group: 'New highs', activeWhen: RS_RATIO_VIEW,
       tooltip: 'Colour of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
     { ...colorInput('dotPartialColor', 'Short-history dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW },
-    // ⭐ THE STRESS-TEST DOT (plan §6.7; UCT workshops, Kell; visual round A3). An
-    // RS new high on a day the benchmark closed down by the red-day threshold —
-    // strength while the market sold off. Off by default; the Stress preset turns
-    // it on and makes it the gold mark. Its DEFAULT colour is the info blue, so a
-    // member who turns it on in Classic tells it from the gold before-price dot.
-    { key: 'showRedDay', type: 'bool', label: 'Red-day highs', default: false, group: 'New highs',
-      activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day; the UCT stress test, where it is the gold dot. Daily and weekly charts only.' },
-    { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'New highs', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Colour of the red-day RS-high dot; the Stress test preset makes it gold' },
     { key: 'showNewLow', type: 'bool', label: 'RS new lows', default: false, group: 'New highs',
       activeWhen: RS_RATIO_VIEW,
       tooltip: 'RS new lows: small dot when the RS line is at its lowest level of the lookback. Relative weakness. Daily and weekly charts only.' },
     { ...colorInput('dotLowColor', 'New-low dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW,
       tooltip: 'Colour of the small RS new-low dot' },
+    // ⭐ VA2 — THE RATING GROUP (plan §6.3, collapsed). Both dim while the rating
+    // is switched off. `showComponents` (the 1, 3, 6 and 12-month ranks) and
+    // `showRatingHistory` (the rating pane) are NOT declared: the provider's
+    // `payload.rating` carries no component ranks yet and there is no rating
+    // pane, and a switch with nothing behind it is not shipped.
+    { key: 'headlineRating', type: 'enum', label: 'Headline rating', default: 'both', group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      options: [['ibd', 'IBD-style'], ['fast', 'UCT fast'], ['both', 'Both']],
+      tooltip: 'Which rating the pane label shows beside the benchmark. IBD-style is the nightly rank of the 3, 6, 9 and 12-month return; UCT fast is the site\'s quicker rank. The readout always shows both.' },
+    { key: 'ratingBands', type: 'bool', label: 'Rating colours', default: true, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'Colour the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
+    // ⭐ THE STRESS TEST GROUP (VA2; plan §6.3, collapsed).
+    // ⭐ THE STRESS-TEST DOT (plan §6.7; UCT workshops, Kell; visual round A3). An
+    // RS new high on a day the benchmark closed down by the red-day threshold —
+    // strength while the market sold off. Off by default; the Stress preset turns
+    // it on and makes it the gold mark. Its DEFAULT colour is the info blue, so a
+    // member who turns it on in Classic tells it from the gold before-price dot.
+    { key: 'showRedDay', type: 'bool', label: 'Red-day highs', default: false, group: 'Stress test',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day; the UCT stress test, where it is the gold dot. Daily and weekly charts only.' },
+    { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'Stress test', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Colour of the red-day RS-high dot; the Stress test preset makes it gold' },
+    // ⭐ THE METHOD GROUP (VA2; plan §6.3, collapsed): Weinstein's reading and its
+    // length. The switch leads its group, so the controls it wakes sit under it.
+    // ⭐ MANSFIELD VIEW (plan §7 item 13; Weinstein; visual round A2) — the pane's
+    // READING SWITCH. Off draws the ratio (Classic, Phase, Stress); on draws the
+    // Mansfield line alone around zero (Trend), and the server blanks the ratio,
+    // its average and every RS-line dot, so a Custom configuration cannot reach
+    // the flattened two-scales state. The inputs that only shape what the view
+    // hides DIM under it, and the Mansfield controls dim while it is off
+    // (`activeWhen`; a dimmed control never disappears).
+    { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Method',
+      tooltip: 'Draw Weinstein\'s Mansfield line around zero in place of the RS line and its dots.' },
+    { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Method',
+      activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Mansfield length in bars: the average the ratio is measured against. 200 on a daily chart; Weinstein\'s 52 weeks on a weekly chart (the weekly Trend preset sets it).' },
+    { ...colorInput('mansfieldColor', 'Mansfield colour', RS_INFO), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Colour of the Mansfield line under Mansfield view; the Trend preset gives it the blue' },
+    { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Colour of the dot where the Mansfield line crosses up through zero; the Trend preset gives it the blue' },
   ],
   plots: [
     { key: 'rsLine', label: 'RS line', style: 'line', colorMode: 'column:rsAbove',
@@ -4188,15 +4217,28 @@ const RS_LINE_RAW = {
     // `no sector`, is the server's vocabulary, not the member's).
     { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
       when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
+    // ⭐ VA2 — every rating row is gated on the member's RS Rating switch (`when`),
+    // and coloured by the site's bands while Rating colours is on (`band`). The
+    // glance row's band reads the IBD-style number, the rating the 90-means-90%
+    // sentence describes.
     { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
+      when: 'input:showRating', band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN },
       card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated.',
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
         evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.' } },
-    { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary' },
+    // ⭐ VA2 — HEADLINE RATING: which of the two rides the pane label (`chipWhen`).
+    // Both stay rows in the card whatever the headline says. The fast number is
+    // labelled in the pane label (`fast 91`) so two numbers never read as one.
+    { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary',
+      when: 'input:showRating', chipWhen: { key: 'headlineRating', in: ['ibd', 'both'] },
+      band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN } },
     { key: 'fastRating', label: 'Fast', source: 'scalar:rating.fast', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', chip: true, chipWhen: { key: 'headlineRating', in: ['fast', 'both'] }, chipPrefix: 'fast',
+      band: { source: 'scalar:rating.fast', when: RS_BAND_WHEN },
       card: { what: 'UCT fast rating, 1 to 99, as captured by the nightly job (the screener\'s hourly RS Rank): 3-month, 6-month, 1-month and 1-week returns over about 138 sessions.',
         origin: 'The site\'s existing RS rank (rs_ranking), read once a night beside the IBD-style rating; the Rated as of row dates both. A different formula from the IBD-style rating, so the two can differ widely.' } },
-    { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text', detailOf: 'ratingSummary' },
+    { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text', detailOf: 'ratingSummary',
+      when: 'input:showRating' },
     { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
       card: { what: 'Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read.',
         origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',

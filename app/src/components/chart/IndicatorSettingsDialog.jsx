@@ -47,7 +47,11 @@ import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs,
 import { findInstance, setInstanceInput, setInstanceHidden,
          setInstanceDisplayTarget, applyPresetInputs, setInstanceDotSize,
          presetsOf, detectPreset, CUSTOM_PRESET, dotPlotsOf, DOT_SIZE_OPTIONS,
-         instanceDotSizeReading, DOT_SIZE_MIXED } from './engine/instanceControls'
+         instanceDotSizeReading, DOT_SIZE_MIXED,
+         saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState,
+         withIndicatorDefaultsOf } from './engine/instanceControls'
+import { noteRsPreset } from '../../lib/rsTelemetry'
+import { memberDefaultNote, saveDefaultIsNoop, SAVE_DEFAULT_LABEL, RESET_DEFAULT_LABEL } from './memberDefaultCopy'
 // ⭐ 2a-12 — the preset readers moved into the engine (`presetsOf`, `detectPreset`,
 // `CUSTOM_PRESET`) so this dialog and the phone sheet read ONE copy. The id is
 // re-exported here for the callers that always imported it from the dialog.
@@ -350,6 +354,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     setDraft((d) => { const out = { ...d }; for (const k of keys) delete out[k]; return out })
     setNotes((s) => { const out = { ...s }; for (const k of keys) out[k] = null; return out })
     setPickedPresetId(preset.id)
+    noteRsPreset(def, preset)
     writeSettings(applyPresetInputs(settingsRef.current, instanceId, def, preset, registry))
   }, [def, instanceId, registry, flushNow, writeSettings])
 
@@ -358,6 +363,34 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     if (id === CUSTOM_PRESET) return
     applyPreset(presets.find((p) => p.id === id))
   }, [presets, applyPreset])
+
+  // ── ⭐ VA2 (UCT RS §17.8) — "Save as my default" / "Reset to UCT default" ──
+  //
+  // Generic: every shipped indicator with a savable input (`canSaveAsDefault`).
+  // The saved default lives in `cs.indicatorDefaults` and is read only when a NEW
+  // copy is built, so saving never moves a line already on a chart.
+  //
+  // ⛔ CANCEL DOES NOT UNDO A SAVED DEFAULT. Cancel restores the snapshot taken at
+  // open; a member who pressed "Save as my default" and then Cancel meant to keep
+  // the default and drop the edits, so the defaults key is carried onto the
+  // snapshot the moment it changes. The copy's own inputs stay cancellable.
+  const defaultState = memberDefaultState(settings, instance, def)
+  const writeDefaults = useCallback((next) => {
+    if (!next || next === settingsRef.current) return
+    if (snapshotRef.current) snapshotRef.current = withIndicatorDefaultsOf(snapshotRef.current, next)
+    settingsRef.current = next
+    onChangeRef.current?.(next)
+  }, [])
+  const saveDefault = useCallback(() => {
+    flushNow()
+    writeDefaults(saveInstanceAsDefault(settingsRef.current, instanceId, registry))
+  }, [flushNow, writeDefaults, instanceId, registry])
+  const resetToUct = useCallback(() => {
+    discardPending()
+    setDraft({})
+    setNotes({})
+    writeDefaults(resetInstanceToUctDefault(settingsRef.current, instanceId, registry))
+  }, [discardPending, writeDefaults, instanceId, registry])
 
   const resetPreset = useCallback(() => {
     const target = currentPreset || presets.find((p) => p.id === pickedPresetId) || null
@@ -792,6 +825,29 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
             </div>
           )}
         </div>
+
+        {defaultState.available && (
+          // ⭐ VA2 — the member's default for NEW copies of this indicator. Both
+          // buttons always render; each is disabled when it would change nothing,
+          // and the line under them says what a new copy will start with.
+          <div className={styles.defaults} data-testid="my-default">
+            <div className={styles.defaultsRow}>
+              <button
+                type="button" className={styles.presetBtn} data-testid="save-default"
+                onClick={saveDefault}
+                disabled={saveDefaultIsNoop(defaultState)}
+              >{SAVE_DEFAULT_LABEL}</button>
+              <button
+                type="button" className={styles.presetBtn} data-testid="reset-default"
+                onClick={resetToUct}
+                disabled={defaultState.atUct}
+              >{RESET_DEFAULT_LABEL}</button>
+            </div>
+            <span className={styles.defaultsNote} data-testid="my-default-note" role="status">
+              {memberDefaultNote(defaultState)}
+            </span>
+          </div>
+        )}
 
         <div className={styles.foot}>
           <button type="button" className={styles.btn} onClick={handleCancel}>Cancel</button>
