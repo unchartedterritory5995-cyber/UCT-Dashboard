@@ -8,6 +8,7 @@ describe('skillChip', () => {
     expect(skillChip('read.events')).toBe('Chart event')
     expect(skillChip('read.bases')).toBe('Base')
     expect(skillChip('read.levels')).toBe('Levels and lines')
+    expect(skillChip('read.rs')).toBe('Relative strength')
   })
   it('keeps the older names', () => {
     expect(skillChip('vocab.candle')).toBe('Candle name')
