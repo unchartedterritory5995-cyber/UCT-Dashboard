@@ -1882,6 +1882,50 @@
    of its own, so the cell takes no pointer and wears the off tier. */
 .insCtlOff { display: inline-flex; opacity: 0.6; pointer-events: none; }
 
+/* ⭐ UCT RS PHASE 3, UNIT 3-02b — THE TEXT BOX (a `string` input, `InspectorTextBox`).
+   The cell is a COLUMN — the box, then the miss line under it — at the `wide`
+   width (`min(210px, 100%)`, a maximum, not a fixed width) and `min-width: 0`, so
+   a narrow Inspector shrinks the box rather than pushing the row past the panel;
+   the 92/84px label column is not touched, so the label stays readable. The box
+   wears the same 24px geometry and inks as the panel's selects and number boxes.
+   A miss reads in the warning colour on the BORDER only; the words under it stay
+   in the quiet tier, like the dialog's `.textMiss`. */
+.insTextCell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 1 auto;
+  width: min(210px, 100%);
+  min-width: 0;
+  gap: 2px;
+}
+.insFieldCtl .insText {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  color: var(--menu-text, #ededed);
+  transition: border-color 110ms, background 110ms;
+}
+.insFieldCtl .insText::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+.insFieldCtl .insText:hover:not(:disabled) { border-color: rgb(var(--csm-ink, 255 255 255) / 0.16); }
+.insFieldCtl .insText:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); }
+.insFieldCtl .insText[aria-invalid='true'] { border-color: var(--color-warning, #f0b429); }
+.insFieldCtl .insText:disabled { opacity: 0.55; cursor: not-allowed; }
+.insTextMiss {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--menu-text-faint, #6b6b6b);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 /* ⭐ A NUMBER IS THREE CHARACTERS WIDE, AND 100px IS ROOM FOR FIVE. Wide enough
    for `-100`, `9999` and a caret; narrow enough that `200` does not look lost. */
 .insField[data-measure='compact'] > .insFieldCtl > select,
