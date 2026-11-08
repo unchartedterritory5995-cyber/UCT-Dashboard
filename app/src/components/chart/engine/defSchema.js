@@ -2414,6 +2414,31 @@ function enumOptionLabel(option) {
   return null
 }
 
+/**
+ * ⭐ THE ONE READER OF THE PAIR (unit 3-14). The text an identity value prints:
+ * for an `enum` input whose option `raw` has a companion text box (a `string`
+ * input declaring `identityFor: <that key>` and `activeWhen: {key, equals: raw}`),
+ * the box's typed value, or the option's LABEL while the box is empty; every
+ * other value comes back unchanged. Read by `readout` (the chip and the pane
+ * suffix) and by `sourceRef.instanceLabel` (the settings list, the Display-in
+ * menu), so no surface prints the code `CUSTOM` for "Your symbol".
+ */
+export function identityTextFor(def, key, raw, inputs) {
+  if (typeof raw !== 'string' || !raw || !def || !Array.isArray(def.inputs)) return raw
+  const inp = def.inputs.find((i) => i && i.key === key)
+  if (!inp || inp.type !== 'enum') return raw
+  const companion = def.inputs.find((c) => c && c.identityFor === key && c.type === 'string'
+    && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === key && c.activeWhen.equals === raw)
+  if (!companion) return raw
+  const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
+  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    if (Array.isArray(o) && o[0] === raw) return typeof o[1] === 'string' && o[1] ? o[1] : raw
+    if (o && typeof o === 'object' && !Array.isArray(o) && o.value === raw) return typeof o.label === 'string' && o.label ? o.label : raw
+  }
+  return raw
+}
+
 function validateIdentityFor(def, inputs, inputsByKey, errors) {
   const params = isPlainObject(def.meta) && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
   const seen = new Map()

@@ -10,6 +10,8 @@
 import { describe, it, expect } from 'vitest'
 import * as engineRegistry from './nativeRegistry'
 import { legendChips, engineChips, paneReadoutLabel, readoutChipName } from './readout'
+import { instanceLabel } from './sourceRef'
+import { identityTextFor } from './defSchema'
 
 const RS = engineRegistry.getDefinition('rsLine')
 const binding = (defId, plotKey, instanceId, lastValue = 0.4187) => ({
@@ -46,6 +48,33 @@ describe('3-09b · "Your symbol" never reads as its code', () => {
   it('a typed symbol under any OTHER option is not identity: `UCT RS · QQQ`', () => {
     expect(readoutChipName(rsChip({ benchmark: 'QQQ', customBenchmark: 'SMH' }), RS)).toBe('UCT RS · QQQ')
     expect(readoutChipName(rsChip({}), RS)).toBe('UCT RS · SPY')
+  })
+})
+
+// ⭐ 3-14 (measured on the sandbox screen): the chip's `(params)` label and the
+// settings list / Display-in name (`sourceRef.instanceLabel`) printed the code
+// too — `UCT RS(CUSTOM)`, `UCT RS (CUSTOM)`. Both read `defSchema.identityTextFor`.
+describe('3-14 · the chip label and the settings-list name read the typed symbol', () => {
+  it('chip.label: `UCT RS(XLK)`, `UCT RS(Your symbol)` while empty, `UCT RS(SPY)` untouched', () => {
+    expect(rsChip({ benchmark: 'CUSTOM', customBenchmark: 'XLK' }).label).toBe('UCT RS(XLK)')
+    expect(rsChip({ benchmark: 'CUSTOM' }).label).toBe('UCT RS(Your symbol)')
+    expect(rsChip({}).label).toBe('UCT RS(SPY)')
+    expect(rsChip({ benchmark: 'QQQ', customBenchmark: 'XLK' }).label).toBe('UCT RS(QQQ)')
+  })
+
+  it('instanceLabel: `UCT RS (XLK)`, `UCT RS (Your symbol)` while empty, `UCT RS (SPY)` untouched', () => {
+    expect(instanceLabel(RS, rsInst('i', { benchmark: 'CUSTOM', customBenchmark: 'XLK' }))).toBe('UCT RS (XLK)')
+    expect(instanceLabel(RS, rsInst('i', { benchmark: 'CUSTOM', customBenchmark: '  ' }))).toBe('UCT RS (Your symbol)')
+    expect(instanceLabel(RS, rsInst('i', {}))).toBe('UCT RS (SPY)')
+    expect(instanceLabel(RS, rsInst('i', { benchmark: 'RSP', customBenchmark: 'XLK' }))).toBe('UCT RS (RSP)')
+  })
+
+  it('identityTextFor returns every value without a companion unchanged', () => {
+    expect(identityTextFor(RS, 'benchmark', 'SPY', { customBenchmark: 'XLK' })).toBe('SPY')
+    expect(identityTextFor(RS, 'maType', 'EMA', {})).toBe('EMA')
+    expect(identityTextFor(RS, 'nope', 'CUSTOM', {})).toBe('CUSTOM')
+    expect(identityTextFor(null, 'benchmark', 'CUSTOM', {})).toBe('CUSTOM')
+    expect(identityTextFor(RS, 'benchmark', 7, {})).toBe(7)
   })
 })
 
