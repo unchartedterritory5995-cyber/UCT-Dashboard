@@ -36,6 +36,12 @@
       "origin": "Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.",
       "what": "Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read."
     },
+    "quality": {
+      "evidence": "An independent point-in-time re-test of Clenow's whole strategy (Quanterlab), simulated for a full portfolio rule set and not a forecast for this score on one stock, found it beat SPY from 2006 to 2014 (12.0% a year against 7.7%) and trailed it from 2015 to 2025 (7.5% against 13.4%). No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "Quality",
+      "origin": "Andreas Clenow, Stocks on the Move (2015): the yearly pace of a regression on the log of price, times its R². Commonly implemented with 90 trading days.",
+      "what": "Clenow's momentum quality: how fast and how steadily the price has climbed over the window, 90 sessions by default. A straight line is fitted through the closes on a log scale; its slope becomes a yearly pace, which is multiplied by R², how closely the closes hug that line (0 to 1). A fast, smooth climb scores high, and a jumpy one scores lower at the same pace. It reads the stock's own price, not the benchmark. The gap flag says whether one session in the window moved more than the gap threshold, 15% by default, and the dot on the line marks that session. Daily charts only."
+    },
     "ratingSummary": {
       "evidence": "The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.",
       "label": "Rating",
@@ -54,6 +60,12 @@
       "origin": "Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.",
       "what": "The market state the reading lives in, from the benchmark alone: above or below its 200-day average, the sign of its two-year return, and where its six-month realised volatility sits in its own three-year range. Persistence: above the 200-day with a positive two-year trend. Rebound-risk: a negative two-year trend in the high-volatility third. Mixed: anything else."
     },
+    "rotation": {
+      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "Rotation",
+      "origin": "Julius de Kempenaer's Relative Rotation Graphs. His formula is proprietary, so this is UCT's published approximation, the one the Terminal's RRG prints under its graph: RS-Ratio is 100 times the RS line over its 10-bar average, and RS-Momentum is 100 times RS-Ratio over its 5-bar average. Labelled RRG-style for that reason.",
+      "what": "Two lines around 100 against the benchmark. RS-Ratio is the RS line against its own recent average: above 100, the stock has been beating the benchmark lately. RS-Momentum is RS-Ratio against its own recent average: above 100, that lead is growing. Together they place the stock in one of four quadrants: Leading (both above 100), Weakening (RS-Ratio above, RS-Momentum below), Lagging (both below) and Improving (RS-Ratio below, RS-Momentum above). The row counts how many bars in a row it has held its quadrant. It is a map of where the stock stands, not a trading system."
+    },
     "rsHigh": {
       "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
       "label": "Last RS high",
@@ -65,6 +77,12 @@
       "label": "Agreement",
       "origin": "UCT: a leader against the cap-weighted index alone may only be riding the giants that carry it.",
       "what": "Whether the last 20 bars of relative strength point the same way against SPY, the equal-weight index (RSP) and the sector ETF. Agree means all three slopes share a sign."
+    },
+    "vars": {
+      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "Vol-adjusted",
+      "origin": "OANDA's volatility-adjusted relative strength (VARS).",
+      "what": "Volatility-adjusted relative strength. Every session, the stock's move and the benchmark's move are each divided by that symbol's own typical daily move (its average true range, 20 bars by default), and the difference is added up over the lookback, 60 bars by default. Above zero, the stock has gained more than the benchmark once each is measured in its own usual move, so a quiet stock and a wild one read on one scale. The dashed line is its 50-bar average. Strong or Weak says which side of zero it is on; rising, fading, improving or falling says which side of its average."
     }
   },
   "glossary": [
