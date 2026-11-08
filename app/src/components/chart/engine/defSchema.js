@@ -2304,6 +2304,78 @@ function validateServerGates(def, inputs, errors) {
   })
 }
 
+// ─── a legacy input read as its successor (UCT RS Phase 3, unit 3-08b) ─────
+//
+// ⭐ `mapsTo: {when, key, value}` on a `legacy: true` input: an instance that
+// STORED the legacy key with the value `when`, and stored nothing under `key`,
+// is read as `key: value` (`legacyInputs.inputsAsRead`, read-time only — the
+// stored instance is never rewritten). A stored successor always wins.
+//
+// ⛔ FAIL CLOSED, because a wrong mapping silently redraws saved layouts:
+//   - only on a legacy input (a live control already says what it means);
+//   - exactly the three fields; `key` a declared input, not itself, not legacy;
+//   - `when` a legal value of the legacy input and NOT its default (a stored
+//     default is not a choice that has a successor);
+//   - `value` a legal value of the successor and NOT its default (that maps
+//     nothing: the absent successor already reads as its default);
+//   - one mapping per successor (two would race on declaration order).
+export const LEGACY_MAPS_TO_FIELDS = Object.freeze(['when', 'key', 'value'])
+
+function validateLegacyMaps(inputs, inputsByKey, errors) {
+  const targets = new Map()
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input) || input.mapsTo === undefined) return
+    const path = `inputs[${index}].mapsTo`
+    const m = input.mapsTo
+    if (input.legacy !== true) {
+      errors.push(`${path}: only a legacy input maps onto a successor — declare legacy: true or drop mapsTo`)
+      return
+    }
+    if (!isPlainObject(m)) {
+      errors.push(`${path}: expected {when, key, value}, got ${fmt(m)}`)
+      return
+    }
+    const keys = Object.keys(m)
+    const extra = keys.filter((k) => !LEGACY_MAPS_TO_FIELDS.includes(k))
+    const missing = LEGACY_MAPS_TO_FIELDS.filter((k) => !Object.prototype.hasOwnProperty.call(m, k))
+    if (extra.length || missing.length) {
+      errors.push(`${path}: expected exactly {when, key, value}` +
+        `${missing.length ? `, missing ${list(missing)}` : ''}${extra.length ? `, unknown ${list(extra)}` : ''}`)
+      return
+    }
+    const target = typeof m.key === 'string' ? inputsByKey.get(m.key) : undefined
+    if (!target) {
+      errors.push(`${path}.key: ${fmt(m.key)} names no declared input (declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`)
+      return
+    }
+    if (m.key === input.key) {
+      errors.push(`${path}.key: ${fmt(m.key)} is the legacy input itself`)
+      return
+    }
+    if (target.legacy === true) {
+      errors.push(`${path}.key: ${fmt(m.key)} is itself legacy — map onto the input that replaced it`)
+      return
+    }
+    const whenErrors = []
+    validateInputValue(input, m.when, `${path}.when`, whenErrors)
+    errors.push(...whenErrors)
+    if (!whenErrors.length && Object.prototype.hasOwnProperty.call(input, 'default') && m.when === input.default) {
+      errors.push(`${path}.when: ${fmt(m.when)} is ${fmt(input.key)}'s default — a stored default is not a choice with a successor`)
+    }
+    const valueErrors = []
+    validateInputValue(target, m.value, `${path}.value`, valueErrors)
+    errors.push(...valueErrors)
+    if (!valueErrors.length && Object.prototype.hasOwnProperty.call(target, 'default') && m.value === target.default) {
+      errors.push(`${path}.value: ${fmt(m.value)} is ${fmt(m.key)}'s default — the mapping would change nothing`)
+    }
+    if (targets.has(m.key)) {
+      errors.push(`${path}.key: ${fmt(m.key)} is already the successor of inputs[${targets.get(m.key)}] — one mapping per successor`)
+    } else {
+      targets.set(m.key, index)
+    }
+  })
+}
+
 /** `activeWhen` is the JSON-expressible successor to `indicatorRegistry`'s
  *  `showIf` predicate (a function cannot survive a definition round-trip). The
  *  operator grammar is NOT locked in v1, so this checks only the part that is
@@ -3491,6 +3563,8 @@ export function validateDefinition(def) {
     inputs.forEach((input, i) => validateActiveWhen(input, i, inputsByKey, errors))
     // ⭐ UCT RS PHASE 3 (unit 3-01) — `requiresServer` and `legacy`.
     validateServerGates(out, inputs, errors)
+    // ⭐ UCT RS PHASE 3 (unit 3-08b) — a legacy input's `mapsTo` successor.
+    validateLegacyMaps(inputs, inputsByKey, errors)
 
     // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
     validateReadout(out, inputsByKey, errors)

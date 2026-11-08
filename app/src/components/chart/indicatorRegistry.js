@@ -105,6 +105,7 @@ import {
 import { legacyInstanceId } from './engine/instances'
 // ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
 import { enumOptionRequiresServer, validateInputValue } from './engine/defSchema'
+import { inputsAsRead } from './engine/legacyInputs'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
 // because a predicate — or a field table — copied into two files is precisely
@@ -590,7 +591,10 @@ export function evalActiveWhen(activeWhen, values) {
 export function fieldsForInstance(def, instance, opts = {}) {
   const declared = Array.isArray(def?.inputs) ? def.inputs : []
   const byKey = new Map(declared.map((i) => [i && i.key, i]))
-  const stored = (instance && instance.inputs && typeof instance.inputs === 'object') ? instance.inputs : {}
+  // ⭐ 3-08b: a stored legacy input reads as its successor (`legacyInputs`), so
+  // the form, its activeWhen and its preset picker show what the chart draws.
+  // Read-time only: nothing here is written back to the instance.
+  const stored = inputsAsRead(def, (instance && instance.inputs && typeof instance.inputs === 'object') ? instance.inputs : {})
 
   const values = {}
   for (const d of declared) {
@@ -797,7 +801,8 @@ function liveInstancesFor(defId, settings) {
  */
 function drawnValues(def, settings, live) {
   const section = (settings && settings.indicators && settings.indicators[def.id]) || {}
-  const inputs = (live && live.inputs && typeof live.inputs === 'object') ? live.inputs : null
+  // ⭐ 3-08b: the legacy → successor read, as `fieldsForInstance` (`legacyInputs`).
+  const inputs = (live && live.inputs && typeof live.inputs === 'object') ? inputsAsRead(def, live.inputs) : null
   const out = {}
   for (const declared of (Array.isArray(def.inputs) ? def.inputs : [])) {
     if (!declared || typeof declared.key !== 'string') continue

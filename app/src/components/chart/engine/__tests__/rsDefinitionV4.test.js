@@ -10,7 +10,8 @@
 //      option and preset is hidden and the six shipped presets still list; with
 //      the v4 row's declaration everything shows;
 //   2. `detectPreset` round trip for EVERY preset, from every other preset;
-//   3. a saved v3 Trend layout: what it reads as, and why (documented, below);
+//   3. a saved v3 Trend layout reads as Trend (3-08b, the legacy `mapsTo`), and a
+//      stored Reading wins over the legacy switch;
 //   4. the chip under CUSTOM reads `UCT RS · SMH · 94`;
 //   5. the pane label under each Reading;
 //   6. each Reading's glance row prints under its view only, and in the muted
@@ -22,7 +23,8 @@ import * as engineRegistry from '../nativeRegistry'
 import { getDefinition } from '../nativeRegistry'
 import { readoutRows } from '../readoutSchema'
 import { validateDefinition } from '../defSchema'
-import { legendChips, readoutChipName, readoutFallbackValue, paneReadoutLabel } from '../readout'
+import { legendChips, readoutChipName, readoutFallbackValue, paneReadoutLabel, resolvedInputsOf } from '../readout'
+import { planBindings } from '../pool'
 import { mergeChartSettings } from '../../chartDefaults'
 import { setIndicatorEnabled, findInstance, applyPresetInputs, detectPreset, presetsOf } from '../instanceControls'
 import { legacyInstanceId } from '../instances'
@@ -141,47 +143,89 @@ describe('2 · detectPreset round trip, every preset from every other preset', (
 })
 
 describe('3 · a saved v3 Trend layout', () => {
-  // ⭐ DOCUMENTED, NOT HIDDEN: a Trend instance saved by v3 carries
-  // `showMansfield: true` and no `view`. Its resolved `view` is the default,
-  // 'ratio', while Trend now states `view: 'mansfield'`, and `detectPreset`
-  // compares resolved inputs and the engine has no input migration (map F20), so
-  // the picker reads Custom until the member picks Trend again. What it DRAWS is
-  // unchanged: a v3 server reads `showMansfield`, and the v4 row resolves
-  // ratio + showMansfield to the Mansfield reading (`rs_provider._rs_view`).
-  // The zero guide and the Mansfield glance row read the stored Reading, so they
-  // are what such a layout loses until Trend is applied again.
+  // ⭐ UNIT 3-08b. A Trend instance saved by v3 carries `showMansfield: true` and
+  // no `view`. The legacy switch declares `mapsTo` the Mansfield Reading, so
+  // every reader (`legacyInputs.inputsAsRead`) reads it as `view: 'mansfield'`
+  // while `view` is not stored: the zero guide binds, the Mansfield glance row
+  // and pane value print, the picker reads Trend, and the fetch asks for the
+  // Mansfield Reading. A member who then picks "RS line" stores `view: 'ratio'`,
+  // and a stored Reading always wins. Nothing is written back to the instance.
   const ID = legacyInstanceId('rsLine')
-  const savedTrend = { maLength: 21, maType: 'EMA', lookback: 252, showMansfield: true, mansfieldLength: 200,
-    mansfieldColor: '#6ba3be', dotCrossColor: '#6ba3be', showRedDay: false, showNewLow: false }
+  const savedTrend = Object.freeze({ maLength: 21, maType: 'EMA', lookback: 252, showMansfield: true, mansfieldLength: 200,
+    mansfieldColor: '#6ba3be', dotCrossColor: '#6ba3be', showRedDay: false, showNewLow: false })
   const withInputs = (inputs) => {
     const cs = setIndicatorEnabled(mergeChartSettings(null), 'rsLine', true, engineRegistry)
     return { ...cs, indicatorInstances: cs.indicatorInstances.map((i) => (i.instanceId === ID
       ? { ...i, inputs, visibility: { preset: 'dailyUp' }, presentation: { plots: { dotMansfieldCross: { dotSize: 'medium' } } } }
       : i)) }
   }
-  const defaults = Object.fromEntries(RS.inputs.map((i) => [i.key, i.default]))
-
-  it('reads Custom on v4, because its resolved Reading is the default ratio', () => {
-    const cs = withInputs(savedTrend)
+  const registry = { getDefinition: (id) => (id === 'rsLine' ? RS : null) }
+  const guideKeys = (inputs) => planBindings([{ instanceId: ID, defId: 'rsLine', inputs }], registry, null, {})
+    .bind.flatMap((b) => (b.guides || []).map((g) => g.key))
+  const glanceKeys = (inputs) => readoutRows(RS, PAYLOAD, { inputs }).filter((r) => !r.detailOf).map((r) => r.key)
+  const presetOf = (cs) => {
     const instance = findInstance(cs, ID)
-    const v = { ...defaults, ...instance.inputs }
-    expect(v.view).toBe('ratio')
-    expect(detectPreset(presetsOf(RS), v, { instance, def: RS, cs })).toBeNull()
-    // and the one key that differs from Trend is the Reading
-    const trend = RS.meta.presets.find((p) => p.id === 'trend').inputs
-    expect(Object.keys(trend).filter((k) => v[k] !== trend[k])).toEqual(['view'])
+    return detectPreset(presetsOf(RS), resolvedInputsOf(RS, instance.inputs), { instance, def: RS, cs })?.id ?? null
+  }
+
+  it('the legacy switch declares its successor', () => {
+    expect(RS.inputs.find((i) => i.key === 'showMansfield').mapsTo).toEqual({ when: true, key: 'view', value: 'mansfield' })
   })
 
-  it('applying Trend again makes it Trend, and Classic after that is Classic', () => {
+  it('draws the Mansfield zero guide, prints the Mansfield glance row and pane value, and reads Trend', () => {
+    const cs = withInputs(savedTrend)
+    const instance = findInstance(cs, ID)
+    expect(guideKeys(instance.inputs)).toEqual(['mansfieldZero'])
+    expect(glanceKeys(instance.inputs)).toContain('mansfield')
+    expect(readoutFallbackValue(RS, PAYLOAD, 4, instance.inputs)).toEqual({ text: '+18.7%', muted: false })
+    expect(resolvedInputsOf(RS, instance.inputs).view).toBe('mansfield')
+    expect(engineRegistry.resolveInputs(RS, instance.inputs).view).toBe('mansfield')
+    expect(fieldsForInstance(RS, instance).values.view).toBe('mansfield')
+    expect(presetOf(cs)).toBe('trend')
+  })
+
+  it('a stored Reading wins: showMansfield true with view ratio draws the RS line', () => {
+    const cs = withInputs({ ...savedTrend, view: 'ratio' })
+    const instance = findInstance(cs, ID)
+    expect(guideKeys(instance.inputs)).toEqual([])
+    expect(glanceKeys(instance.inputs)).not.toContain('mansfield')
+    expect(readoutFallbackValue(RS, PAYLOAD, 4, instance.inputs)).toEqual({ text: '0.4187 · Nov 5', muted: true })
+    expect(engineRegistry.resolveInputs(RS, instance.inputs).view).toBe('ratio')
+    expect(fieldsForInstance(RS, instance).values.view).toBe('ratio')
+    expect(presetOf(cs)).toBeNull()
+  })
+
+  it('an instance that never stored the switch, or stored it off, keeps the default Reading', () => {
+    for (const inputs of [{}, { showMansfield: false }]) {
+      expect(guideKeys(inputs), JSON.stringify(inputs)).toEqual([])
+      expect(resolvedInputsOf(RS, inputs).view).toBe('ratio')
+    }
+  })
+
+  it('reading it writes nothing back: the stored instance is unchanged after every reader ran', () => {
+    const cs = withInputs(savedTrend)
+    const before = JSON.stringify(cs.indicatorInstances)
+    const instance = findInstance(cs, ID)
+    guideKeys(instance.inputs)
+    readoutRows(RS, PAYLOAD, { inputs: instance.inputs })
+    readoutFallbackValue(RS, PAYLOAD, 4, instance.inputs)
+    resolvedInputsOf(RS, instance.inputs)
+    engineRegistry.resolveInputs(RS, instance.inputs)
+    fieldsForInstance(RS, instance)
+    presetOf(cs)
+    legendChips([{ instanceId: ID, defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'rs' }, lastValue: 0.2477 }],
+      null, engineRegistry, cs.indicatorInstances, { scalarsOf: () => PAYLOAD })
+    expect(JSON.stringify(cs.indicatorInstances)).toBe(before)
+    expect(instance.inputs).toBe(savedTrend)
+    expect(instance.inputs).not.toHaveProperty('view')
+  })
+
+  it('applying Trend again keeps it Trend, and Classic after that is Classic', () => {
     const cs = withInputs(savedTrend)
     const trend = applyPresetInputs(cs, ID, RS, RS.meta.presets.find((p) => p.id === 'trend'), engineRegistry)
-    const read = (s) => {
-      const instance = findInstance(s, ID)
-      return detectPreset(presetsOf(RS), { ...defaults, ...instance.inputs }, { instance, def: RS, cs: s })?.id ?? null
-    }
-    expect(read(trend)).toBe('trend')
+    expect(presetOf(trend)).toBe('trend')
     const classic = applyPresetInputs(trend, ID, RS, RS.meta.presets.find((p) => p.id === 'classic'), engineRegistry)
-    expect(read(classic)).toBe('classic')
+    expect(presetOf(classic)).toBe('classic')
     expect(findInstance(classic, ID).inputs).toMatchObject({ view: 'ratio', showMansfield: false })
   })
 })

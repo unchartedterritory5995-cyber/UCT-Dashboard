@@ -22,7 +22,7 @@
 // REPORTED as `input-removed`. A rail that cannot go red on the defect it guards
 // is a rail in name only.
 import { describe, it, expect } from 'vitest'
-import { getDefinition, listDefinitions } from '../nativeRegistry'
+import { getDefinition, listDefinitions, resolveInputs } from '../nativeRegistry'
 import { validateInstance, normalizeInstances } from '../instances'
 import { unavailableInstances, UNAVAILABLE_REASONS } from '../unavailableInstances'
 import { checkInstanceInput } from '../instanceControls'
@@ -194,11 +194,21 @@ describe('saved v3 layouts on the v4 definition', () => {
     expect(fieldsForInstance(def, TREND_V3).all.map((f) => f.key)).not.toContain('showMansfield')
   })
 
-  it('a saved Trend layout asks the server for showMansfield: true with the ratio Reading, which the v4 row reads as Mansfield', () => {
+  it('a saved Trend layout asks the server for the Mansfield Reading (the legacy switch maps onto view, 3-08b)', () => {
     const { values } = fieldsForInstance(def, TREND_V3)
-    const sent = pickServerInputs(def, values)
-    // `rs_provider._rs_view`: ratio + showMansfield true → mansfield; a v3 server
-    // reads showMansfield as it always did
-    expect(sent).toMatchObject({ showMansfield: true, view: 'ratio', mansfieldLength: 200 })
+    // `showMansfield.mapsTo`: stored true and no stored view reads as
+    // view: 'mansfield'; a v3 server drops `view` and reads showMansfield as it
+    // always did, so both rows draw Mansfield
+    expect(pickServerInputs(def, values)).toMatchObject({ showMansfield: true, view: 'mansfield', mansfieldLength: 200 })
+    expect(pickServerInputs(def, resolveInputs(def, TREND_V3.inputs))).toMatchObject({ showMansfield: true, view: 'mansfield' })
+    // read-time only: the frozen stored instance carries no view
+    expect(TREND_V3.inputs).not.toHaveProperty('view')
+  })
+
+  it('a stored Reading wins: showMansfield true with view ratio asks for the RS line', () => {
+    const inputs = { ...TREND_V3.inputs, view: 'ratio' }
+    expect(validateInstance({ ...TREND_V3, inputs }, REGISTRY).ok).toBe(true)
+    expect(pickServerInputs(def, resolveInputs(def, inputs))).toMatchObject({ showMansfield: true, view: 'ratio' })
+    expect(fieldsForInstance(def, { ...TREND_V3, inputs }).values.view).toBe('ratio')
   })
 })

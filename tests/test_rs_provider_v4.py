@@ -184,7 +184,8 @@ def test_the_ratio_and_mansfield_views_draw_what_v3_drew(v4_row, monkeypatch):
 
 @pytest.mark.parametrize("inputs, want", [
     ({"showMansfield": True}, "mansfield"),
-    ({"showMansfield": True, "view": "ratio"}, "mansfield"),
+    # unit 3-08b: a SENT view always wins over the legacy switch
+    ({"showMansfield": True, "view": "ratio"}, "ratio"),
     ({"showMansfield": True, "view": "rotation"}, "rotation"),
     ({"showMansfield": False, "view": "mansfield"}, "mansfield"),
     ({"view": "VARS"}, "vars"),
@@ -196,15 +197,84 @@ def test_the_legacy_showMansfield_maps_to_the_mansfield_view(inputs, want, v4_ro
     assert env["payload"]["inputs"]["view"] == want
 
 
-def test_a_saved_trend_instance_draws_the_same_through_the_route(v4_row, monkeypatch):
-    """A v3 Trend instance (showMansfield true, no view) resolved by the v4
-    row's `resolve_inputs` (which fills view = ratio) still draws Mansfield."""
-    store = _arith_store()
-    resolved = rd.resolve_inputs("rsLine", {"benchmark": "SPY", "showMansfield": True})
-    assert resolved["view"] == "ratio" and resolved["showMansfield"] is True
-    env = _lane(monkeypatch, store, inputs=resolved)
+# ── the legacy switch through the route (unit 3-08b) ─────────────────────────
+#
+# One rule: `showMansfield: true` maps onto `view: "mansfield"` ONLY when the
+# request sent no `view`. `resolve_inputs` is where "sent" and "defaulted" can
+# still be told apart, so the three cases go through it (as `serve` does).
+
+def _routed(monkeypatch, store, raw):
+    resolved = rd.resolve_inputs("rsLine", raw)
+    return resolved, _lane(monkeypatch, store, inputs=resolved)
+
+
+def test_a_saved_trend_instance_draws_mansfield_through_the_route(v4_row, monkeypatch):
+    """A v3 Trend instance (showMansfield true, no view): the row's mapping
+    resolves the Reading to mansfield, and the pane draws the Mansfield line."""
+    resolved, env = _routed(monkeypatch, _arith_store(), {"benchmark": "SPY", "showMansfield": True})
+    assert resolved["view"] == "mansfield" and resolved["showMansfield"] is True
     assert env["payload"]["inputs"]["view"] == "mansfield"
     assert _nonnull(env["columns"]["mansfield"]) > 100 and all(v is None for v in env["columns"]["rsLine"])
+
+
+def test_a_sent_ratio_view_wins_over_the_legacy_switch_through_the_route(v4_row, monkeypatch):
+    """A member who switched a Trend instance back to the RS line by hand sends
+    showMansfield true AND view ratio: the RS line draws, not Mansfield."""
+    resolved, env = _routed(monkeypatch, _arith_store(),
+                            {"benchmark": "SPY", "showMansfield": True, "view": "ratio"})
+    assert resolved["view"] == "ratio"
+    assert env["payload"]["inputs"]["view"] == "ratio"
+    assert _nonnull(env["columns"]["rsLine"]) > 100 and all(v is None for v in env["columns"]["mansfield"])
+
+
+def test_no_legacy_switch_through_the_route_is_the_default_reading(v4_row, monkeypatch):
+    for raw in ({"benchmark": "SPY"}, {"benchmark": "SPY", "showMansfield": False}):
+        resolved, env = _routed(monkeypatch, _arith_store(), raw)
+        assert resolved["view"] == "ratio", raw
+        assert env["payload"]["inputs"]["view"] == "ratio", raw
+
+
+def test_the_mapping_reads_a_wire_bool_and_none_means_not_sent(v4_row):
+    assert rd.resolve_inputs("rsLine", {"showMansfield": "true"})["view"] == "mansfield"
+    assert rd.resolve_inputs("rsLine", {"showMansfield": True, "view": None})["view"] == "mansfield"
+    assert rd.resolve_inputs("rsLine", {"showMansfield": True, "view": "vars"})["view"] == "vars"
+    # idempotent: resolving a resolved map changes nothing
+    once = rd.resolve_inputs("rsLine", {"showMansfield": True})
+    assert rd.resolve_inputs("rsLine", once) == once
+    # the raw request is never written to
+    raw = {"showMansfield": True}
+    rd.resolve_inputs("rsLine", raw)
+    assert raw == {"showMansfield": True}
+
+
+def test_the_v4_row_declares_the_mapping_and_the_v3_row_does_not():
+    v4 = {i["key"]: i for i in rd._rs_line_row(True, True)["inputs"]}
+    v3 = {i["key"]: i for i in rd._rs_line_row(True)["inputs"]}
+    assert v4["showMansfield"]["mapsTo"] == {"when": True, "key": "view", "value": "mansfield"}
+    assert "mapsTo" not in v3["showMansfield"] and "view" not in v3
+    # and it is the JS definition's declaration, read from nativeRegistry.js
+    import pathlib
+    js = (pathlib.Path(__file__).resolve().parents[1]
+          / "app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    assert "mapsTo: { when: true, key: 'view', value: 'mansfield' }" in js
+
+
+@pytest.mark.parametrize("mapsTo, why", [
+    ({"when": True, "key": "view"}, "exactly"),
+    ({"when": True, "key": "nope", "value": "mansfield"}, "not another declared input"),
+    ({"when": True, "key": "showMansfield", "value": True}, "not another declared input"),
+    ({"when": False, "key": "view", "value": "mansfield"}, "when"),
+    ({"when": "yes", "key": "view", "value": "mansfield"}, "when"),
+    ({"when": True, "key": "view", "value": "mansfeld"}, "value"),
+    ({"when": True, "key": "view", "value": "ratio"}, "value"),
+])
+def test_a_malformed_mapping_refuses_the_row(mapsTo, why):
+    row = rd._rs_line_row(True, True)
+    for spec in row["inputs"]:
+        if spec["key"] == "showMansfield":
+            spec["mapsTo"] = mapsTo
+    with pytest.raises(ValueError, match=why):
+        rd._checked_legacy_maps(row)
 
 
 # ── rotation (the rs_rrg fixture, weekly) ────────────────────────────────────

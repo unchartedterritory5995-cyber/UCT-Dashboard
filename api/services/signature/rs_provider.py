@@ -146,7 +146,7 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     i.e. `RS_V3_ENABLED` on top of `RS_V2_ENABLED`). The envelope adds the six
     Phase 3 wire columns, one "Reading" (`view`) that decides which family the
     pane draws (`_RS_VIEW_FAMILIES`; the legacy `showMansfield` maps to
-    `mansfield`, decision D2), a member's own benchmark (`CUSTOM` plus
+    `mansfield` only when no `view` was sent, decision D2 and unit 3-08b), a member's own benchmark (`CUSTOM` plus
     `customBenchmark`, decision D4, warmed through ``warm``), the picked
     `anchorDate` for the Checks anchor (decision D6), and three payload blocks:
     `rotation`, `quality` and `vars` (`_rs_phase3`). The payload shape is
@@ -1326,14 +1326,20 @@ def _rs_unit(store: str) -> str:
 
 def _rs_view(inputs: dict, toggles: dict) -> str:
     """The resolved "Reading" (D2). An unknown or missing value is the row's
-    default; ``showMansfield: true`` with the view absent or ``ratio`` is
-    ``mansfield``, which keeps every saved Trend instance drawing what it drew.
-    An explicit non-ratio view wins over the legacy toggle."""
-    raw = str((inputs or {}).get("view") or "").strip().lower()
-    view = raw if raw in registry_defs.RS_VIEWS else registry_defs.RS_DEFAULT_VIEW
-    if view == "ratio" and toggles.get("showMansfield"):
-        return "mansfield"
-    return view
+    default.
+
+    ⭐ THE LEGACY SWITCH (unit 3-08b): ``showMansfield: true`` reads as
+    ``mansfield`` ONLY when the caller sent no ``view``. The row declares it
+    (``showMansfield.mapsTo``) and ``registry_defs.resolve_inputs`` applies it,
+    where the raw request is still visible, so a saved v3 Trend instance draws
+    Mansfield and a member who picked the RS line by hand
+    (``showMansfield: true, view: "ratio"``) gets the RS line. It is read here
+    through ``legacy_mapped`` too, for a caller that hands this provider raw
+    inputs (a no-op on resolved ones, which always carry ``view``). ``toggles``
+    stays in the signature; the toggle no longer decides the view."""
+    inp = registry_defs.legacy_mapped("rsLine", inputs)
+    raw = str(inp.get("view") or "").strip().lower()
+    return raw if raw in registry_defs.RS_VIEWS else registry_defs.RS_DEFAULT_VIEW
 
 
 def _rs_phase3_params(inputs: dict, requested: str, toggles: dict) -> dict:

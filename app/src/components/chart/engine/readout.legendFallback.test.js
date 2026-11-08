@@ -17,8 +17,11 @@ describe('readoutFallbackValue — a declared alternative before the dated last 
   it('ratio view: the dated last RS value, muted, as before', () => {
     const v = readoutFallbackValue(RS, payload, 4, { view: 'ratio' })
     expect(v).toEqual({ text: '0.4656 · Nov 6', muted: true })
-    // the legacy switch alone no longer picks the label (the Reading does)
-    expect(readoutFallbackValue(RS, payload, 4, { showMansfield: true })).toEqual({ text: '0.4656 · Nov 6', muted: true })
+    // 3-08b: the legacy switch with NO stored Reading reads as the Mansfield
+    // Reading (`showMansfield.mapsTo`); a stored Reading always wins
+    expect(readoutFallbackValue(RS, payload, 4, { showMansfield: true })).toEqual({ text: '+12.3%', muted: false })
+    expect(readoutFallbackValue(RS, payload, 4, { showMansfield: true, view: 'ratio' }))
+      .toEqual({ text: '0.4656 · Nov 6', muted: true })
   })
   it('Mansfield view with no Mansfield value falls back to the dated RS value', () => {
     const v = readoutFallbackValue(RS, { legend: payload.legend, mansfield: { value: null } }, 4, { view: 'mansfield' })

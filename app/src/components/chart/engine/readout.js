@@ -104,6 +104,7 @@ import { safeCssColour } from './objectColour'
 // no serverCompute, no DOM. The scalars themselves arrive through `opts.scalarsOf`
 // (see `stampReadout`), so this module still imports no server lane.
 import { readoutRows, readoutChipRows } from './readoutSchema'
+import { inputsAsRead } from './legacyInputs'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -641,7 +642,10 @@ export function resolvedInputsOf(def, inputs) {
   for (const inp of ((def && Array.isArray(def.inputs)) ? def.inputs : [])) {
     if (inp && typeof inp.key === 'string' && inp.default !== undefined) out[inp.key] = inp.default
   }
-  for (const [k, v] of Object.entries(inputs && typeof inputs === 'object' ? inputs : {})) {
+  // ⭐ 3-08b: the legacy → successor read (`legacyInputs.inputsAsRead`), the
+  // same one `resolveInputs` applies, so the two never key a fetch differently.
+  const stored = inputsAsRead(def, inputs)
+  for (const [k, v] of Object.entries(stored && typeof stored === 'object' ? stored : {})) {
     if (v !== undefined) out[k] = v
   }
   return out

@@ -110,8 +110,12 @@ def test_the_v4_row_is_the_v3_row_plus_the_phase3_contract():
     assert len(v4["columns"]) == 28 and len(set(v4["columns"])) == 28
     assert v4["payload_keys"] == ["payload"]
     assert [i["key"] for i in v4["inputs"]] == V3_INPUT_KEYS + V4_NEW_INPUT_KEYS
-    # every v3 input is unchanged except the benchmark menu, which gains CUSTOM
-    assert v4["inputs"][1:13] == v3["inputs"][1:]
+    # every v3 input is unchanged except the benchmark menu, which gains CUSTOM,
+    # and the legacy showMansfield, which declares its successor (unit 3-08b)
+    legacy = {k: {**i, "mapsTo": dict(rd.RS_MANSFIELD_LEGACY_MAP)} if i["key"] == "showMansfield" else i
+              for k, i in enumerate(v3["inputs"])}
+    assert v4["inputs"][1:13] == [legacy[k] for k in range(1, len(v3["inputs"]))]
+    assert "mapsTo" not in {i["key"]: i for i in v3["inputs"]}["showMansfield"]
     assert v4["inputs"][0] == {**v3["inputs"][0], "options": list(rd.RS_LINE_BENCHMARKS_V4)}
     for k in ("schemaVersion", "id", "meta", "placement", "rules_key"):
         assert v4[k] == v3[k], k

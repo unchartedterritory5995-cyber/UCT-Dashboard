@@ -114,6 +114,8 @@
 //   text     a non-empty string (or a finite number)      'S&P 500 (SPY)'
 //   bool     true/false as a word pair                    true → yes (or `words[0]`)
 
+import { inputsAsRead } from './legacyInputs'
+
 export const READOUT_FORMATS = Object.freeze(['ratio', 'pct', 'int', 'barsAgo', 'text', 'bool'])
 
 /** The source prefixes a row may read from. `scalar` and `payload` both mean
@@ -254,9 +256,13 @@ function readPath(obj, path) {
   return cur
 }
 
-/** An instance input as the compute reads it: the stored value, else the
- *  declared default. `undefined` for a key nothing declares. */
-function readInput(def, inputs, key) {
+/** An instance input as the compute reads it: the stored value (a stored
+ *  legacy input read as its successor, `legacyInputs.inputsAsRead`), else the
+ *  declared default. `undefined` for a key nothing declares. The one reader of
+ *  an input in this module: `input:` sources, equals gates, `muted`, `chipWhen`
+ *  and the pane label's `legendFallback` all come through here. */
+function readInput(def, stored, key) {
+  const inputs = inputsAsRead(def, stored)
   if (inputs && inputs[key] !== undefined) return inputs[key]
   const declared = (def && Array.isArray(def.inputs) ? def.inputs : [])
     .find((i) => i && i.key === key)

@@ -64,6 +64,7 @@ import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
 import { LINE_WIDTH_HARD_MAX } from './defSchema'
+import { inputsAsRead } from './legacyInputs'
 
 /** The four LWC series constructors any v1 plot can need. */
 /**
@@ -1023,9 +1024,11 @@ function dataPlots(def) {
  * module imports `engine/readout`, and the pool sits under both). A rail in
  * `pool.plotActiveWhen.test.js` holds the two equal on every comparator.
  */
-export function plotActiveFor(plot, def, inputs) {
+export function plotActiveFor(plot, def, stored) {
   const aw = plot && plot.activeWhen
   if (!aw || typeof aw !== 'object' || typeof aw.key !== 'string') return true
+  // ⭐ 3-08b: a stored legacy input reads as its successor (`legacyInputs`).
+  const inputs = inputsAsRead(def, stored)
   let v = inputs && Object.prototype.hasOwnProperty.call(inputs, aw.key) ? inputs[aw.key] : undefined
   if (v === undefined) {
     const spec = ((def && def.inputs) || []).find(i => i && i.key === aw.key)

@@ -91,6 +91,7 @@ import {
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
 import { migrateMemberDocument } from './memberDocumentMigration.js'
+import { inputsAsRead } from './legacyInputs.js'
 import { interpret, listingSeedIsUnpinned } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
@@ -2844,8 +2845,11 @@ export function resolveInputs(def, inputs) {
   for (const input of def?.inputs || []) {
     if (input && typeof input.key === 'string') out[input.key] = input.default
   }
-  if (inputs) {
-    for (const [k, v] of Object.entries(inputs)) {
+  // ⭐ 3-08b: a stored legacy input reads as its successor where the successor
+  // was never stored (`legacyInputs.inputsAsRead`; read-time, never written back).
+  const stored = inputsAsRead(def, inputs)
+  if (stored) {
+    for (const [k, v] of Object.entries(stored)) {
       if (v !== undefined) out[k] = v
     }
   }
@@ -3822,8 +3826,10 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
 // `requiresServer` (unit 3-01): hidden until the live row (`RS_V3_ENABLED`)
 // declares it, so this definition reaches members at merge and draws nothing it
 // cannot answer. `showMansfield` is `legacy` (never rendered, still valid, so a
-// saved Trend layout validates; the server maps it to the Mansfield reading
-// while `view` is ratio). `placement.ownScale` (unit 3-07) lets "On price" draw
+// saved Trend layout validates) and `mapsTo` the Mansfield Reading: a stored
+// `true` with no stored `view` reads as `view: 'mansfield'` on every surface
+// (unit 3-08b, `legacyInputs.inputsAsRead`), and the server row declares the
+// same mapping (`registry_defs.resolve_inputs`). `placement.ownScale` (unit 3-07) lets "On price" draw
 // in the lowest third on its own invisible scale; the default stays the pane
 // (D3), so no saved instance moves.
 //
@@ -4177,11 +4183,15 @@ const RS_LINE_RAW = {
     // ⭐ MANSFIELD VIEW, NOW LEGACY (v4, decision D2). It was the pane's reading
     // switch in v3; the Reading enum replaced it. It stays DECLARED so a stored
     // instance carrying it still validates (F20: an undeclared key is refused),
-    // and `legacy: true` means no surface renders it. The server reads `true` as
-    // the Mansfield reading while `view` is ratio, which keeps every saved Trend
-    // layout drawing what it drew; the Trend presets set it beside
-    // `view: 'mansfield'` so a v3 server draws Trend too.
+    // and `legacy: true` means no surface renders it. The Trend presets set it
+    // beside `view: 'mansfield'` so a v3 server draws Trend too.
+    // ⭐ 3-08b — `mapsTo`: a v3 Trend instance stored `showMansfield: true` and
+    // no `view`. It reads as `view: 'mansfield'` (zero guide, Mansfield glance
+    // row, the Trend preset, the fetch) ONLY while `view` is not stored; a member
+    // who picks "RS line" stores `view: 'ratio'`, which wins. Read-time only:
+    // the stored instance is never rewritten.
     { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Method', legacy: true,
+      mapsTo: { when: true, key: 'view', value: 'mansfield' },
       tooltip: 'Draw Weinstein\'s Mansfield line around zero in place of the RS line and its dots.' },
     { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Method',
       activeWhen: RS_MANSFIELD_VIEW,

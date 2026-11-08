@@ -8,6 +8,7 @@ import {
   validateDefinition, enumOptionRequiresServer, PRESET_FIELDS, PRESET_GATE_FIELDS,
 } from './defSchema'
 import { validateInstance } from './instances'
+import { inputsAsRead } from './legacyInputs'
 
 const serverDef = (patch = {}) => ({
   schemaVersion: 1, id: 'probeServer', version: 1,
@@ -171,5 +172,66 @@ describe('a legacy input stored on an instance VALIDATES (F20)', () => {
     const bad = validateInstance({ instanceId: 'probeServer', defId: def.id, inputs: { oldView: 'on' } }, reg)
     expect(bad.ok).toBe(false)
     expect(bad.errors.join(' ')).toMatch(/inputs\.oldView: type "bool"/)
+  })
+})
+
+// ─── unit 3-08b — `mapsTo` on a legacy input ────────────────────────────────
+describe('mapsTo: a legacy input read as its successor', () => {
+  const MAP = { when: true, key: 'view', value: 'rotation' }
+  const mapped = (mapsTo, patch = {}) => withInput('oldView', { legacy: true, mapsTo, ...patch })
+
+  it('accepts the well-formed mapping and keeps it on the registered definition', () => {
+    const def = ok(mapped(MAP))
+    expect(def.inputs.find((i) => i.key === 'oldView').mapsTo).toEqual(MAP)
+  })
+
+  it('only a legacy input may declare one', () => {
+    refused(withInput('oldView', { legacy: undefined, mapsTo: MAP }), /inputs\[3\]\.mapsTo: only a legacy input/)
+    refused(withInput('length', { mapsTo: { when: 20, key: 'view', value: 'rotation' } }), /inputs\[1\]\.mapsTo: only a legacy input/)
+  })
+
+  it('exactly {when, key, value}', () => {
+    refused(mapped('view'), /inputs\[3\]\.mapsTo: expected \{when, key, value\}/)
+    refused(mapped({ when: true, key: 'view' }), /mapsTo: expected exactly \{when, key, value\}, missing value/)
+    refused(mapped({ ...MAP, also: 1 }), /mapsTo: expected exactly \{when, key, value\}, unknown also/)
+  })
+
+  it('the successor is a declared, live input other than itself', () => {
+    refused(mapped({ ...MAP, key: 'nope' }), /mapsTo\.key: "nope" names no declared input/)
+    refused(mapped({ ...MAP, key: 'oldView', value: true }), /mapsTo\.key: "oldView" is the legacy input itself/)
+    const d = mapped({ ...MAP, key: 'older', value: true })
+    d.inputs.push({ key: 'older', type: 'bool', default: false, legacy: true })
+    refused(d, /mapsTo\.key: "older" is itself legacy/)
+  })
+
+  it('when is a legal, non-default value of the legacy input', () => {
+    refused(mapped({ ...MAP, when: 'yes' }), /mapsTo\.when: type "bool" requires true or false/)
+    refused(mapped({ ...MAP, when: false }), /mapsTo\.when: false is "oldView"'s default/)
+  })
+
+  it('value is a legal, non-default value of the successor', () => {
+    refused(mapped({ ...MAP, value: 'mansfeld' }), /mapsTo\.value: "mansfeld" is not one of the declared options/)
+    refused(mapped({ ...MAP, value: 'ratio' }), /mapsTo\.value: "ratio" is "view"'s default/)
+    refused(mapped({ ...MAP, key: 'length', value: 7.5 }), /mapsTo\.value: type "int" requires an integer/)
+  })
+
+  it('one mapping per successor', () => {
+    const d = mapped(MAP)
+    d.inputs.push({ key: 'older', type: 'bool', default: false, legacy: true, mapsTo: MAP })
+    refused(d, /mapsTo\.key: "view" is already the successor of inputs\[3\]/)
+  })
+
+  it('reads the successor only where it was never stored, and never writes', () => {
+    const def = ok(mapped(MAP))
+    const legacy = Object.freeze({ oldView: true })
+    const read = inputsAsRead(def, legacy)
+    expect(read).toEqual({ oldView: true, view: 'rotation' })
+    expect(legacy).toEqual({ oldView: true })
+    const explicit = { oldView: true, view: 'ratio' }
+    expect(inputsAsRead(def, explicit)).toBe(explicit)
+    expect(inputsAsRead(def, { oldView: true, view: undefined }).view).toBe('rotation')
+    for (const none of [{}, { oldView: false }, { length: 20 }]) expect(inputsAsRead(def, none)).toBe(none)
+    expect(inputsAsRead(def, read)).toBe(read)
+    expect(inputsAsRead(def, null)).toBe(null)
   })
 })

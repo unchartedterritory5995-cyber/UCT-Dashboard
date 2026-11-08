@@ -269,10 +269,15 @@ RS_PHASE3_WIRE_COLUMNS: tuple[str, ...] = (
 )
 
 # The v4 "Reading" enum (decision D2): one choice, one pane. `showMansfield`
-# stays declared, and the provider maps `true` to `mansfield` (unit 3-06), which
-# is what keeps saved Trend instances valid.
+# stays declared, which is what keeps saved Trend instances valid, and on the v4
+# row it declares `mapsTo` the Mansfield Reading (unit 3-08b): a request that
+# sends `showMansfield: true` and NO `view` resolves to `view: "mansfield"`; a
+# request that sends a `view` gets that view (`resolve_inputs`).
 RS_VIEWS: tuple[str, ...] = ("ratio", "mansfield", "rotation", "quality", "vars")
 RS_DEFAULT_VIEW = "ratio"
+#: The legacy switch's successor, the same declaration the JS definition makes
+#: on its `showMansfield` input (`nativeRegistry.js`, `legacyInputs.js`).
+RS_MANSFIELD_LEGACY_MAP: dict = {"when": True, "key": "view", "value": "mansfield"}
 
 # The anchor date (map section 0 point 4): a `YYYY-MM-DD` string; blank means the
 # benchmark's 20-session low. The SHAPE only; the provider parses the date.
@@ -364,7 +369,9 @@ def _rs_line_row(v2: bool, v3: bool = False) -> dict:
             # drive, so OFF blanks the `mansfield` column and its cross dot.
             {"key": "mansfieldLength", "type": "int", "default": rsm.DEFAULT_MANSFIELD_LENGTH,
              "min": rsm.MANSFIELD_LENGTH_RANGE[0], "max": rsm.MANSFIELD_LENGTH_RANGE[1]},
-            {"key": "showMansfield", "type": "bool", "default": False},
+            {"key": "showMansfield", "type": "bool", "default": False,
+             # v4 only: the v3 row has no `view`, and stays byte-identical
+             **({"mapsTo": dict(RS_MANSFIELD_LEGACY_MAP)} if v3 else {})},
             {"key": "showRedDay", "type": "bool", "default": False},
             {"key": "showNewLow", "type": "bool", "default": False},
         ]
@@ -383,7 +390,7 @@ def _rs_line_row(v2: bool, v3: bool = False) -> dict:
         version, rev = RS_V3_VERSION, RS_V3_REV
     else:
         version, rev = 1, 1
-    return {
+    return _checked_legacy_maps({
         "schemaVersion": SCHEMA_VERSION,
         "id": "rsLine",
         "version": version,
@@ -405,7 +412,96 @@ def _rs_line_row(v2: bool, v3: bool = False) -> dict:
         # it is written to the append-only signal ledger. `ledger_indicator()`
         # returning None for it is the assertion that the two are different things.
         "rules_key": None,
-    }
+    })
+
+
+# ── A legacy input read as its successor (unit 3-08b) ───────────────────────
+#
+# ⭐ ONE RULE, the JS lane's (`app/src/components/chart/engine/legacyInputs.js`):
+# an input that declares ``mapsTo: {when, key, value}`` maps onto its successor
+# ONLY when the successor is genuinely absent from what the caller sent. A
+# supplied successor always wins, so a member who picked the RS line by hand on
+# a saved Trend instance (``showMansfield: true, view: "ratio"``) gets the RS
+# line. ``resolve_inputs`` is where the raw request and the defaults meet, so it
+# is the one place on this lane that can tell "sent" from "defaulted"; the
+# provider reads the result.
+#
+# ⛔ Checked when the row is built (fail closed, like the JS `defSchema`): the
+# exact three fields; a declared successor other than itself; ``when`` a legal,
+# non-default value of the legacy input; ``value`` a legal, non-default value of
+# the successor; one mapping per successor.
+
+_LEGACY_MAP_FIELDS = ("when", "key", "value")
+
+
+def _legal_value(spec: dict, value: Any) -> bool:
+    kind = spec.get("type")
+    if kind == "bool":
+        return isinstance(value, bool)
+    if kind == "enum":
+        return value in (spec.get("options") or [])
+    if kind in ("int", "float"):
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if kind == "string":
+        return isinstance(value, str)
+    return False
+
+
+def _checked_legacy_maps(row: dict) -> dict:
+    by_key = {s["key"]: s for s in row["inputs"]}
+    targets: dict[str, str] = {}
+    for spec in row["inputs"]:
+        m = spec.get("mapsTo")
+        if m is None:
+            continue
+        where = f"{row['id']}.inputs.{spec['key']}.mapsTo"
+        if not isinstance(m, dict) or set(m) != set(_LEGACY_MAP_FIELDS):
+            raise ValueError(f"{where}: expected exactly {{when, key, value}}, got {m!r}")
+        target = by_key.get(m["key"])
+        if target is None or m["key"] == spec["key"]:
+            raise ValueError(f"{where}.key: {m['key']!r} is not another declared input")
+        if not _legal_value(spec, m["when"]) or m["when"] == spec.get("default"):
+            raise ValueError(f"{where}.when: {m['when']!r} is not a legal non-default value of {spec['key']!r}")
+        if not _legal_value(target, m["value"]) or m["value"] == target.get("default"):
+            raise ValueError(f"{where}.value: {m['value']!r} is not a legal non-default value of {m['key']!r}")
+        if m["key"] in targets:
+            raise ValueError(f"{where}.key: {m['key']!r} is already the successor of {targets[m['key']]!r}")
+        targets[m["key"]] = spec["key"]
+    return row
+
+
+def _as_bool(val: Any) -> bool:
+    if isinstance(val, str):
+        return val.strip().lower() in ("1", "true", "yes", "on")
+    return bool(val)
+
+
+def apply_legacy_maps(specs: Sequence[dict], supplied: dict | None, values: dict) -> dict:
+    """``values`` with each declared ``mapsTo`` applied where the caller
+    SUPPLIED the legacy key with the ``when`` value and did not supply the
+    successor (absent or ``None``, the resolver's own "not sent"). Returns a new
+    dict, and is idempotent: run over its own output it finds the successor
+    supplied and changes nothing."""
+    src = supplied if isinstance(supplied, dict) else {}
+    out = dict(values)
+    for spec in specs:
+        m = spec.get("mapsTo")
+        if not m or spec["key"] not in src or src.get(m["key"]) is not None:
+            continue
+        got = src[spec["key"]]
+        if spec.get("type") == "bool":
+            got = _as_bool(got)
+        if got == m["when"]:
+            out[m["key"]] = m["value"]
+    return out
+
+
+def legacy_mapped(def_id: str, inputs: dict | None) -> dict:
+    """``inputs`` read through the installed row's legacy mappings: a no-op on
+    ``resolve_inputs`` output (every declared key is present), the mapping
+    itself for a caller that hands a provider its raw inputs."""
+    src = inputs if isinstance(inputs, dict) else {}
+    return apply_legacy_maps(definition(def_id)["inputs"], src, src)
 
 
 _RS_LINE = _rs_line_row(RS_V2_ENABLED, RS_V3_ENABLED)
@@ -535,7 +631,9 @@ def resolve_inputs(def_id: str, raw: dict | None) -> dict:
                 f"input {key!r} of {def_id!r} declares the input kind {kind!r}, "
                 "which the resolver has no branch for")
         out[key] = val
-    return out
+    # ⭐ unit 3-08b: a supplied legacy input maps onto a successor the caller did
+    # NOT send (`apply_legacy_maps`); a sent successor always wins.
+    return apply_legacy_maps(d["inputs"], src, out)
 
 
 @functools.lru_cache(maxsize=32)
