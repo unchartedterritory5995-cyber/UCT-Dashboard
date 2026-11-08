@@ -232,7 +232,7 @@ export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain,
           <div key={i} role="listitem" className={`${e.rCard} ${r.ok ? e.ok : e.miss}`} style={{ '--i': i }}>
             <span className={e.rCardTop}><small>{i + 1}</small>{r.ok ? <UIcon name="check" size={13} gold={false} /> : <UIcon name="x" size={13} gold={false} />}</span>
             <b>{r.name}</b>
-            <em>{r.ticker || '—'}</em>
+            {r.ticker ? <em>{r.ticker}</em> : null}
             {!r.ok && r.said ? <i>you said {r.said}{r.was ? `, it was ${r.was}` : ''}</i> : null}
           </div>
         ))}

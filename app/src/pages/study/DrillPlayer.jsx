@@ -31,7 +31,7 @@ import { SkeletonBlock, SkeletonLine } from '../../components/Skeleton'
 import UIcon from '../../components/ui/UIcon'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
 import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
-import useStudySession, { normalizeBars } from './useStudySession'
+import useStudySession, { isUnscoredItem, normalizeBars } from './useStudySession'
 import useChartSurfaceSettings from '../../components/chart/pane/useChartSurfaceSettings'
 import { paneLookProps } from '../../components/chart/pane/paneLook'
 import usePreferences from '../../hooks/usePreferences'
@@ -42,7 +42,8 @@ import { studyOpenMarkers } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
 import { brandWords, itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
-import EndCard from './EndCard'
+import { EndHard } from './ui/EndLooks'
+import NewTrophies from './ui/NewTrophies'
 import ScreenFeedback from './ScreenFeedback'
 import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
@@ -118,7 +119,6 @@ export default function DrillPlayer({
   initial = null,
   sessionId = null,
   profile = null,
-  weekDots = [],
   onFinished,
   onKeepPractising,
   fetcher,
@@ -134,7 +134,6 @@ export default function DrillPlayer({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [chartWait, setChartWait] = useState(0)          // 0 fresh · 1 slow (2s) · 2 offer skip (6s)
   const [chartItemId, setChartItemId] = useState(null)   // the item whose bars are on the ONE chart
-  const [badge, setBadge] = useState(null)
   const takeoverOpen = useRef(false)   // the verdict holds the screen: Enter belongs to its button, not to Continue
   const leaveAsked = useRef(false)
   const crosshair = useRef(null)
@@ -288,8 +287,6 @@ export default function DrillPlayer({
       return
     }
     setResult(res)
-    if (res?.badge) setBadge(res.badge)
-    else if (Array.isArray(res?.badges) && res.badges.length) setBadge(res.badges[0])
     comboFeedback(res.correct ? s.combo + 1 : 0, prefs)
     setPhase('reveal')
   }, [item, answerable, phase, mod, state, s, prefs, unscored, advance])
@@ -362,17 +359,25 @@ export default function DrillPlayer({
       </div>
     )
   } else if (s.finished) {
+    // the same end screen as every game (the owner, 2026-11-08: one design for every mode): the coin, the stat crests,
+    // the level bar from the set's own XP, the trophies the set earned, the run as cards
+    const scored = s.items.filter((it) => !isUnscoredItem(it) && !s.results[it.id]?.unscored)
+    const p = s.summary.progress
+    const level = p && Number.isFinite(Number(p.xp)) ? { before: Number(p.xp) - s.summary.xp, after: Number(p.xp) } : null
+    const trophies = Object.values(s.results || {}).flatMap((r) => r?.progress?.badges_new || [])
     body = (
-      <EndCard
-        correct={s.summary.correct}
-        total={s.summary.total}
-        xp={s.summary.xp}
-        weekDots={weekDots}
-        badge={badge}
-        profile={profile}
-        onDone={() => onClose?.()}
-        onKeepPractising={onKeepPractising}
-      />
+      <div className={s2.kit}>
+        <EndHard right={s.summary.correct} total={s.summary.total} xp={s.summary.xp} testIdPrefix="lesson" doneWord="right" unit="right in this set"
+          showSetups={false} medal={false} againLabel="Keep practising" onAgain={() => (onKeepPractising ? onKeepPractising() : onClose?.())} onBack={() => onClose?.()}
+          results={scored.map((it) => s.results[it.id]?.correct === true)}
+          log={scored.map((it) => ({ name: (skillChip(it.skill_id) || 'Question').replace(/^./, (c) => c.toUpperCase()), ticker: it.ticker || '', ok: s.results[it.id]?.correct === true }))}
+          level={level}>
+          {/* the score is the coin's and the line under the verdict; this copy is for screen readers and the tests */}
+          <span data-testid="end-score" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{s.summary.correct} of {s.summary.total}</span>
+          {profile?.streak ? <>A <b>{Number(profile.streak)}-day</b> streak. Come back tomorrow to keep it.</> : null}
+          <NewTrophies ids={trophies} />
+        </EndHard>
+      </div>
     )
   } else if (item) {
     body = (

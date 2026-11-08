@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import Hud from '../../pages/study/ui/Hud'
 import { HudJourney, HudRoute, HudScoreboard } from '../../pages/study/ui/HudLooks'
 import s from '../../pages/study/ui/study.module.css'
 
@@ -22,7 +21,6 @@ function useRun(still) {
 }
 
 const LOOKS = [
-  { key: 'today', name: 'Today', ref: 'round 21, the one you ranked Cut', View: Hud },
   { key: 'journey', name: 'A · Journey', ref: "like Duolingo's lesson bar: a thick glossy bar our mark rides, a streak flame", View: HudJourney },
   { key: 'scoreboard', name: 'B · Scoreboard', ref: 'like a game HUD (Chess.com Puzzle Rush): a candle per chart, a big gold score', View: HudScoreboard },
   { key: 'route', name: 'C · Route', ref: "like our intro's map: a route of waypoints, our compass travelling it", View: HudRoute },
