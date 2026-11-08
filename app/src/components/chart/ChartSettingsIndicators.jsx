@@ -91,6 +91,7 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
+import { isTouredFirstAdd } from './legend/indicatorTour'
 import IndicatorHistoryButtons from './IndicatorHistoryButtons'
 import UnavailableIndicators from './UnavailableIndicators'
 import { legacyInstanceId } from './engine/instances'
@@ -297,6 +298,12 @@ export default function ChartSettingsIndicators({
   // Opened from the chart's own "Add to Chart" control: land IN the add surface
   // with the caret in search, rather than on the structure list.
   openAdd = false,
+  // ⭐ UCT RS Phase 4 (4-11) — `onFirstAdd(defId)`: an add here made the FIRST live
+  // instance of a definition that declares `meta.tour` (`isTouredFirstAdd`, the
+  // library's own rule: never a re-enable, never a second instance). The HOST
+  // decides whether and when the tour shows (seen, claimed, nothing open over the
+  // chart). Absent ⇒ nothing reported.
+  onFirstAdd = null,
   // ⭐ PHASE 4 — UNIFIED EDITING: `{canModify(), modify(defId), editFormula(defId),
   // customCopy(def, inputs)}` from the host (it reaches the chart's toolbar). Absent ⇒
   // the inspector offers only instance-level actions, exactly as before.
@@ -1215,6 +1222,9 @@ export default function ChartSettingsIndicators({
       if (next === settings) return false
       onChange?.({ ...next, preset: 'custom' })
       leaveBrowse()
+      if (typeof onFirstAdd === 'function' && isTouredFirstAdd(row, settings, next, registry)) {
+        try { onFirstAdd(row.id) } catch { /* a tour never blocks an add */ }
+      }
       return true
     }
     // ⛔ BEFORE `armAdd` AND BEFORE `resultByKey`: a feature row IS in the map
@@ -1241,7 +1251,7 @@ export default function ChartSettingsIndicators({
     // persisting a no-op would mark the preset custom for a click that did nothing
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
-  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature])
+  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature, onFirstAdd])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()

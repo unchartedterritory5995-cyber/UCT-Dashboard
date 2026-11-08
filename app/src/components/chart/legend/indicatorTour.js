@@ -14,6 +14,9 @@
 // opens a tour claims it here first; a claimed tour opens nowhere else until
 // the page reloads.
 
+import { definitionVisibility } from '../engine/instanceControls'
+import { ENGINE_OWNED } from '../engine/flipState'
+
 /** The tour cards a definition declares, or `[]`: only `{title, body}` cards whose two fields are text. */
 export function tourCardsOf(def) {
   const tour = def && def.meta && Array.isArray(def.meta.tour) ? def.meta.tour : null
@@ -38,4 +41,24 @@ export function tourClaimed(defId) {
 /** Tests only: forget every claim. */
 export function resetTourClaims() {
   claimed.clear()
+}
+
+/**
+ * Is `before` → `after` the FIRST add of `row`'s definition, and does that
+ * definition declare a `meta.tour`? `before` had no live instance of it, `after`
+ * has one. Showing a HIDDEN instance starts from `hidden`, not `absent`, so it is
+ * never a first add; nor is a second instance. A built-in, carved-out or
+ * restoring row has no definition to tour. Pure: the caller asks whether the
+ * member has seen the tour (`useIndicatorTours`). Shared by the indicator
+ * library dialog and the Chart Settings → Indicators add surface (4-11), so the
+ * two doors cannot disagree on what a first add is.
+ */
+export function isTouredFirstAdd(row, before, after, registry) {
+  if (!row || row.builtIn || row.carvedOut || row.restores || !row.id) return false
+  if (!before || !after || before === after) return false
+  const def = typeof registry?.getDefinition === 'function' ? registry.getDefinition(row.id) : null
+  const tour = def && def.meta && def.meta.tour
+  if (!Array.isArray(tour) || tour.length === 0) return false
+  if (definitionVisibility(before, row.id, ENGINE_OWNED).state !== 'absent') return false
+  return definitionVisibility(after, row.id, ENGINE_OWNED).state !== 'absent'
 }

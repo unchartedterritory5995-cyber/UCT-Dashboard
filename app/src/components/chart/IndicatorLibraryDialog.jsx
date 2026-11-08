@@ -81,6 +81,7 @@ import { isUctIntelligenceAdded, addUctIntelligence, removeUctIntelligence } fro
 import { revivableSlotIndex, reviveSlot } from './maAdoption'
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
+import { isTouredFirstAdd } from './legend/indicatorTour'
 import styles from './IndicatorLibraryDialog.module.css'
 // ⭐⭐ THE SAME UNIFIED DOOR THE SETTINGS TAB OPENS. Symbols and breadth are
 // results in this list too, created through `createFromResult` — one discovery
@@ -445,19 +446,12 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     return null
   }, [all, query, registry])
 
-  /** Report a first add to the host: `before` had no live instance of `row`'s
-   *  definition, `after` has one, the definition declares a tour, and the member
-   *  has not seen it. Showing a HIDDEN instance starts from `hidden`, not
-   *  `absent`, so it never fires; nor does a second instance. */
+  /** Report a first add to the host (`isTouredFirstAdd`), unless the member has
+   *  seen the definition's tour. */
   const reportFirstAdd = useCallback((row, before, after) => {
     if (typeof onFirstAdd !== 'function' || !row) return
-    if (row.builtIn || row.carvedOut || row.restores) return
-    const def = typeof registry?.getDefinition === 'function' ? registry.getDefinition(row.id) : null
-    const tour = def && def.meta && def.meta.tour
-    if (!Array.isArray(tour) || tour.length === 0) return
+    if (!isTouredFirstAdd(row, before, after, registry)) return
     if (tourSeen(row.id)) return
-    if (definitionVisibility(before, row.id, ENGINE_OWNED).state !== 'absent') return
-    if (definitionVisibility(after, row.id, ENGINE_OWNED).state === 'absent') return
     onFirstAdd(row.id)
   }, [onFirstAdd, registry, tourSeen])
 

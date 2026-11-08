@@ -6109,6 +6109,11 @@ export default function StockChart({
     if (!tourCardsOf(engineRegistry.getDefinition(defId)).length) return
     setTourPending({ defId, sym, tf: resolvedTf })
   }, [tourSeen, sym, resolvedTf])
+  // The toolbar API's door onto the same handler (`indicatorFirstAdd`), read at call time:
+  // Chart Settings → Indicators is a SIBLING of this chart (ChartPane's modal), so its
+  // first add reaches the tour through the API, after the modal closes (4-11).
+  const indicatorFirstAddRef = useRef(handleIndicatorFirstAdd)
+  indicatorFirstAddRef.current = handleIndicatorFirstAdd
   useEffect(() => {
     if (!tourPending) return undefined
     if (tourPending.sym !== sym || tourPending.tf !== resolvedTf) { setTourPending(null); return undefined }
@@ -6193,6 +6198,13 @@ export default function StockChart({
     toolbarApiRef.current = {
       openIndicatorLibrary: () => {
         try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
+      },
+      // ⭐ 4-11 — a first add of a toured definition made OUTSIDE this chart's own
+      // library (Chart Settings → Indicators, held by the pane until its modal
+      // closes): the same handler the library's `onFirstAdd` reaches, with the same
+      // rules (seen, claimed, never over a pick or an open menu).
+      indicatorFirstAdd: (defId) => {
+        try { indicatorFirstAddRef.current?.(defId) } catch { /* noop */ }
       },
       // The formula builder. Mounted ONCE, inside `ChartToolbar` (an AST rail in
       // `BuilderSheet.test.jsx` fails the build on a second `<BuilderSheet>`), so

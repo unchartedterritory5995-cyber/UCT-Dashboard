@@ -390,6 +390,37 @@ describe('1 · the first-add tour', () => {
     }
   })
 
+  it('the Chart Settings door: the toolbar API indicatorFirstAdd opens the same tour, under the same rules (4-11)', async () => {
+    // ChartPane hands Chart Settings → Indicators' first add here once its modal closes
+    // (ChartPane.firstAddTour.test.jsx); the instance is already on the chart by then.
+    const { container, apiRef, liveOf } = await mount([{ instanceId: 'tf-cs', defId: TOUR_ID, inputs: {}, hidden: false }])
+    expect(typeof apiRef.current.indicatorFirstAdd).toBe('function')
+    await chipOf(container, liveOf, TOUR_ID)
+    await act(async () => { apiRef.current.indicatorFirstAdd(TOUR_ID) })
+    await waitTour()
+    expect(menuEl().contains(tourEl())).toBe(true)
+    expect(cardTitle()).toBe(TOUR[0].title)
+    await click(tourEl().querySelector('[data-tour-skip]'))
+    expect(tours.markSeen).toHaveBeenCalledWith(TOUR_ID)
+    // claimed for the page: a second hand-over never reopens it
+    await act(async () => { apiRef.current.indicatorFirstAdd(TOUR_ID) })
+    await settle()
+    expect(tourEl()).toBeNull()
+  })
+
+  it('the Chart Settings door: a tour already seen does not open, and neither does one for a definition without a tour', async () => {
+    tours.seen.add(TOUR_ID)
+    const { container, apiRef, liveOf } = await mount([
+      { instanceId: 'tf-cs', defId: TOUR_ID, inputs: {}, hidden: false },
+      { instanceId: PICK_INST, defId: PICK_ID, inputs: {}, hidden: false },
+    ])
+    await chipOf(container, liveOf, TOUR_ID)
+    await act(async () => { apiRef.current.indicatorFirstAdd(TOUR_ID); apiRef.current.indicatorFirstAdd(PICK_ID) })
+    await settle()
+    expect(tourEl()).toBeNull()
+    expect(menuEl()).toBeNull()
+  })
+
   it('never opens over an armed pick (and is not marked seen)', async () => {
     const { container, apiRef, liveOf } = await mount([{ instanceId: PICK_INST, defId: PICK_ID, inputs: {}, hidden: false }])
     const menu = await openMenu(container, PICK_INST, '[data-readout-row="checks"]')
