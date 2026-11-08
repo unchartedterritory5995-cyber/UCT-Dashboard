@@ -52,7 +52,9 @@ function tradeAnnotations(trade, signal, all, n) {
   const t0 = signal.t
   // the level chips sit at the right of the chart, each a few sessions left of the one before, so they never land on the
   // signal candle's markers (round 23: a SHORTED marker covered the STOP chip)
-  const chipAt = (k) => all[Math.max(n + 1, all.length - 3 - k * 6)]?.t ?? all[all.length - 1]?.t ?? t0
+  // at the far right, alternating two places, so neighbours (ENTRY / STOP, 2R / 3R) never share a spot and the hit marks
+  // on the bars stay clear of them
+  const chipAt = (k) => all[Math.max(n + 1, all.length - 3 - (k % 2) * 8)]?.t ?? all[all.length - 1]?.t ?? t0
   const plan = trade.kind === 'plan'
   const GOLD = '#dcbb5e', RED = '#df4646', GREEN = '#2faf68'
   const lines = plan
