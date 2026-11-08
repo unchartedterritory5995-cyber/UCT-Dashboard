@@ -69,8 +69,10 @@ import Piece65ChallengeHard from './pieces/Piece65ChallengeHard'
 import Piece66StatusLineFocus from './pieces/Piece66StatusLineFocus'
 import Piece67AnswerFocus from './pieces/Piece67AnswerFocus'
 import Piece68EndFocus from './pieces/Piece68EndFocus'
+import Piece69StartFocus from './pieces/Piece69StartFocus'
 
 const PIECES = {
+  69: Piece69StartFocus,
   68: Piece68EndFocus,
   67: Piece67AnswerFocus,
   66: Piece66StatusLineFocus,
