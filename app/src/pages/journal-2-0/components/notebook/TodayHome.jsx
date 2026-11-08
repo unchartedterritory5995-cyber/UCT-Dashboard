@@ -476,6 +476,10 @@ function SkeletonCard({ id, wide }) {
   )
 }
 
+// ⛔ The write names the key LITERALLY (`notebook_landing`, the value of LANDING_PREF) so the
+// preferences additions-only rail (hooks/usePreferences.additionsOnly.test.js) can read which key
+// is written; an identifier there is an opaque site it cannot classify. The read keeps the constant.
+// TodayHome.test.jsx asserts the POSTed key equals LANDING_PREF, so the two cannot drift apart.
 function LandingChoice() {
   const { prefs, setPref, loading } = usePreferences()
   const uid = useId()
@@ -484,7 +488,7 @@ function LandingChoice() {
     <div className={styles.landing}>
       <label htmlFor={`${uid}-landing`}>Open the Notebook on</label>
       <select id={`${uid}-landing`} className={styles.select} value={value} disabled={loading}
-        onChange={(e) => setPref(LANDING_PREF, e.target.value)}>
+        onChange={(e) => setPref('notebook_landing', e.target.value)}>
         {LANDINGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
       </select>
     </div>
