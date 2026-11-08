@@ -424,12 +424,19 @@ function precisionFor(plot) {
  * `precision`, so a pooled series re-purposed from a tenant with another step
  * (a fundamental's custom format sets `minMove: 1`) cannot keep that step: LWC's
  * `merge` recurses into `priceFormat` and keeps any key the new object omits.
- * `10 ** -p` is exact here: `minMove * 10^p` comes out as exactly 1 for p = 0..10
- * (pinned in `pool.test.js`), so LWC's step is one unit of the last decimal.
+ * ⛔ `minMove` is PARSED from the literal `1e-p`, never computed as `10 ** -p`. The
+ * exponent operator is NOT correctly rounded on every engine: on V8 as shipped in
+ * Node 20 (CI's and the Docker build's Node), `10 ** -4` is 0.00009999999999999999
+ * and `10 ** -5` is 0.000009999999999999999, so `minMove * 10^p` came out as
+ * 0.9999999999999999 and a precision-4/5 series stepped one ulp short of its last decimal
+ * (2026-11-08: red on Node 20, green on Node 24, which is why it read as a 'baseline
+ * red'). Number-from-string is correctly rounded by the language spec on every
+ * engine, so `minMove * 10^p` is exactly 1 for p = 0..10 everywhere (pinned in
+ * `pool.test.js`), and LWC's step is one unit of the last decimal.
  */
 function priceFormatFor(plot) {
   const precision = precisionFor(plot)
-  return { type: 'price', precision, minMove: 10 ** -precision }
+  return { type: 'price', precision, minMove: Number(`1e-${precision}`) }
 }
 
 /** The engine's own default line width. NOT LWC's (which is 3): every indicator
