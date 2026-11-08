@@ -453,3 +453,165 @@ export function scalarsFor(def, inputs, ctx) {
   // A v1 server sends no payload, so this is simply null there.
   return parsed.payload || null
 }
+
+// ─── WHAT THE LIVE SERVER DECLARES (UCT RS Phase 3, unit 3-01) ───────────────
+//
+// ⭐⭐ ONE JS DEFINITION REACHES EVERY MEMBER AT MERGE, SO DARK WORK NEEDS A
+// CLIENT GATE. The client cannot see a server flag: it draws whatever columns
+// arrive. A definition therefore marks an input, an enum option or a preset
+// `requiresServer: true`, and the settings surfaces hide it until the LIVE server
+// row — `SERVER_DEFINITIONS_PATH`, published as data and until now read by
+// nobody — declares it. Merging a control ahead of its server half then shows
+// members nothing, instead of a switch that draws nothing.
+//
+// ⛔ FAIL CLOSED, EVERY WAY. Not fetched yet, the fetch failed (a 402 is a
+// routine state here, exactly as on the columns lane), the body is malformed,
+// or the row is absent: every answer is `null`, which the readers treat as "not
+// declared". A gated control that appears one paint late is a non-event; one
+// that appears against a server that cannot answer it is the defect.
+//
+// ⚠️ ONE GET PER PAGE LOAD, SHAPED LIKE SWR. `serverDeclares` is a synchronous
+// read (the last answer, possibly null) that starts the one request the first
+// time anybody asks; the answer lands for every definition at once and is
+// announced through `subscribeServerDefinitions`, whose subscribers re-read. It
+// is not re-asked, on success or on failure: the route answers the same rows
+// until the next deploy, and a deploy is a page load. The answers are memoised
+// per definition, so a `useSyncExternalStore` snapshot is reference-stable.
+//
+// ⛔ AND NO TEST PAYS FOR IT BY ACCIDENT. Under vitest (`MODE === 'test'`) the
+// default request is disarmed: a suite that counts `fetch` calls must not meet
+// a stray GET it never asked for. A test injects a fetcher per call, or arms one
+// for the module with `__setServerDefinitionsFetcherForTests`.
+
+const _DEFINITIONS_TEST_MODE = (() => {
+  try { return !!(import.meta && import.meta.env && import.meta.env.MODE === 'test') } catch { return false }
+})()
+
+let _defsRows = null          // Map defId -> declaration, once landed
+let _defsPromise = null       // the one request, once asked
+let _defsTestFetcher = null   // armed by a test
+const _defsSubscribers = new Set()
+
+/** An option entry's VALUE, in the three shapes a definition (or a row) may use. */
+function _optionValue(option) {
+  if (Array.isArray(option)) return option[0]
+  if (option && typeof option === 'object' && 'value' in option) return option.value
+  return option
+}
+
+/**
+ * ONE server row → what it declares, or null for a row that is not one.
+ *
+ * PURE and exported so the parse is pinned against the real shape. The route
+ * answers `{schemaVersion, definitions: [row, …]}`, and a row's `inputs` is a
+ * list of `{key, type, default, options?, min?, max?}`; an enum's `options` is a
+ * bare list of VALUES (`["SPY", "RSP", …]`, `["EMA", "SMA"]`). Pairs and
+ * `{value}` objects are read too, so a row that one day carries labels still
+ * parses to the same values.
+ *
+ * @returns {{defId: string, inputs: string[], options: {[key: string]: Array<string|number|boolean>}}|null}
+ *   frozen. `options` holds a key only for an input whose row lists options.
+ */
+export function declarationFromRow(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null
+  if (typeof row.id !== 'string' || !row.id) return null
+  const list = Array.isArray(row.inputs) ? row.inputs : []
+  const inputs = []
+  const options = {}
+  for (const spec of list) {
+    if (!spec || typeof spec !== 'object' || typeof spec.key !== 'string' || !spec.key) continue
+    if (inputs.includes(spec.key)) continue
+    inputs.push(spec.key)
+    if (Array.isArray(spec.options)) {
+      options[spec.key] = Object.freeze(spec.options.map(_optionValue)
+        .filter((v) => ['string', 'number', 'boolean'].includes(typeof v)))
+    }
+  }
+  return Object.freeze({ defId: row.id, inputs: Object.freeze(inputs), options: Object.freeze(options) })
+}
+
+/** The route's body → `Map(defId → declaration)`, or null for a body that is not one. */
+function _declarationsFromBody(body) {
+  if (!body || typeof body !== 'object' || !Array.isArray(body.definitions)) return null
+  const out = new Map()
+  for (const row of body.definitions) {
+    const d = declarationFromRow(row)
+    if (d && !out.has(d.defId)) out.set(d.defId, d)
+  }
+  return out
+}
+
+function _notifyDefinitions() {
+  for (const fn of [..._defsSubscribers]) {
+    try { fn() } catch { /* a bad subscriber must not break the gate */ }
+  }
+}
+
+/** Notified once, when the definitions land (or fail). @returns {() => void} */
+export function subscribeServerDefinitions(fn) {
+  if (typeof fn !== 'function') return () => {}
+  _defsSubscribers.add(fn)
+  return () => { _defsSubscribers.delete(fn) }
+}
+
+/**
+ * The one request. Memoised for the page load: the second call returns the
+ * first call's promise, landed or not, and a failure is remembered as "nothing
+ * declared" rather than re-asked.
+ *
+ * @param {(url: string) => Promise<any>} [fetcher] injected for tests.
+ * @returns {Promise<Map<string, object>|null>}
+ */
+export function fetchServerDefinitions(fetcher) {
+  if (_defsPromise) return _defsPromise
+  const get = typeof fetcher === 'function' ? fetcher
+    : (typeof _defsTestFetcher === 'function' ? _defsTestFetcher
+      : (_DEFINITIONS_TEST_MODE ? null : _defaultFetch))
+  if (!get) return Promise.resolve(null)
+  _defsPromise = Promise.resolve()
+    .then(() => get(SERVER_DEFINITIONS_PATH))
+    .then((body) => {
+      _defsRows = _declarationsFromBody(body)
+      return _defsRows
+    })
+    .catch(() => {
+      _defsRows = null
+      return null
+    })
+    .finally(() => { _notifyDefinitions() })
+  return _defsPromise
+}
+
+/**
+ * ⭐ What the live server row of `defId` declares — its input keys and each
+ * enum input's option values — or `null` while unknown, after a failed fetch,
+ * or for an id the server does not publish. Synchronous; the first call starts
+ * the page's one request (see the header).
+ *
+ * @returns {{defId: string, inputs: string[], options: object}|null}
+ */
+export function serverDeclares(defId, fetcher) {
+  const id = typeof defId === 'string' ? defId : ''
+  if (!id) return null
+  if (!_defsPromise) fetchServerDefinitions(fetcher)
+  return (_defsRows && _defsRows.get(id)) || null
+}
+
+/** Seed the answer from a body somebody already holds (and the test seam). */
+export function primeServerDefinitions(body) {
+  _defsRows = _declarationsFromBody(body)
+  _defsPromise = Promise.resolve(_defsRows)
+  _notifyDefinitions()
+  return _defsRows
+}
+
+/** Test seam: forget the answer and the request, as a new page load would. */
+export function clearServerDefinitions() {
+  _defsRows = null
+  _defsPromise = null
+}
+
+/** Test seam: arm (or, with null, disarm) the request for the whole module. */
+export function __setServerDefinitionsFetcherForTests(fn) {
+  _defsTestFetcher = typeof fn === 'function' ? fn : null
+}

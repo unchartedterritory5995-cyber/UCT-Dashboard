@@ -103,6 +103,8 @@ import {
 // `LEGACY_ID_PREFIX` live in `engine/instances.js` and a typed copy here would be
 // the twin this phase retires, in the file whose header is about retiring them.
 import { legacyInstanceId } from './engine/instances'
+// ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
+import { enumOptionRequiresServer } from './engine/defSchema'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
 // because a predicate — or a field table — copied into two files is precisely
@@ -289,11 +291,121 @@ export function timeInputMs(text) {
   return timeInputText(ms) === text ? ms : null
 }
 
-/** Every field a definition declares, in DECLARATION ORDER — which is the order
- *  the definition's author chose and the order `defSchema` validates in. */
-export function fieldsFromDefinition(def) {
+// ─── THE SERVER GATE AND LEGACY INPUTS (UCT RS Phase 3, unit 3-01) ─────────
+//
+// ⭐⭐ WHAT A SETTINGS SURFACE MAY SHOW, GIVEN WHAT THE LIVE SERVER DECLARES.
+// `declared` is `serverCompute.serverDeclares(def.id)`: `{inputs, options}` from
+// the live row, or `null` while unknown or after a failure. The rules
+// (`defSchema.validateServerGates` refuses the shapes that would break them):
+//
+//   - a `legacy: true` input is NEVER rendered. It stays declared so a stored
+//     instance carrying it still validates, and `values` still holds it;
+//   - a `requiresServer: true` input is shown only when `declared.inputs` names it;
+//   - a `requiresServer` enum OPTION is listed only when `declared.options[key]`
+//     names its value;
+//   - ⛔ `null` IS "NOT DECLARED". Fail closed: a gated control one page load late
+//     is a non-event; one shown against a server that cannot answer it draws nothing;
+//   - an UNGATED input or option is never hidden, whatever the server says. The
+//     gate only ever hides what a definition marked, so a definition that marks
+//     nothing renders exactly what it rendered before the gate existed — by
+//     IDENTITY: the same input objects reach `fieldFromInput`.
+
+function declaresInput(declared, key) {
+  return !!declared && Array.isArray(declared.inputs) && declared.inputs.includes(key)
+}
+
+function declaresOption(declared, key, value) {
+  const opts = declared && declared.options && typeof declared.options === 'object' ? declared.options[key] : null
+  return Array.isArray(opts) && opts.includes(value)
+}
+
+const optionValueOf = (option) => optionPair(option)[0]
+
+/** Is this declared input hidden from every settings surface, given `declared`? */
+export function isInputHidden(input, declared = null) {
+  if (!input || typeof input !== 'object') return true
+  if (input.legacy === true) return true
+  return input.requiresServer === true && !declaresInput(declared, input.key)
+}
+
+/**
+ * The inputs a settings surface renders, in DECLARATION ORDER: legacy and
+ * undeclared gated inputs dropped, undeclared gated options filtered out. An
+ * input with no gated option is returned AS IS (the same object).
+ */
+export function visibleInputs(def, declared = null) {
   const inputs = Array.isArray(def?.inputs) ? def.inputs : []
-  return inputs.map(fieldFromInput).filter(Boolean)
+  const out = []
+  for (const input of inputs) {
+    if (isInputHidden(input, declared)) continue
+    if (input.type === 'enum' && Array.isArray(input.options) && input.options.some(enumOptionRequiresServer)) {
+      out.push({
+        ...input,
+        options: input.options.filter((o) => !enumOptionRequiresServer(o)
+          || declaresOption(declared, input.key, optionValueOf(o))),
+      })
+    } else {
+      out.push(input)
+    }
+  }
+  return out
+}
+
+/**
+ * ⭐ The presets a picker lists, given `declared`. Hidden:
+ *   - a preset whose `inputs` set a hidden gated input, or set an enum to a
+ *     gated option the live row does not declare (applying it would write a
+ *     value no control on the form can show);
+ *   - a `requiresServer` preset, unless the live row declares every input it
+ *     sets that the definition sends to the server (`meta.serverInputs`; every
+ *     key it sets when the definition names no such list), each enum value among
+ *     the row's options for that key. `null` hides it (fail closed).
+ * ⚠️ A preset that sets a `legacy` input is NOT hidden for it: the key is still
+ * a valid value to write (that is what `legacy` means), and a preset that keeps
+ * an old layout's meaning through it is the reason the key was kept.
+ * A key that names no declared input is skipped, as the picker already skips it.
+ *
+ * @returns {object[]} the definition's own preset objects, in declared order.
+ */
+export function visiblePresets(def, declared = null) {
+  const presets = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  const byKey = new Map((Array.isArray(def?.inputs) ? def.inputs : [])
+    .filter((i) => i && typeof i.key === 'string').map((i) => [i.key, i]))
+  const sent = def && def.meta && Array.isArray(def.meta.serverInputs) ? new Set(def.meta.serverInputs) : null
+  const optionFor = (input, value) => (Array.isArray(input.options) ? input.options : [])
+    .find((o) => optionValueOf(o) === value)
+  return presets.filter((p) => {
+    if (!p || typeof p !== 'object') return false
+    const vals = p.inputs && typeof p.inputs === 'object' ? p.inputs : {}
+    for (const [key, value] of Object.entries(vals)) {
+      const input = byKey.get(key)
+      if (!input || input.legacy === true) continue
+      if (isInputHidden(input, declared)) return false
+      if (input.type === 'enum') {
+        const option = optionFor(input, value)
+        if (option !== undefined && enumOptionRequiresServer(option) && !declaresOption(declared, key, value)) return false
+      }
+    }
+    if (p.requiresServer === true) {
+      if (!declared) return false
+      for (const [key, value] of Object.entries(vals)) {
+        const input = byKey.get(key)
+        if (!input || (sent && !sent.has(key))) continue
+        if (!declaresInput(declared, key)) return false
+        const opts = declared.options && declared.options[key]
+        if (input.type === 'enum' && Array.isArray(opts) && !opts.includes(value)) return false
+      }
+    }
+    return true
+  })
+}
+
+/** Every field a definition declares, in DECLARATION ORDER — which is the order
+ *  the definition's author chose and the order `defSchema` validates in.
+ *  ⭐ 3-01: through `visibleInputs`, so a legacy input never gets a field and a
+ *  gated one gets one only when `opts.declared` declares it. */
+export function fieldsFromDefinition(def, opts = {}) {
+  return visibleInputs(def, opts && opts.declared).map(fieldFromInput).filter(Boolean)
 }
 
 // ─── THE PER-INSTANCE FORM MODEL (spec §6's settings dialog) ────────────────
@@ -402,8 +514,13 @@ export function evalActiveWhen(activeWhen, values) {
  *   `inputs`/`style` — the same fields PARTITIONED by `styleInputKeys`, order
  *              preserved within each half. A partition, never a filter: an input
  *              that reached `all` reaches exactly one tab.
+ * @param {{declared?: object|null}} [opts] ⭐ 3-01 — `declared` is
+ *   `serverCompute.serverDeclares(def.id)`. `all` leaves out `legacy` inputs, and
+ *   `requiresServer` inputs and options the live row does not declare (absent or
+ *   `null` = not declared). `values` still carries every declared input: a hidden
+ *   input is still computed with.
  */
-export function fieldsForInstance(def, instance) {
+export function fieldsForInstance(def, instance, opts = {}) {
   const declared = Array.isArray(def?.inputs) ? def.inputs : []
   const byKey = new Map(declared.map((i) => [i && i.key, i]))
   const stored = (instance && instance.inputs && typeof instance.inputs === 'object') ? instance.inputs : {}
@@ -415,7 +532,7 @@ export function fieldsForInstance(def, instance) {
     if (Object.prototype.hasOwnProperty.call(stored, d.key)) values[d.key] = stored[d.key]
   }
 
-  const all = fieldsFromDefinition(def).map((f) => {
+  const all = fieldsFromDefinition(def, { declared: opts && opts.declared }).map((f) => {
     const d = byKey.get(f.key) || {}
     return {
       ...f,

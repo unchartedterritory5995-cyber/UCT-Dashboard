@@ -1165,6 +1165,12 @@ function validateMetaLearn(learn, errors) {
  *  typo that applies nothing, never data waiting for a future reader. */
 export const PRESET_FIELDS = Object.freeze(['id', 'label', 'origin', 'inputs', 'visibility', 'dotSize', 'displayTarget'])
 
+/** ⭐ UCT RS PHASE 3 (unit 3-01) — the preset keys that GATE rather than apply.
+ *  `requiresServer: true` is read by `indicatorRegistry.visiblePresets` (the
+ *  picker's filter), never by `applyPresetFields`, so it is a separate list:
+ *  `PRESET_FIELDS` stays the exact set the writer applies. */
+export const PRESET_GATE_FIELDS = Object.freeze(['requiresServer'])
+
 /** The dot-size words a preset may name — `DOT_SIZES`' own keys (`presentation.js`),
  *  the vocabulary `setInstanceDotSize` accepts. ONE list, read from its owner. */
 export const PRESET_DOT_SIZES = Object.freeze(Object.keys(DOT_SIZES))
@@ -1217,9 +1223,9 @@ function validatePresetFields(p, i, def, errors) {
   const at = (field) => `meta.presets[${i}].${field}: ${who} — `
 
   for (const key of Object.keys(p)) {
-    if (!PRESET_FIELDS.includes(key)) {
+    if (!PRESET_FIELDS.includes(key) && !PRESET_GATE_FIELDS.includes(key)) {
       errors.push(
-        `${at(key)}unknown preset field. Expected one of ${list(PRESET_FIELDS)}; ` +
+        `${at(key)}unknown preset field. Expected one of ${list([...PRESET_FIELDS, ...PRESET_GATE_FIELDS])}; ` +
         `\`applyPresetFields\` reads its fields by name, so this one would register and apply nothing.`,
       )
     }
@@ -2004,6 +2010,104 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
       errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
     }
   }
+}
+
+// ─── server-gated controls and legacy inputs (UCT RS Phase 3, unit 3-01) ────
+//
+// ⭐⭐ `requiresServer: true` — on an input, on an enum OPTION, or on a
+// `meta.presets[]` entry — means "hide this until the live server row declares
+// it" (`serverCompute.serverDeclares`, read by `indicatorRegistry`). It lets a
+// control merge ahead of the server half that answers it and stay dark. An enum
+// option carries it as a third element, `['CUSTOM', 'Your symbol',
+// {requiresServer: true}]`, or as a key of the object form `{value, label,
+// requiresServer: true}`.
+//
+// ⭐ `legacy: true` on an input means "still declared, never rendered": a stored
+// instance that carries the key still validates (`instances.js` REFUSES an
+// undeclared key, so retiring an input any other way breaks saved layouts), and
+// no settings surface draws a control for it.
+//
+// ⛔ BOTH FAIL CLOSED. Each is `true` or absent; `false`, `'yes'` or `1` is a
+// typo that would gate (or un-gate) nothing, so it is refused by name. And the
+// combinations that could only ever hide a control forever are refused too:
+//   - a gate on a definition the server does not compute (no row will declare it);
+//   - a gate on an input the definition never sends (`meta.serverInputs`), since
+//     the row declares only what it receives;
+//   - an enum whose DEFAULT is a gated option (the select would show a value it
+//     does not list until the server answered);
+//   - a gated legacy input (it is never rendered, so the gate decides nothing).
+
+/** Is this enum option entry marked `requiresServer`? The ONE reader of the
+ *  marker's two spellings; `indicatorRegistry` imports it. */
+export function enumOptionRequiresServer(option) {
+  if (Array.isArray(option)) return isPlainObject(option[2]) && option[2].requiresServer === true
+  return isPlainObject(option) && option.requiresServer === true
+}
+
+function validateServerGates(def, inputs, errors) {
+  const serverDoc = isPlainObject(def.compute) && def.compute.kind === 'server'
+  const sent = isPlainObject(def.meta) && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : null
+  const kindNote = `compute.kind is ${fmt(isPlainObject(def.compute) ? def.compute.kind : undefined)}, ` +
+    `and only a "server" definition has a live row to declare it, so it could never appear`
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input)) return
+    const path = `inputs[${index}]`
+    for (const k of ['requiresServer', 'legacy']) {
+      if (input[k] !== undefined && input[k] !== true) {
+        errors.push(`${path}.${k}: expected true or absent, got ${fmt(input[k])}`)
+      }
+    }
+    const gated = input.requiresServer === true
+    if (gated && input.legacy === true) {
+      errors.push(`${path}: a legacy input is never rendered, so requiresServer on it gates nothing — drop one`)
+    }
+    let gatedOptions = false
+    if (input.type === 'enum' && Array.isArray(input.options)) {
+      input.options.forEach((option, j) => {
+        const at = `${path}.options[${j}]`
+        if (Array.isArray(option)) {
+          if (option.length > 3) {
+            errors.push(`${at}: an option pair is [value, label] or [value, label, {requiresServer: true}], got ${option.length} entries`)
+          } else if (option.length === 3) {
+            const extra = option[2]
+            if (!isPlainObject(extra) || Object.keys(extra).length !== 1 || extra.requiresServer !== true) {
+              errors.push(`${at}[2]: expected {requiresServer: true}, got ${fmt(extra)}`)
+            }
+          }
+        } else if (isPlainObject(option) && option.requiresServer !== undefined && option.requiresServer !== true) {
+          errors.push(`${at}.requiresServer: expected true or absent, got ${fmt(option.requiresServer)}`)
+        }
+        if (enumOptionRequiresServer(option)) {
+          gatedOptions = true
+          if (Object.prototype.hasOwnProperty.call(input, 'default') && enumOptionValue(option) === input.default) {
+            errors.push(
+              `${at}: the default ${fmt(input.default)} is a requiresServer option — until the server ` +
+              `declares it the control would show a value it does not list. Default to an ungated option.`,
+            )
+          }
+        }
+      })
+    }
+    if (!gated && !gatedOptions) return
+    const what = gated ? `${path}.requiresServer` : `${path}.options`
+    if (!serverDoc) {
+      errors.push(`${what}: ${kindNote}`)
+    } else if (sent && isNonEmptyString(input.key) && !sent.includes(input.key)) {
+      errors.push(
+        `${what}: ${fmt(input.key)} is not in meta.serverInputs, so it is never sent and the ` +
+        `server row can never declare it — the control would stay hidden forever`,
+      )
+    }
+  })
+  const presets = isPlainObject(def.meta) && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  presets.forEach((p, i) => {
+    if (!isPlainObject(p) || p.requiresServer === undefined) return
+    if (p.requiresServer !== true) {
+      errors.push(`meta.presets[${i}].requiresServer: expected true or absent, got ${fmt(p.requiresServer)}`)
+    } else if (!serverDoc) {
+      errors.push(`meta.presets[${i}].requiresServer: ${kindNote}`)
+    }
+  })
 }
 
 /** `activeWhen` is the JSON-expressible successor to `indicatorRegistry`'s
@@ -3159,6 +3263,8 @@ export function validateDefinition(def) {
       }
     })
     inputs.forEach((input, i) => validateActiveWhen(input, i, inputsByKey, errors))
+    // ⭐ UCT RS PHASE 3 (unit 3-01) — `requiresServer` and `legacy`.
+    validateServerGates(out, inputs, errors)
 
     // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
     validateReadout(out, inputsByKey, errors)
