@@ -338,9 +338,22 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     #                             the flag armed AND the artifact showing the column
     #                             filled (the pattern_engine_vcp precedent -- a promotion
     #                             moves the split, never the total).
+    # ⭐ (149, 107) → (149, 110) on 2026-11-07 (UCT RS Phase 3, unit 3-11): the three
+    # columns unit 3-10 added to COLUMNS, decided. The total moved when THEY landed;
+    # this commit moves only the excluded half:
+    #   excluded   107 + 3 = 110  `rrg_quadrant`, `clenow_score`, `vars_state` EXCLUDED --
+    #                             written by `rs_columns.collect_one` only while
+    #                             `snapshot_builder.rs_v3_enabled()` is true, and
+    #                             RS_V3_ENABLED is OFF in production, so every nightly
+    #                             row is NULL there (R8). `clenow_score` (REAL) is
+    #                             re-admitted the rating columns' way, flag armed AND
+    #                             the artifact showing it filled; the two TEXT names
+    #                             stay excluded once filled, for `rs_line_trend`'s
+    #                             reason (a verdict, not a magnitude). Each reason in
+    #                             closedTable.json is dated.
     # The pair is what `closedTable.json` holds -- `len(scalars)` and
-    # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 107.
-    assert (len(declared), len(excluded)) == (149, 107)
+    # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 110.
+    assert (len(declared), len(excluded)) == (149, 110)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

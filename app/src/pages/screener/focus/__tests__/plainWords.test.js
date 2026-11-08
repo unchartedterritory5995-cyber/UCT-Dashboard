@@ -58,6 +58,21 @@ test('structureSentence reads naturally for states, plurals and textbook names',
 
 // UCT Relative Strength (Phase 2a, 2a-08): every RS column has a plain name, and a fact reads as
 // one sentence a member would say — "RS rating 94 of 99, up 6 in a week".
+// UCT RS Phase 3 (unit 3-11): the three columns have plain names; only the quadrant says "weekly",
+// because only the quadrant is read on weekly bars. The Clenow score is a fraction, never a percent.
+test('the Phase 3 RS columns have plain names and the Clenow fact prints the fraction', async () => {
+  const { plainColumnLabel, plainFact } = await import('../plainWords')
+  expect(plainColumnLabel('rrg_quadrant')).toBe('Rotation vs SPY (weekly)')
+  expect(plainColumnLabel('clenow_score')).toBe('Clenow trend score (90 days)')
+  expect(plainColumnLabel('vars_state')).toBe('Volatility-adjusted RS vs SPY')
+  expect(plainColumnLabel('clenow_score')).not.toMatch(/weekly/i)
+  expect(plainColumnLabel('vars_state')).not.toMatch(/weekly/i)
+  expect(plainFact('clenow_score', 0.8512)).toBe('Clenow trend score 0.85 over 90 sessions')
+  expect(plainFact('clenow_score', -0.1234)).toBe('Clenow trend score -0.12 over 90 sessions')
+  expect(plainFact('clenow_score', null)).toBe(null)
+  expect(plainFact('rrg_quadrant', 'Leading')).toBe(null)    // a text column has no numeric fact
+})
+
 test('the RS columns have plain names and their facts read as one sentence each', async () => {
   const { plainColumnLabel, plainFact, rsRatingFact, rsLineFact, focusChipLabel } = await import('../plainWords')
   const cols = ['rs_new_high', 'rs_nh_before_price', 'rs_nh_red_day', 'rs_nh_bars_ago', 'green_on_red_20',
