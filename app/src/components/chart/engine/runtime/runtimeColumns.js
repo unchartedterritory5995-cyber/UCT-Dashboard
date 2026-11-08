@@ -1468,6 +1468,25 @@ export function setRuntimeRunner(runner) {
   _runner = typeof runner === 'function' ? runner : null
 }
 
+/** ⭐⭐ THE PARITY SEAM — THE CLOCK THE SYNCHRONOUS DOOR HANDS ITS RUN, when anything does.
+ *
+ *  `null` (the default, and EVERY member) — the run reads the host's clock and the
+ *  pane's `RUNTIME_PANE_TIME_BUDGET_MS` is a real wall-clock stop, exactly as before.
+ *  ⛔ Only a PARITY grader installs one (the vendor harness, `ourSide.js`, for the
+ *  length of one grade, and it restores `null`): a grade asks "does our value equal
+ *  TradingView's", and a wall clock answers "how busy was the box" — under load the
+ *  1,000 ms stop fired and the harness graded the machine (INCONCLUSIVE, no column).
+ *  A clock that never moves keeps every wall-clock stop (the budget, the VM's
+ *  `WALL_TIME`, the translator's timeout) from firing, while the instruction
+ *  budgets (`limits.js`) still bound the run: ruling R3, a clock is a safety stop
+ *  and never a verdict. The budget, the door and the guard are unchanged; that the
+ *  door still enforces them, and that no shipped module installs a clock, is railed
+ *  in `runtimeDoorBudget.rail.test.js`. */
+let _doorClock = null
+export function setRuntimeDoorClock(now) {
+  _doorClock = typeof now === 'function' ? now : null
+}
+
 /** Listeners told when an off-thread run lands, so a chart can repaint. */
 const _landed = new Set()
 export function onRuntimeColumnsLanded(fn) {
@@ -1520,7 +1539,8 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
     return {}
   }
   try {
-    const out = computeRuntimeColumns(def, rows, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
+    const out = computeRuntimeColumns(def, rows, ctx,
+      { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, ...(_doorClock ? { now: _doorClock } : {}) })
     perBars.set(key, out)
     return out
   } catch (err) {
