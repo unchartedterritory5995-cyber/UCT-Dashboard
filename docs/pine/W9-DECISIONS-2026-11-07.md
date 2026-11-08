@@ -129,3 +129,11 @@ They are now evaluated in place, the `alert()` rule, railed by
    under "unknown namespaced call = effect", so they are lowered and refuse `pine:strategy-call`
    where master dropped them and served. This is an over-refusal, never a wrong value. The fix is to treat
    `strategy.*` reads as values at the order site. The `alert()` site has the same behaviour.
+   **RESOLVED (W9-OQ-N1, `fix/pine-w9-oq-n1`).** At the dark order site a `strategy.*` read call
+   (`strategy.opentrades.*`, `strategy.closedtrades.*`, `strategy.convert_to_*`,
+   `strategy.default_entry_qty`) is a value, so an argument of reads and values is dropped with the
+   order and the script is served. The read can reach a served output only through an effect in the
+   same argument; that argument is still lowered whole and the read refuses by name. The `alert()`
+   site is NOT changed: an alert message is served output, so a read there reaches it and the
+   refusal is honest, not an over-refusal. Rails: `runtime/__tests__/w9OrderOnlyIf.test.js`
+   (`W9-OQ-N1`), four hand-mutations killed.

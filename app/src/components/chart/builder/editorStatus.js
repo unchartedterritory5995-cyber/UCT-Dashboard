@@ -213,7 +213,7 @@ export const FAMILIES = Object.freeze([
   },
   {
     id: 'language',
-    exact: ['pine:statement', 'pine:operator', 'pine:character', 'pine:cycle', 'pine:roundtrip',
+    exact: ['pine:statement', 'pine:indent', 'pine:operator', 'pine:character', 'pine:cycle', 'pine:roundtrip',
       'pine:role-order', 'pine:empty', 'pine:declaration', 'pine:offset-literal', 'pine:chart-only',
       'runtime:statement', 'runtime:expression-statement', 'runtime:switch', 'runtime:block-value',
       'runtime:operator', 'runtime:directive', 'runtime:declaration', 'runtime:version',

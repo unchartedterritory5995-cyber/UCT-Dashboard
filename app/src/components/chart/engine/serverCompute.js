@@ -598,6 +598,11 @@ export function fetchServerDefinitions(fetcher) {
     if (gen !== _defsGeneration) return rows
     _defsRows = rows
     _notifyDefinitions()
+    // ⭐ UCT RS 3-14 — and the chart repaints: the pool reads the declaration to
+    // decide a gated guide (`pool.plotActiveFor`), so a chart painted before the
+    // answer landed plans its guides again. Same message as a landing column:
+    // "something landed, ask again" (`useServerColumns`).
+    _notify('definitions')
     return rows
   }
   const retry = () => {
@@ -644,6 +649,7 @@ export function primeServerDefinitions(body) {
   _defsRows = _declarationsFromBody(body)
   _defsPromise = Promise.resolve(_defsRows)
   _notifyDefinitions()
+  _notify('definitions')
   return _defsRows
 }
 

@@ -50,11 +50,13 @@ describe('the groups', () => {
     expect(editor().querySelector('[data-input-key="headlineRating"]')).not.toBeNull()
     expect(editor().querySelector('[data-input-key="ratingBands"]')).not.toBeNull()
     // Mansfield view moved to Method in VA2; since 3-08 it is `legacy` (the
-    // Reading replaced it) and renders nowhere, while the Mansfield length stays
+    // Reading replaced it). ⭐ 3-14: with nothing declared the Reading is gated off,
+    // so the switch still renders in Method, beside the Mansfield length.
     expect(editor().querySelector('[data-input-key="mansfieldLength"]')).toBeNull()
+    expect(editor().querySelector('[data-input-key="showMansfield"]')).toBeNull()
     await act(async () => { fireEvent.click(headNamed('Method')) })
     expect(editor().querySelector('[data-input-key="mansfieldLength"]')).not.toBeNull()
-    expect(editor().querySelector('[data-input-key="showMansfield"]')).toBeNull()
+    expect(editor().querySelector('[data-input-key="showMansfield"]')).not.toBeNull()
   })
 })
 

@@ -4231,7 +4231,9 @@ const RS_LINE_RAW = {
     { key: 'rrgRatioLength', type: 'int', label: 'RS-Ratio (bars)', default: 10, min: 3, max: 60, step: 1, group: 'Method',
       requiresServer: true, activeWhen: RS_ROTATION_VIEW,
       tooltip: 'Rotation: bars in the average the RS line is compared with for RS-Ratio. 10 is the Terminal\'s RRG setting.' },
-    { key: 'rrgMomentumLength', type: 'int', label: 'Momentum (bars)', default: 5, min: 2, max: 30, step: 1, group: 'Method',
+    // ⭐ 3-14: 'Momentum (bars)' wrapped to two lines in the inspector's label
+    // column; 'Momentum bars' is shorter than 'Momentum style', which fits there.
+    { key: 'rrgMomentumLength', type: 'int', label: 'Momentum bars', default: 5, min: 2, max: 30, step: 1, group: 'Method',
       requiresServer: true, activeWhen: RS_ROTATION_VIEW,
       tooltip: 'Rotation: bars in the average RS-Ratio is compared with for RS-Momentum. 5 is the Terminal\'s RRG setting.' },
     { key: 'clenowWindow', type: 'int', label: 'Window (bars)', default: 90, min: 20, max: 252, step: 1, group: 'Method',

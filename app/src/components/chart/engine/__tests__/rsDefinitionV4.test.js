@@ -70,11 +70,14 @@ describe('1 · the server gate', () => {
     for (const p of RS.meta.presets) expect(p.inputs, p.id).not.toHaveProperty('benchmark')
   })
 
-  it('every Phase 3 control and the "Your symbol" option are hidden until declared; the legacy switch never renders', () => {
+  // ⭐ 3-14: the legacy switch renders while its successor (`view`) is gated off —
+  // on a v3 server it is the only control that draws Mansfield — and is replaced
+  // by the Reading once the row declares `view`.
+  it('every Phase 3 control and the "Your symbol" option are hidden until declared; the legacy switch shows only until the Reading does', () => {
     for (const declared of [null, V3_DECLARED]) {
       const keys = fieldKeys(declared)
       for (const k of PHASE3_INPUTS) expect(keys, k).not.toContain(k)
-      expect(keys).not.toContain('showMansfield')
+      expect(keys).toContain('showMansfield')
       expect(benchOptions(declared)).toEqual(V3_MENU)
     }
     const keys = fieldKeys(V4_DECLARED)
@@ -385,5 +388,35 @@ describe('8 · the member copy on the three new cards (D8, plan §3)', () => {
     expect(RS.meta.description).toMatch(/Quality/)
     expect(RS.meta.description).toMatch(/volatility-adjusted/)
     expect(RS.meta.description).not.toMatch(/rating pane|tour|RS Leaders/i)
+  })
+})
+
+// ⭐ UCT RS 3-14 — a pane that drew nothing prints the server's note, not a dash.
+describe('3-14 · the empty-pane label prints the benchmark note', () => {
+  const NOTE = 'No XYZQ bars yet; they usually load within a minute'
+  const noBars = { benchmark: { requested: 'CUSTOM', resolved: 'XYZQ', label: 'XYZQ', note: NOTE } }
+  it('no value at all and a note: the note, muted, marked', () => {
+    expect(readoutFallbackValue(RS, noBars, 4, { benchmark: 'CUSTOM', customBenchmark: 'XYZQ' }))
+      .toEqual({ text: NOTE, muted: true, note: true })
+  })
+  it('no value and no note: the muted dash, as before', () => {
+    expect(readoutFallbackValue(RS, { benchmark: { resolved: 'SPY', label: 'SPY' } }, 4, {})).toEqual({ text: '—', muted: true })
+    expect(readoutFallbackValue(RS, null, 4, {})).toEqual({ text: '—', muted: true })
+  })
+  it('a last value wins over the note (a benchmark gap prints the dated value)', () => {
+    const gap = { ...noBars, legend: { lastValue: 0.4187, asOf: 20261105 } }
+    expect(readoutFallbackValue(RS, gap, 4, {})).toEqual({ text: '0.4187 · Nov 5', muted: true })
+  })
+})
+
+
+// ⭐ UCT RS 3-14 — the inspector's label column: 'Momentum (bars)' wrapped to two
+// lines (sandbox capture v3on_desktop_dark_inspector_method), while 'Momentum
+// style' (the same column, the Plot style row) fits on one.
+describe('3-14 · the Rotation momentum length label fits its column', () => {
+  it('reads "Momentum bars", no longer than the style row that fits', () => {
+    const label = RS.inputs.find((i) => i.key === 'rrgMomentumLength').label
+    expect(label).toBe('Momentum bars')
+    expect(label.length).toBeLessThanOrEqual('Momentum style'.length)
   })
 })

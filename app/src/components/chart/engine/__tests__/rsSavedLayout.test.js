@@ -188,10 +188,16 @@ describe('saved v3 layouts on the v4 definition', () => {
     expect(unavailableInstances({ indicatorInstances: [TREND_V3, STRESS_V3] }, REGISTRY)).toEqual([])
   })
 
-  it('the legacy Mansfield switch is still declared (a stored true validates) and never rendered', () => {
+  // ⭐ 3-14: rendered only while its successor (`view`) is undeclared — on a v3
+  // server it is the control that draws Mansfield; a v4 row replaces it.
+  it('the legacy Mansfield switch is still declared (a stored true validates) and rendered only until the Reading is', () => {
     const showMansfield = def.inputs.find((i) => i.key === 'showMansfield')
     expect(showMansfield).toMatchObject({ type: 'bool', default: false, legacy: true })
-    expect(fieldsForInstance(def, TREND_V3).all.map((f) => f.key)).not.toContain('showMansfield')
+    const v3Model = fieldsForInstance(def, TREND_V3)
+    expect(v3Model.all.map((f) => f.key)).toContain('showMansfield')
+    expect(v3Model.values.showMansfield).toBe(true)
+    const v4 = { inputs: def.meta.serverInputs, options: { view: ['ratio', 'mansfield', 'rotation', 'quality', 'vars'] } }
+    expect(fieldsForInstance(def, TREND_V3, { declared: v4 }).all.map((f) => f.key)).not.toContain('showMansfield')
   })
 
   it('a saved Trend layout asks the server for the Mansfield Reading (the legacy switch maps onto view, 3-08b)', () => {

@@ -255,17 +255,39 @@ describe('A6.3 — activeWhen dims, never removes', () => {
     expect(field('mansfieldLength').dataset.active).toBe('true')
   }
 
-  it('nothing declared: no Reading and no legacy switch; Mansfield (bars) is inert under the RS line and wakes under Trend', () => {
+  it('nothing declared: no Reading, the legacy switch instead; Mansfield (bars) is inert under the RS line and wakes under Trend', () => {
     const seen = show(withRs()); select(RS_ROW)
     fireEvent.click(head('Method'))
-    // v4: `showMansfield` is `legacy` (never rendered) and `view` waits for the row.
-    expect(field('showMansfield')).toBeNull()
+    // v4: `view` waits for the row. ⭐ 3-14: until it is declared, the legacy
+    // `showMansfield` switch is the control this server reads, so it renders.
+    expect(field('showMansfield')).not.toBeNull()
+    expect(field('showMansfield').querySelector('[class*="insFieldLabel"]').textContent).toBe('Mansfield view')
     expect(field('view')).toBeNull()
     expectInert()
     fireEvent.change(presetSelect(), { target: { value: 'trend' } })
     expect(findInstance(seen.cs, RS_ID).inputs.view).toBe('mansfield')
     expect(findInstance(seen.cs, RS_ID).inputs.showMansfield).toBe(true)
     expectAwake()
+  })
+
+  it('⭐ 3-14 — nothing declared: the Mansfield view switch writes showMansfield and wakes Mansfield (bars)', () => {
+    const seen = show(withRs()); select(RS_ROW)
+    fireEvent.click(head('Method'))
+    expectInert()
+    const sw = field('showMansfield').querySelector('[role="switch"], input[type="checkbox"], button')
+    expect(sw).not.toBeNull()
+    fireEvent.click(sw)
+    expect(findInstance(seen.cs, RS_ID).inputs.showMansfield).toBe(true)
+    expect(findInstance(seen.cs, RS_ID).inputs).not.toHaveProperty('view')
+    expectAwake()
+  })
+
+  it('⭐ 3-14 — a v4 row: the switch is gone, the Reading replaces it', () => {
+    show(withRs()); select(RS_ROW)
+    armV3()
+    fireEvent.click(head('Method'))
+    expect(field('showMansfield')).toBeNull()
+    expect(field('view')).not.toBeNull()
   })
 
   it('a saved v3 Trend layout (showMansfield: true, no view) reads as the Mansfield reading (3-08b)', () => {
@@ -316,7 +338,8 @@ describe('A6.4 — no label is cut', () => {
   it('every rendered label prints its whole declared text, nothing declared', () => {
     show(withRs()); select(RS_ROW)
     const seen = allLabels(['Line', 'New highs', 'Rating', 'Stress test', 'Method'], null)
-    expect(seen).toBe(rsDef().inputs.filter((i) => !i.legacy && !i.requiresServer).length)
+    // ⭐ 3-14: plus the legacy Mansfield view switch, shown while `view` is undeclared.
+    expect(seen).toBe(rsDef().inputs.filter((i) => !i.legacy && !i.requiresServer).length + 1)
   })
 
   it('every rendered label prints its whole declared text under a v4 row', () => {
