@@ -165,3 +165,72 @@ def test_the_columns_route_carries_the_rs_server_timing_header(monkeypatch, v2_r
     st = r.headers.get("server-timing", "")
     assert st.startswith('rs;desc="cold";dur=') and "rs-compute;dur=" in st, st
     assert "payload" in r.json()
+
+
+# ── Phase 3 (unit 3-06): the v4 envelope's budget ─────────────────────────────
+#
+# Measured on the same box and fixture, 2026-11-07 (median of 20 cold builds):
+# * 5,000-bar daily, v4: envelope JSON 711,861 bytes under the Ratio view (the
+#   widest: the ratio family is six places), 677,964 Quality, 680,667 VARS;
+#   build median 334 / 386 / 300 ms against v3's 299 ms on the same run. The
+#   six Phase 3 columns add one family of values and five of nulls. Byte budget
+#   1,070,000 (~1.5x the widest); time budget the v3 one (~3x the median).
+#   Clenow's O(n·w) fit is computed on the tail the chart shows (`count` +
+#   window) and only under the Quality view; the block reads one window.
+# * 600-bar daily, v4: envelope JSON 90,720 bytes (v3: 71,851 on the same run), pinned within 2%.
+BYTES_BUDGET_5000_V4 = 1_070_000
+SIZE_600_PIN_V4 = 90_720
+
+
+@pytest.fixture
+def lane_v4(monkeypatch, lane):
+    from api.services.signature import registry_defs as rd
+    monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(True, True))
+    return lane
+
+
+@pytest.mark.parametrize("view", ["ratio", "rotation", "quality", "vars"])
+def test_the_v4_5000_bar_payload_stays_under_its_byte_budget(view, lane_v4, monkeypatch):
+    monkeypatch.setitem(INPUTS, "view", view)
+    env = lane_v4(_long_daily(n=5000))
+    assert len(env["times"]) == 5000 and env["payload"]["inputs"]["view"] == view
+    size = _wire_bytes(env)
+    assert size < BYTES_BUDGET_5000_V4, (
+        f"the 5,000-bar v4 RS envelope ({view}) is {size} bytes, over its {BYTES_BUDGET_5000_V4} budget")
+
+
+@pytest.mark.parametrize("view", ["ratio", "quality"])
+def test_the_v4_5000_bar_compute_stays_under_its_time_budget(view, lane_v4, monkeypatch):
+    monkeypatch.setitem(INPUTS, "view", view)
+    store = _long_daily(n=5000)
+    lane_v4(store)
+    runs = []
+    for _ in range(3):
+        t = time.perf_counter()
+        lane_v4(store)
+        runs.append((time.perf_counter() - t) * 1000.0)
+    med = statistics.median(runs)
+    assert med < MS_BUDGET_5000, f"5,000-bar v4 ({view}) build median {med:.0f} ms (runs {runs}), budget {MS_BUDGET_5000} ms"
+
+
+def test_the_v4_600_bar_payload_size_is_pinned(lane_v4):
+    env = lane_v4(_long_daily(n=600))
+    size = _wire_bytes(env)
+    assert abs(size - SIZE_600_PIN_V4) <= SIZE_600_PIN_V4 * 0.02, (
+        f"the 600-bar v4 RS envelope is {size} bytes; pinned at {SIZE_600_PIN_V4} (2% band). "
+        "Re-measure and move the pin if the change is intended.")
+
+
+def test_the_v4_phase3_work_is_bounded_to_the_tail_the_chart_shows(lane_v4, monkeypatch):
+    """Handed 5,000 bars, the Phase 3 columns are computed on `count` plus the
+    reading's warm-up only (the pod's fetch already returns `count`): the bars
+    before that are padding, never an O(n·w) fit."""
+    from api.services import relative_strength as rsmod
+    seen = []
+    real = rsmod.clenow_columns
+    monkeypatch.setattr(rsmod, "clenow_columns", lambda bars, *a, **k: seen.append(len(bars)) or real(bars, *a, **k))
+    monkeypatch.setitem(INPUTS, "view", "quality")
+    env = lane_v4(_long_daily(n=5000))
+    count = rsp._rs_bars_count("D", env["payload"]["inputs"]["lookback"])
+    assert seen and max(seen) <= count + env["payload"]["inputs"]["clenowWindow"], seen
+    assert all(v is None for v in env["columns"]["clenowScore"][:5000 - count - 90])

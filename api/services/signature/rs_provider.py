@@ -121,7 +121,7 @@ def _stage_order(stages: dict, build_ms: float) -> dict:
     return out
 
 
-def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) -> dict:
+def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, warm=None) -> dict:
     """⭐ THE FOURTH TENANT, AND THE PROOF THE LANE IS GENERIC.
 
     It is not a Signature indicator, shares no code with one, and needed no line
@@ -142,9 +142,22 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
     than a number that was never computable. The flag-off v1 envelope is
     byte-for-byte what Phase 1 shipped.
 
+    ⭐ PHASE 3 (unit 3-06, `compute.rev` 4, only when the installed row is v4,
+    i.e. `RS_V3_ENABLED` on top of `RS_V2_ENABLED`). The envelope adds the six
+    Phase 3 wire columns, one "Reading" (`view`) that decides which family the
+    pane draws (`_RS_VIEW_FAMILIES`; the legacy `showMansfield` maps to
+    `mansfield`, decision D2), a member's own benchmark (`CUSTOM` plus
+    `customBenchmark`, decision D4, warmed through ``warm``), the picked
+    `anchorDate` for the Checks anchor (decision D6), and three payload blocks:
+    `rotation`, `quality` and `vars` (`_rs_phase3`). The payload shape is
+    `_RS_PAYLOAD_SHAPE_V4`. With the row at rev 3 every one of those branches
+    is skipped, and the v3 envelope and cache key are byte-identical.
+
     ``fetch_bars(sym, tf, count)`` and ``cache_key(kind, sym)`` are the router's
-    `_fetch_bars_for_tf` and `_ck` (see the module docstring). Each call leaves
-    its timing in `last_timing` (unit VA1).
+    `_fetch_bars_for_tf` and `_ck` (see the module docstring). ``warm(ticker)``
+    is the router's fire-and-forget bar warm for a custom benchmark the pod has
+    no rows for yet (v4 only; `rs_benchmarks` calls it at most once per ticker
+    per ten minutes). Each call leaves its timing in `last_timing` (unit VA1).
     """
     t0 = time.perf_counter()
     from api.services import relative_strength as rsmod
@@ -159,6 +172,14 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
     intraday = store not in ("D", "W", "M")
     count = _rs_bars_count(store, params["lookback"])
     rev = int(registry_defs.definition("rsLine")["compute"]["rev"])
+    # ⭐ PHASE 3 IS THE ROW, NOT A SECOND FLAG READ (unit 3-06). The v4 row is
+    # installed only with both flags on (`registry_defs._rs_line_row`), so the
+    # rev it serves is the switch: rev 3 never reaches a Phase 3 line below.
+    v4 = registry_defs.RS_V2_ENABLED and rev == registry_defs.RS_V4_REV
+    if v4:
+        # The Phase 3 inputs join `params`, so they ride the cache key and
+        # `payload.inputs` (the resolved view, the effective custom ticker).
+        params.update(_rs_phase3_params(inputs, requested, toggles))
 
     # ⭐ CACHED PER ET SESSION DAY (plan §8.2). The key carries only COMPUTE inputs
     # (`resolve_inputs` already dropped the rest), the resolved timeframe and the
@@ -181,7 +202,8 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
     # after them for the rest of the session. The v1 key is unchanged.
     day = _et_session_day()
     gen = f"{_rs_data_generation()}:" if registry_defs.RS_V2_ENABLED else ""
-    shape = f"p{_RS_PAYLOAD_SHAPE}" if registry_defs.RS_V2_ENABLED else ""
+    shape = (f"p{_RS_PAYLOAD_SHAPE_V4 if v4 else _RS_PAYLOAD_SHAPE}"
+             if registry_defs.RS_V2_ENABLED else "")
     ck = cache_key(f"rs{rev}{shape}",
              f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
              f"{json.dumps(toggles, sort_keys=True)}:{gen}{day}")
@@ -197,7 +219,14 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
     t_build = time.perf_counter()
     fetch_bars = _timed_fetch(fetch_bars, stages)
     bars = fetch_bars(sym, tf, count)
-    bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars)
+    if v4:
+        # D4: `custom` is the member's ticker (blank unless the benchmark is
+        # CUSTOM); `warm` fills bars.db behind a ticker with no rows yet, and the
+        # pane says so (`bench["note"]`) rather than swapping in SPY.
+        bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars,
+                                                custom=params["customBenchmark"] or None, warm=warm)
+    else:
+        bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars)
     times = [int(b["t"]) for b in bars]
     # The STATE the chart should show (plan §6.10), decided here from the data
     # rather than inferred client-side from an empty pane. `same-symbol` and
@@ -240,6 +269,15 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
         # The readout's Mansfield scalars are read BEFORE the toggle blanks the
         # column: the reading is true whether or not the line is drawn.
         mansfield_scalars = _rs_mansfield_scalars(mans, params["mansfieldLength"])
+        if v4:
+            # ── Phase 3 columns and blocks (unit 3-06): rotation, quality, VARS.
+            # Each block is read before the view blanks its column, the
+            # Mansfield rule: the reading is true whether or not it is drawn.
+            p3 = _rs_phase3(bars, bench.get("bars") or [], params, count, store=store,
+                            intraday=intraday, bench_name=str(bench.get("resolved") or "the benchmark"),
+                            why=(None if derived else
+                                 "benchmark is the symbol" if same_symbol else "no benchmark bars"))
+            cols.update(p3["columns"])
 
         # The data carries the timeframe rule (plan §6.5): on an intraday chart a
         # 252-bar "new high" is two days and means nothing, so events and dots are
@@ -251,11 +289,21 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
         if intraday:
             for k in event_keys + dot_keys:
                 cols[k] = list(blank)
+            if v4:
+                # Rotation and the gap dot are intraday-blank like the dots
+                # (`_rs_phase3` never fills them there; stated again here so the
+                # rule lives beside the one it extends).
+                for k in ("rsRatio", "rsMomentum", "dotClenowGap"):
+                    cols[k] = list(blank)
         # The dot toggles are compute inputs on purpose: the engine has no
         # per-plot visibility an input can drive, so "off" means the column is
         # blank and the marker draws nothing (plan §4, audit A3). The event
         # columns beside them stay for the screener and the alert lane.
         for toggle, keys in _RS_TOGGLE_BLANKS.items():
+            # v4: the "Reading" decides what Mansfield draws (below), not the
+            # legacy toggle, which only maps onto that choice (D2).
+            if v4 and toggle == "showMansfield":
+                continue
             if not toggles[toggle]:
                 for k in keys:
                     cols[k] = list(blank)
@@ -263,6 +311,9 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
             cols[k] = _round_series(cols[k], 6)      # a RATIO: six places, not four
         for k in ("mansfield", "dotMansfieldCross"):
             cols[k] = _round_series(cols[k], 4)      # a PERCENT distance from its own average
+        if v4:
+            for k in registry_defs.RS_PHASE3_WIRE_COLUMNS:
+                cols[k] = _round_series(cols[k], 4)  # around 100 / a fraction / an ATR sum
 
         # The legend and last-high scalars are read HERE, after rounding and
         # BEFORE the Mansfield view blanks the ratio (A2): the RS line and Last RS
@@ -277,7 +328,14 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
         # the above flag and every RS-line dot column go all-null in the WIRE
         # (they stay in `columns`, so the definition's exact-match column contract
         # holds) and the Mansfield line draws alone. Event columns stay.
-        if toggles["showMansfield"]:
+        if v4:
+            # ⭐ ONE READING PER PANE (D2): the view keeps its own family and
+            # blanks every other one. Event columns are never blanked here.
+            for view, keys in _RS_VIEW_FAMILIES.items():
+                if view != params["view"]:
+                    for k in keys:
+                        cols[k] = list(blank)
+        elif toggles["showMansfield"]:
             for k in _RS_MANSFIELD_VIEW_BLANKS:
                 cols[k] = list(blank)
 
@@ -299,10 +357,17 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
             # 2026-11-07): read at the chart's `count` (lookback + 600) the
             # volatility distribution held ~493 samples at lookback 20 and 756
             # only near 500, so an unrelated new-high setting could flip the label.
-            regime = _rs_regime([b.get("c") for b in _rs_regime_bench_bars(sym, requested, tf, count, bench, fetch_bars)])
+            regime = _rs_regime([b.get("c") for b in _rs_regime_bench_bars(
+                sym, requested, tf, count, bench, fetch_bars,
+                custom=(params["customBenchmark"] or None) if v4 else None)])
             sensitivity = _rs_sensitivity(sym, bars, bench, tf, count, groups, fetch_bars)
             checks = _rs_checks(bars, bench["bars"], str(bench.get("resolved") or "benchmark"),
-                                params["redDayThreshold"])
+                                params["redDayThreshold"],
+                                anchor_date=params["anchorDate"] if v4 else None)
+        if v4:
+            # D6: the anchor says which rule chose its bar, on every chart.
+            checks["anchor"].setdefault("source", "picked" if params["anchorDate"] else "default")
+            checks["anchor"].setdefault("date", params["anchorDate"] or None)
         payload = {
             "benchmark": dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
                               bars=len(bench.get("bars") or []),
@@ -334,6 +399,10 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key) 
             # (review #7), so it is true on a weekly chart too.
             "evidence": _timed(stages, "evidence", _rs_evidence),
         }
+        if v4:
+            payload["rotation"] = p3["rotation"]
+            payload["quality"] = p3["quality"]
+            payload["vars"] = p3["vars"]
         envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
     t_built = time.perf_counter()
 
@@ -397,11 +466,28 @@ _RS_PULLBACK_EMA = 8          # pullback distance from the 8-day EMA (v3 §7.20)
 #: wire blanking rule changes inside one `compute.rev`). 4 (2026-11-07):
 #: `rating.m1` / `m3` / `m6` / `m12` and `rating.components`.
 _RS_PAYLOAD_SHAPE = 4
+#: The v4 payload's shape (unit 3-06, `compute.rev` 4 only): the `rotation`,
+#: `quality` and `vars` blocks, the Phase 3 `inputs`, `checks.anchor.source` /
+#: `date`. A separate number, so the v3 key (`rs3p4`) stays byte-identical
+#: while the flag is off; the v4 key leads with `rs4p5`.
+_RS_PAYLOAD_SHAPE_V4 = 5
 #: What Mansfield view blanks in the wire (A2): the ratio, its average, the
 #: above flag and every RS-line dot. Event columns are never blanked here.
 _RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
     "rsLine", "rsMa", "rsAbove", "dotNH", "dotNHbeforePx", "dotNHred", "dotNHpartial", "dotNL",
 )
+#: ⭐ THE v4 VIEW TABLE (unit 3-06, decision D2): each "Reading" keeps its own
+#: family and the wire blanks every other family to all-null (the columns stay,
+#: so the exact-match wire contract holds). `ratio` and `mansfield` blank what
+#: they blanked in v3 (the Mansfield line and its dot / the ratio family), now
+#: plus the three Phase 3 families. Event columns are never blanked here.
+_RS_VIEW_FAMILIES: dict[str, tuple[str, ...]] = {
+    "ratio": _RS_MANSFIELD_VIEW_BLANKS,
+    "mansfield": ("mansfield", "dotMansfieldCross"),
+    "rotation": ("rsRatio", "rsMomentum"),
+    "quality": ("clenowScore", "dotClenowGap"),
+    "vars": ("vars", "varsMa"),
+}
 _RS_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
@@ -459,6 +545,8 @@ _RS_FALLBACK_SENTENCE = {
     "no industry": "{noun} not available: no industry on file; using {resolved}",
     "no industry or sector": "{noun} not available: no industry or sector on file; using {resolved}",
     "industry group too small": "Industry group too small to average; using {resolved}",
+    # Phase 3 (D4): "Your symbol" was picked with the box left empty.
+    "no custom symbol": "No symbol entered for Your symbol; using {resolved}",
 }
 
 
@@ -471,7 +559,13 @@ def _rs_benchmark_note(bench: dict, legend: dict, times, *, intraday: bool,
     weekly and monthly only: an intraday gap is one bar wide and names no date a
     member could check, and a chart of the benchmark itself has no ratio to be
     missing (its state says so). Otherwise the fallback reason as a sentence
-    (``Sector ETF not available for an ETF; using SPY``)."""
+    (``Sector ETF not available for an ETF; using SPY``).
+
+    A resolver ``note`` wins over both (unit 3-06): a custom benchmark the pod
+    holds no bars for yet says ``No SMH bars yet; they usually load within a
+    minute`` rather than the gap sentence. No v3 benchmark carries a note."""
+    if bench.get("note"):
+        return str(bench["note"])
     resolved = str(bench.get("resolved") or "")
     idx = legend.get("index") if isinstance(legend, dict) else None
     gap = bool(times) and (not isinstance(idx, int) or idx < len(times) - 1)
@@ -809,19 +903,25 @@ def _rs_regime_unavailable(reason: str) -> dict:
 
 
 def _rs_regime_bench_bars(sym: str, requested: str, tf: str, count: int, bench: dict,
-                          fetch_bars) -> list:
+                          fetch_bars, custom: str | None = None) -> list:
     """The chart benchmark's bars at `_RS_REGIME_BARS` depth, whatever the RS
     lookback (review #19). The bars already in hand serve when they were read at
     least that deep; otherwise the same benchmark is resolved again at the fixed
     depth. Either way the regime reads the last `_RS_REGIME_BARS` closes, so the
     block is identical at every lookback. A failed or mismatched re-read falls
-    back to the bars in hand: a shorter regime with its reason, never a 500."""
+    back to the bars in hand: a shorter regime with its reason, never a 500.
+    ``custom`` is the v4 custom ticker (unit 3-06), re-resolved without a warm
+    (the chart's own resolve already asked for one)."""
     have = bench.get("bars") or []
     if count < _RS_REGIME_BARS:
         try:
             from api.services import rs_benchmarks
-            deep = rs_benchmarks.resolve_benchmark(sym, requested, tf, _RS_REGIME_BARS,
-                                                   fetch_bars=fetch_bars)
+            if custom:
+                deep = rs_benchmarks.resolve_benchmark(sym, requested, tf, _RS_REGIME_BARS,
+                                                       fetch_bars=fetch_bars, custom=custom)
+            else:
+                deep = rs_benchmarks.resolve_benchmark(sym, requested, tf, _RS_REGIME_BARS,
+                                                       fetch_bars=fetch_bars)
             if (str(deep.get("resolved") or "").upper() == str(bench.get("resolved") or "").upper()
                     and len(deep.get("bars") or []) > len(have)):
                 have = deep["bars"]
@@ -1050,7 +1150,8 @@ def _rs_check_line(check: dict) -> str:
     return reason if p is None else f"{'pass' if p else 'fail'} · {reason}"
 
 
-def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
+def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float, *,
+               anchor_date: str | None = None, today=None) -> dict:
     """Plan §7 item 23 (v3 §7.20), the four UCT checks as booleans with reasons:
 
     * ``ma``         the stock's distance from its 200-day average beats the
@@ -1063,6 +1164,12 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
 
     ``pullbackEma8`` (distance from the 8-day EMA) rides beside them as a number.
     A check the bars cannot answer is ``pass: None`` with the reason.
+
+    ``anchor_date`` (v4 only, unit 3-06, decision D6): ``None`` is the v3 rule,
+    byte for byte. A string adds ``source`` and ``date`` to the anchor: blank is
+    the default 20-session low (``source: "default"``); a ``YYYY-MM-DD`` date
+    anchors on the first session on or after it (``source: "picked"``,
+    `_rs_anchor_picked`). ``today`` (a `datetime.date`, ET) is for tests.
     """
     from api.services import relative_strength as rsmod
     from api.services.indicator_compute import compute_ema
@@ -1109,6 +1216,12 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
                              "reason": f"stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)}; low was {_rs_ago(ago)}"}
     else:
         out["anchor"] = {"pass": None, "reason": f"needs {_RS_ANCHOR_WINDOW} sessions of both"}
+    if anchor_date is not None:
+        if str(anchor_date).strip():
+            out["anchor"] = _rs_anchor_picked(bars, aligned, bench_name, str(anchor_date).strip(),
+                                              today if today is not None else _et_now().date())
+        else:
+            out["anchor"].update(source="default", date=None)
 
     # pivot speed over the last ten red days
     red = rsmod.red_day_column(rsmod.pct_change(aligned), red_day_pct)
@@ -1173,6 +1286,377 @@ def _rs_checks(bars, bench_bars, bench_name: str, red_day_pct: float) -> dict:
     out["summary"] = f"{out['passed']} of {out['of']} pass" if decided else None
     for k in ("ma", "anchor", "pivotSpeed", "greenOnRed"):
         out[k]["line"] = _rs_check_line(out[k])
+    return out
+
+
+# ── UCT RS Phase 3 (unit 3-06): the inputs, the three readings, the anchor ──
+#
+# Same convention as the 2a helpers above: each block is built by one pure
+# helper over lists and dicts, and a block the bars cannot support keeps every
+# key with ``None`` values plus a ``reason`` (also its ``summary``, so the
+# readout prints the reason in the value slot rather than a generic fallback,
+# the review #24 rule). The maths is `relative_strength`'s (unit 3-03), never
+# restated here: this section only chooses WHICH bars each function reads and
+# words the answer.
+#
+# ⭐ BOUNDED WORK (plan §8.2 budget). Every Phase 3 column is computed on the
+# tail the chart can show, `count` bars (lookback + 600 on daily), plus the
+# reading's own warm-up, and padded with ``None`` in front. The lane's fetch
+# already returns at most `count` bars, so on the pod the tail is the whole
+# series; the bound is what keeps a caller that hands over more (the 5,000-bar
+# budget rail) from paying O(n·w) on all of it. Clenow's rolling fit is the
+# expensive one, so its full column is built only under the Quality reading
+# (the only view that draws it); the `quality` block reads the last window
+# alone, exactly the closes the column's last value reads (the screener's
+# `_closes_suffix` rule), so the block costs one fit on every view.
+
+#: The time word for a store timeframe in member copy (``Leading, 6 weeks``).
+_RS_UNIT: dict[str, str] = {"D": "session", "W": "week", "M": "month"}
+#: The Phase 3 number inputs, read from the v4 row's own declaration so the
+#: provider clamps exactly as `resolve_inputs` does (one statement of the ranges).
+_RS_PHASE3_NUMBER_KEYS: tuple[str, ...] = (
+    "rrgRatioLength", "rrgMomentumLength", "clenowWindow", "clenowGapPct", "atrLength", "varsLookback",
+)
+_RS_ANCHOR_SHAPE = None       # compiled on first use from `registry_defs.RS_ANCHOR_DATE_PATTERN`
+
+
+def _rs_unit(store: str) -> str:
+    return _RS_UNIT.get(store, "bar")
+
+
+def _rs_view(inputs: dict, toggles: dict) -> str:
+    """The resolved "Reading" (D2). An unknown or missing value is the row's
+    default; ``showMansfield: true`` with the view absent or ``ratio`` is
+    ``mansfield``, which keeps every saved Trend instance drawing what it drew.
+    An explicit non-ratio view wins over the legacy toggle."""
+    raw = str((inputs or {}).get("view") or "").strip().lower()
+    view = raw if raw in registry_defs.RS_VIEWS else registry_defs.RS_DEFAULT_VIEW
+    if view == "ratio" and toggles.get("showMansfield"):
+        return "mansfield"
+    return view
+
+
+def _rs_phase3_params(inputs: dict, requested: str, toggles: dict) -> dict:
+    """The nine Phase 3 inputs as the v4 compute reads them (and as the cache
+    key and ``payload.inputs`` carry them): the resolved view; the custom ticker
+    normalised, and blank unless the benchmark is CUSTOM (so a ticker left in
+    the box under SPY is not a second cache entry for the same answer); the six
+    method numbers clamped by the row's own specs; the anchor date stripped.
+    Blank ``customBenchmark`` means not set (3-05)."""
+    from api.services import rs_benchmarks
+    inp = inputs or {}
+    specs = {i["key"]: i for i in registry_defs._rs_phase3_inputs()}
+    out: dict = {"view": _rs_view(inp, toggles)}
+    custom = ""
+    if str(requested or "").upper() == rs_benchmarks.CUSTOM_BENCHMARK:
+        custom = rs_benchmarks.normalize_custom_symbol(inp.get("customBenchmark")) or ""
+    out["customBenchmark"] = custom
+    for key in _RS_PHASE3_NUMBER_KEYS:
+        spec = specs[key]
+        out[key] = registry_defs._clamp_number(inp.get(key, spec["default"]), spec, spec["type"])
+    out["anchorDate"] = str(inp.get("anchorDate") or "").strip()[:32]
+    return out
+
+
+def _rs_tail(bars, bench_bars, keep: int):
+    """``(bars_tail, bench_tail, start)``: the last ``keep`` bars, the benchmark
+    bars from the tail's first time on (so both series' ATRs seed together), and
+    the offset to pad back with. A series no longer than ``keep`` is returned
+    whole, untouched (the pod's case)."""
+    start = max(0, len(bars) - int(keep))
+    if start == 0:
+        return bars, bench_bars, 0
+    t0 = bars[start].get("t")
+    try:
+        bb = [b for b in bench_bars if b.get("t") is not None and b["t"] >= t0]
+    except TypeError:                                  # mixed encodings: keep the benchmark whole
+        bb = list(bench_bars)
+    return bars[start:], bb, start
+
+
+def _rs_pad(col, start: int) -> list:
+    return ([None] * start + list(col)) if start else list(col)
+
+
+def _rs_joined(bars, bench_bars) -> int:
+    """Bars where both series have a usable close (the ``has n`` in a reason)."""
+    from api.services import relative_strength as rsmod
+    aligned = rsmod.benchmark_closes_aligned(bars, bench_bars)
+    return sum(1 for b, a in zip(bars, aligned)
+               if a is not None and a > 0 and _rs_num(b.get("c")) and b["c"] > 0)
+
+
+def _rs_fixed(v: float, places: int) -> str:
+    """``v`` to ``places`` decimals, never ``-0.00``."""
+    s = f"{v:.{places}f}"
+    return f"{0:.{places}f}" if float(s) == 0.0 else s
+
+
+def _rs_signed(v: float) -> str:
+    """One decimal with a sign on a non-zero value, never ``-0.0`` (``+3.4``)."""
+    s = f"{v:.1f}"
+    if float(s) == 0.0:
+        return "0.0"
+    return f"+{s}" if v > 0 else s
+
+
+def _rs_stale_tail(summary: str, idx: int, n: int, times) -> tuple[str, str | None, bool]:
+    """A reading taken before the newest bar (a benchmark gap) says when, the
+    legend's A8 rule: ``Leading, 6 weeks · as of Nov 4``."""
+    asof = _rs_bar_ymd(times[idx]) if 0 <= idx < len(times) else None
+    stale = idx < n - 1
+    if stale and _rs_short_date(asof):
+        summary += f" · as of {_rs_short_date(asof)}"
+    return summary, asof, stale
+
+
+def _rs_rotation_unavailable(reason: str) -> dict:
+    return {"quadrant": None, "ratio": None, "momentum": None, "inQuadrantBars": None,
+            "asOf": None, "stale": None, "summary": reason, "reason": reason}
+
+
+def _rs_rotation(rr: dict, times, ratio_len: int, mom_len: int, unit: str, joined) -> dict:
+    """``payload.rotation``: the newest bar's quadrant (the Terminal's RRG, D1),
+    its RS-Ratio and RS-Momentum, and how many bars in a row it has held that
+    quadrant (bars with no reading, a benchmark gap, are skipped, not a break).
+    ``summary`` is ``Leading, 6 weeks``. ``joined`` is a callable for the
+    reason's bar count, run only when the reading is missing."""
+    from api.services import relative_strength as rsmod
+    q = rr.get("quadrant") or []
+    idx = next((i for i in range(len(q) - 1, -1, -1) if q[i] is not None), None)
+    if idx is None:
+        need = ratio_len + mom_len - 1
+        return _rs_rotation_unavailable(f"needs {_rs_plural(need, unit)} of both (has {joined()})")
+    code = q[idx]
+    run = 0
+    for i in range(idx, -1, -1):
+        if q[i] is None:
+            continue
+        if q[i] != code:
+            break
+        run += 1
+    name = rsmod.RRG_QUADRANT_NAMES[int(code) - 1]
+    summary, asof, stale = _rs_stale_tail(f"{name}, {_rs_plural(run, unit)}", idx, len(q), times)
+    return {"quadrant": name, "ratio": round(float(rr["rsRatio"][idx]), 2),
+            "momentum": round(float(rr["rsMomentum"][idx]), 2), "inQuadrantBars": run,
+            "asOf": asof, "stale": stale, "summary": summary, "reason": None}
+
+
+def _rs_quality_unavailable(reason: str, window: int, gap_pct: float) -> dict:
+    return {"score": None, "annualPct": None, "r2": None, "gap": None, "window": int(window),
+            "gapPct": float(gap_pct), "asOf": None, "summary": reason, "reason": reason}
+
+
+def _rs_gap_text(gap_pct: float) -> str:
+    """``15`` / ``12.5``: the threshold as the member typed it."""
+    return f"{float(gap_pct):g}"
+
+
+def _rs_quality(bars, window: int, gap_pct: float) -> dict:
+    """``payload.quality``: Clenow's score on the newest ``window`` valid
+    closes (`relative_strength.clenow_columns` over exactly those closes, so it
+    equals the column's last value). ``score`` is the fraction (0.62),
+    ``annualPct`` the yearly pace in percent (91.0), ``r2`` the fit (0.68),
+    ``gap`` whether one session inside the window moved more than ``gap_pct``.
+    ``summary``: ``Score 0.62, 91% a year, R² 0.68, no gap over 15%``."""
+    from api.services import relative_strength as rsmod
+    valid = [i for i, b in enumerate(bars) if _rs_num(b.get("c")) and b["c"] > 0]
+    if len(valid) < window:
+        return _rs_quality_unavailable(f"needs {_rs_plural(window, 'session')} (has {len(valid)})",
+                                       window, gap_pct)
+    seg = [bars[i] for i in valid[-window:]]
+    got = rsmod.clenow_columns(seg, window, gap_pct)
+    score, annual, r2, gap = (got[k][-1] for k in ("clenowScore", "clenowAnnual", "clenowR2", "clenowGap"))
+    if not (_rs_num(score) and _rs_num(annual) and _rs_num(r2)):
+        return _rs_quality_unavailable(f"the price was flat over the last {_rs_plural(window, 'session')}",
+                                       window, gap_pct)
+    annual_pct = float(annual) * 100.0
+    yearly = f"{round(annual_pct):,}"
+    yearly = "0" if yearly == "-0" else yearly
+    gap_b = gap == 1.0
+    summary = (f"Score {_rs_fixed(float(score), 2)}, {yearly}% a year, R² {_rs_fixed(float(r2), 2)}, "
+               f"{'has a gap' if gap_b else 'no gap'} over {_rs_gap_text(gap_pct)}%")
+    return {"score": round(float(score), 4), "annualPct": round(annual_pct, 1), "r2": round(float(r2), 4),
+            "gap": gap_b, "window": int(window), "gapPct": float(gap_pct),
+            "asOf": _rs_bar_ymd(bars[valid[-1]].get("t")), "summary": summary, "reason": None}
+
+
+def _rs_vars_unavailable(reason: str, lookback: int, atr_length: int, ma_length: int) -> dict:
+    return {"value": None, "ma": None, "state": None, "stateWord": None, "lookback": int(lookback),
+            "atrLength": int(atr_length), "maLength": int(ma_length), "asOf": None, "stale": None,
+            "summary": reason, "reason": reason}
+
+
+def _rs_vars(vc: dict, times, lookback: int, atr_length: int, ma_length: int, unit: str,
+             bench_name: str, joined) -> dict:
+    """``payload.vars``: the newest VARS reading (OANDA's volatility-adjusted
+    RS, `relative_strength.vars_columns`), its 50-bar average and its state in
+    the screener's words (`rs_columns.VARS_STATE_NAMES`, one vocabulary).
+    ``summary``: ``Strong, rising: +3.4 against SPY, above its 50-session average``."""
+    from api.services.screener.rs_columns import VARS_STATE_NAMES
+    v_col, m_col, s_col = vc.get("vars") or [], vc.get("varsMa") or [], vc.get("varsState") or []
+    idx = next((i for i in range(len(v_col) - 1, -1, -1) if _rs_num(v_col[i])), None)
+    if idx is None:
+        need = atr_length + lookback
+        return _rs_vars_unavailable(f"needs {_rs_plural(need, unit)} of both (has {joined()})",
+                                    lookback, atr_length, ma_length)
+    v = float(v_col[idx])
+    m = m_col[idx] if idx < len(m_col) and _rs_num(m_col[idx]) else None
+    code = s_col[idx] if idx < len(s_col) else None
+    word = VARS_STATE_NAMES[int(code) - 1] if code else None
+    avg = f"its {ma_length}-{unit} average"
+    if word and m is not None:
+        where = "above" if v > m else ("below" if v < m else "at")
+        text = f"{word}: {_rs_signed(v)} against {bench_name}, {where} {avg}"
+    elif _rs_signed(v) == "0.0":
+        text = f"0.0, level with {bench_name}"
+    else:
+        have = sum(1 for x in v_col[:idx + 1] if _rs_num(x))
+        text = f"{_rs_signed(v)} against {bench_name}; {avg} needs {ma_length} readings (has {have})"
+    summary, asof, stale = _rs_stale_tail(text, idx, len(v_col), times)
+    return {"value": round(v, 4), "ma": round(float(m), 4) if m is not None else None,
+            "state": int(code) if code else None, "stateWord": word, "lookback": int(lookback),
+            "atrLength": int(atr_length), "maLength": int(ma_length), "asOf": asof, "stale": stale,
+            "summary": summary, "reason": None}
+
+
+def _rs_phase3(bars, bench_bars, params: dict, count: int, *, store: str, intraday: bool,
+               bench_name: str, why: str | None) -> dict:
+    """``{"columns": {the six Phase 3 wire columns}, "rotation", "quality",
+    "vars"}`` for one v4 envelope. ``why`` is the no-ratio state's reason
+    (benchmark is the symbol / no benchmark bars): every column blank and every
+    block unavailable with it.
+
+    * Rotation: the chart's own bars (the weekly preset carries the read),
+      never intraday (blank like the dots).
+    * Quality: daily charts only. `clenow_columns` annualises with 252 bars a
+      year, so a weekly or intraday fit would print a yearly pace that is not
+      one; the block says so instead.
+    * VARS: every timeframe (an ATR-scaled sum, unit-free), 50-bar average.
+    """
+    from api.services import relative_strength as rsmod
+    n = len(bars)
+    cols = {k: [None] * n for k in registry_defs.RS_PHASE3_WIRE_COLUMNS}
+    r_len, m_len = params["rrgRatioLength"], params["rrgMomentumLength"]
+    window, gap_pct = params["clenowWindow"], params["clenowGapPct"]
+    atr_len, look = params["atrLength"], params["varsLookback"]
+    ma_len = rsmod.DEFAULT_VARS_MA_LENGTH
+    unit = _rs_unit(store)
+    if why or not n:
+        reason = why or "no bars for this symbol"
+        return {"columns": cols, "rotation": _rs_rotation_unavailable(reason),
+                "quality": _rs_quality_unavailable(reason, window, gap_pct),
+                "vars": _rs_vars_unavailable(reason, look, atr_len, ma_len)}
+
+    # Rotation
+    if intraday:
+        rotation = _rs_rotation_unavailable("not read on intraday charts")
+    else:
+        tb, tbb, start = _rs_tail(bars, bench_bars, count + r_len + m_len)
+        rr = rsmod.rrg_columns(tb, tbb, r_len, m_len)
+        cols["rsRatio"] = _rs_pad(rr["rsRatio"], start)
+        cols["rsMomentum"] = _rs_pad(rr["rsMomentum"], start)
+        rotation = _rs_rotation(rr, [b.get("t") for b in tb], r_len, m_len, unit,
+                                lambda: _rs_joined(tb, tbb))
+
+    # Quality
+    if store != "D":
+        quality = _rs_quality_unavailable("daily charts only", window, gap_pct)
+    else:
+        quality = _rs_quality(bars, window, gap_pct)
+        if params["view"] == "quality":
+            tb, _unused, start = _rs_tail(bars, (), count + window)
+            score = rsmod.clenow_columns(tb, window, gap_pct)["clenowScore"]
+            # ⭐ THE GAP DOT IS THE GAP SESSION ITSELF, on the score line. The
+            # window flag `clenowGap` is 1 on every bar whose window holds the
+            # move (90 bars in a row), which as dots would be a dotted line. The
+            # same rule read on ONE pair (`clenow_columns` with a 2-close window:
+            # its `clenowGap` is 1 exactly where that session moved more than
+            # the threshold) marks the session the gap happened on, with the
+            # module's own threshold test rather than a second one written here.
+            pair = rsmod.clenow_columns(tb, 2, gap_pct)["clenowGap"]
+            cols["clenowScore"] = _rs_pad(score, start)
+            cols["dotClenowGap"] = _rs_pad([s if (p == 1.0 and _rs_num(s)) else None
+                                            for s, p in zip(score, pair)], start)
+
+    # VARS
+    tb, tbb, start = _rs_tail(bars, bench_bars, count + 3 * atr_len + look + ma_len)
+    vc = rsmod.vars_columns(tb, tbb, atr_len, look, ma_len)
+    cols["vars"] = _rs_pad(vc["vars"], start)
+    cols["varsMa"] = _rs_pad(vc["varsMa"], start)
+    vars_block = _rs_vars(vc, [b.get("t") for b in tb], look, atr_len, ma_len, unit, bench_name,
+                          lambda: _rs_joined(tb, tbb))
+    return {"columns": cols, "rotation": rotation, "quality": quality, "vars": vars_block}
+
+
+def _rs_long_date(ymd: str | None) -> str | None:
+    """``20260304`` → ``Mar 4, 2026`` (a picked date can be years back)."""
+    short = _rs_short_date(ymd)
+    return f"{short}, {int(ymd[:4])}" if short else None
+
+
+def _rs_parse_anchor_date(raw: str):
+    """A `datetime.date` for a ``YYYY-MM-DD`` that names a real day, else None.
+    The row checks the shape only (3-05), so ``2026-13-45`` arrives here."""
+    import re
+    from datetime import date
+    global _RS_ANCHOR_SHAPE
+    if _RS_ANCHOR_SHAPE is None:
+        _RS_ANCHOR_SHAPE = re.compile(registry_defs.RS_ANCHOR_DATE_PATTERN)
+    if not _RS_ANCHOR_SHAPE.fullmatch(raw or ""):
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _rs_anchor_picked(bars, aligned, bench_name: str, raw: str, today) -> dict:
+    """The Checks anchor on a member's date (D6): the first session ON OR AFTER
+    ``raw`` (an ET session date, the bar keys' own calendar) where both closes
+    exist, compared with the newest session. Every unusable date is
+    ``pass: None`` with a reason that names it, never a quiet return to the
+    default rule: not a real date, in the future, before the history this
+    reading holds, or no session on or after it yet. A pick on the newest
+    session is undecided (both returns are 0, the review #13 rule)."""
+    out = {"pass": None, "stock": None, "bench": None, "anchorTime": None, "barsAgo": None,
+           "reason": None, "source": "picked", "date": raw}
+    d = _rs_parse_anchor_date(raw)
+    if d is None:
+        out["reason"] = f"{raw} is not a real date"
+        return out
+    target = d.strftime("%Y%m%d")
+    when = _rs_long_date(target)
+    if d > today:
+        out["reason"] = f"{when} is in the future"
+        return out
+    ymds = [_rs_bar_ymd(b.get("t")) for b in bars]
+    first = next((y for y in ymds if y), None)
+    if first is None:
+        out["reason"] = "no sessions held to anchor on"
+        return out
+    if target < first:
+        out["reason"] = f"{when} is before the history this reading holds, which starts {_rs_long_date(first)}"
+        return out
+    a = next((i for i, y in enumerate(ymds)
+              if y and y >= target and aligned[i] is not None and _rs_num(bars[i].get("c"))), None)
+    if a is None:
+        out["reason"] = f"no session of both on or after {when} yet"
+        return out
+    if aligned[-1] is None or not _rs_num(bars[-1].get("c")):
+        out["reason"] = f"no {bench_name} bar for the newest session yet"
+        return out
+    used = _rs_long_date(ymds[a])
+    since = used if ymds[a] == target else f"{used} (the first session after {_rs_short_date(target)})"
+    sr = (float(bars[-1]["c"]) / float(bars[a]["c"]) - 1.0) * 100.0
+    br = (aligned[-1] / aligned[a] - 1.0) * 100.0
+    ago = len(bars) - 1 - a
+    out.update(stock=sr, bench=br, anchorTime=bars[a].get("t"), barsAgo=ago)
+    if ago == 0:
+        out["reason"] = f"{since} is the newest session; there is no move to compare yet"
+    else:
+        out["pass"] = sr > br
+        out["reason"] = f"stock {_rs_pct(sr)}, {bench_name} {_rs_pct(br)} since {since}"
     return out
 
 
