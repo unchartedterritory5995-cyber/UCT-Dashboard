@@ -292,12 +292,12 @@ describe('W9 D8 — a drawing withheld for a strategy read says why', () => {
   it('every lost step is strategy-withheld: the reason replaces "aren\'t supported yet"', () => {
     const loss = lossOf(2, 3, { 'strategy:create': 1, 'strategy:cell': 1 })
     expect(loss.strategyDropped).toBe(2)
-    expect(objectLossNote(loss).note).toBe("2 of 3 drawing elements in this script read the strategy's "
-      + "results (its position, trades or equity), which this chart doesn't compute yet, so what it "
-      + `draws is incomplete. (The 3 ${M}`)
+    expect(objectLossNote(loss).note).toBe('2 of 3 drawing elements in this script read values from the '
+      + "strategy's backtest (such as its position, trades, equity or settings), which this chart doesn't "
+      + `run yet, so what it draws is incomplete. (The 3 ${M}`)
     expect(objectLossNote(lossOf(1, 1, { 'strategy:create': 1 })).note).toBe('1 of 1 drawing elements in '
-      + "this script reads the strategy's results (its position, trades or equity), which this chart "
-      + `doesn't compute yet, so what it draws is incomplete. (The 1 ${M}`)
+      + "this script reads values from the strategy's backtest (such as its position, trades, equity or "
+      + `settings), which this chart doesn't run yet, so what it draws is incomplete. (The 1 ${M}`)
   })
 
   it('control: a loss with no strategy read keeps today\'s sentence, word for word, and no new key', () => {
@@ -313,18 +313,19 @@ describe('W9 D8 — a drawing withheld for a strategy read says why', () => {
     const loss = lossOf(3, 5, { 'strategy:create': 1, 'create:label': 2 })
     expect(loss.strategyDropped).toBe(1)
     expect(objectLossNote(loss).note).toBe("3 of 5 drawing elements in this script aren't supported yet, "
-      + `so what it draws is incomplete. (The 5 ${M} 1 of those reads the strategy's results (its `
-      + "position, trades or equity), which this chart doesn't compute yet.")
+      + `so what it draws is incomplete. (The 5 ${M} 1 of those is withheld because it reads values `
+      + "from the strategy's backtest (such as its position, trades, equity or settings), which this "
+      + "chart doesn't run yet.")
     expect(objectLossNote(lossOf(4, 6, { 'strategy:create': 2, 'guard:create': 2 })).note)
-      .toContain(" 2 of those read the strategy's results (its position, trades or equity), which this chart doesn't compute yet.")
+      .toMatch(/\) 2 of those are withheld because they read values from the strategy's backtest \(such as its position, trades, equity or settings\), which this chart doesn't run yet\.$/)
   })
 
   it('a removal a strategy value decides: the withheld and refused sentences add the reason', () => {
     const loss = lossOf(1, 2, { 'strategy:delete': 1 })
     expect(loss.verdict).toBe('removes')
     expect(loss.strategyRemoves).toBe(true)
-    const why = " Some of what it removes is decided by the strategy's results (its position, trades or "
-      + "equity), which this chart doesn't compute yet."
+    const why = " Some of what it removes is decided by values from the strategy's backtest, which this "
+      + "chart doesn't run yet."
     expect(objectLossNote(loss, { withheld: true }).note).toBe("This script's plots are shown, but its "
       + "drawings are not. It removes drawings as it runs, and this chart can't follow part of that (a "
       + 'delete), so showing them would leave lines, labels, boxes or table cells on screen that '
@@ -338,5 +339,14 @@ describe('W9 D8 — a drawing withheld for a strategy read says why', () => {
     expect(other).not.toHaveProperty('strategyRemoves')
     expect(objectLossNote(other, { withheld: true }).note).not.toMatch(/strategy/)
     expect(objectRemovalRefusal(other)).toMatch(/TradingView would have removed\.$/)
+  })
+
+  it('M3 (r1): a removal lost for ANOTHER reason beside a strategy-withheld create does not blame the strategy', () => {
+    const loss = lossOf(2, 3, { 'delete:target': 1, 'strategy:create': 1 })
+    expect(loss.verdict).toBe('removes')
+    expect(loss.strategyDropped).toBe(1)
+    expect(loss).not.toHaveProperty('strategyRemoves')
+    expect(objectLossNote(loss, { withheld: true }).note).not.toMatch(/strategy/)
+    expect(objectRemovalRefusal(loss)).not.toMatch(/strategy/)
   })
 })

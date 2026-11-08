@@ -134,12 +134,19 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
       return d.definition.meta.disclosures.filter((n) => n.name === 'Drawings').map((n) => n.note)
     }
     const [n] = notesOf(`${H}plot(close)\nlabel.new(bar_index, high, "x", color = ${SC})\n`)
-    expect(n).toMatch(/^1 of 1 drawing elements in this script reads the strategy's results \(its position, trades or equity\), which this chart doesn't compute yet, so what it draws is incomplete\./)
-    expect(n).not.toMatch(/supported yet|pine:|guard/)
+    const PURE1 = /^1 of 1 drawing elements in this script reads values from the strategy's backtest \(such as its position, trades, equity or settings\), which this chart doesn't run yet, so what it draws is incomplete\./
+    expect(n).toMatch(PURE1)
+    expect(n).not.toMatch(/supported yet|pine:|guard|results|compute/)
+    // ⛔ STRAT-NOTE r1 (B1): reads that are NOT results — a declaration setting and a currency
+    // conversion — must get words that are true of them too ("values from the backtest", "settings").
+    for (const read of ['strategy.initial_capital', 'strategy.convert_to_account(close)']) {
+      const [s] = notesOf(`${H}plot(close)\nlabel.new(bar_index, high, str.tostring(${read}))\n`)
+      expect(s, read).toMatch(PURE1)
+    }
     // a delete the broker decides: the drawings are withheld, and the note gives that reason too
     const [w] = notesOf(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif strategy.position_size > 0\n    label.delete(lbl)\n`)
     expect(w).toMatch(/^This script's plots are shown, but its drawings are not\./)
-    expect(w).toMatch(/ Some of what it removes is decided by the strategy's results \(its position, trades or equity\), which this chart doesn't compute yet\.$/)
+    expect(w).toMatch(/ Some of what it removes is decided by values from the strategy's backtest, which this chart doesn't run yet\.$/)
     // control: the untainted label draws, and there is no drawing note at all
     expect(notesOf(`${H}plot(close)\nlabel.new(bar_index, high, "x", color = color.blue)\n`)).toEqual([])
   })
