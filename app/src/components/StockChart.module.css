@@ -1944,6 +1944,11 @@
   border-bottom: 1px solid var(--border);
 }
 .legAsk:empty { display: none; }
+/* The shared CompassAssistButton is a 24 px chip; in the readout SHEET every other row
+   is a 44 px tap, so on a touch width the ask button takes the same floor (4-11 pass). */
+@media (max-width: 1024px) {
+  .legAsk button { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+}
 
 /* ─── 4-05 — THE TOUR PAGE: the definition's `meta.tour`, one card at a time ──
    Same popover as the cards. A card is capped at 60 + 240 characters by
@@ -1973,8 +1978,9 @@
 .legTourTitle { font: 600 13px/18px 'Instrument Sans', sans-serif; color: var(--text-bright); }
 .legTourBody { font: 400 12px/18px 'Instrument Sans', sans-serif; color: var(--text); }
 .legTourDots { display: flex; gap: 5px; padding: 4px 10px 2px; }
-.legTourDot { width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
-.legTourDotOn { background: var(--text-bright); }
+.legTourDot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); opacity: 0.4; }
+/* The current card reads at full strength; --border alone vanished on the light theme (4-11 sandbox pass). */
+.legTourDotOn { background: var(--text-bright); opacity: 1; }
 .legTourNav {
   display: flex;
   align-items: center;
