@@ -7238,6 +7238,18 @@ async def lifespan(app: FastAPI):
                     optionsflow_etf_push.reconcile()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[of-etf-push] post-sync reconcile failed: %s", _e)
+                # The ROUTING classification, replicated to flow-worker (owner decision
+                # 2026-11-08). ⛔ ITS OWN try/except, not folded into the one above: these
+                # are two independent replications with two independent flags, and a fault
+                # in either must not stop the other or make the canonical sync look failed.
+                # DARK until TICKER_TYPES_REPLICA_PUSH_ENABLED=1 on web AND
+                # TICKER_TYPES_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+                try:
+                    from api.services import ticker_types_push
+                    ticker_types_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[ticker-types-push] post-sync reconcile failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
 

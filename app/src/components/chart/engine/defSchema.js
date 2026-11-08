@@ -147,6 +147,13 @@ import {
 import { DOT_SIZES } from './presentation'
 import { VISIBILITY_PRESETS } from './instanceTimeframe'
 import { isValidTf } from '../timeframes'
+// ⭐ The pane table (UCT RS design round, 2026-11-08): its grammar and its
+// validator live beside its reader, `paneTable.js`, which imports nothing of
+// this module — so there is no cycle.
+import { validatePaneTable } from './paneTable'
+// ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
+// one reader, `derivedColumns.js`, which imports nothing of this module.
+import { DERIVE_FIELDS } from './derivedColumns'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -1555,6 +1562,12 @@ function validateMeta(meta, def, errors) {
         }
       })
     }
+  }
+  // ⭐ `meta.paneTable` (UCT RS design round, 2026-11-08): a compact table of
+  // payload numbers pinned to the indicator pane's top-right corner. Behavioural
+  // (it renders), so checked fail-closed by its own module. `null` reads as absent.
+  if (meta.paneTable !== undefined && meta.paneTable !== null) {
+    validatePaneTable(meta.paneTable, def, errors, { isValidTf, equalsGateFault })
   }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
   // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
@@ -3412,6 +3425,80 @@ function validateBandEdges(plots, errors) {
  * declares — and the mirror, a fill declared ON a guide, which has no FIRST
  * edge. A HIDDEN plot is a legal `with`: hidden is computed, so its edge exists.
  */
+/**
+ * One input condition in the inputs' `activeWhen` grammar (`{key, equals}` and
+ * the other READOUT_CONDITION_OPS comparators), for a field that gates a
+ * PRESENTATION on the member's own switch (`plots[].fill.activeWhen`,
+ * `plots[].derive.activeWhen`). Fail closed: no key, an undeclared key, no
+ * comparator, or an enum value that is not one of the input's options.
+ */
+function validateInputCondition(aw, where, inputsByKey, errors) {
+  if (!isPlainObject(aw) || typeof aw.key !== 'string' || !aw.key) {
+    errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
+    return
+  }
+  if (!inputsByKey.has(aw.key)) {
+    errors.push(`${where}.key: ${fmt(aw.key)} names no declared input (declared: ${list([...inputsByKey.keys()]) || 'none'})`)
+    return
+  }
+  const ops = Object.keys(aw).filter((k) => k !== 'key')
+  if (ops.length !== 1 || !READOUT_CONDITION_OPS.includes(ops[0])) {
+    errors.push(`${where}: expected exactly one comparator of ${list(READOUT_CONDITION_OPS)}, got ${fmt(aw)}`)
+    return
+  }
+  const fault = activeWhenEnumFault(aw, inputsByKey)
+  if (fault) errors.push(`${where}${fault}`)
+}
+
+/**
+ * ⭐ `plots[].derive: {from, where, activeWhen?}` (UCT RS design round,
+ * 2026-11-08) — a column the CLIENT derives from two columns the compute already
+ * returned: `from`'s value on every bar where `where` is > 0, NaN elsewhere, and
+ * no column at all while `activeWhen` fails (`derivedColumns.js`). It is how an
+ * event the server sends as 0/1 (`crossUp`) becomes a glyph that rides the line:
+ * a 0/1 column drawn `inBar` would sit at 1 on a scale near 0.25.
+ *
+ * Fail closed: only a `markers` plot derives (a derived line would be a second
+ * authority over a server column); only on the SERVER lane, the one lane whose
+ * columns arrive whole and are aligned in one place (`serverColumnsFor`); `from`
+ * names a declared data plot that is not this one and not itself derived;
+ * `where` is a column name; unknown fields are refused.
+ */
+function validateDerives(def, plots, errors, inputsByKey) {
+  const serverLane = isPlainObject(def && def.compute) && def.compute.kind === 'server'
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot) || plot.derive === undefined) return
+    const path = `plots[${index}].derive`
+    const d = plot.derive
+    if (!isPlainObject(d)) { errors.push(`${path}: expected {from, where, activeWhen?}, got ${fmt(d)}`); return }
+    for (const k of Object.keys(d)) {
+      if (!DERIVE_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(DERIVE_FIELDS)}`)
+    }
+    if (!serverLane) {
+      errors.push(`${path}: a derived column is built where server columns are aligned (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+    }
+    if (plot.style !== 'markers') {
+      errors.push(`${path}: only a "markers" plot derives its column (got style ${fmt(plot.style)}) — a derived line would be a second authority over a column the compute owns`)
+    }
+    const from = byKey.get(d.from)
+    if (!isNonEmptyString(d.from) || !from) {
+      errors.push(`${path}.from: ${fmt(d.from)} names no declared plot`)
+    } else if (d.from === plot.key) {
+      errors.push(`${path}.from: a plot cannot derive from itself`)
+    } else if (from.style === 'hlines') {
+      errors.push(`${path}.from: ${fmt(d.from)} is a guide and returns no column`)
+    } else if (from.derive !== undefined) {
+      errors.push(`${path}.from: ${fmt(d.from)} is itself derived — derive from a column the compute returns`)
+    }
+    if (typeof d.where !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(d.where)) {
+      errors.push(`${path}.where: expected the name of a 0/1 event column, got ${fmt(d.where)}`)
+    }
+    if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
+  })
+}
+
 function validateFills(plots, errors, inputsByKey = new Map()) {
   const styleByKey = new Map()
   for (const p of plots) {
@@ -3437,6 +3524,13 @@ function validateFills(plots, errors, inputsByKey = new Map()) {
       if (!spec || spec.type !== 'color') {
         errors.push(`${path}.${side}: ${fmt(k)} names no declared "color" input`)
       }
+    }
+    // ⭐ `fill.activeWhen` (UCT RS design round, 2026-11-08): the band draws only
+    // while this input condition holds — a PRESENTATION switch (the member's
+    // "Shade vs average"), so the columns never move and the server never hears
+    // of it. The inputs' condition grammar, the key a declared input.
+    if (plot.fill.activeWhen !== undefined) {
+      validateInputCondition(plot.fill.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
     }
     const other = plot.fill.with
     if (other === plot.key) {
@@ -3873,6 +3967,7 @@ export function validateDefinition(def) {
     validateBandEdges(plots, errors)
     validateOhlc(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateFills(plots, errors, inputsByKey)
+    validateDerives(out, plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
     validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)

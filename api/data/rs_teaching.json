@@ -100,7 +100,7 @@
         "relative strength rating",
         "IBD-style rating"
       ],
-      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style; how closely it matches the MarketSurge rating has not been measured yet.",
+      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranks stocks in the same order as Deepvue's RS rating: at 75 and above it reads within about a point, and below that about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock; it has not been measured against MarketSurge.",
       "key": "rsRating",
       "term": "RS Rating"
     },
