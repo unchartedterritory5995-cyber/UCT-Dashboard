@@ -84,8 +84,20 @@ export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart']
 }
 
 /** Score one answer on the server. Returns the attempt payload plus `forward` (the reveal's forward bars, normalized). */
+// THE RUN'S XP (2026-11-08, the reward system: "improve the reward system and scoring of the app a lot more"): every scored
+// answer returns the member's total XP (study_store.record_attempt `progress.xp`); a run notes where it started and where
+// it ended, so its end screen can fill the level bar and call a level up. Only the server's own numbers.
+let run = null
+export function beginRunXp() { run = { before: null, after: null } }
+export function runXp() { return run && run.before != null && run.after != null ? { before: run.before, after: run.after } : null }
+
 export async function scoreAttempt(item, answer, timeMs, fetcher = studyFetch) {
   const a = await fetcher(ATTEMPTS_URL, { method: 'POST', body: { item_id: item.id, answer, time_ms: Math.max(0, Math.round(timeMs || 0)), session_id: item.sessionId } })
+  const p = a?.progress
+  if (run && p && Number.isFinite(Number(p.xp))) {
+    if (run.before == null) run.before = Number(p.xp) - Number(p.xp_gained || 0)
+    run.after = Number(p.xp)
+  }
   return { ...a, forward: normalizeBars(a?.reveal?.forward_bars || []) }
 }
 

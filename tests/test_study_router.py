@@ -236,6 +236,9 @@ def test_attempt_scores_server_side_and_reveals_after(paid_client, store):
         last = paid_client.post("/api/study/attempts", json={"item_id": iid, "answer": "x",
                                                              "session_id": today["session_id"]}).json()
     assert last["progress"]["streak"] == 1 and last["progress"]["daily_done"] is True
+    # the first finished set earns its trophy, once (award_badge had never been called before 2026-11-08)
+    assert "first_set" in last["progress"]["badges_new"]
+    assert [b["badge_id"] for b in paid_client.get("/api/study/profile").json()["badges"]].count("first_set") == 1
     assert paid_client.get("/api/study/today").json()["finished_at"]
 
 

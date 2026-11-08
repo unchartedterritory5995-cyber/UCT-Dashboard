@@ -21,6 +21,8 @@ import { BLITZ_BEST_KEY } from './challenges/challengeBank'
 import { trackSummary, recommendUnit } from './studyMap'
 import { METHOD_ID, FOUNDATIONS_ID } from './studyLandingChart'
 import { XP_PER_LEVEL, levelOf, tierOf } from './studyLevels'
+import { TROPHIES } from './studyBadges'
+import { weekDots, WEEKDAY_LETTERS } from './studyMap'
 import brandMarkUrl from '../../components/intro/assets/compass-mark.png'
 import s from './StudyLanding.module.css'
 
@@ -66,10 +68,35 @@ function PlayerHero({ profile, today, onStartToday }) {
           </div>
         ) : null}
       </div>
+      <TodayRing profile={profile} today={today} />
       <div className={s.heroStats}>
         <span className={`${s.crest} ${streak ? s.crestHot : ''}`} data-testid="study-streak"><i className={s.crestIcon}><UIcon name="flame" size={15} gold={false} /></i><b>{streak}</b><small>day streak</small><em>best {best}</em></span>
         <span className={s.crest} data-testid="study-xp"><i className={s.crestIcon}><UIcon name="star" size={15} gold={false} /></i><b>{xp.toLocaleString()}</b><small>total XP</small><em>Level {level}</em></span>
       </div>
+    </div>
+  )
+}
+
+/** Today, in the hero: the XP earned today against the member's daily goal as a ring, and this week's study days. */
+function TodayRing({ profile, today }) {
+  const goal = Math.max(1, Number(profile?.daily_goal) || 50)
+  const xpToday = Math.max(0, Number(today?.xp_today) || 0)
+  const pct = Math.min(1, xpToday / goal)
+  const R = 46, C = 2 * Math.PI * R
+  const dots = weekDots(today?.day_et, profile?.last_done_day, profile?.streak)
+  return (
+    <div className={s.today} data-testid="study-today">
+      <div className={s.goal} aria-label={`${xpToday} of ${goal} XP today`}>
+        <svg viewBox="0 0 112 112" aria-hidden="true">
+          <circle cx="56" cy="56" r={R} className={s.goalBed} />
+          <circle cx="56" cy="56" r={R} className={`${s.goalFill} ${pct >= 1 ? s.goalMet : ''}`} strokeDasharray={`${(C * pct).toFixed(1)} ${C.toFixed(1)}`} />
+        </svg>
+        <span className={s.goalText}><b>{xpToday}</b><small>of {goal} XP</small></span>
+      </div>
+      <span className={s.todayLabel}>{pct >= 1 ? 'Daily goal met' : 'Daily goal'}</span>
+      <span className={s.week} aria-label="This week">
+        {dots.map((on, i) => <i key={i} className={on ? s.weekOn : ''}><b>{WEEKDAY_LETTERS[i]}</b></i>)}
+      </span>
     </div>
   )
 }
@@ -132,6 +159,24 @@ function CoursePath({ tracks, byId, recommendedTrackId, onOpenTrack, label, smal
 }
 
 /** Foundations: a grid of coins (fifteen tracks would make a road a mile long); a track with no lessons yet is locked. */
+/** Over the road (Duolingo's unit banner): the station the member is on, how far through it, and one Continue. */
+function StationBanner({ method, rec, byId, onContinue }) {
+  const tracks = method.tracks || []
+  const idx = Math.max(0, tracks.findIndex((t) => t.id === rec.track.id))
+  const sum = trackSummary(rec.track, byId)
+  return (
+    <div className={s.banner} data-testid="station-banner">
+      <span className={s.bannerIcon}><UIcon name={STATION_ICON[rec.track.id] || 'compass'} size={26} gold={false} /></span>
+      <div className={s.bannerText}>
+        <span className={s.bannerEyebrow}>Station {idx + 1} of {tracks.length}</span>
+        <b>{rec.track.title}</b>
+        <small>{sum.mastered} of {sum.units} lessons mastered{rec.unit?.title ? <> · next: {rec.unit.title}</> : null}</small>
+      </div>
+      <div className={s.bannerGo}><StudyButton kind="primary" size="xl" arrow onClick={onContinue} testId="station-continue">{sum.mastered ? 'Continue' : 'Start'}</StudyButton></div>
+    </div>
+  )
+}
+
 function CoinGrid({ tracks, byId, onOpenTrack, label }) {
   return (
     <ul className={s.coinGrid} aria-label={label}>
@@ -176,21 +221,28 @@ function GameCards({ onOpenChallenge }) {
 }
 
 function TrophyShelf({ badges }) {
+  const earned = new Map(badges.map((b) => [b.badge_id, b]))
+  const known = new Set(TROPHIES.map((t) => t.id))
+  const extra = badges.filter((b) => !known.has(b.badge_id)).map((b) => ({ id: b.badge_id, name: String(b.badge_id).replace(/[_-]+/g, ' '), how: '', icon: 'star' }))
+  const all = [...TROPHIES, ...extra]
+  const n = all.filter((t) => earned.has(t.id)).length
   return (
     <div className={s.shelf} aria-label="Badges">
-      <span className={s.shelfTitle}><UIcon name="star" size={14} />Trophies</span>
-      {badges.length ? (
-        <ul className={s.badges}>
-          {badges.map((b, i) => (
-            <li key={b.badge_id} className={s.badge} style={{ '--i': i }} title={b.earned_at ? `Earned ${String(b.earned_at).slice(0, 10)}` : undefined}>
-              <span className={s.badgeCoin}><UIcon name="star" size={18} gold={false} /></span>
-              <span className={s.badgeName}>{String(b.badge_id).replace(/[_-]+/g, ' ')}</span>
+      <span className={s.shelfTitle}><UIcon name="star" size={14} />Trophies<em>{n} of {all.length}</em></span>
+      <ul className={s.badges}>
+        {all.map((t, i) => {
+          const got = earned.get(t.id)
+          return (
+            <li key={t.id} className={`${s.badge} ${got ? '' : s.badgeLocked}`} style={{ '--i': i }}
+              title={got ? (got.earned_at ? `Earned ${String(got.earned_at).slice(0, 10)}` : 'Earned') : t.how} data-testid={`trophy-${t.id}`} data-earned={got ? '1' : '0'}>
+              <span className={s.badgeCoin}><UIcon name={got ? t.icon : 'lock'} size={18} gold={false} /></span>
+              <span className={s.badgeName}>{t.name}</span>
+              {got ? null : <span className={s.badgeHow}>{t.how}</span>}
             </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={s.shelfEmpty}>Your first trophy comes with your first set.</p>
-      )}
+          )
+        })}
+      </ul>
+      {n ? null : <p className={s.shelfEmpty}>Your first trophy comes with your first set.</p>}
       <i className={s.shelfLight} aria-hidden="true" />
     </div>
   )
@@ -219,6 +271,9 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], p
             <h3 className={s.deckTitle}>The UCT Method</h3>
             <span className={s.deckSub}>{(method?.tracks || []).length} stations, one trade. Work down the road; every station opens its lessons.</span>
           </div>
+          {method && rec?.track ? (
+            <StationBanner method={method} rec={rec} byId={byId} onContinue={() => openTrack(method, rec.track.id)} />
+          ) : null}
           {method ? (
             <CoursePath tracks={method.tracks || []} byId={byId} recommendedTrackId={recTrackId} onOpenTrack={(id) => openTrack(method, id)} label="The UCT Method stations" />
           ) : <div className={s.pathSkeleton} aria-hidden="true" />}

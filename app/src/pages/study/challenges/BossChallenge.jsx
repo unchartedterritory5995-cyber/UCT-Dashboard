@@ -25,7 +25,7 @@ import s2 from '../ui/study.module.css'
 import d5 from '../../../lab/duo.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { BOSS_TOTAL, fetchSpotPool, scoreAttempt } from './challengeBank'
+import { BOSS_TOTAL, beginRunXp, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 
@@ -118,7 +118,7 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
   }, [reload, fetcher])
   const total = Math.min(BOSS_TOTAL, pool?.length || 0)
   const items = useMemo(() => (pool ? pool.slice(0, BOSS_TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
-  const start = () => { setPhase('play'); setI(0); setMissed(null); setXp(0); setResults([]); setLog([]); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(BOSS_TOTAL), ...p.slice(0, BOSS_TOTAL)]) }
+  const start = () => { beginRunXp(); setPhase('play'); setI(0); setMissed(null); setXp(0); setResults([]); setLog([]); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(BOSS_TOTAL), ...p.slice(0, BOSS_TOTAL)]) }
 
   if (error) return <ChallengeError what="the boss charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
   const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }
@@ -143,7 +143,7 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
     return (
       <div className={s2.kit}>
         {won ? <Confetti /> : null}
-        <EndHard right={won ? total : i} total={total} xp={xp} results={results} log={log}
+        <EndHard right={won ? total : i} total={total} xp={xp} results={results} log={log} level={runXp()}
           title={won ? 'Boss cleared' : 'Not yet'} unit="read with one heart" doneWord="read" medal={false}
           againLabel={won ? 'Face the boss again' : 'Try the boss again'} testIdPrefix="boss" onAgain={again} onBack={onClose}>
           {won ? <>Every chart read with one heart. <b>That is a trader.</b></> : <>The heart went on chart {i + 1}, a <b>{missed?.name || 'setup'}</b> chart. A boss needs every rule cold.</>}

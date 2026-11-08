@@ -16,7 +16,7 @@ import s2 from '../ui/study.module.css'
 import lab from '../../../lab/lab.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, buildBlitzQuestions, fetchNamedPool, fetchRecallPool, fetchSpotPool, scoreAttempt } from './challengeBank'
+import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, beginRunXp, buildBlitzQuestions, fetchNamedPool, fetchRecallPool, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
 import { comboFeedback, endFeedback, feedbackPrefs, revealFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 
@@ -113,7 +113,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
     setLog((l) => [...l, { tag: qn.tag, q: qn.q, choice, ok, answer: typeof key === 'string' ? key : '', ticker: reveal?.sym || reveal?.ticker || '' }])
   }, [qn, phase, combo, prefs, fetcher])
 
-  const start = () => { setPhase('play'); setLeft(BLITZ_SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0); setLog([]) }
+  const start = () => { beginRunXp(); setPhase('play'); setLeft(BLITZ_SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0); setLog([]) }
   const kinds = useMemo(() => { if (!pool) return null; const c = {}; pool.forEach((q) => { c[q.kind] = (c[q.kind] || 0) + 1 }); return c }, [pool])
   const bankLine = pool == null ? 'loading the bank' : pool.length ? `${pool.length} questions in today's pool` : 'no charts in the bank yet'
 
@@ -140,7 +140,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
     const rows = log.map((r) => ({ name: r.tag, ticker: r.ticker, ok: r.ok, said: r.choice, was: r.answer }))
     return (
       <div className={s2.kit}>
-        <EndHard right={right} total={answered} xp={score} xpLabel="points" results={log.map((r) => r.ok)} log={rows}
+        <EndHard right={right} total={answered} xp={score} xpLabel="points" results={log.map((r) => r.ok)} log={rows} level={runXp()}
           unit="right in sixty seconds" doneWord="right" medal={false} showSetups={false} againLabel="Again" testIdPrefix="blitz"
           onAgain={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('start') }} onBack={onClose}>
           {score > 0 && score >= bestEver ? <><b>A new best.</b> Top multiplier x{blitzMult(best)}.</> : <>Your best stands at <b>{bestEver}</b>. Top multiplier this run x{blitzMult(best)}.</>}

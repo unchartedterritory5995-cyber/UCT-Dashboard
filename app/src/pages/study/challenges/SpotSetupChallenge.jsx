@@ -32,7 +32,7 @@ import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { scoreAttempt, setupName } from './challengeBank'
+import { beginRunXp, runXp, scoreAttempt, setupName } from './challengeBank'
 import { normalizeBars } from '../useStudySession'
 import { rules } from './kickerRules'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
@@ -202,7 +202,7 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
       <div className={s2.kit}>
         <StartArena plate="Spot" title="Spot the Setup" caption="Which candle is the real one?" testId="spot-intro" startTestId="spot-start" hotkey
           total={total || ROUNDS} stakes={[{ v: total || ROUNDS, l: 'charts', icon: 'play' }, { v: setups.length || 'All', l: setups.length === 1 ? 'setup' : 'setups', icon: 'eye' }, { v: 3, l: 'candles each', icon: 'star' }]}
-          ready={!!total} onStart={() => total && setPhase('play')} label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'}
+          ready={!!total} onStart={() => { if (total) { beginRunXp(); setPhase('play') } }} label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'}
           howTo={<HowItPlays mode="spot" testId="spot-howto" steps={[
             { icon: 'eye', title: 'A setup is named', body: 'The chart has three gold candles that look alike. Only one is that setup.' },
             { icon: 'check', title: 'Tap the real one', body: 'Tap it on the chart or pick its card, then Check.' },
@@ -215,7 +215,7 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
     const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setI(0); setRight(0); setResults([]); setLog([]); setPhase('start') }
     return (
       <div className={s2.kit}>
-        <EndHard right={right} total={total} xp={0} results={results} log={log}
+        <EndHard right={right} total={total} xp={0} results={results} log={log} level={runXp()}
           unit="setups spotted" againLabel="Again" testIdPrefix="spot" onAgain={again} onBack={onClose} />
       </div>
     )

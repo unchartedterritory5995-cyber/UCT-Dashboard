@@ -78,9 +78,12 @@ describe('StudyLanding', () => {
     expect(onOpenChallenge).toHaveBeenCalledWith('hard')
   })
 
-  it('lists earned badges by name on the trophy shelf', () => {
+  it('the trophy shelf: the earned lit, every other trophy locked with how to earn it', () => {
     render(<StudyLanding curricula={curricula} byId={byId} badges={[{ badge_id: 'first_set', earned_at: '2026-10-20T13:00:00Z' }]} />)
-    expect(screen.getByText('first set')).toBeTruthy()
+    expect(screen.getByTestId('trophy-first_set')).toHaveAttribute('data-earned', '1')
+    // the rest of the catalog sits locked, with how to earn each
+    expect(screen.getByTestId('trophy-streak_7')).toHaveAttribute('data-earned', '0')
+    expect(screen.getByTestId('trophy-streak_7')).toHaveTextContent('Study seven days in a row')
     expect(screen.queryByText('Your first trophy comes with your first set.')).toBeNull()
   })
 })

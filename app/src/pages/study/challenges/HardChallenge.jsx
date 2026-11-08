@@ -22,7 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRunOnTo } from '../../../lab/fx'   // pure motion (bars running on); no styling rides in
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
-import { fetchForwardRest, fetchSpotPool, scoreAttempt } from './challengeBank'
+import { beginRunXp, fetchForwardRest, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
 import { yesNo } from './SpotSetupChallenge'
 import {
   HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, SHORT_SETUPS, culmination, culminationLabel, hardAnswer, hardChoices, hardRight,
@@ -182,7 +182,7 @@ function Done({ right, total, xp, log, results, onBack, onAgain }) {
   return (
     <>
       {perfect ? <Confetti /> : null}
-      <div className={s.kit}><EndHard right={right} total={total} xp={xp} log={log} results={results} onAgain={onAgain} onBack={onBack} /></div>
+      <div className={s.kit}><EndHard right={right} total={total} xp={xp} log={log} results={results} onAgain={onAgain} onBack={onBack} level={runXp()} /></div>
     </>
   )
 }
@@ -206,7 +206,7 @@ export default function HardChallenge({ profile = null, fetcher = studyFetch, on
   }, [reload, fetcher])
   const total = Math.min(HARD_TOTAL, pool?.length || 0)
   const items = useMemo(() => (pool ? pool.slice(0, HARD_TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
-  const start = () => { setPhase('play'); setI(0); setRight(0); setResults([]); setLog([]); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(HARD_TOTAL), ...p.slice(0, HARD_TOTAL)]) }
+  const start = () => { beginRunXp(); setPhase('play'); setI(0); setRight(0); setResults([]); setLog([]); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(HARD_TOTAL), ...p.slice(0, HARD_TOTAL)]) }
   const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }
 
   if (error) return <ChallengeError what="the hard-mode charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />

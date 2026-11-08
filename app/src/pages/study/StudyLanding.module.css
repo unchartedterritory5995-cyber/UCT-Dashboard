@@ -176,3 +176,53 @@
 .gridLabel { display: flex; flex-direction: column; gap: 1px; }
 .gridLabel b { font-size: 12.5px; font-weight: 700; line-height: 1.25; }
 .gridLabel small { font-size: 11px; color: var(--dim); }
+
+/* the hero's today block: the daily goal ring and the week */
+.hero { grid-template-columns: auto 1fr auto auto; }
+.today { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.goal { position: relative; width: 112px; height: 112px; }
+.goal svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.goalBed { fill: none; stroke: #1d1e22; stroke-width: 10; }
+.goalFill { fill: none; stroke: #e3c46a; stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(233, 205, 119, .55)); transition: stroke-dasharray 1s ease; }
+.goalMet { stroke: #3fbf78; filter: drop-shadow(0 0 6px rgba(47, 175, 104, .6)); }
+.goalText { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.goalText b { font-size: 28px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.goalText small { font-size: 11px; color: var(--dim); }
+.todayLabel { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--g); }
+.week { display: flex; gap: 5px; }
+.week i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-style: normal; background: #1a1b1f; border: 1px solid #2c2e34; }
+.week i b { font-size: 10px; font-weight: 800; color: #6f6b62; }
+.week i.weekOn { background: radial-gradient(circle at 35% 30%, #ffe0b0, #ff9a2e 55%, #a2470f); border-color: transparent; box-shadow: 0 0 10px rgba(255, 154, 46, .5); }
+.week i.weekOn b { color: #2a1203; }
+
+/* the station banner over the road */
+.banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 18px 20px; border-radius: 18px; border: 1px solid transparent;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(233, 205, 119, .18), transparent 55%) padding-box, linear-gradient(180deg, #1c1d21, #121316) padding-box,
+    linear-gradient(160deg, #f6e2a0, #7a5d17 35%, #2c2e34 65%, #c9a443) border-box; box-shadow: 0 6px 0 #08080a, 0 16px 30px rgba(0, 0, 0, .45); }
+.bannerIcon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; color: #15120a;
+  background: radial-gradient(circle at 35% 28%, #fff2c4, #e3c46a 45%, #a37f2a 85%); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .5), 0 4px 0 #6b5114, 0 0 24px rgba(233, 205, 119, .4); }
+.bannerText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bannerEyebrow { font-size: 11px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; color: var(--g); }
+.bannerText b { font-size: 24px; font-weight: 900; letter-spacing: -.01em; }
+.bannerText small { font-size: 13px; color: var(--dim); }
+.bannerGo { width: 200px; }
+
+/* the shelf: earned lit, the rest locked with how to earn them */
+.shelfTitle em { margin-left: auto; font-style: normal; font-size: 11px; letter-spacing: .1em; color: var(--dim); }
+.shelfTitle { width: 100%; }
+.badge { width: 96px; }
+.badgeLocked .badgeCoin { color: #6f6b62; background: radial-gradient(circle at 35% 28%, #3a3b42, #1b1c20 60%, #0f1012); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .06), 0 4px 0 #070708; }
+.badgeLocked .badgeName { color: var(--dim); }
+.badgeHow { font-size: 10.5px; line-height: 1.3; color: #6f6b62; }
+
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: auto 1fr; }
+  .today { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 18px; }
+}
+@media (max-width: 640px) {
+  .hero { grid-template-columns: 1fr; }
+  .today { flex-direction: column; }
+  .banner { grid-template-columns: auto 1fr; }
+  .bannerGo { grid-column: 1 / -1; width: 100%; }
+  .badge { width: 84px; }
+}

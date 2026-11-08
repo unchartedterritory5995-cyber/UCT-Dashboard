@@ -42,3 +42,20 @@ describe('EndHard run cards', () => {
     expect(screen.getByText('you said Yes, it was No')).toBeInTheDocument()
   })
 })
+
+describe('the level bar on the end screen', () => {
+  it('fills from the run start to its end, and calls a level up when the run crosses one', async () => {
+    const { render, screen } = await import('@testing-library/react')
+    const { EndHard } = await import('./EndLooks')
+    render(<EndHard right={1} total={1} log={[]} results={[true]} onAgain={() => {}} onBack={() => {}} level={{ before: 480, after: 530 }} />)
+    expect(screen.getByTestId('hard-level')).toHaveTextContent('+50 XP this run')
+    expect(screen.getByTestId('hard-level-up')).toHaveTextContent('Level up · Level 2 · Bronze')
+  })
+  it('no level up inside a level', async () => {
+    const { render, screen } = await import('@testing-library/react')
+    const { EndHard } = await import('./EndLooks')
+    render(<EndHard right={1} total={1} log={[]} results={[true]} onAgain={() => {}} onBack={() => {}} level={{ before: 100, after: 130 }} testIdPrefix="boss" />)
+    expect(screen.getByTestId('boss-level')).toHaveTextContent('370 XP to Level 2')
+    expect(screen.queryByTestId('boss-level-up')).toBeNull()
+  })
+})

@@ -15,6 +15,7 @@ import UIcon from '../../../components/ui/UIcon'
 import brandMark from '../../../components/intro/assets/compass-mark.png'
 import { useCountUp } from '../../../lab/fx'
 import StudyButton from './StudyButton'
+import LevelBar from './LevelBar'
 import { bySetup, bestStreak, tierOf, verdictWord } from './endMath'
 import e from './endLooks.module.css'
 
@@ -173,7 +174,7 @@ export function EndStatement({ right, total, xp = 0, log = [], results = [], onA
  *  the best parts of each"): Trophy's coin struck in the run's tier with the next tier named; one slim stats bar;
  *  Report card's setups scored and the weakest real setup named; the run as cards with what was said on a miss. The
  *  test ids are the ones Hard mode's end always carried. Enter runs it again. */
-export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain, onBack, unit = 'named without a ticker', showSetups = true, againLabel = 'Run it again', testIdPrefix = 'hard', doneWord = 'named', xpLabel = 'XP', medal = true, title = null, children = null }) {
+export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain, onBack, unit = 'named without a ticker', showSetups = true, againLabel = 'Run it again', testIdPrefix = 'hard', doneWord = 'named', xpLabel = 'XP', medal = true, title = null, children = null, level = null }) {
   const tier = tierOf(right, total)
   const shown = useCountUp(xp, true, 28)
   const acc = total ? Math.round((right / total) * 100) : 0
@@ -205,6 +206,7 @@ export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain,
         <span data-testid={`${testIdPrefix}-streak`}><UIcon name="flame" size={16} gold={false} /><b>{bestStreak(results)}</b> best streak</span>
         <span><UIcon name="eye" size={16} gold={false} /><b>{acc}%</b> accuracy</span>
       </div>
+      {level ? <LevelBar before={level.before} after={level.after} testId={`${testIdPrefix}-level`} /> : null}
       {showSetups && rows.length ? (
         <div className={e.rCols}>
           <div className={e.rBox}>
