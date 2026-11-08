@@ -133,6 +133,22 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBeUndefined()
   })
 
+  it('a METHOD-form delete / clear RUN under a tainted condition is withheld by name too', () => {
+    const t = host(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif strategy.position_size > 0\n    lbl.delete()\n`)
+    expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBe(1)
+    expect((t.objectDiagnostics.guardRefusalWhy || []).some((e) => e.includes('`strategy.position_size`'))).toBe(true)
+    for (const fam of ['line.new(bar_index, high, bar_index + 1, high)', 'box.new(bar_index, high, bar_index + 1, low)']) {
+      const u = host(`${H}plot(close)\nvar d = ${fam}\nif strategy.position_size > 0\n    d.delete()\n`)
+      expect(u.objectDiagnostics.dropReasons['strategy:delete'], fam).toBe(1)
+    }
+  })
+
+  it('control: an untainted method-form delete still runs', () => {
+    const t = host(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif close > open\n    lbl.delete()\n`)
+    expect(Object.keys(t.objectDiagnostics.dropReasons).some((k) => k.startsWith('strategy:'))).toBe(false)
+    expect(((t.objects && t.objects.ops) || []).some((o) => o.k === 'delete')).toBe(true)
+  })
+
   it('a delete RUN under a tainted condition is withheld by name (the broker decides it)', () => {
     const t = host(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif strategy.position_size > 0\n    label.delete(lbl)\n`)
     expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBe(1)

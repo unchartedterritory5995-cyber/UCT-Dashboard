@@ -49,7 +49,12 @@ export function isStrategyStateWord(word) {
 const SINK_CALLS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar', 'plotarrow',
   'fill', 'bgcolor', 'barcolor', 'hline', 'alertcondition', 'alert'])
 const DRAWING_NS = /^(?:line|label|box|table|polyline|linefill)\./
-const DRAWING_METHOD = /^(?:set_[a-z_]+|cell|cell_set_[a-z_]+|merge_cells)$/
+// ⛔ The method form of every drawing call that changes what is on screen: the setters, a table's
+// cell writes, and the REMOVALS (`lbl.delete()`, `t.clear()`), which must be sinks in method form
+// exactly as `label.delete(lbl)` is, or a removal run under a tainted condition is served silently.
+const DRAWING_METHOD = /^(?:set_[a-z_]+|cell|cell_set_[a-z_]+|merge_cells|delete|clear)$/
+/** A removal draws no value: it is the broker's choice only when RUN under a tainted condition. */
+const REMOVAL_METHOD = /^(?:delete|clear)$/
 const COLLECTION_NS = /^(?:array|matrix|map)\./
 const COLLECTION_MUTATOR = /^(?:push|unshift|insert|set|fill|concat|put|put_all|add_row|add_col|reverse|sort|remove|pop|shift|clear|swap_rows|swap_columns)$/
 const ASSIGN_OPS = new Set(['=', ':=', '+=', '-=', '*=', '/=', '%='])
@@ -216,7 +221,7 @@ export function strategyTaintSinks(stmts) {
       // broker value decided. Only a delete RUN under a tainted condition is the broker's choice.
       // (Treating its handle as the sink withheld the delete, and a lost delete hides EVERY drawing
       // of the script: rsi-vwap-indicator, owner ruling 2026-11-08.)
-      const sw = meth === 'delete' && (SINK_CALLS.has(c.name) || DRAWING_NS.test(c.name) || root) ? ctxWord : (w || recvWord)
+      const sw = REMOVAL_METHOD.test(meth) && (SINK_CALLS.has(c.name) || DRAWING_NS.test(c.name) || root) ? ctxWord : (w || recvWord)
       if (isSink && sw && !sinks.has(keyOf(c.tok))) sinks.set(keyOf(c.tok), { word: sw, name: c.name, tok: c.tok })
     }
   }
