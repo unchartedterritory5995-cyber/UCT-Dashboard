@@ -100,12 +100,12 @@ export function HudRoute({ step = 0, total = 8, results = [], live = false }) {
  *  them would be ideal, incorporating all the best parts of each"). Today's mode tag; Journey's thick glossy bar with our
  *  mark riding it and the streak flame; Scoreboard's mark per chart, lit gold or red, and its big gold score; Route's
  *  waypoints along the track, a check or a cross on each. */
-export function HudCombo({ step = 0, total = 8, results = [], live = false, stepTestId = 'hard-step' }) {
+export function HudCombo({ step = 0, total = 8, results = [], live = false, stepTestId = 'hard-step', label = 'Hard mode' }) {
   const { named, streak, answered, at } = tally(step, total, results)
   const seg = (i) => ((i + 0.5) / Math.max(1, total)) * 100
   return (
-    <div className={`${h.hud} ${h.combo}`} role="group" aria-label={`Hard mode, chart ${at + 1} of ${total}, ${named} named`}>
-      <span className={`${h.badge} ${live ? h.live : ''}`}><Star /><span className={h.badgeText}>Hard mode</span></span>
+    <div className={`${h.hud} ${h.combo}`} role="group" aria-label={`${label}, chart ${at + 1} of ${total}, ${named} named`}>
+      <span className={`${h.badge} ${live ? h.live : ''}`}><Star /><span className={h.badgeText}>{label}</span></span>
       <div className={h.cTrack} aria-hidden="true">
         {answered > 0 ? <div className={h.jFill} style={{ width: `${Math.min(100, (answered / Math.max(1, total)) * 100)}%` }}><i className={h.jGloss} /></div> : null}
         {Array.from({ length: total }, (_, i) => {

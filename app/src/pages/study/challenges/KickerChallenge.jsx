@@ -12,6 +12,9 @@ import { Stamp } from '../../../lab/bits'
 import { useRunOn } from '../../../lab/fx'
 import { boxAt, rayAt } from '../../../lab/pointers'
 import StudyButton from '../ui/StudyButton'
+import { HudCombo } from '../ui/HudLooks'
+import { EndHard } from '../ui/EndLooks'
+import s2 from '../ui/study.module.css'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -33,7 +36,7 @@ export function yesNo(choices) {
   return { yes, no }
 }
 
-function Round({ idx, item, total, prefs, fetcher, onDone }) {
+function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   const phone = useIsPhone()
   const VIEW = phone ? 55 : 90
   const [pick, setPick] = useState(null)
@@ -88,7 +91,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone }) {
   }
   return (
     <div className={state === 'bad' ? d5.shakeHard : ''} data-testid="kicker-round">
-      <div className={d5.topbar}><span className={d5.bossLabel}>Spot the Kicker · {idx + 1} of {total}</span><div className={d5.prog}>{Array.from({ length: total }, (_, k) => <i key={k} className={k < idx ? d5.on : k === idx ? d5.cur : ''} />)}</div></div>
+      <HudCombo label="Spot the Kicker" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="kicker-step" />
       <div className={d5.ask}><StudyMark mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? `Spot the Kicker. ${cands.length} gold candles each gapped up after a red day; only one is the real thing. Tap it.` : ok ? 'That is the Kicker. The cards say why the others fail.' : 'That one fails a rule. The Kicker is the green one.'}</div></div>
       <div className={lab.chartBox}>
         {state === 'ask' && pick == null ? <span className={lab.tapHint}>spot the Kicker</span> : null}
@@ -122,6 +125,7 @@ export default function KickerChallenge({ profile = null, fetcher = studyFetch, 
   const [reload, setReload] = useState(0)
   const [i, setI] = useState(0)
   const [right, setRight] = useState(0)
+  const [results, setResults] = useState([])
   useEffect(() => {
     let on = true
     // only items with at least one look-alike in view make a round
@@ -138,14 +142,15 @@ export default function KickerChallenge({ profile = null, fetcher = studyFetch, 
     )
   }
   if (phase === 'done') {
+    const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setI(0); setRight(0); setResults([]); setPhase('start') }
     return (
-      <StartCard eyebrow="Spot the Kicker" title={`${right} of ${total}`} art={<StudyMark mood={right === total ? 'fire' : 'happy'} size={116} />}
-        lead={right === total ? 'Every Kicker found. The rules are yours.' : 'The rule cards on the misses are the lesson. Run it again.'}
-        button={<StartButton icon="play" label="Back to Study" sub="your trail is waiting" onClick={onClose} />}
-        below={<StudyButton kind="ghost" onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setI(0); setRight(0); setPhase('start') }}>Again</StudyButton>} />
+      <div className={s2.kit}>
+        <EndHard right={right} total={total} xp={0} results={results} log={results.map((ok) => ({ name: 'Kicker', ticker: '', ok }))}
+          unit="Kickers spotted" showSetups={false} againLabel="Again" testIdPrefix="kicker" onAgain={again} onBack={onClose} />
+      </div>
     )
   }
   const item = pool?.[i]
   if (!item) return <p className={d5.startLead}>No charts in the bank yet.</p>
-  return <Round key={item.id} idx={i} item={item} total={total} prefs={prefs} fetcher={fetcher} onDone={(ok) => { if (ok) setRight((v) => v + 1); if (i + 1 >= total) { setPhase('done'); endFeedback(prefs) } else setI(i + 1) }} />
+  return <Round key={item.id} idx={i} item={item} total={total} prefs={prefs} fetcher={fetcher} results={results} onDone={(ok) => { if (ok) setRight((v) => v + 1); setResults((r) => [...r, !!ok]); if (i + 1 >= total) { setPhase('done'); endFeedback(prefs) } else setI(i + 1) }} />
 }

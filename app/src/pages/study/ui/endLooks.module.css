@@ -138,3 +138,38 @@
 .hardEnd { max-width: 860px; margin: 0 auto; padding: 18px 0 30px; }
 .hardEnd .rCols, .hardEnd .rTimeline { width: 100%; }
 .legendHint { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+
+/* ── Kit v2 (2026-11-08) · the coin, again (batch 24: the coin Cut; the end screen "a B-") ───────────────────────────
+   A struck coin: a reeded rim (the ridged edge of a real coin), a raised inner face with a bevel, our mark embossed,
+   the score engraved, a 3D flip as it is struck, a glint across it, sparkles round a silver or better coin. The stats
+   are chips in black glass with a coloured top edge, the look every Study end screen now shares (lab duo .gem). */
+.coin { width: 188px; height: 188px; overflow: visible; border-radius: 50%; animation: coinStrike 1.1s cubic-bezier(.2, .9, .2, 1.12) both;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--m2) 92%, #000) 0deg 3deg, color-mix(in srgb, var(--m1) 80%, var(--m2)) 3deg 6deg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--m3) 85%, #000), 0 0 0 4px color-mix(in srgb, var(--m1) 45%, transparent), 0 0 60px var(--mglow), 0 22px 40px rgba(0, 0, 0, .65);
+  transform-style: preserve-3d; }
+.coin::before { content: ''; position: absolute; inset: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, var(--m1) 0%, var(--m2) 42%, var(--m3) 100%);
+  box-shadow: inset 0 3px 3px rgba(255, 255, 255, .55), inset 0 -5px 8px rgba(0, 0, 0, .45), 0 0 0 2px color-mix(in srgb, var(--m3) 70%, #000); }
+.coinFace { inset: 24px; z-index: 1; gap: 0;
+  background: radial-gradient(circle at 42% 30%, color-mix(in srgb, var(--m1) 85%, #fff) 0%, var(--m2) 55%, color-mix(in srgb, var(--m3) 80%, #000) 100%);
+  box-shadow: inset 0 -3px 5px rgba(255, 255, 255, .35), inset 0 4px 10px rgba(0, 0, 0, .45); }
+.coinFace img { width: 54px; height: 54px; filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .5)) drop-shadow(0 -1px 1px rgba(0, 0, 0, .45)); }
+.coinFace b { font-size: 38px; margin-top: 2px; color: color-mix(in srgb, var(--m3) 75%, #000); text-shadow: 0 1px 0 rgba(255, 255, 255, .55), 0 -1px 0 rgba(0, 0, 0, .35); }
+.coinShine { z-index: 2; border-radius: 50%; overflow: hidden; }
+.coinStage::after { content: ''; position: absolute; left: 50%; top: 104px; width: 300px; height: 300px; margin: -150px 0 0 -150px; pointer-events: none;
+  background-image: radial-gradient(circle, var(--m1) 0 1.5px, transparent 2px), radial-gradient(circle, var(--m1) 0 1px, transparent 1.5px), radial-gradient(circle, #fff 0 1.2px, transparent 1.8px);
+  background-size: 90px 90px, 60px 60px, 120px 120px; background-position: 10px 20px, 40px 5px, 70px 60px; opacity: 0; animation: sparkle 2.8s ease-in-out .9s infinite; }
+.t_none .coinStage::after, .t_bronze .coinStage::after { display: none; }
+.ribbon { margin-top: -18px; z-index: 3; padding: 9px 30px; font-size: 14px; box-shadow: 0 8px 18px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .5); }
+.hardEnd .tBar { gap: 10px; border: 0; background: none; border-radius: 0; overflow: visible; flex-wrap: wrap; justify-content: center; }
+.hardEnd .tBar span { flex-direction: column; align-items: center; gap: 2px; min-width: 132px; padding: 14px 16px 12px; border-radius: 16px; border: 1px solid #2c2e34;
+  background: linear-gradient(180deg, #1c1d21, #121316); box-shadow: inset 0 3px 0 var(--g), 0 12px 28px rgba(0, 0, 0, .45); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.hardEnd .tBar span + span { border-left: 1px solid #2c2e34; }
+.hardEnd .tBar span:nth-child(2) { box-shadow: inset 0 3px 0 var(--up), 0 12px 28px rgba(0, 0, 0, .45); }
+.hardEnd .tBar span:nth-child(3) { box-shadow: inset 0 3px 0 #ff9a2e, 0 12px 28px rgba(0, 0, 0, .45); }
+.hardEnd .tBar span b { font-size: 28px; letter-spacing: 0; order: -1; }
+.hardEnd .tBar span svg { display: none; }
+@keyframes coinStrike { 0% { transform: perspective(600px) rotateY(-540deg) scale(.3); opacity: 0; } 60% { transform: perspective(600px) rotateY(20deg) scale(1.08); opacity: 1; } 100% { transform: perspective(600px) rotateY(0) scale(1); } }
+@keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(.95); } 50% { opacity: .9; transform: scale(1.05); } }
+@media (max-width: 640px) { .coin { width: 150px; height: 150px; } .coinFace img { width: 42px; height: 42px; } .coinFace b { font-size: 30px; } .hardEnd .tBar span { min-width: 0; flex: 1 1 40%; } }
+@media (prefers-reduced-motion: reduce) { .coin, .coinStage::after { animation: none; } }

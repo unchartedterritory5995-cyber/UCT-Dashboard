@@ -469,3 +469,8 @@
 .tradeLine { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: var(--k-ink-soft); }
 .tradeLine b { color: var(--k-ink); }
 @media (max-width: 640px) { .legs { grid-template-columns: 1fr 1fr; } .leg b { font-size: 19px; } }
+/* kit v2 · the lesson reads by its message (the owner, batch 24: "easier to read while getting a really good message across") */
+.takeaway { margin: 0; padding: 14px 16px; border-radius: 14px; font-size: 18px; line-height: 1.5; font-weight: 600; color: var(--k-ink);
+  background: linear-gradient(90deg, rgba(220, 187, 94, .12), rgba(220, 187, 94, .02)); border: 1px solid rgba(220, 187, 94, .3); }
+.coach .leadList li, .coach .leadList li:first-child { font-size: 16.5px; font-weight: 500; line-height: 1.6; color: var(--k-ink-soft); }
+.coach .steps li { color: var(--k-ink-soft); }

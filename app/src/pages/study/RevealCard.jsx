@@ -26,6 +26,7 @@ import { appendForwardBars, studyFetch } from './useStudySession'
 import { feedbackPrefs, revealFeedback } from './studyFeedback'
 import { FEEDBACK_KINDS, VERDICTS, answerWord, feedbackUrl, lessonParts } from './revealCardHelpers'
 import { brandWords } from './drills/types'
+import Emph from './ui/emphasize'
 import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
@@ -163,12 +164,12 @@ export default function RevealCard({
           {parts.map((p) => (
             <div key={p.key} className={styles.part}>
               <dt className={styles.partLabel}>{p.label}</dt>
-              <dd className={styles.partText}>{brandWords(p.text)}</dd>
+              <dd className={styles.partText}><Emph>{brandWords(p.text)}</Emph></dd>
             </div>
           ))}
         </dl>
       ) : (
-        lesson && <p className={styles.lesson}>{brandWords(lesson)}</p>
+        lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>
       )}
       <details className={styles.why}>
         <summary className={styles.whySummary}>Why</summary>

@@ -60,6 +60,19 @@ function tradeAnnotations(trade, signal, all, n) {
     out.push({ id: `hard-${label}`, type: 'hray', points: [{ time: t0, price }], color, lineWidth: 2, lineStyle: 'dashed', showPriceLabel: true })
     out.push({ id: `hard-${label}-chip`, type: 'text', points: [{ time: tChip, price }], text: `${label} ${price.toFixed(2)}`, color: '#0b0b0f', fontSize: 12, bgEnabled: true, bgColor: color, borderEnabled: false })
   }
+  // the action items, on the bars where they happened (the owner, batch 24: "list the levels and action items in the
+  // chart ... they can see it all by looking at the chart the why and the what and where")
+  const at = (k) => (k >= 0 && k < all.length ? all[k] : null)
+  const mark = (id, bar, text, color, below = true) => {
+    if (!bar) return
+    out.push({ id, type: 'text', points: [{ time: bar.t, price: below ? bar.l * 0.982 : bar.h * 1.018 }], text, color: '#0b0b0f', fontSize: 11, bgEnabled: true, bgColor: color, borderEnabled: false })
+  }
+  if (trade.kind === 'kicker' && trade.triggered) {
+    mark('hard-act-buy', at(n), `▲ BOUGHT ${trade.entry.toFixed(2)}`, '#dcbb5e')
+    if (trade.stoppedSession) mark('hard-act-stop', at(n + trade.stoppedSession - 1), '✕ STOPPED OUT', '#df4646')
+  } else if (trade.kind === 'signal' && trade.broke) {
+    mark('hard-act-broke', at(n + trade.broke - 1), trade.short ? '✕ CLOSED OVER THE LINE' : '✕ CLOSED UNDER THE LINE', '#df4646', !trade.short)
+  }
   return out.length ? out : null
 }
 

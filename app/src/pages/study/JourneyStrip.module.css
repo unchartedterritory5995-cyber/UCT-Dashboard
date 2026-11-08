@@ -1,12 +1,14 @@
-/* JourneyStrip: a gold track the mark walks along, one lit stop per finished item. */
-.wrap { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; height: 44px; padding: 0 22px 0 8px; }
+/* JourneyStrip: a gold track the mark walks along, one lit stop per finished item. Kit v2 (2026-11-08, the owner's
+   principles: one look on every screen): the combined status line's track, the thick glossy bar Hard mode wears
+   (ui/HudLooks HudCombo), with a coin per question, gold for right and red for a miss. */
+.wrap { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; height: 48px; padding: 0 24px 0 10px; }
 .track {
   position: relative;
   flex: 1 1 auto;
-  height: 8px;
+  height: 22px;
   border-radius: 999px;
-  background: #1c1c1c;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 0 0 1px #262626;
+  background: #17181c;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .85), inset 0 0 0 1px #2a2c32;
 }
 .fill {
   position: absolute;
@@ -14,8 +16,9 @@
   top: 0;
   bottom: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #8a6f22, #d9b84a 55%, #fff1c2);
-  box-shadow: 0 0 14px rgba(220, 187, 94, .45);
+  overflow: hidden;
+  background: linear-gradient(180deg, #f8e7ad 0%, #e3c46a 38%, #c19a3c 72%, #8f6d22 100%);
+  box-shadow: 0 0 18px rgba(220, 187, 94, .45), inset 0 -2px 0 rgba(90, 64, 12, .55);
   transition: width .6s cubic-bezier(.2, .9, .3, 1);
 }
 .stops {
@@ -30,16 +33,17 @@
   pointer-events: none;
 }
 .stop {
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: #2a2a2a;
-  box-shadow: 0 0 0 2px #0f0f0f;
-  transition: background .3s, box-shadow .3s;
+  font-size: 0;
+  background: #101114;
+  box-shadow: inset 0 0 0 1.5px #3a3c43;
+  transition: background .3s, box-shadow .3s, transform .35s cubic-bezier(.2, .9, .2, 1.3);
 }
 .stop:first-child { visibility: hidden; }
-.hit { background: #fff1c2; box-shadow: 0 0 0 2px #0f0f0f, 0 0 10px rgba(220, 187, 94, .6); }
-.miss { background: #df4646; box-shadow: 0 0 0 2px #0f0f0f, 0 0 10px rgba(223, 70, 70, .5); }
+.hit { background: radial-gradient(circle at 35% 30%, #fff3c8, #d4b155 65%, #8a6f22); box-shadow: inset 0 0 0 1.5px #fbefc4, 0 0 10px rgba(220, 187, 94, .6); }
+.miss { background: radial-gradient(circle at 35% 30%, #f08080, #b03434 70%); box-shadow: inset 0 0 0 1.5px #ffb3b3, 0 0 10px rgba(223, 70, 70, .55); }
 .now { background: #d9b84a; box-shadow: 0 0 0 2px #0f0f0f, 0 0 0 5px rgba(220, 187, 94, .25); animation: pulse 1.6s ease-in-out infinite; }
 .walker {
   position: absolute;

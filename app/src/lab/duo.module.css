@@ -583,3 +583,49 @@
 /* a StartButton that is not ready yet (the drill's Check before an answer is picked) */
 .startDisabled, .startDisabled:hover { opacity: .45; animation: none; cursor: default; transform: none; filter: none; }
 .startDisabled::after { animation: none; }
+
+/* ── KIT V2 (2026-11-08) ─────────────────────────────────────────────────────────────────────────────────────
+   The owner's principles (docs/study/OWNER_PRINCIPLES.md) hold every Study screen to one standard. This start-card frame
+   is every challenge's start and end screen (Blitz, Boss, Spot the Kicker) and the lesson player's end card, so it
+   wears the same production as Hard mode: a lit gold rim, a glow behind the art, metallic display type, stat chips in
+   black glass with a coloured edge (his "I want those boxes A LOT better"), a run log as cards, a tutorial as numbered
+   tiles. Later rules win; nothing above is removed so the older lab pieces still render. */
+.startWrap { padding: 10px 0 44px; }
+.startCard { max-width: 640px; gap: 16px; padding: 34px 28px 28px; border-radius: 26px; border: 1px solid transparent;
+  background: radial-gradient(120% 90% at 50% 0%, #2a2210 0%, #141310 46%, #0d0d0e 100%) padding-box,
+              linear-gradient(160deg, rgba(251, 239, 196, .6), rgba(124, 98, 32, .35) 35%, rgba(60, 46, 12, .25) 60%, rgba(233, 205, 119, .5)) border-box;
+  box-shadow: 0 34px 90px rgba(0, 0, 0, .65), 0 0 70px rgba(220, 187, 94, .08), inset 0 1px 0 rgba(255, 241, 194, .16); }
+.startCardRed { background: radial-gradient(120% 90% at 50% 0%, #351316 0%, #141011 46%, #0d0d0e 100%) padding-box,
+              linear-gradient(160deg, rgba(255, 190, 190, .5), rgba(120, 30, 34, .35) 35%, rgba(60, 14, 16, .25) 60%, rgba(240, 122, 122, .45)) border-box; }
+.startCardDark { background: radial-gradient(120% 90% at 50% 0%, #1d1e22 0%, #121316 46%, #0b0b0c 100%) padding-box,
+              linear-gradient(160deg, rgba(255, 255, 255, .22), rgba(80, 80, 90, .25) 40%, rgba(220, 187, 94, .3)) border-box; }
+.startArt { position: relative; margin-bottom: 4px; }
+.startArt::before { content: ''; position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle, rgba(233, 205, 119, .28), rgba(233, 205, 119, .06) 45%, transparent 70%); }
+.startCard .eyebrowG { font-size: 12px; letter-spacing: .26em; }
+.heroWord { font-size: 54px; letter-spacing: -.02em; background: linear-gradient(180deg, #fff6d6 0%, #f1d892 35%, #c9a446 70%, #f6e3a6 100%); -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 6px 22px rgba(220, 187, 94, .28)); }
+.startLead { font-size: 17px; line-height: 1.55; color: #d9d4c8; max-width: 470px; }
+.startBelow { gap: 10px; }
+/* stat chips: black glass, a coloured top edge, the icon in a medallion */
+.gems { gap: 12px; }
+.gem { min-width: 160px; padding: 0; border-radius: 18px; background: linear-gradient(180deg, #1c1d21, #121316); border: 1px solid #2c2e34;
+  box-shadow: inset 0 3px 0 var(--g), 0 14px 34px rgba(0, 0, 0, .5), 0 0 26px rgba(220, 187, 94, .12); }
+.gem.green { background: linear-gradient(180deg, #1c1d21, #121316); box-shadow: inset 0 3px 0 var(--up), 0 14px 34px rgba(0, 0, 0, .5), 0 0 26px rgba(47, 175, 104, .14); }
+.gem.ember { background: linear-gradient(180deg, #1c1d21, #121316); box-shadow: inset 0 3px 0 #ff9a2e, 0 14px 34px rgba(0, 0, 0, .5), 0 0 26px rgba(255, 150, 0, .14); }
+.gem::after { opacity: .5; }
+.gemIn { background: transparent; padding: 18px 18px 14px; gap: 6px; }
+.gemIcon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 12px; background: rgba(220, 187, 94, .12); border: 1px solid rgba(220, 187, 94, .35); }
+.gem.green .gemIcon { background: rgba(47, 175, 104, .12); border-color: rgba(47, 175, 104, .4); }
+.gem.ember .gemIcon { background: rgba(255, 150, 0, .12); border-color: rgba(255, 150, 0, .4); }
+.gemIn b { font-size: 32px; }
+/* the run log as cards */
+.runLog { gap: 6px; max-height: 260px; }
+.runLog > div { grid-template-columns: 26px 1fr auto; padding: 9px 12px; border-radius: 12px; background: linear-gradient(180deg, #17181b, #121315); border: 1px solid #26272c; }
+.runLog > div.runOk { border-left: 3px solid var(--up); } .runLog > div.runBad { border-left: 3px solid var(--down, #df4646); }
+.runLog b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; }
+.runOk b { background: rgba(47, 175, 104, .18); } .runBad b { background: rgba(223, 70, 70, .18); }
+/* the tutorial as numbered tiles */
+.tutStep { padding: 16px; border-radius: 18px; border: 1px solid #2c2e34; background: radial-gradient(120% 140% at 0% 0%, #1f2024 0%, #141518 60%); box-shadow: 0 10px 24px rgba(0, 0, 0, .35); }
+.tutNum { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(180deg, #fff1bf, #dcbb5e 60%, #b8922f); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 3px 0 #6e5216; }
+@media (max-width: 640px) { .heroWord { font-size: 40px; } .startCard { padding: 26px 18px 22px; } .gem { min-width: 0; flex: 1; } .tutSteps { grid-template-columns: 1fr; } }

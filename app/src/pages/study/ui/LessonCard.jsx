@@ -11,6 +11,7 @@
 import brandMark from '../../../components/intro/assets/compass-mark.png'
 import { readCandle, readText, readTone } from './candleRead'
 import { sentencesOf, splitLesson, stepsOf } from './lesson'
+import Emph from './emphasize'
 import s from './study.module.css'
 
 const an = (n) => `${/^[AEIOU]/i.test(String(n || '')) ? 'an' : 'a'} ${n}`
@@ -38,6 +39,7 @@ export default function LessonCard({ text, ticker = null, setup = null, fired = 
         </div>
         {ticker ? <span className={s.tag}><b>{ticker}</b> · {tf}</span> : null}
       </header>
+      {trade ? <p className={s.takeaway}><Emph>{takeaway(trade)}</Emph></p> : null}
       {trade ? <TradeBlock trade={trade} name={name} /> : null}
       {reads.length ? (
         <div className={s.coachBlock}>
@@ -56,13 +58,13 @@ export default function LessonCard({ text, ticker = null, setup = null, fired = 
       {onChart.length ? (
         <div className={s.coachBlock}>
           <span className={s.coachLabel}>On this chart</span>
-          <ul className={s.leadList}>{onChart.map((c, i) => <li key={i}>{c}</li>)}</ul>
+          <ul className={s.leadList}>{onChart.map((c, i) => <li key={i}><Emph>{c}</Emph></li>)}</ul>
         </div>
       ) : null}
       {steps.length ? (
         <div className={s.coachBlock}>
           <span className={s.coachLabel}>{trade ? 'The setup' : 'The rule'}{ruleName ? ` · ${ruleName}` : ''}</span>
-          <ol className={s.steps}>{steps.map((t, i) => <li key={i}><i aria-hidden="true">{i + 1}</i><span>{t}</span></li>)}</ol>
+          <ol className={s.steps}>{steps.map((t, i) => <li key={i}><i aria-hidden="true">{i + 1}</i><span><Emph>{t}</Emph></span></li>)}</ol>
           {rest ? <details className={s.more}><summary>Read the whole rule</summary><p>{rest}</p></details> : null}
         </div>
       ) : null}
@@ -116,4 +118,18 @@ function TradeBlock({ trade: t, name }) {
       </div>
     </div>
   )
+}
+
+/** The trade in one line, built only from the measured numbers, so the lesson leads with its message. */
+function takeaway(t) {
+  const p = (v) => `$${v.toFixed(2)}`
+  const c = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
+  if (t.kind === 'kicker' && !t.triggered) return `No trade: day 2 never cleared the Kicker’s high of ${p(t.entry)}.`
+  if (t.kind === 'kicker') {
+    const r = Number.isFinite(t.r) ? ` (${t.r.toFixed(1)}R)` : ''
+    return `Bought over the Kicker’s high at ${p(t.entry)}, risked ${t.riskPct.toFixed(1)}%, and it ran ${c(t.advancePct)}${r}${t.stoppedSession ? ` before the stop was hit on session ${t.stoppedSession}` : ''}.`
+  }
+  return t.broke
+    ? `From the signal close it went ${c(t.advancePct)} in ${t.sessions} sessions, then a close broke ${p(t.line)} on session ${t.broke}.`
+    : `From the signal close it went ${c(t.advancePct)} in ${t.sessions} sessions, and ${p(t.line)} held the whole way.`
 }
