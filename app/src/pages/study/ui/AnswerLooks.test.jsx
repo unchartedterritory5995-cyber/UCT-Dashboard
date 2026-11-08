@@ -37,3 +37,17 @@ describe('the answer area, three versions', () => {
     expect(getByText('Check').disabled).toBe(true)
   })
 })
+
+describe('the lesson app in Hard mode', () => {
+  it('Enter on the tile just picked checks the answer, and Enter after the verdict goes on', () => {
+    const onCheck = vi.fn(); const onNext = vi.fn()
+    const { getByText, rerender } = render(<AnswerLessonApp choices={CH} pick={0} hotkey onCheck={onCheck} onNext={onNext} />)
+    const tile = getByText('Kicker').closest('button')
+    tile.focus()
+    fireEvent.keyDown(tile, { key: 'Enter' })
+    expect(onCheck).toHaveBeenCalledTimes(1)
+    rerender(<AnswerLessonApp choices={CH} pick={0} state="ok" answer="Kicker" hotkey onCheck={onCheck} onNext={onNext} />)
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(onNext).toHaveBeenCalledTimes(1)
+  })
+})

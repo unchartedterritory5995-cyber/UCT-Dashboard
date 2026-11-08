@@ -40,7 +40,10 @@ export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = 
   useEffect(() => {
     if (!hotkey) return undefined
     const k = (e) => {
-      if (e.key !== 'Enter' || e.repeat || (e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) return
+      if (e.key !== 'Enter' || e.repeat || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return
+      // a focused button outside the tiles keeps its own Enter; on a tile (focused by the click that picked it) Enter checks
+      if (e.target?.tagName === 'BUTTON' && !e.target.closest('[data-tiles]')) return
+      e.preventDefault()
       if (state === 'ask') { if (pick != null && !busy) onCheck?.() } else onNext?.()
     }
     window.addEventListener('keydown', k)
@@ -55,7 +58,7 @@ export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = 
           <p className={a.lDetail}>{DETAIL}</p>
         </div>
       )}
-      <div className={a.lGrid} role="group" aria-label="Your answer" data-testid={cardsTestId || undefined}>
+      <div className={a.lGrid} role="group" aria-label="Your answer" data-testid={cardsTestId || undefined} data-tiles="">
         {choices.map((c, i) => {
           const st = tileState(i, c, ctx)
           return (

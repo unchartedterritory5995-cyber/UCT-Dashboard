@@ -107,7 +107,7 @@ export function HudCombo({ step = 0, total = 8, results = [], live = false, step
     <div className={`${h.hud} ${h.combo}`} role="group" aria-label={`Hard mode, chart ${at + 1} of ${total}, ${named} named`}>
       <span className={`${h.badge} ${live ? h.live : ''}`}><Star /><span className={h.badgeText}>Hard mode</span></span>
       <div className={h.cTrack} aria-hidden="true">
-        <div className={h.jFill} style={{ width: `${Math.min(100, (answered / Math.max(1, total)) * 100)}%` }}><i className={h.jGloss} /></div>
+        {answered > 0 ? <div className={h.jFill} style={{ width: `${Math.min(100, (answered / Math.max(1, total)) * 100)}%` }}><i className={h.jGloss} /></div> : null}
         {Array.from({ length: total }, (_, i) => {
           const r = results[i]
           const st = r === true ? 'done' : r === false ? 'miss' : 'ahead'

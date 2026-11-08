@@ -48,17 +48,32 @@ import s from '../ui/study.module.css'
 function tradeAnnotations(trade, signal, all, n) {
   if (!trade || !signal || !all?.length) return null
   const t0 = signal.t
-  const tChip = all[Math.min(all.length - 1, n + 1)]?.t ?? t0
+  // each chip a few sessions further right than the one above it, so an entry and a stop 3.5% apart never overlap
+  const chipAt = (k) => all[Math.min(all.length - 1, n + 1 + k * 6)]?.t ?? t0
   const lines = trade.kind === 'kicker'
     ? (trade.triggered ? [['ENTRY', trade.entry, '#dcbb5e'], ['STOP', trade.stop, '#df4646']] : [['ENTRY (NOT TRIGGERED)', trade.entry, '#8d7a3c']])
     : [[trade.short ? 'MUST STAY UNDER' : 'MUST HOLD', trade.line, '#df4646']]
   const out = []
-  for (const [label, price, color] of lines) {
+  for (const [k, [label, price, color]] of lines.entries()) {
     if (!Number.isFinite(price)) continue
+    const tChip = chipAt(k)
     out.push({ id: `hard-${label}`, type: 'hray', points: [{ time: t0, price }], color, lineWidth: 2, lineStyle: 'dashed', showPriceLabel: true })
     out.push({ id: `hard-${label}-chip`, type: 'text', points: [{ time: tChip, price }], text: `${label} ${price.toFixed(2)}`, color: '#0b0b0f', fontSize: 12, bgEnabled: true, bgColor: color, borderEnabled: false })
   }
   return out.length ? out : null
+}
+
+// The chart's gold label at the move's best point. On a Kicker the owner's rules took (entry over the Kicker's high on day
+// 2), it is the advance from that entry at the trade's own best bar, so the chart and the lesson say the same number;
+// otherwise the culmination measured from the signal close.
+function peakOf(trade, culm, n, k) {
+  if (trade?.kind === 'kicker' && trade.triggered && trade.bestSessions) {
+    const off = trade.bestSessions - 1
+    if (k <= off) return null
+    const v = trade.advancePct
+    return { index: n + off, text: `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}% from entry in ${trade.bestSessions} session${trade.bestSessions === 1 ? '' : 's'}` }
+  }
+  return culm && k > culm.offset ? { index: n + culm.offset, text: culminationLabel(culm) } : null
 }
 
 function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
@@ -86,15 +101,15 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const view = Math.min(90, all?.length || 0)
   const look = useMemo(() => calloutLook(phone), [phone])
   const truth = fired === true ? item.name : fired === false ? NOTHING : 'The answer'
+  const trade = useMemo(() => tradeOf(item.name, bars[n - 1], fwd, culm, fired), [item.name, bars, n, fwd, culm, fired])
   const callouts = useMemo(() => hardCallouts({
     index: n - 1,
     label: state === 'ask' ? 'Last candle' : truth,
     tone: state,
-    peak: culm && k > culm.offset ? { index: n + culm.offset, text: culminationLabel(culm) } : null,
-  }), [n, state, truth, culm, k])
+    peak: peakOf(trade, culm, n, k),
+  }), [n, state, truth, culm, k, trade])
   // round 22: the trade the lesson reviews, drawn on the chart as it runs on (the Kicker's entry and stop on the owner's
   // rules; for any other setup the line a close must not break)
-  const trade = useMemo(() => tradeOf(item.name, bars[n - 1], fwd, culm, fired), [item.name, bars, n, fwd, culm, fired])
   const tradeLines = useMemo(() => (state === 'ask' ? null : tradeAnnotations(trade, bars[n - 1], all, n)), [state, trade, bars, n, all])
   const check = async () => {
     if (pick == null || state !== 'ask' || busy) return
