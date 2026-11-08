@@ -404,6 +404,23 @@ export function visibleInputs(def, declared = null) {
 }
 
 /**
+ * ⭐ UCT RS 3-14 — is this PLOT gated off every settings surface, given `declared`?
+ * A plot marked `requiresServer: true` is a column only the gated server row sends
+ * (the Phase 3 readings' lines: RS-Ratio, Momentum, Quality, VARS). Its Plot style
+ * row is offered only once the live row declares EVERY `requiresServer` input of
+ * the definition (decision D20: one flag arms the whole contract), so a v3 server
+ * shows the inspector it always did. `null` hides it (fail closed). An unmarked
+ * plot is never hidden here.
+ */
+export function isPlotHidden(def, plot, declared = null) {
+  if (!plot || typeof plot !== 'object' || plot.requiresServer !== true) return false
+  if (!declared) return true
+  const gated = (Array.isArray(def?.inputs) ? def.inputs : []).filter((i) => i && i.requiresServer === true)
+  if (!gated.length) return true
+  return !gated.every((i) => declaresInput(declared, i.key))
+}
+
+/**
  * ⭐ The presets a picker lists, given `declared`. Hidden:
  *   - a preset whose `inputs` set a hidden gated input, or set an enum to a
  *     gated option the live row does not declare (applying it would write a

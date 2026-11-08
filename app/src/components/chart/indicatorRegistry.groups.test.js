@@ -159,3 +159,17 @@ describe('packRows — the inline rule', () => {
     expect(flatKeys(packRows(model.all))).toEqual(model.all.map((f) => f.key))
   })
 })
+
+// ⭐ UCT RS 3-14 — `isPlotHidden`: a `requiresServer` plot waits for EVERY gated input.
+describe('3-14 · isPlotHidden', () => {
+  it('fails closed, needs every gated input declared, and never hides an unmarked plot', async () => {
+    const { isPlotHidden } = await import('./indicatorRegistry')
+    const def = { inputs: [{ key: 'a', requiresServer: true }, { key: 'b', requiresServer: true }, { key: 'c' }] }
+    const gated = { key: 'p', requiresServer: true }
+    expect(isPlotHidden(def, { key: 'q' }, null)).toBe(false)
+    expect(isPlotHidden(def, gated, null)).toBe(true)
+    expect(isPlotHidden(def, gated, { inputs: ['a', 'c'] })).toBe(true)
+    expect(isPlotHidden(def, gated, { inputs: ['a', 'b'] })).toBe(false)
+    expect(isPlotHidden({ inputs: [{ key: 'c' }] }, gated, { inputs: ['c'] })).toBe(true)
+  })
+})

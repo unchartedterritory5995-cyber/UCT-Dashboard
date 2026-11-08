@@ -235,3 +235,28 @@ describe('mapsTo: a legacy input read as its successor', () => {
     expect(inputsAsRead(def, null)).toBe(null)
   })
 })
+
+// ⭐ UCT RS 3-14 — `plots[].requiresServer`: the Phase 3 lines offer no Plot style
+// until the live row declares the gated inputs (`indicatorRegistry.isPlotHidden`).
+describe('3-14 · a gated plot', () => {
+  const withPlot = (patch, def = serverDef()) => ({
+    ...def, plots: [...def.plots, { key: 'ratio2', label: 'Ratio', style: 'line', color: '#6ba3be', width: 1, ...patch }],
+  })
+
+  it('accepts `requiresServer: true` on a server definition with a gated input; refuses every other spelling', () => {
+    ok(withPlot({ requiresServer: true }))
+    ok(withPlot({}))
+    refused(withPlot({ requiresServer: false }), /plots\[1\]\.requiresServer: expected true or absent/)
+    refused(withPlot({ requiresServer: 'yes' }), /plots\[1\]\.requiresServer: expected true or absent/)
+  })
+
+  it('refuses it where no live row could ever arm it', () => {
+    const local = { ...serverDef(), compute: { kind: 'native', fn: 'probeServer', rev: 1 } }
+    const noGated = serverDef({ inputs: [{ key: 'length', type: 'int', default: 14, min: 2, max: 200 },
+      { key: 'color', type: 'color', default: 'token:info' }] })
+    refused(withPlot({ requiresServer: true }, noGated), /declares no requiresServer input/)
+    const r = validateDefinition(withPlot({ requiresServer: true }, local))
+    expect(r.ok).toBe(false)
+    expect(r.errors.join(' | ')).toMatch(/plots\[1\]\.requiresServer/)
+  })
+})

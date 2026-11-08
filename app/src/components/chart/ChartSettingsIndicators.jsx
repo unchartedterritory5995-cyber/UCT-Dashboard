@@ -51,7 +51,7 @@ import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, u
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
   fieldsForInstance, sectionize, initialCollapsed, evalActiveWhen,
-  visiblePresets, textInputCommit, textInputDraft,
+  visiblePresets, isPlotHidden, textInputCommit, textInputDraft,
 } from './indicatorRegistry'
 // ⭐ UCT RS Phase 3, unit 3-02b — what the LIVE server row declares, read the way
 // the settings dialog and the phone sheet read it (3-02), so a `requiresServer`
@@ -2941,7 +2941,11 @@ export default function ChartSettingsIndicators({
     }
     const plots = Array.isArray(def.plots) ? def.plots : []
     // ⭐ BATCH 2 — a `hidden: true` plot is never drawn, so it has no style to pick.
-    const restyleable = plots.filter((pl) => pl && pl.hidden !== true && availableStyles(pl, styleCtx).length > 0)
+    // ⭐ UCT RS 3-14 — and a `requiresServer` plot (a Phase 3 reading's line) has no
+    // style row until the live row declares the definition's gated inputs.
+    const declared = declaredFor(def)
+    const restyleable = plots.filter((pl) => pl && pl.hidden !== true && !isPlotHidden(def, pl, declared)
+      && availableStyles(pl, styleCtx).length > 0)
     // ⭐ 2a-12 — the outputs that draw as DOTS get one Dot size control beside Plot
     // style, through `setInstanceDotSize` (the dialog's Style tab and the `setDotSize`
     // agent op share it). A definition with neither has nothing here.
@@ -3006,7 +3010,8 @@ export default function ChartSettingsIndicators({
       )
     }
     return rows
-  }, [settings, registry, onChange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `declaredFor` reads `gateId` and `serverDeclared`, listed
+  }, [settings, registry, onChange, gateId, serverDeclared])
 
   /** Write one settings blob through the ONE persist path this tab uses. A refused
    *  write comes back as `settings` itself and is not persisted. */

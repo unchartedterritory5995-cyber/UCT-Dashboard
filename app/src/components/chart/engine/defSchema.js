@@ -2293,6 +2293,20 @@ function validateServerGates(def, inputs, errors) {
       )
     }
   })
+  // ⭐ UCT RS 3-14 — `plots[].requiresServer: true`: a column only the gated row
+  // sends; the inspector offers no Plot style for it until the live row declares
+  // every gated input (`indicatorRegistry.isPlotHidden`). On a definition with no
+  // gated input it could never appear, so that is refused like the rest.
+  const anyGatedInput = inputs.some((i) => isPlainObject(i) && i.requiresServer === true)
+  ;(Array.isArray(def.plots) ? def.plots : []).forEach((plot, i) => {
+    if (!isPlainObject(plot) || plot.requiresServer === undefined) return
+    const at = `plots[${i}].requiresServer`
+    if (plot.requiresServer !== true) errors.push(`${at}: expected true or absent, got ${fmt(plot.requiresServer)}`)
+    else if (!serverDoc) errors.push(`${at}: ${kindNote}`)
+    else if (!anyGatedInput) {
+      errors.push(`${at}: the definition declares no requiresServer input, so the live row can never arm it and the plot's style row would stay hidden forever`)
+    }
+  })
   const presets = isPlainObject(def.meta) && Array.isArray(def.meta.presets) ? def.meta.presets : []
   presets.forEach((p, i) => {
     if (!isPlainObject(p) || p.requiresServer === undefined) return
