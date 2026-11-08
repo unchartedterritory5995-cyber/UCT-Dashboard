@@ -9,6 +9,8 @@
  *   reveal_json.rs            = the real columns of a TAP or red-day item, whose prompt blanks the
  *                               dots (a TAP item's dot IS the answer; a new-high dot on the marked
  *                               red session says "strong that day"), served only after scoring
+ *   reveal_json.rs_pair       = the real columns of BOTH leader lines, whose prompt blanks every
+ *                               dot (only the leader can make a new RS high, so a dot names it)
  *   prompt_json.chart.mark    = {bar_index, time, label}: the red market day a spot item asks about
  *
  * The drill chart's `sym` is the item id, never the ticker (study_store), so the
@@ -56,6 +58,8 @@ import { toChartTime } from '../../components/chart/patternTime'
 export const RS_DEF_ID = 'rsLine'
 export const RS_INSTANCE_ID = 'study:rs'
 export const RS_REVEAL_INSTANCE_ID = 'study:rs:reveal'
+/** A leader line's instance id: the prompt's (`study:rs:A`) or, once scored, the reveal's (`study:rs:reveal:A`). */
+export const rsPairInstanceId = (name, revealed = false) => `${revealed ? RS_REVEAL_INSTANCE_ID : RS_INSTANCE_ID}:${name}`
 export const RS_PAIR_SLOTS = Object.freeze(['A', 'B'])
 export const RS_TF = 'D'
 /** The RS line's own columns a drill wire may carry. Anything else on the wire is ignored. */
@@ -104,20 +108,27 @@ export function isRsPairItem(item) {
 
 /**
  * The lines this item draws in this phase: `[{slot, instanceId, label, wire}]`.
- * A pair draws Line A and Line B. A single line draws the prompt's columns, and
- * once the item is scored and the reveal carries its own (`reveal.rs`, a TAP or
- * red-day item's dots), the reveal's.
+ * A pair draws Line A and Line B: the prompt's (every dot blank) and, once the
+ * item is scored and the reveal carries both (`reveal.rs_pair`), the reveal's,
+ * in slots 2 and 3 so neither shares a cache key with a prompt line. A single
+ * line draws the prompt's columns, and once scored and the reveal carries its
+ * own (`reveal.rs`, a TAP or red-day item's dots), the reveal's. A reveal line
+ * carries `reveal: true`.
  */
 export function rsLinesFor(item, { reveal = null, revealed = false } = {}) {
   const c = chartOf(item)
   if (!c) return []
   if (c.rs_pair && typeof c.rs_pair === 'object') {
+    const after = revealed && reveal && reveal.rs_pair && typeof reveal.rs_pair === 'object' ? reveal.rs_pair : null
+    const src = after || c.rs_pair
+    const base = after ? RS_PAIR_SLOTS.length : 0
     return RS_PAIR_SLOTS
-      .map((name, n) => ({ slot: n, instanceId: `${RS_INSTANCE_ID}:${name}`, label: `Line ${name}`, wire: c.rs_pair[name] }))
+      .map((name, n) => ({ slot: base + n, instanceId: rsPairInstanceId(name, !!after), label: `Line ${name}`,
+        wire: src[name], ...(after ? { reveal: true } : {}) }))
       .filter((l) => l.wire && typeof l.wire === 'object')
   }
   const after = revealed && reveal && reveal.rs && typeof reveal.rs === 'object' ? reveal.rs : null
-  if (after) return [{ slot: 1, instanceId: RS_REVEAL_INSTANCE_ID, label: null, wire: after }]
+  if (after) return [{ slot: 1, instanceId: RS_REVEAL_INSTANCE_ID, label: null, wire: after, reveal: true }]
   if (c.rs && typeof c.rs === 'object') return [{ slot: 0, instanceId: RS_INSTANCE_ID, label: null, wire: c.rs }]
   return []
 }
@@ -186,7 +197,8 @@ export function primeRsColumns(item, sym, tf, opts = {}) {
     const sent = keyInputs(inputs)
     const parsed = primeServerColumns(RS_DEF_ID, sym, RS_TF, sent, wire)
     if (!parsed) continue
-    out.push({ instanceId: line.instanceId, slot: line.slot, label: line.label, inputs, key: serverColumnsKey(RS_DEF_ID, sym, RS_TF, sent) })
+    out.push({ instanceId: line.instanceId, slot: line.slot, label: line.label, inputs, key: serverColumnsKey(RS_DEF_ID, sym, RS_TF, sent),
+      ...(line.reveal ? { reveal: true } : {}) })
   }
   return out
 }
@@ -194,7 +206,8 @@ export function primeRsColumns(item, sym, tf, opts = {}) {
 /**
  * The engine instances for the primed lines, merged by id into the drill chart's
  * `indicatorInstances` (`studyChartLook` `extras.instances`). A line the reveal
- * replaced is tombstoned, so the prompt's blank-dot line never draws beside it.
+ * replaced is tombstoned, so the prompt's blank-dot line never draws beside it
+ * (the single line, or both leader lines).
  */
 export function rsInstances(primed) {
   if (!Array.isArray(primed) || !primed.length) return null
@@ -203,7 +216,15 @@ export function rsInstances(primed) {
   const out = primed.map((p) => ({ instanceId: p.instanceId, defId: RS_DEF_ID, inputs: { ...p.inputs },
     ...(p.label ? { display: { name: p.label } } : {}) }))
   if (primed.some((p) => p.instanceId === RS_REVEAL_INSTANCE_ID)) out.push({ instanceId: RS_INSTANCE_ID, deleted: true })
+  for (const name of RS_PAIR_SLOTS) {
+    if (primed.some((p) => p.instanceId === rsPairInstanceId(name, true))) out.push({ instanceId: rsPairInstanceId(name), deleted: true })
+  }
   return out
+}
+
+/** Did the reveal's own columns replace the prompt's (a scored TAP, red-day or leader item)? */
+export function rsRevealPrimed(primed) {
+  return (Array.isArray(primed) ? primed : []).some((p) => p.reveal)
 }
 
 /** The drill's own key for the leader pair: the lines in pane order. Null for any other item. */

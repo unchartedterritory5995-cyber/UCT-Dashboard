@@ -34,7 +34,7 @@ import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFa
 import useStudySession from './useStudySession'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
-import { isRsPairItem, primeRsColumns, rsInstances, rsMarkMarkers, rsPairKey } from './studyRsOverlay'
+import { isRsPairItem, primeRsColumns, rsInstances, rsMarkMarkers, rsPairKey, rsRevealPrimed } from './studyRsOverlay'
 import { studyOpenMarkers } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
@@ -163,7 +163,8 @@ export default function DrillPlayer({
   // RS 4-09: an RS drill draws the REAL UCT RS pane from the columns the item carries (studyRsOverlay). Primed
   // into the server lane's cache HERE, in render, ahead of StockChart's bind: the chart's sym is the item id, so
   // an unprimed rsLine would fetch /api/signature/columns. A TAP or red-day item's prompt blanks the dots (a dot is
-  // the answer, or gives it away); once scored, the reveal's own columns (reveal.rs) replace them on the same chart.
+  // the answer, or gives it away), and so does a leader item's on BOTH lines (only the leader can have a new-high dot);
+  // once scored, the reveal's own columns (reveal.rs / reveal.rs_pair) replace them on the same chart.
   const rsRevealed = phase === 'reveal' && !!result && chartItemId === item?.id
   const rsReveal = rsRevealed ? result.reveal || null : null
   const rsPrimed = useMemo(
@@ -181,7 +182,7 @@ export default function DrillPlayer({
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
   // An RS reveal starts a fresh session blob, so an edit made on the prompt cannot pin the blank-dot line.
-  const rsRevealKey = rsPrimed.some((p) => p.slot === 1) ? ':rs-reveal' : ''
+  const rsRevealKey = rsRevealPrimed(rsPrimed) ? ':rs-reveal' : ''
   const sessionChart = useSessionChartSettings(studyOverride, chartItemId ? `${chartItemId}${rsRevealKey}` : null)
   const entryDate = chartBars?.[0]?.t ?? null
   const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null

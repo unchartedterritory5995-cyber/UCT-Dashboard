@@ -99,11 +99,11 @@ describe('DrillPlayer draws the real UCT RS pane on RS drills', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('LEADER: Line A and Line B on the market chart, the drill key, no candle pointer', async () => {
+  it('LEADER: Line A and Line B on the market chart, no dot on either before scoring, the real dots after', async () => {
     render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(pair)} />)
     await screen.findByTestId('stock-chart')
-    expect(screen.getByTestId('rs-lines')).toHaveTextContent('study:rs:A=120/')
-    expect(screen.getByTestId('rs-lines')).toHaveTextContent('study:rs:B=120/')
+    // a new-high dot would name the leader (only it can have one): both prompt lines draw none
+    expect(screen.getByTestId('rs-lines')).toHaveTextContent('study:rs:A=120/0|study:rs:B=120/0')
     expect(screen.getByTestId('rs-pair-key')).toHaveTextContent('Line A is the upper RS line, Line B the lower.')
     expect(screen.getByTestId('annotations')).toHaveTextContent('0')
     const names = Object.values(pair.reveal_json.example.names)
@@ -111,6 +111,12 @@ describe('DrillPlayer draws the real UCT RS pane on RS drills', () => {
     fireEvent.click(await screen.findByRole('radio', { name: 'Line B' }))
     fireEvent.click(screen.getByTestId('primary-action'))
     await screen.findByText('Continue')
+    const want = ['A', 'B'].map((n) => `study:rs:reveal:${n}=120/${nonNull(pair.reveal_json.rs_pair[n].columns.dotNH)}`)
+    await waitFor(() => expect(screen.getByTestId('rs-lines')).toHaveTextContent(want.join('|')))
+    expect(screen.getByTestId('rs-lines')).not.toHaveTextContent('study:rs:A=')        // the prompt lines are gone
+    expect(screen.getByTestId('rs-lines')).not.toHaveTextContent('study:rs:B=')
+    const leader = pair.reveal_json.facts.leader.slice(-1)
+    expect(nonNull(pair.reveal_json.rs_pair[leader].columns.dotNH)).toBeGreaterThan(0)
     await settle()
     expect(fetchSpy).not.toHaveBeenCalled()
   })

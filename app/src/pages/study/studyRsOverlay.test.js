@@ -15,7 +15,7 @@ import { legendChips, paneReadoutLabel, readoutChipName } from '../../components
 import { normalizeBars } from './useStudySession'
 import {
   RS_DEF_ID, RS_INSTANCE_ID, RS_REVEAL_INSTANCE_ID, classicInputs, isRsItem, isRsPairItem, keyInputs,
-  primeRsColumns, rsInstances, rsLinesFor, rsMarkMarkers, rsPairKey, rsRev, wireAgrees,
+  primeRsColumns, rsInstances, rsLinesFor, rsMarkMarkers, rsPairInstanceId, rsPairKey, rsRev, rsRevealPrimed, wireAgrees,
 } from './studyRsOverlay'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -183,6 +183,60 @@ describe('a leader item: Line A and Line B, two keys, two lines', () => {
     expect(Array.from(draw(b, it0.id, bars).rsLine)).toEqual(pair.prompt_json.chart.rs_pair.B.columns.rsLine)
     await settle()
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+  it('the prompt draws NO dot on either line (only the leader can have one, so a dot names the answer)', () => {
+    const it0 = served(pair)
+    const primed = primeRsColumns(it0, it0.id, 'D')
+    expect(rsRevealPrimed(primed)).toBe(false)
+    const bars = barsOf(pair)
+    for (const inst of rsInstances(primed)) {
+      const cols = draw(inst, it0.id, bars)
+      expect(finite(cols.rsLine)).toBe(120)
+      expect(finite(cols.dotNH) + finite(cols.dotNHbeforePx)).toBe(0)
+    }
+    // the shipped bank itself: every leader prompt blanks every dot column of both lines
+    for (const raw of BANK.filter((i) => i.prompt_json?.chart?.rs_pair)) {
+      for (const name of ['A', 'B']) {
+        const c = raw.prompt_json.chart.rs_pair[name].columns
+        expect(nonNull(c.dotNH) + nonNull(c.dotNHbeforePx)).toBe(0)
+      }
+    }
+  })
+  it('reveal: both lines switch to the reveal columns, under their own keys, the prompt lines tombstoned', async () => {
+    const it0 = served(pair)
+    const prompt = primeRsColumns(it0, it0.id, 'D')
+    const after = primeRsColumns(it0, it0.id, 'D', { reveal: { rs_pair: pair.reveal_json.rs_pair }, revealed: true })
+    expect(after.map((p) => p.instanceId)).toEqual([rsPairInstanceId('A', true), rsPairInstanceId('B', true)])
+    expect(after.map((p) => p.label)).toEqual(['Line A', 'Line B'])
+    expect(rsRevealPrimed(after)).toBe(true)
+    expect(rsPairKey(after)).toEqual(['Line A', 'Line B'])
+    const keys = new Set([...prompt, ...after].map((p) => p.key))
+    expect(keys.size).toBe(4)                                      // no reveal line shares a prompt line's key
+    const insts = rsInstances(after)
+    expect(insts).toContainEqual({ instanceId: rsPairInstanceId('A'), deleted: true })
+    expect(insts).toContainEqual({ instanceId: rsPairInstanceId('B'), deleted: true })
+    const live = insts.filter((i) => !i.deleted)
+    expect(live.map((i) => i.display?.name)).toEqual(['Line A', 'Line B'])
+    const bars = barsOf(pair)
+    const leader = pair.reveal_json.facts.leader.slice(-1)
+    let dots = 0
+    live.forEach((inst, n) => {
+      const name = ['A', 'B'][n]
+      const cols = draw(inst, it0.id, bars)
+      expect(Array.from(cols.rsLine)).toEqual(pair.reveal_json.rs_pair[name].columns.rsLine)
+      expect(finite(cols.dotNH)).toBe(nonNull(pair.reveal_json.rs_pair[name].columns.dotNH))
+      if (name === leader) dots = finite(cols.dotNH)
+    })
+    expect(dots).toBeGreaterThan(0)                                // the leader's real new-high dots, after scoring
+    expect(renderedLabels(live).map((l) => l.pane)).toEqual([
+      'UCT Relative Strength · SPY · Line A', 'UCT Relative Strength · SPY · Line B'])
+    await settle()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+  it('without reveal columns the prompt lines stay', () => {
+    const it0 = served(pair)
+    expect(rsLinesFor(it0, { reveal: { lesson: 'x' }, revealed: true }).map((l) => l.instanceId))
+      .toEqual([rsPairInstanceId('A'), rsPairInstanceId('B')])
   })
 })
 

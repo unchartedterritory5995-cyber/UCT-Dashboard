@@ -29,7 +29,9 @@ YYYYMMDD keys). Unit 4-09 primes the real `rsLine` instance from it.
   * A RED-DAY item's dot columns are BLANK in the prompt too: a new-high dot on the marked session says the stock was
     strong that day, which is the question. Its real columns are in `reveal_json.rs`, exactly as a TAP item's.
   * A LEADER item has no `chart.rs` (its chart is SPY, and SPY against SPY is the indicator's `same-symbol` state).
-    It carries `prompt_json.chart.rs_pair = {"A": <rs shape>, "B": <rs shape>}`, each the real indicator for one stock.
+    It carries `prompt_json.chart.rs_pair = {"A": <rs shape>, "B": <rs shape>}`, each the real indicator for one stock,
+    with BOTH lines' dot columns blank: only the leader can make a new 52-week RS high, so a dot on either line names
+    the answer. The real columns of both lines are in `reveal_json.rs_pair` (same shape) for the reveal.
   * Bars are EMBEDDED (`bars_embed`, the import route's embed path): the pod's bars.db is not asked to cover these
     charts, and the columns are reproducible from what the item carries. `rs_source` holds the closes the computation
     needs beyond the visible window (the 252 warm-up sessions, and the benchmark), as compact JSON strings, so the bank
@@ -399,8 +401,12 @@ def leader_items(data, bench, bench_by_t, n):
         lag_label = "Line B" if lead_label == "Line A" else "Line A"
         lo = SLICE - WINDOW
         times = [x["t"] for x in lead["s"][lo:]]
-        pair = {lead_label[-1]: {"columns": rs_block(lead["cols"], lo, SLICE), "times": times, "inputs": INPUTS},
-                lag_label[-1]: {"columns": rs_block(lag["cols"], lo, SLICE), "times": times, "inputs": INPUTS}}
+        def pair_of(blank):
+            return {lead_label[-1]: {"columns": rs_block(lead["cols"], lo, SLICE, blank_dots=blank), "times": times,
+                                     "inputs": INPUTS},
+                    lag_label[-1]: {"columns": rs_block(lag["cols"], lo, SLICE, blank_dots=blank), "times": times,
+                                    "inputs": INPUTS}}
+        pair = pair_of(True)                     # the prompt: no dot on either line (a dot names the leader)
         spy_chg = pct(bench[be]["c"], bench[be - WINDOW + 1]["c"])
         last_nh_date = iso(lead["s"][lo + lead["last_nh"]]["t"])
         facts = {"leader": lead_label, "laggard": lag_label, "leader_rs_change_pct": lead["rs_chg"],
@@ -422,7 +428,7 @@ def leader_items(data, bench, bench_by_t, n):
                           "chart": {"window_bars": WINDOW, "tf": "D", "rs_pair": pair}},
             reveal={"system": "UCT Relative Strength, Classic, two stocks against SPY",
                     "detector": "relative_strength.compute_phase1_columns", "label": lead_label, "facts": facts,
-                    "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD,
+                    "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD, "rs_pair": pair_of(False),
                     "teaches": dict(CARDS["leader"], source="research 04 §d tour card 1"),
                     "example": {"sym": BENCH, "asof": asof, "names": {lead_label: lead["sym"], lag_label: lag["sym"]},
                                 "found_by": "scripts/study/bank_v2/gen_rs.py"}},

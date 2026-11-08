@@ -3,10 +3,10 @@
 What the owner's review sitting depends on, checked offline against the committed bank:
   * every item passes the importer's own check (study_import.check_item: number grounding, voice, near-duplicate) and
     the generators' validator, and is a DRAFT;
-  * the precomputed RS pane (prompt_json.chart.rs / rs_pair, reveal_json.rs) is exactly what
+  * the precomputed RS pane (prompt_json.chart.rs / rs_pair, reveal_json.rs / rs_pair) is exactly what
     relative_strength.compute_phase1_columns gives from the bars and closes the item carries;
   * no ticker the chart hides appears in any member-facing prompt string, and a tap or red-day item's prompt carries
-    no dot (the real ones are in reveal_json.rs);
+    no dot (the real ones are in reveal_json.rs), nor does either line of a leader item (reveal_json.rs_pair);
   * the key is what the indicator says (the first new-high dot, the rising line, green on red);
   * the import route takes the whole segment as drafts with no flags and no bars misses, and the hub places read.rs on
     its unit (an unknown skill_id would not fail the import either: it lands under `unplaced`).
@@ -164,6 +164,27 @@ def test_a_red_day_prompt_carries_no_dot_because_a_new_high_on_the_marked_day_is
     assert with_dots >= 1                                   # the reveal really carries the dots the prompt hid
 
 
+def test_a_leader_prompt_carries_no_dot_on_either_line_because_only_the_leader_can_have_one(items):
+    """Only the leader can make a new 52-week RS high, so a dot on Line A or Line B names the answer (4-11 check)."""
+    lead = [i for i in items if _family(i) == "leader"]
+    assert len(lead) == 10
+    for it in lead:
+        prompt = it["prompt_json"]["chart"]["rs_pair"]
+        reveal = it["reveal_json"]["rs_pair"]
+        assert set(prompt) == set(reveal) == {"A", "B"}, it["id"]
+        for name in ("A", "B"):
+            cols = prompt[name]["columns"]
+            for k in cols:
+                if k.startswith("dot"):
+                    assert all(v is None for v in cols[k]), (it["id"], name, k)
+            assert all(v is not None for v in cols["rsLine"]), (it["id"], name)
+            assert reveal[name]["times"] == prompt[name]["times"] and reveal[name]["inputs"] == prompt[name]["inputs"]
+            for k in ("rsLine", "rsMa"):
+                assert reveal[name]["columns"][k] == cols[k], (it["id"], name, k)
+        key = it["answer_json"]["answer"][-1]
+        assert any(v is not None for v in reveal[key]["columns"]["dotNH"]), it["id"]   # the reveal has the leader's dots
+
+
 # ── the RS pane is reproducible from what the item carries ───────────────────
 
 def _expected(stock: list, bench: list, inputs: dict) -> dict:
@@ -197,7 +218,11 @@ def test_the_rs_columns_are_reproducible_from_the_embedded_bars(items):
             for label, block in chart["rs_pair"].items():
                 assert block["inputs"] == gen_rs.INPUTS and block["times"] == times
                 exp = _expected(_closes(it["rs_source"]["names"][label]), bench, block["inputs"])
+                shown = it["reveal_json"]["rs_pair"][label]
+                assert shown["times"] == times
                 for k in RS_KEYS:
+                    assert shown["columns"][k] == exp[k], (it["id"], label, k)
+                for k in ("rsLine", "rsMa"):
                     assert block["columns"][k] == exp[k], (it["id"], label, k)
                 checked += 1
             continue
@@ -237,7 +262,7 @@ def test_a_leader_key_is_the_rising_line_and_the_other_line_fell(items):
     for it in (i for i in items if _family(i) == "leader"):
         key = it["answer_json"]["answer"][-1]
         other = "B" if key == "A" else "A"
-        pair = it["prompt_json"]["chart"]["rs_pair"]
+        pair = it["reveal_json"]["rs_pair"]
         lead, lag = pair[key]["columns"]["rsLine"], pair[other]["columns"]["rsLine"]
         assert lead[-1] > lead[0] * 1.14 and lag[-1] < lag[0] * 0.91, it["id"]
         assert any(v is not None for v in pair[key]["columns"]["dotNH"][-20:]), it["id"]
