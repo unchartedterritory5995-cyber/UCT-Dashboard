@@ -307,4 +307,13 @@ describe('aria and brand', () => {
     const graphCss = readFileSync(join(here, '..', '..', 'components', 'rotation', 'RrgGraph.module.css'), 'utf8')
     expect(graphCss).toMatch(/\.qWeakening \{ stroke: var\(--rrg-weakening, var\(--warn\)\)/)
   })
+
+  it('no text under 11 px in the Rotation view (spec §12.2): every font-size its rules declare is 11 px or more', () => {
+    const css = readFileSync(join(here, 'CompareSymbolsPanel.module.css'), 'utf8').replace(/[/][*][^]*?[*][/]/g, '')
+    const rot = css.slice(css.indexOf('.rot {'))
+    const sizes = [...rot.matchAll(/font-size:[ ]*([0-9.]+)px/g)].map((m) => Number(m[1]))
+    expect(sizes.length).toBeGreaterThan(5)
+    expect(sizes.filter((n) => n < 11)).toEqual([])
+    expect(rot).toMatch(/[.]rotPill [{][^}]*font-size: 11px/)
+  })
 })
