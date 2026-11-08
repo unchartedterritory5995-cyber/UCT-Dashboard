@@ -5414,6 +5414,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // Pine's bare builtins that change state are output calls, which no argument
   // holds; every collection and drawing call is namespaced or a method, and those
   // keep answering true. ⛔ `alert()` keeps the stricter default (unknown is true).
+  // W9-OQ-N1 (2026-11-07): at the same site a `strategy.*` READ call
+  // (`strategy.opentrades.entry_price(0)`, `strategy.closedtrades.profit(0)`,
+  // `strategy.convert_to_*`, `strategy.default_entry_qty`) is a value too. With the
+  // broker dark the order is dropped, so an argument that is a value is dropped with
+  // it and the read reaches nothing served. ⛔ It is a value, NOT a silent zero: an
+  // argument that ALSO holds an effect is lowered whole, and the read in it then
+  // refuses `pine:strategy-call` by name (its value may reach a plot through that
+  // effect), exactly as a `strategy.*` read anywhere else does.
+  const STRATEGY_READ_CALL = /^strategy\.(?:(?:opentrades|closedtrades)\.[a-z_]+|convert_to_account|convert_to_symbol|default_entry_qty)$/
   const argumentHasEffect = (node, depth = 0, bareIsValue = false) => {
     if (!node || typeof node !== 'object') return false
     if (depth > 64) return true
@@ -5423,7 +5432,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (isUserFn(name) || definedNames.has(name)) {
         if (!fnByName.has(name) || !fnIsEffectFree(fnByName.get(name))) return true
       } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)
-          && !(bareIsValue && /^[A-Za-z_]\w*$/.test(name))) return true
+          && !(bareIsValue && /^[A-Za-z_]\w*$/.test(name))
+          && !(bareIsValue && STRATEGY_READ_CALL.test(name))) return true
     }
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
         && argumentHasEffect(node.n.expr, depth + 1, bareIsValue)) return true
