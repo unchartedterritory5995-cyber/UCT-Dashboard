@@ -4415,12 +4415,14 @@ const RS_LINE_RAW = {
     // server blanks both columns under every other view and on every timeframe but
     // daily; a session with no stored rating is a gap, never a guess.
     // ⭐ `autoscaleInclude` (real-screen check 2026-11-08): the pane fitted the line
-    // alone, so a rating in the 60s-80s never showed the 90 guide. The scale now
-    // always spans 80 to 90 while the line has data; blank under every other Reading,
-    // it reframes nothing there.
+    // alone, so a rating in the 60s-80s never showed the 90 guide. Spanning 80-90
+    // put the 90 guide at the very top, through the pane label's row (second pass,
+    // run2). So the scale always reaches the rating's ceiling, 99: 80 and 90 stay in
+    // view below the label band, and a line peak can only meet the ranks strip at
+    // 99. Blank under every other Reading, it reframes nothing there.
     { key: 'ratingLine', label: 'RS Rating', style: 'line', color: RS_INFO, width: '$lineWidth',
       precision: 0, role: 'context', legend: { hide: true }, requiresServer: true,
-      autoscaleInclude: { min: 80, max: 90 } },
+      autoscaleInclude: { min: 80, max: 99 } },
     { key: 'ratingMa', label: 'Rating avg', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
       precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'ratingGuides', label: '80 and 90', style: 'hlines', levels: [80, 90], color: RS_NEUTRAL, width: 1,

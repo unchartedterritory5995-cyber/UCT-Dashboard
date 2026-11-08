@@ -97,15 +97,16 @@ describe('2 · the plots and the palette', () => {
   })
 
   // ⭐ real-screen check 2026-11-08: the pane fitted the line alone (a rating in the
-  // 60s-80s), so the 90 guide was off screen. `autoscaleInclude` keeps 80-90 in view.
-  it('the scale always spans the 80 and 90 guides while the line has data, and reframes nothing without it', () => {
-    expect(plot('ratingLine').autoscaleInclude).toEqual({ min: 80, max: 90 })
+  // 60s-80s), so the 90 guide was off screen; at 80-90 (run2) the 90 guide ran through the
+  // pane label's row. The scale reaches the ceiling, 99, so both guides sit below the label band.
+  it('the scale always spans 80 up to the 99 ceiling while the line has data, and reframes nothing without it', () => {
+    expect(plot('ratingLine').autoscaleInclude).toEqual({ min: 80, max: 99 })
     const opt = seriesOptionsForPlot(plot('ratingLine'), { autoscale: 'default' })
-    expect(opt.autoscaleInfoProvider).toBe(includeRangeProvider(80, 90))         // memoised by range
+    expect(opt.autoscaleInfoProvider).toBe(includeRangeProvider(80, 99))         // memoised by range
     const fit = (lo, hi) => opt.autoscaleInfoProvider(() => ({ priceRange: { minValue: lo, maxValue: hi }, margins: { above: 4, below: 4 } }))
-    expect(fit(62, 84)).toEqual({ priceRange: { minValue: 62, maxValue: 90 }, margins: { above: 4, below: 4 } })
-    expect(fit(91, 97).priceRange).toEqual({ minValue: 80, maxValue: 97 })
-    expect(fit(20, 35).priceRange).toEqual({ minValue: 20, maxValue: 90 })
+    expect(fit(62, 84)).toEqual({ priceRange: { minValue: 62, maxValue: 99 }, margins: { above: 4, below: 4 } })
+    expect(fit(91, 97).priceRange).toEqual({ minValue: 80, maxValue: 99 })
+    expect(fit(20, 35).priceRange).toEqual({ minValue: 20, maxValue: 99 })
     // a blank series (every other Reading) answers what the library answered: nothing
     expect(opt.autoscaleInfoProvider(() => null)).toBeNull()
     // a guest on another axis is never widened
