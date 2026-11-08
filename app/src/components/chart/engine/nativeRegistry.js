@@ -4087,8 +4087,11 @@ const RS_LINE_RAW = {
     // index symbols. The pattern and the length are the server row's own
     // (`rs_benchmarks.CUSTOM_SYMBOL_RE`, railed by `test_rs_columns_provider.py`);
     // the box upper-cases what is typed. Wakes only under "Your symbol".
+    // ⭐ 3-09b: `identityFor` — what is typed here IS the benchmark wherever it
+    // is printed as identity (`UCT RS · SMH`, and `UCT RS · Your symbol` while
+    // the box is empty), never the raw `CUSTOM` (`defSchema.validateIdentityFor`).
     { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-      requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK,
+      requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
       pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
       placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
       tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },

@@ -2376,6 +2376,88 @@ function validateLegacyMaps(inputs, inputsByKey, errors) {
   })
 }
 
+// ─── a text box that names an enum option (UCT RS Phase 3, unit 3-09b) ──────
+//
+// ⭐ `identityFor: '<enum key>'` on a `string` input: this box is what one of
+// that enum's options MEANS. The option is the one its `activeWhen` wakes it
+// under (`{key: <enum key>, equals: <option>}`), so the pair is declared once.
+// Wherever the enum is printed as identity (`readout.legendIdentityParts`, the
+// `meta.legendParams` ` · <value>` grammar) the typed text stands in for the
+// option's raw code, and the option's LABEL stands in while the box is empty:
+// `UCT RS · SMH`, `UCT RS · Your symbol`, never `UCT RS · CUSTOM`.
+//
+// ⛔ FAIL CLOSED, because a half-declared pair prints the raw code it exists
+// to hide:
+//   - only on a `string` input that is not legacy (a legacy box is never typed);
+//   - the key names another declared `enum` input that `meta.legendParams`
+//     lists (nothing else prints it as identity, so the field would be inert);
+//   - the box declares `activeWhen: {key: <that enum>, equals: <option>}`, the
+//     option carries a non-empty label (the empty-box text);
+//   - one companion per option (two would race on declaration order).
+function enumOptionLabel(option) {
+  if (Array.isArray(option)) return typeof option[1] === 'string' ? option[1] : null
+  if (isPlainObject(option) && typeof option.label === 'string') return option.label
+  return null
+}
+
+function validateIdentityFor(def, inputs, inputsByKey, errors) {
+  const params = isPlainObject(def.meta) && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
+  const seen = new Map()
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input) || input.identityFor === undefined) return
+    const path = `inputs[${index}].identityFor`
+    const k = input.identityFor
+    if (!isNonEmptyString(k)) {
+      errors.push(`${path}: expected the key of the enum input this box names an option of, got ${fmt(k)}`)
+      return
+    }
+    if (input.type !== 'string') {
+      errors.push(`${path}: only a "string" input stands in for an option, and this one is ${fmt(input.type)}`)
+      return
+    }
+    if (input.legacy === true) {
+      errors.push(`${path}: a legacy input is never rendered, so nobody types the name it would print — drop one`)
+      return
+    }
+    if (k === input.key) {
+      errors.push(`${path}: ${fmt(k)} is the input itself`)
+      return
+    }
+    const target = inputsByKey.get(k)
+    if (!target) {
+      errors.push(`${path}: ${fmt(k)} names no declared input (declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`)
+      return
+    }
+    if (target.type !== 'enum' || !Array.isArray(target.options)) {
+      errors.push(`${path}: ${fmt(k)} is ${fmt(target.type)}, and only an enum's option has a name to stand in for`)
+      return
+    }
+    if (!params.includes(k)) {
+      errors.push(`${path}: ${fmt(k)} is not a meta.legendParams entry, so no label prints it and the field reads nothing`)
+      return
+    }
+    const aw = input.activeWhen
+    if (!isPlainObject(aw) || aw.key !== k || !Object.prototype.hasOwnProperty.call(aw, 'equals')) {
+      errors.push(`${path}: the box must declare activeWhen {key: ${fmt(k)}, equals: <option>} — that names the option it stands in for`)
+      return
+    }
+    const option = target.options.find((o) => enumOptionValue(o) === aw.equals)
+    // An `equals` no option carries is already refused by `validateActiveWhen`.
+    if (option === undefined) return
+    const label = enumOptionLabel(option)
+    if (!isNonEmptyString(label)) {
+      errors.push(`${path}: the option ${fmt(aw.equals)} carries no label, so an empty box would print the raw code`)
+      return
+    }
+    const slot = `${k}=${JSON.stringify(aw.equals)}`
+    if (seen.has(slot)) {
+      errors.push(`${path}: the option ${fmt(aw.equals)} of ${fmt(k)} already has a companion at inputs[${seen.get(slot)}] — one per option`)
+      return
+    }
+    seen.set(slot, index)
+  })
+}
+
 /** `activeWhen` is the JSON-expressible successor to `indicatorRegistry`'s
  *  `showIf` predicate (a function cannot survive a definition round-trip). The
  *  operator grammar is NOT locked in v1, so this checks only the part that is
@@ -3565,6 +3647,8 @@ export function validateDefinition(def) {
     validateServerGates(out, inputs, errors)
     // ⭐ UCT RS PHASE 3 (unit 3-08b) — a legacy input's `mapsTo` successor.
     validateLegacyMaps(inputs, inputsByKey, errors)
+    // ⭐ UCT RS PHASE 3 (unit 3-09b) — a text box that names an enum option.
+    validateIdentityFor(out, inputs, inputsByKey, errors)
 
     // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
     validateReadout(out, inputsByKey, errors)

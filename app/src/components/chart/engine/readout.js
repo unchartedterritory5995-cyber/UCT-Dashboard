@@ -317,6 +317,39 @@ function chipLabel(def, plot, inputs, displayName) {
 // (the field `paneReadoutLabel` already prints) and `chip.readout` only.
 const IDENTITY_INPUT_TYPES = new Set(['enum', 'string'])
 
+// ─── AN OPTION THAT IS ONLY A DOOR TO A TEXT BOX (unit 3-09b, 2026-11-07) ───
+//
+// ⚰️ MEASURED: with "Your symbol" picked, the chip read `UCT RS · CUSTOM` until
+// the server's resolved benchmark row replaced it. `CUSTOM` is the enum's CODE
+// for "the member typed one"; it names nothing a member chose.
+//
+// ⭐ THE RULE IS DECLARED, NOT SPELLED HERE. A `string` input that declares
+// `identityFor: '<enum key>'` and `activeWhen: {key: <enum key>, equals: <option>}`
+// is that option's companion (`defSchema.validateIdentityFor` refuses a half
+// pair). When the enum holds that option, its identity text is the companion's
+// typed value, or the option's LABEL while the box is empty — never the code.
+// Every other value, and every definition with no companion, reads exactly as
+// before. The server's resolved row still replaces it in `stampReadout`.
+function optionLabelOf(inp, value) {
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    if (Array.isArray(o)) { if (o[0] === value) return typeof o[1] === 'string' ? o[1] : null }
+    else if (o && typeof o === 'object' && 'value' in o) { if (o.value === value) return typeof o.label === 'string' ? o.label : null }
+    else if (o === value) return null
+  }
+  return null
+}
+
+function identityTextOf(inp, raw, def, inputs) {
+  if (inp.type !== 'enum') return raw
+  const companion = (def.inputs || []).find((c) => c && c.identityFor === inp.key && c.type === 'string'
+    && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === inp.key && c.activeWhen.equals === raw)
+  if (!companion) return raw
+  const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
+  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  const label = optionLabelOf(inp, raw)
+  return (typeof label === 'string' && label) ? label : raw
+}
+
 /** `legendParams` whose input is a named choice, resolved for THIS instance:
  *  `Map(key → value)`, declaration order. Empty for every numeric parameter. */
 function legendIdentityParts(def, inputs) {
@@ -329,7 +362,7 @@ function legendIdentityParts(def, inputs) {
     const inp = declared.get(k)
     if (!inp || !IDENTITY_INPUT_TYPES.has(inp.type)) continue
     const raw = (inputs && inputs[k] !== undefined) ? inputs[k] : inp.default
-    if (typeof raw === 'string' && raw) parts.set(k, raw)
+    if (typeof raw === 'string' && raw) parts.set(k, identityTextOf(inp, raw, def, inputs))
   }
   return parts
 }
@@ -436,7 +469,9 @@ function resolvePlotColor(plot, inputs, def) {
  *        exists: two RSI lines at different periods would print the same number
  *        twice. That is the reason this is a PARAMETER and not a lookup inside.
  * @param {Function} [displayFor] `(defId, instanceId) => string|null`, the stored
- *        display name of the instance (a `labelFrom: 'source'` definition).
+ *        display name of the instance (a `labelFrom: 'source'` definition), and
+ *        (3-09b) the sibling suffix when every copy in a colliding group has a
+ *        distinct one (`UCT RS(SPY) · Line A`).
  * @param {object[]} [instances] the normalised instance list, for the sibling
  *        disambiguator's source words.
  * @param {{scalarsOf?: (def: object, inputs: object) => (object|null)}} [opts]
@@ -464,6 +499,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
   // chip's keys must not start seeing a resolved-inputs blob it never had.
   const inputsByChip = new Map()
+  // ⭐ 3-09b — and the instance's stored display name, beside them for the same
+  // reason: the sibling pass prefers it as the suffix (`disambiguateSiblings`).
+  const displayByChip = new Map()
   // The hovered bar's time, read off whichever series has a row there -- only a
   // gap-breaking binding (`valueAt`, `gapRuns.js`) asks for it.
   const hoveredTime = hoveredTimeOf(seriesData)
@@ -535,8 +573,8 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     // `frame` (a chart-frame series has none), so an ordinary indicator's chip is
     // byte-identical to before.
     const frameSuffix = typeof e.frame === 'string' && e.frame ? ` · ${tfLabel(e.frame)}` : ''
-    const label = chipLabel(def, plot, inputs,
-      typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null) + frameSuffix
+    const displayName = typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null
+    const label = chipLabel(def, plot, inputs, displayName) + frameSuffix
     // The observation period of the value under the crosshair (economic only).
     let observation = ''
     if (typeof e.observationAt === 'function' && hoveredTime !== undefined) {
@@ -559,8 +597,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
       ...(frameSuffix ? { frameSuffix } : {}),
     })
     inputsByChip.set(out.length - 1, inputs)
+    if (typeof displayName === 'string' && displayName.trim()) displayByChip.set(out.length - 1, displayName.trim())
   }
-  const chips = disambiguateSiblings(out, inputsByChip, registry, instances)
+  const chips = disambiguateSiblings(out, inputsByChip, registry, instances, displayByChip)
   // ⭐ AFTER the sibling pass, so the pane suffix composes with — never
   // overwrites — the ` (maLength 50)` a second copy earned. Label untouched.
   chips.forEach((c, i) => stampReadout(c, get(c.defId), inputsByChip.get(i), opts))
@@ -776,7 +815,30 @@ function sourceDescriber(def, get, instances) {
  * what keeps this out of the existing chart assertions, which are written against
  * single-instance legends.
  */
-function disambiguateSiblings(chips, inputsByChip, registry, instances) {
+// ─── ⭐ 3-09b · A NAME THE MEMBER (OR A DRILL) GAVE BEATS AN INPUT NAME ──────
+//
+// ⚰️ Two RS lines in a Study drill, set apart only by their Mansfield length,
+// read `UCT RS(SPY) (mansfieldLength 200)`: an input KEY in a member's legend.
+// The drill had already named them (`display: {name: 'Line A'}`), and that name
+// is what the lesson's words say. So when EVERY instance in a colliding group
+// carries a display name and the names are DISTINCT, the suffix is
+// ` · <name>` (`UCT RS(SPY) · Line A`). Any instance unnamed, or two sharing a
+// name, and the input-diff suffix stands, byte for byte.
+function namedSiblingSuffixes(chips, idxs, displayByChip) {
+  if (!(displayByChip instanceof Map)) return null
+  const byInstance = new Map()
+  for (const i of idxs) {
+    const name = displayByChip.get(i)
+    if (typeof name !== 'string' || !name) return null
+    const id = chips[i].instanceId
+    if (byInstance.has(id) && byInstance.get(id) !== name) return null
+    byInstance.set(id, name)
+  }
+  if (new Set(byInstance.values()).size !== byInstance.size) return null
+  return idxs.map((i) => ` · ${displayByChip.get(i)}`)
+}
+
+function disambiguateSiblings(chips, inputsByChip, registry, instances, displayByChip) {
   // ⛔⛔ THE LABEL IS PART OF THE GROUP KEY, AND THAT IS WHAT MAKES A MIXED GROUP
   // BEHAVE. Grouping on `defId::plotKey` alone was the same sentence while every
   // definition named itself from its own metadata: either every chip in a group
@@ -827,8 +889,9 @@ function disambiguateSiblings(chips, inputsByChip, registry, instances) {
     // failure: thin, and never `@inst:dataSeries:1::value` in a member's legend.
     const describe = sourceDescriber(def0, (id) => (registry && typeof registry.getDefinition === 'function'
       ? registry.getDefinition(id) : null), instances)
-    const suffixes = siblingSuffixes(idxs.map(i => resolvedInputsOf(def0, inputsByChip.get(i))), ignore,
-      describe ? { describe } : undefined)
+    const suffixes = namedSiblingSuffixes(chips, idxs, displayByChip)
+      || siblingSuffixes(idxs.map(i => resolvedInputsOf(def0, inputsByChip.get(i))), ignore,
+        describe ? { describe } : undefined)
 
     idxs.forEach((chipIdx, n) => {
       const label = `${chips[chipIdx].label}${suffixes[n]}`
