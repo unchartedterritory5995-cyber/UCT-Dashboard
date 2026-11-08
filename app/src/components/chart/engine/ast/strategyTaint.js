@@ -212,7 +212,11 @@ export function strategyTaintSinks(stmts) {
       if (!collectSinks) continue
       const isSink = SINK_CALLS.has(c.name) || DRAWING_NS.test(c.name)
         || (root && !DRAWING_NS.test(c.name) && DRAWING_METHOD.test(meth) && !fns.has(meth))
-      const sw = w || recvWord
+      // ⛔ A DELETE draws no value: deleting a drawing the taint already withheld shows nothing a
+      // broker value decided. Only a delete RUN under a tainted condition is the broker's choice.
+      // (Treating its handle as the sink withheld the delete, and a lost delete hides EVERY drawing
+      // of the script: rsi-vwap-indicator, owner ruling 2026-11-08.)
+      const sw = meth === 'delete' && (SINK_CALLS.has(c.name) || DRAWING_NS.test(c.name) || root) ? ctxWord : (w || recvWord)
       if (isSink && sw && !sinks.has(keyOf(c.tok))) sinks.set(keyOf(c.tok), { word: sw, name: c.name, tok: c.tok })
     }
   }

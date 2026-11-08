@@ -8,11 +8,13 @@
 // The fix is TAINT (`ast/strategyTaint.js`), not a route-by-route patch: any value derived from a broker
 // state read that reaches a member-visible sink (every argument of plot*, fill, bgcolor, barcolor, hline,
 // alertcondition / alert, line / label / box / table / polyline / linefill) refuses `pine:strategy-call`
-// by name. A row refuses itself, a paint is withheld by name, a band / drawing / alert / hline refuses
-// the script. The runtime lane already refused or withheld each of these.
+// by name. A row refuses itself, a paint is withheld by name, a drawing step is withheld by name in the
+// object pass (owner ruling 2026-11-08: the drawing alone, never its untainted plots), and a band /
+// alert / hline (no row, no object of its own) refuses the script. The runtime lane already refused or withheld each of these.
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../../ast/pine.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition.js'
 import { strategyTaintSinks, isStrategyStateWord } from '../../ast/strategyTaint.js'
 
 const head = (v) => `//@version=${v}\nstrategy("t", overlay = true)\n`
@@ -31,6 +33,14 @@ const namesRead = (t, word = 'strategy.position_size') =>
   refusalsOf(t).some((r) => r.guard === 'pine:strategy-call' && r.message.includes(`\`${word}\``))
   || ((t.presentation && t.presentation.paints) || []).some((p) => p.withheld
     && p.withheld.code === 'pine:strategy-call' && p.withheld.reason.includes(`\`${word}\``))
+  || drawingWithheld(t, word)
+/** a drawing step withheld by name in the object pass (owner ruling: the drawing alone, not the script) */
+const drawingWithheld = (t, word = 'strategy.position_size') => {
+  const d = t.objectDiagnostics || {}
+  return Object.keys(d.dropReasons || {}).some((k) => k.startsWith('strategy:'))
+    && (d.guardRefusals || []).some((e) => e.includes('pine:strategy-call'))
+    && (d.guardRefusalWhy || []).some((e) => e.includes(`\`${word}\``))
+}
 
 describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a member-visible sink refuses by name', (v) => {
   const H = head(v)
@@ -96,6 +106,42 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     expect(t.presentation.paints[0].withheld.reason).toContain('`strategy.position_size`')
   })
 
+  it('host (rsi-vwap shape): the untainted plot is served and ONLY the tainted label is withheld, by name', () => {
+    const t = host(`${H}r = ta.rsi(close, 14)\nplot(r, "RSI")\n`
+      + 'var label lbl = na\nlbl := label.new(bar_index, 50, "Position Size: " + str.tostring(strategy.position_size))\n'
+      + 'label.delete(lbl[1])\n')
+    expect(t.ok).toBe(true)
+    expect(t.outputs[0].refusal).toBeNull()
+    expect(t.outputs[0].kind).toBe('plot')
+    expect(refusalsOf(t).some((r) => r.guard === 'pine:strategy-call')).toBe(false)
+    expect(drawingWithheld(t)).toBe(true)
+    // the delete of the withheld label is NOT itself withheld (a lost delete would hide every drawing)
+    expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBeUndefined()
+    // …so the member door still draws the script's other drawings (rsi-vwap-indicator, owner ruling)
+    const d = memberPaneDefinition({ source: `${H}r = ta.rsi(close, 14)\nplot(r, "RSI")\n`
+      + 'var label lbl = na\nlbl := label.new(bar_index, 50, "Position Size: " + str.tostring(strategy.position_size))\n'
+      + 'label.delete(lbl[1])\nif ta.crossover(r, 30)\n    label.new(bar_index, 30, "x", style = label.style_diamond)\n', id: 'x', name: 'x' })
+    expect(d.ok).toBe(true)
+    expect(JSON.stringify(d.definition.meta.disclosures)).not.toMatch(/drawings are not|can't be shown/)
+  })
+
+  it('a delete RUN under a tainted condition is withheld by name (the broker decides it)', () => {
+    const t = host(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif strategy.position_size > 0\n    label.delete(lbl)\n`)
+    expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBe(1)
+  })
+
+  it('control: a label NOT reached by a strategy value still draws beside a tainted one', () => {
+    const t = host(`${H}plot(close)\nlabel.new(bar_index, high, "plain", color = color.blue)\n`
+      + `label.new(bar_index, low, "x", color = ${SC})\n`)
+    expect(t.ok).toBe(true)
+    const creates = ((t.objects && t.objects.ops) || []).filter((o) => o.k === 'create' && o.family === 'label')
+    expect(creates.length).toBe(1)
+    expect(t.objectDiagnostics.dropReasons['strategy:create']).toBe(1)
+    const clean = host(`${H}plot(close)\nlabel.new(bar_index, high, "plain", color = color.blue)\n`)
+    expect(((clean.objects && clean.objects.ops) || []).filter((o) => o.k === 'create' && o.family === 'label').length).toBe(1)
+    expect(Object.keys(clean.objectDiagnostics.dropReasons).some((k) => k.startsWith('strategy:'))).toBe(false)
+  })
+
   it('host: only the reading row is refused; its sibling plot is translated', () => {
     const t = host(`${H}plot(close, "a", color = ${SC})\nplot(open, "b")\n`)
     expect(t.outputs[0].refusal.guard).toBe('pine:strategy-call')
@@ -131,7 +177,8 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     const t = translatePine(`${H}label.new(bar_index, high, "x", color = ${SC})\nplot(close, color = ${SC})\n`)
     expect(t.ok).toBe(false)
     expect(refusalsOf(t).some((r) => r.guard === 'pine:declaration-strategy')).toBe(true)
-    expect(refusalsOf(t).some((r) => / \(reaches `/.test(r.message))).toBe(false)
+    expect(refusalsOf(t).some((r) => r.guard === 'pine:strategy-call')).toBe(false)
+    expect(Object.keys((t.objectDiagnostics && t.objectDiagnostics.dropReasons) || {}).some((k) => k.startsWith('strategy:'))).toBe(false)
   })
 
   // ── the lanes agree ──────────────────────────────────────────────────────────────────
