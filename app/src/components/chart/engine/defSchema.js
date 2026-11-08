@@ -132,7 +132,8 @@ import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from '.
 // modules, and a format the resolver cannot print cannot be declared.
 import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
-  READOUT_CONDITION_OPS, parseReadoutSource,
+  READOUT_CONDITION_OPS, parseReadoutSource, parseReadoutGate,
+  READOUT_ACTION_KINDS, READOUT_ACTION_FIELDS, READOUT_ACTION_INPUT_TYPE,
 } from './readoutSchema'
 // ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
 // 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
@@ -1551,6 +1552,69 @@ function validateMeta(meta, def, errors) {
  * @param {Map<string, object>} inputsByKey the declared inputs, for `input:` sources
  * @param {string[]} errors
  */
+/**
+ * ⭐ UCT RS 3-07 — the equals gate `input:<key>=<value>` (`readoutSchema`'s
+ * header). `null` when it is sound, else the reason. Closed on purpose: the key
+ * must be a declared ENUM input and the value one of its declared STRING option
+ * codes, because the runtime compares by identity and a value no option carries
+ * would keep the row closed forever without a word.
+ */
+function equalsGateFault(gate, inputsByKey) {
+  const key = gate.path[0]
+  const input = inputsByKey.get(key)
+  if (!input) return `${fmt(key)} names no declared input. Declared: ${list([...inputsByKey.keys()]) || 'none'}`
+  if (input.type !== 'enum' || !Array.isArray(input.options)) {
+    return `the equals form compares an ENUM input with one of its options, and ${fmt(key)} is ${fmt(input.type)}`
+  }
+  const values = input.options.map(enumOptionValue).filter((v) => typeof v === 'string')
+  if (!values.includes(gate.equals)) {
+    return `${fmt(gate.equals)} is not one of ${fmt(key)}'s option values: ${list(values.map(fmt)) || 'none'}`
+  }
+  return null
+}
+
+/**
+ * ⭐ UCT RS 3-07 — `readout[].action`, what a row offers to DO
+ * (`readoutSchema.READOUT_ACTION_KINDS`). Closed vocabulary, closed fields per
+ * kind, and an input-naming action must name a declared `string` input: a date
+ * picked off the chart, or a reset, is written to a text value, and anything else
+ * would be a write the input's own control could not show.
+ */
+function validateReadoutAction(action, path, who, inputsByKey, errors) {
+  const where = `${path}.action`
+  if (!isPlainObject(action)) {
+    errors.push(`${where}: ${who} — expected {kind, input?}, got ${fmt(action)}`)
+    return
+  }
+  if (!READOUT_ACTION_KINDS.includes(action.kind)) {
+    errors.push(`${where}.kind: ${who} — unknown readout action ${fmt(action.kind)} — expected one of: ${list(READOUT_ACTION_KINDS)}`)
+    return
+  }
+  const fields = READOUT_ACTION_FIELDS[action.kind]
+  for (const k of Object.keys(action)) {
+    if (!fields.includes(k)) {
+      errors.push(`${where}.${k}: ${who} — a ${fmt(action.kind)} action carries only ${list(fields)}`)
+    }
+  }
+  if (!fields.includes('input')) return
+  if (!isNonEmptyString(action.input)) {
+    errors.push(`${where}.input: ${who} — a ${fmt(action.kind)} action names the input it writes, got ${fmt(action.input)}`)
+    return
+  }
+  const input = inputsByKey.get(action.input)
+  if (!input) {
+    errors.push(
+      `${where}.input: ${who} — ${fmt(action.input)} names no declared input. ` +
+      `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+    )
+  } else if (input.type !== READOUT_ACTION_INPUT_TYPE) {
+    errors.push(
+      `${where}.input: ${who} — a ${fmt(action.kind)} action writes a ${fmt(READOUT_ACTION_INPUT_TYPE)} input, ` +
+      `and ${fmt(action.input)} is ${fmt(input.type)}`,
+    )
+  }
+}
+
 function validateReadout(def, inputsByKey, errors) {
   const readout = def.readout
   if (readout === undefined || readout === null) return
@@ -1595,6 +1659,15 @@ function validateReadout(def, inputsByKey, errors) {
       if (!isNonEmptyString(v)) {
         errors.push(`${path}.${field}: ${who} — required string, ${SOURCE_HELP}, got ${fmt(v)}`)
         continue
+      }
+      // ⭐ 3-07 — a `when` may be the equals form instead (`input:view=rotation`).
+      if (field === 'when') {
+        const gate = parseReadoutGate(v)
+        if (gate && typeof gate.equals === 'string') {
+          const fault = equalsGateFault(gate, inputsByKey)
+          if (fault) errors.push(`${path}.when: ${who} — ${fault}`)
+          continue
+        }
       }
       const parsed = parseReadoutSource(v)
       if (!parsed) {
@@ -1666,6 +1739,14 @@ function validateReadout(def, inputsByKey, errors) {
         }
         for (const k of ['source', 'when']) {
           if (k === 'when' && (b.when === undefined || b.when === null)) continue
+          if (k === 'when') {
+            const gate = parseReadoutGate(b.when)
+            if (gate && typeof gate.equals === 'string') {
+              const fault = equalsGateFault(gate, inputsByKey)
+              if (fault) errors.push(`${path}.band.when: ${who} — ${fault}`)
+              continue
+            }
+          }
           const parsed = parseReadoutSource(b[k])
           if (!parsed) {
             errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} is not a readout source; ${SOURCE_HELP}`)
@@ -1675,6 +1756,7 @@ function validateReadout(def, inputsByKey, errors) {
         }
       }
     }
+    if (entry.action !== undefined) validateReadoutAction(entry.action, path, who, inputsByKey, errors)
     if (entry.words !== undefined) {
       if (entry.format !== 'bool') {
         errors.push(`${path}.words: ${who} — only a "bool" row carries a word pair (this row is ${fmt(entry.format)})`)
@@ -1776,6 +1858,16 @@ function validatePlacement(placement, errors) {
   // is every definition that predates the field, so no other pane moves.
   if (placement.axis !== undefined) {
     checkVocabulary(placement.axis, PLACEMENT_AXIS_MODES, [], 'placement.axis', 'placement axis mode', errors)
+  }
+  // ⭐ UCT RS 3-07 — `ownScale`: on the price pane, draw on an invisible scale of
+  // the instance's own in the lowest third under the bars (`placement.ownScaleOf`).
+  // Behavioural, so only a real boolean is admitted: a string `'true'` would read
+  // as off in the resolver and as on to a reader of the definition.
+  if (placement.ownScale !== undefined && typeof placement.ownScale !== 'boolean') {
+    errors.push(
+      `placement.ownScale: expected a boolean (true draws on its own invisible scale under the bars ` +
+      `when the indicator is on the price pane), got ${fmt(placement.ownScale)}`,
+    )
   }
 
   // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
@@ -2194,6 +2286,32 @@ function validateServerGates(def, inputs, errors) {
  *  checkable and dangerous: a condition keyed on an input that does not exist
  *  would silently evaluate to "never show", hiding a control forever. Same class
  *  as an unresolvable $ref, so it gets the same treatment. */
+/**
+ * ⭐ UCT RS 3-07 — an `activeWhen` keyed on an ENUM input compares against that
+ * input's OPTION VALUES, so a value no option carries is a condition that can
+ * never (`equals`, `in`) or always (`notEquals`) hold: the same "hides a control
+ * forever" class as an unresolvable key, and refused the same way. `null` when
+ * sound or not checkable (a non-enum referent, or an operator this does not
+ * compare, `gt`/`lt`, keep their v1 latitude).
+ */
+function activeWhenEnumFault(aw, inputsByKey) {
+  const input = inputsByKey.get(aw.key)
+  if (!input || input.type !== 'enum' || !Array.isArray(input.options)) return null
+  const values = input.options.map(enumOptionValue)
+  const known = (v) => values.includes(v)
+  for (const op of ['equals', 'notEquals']) {
+    if (Object.prototype.hasOwnProperty.call(aw, op) && !known(aw[op])) {
+      return `.${op}: ${fmt(aw[op])} is not one of ${fmt(aw.key)}'s option values: ${list(values.map(fmt))}`
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(aw, 'in')) {
+    if (!Array.isArray(aw.in)) return `.in: expected an array of ${fmt(aw.key)}'s option values, got ${fmt(aw.in)}`
+    const bad = aw.in.filter((v) => !known(v))
+    if (bad.length) return `.in: ${list(bad.map(fmt))} ${bad.length === 1 ? 'is' : 'are'} not among ${fmt(aw.key)}'s option values: ${list(values.map(fmt))}`
+  }
+  return null
+}
+
 function validateActiveWhen(input, index, inputsByKey, errors) {
   const aw = input?.activeWhen
   if (aw === undefined || aw === null) return
@@ -2210,6 +2328,9 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
     )
   } else if (aw.key === input.key) {
     errors.push(`${path}.key: ${fmt(aw.key)} refers to its own input — the condition can never be evaluated`)
+  } else {
+    const fault = activeWhenEnumFault(aw, inputsByKey)
+    if (fault) errors.push(`${path}${fault}`)
   }
 }
 
@@ -2645,6 +2766,9 @@ function validatePlotActiveWhen(plot, path, inputsByKey, errors) {
   }
   if (!Object.prototype.hasOwnProperty.call(aw, 'equals')) {
     errors.push(`${where}: expected an \`equals\` value — the guide's condition is one input state`)
+  } else if (inputsByKey.has(aw.key)) {
+    const fault = activeWhenEnumFault(aw, inputsByKey)
+    if (fault) errors.push(`${where}${fault}`)
   }
 }
 

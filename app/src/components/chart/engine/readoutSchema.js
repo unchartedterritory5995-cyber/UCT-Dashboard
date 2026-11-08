@@ -27,7 +27,8 @@
 //     label:    'Benchmark',                 // member-facing, operator voice
 //     source:   'scalar:benchmark.resolved', // scalar:<path> | payload:<path> | input:<key>
 //     format:   'text',                      // one of READOUT_FORMATS
-//     when?:    'scalar:benchmark.fallback', // same grammar; falsy ⇒ row omitted
+//     when?:    'scalar:benchmark.fallback', // same grammar; falsy ⇒ row omitted; or the
+//                                            // equals form 'input:view=rotation' (below)
 //     fallback?: 'not yet rated',            // shown, muted, when the source is missing
 //     chip?:    true,                        // feeds the chip/pane suffix (at most MAX_CHIP_ROWS)
 //     words?:   ['above', 'below'],          // `bool` only: the true / false words
@@ -52,7 +53,18 @@
 //     band?:    {source: 'scalar:rating.ibd', when: 'input:ratingBands'},
 //                                            // a 1-99 rating the row is coloured by: the
 //                                            // site's bands (RATING_BANDS), only while `when`
+//     action?:  {kind: 'pickDate', input: 'anchorDate'},
+//                                            // one thing the row offers to DO (3-07):
+//                                            // READOUT_ACTION_KINDS, closed; the surface
+//                                            // (StockChart, unit 3-09) renders it
 //   }]
+//
+// ⭐ THE EQUALS GATE (UCT RS 3-07). A `when` (and a `band.when`) may also be
+// `input:<key>=<value>`: open while that ENUM input holds that option value
+// (`input:view=rotation`, a row printed only under its view). Closed grammar:
+// `input:` only (a scalar gate stays truthiness), one `=`, and `defSchema`
+// refuses a key that is not a declared enum input or a value that is not one of
+// its declared string options, so a typo can never hide a row forever.
 //
 // An `input:` source in `text` format over an `enum` input prints the option's
 // LABEL (`Sector ETF (auto)`), never the stored code (`SECTOR`).
@@ -110,8 +122,29 @@ export const READOUT_SOURCE_PREFIXES = Object.freeze(['scalar', 'payload', 'inpu
  *  legend prints), not a document field to preserve. */
 export const READOUT_ENTRY_FIELDS = Object.freeze([
   'key', 'label', 'source', 'format', 'when', 'fallback', 'chip', 'words', 'card', 'detailOf', 'note', 'muted',
-  'chipWhen', 'chipPrefix', 'band',
+  'chipWhen', 'chipPrefix', 'band', 'action',
 ])
+
+/** ⭐ UCT RS 3-07 — what a readout row may offer to DO. Closed: an unknown kind
+ *  fails closed in `defSchema`, because a row's action is a control a member
+ *  presses, not a document field to preserve.
+ *    pickDate     `{kind, input}` — pick a bar on the chart; its date is written
+ *                 to that `string` input (the RS anchor)
+ *    resetInput   `{kind, input}` — put that `string` input back to its default
+ *    openRotation `{kind}`        — open the Rotation view (Compare panel)
+ *  Rendering is the surface's (`StockChart`, unit 3-09); `readoutRows` copies a
+ *  well-formed action onto its row so the surface needs no second read. */
+export const READOUT_ACTION_KINDS = Object.freeze(['pickDate', 'resetInput', 'openRotation'])
+
+/** The action kinds that name an input, and the fields each kind carries. */
+export const READOUT_ACTION_FIELDS = Object.freeze({
+  pickDate: Object.freeze(['kind', 'input']),
+  resetInput: Object.freeze(['kind', 'input']),
+  openRotation: Object.freeze(['kind']),
+})
+
+/** The input type an input-naming action writes: both write a text value. */
+export const READOUT_ACTION_INPUT_TYPE = 'string'
 
 /** The comparators `chipWhen` may use — the inputs' `activeWhen` grammar
  *  (`indicatorRegistry.evalActiveWhen`), so there is one condition language for
@@ -149,6 +182,10 @@ export const READOUT_CARD_FIELDS = Object.freeze(['what', 'origin', 'evidence', 
  *  a dotted path of identifier segments. */
 export const READOUT_SOURCE_RE = /^(scalar|payload|input):([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$/
 
+/** ⭐ 3-07 — the equals gate: `input:<key>=<value>`. The value is an enum option
+ *  code: letters, digits, `_`, `.` and `-`, never empty, never a second `=`. */
+export const READOUT_GATE_EQUALS_RE = /^input:([A-Za-z_][A-Za-z0-9_]*)=([A-Za-z0-9_][A-Za-z0-9_.-]*)$/
+
 /** How many rows the chip suffix prints at most — a pane label is one line. */
 export const MAX_CHIP_ROWS = 3
 
@@ -173,6 +210,34 @@ export function parseReadoutSource(source) {
   const m = READOUT_SOURCE_RE.exec(source)
   if (!m) return null
   return { kind: m[1] === 'input' ? 'input' : 'scalar', path: m[2].split('.') }
+}
+
+/**
+ * Parse a `when` gate: the equals form (`input:<key>=<value>`) as
+ * `{kind: 'input', path: [key], equals: value}`, else whatever
+ * `parseReadoutSource` makes of it (`null` when it is neither).
+ *
+ * @param {unknown} when
+ * @returns {{kind: 'scalar'|'input', path: string[], equals?: string}|null}
+ */
+export function parseReadoutGate(when) {
+  if (typeof when !== 'string') return null
+  const m = READOUT_GATE_EQUALS_RE.exec(when)
+  if (m) return { kind: 'input', path: [m[1]], equals: m[2] }
+  return parseReadoutSource(when)
+}
+
+/** A well-formed action copied fresh, or `null`. Runtime twin of the `defSchema`
+ *  check (which also asks that the input is a declared `string` input). */
+function readoutActionOf(action) {
+  if (!isPlainObject(action) || !READOUT_ACTION_KINDS.includes(action.kind)) return null
+  const fields = READOUT_ACTION_FIELDS[action.kind]
+  if (Object.keys(action).some((k) => !fields.includes(k))) return null
+  if (fields.includes('input')) {
+    if (typeof action.input !== 'string' || !action.input) return null
+    return { kind: action.kind, input: action.input }
+  }
+  return { kind: action.kind }
 }
 
 /** Walk a dotted path over plain objects. `undefined` the moment a step is not
@@ -287,6 +352,15 @@ export function formatReadoutValue(format, value, entry) {
  *  `undefined`, `0`, `''`, `false` and `NaN` as off. */
 const gateOpen = (v) => Boolean(v)
 
+/** Is a parsed gate open? The equals form is strict identity with the option
+ *  code; every other gate is truthiness. A gate that did not parse is CLOSED. */
+function gateHolds(gate, scalars, def, inputs) {
+  if (!gate) return false
+  const v = readSource(gate, scalars, def, inputs)
+  if (typeof gate.equals === 'string') return v === gate.equals
+  return gateOpen(v)
+}
+
 function resolveRow(entry, scalars, def, inputs) {
   if (!isPlainObject(entry)) return null
   if (typeof entry.key !== 'string' || !entry.key) return null
@@ -295,9 +369,9 @@ function resolveRow(entry, scalars, def, inputs) {
   const src = parseReadoutSource(entry.source)
   if (!src) return null
   if (entry.when !== undefined && entry.when !== null) {
-    const gate = parseReadoutSource(entry.when)
+    const gate = parseReadoutGate(entry.when)
     if (!gate) return null
-    if (!gateOpen(readSource(gate, scalars, def, inputs))) return null
+    if (!gateHolds(gate, scalars, def, inputs)) return null
   }
   let value = readSource(src, scalars, def, inputs)
   // ⭐ AN ENUM INPUT PRINTS ITS OPTION LABEL, never the stored code: a member
@@ -342,11 +416,18 @@ function resolveRow(entry, scalars, def, inputs) {
   // surface that knows nothing of bands renders exactly as before.
   if (row && row.muted !== true && isPlainObject(entry.band)) {
     const hasGate = entry.band.when !== undefined && entry.band.when !== null
-    const gate = hasGate ? parseReadoutSource(entry.band.when) : null
-    const open = hasGate ? (gate ? gateOpen(readSource(gate, scalars, def, inputs)) : false) : true
+    const gate = hasGate ? parseReadoutGate(entry.band.when) : null
+    const open = hasGate ? gateHolds(gate, scalars, def, inputs) : true
     const src = parseReadoutSource(entry.band.source)
     const band = open && src ? ratingBandOf(readSource(src, scalars, def, inputs)) : null
     if (band) row.band = band
+  }
+  // ⭐ 3-07 — `action`: what the row offers to do, copied fresh so a surface that
+  // mutates it cannot reach the definition. Absent otherwise, so every row that
+  // declares none keeps the exact shape it had.
+  if (row && entry.action !== undefined) {
+    const action = readoutActionOf(entry.action)
+    if (action) row.action = action
   }
   return row
 }
@@ -370,11 +451,12 @@ function enumOptionLabel(def, key, value) {
  * @param {object|null} scalars the envelope's payload (`scalarsFor`'s answer)
  * @param {{inputs?: object}} [ctx] the instance's stored inputs, for `input:` rows
  * @returns {{key: string, label: string, value: *, text: string, muted: boolean, detailOf?: string, note?: string,
- *   chipOff?: true, chipText?: string, band?: string}[]}
+ *   chipOff?: true, chipText?: string, band?: string, action?: {kind: string, input?: string}}[]}
  *   in declaration order; `detailOf` is present on a detail row only, `note` on
  *   a row whose declared note resolved to text; `chipOff` on a chip row whose
  *   `chipWhen` is false, `chipText` on a row with a `chipPrefix`, `band` on a
- *   row whose `band` gate is open over a 1-99 number
+ *   row whose `band` gate is open over a 1-99 number, `action` on a row that
+ *   declares a well-formed one
  */
 export function readoutRows(def, scalars, ctx) {
   const entries = def && Array.isArray(def.readout) ? def.readout : []
