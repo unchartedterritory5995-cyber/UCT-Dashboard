@@ -191,7 +191,10 @@ def test_dark_run_build_reads_no_rsp_and_says_so_in_the_receipt(tmp_db, monkeypa
     assert reads.count("SPY") == 1, "rs_line_trend still reads SPY"
     assert "RSP" not in reads, "RSP feeds only the dark step"
     assert "bars_rs" not in stats["sources"] and "rsp_bars" not in stats["sources"]
-    assert stats["bars_rs"] == {"enabled": False, "rows": 0, "ms": 0.0, "ms_per_row": None}
+    # `phase3` / `phase3_ms` joined the receipt with UCT RS Phase 3 unit 3-10
+    # (tests/test_screener_rs_phase3_columns.py): dark here, so off and zero.
+    assert stats["bars_rs"] == {"enabled": False, "rows": 0, "ms": 0.0, "ms_per_row": None,
+                                "phase3": False, "phase3_ms": 0.0}
 
 
 def test_armed_run_build_times_the_step_into_the_receipt(tmp_db, monkeypatch):
