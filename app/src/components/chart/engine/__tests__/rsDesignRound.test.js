@@ -329,13 +329,10 @@ describe('presets: exact, and a saved chart is unchanged', () => {
   const values = (stored) => resolveInputs(RS, stored)
   const ctx = (inputs, extra = {}) => ({ instance: { instanceId: 'rsLine', defId: 'rsLine', inputs, ...extra }, def: RS })
 
-  it('Phase turns both on (after the Classic toggles); Classic, Classic weekly and Stress state both off', () => {
-    expect(preset('phase').inputs).toMatchObject({ shadeVsAverage: true, showCrossMarkers: true })
-    for (const id of ['classic', 'classicWeekly', 'stress']) {
-      expect(preset(id).inputs, id).toMatchObject({ shadeVsAverage: false, showCrossMarkers: false })
+  it('⛔ owner decision: NO preset sets the band, the markers or the table — they are the member\'s own switches', () => {
+    for (const p of RS.meta.presets) {
+      for (const k of NEW_INPUTS) expect(p.inputs, `${p.id} sets ${k}`).not.toHaveProperty(k)
     }
-    // the ranks table is the member's, never a preset's
-    for (const p of RS.meta.presets) expect(p.inputs, p.id).not.toHaveProperty('showRanksTable')
   })
 
   it('an untouched (or saved v1) instance is still Classic, and draws no band and no markers', () => {
@@ -347,29 +344,31 @@ describe('presets: exact, and a saved chart is unchanged', () => {
     expect(detectPreset(RS.meta.presets, values({}), ctx({}))?.id).toBe('classic')
   })
 
-  it('each preset reads back as itself; Classic plus the band is Custom', () => {
+  it('each preset reads back as itself, and the switches never move the picker', () => {
     for (const id of ['classic', 'classicWeekly', 'phase']) {
       const p = preset(id)
       expect(detectPreset(RS.meta.presets, values(p.inputs), ctx(p.inputs))?.id, id).toBe(id)
+      // the band and the markers on by hand: still the same preset
+      const tuned = { ...p.inputs, shadeVsAverage: true, showCrossMarkers: true }
+      expect(detectPreset(RS.meta.presets, values(tuned), ctx(tuned))?.id, `${id} + band + markers`).toBe(id)
     }
-    // Stress after Phase: its inputs take the band and the markers off again
-    const stressed = { ...preset('phase').inputs, ...preset('stress').inputs }
-    expect(values(stressed)).toMatchObject({ shadeVsAverage: false, showCrossMarkers: false })
+    const stressed = { ...preset('stress').inputs, shadeVsAverage: true }
     const stressInst = { visibility: { preset: 'dailyUp' }, presentation: { plots: { dotNHred: { dotSize: 'large' } } } }
     expect(detectPreset(RS.meta.presets, values(stressed), ctx(stressed, stressInst))?.id).toBe('stress')
-    // Classic after Phase is Classic
-    const back = { ...preset('phase').inputs, ...preset('classic').inputs }
-    expect(detectPreset(RS.meta.presets, values(back), ctx(back))?.id).toBe('classic')
-    const custom = { ...preset('classic').inputs, shadeVsAverage: true }
-    expect(detectPreset(RS.meta.presets, values(custom), ctx(custom))).toBeNull()
   })
 
-  it('⚠️ a Phase chart saved BEFORE this round draws exactly as it did and reads as Custom until Phase is chosen again', () => {
-    const { shadeVsAverage: _a, showCrossMarkers: _b, ...old } = preset('phase').inputs
+  it('⭐ a Phase chart saved BEFORE this round (no key for either switch) still reads Phase and draws exactly as it did', () => {
+    // the stored inputs a pre-round Phase pick wrote: the preset's own, byte for byte
+    const old = { ...preset('phase').inputs }
+    expect(old).not.toHaveProperty('shadeVsAverage')
+    expect(old).not.toHaveProperty('showCrossMarkers')
     const v = values(old)
     expect(v.shadeVsAverage).toBe(false)     // no band appears on it by itself
     expect(v.showCrossMarkers).toBe(false)   // and no markers
-    expect(detectPreset(RS.meta.presets, v, ctx(old))).toBeNull()
+    expect(detectPreset(RS.meta.presets, v, ctx(old))?.id).toBe('phase')
+    // …and the same chart with the band turned on by hand is still Phase
+    const banded = { ...old, shadeVsAverage: true }
+    expect(detectPreset(RS.meta.presets, values(banded), ctx(banded))?.id).toBe('phase')
   })
 })
 
@@ -394,8 +393,9 @@ describe('the palette budget with the band and the markers drawn', () => {
   }
   const phase = RS.meta.presets.find((p) => p.id === 'phase').inputs
 
-  it('Phase: the band and the markers add no hue — still bull, bear and the gold', () => {
-    const h = hues(phase, ['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotCrossUp', 'dotCrossDown'])
+  it('Phase with the band and the markers switched on: no hue added — still bull, bear and the gold', () => {
+    const h = hues({ ...phase, shadeVsAverage: true, showCrossMarkers: true },
+      ['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial', 'dotCrossUp', 'dotCrossDown'])
     expect([...h].sort()).toEqual([IND_TOKENS.classic.bull, IND_TOKENS.classic.bear, IND_TOKENS.classic.premium].map((c) => c.toLowerCase()).sort())
   })
 

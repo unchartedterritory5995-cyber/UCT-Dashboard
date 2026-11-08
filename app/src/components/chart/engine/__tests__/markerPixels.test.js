@@ -566,11 +566,17 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
     expect(hues.size).toBeLessThanOrEqual(3)
     expect([...hues].sort()).toEqual([IND_TOKENS.classic.bull, IND_TOKENS.classic.bear, IND_TOKENS.classic.premium].sort())
     expect(preset('phase').dotColor).toBe(NEUTRAL)
-    // design round (2026-11-08): Phase draws the band and the cross triangles, in the
-    // line's own bull and bear, so the three hues are still the only three
+    // design round (2026-11-08): Phase sets neither the band nor the cross triangles
+    // (owner decision), so it draws what it drew before the round…
+    expect(preset('phase')).not.toHaveProperty('shadeVsAverage')
+    expect(preset('phase')).not.toHaveProperty('showCrossMarkers')
     expect(drawn({ ...defaults, ...preset('phase') }).map((p) => p.key))
+      .toEqual(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx', 'dotNHpartial'])
+    // …and a member who turns both on over Phase adds no hue: they take the line's own bull and bear
+    const tuned = { ...preset('phase'), shadeVsAverage: true, showCrossMarkers: true }
+    expect(drawn({ ...defaults, ...tuned }).map((p) => p.key))
       .toEqual(['rsLine', 'rsMa', 'dotNH', 'dotCrossUp', 'dotCrossDown', 'dotNHbeforePx', 'dotNHpartial'])
-    expect(preset('phase')).toMatchObject({ shadeVsAverage: true, showCrossMarkers: true })
+    expect([...huesOf(tuned)].sort()).toEqual([...hues].sort())
   })
 
   it('design round: Classic with the band switched on is the member\'s choice of the bull and bear tint; with the triangles on, still one blue', () => {

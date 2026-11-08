@@ -3908,11 +3908,11 @@ const RS_SHADE_OPACITY = 0.12
 const RS_CLASSIC_TOGGLES = Object.freeze({ view: 'ratio', showMansfield: false, showRedDay: false, showNewLow: false,
   // ⭐ A3: Stress switches before-price highs OFF and gives the red-day dot the
   // gold, so the Classic family states both back. Classic after Stress is Classic.
-  showNewHighBeforePrice: true, dotRedColor: RS_INFO,
-  // ⭐ DESIGN ROUND (2026-11-08): Phase turns the shaded band and the cross
-  // markers ON, so the Classic family states both back OFF. Classic after Phase is
-  // Classic, and a Classic instance with either switched on reads as Custom.
-  shadeVsAverage: false, showCrossMarkers: false })
+  showNewHighBeforePrice: true, dotRedColor: RS_INFO })
+// ⭐ DESIGN ROUND (2026-11-08, owner decision): NO preset states `shadeVsAverage` or
+// `showCrossMarkers`. They are the member's own switches (default off), so
+// `detectPreset` ignores them: a chart saved before the round keeps its preset name,
+// and turning the band or the markers on by hand never turns Phase into Custom.
 /** ⭐ THE HONESTY SENTENCE (Phase 2b, unit 2b-09) — the static evidence line of
  *  every card whose signal the nightly backtest measures, printed until the
  *  measured sentence replaces it through `card.evidenceSource`. ⛔ ONE FACT IN
@@ -4064,11 +4064,7 @@ const RS_LINE_RAW = {
         inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
         dotSize: 'medium', visibility: 'all' },
       { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
-        // ⭐ DESIGN ROUND (2026-11-08): the Deepvue Webby RS look — the band between
-        // the line and its average and a small triangle at each cross, both in the
-        // line's own bull and bear. Stated AFTER the Classic toggles they override.
-        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_BULL, lineDownColor: RS_BEAR, dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES,
-          shadeVsAverage: true, showCrossMarkers: true },
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_BULL, lineDownColor: RS_BEAR, dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES },
         dotSize: 'medium', visibility: 'all' },
       // ⭐ TREND (Weinstein's Mansfield, plan §5 / §7 item 13; visual round A2).
       // Mansfield view: the pane draws the Mansfield line ALONE around its zero
@@ -4096,10 +4092,7 @@ const RS_LINE_RAW = {
       { id: 'stress', label: 'Stress test (UCT)', origin: 'UCT workshops; Kell; TraderLion down days',
         inputs: { maLength: 21, maType: 'EMA', lookback: 252, showRedDay: true, showNewHighBeforePrice: false,
           dotRedColor: RS_GOLD, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO,
-          view: 'ratio', showMansfield: false, showNewLow: false,
-          // design round: Stress states its whole ratio look, so the band and the
-          // cross markers a Phase instance carried come off here too
-          shadeVsAverage: false, showCrossMarkers: false },
+          view: 'ratio', showMansfield: false, showNewLow: false },
         dotSize: { dotNHred: 'large' }, visibility: { preset: 'dailyUp' } },
       // ⭐⭐ THE PHASE 3 READINGS (plan §5; unit 3-08). Each is `requiresServer`
       // (listed only once the live row declares every key it sets) and each sets
@@ -4194,7 +4187,8 @@ const RS_LINE_RAW = {
       tooltip: 'Line colour below its average; the Phase preset sets red here' },
     { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
     // ⭐ DESIGN ROUND (2026-11-08) — two presentation switches, OFF by default so
-    // Classic draws exactly as before; the Phase preset turns both on. Neither is
+    // every chart draws exactly as before, and set by NO preset (owner decision:
+    // a saved chart keeps its preset name whatever these say). Neither is
     // a server input (`meta.serverInputs` is unchanged, so the fetch key and
     // `compute.rev` do not move): the band is a declared fill gated on its switch
     // (a `fill` with an `activeWhen`), the markers a client-derived column
@@ -4320,7 +4314,7 @@ const RS_LINE_RAW = {
     // plot-to-plot band, `fillPrimitive.js`): bull while the line is above the
     // average and bear while below, read off the same `rsAbove` column the line's
     // two colours read, at a 12% tint. Drawn only while the member's "Shade vs
-    // avg" switch is on (`fill.activeWhen`); the Phase preset turns it on. Under
+    // avg" switch is on (`fill.activeWhen`), which no preset sets. Under
     // every other Reading the server blanks the line and its average, so the band
     // has no area there by construction.
     { key: 'rsLine', label: 'RS line', style: 'line', colorMode: 'column:rsAbove',
