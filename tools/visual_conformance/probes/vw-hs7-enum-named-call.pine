@@ -1,0 +1,28 @@
+// HONESTY-SWEEP r1 (2026-11-07) - probe Q-HS7 for the capture lane (review N1).
+// Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. Read each line's style from the chart model.
+// The question is a confirmation: a helper computing the style, called with a NAMED argument, draws the style
+// the helper returns (the engine withholds these lines today because its drawing door does not read the call).
+//
+//   N01  st(m = pickA): a default-less switch over an uncovered input, matched ("A"): dashed expected
+//   N02  st(m = pickZ): the same, unmatched ("Z"): see Q-HS1 L03 (an `na` style)
+//   N03  sd(m = pickA): a switch WITH a default arm, matched: dashed expected
+//   N04  sd(m = pickZ): the same, the default arm: dotted expected
+//@version=6
+indicator("vw-hs7-enum-named-call", overlay = true)
+pickZ = input.string("Z", "unmatched", options = ["A", "B", "Z"])
+pickA = input.string("A", "matched", options = ["A", "B", "Z"])
+st(m) =>
+    switch m
+        "A" => line.style_dashed
+        "B" => line.style_dotted
+sd(m) =>
+    switch m
+        "A" => line.style_dashed
+        => line.style_dotted
+if barstate.islast
+    line.new(bar_index - 10, high, bar_index, high, style = st(m = pickA))
+    line.new(bar_index - 10, low, bar_index, low, style = st(m = pickZ))
+    line.new(bar_index - 10, close, bar_index, close, style = sd(m = pickA))
+    line.new(bar_index - 10, open, bar_index, open, style = sd(m = pickZ))
+plot(close, "close")

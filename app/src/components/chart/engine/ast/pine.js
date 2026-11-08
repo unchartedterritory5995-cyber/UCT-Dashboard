@@ -889,6 +889,7 @@ const OWN_SYMBOL_NAMES = new Set([
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
+import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE } from '../enumNaRule.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -2944,6 +2945,24 @@ const own = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(ob
  *  translator's resolver and the runtime lane's `windowTarget` both ask this (W34-I6c: the
  *  runtime lane read v4 `highestbars` as the bare POSITIVE table entry, the sign this
  *  rewrite exists to flip). */
+/** ⛔⛔ HONESTY-SWEEP item 2 (2026-11-07) — THE v1-v3 BARE `highestbars` / `lowestbars` SIGN.
+ *
+ *  W34-I6c settled the v4 bare spelling from the extracted v4 reference
+ *  (https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars, "Offset to the
+ *  highest bar") and the translator's vendor-measured re-route, both v4. No v1-v3
+ *  reference text is held and no capture witnesses a v1-v3 script's sign, so the
+ *  `pineVersion <= 4` bound served the v4 rule to v1-v3 unbacked. Until capture Q-HS2
+ *  (`tools/visual_conformance/probes/vw-hs2-v3-highestbars.pine`) witnesses it, a
+ *  v1-v3 bare call is refused by THIS name on every lane (the translator's Resolver
+ *  and the runtime lane's `windowTarget` both ask `legacyBarsSignUnstated`). A script
+ *  with no `//@version` (the formula box) has no version and is untouched. */
+export const LEGACY_BARS_SIGN_SENTENCE = 'the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset '
+  + 'is not stated by any reference text this engine holds (the v4 reference states v4 only) and is '
+  + 'not yet captured (Q-HS2); write it in `//@version=4` or later'
+export const legacyBarsSignUnstated = (pineName, pineVersion) => (
+  pineVersion !== null && pineVersion !== undefined && pineVersion <= 3
+  && (pineName === 'highestbars' || pineName === 'lowestbars'))
+
 export const pineNamespacedName = (pineName, pineVersion) => {
   const name = String(pineName)
   if (own(PINE_NAMESPACED_TREE, name)) return name
@@ -14005,6 +14024,10 @@ export class Resolver {
     // the SAME transform through the same three lines below — a second copy of
     // the argument walk here is `lesson_a_second_authority_over_one_value`, and
     // the two would drift the first time either was touched.
+    // ⛔⛔ HONESTY-SWEEP item 2 — a v1-v3 bare `highestbars`/`lowestbars` has no stated sign.
+    if (legacyBarsSignUnstated(pineName, this.pineVersion)) {
+      throw new PineRefusal('pine:builtin', `\`${pineName}\`: ${LEGACY_BARS_SIGN_SENTENCE}`, locate(tok))
+    }
     const namespacedName = pineNamespacedName(pineName, this.pineVersion)
     if (namespacedName) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
@@ -18855,6 +18878,9 @@ export function canonicalTextFormat(flags) {
 const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
 const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
+// ⛔⛔ HONESTY-SWEEP item 1 — the enum-`na` refusal sentence (`../enumNaRule.js`), re-exported.
+export { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE }
+
 export function objectEnumValue(name) {
   if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
   if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
@@ -19882,6 +19908,28 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  slot's read is byte-identical to what it was — which is the property
    *  `textEnumSlot.test.js`'s control asserts. */
   let enumLeaves = false
+  /** ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07) — AN `na` READ UNDER AN ENUM WALK.
+   *  Set by `textNodeOf`'s `na` branch while `enumLeaves` is on; read by
+   *  `valueRef`'s enum arm, which sets `enumNaDrop`. See `ENUM_NA_SENTENCE`. */
+  let enumNaSeen = false
+  /** Set when a slot's enum read refused: `'na'` (an `na` reached) or `'named'` (a helper called
+   *  with a named argument, review r1 N1); reset (false) by each converter before it reads a slot. */
+  let enumNaDrop = false
+  /** ⛔ HONESTY-SWEEP r1 — does this enum expression reach a call to the script's own function
+   *  with a NAMED argument (directly, through `expr` name bindings, or in a ternary arm)? */
+  const namedHelperCallIn = (n, env, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 8) return false
+    if (n.type === 'call') {
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      return !!(b && b.kind === 'fn' && (n.args || []).some((a) => a && a.name))
+    }
+    if (n.type === 'name') {
+      const o = openName(n, env, 0)
+      return !!(o && namedHelperCallIn(o.node, o.env || env, depth + 1))
+    }
+    if (n.type === 'ternary') return namedHelperCallIn(n.yes, env, depth + 1) || namedHelperCallIn(n.no, env, depth + 1)
+    return false
+  }
 
   /** ⭐⭐ THE ONE PLACE A TEXT NODE BECOMES A FORMATTED NUMBER.
    *
@@ -19987,7 +20035,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       n = b.node
     }
     if (!n || n.type !== 'call' || !(n.name === 'input' || n.name === 'input.string')) return null
-    const opt = (n.args || []).find((a) => a && a.name === 'options')
+    let opt = (n.args || []).find((a) => a && a.name === 'options')
+    // ⭐ HONESTY-SWEEP item 1 — `options` passed POSITIONALLY: the reference's own
+    // signature is `input.string(defval, title, options, tooltip, inline, group, …)`
+    // (https://www.tradingview.com/pine-script-reference/v6/#fun_input.string), so the
+    // third positional argument IS `options` (`halfStyle = input.string('Solid',
+    // 'Line Style', ['Solid', 'Dashed', 'Dotted'])`).
+    if (!opt && n.name === 'input.string' && Array.isArray(n.args) && n.args.length >= 3
+      && n.args.slice(0, 3).every((a) => a && !a.name)) opt = n.args[2]
     const els = opt && opt.value && opt.value.type === 'collection' ? opt.value.elements : null
     if (!Array.isArray(els) || !els.length || !els.every((e) => e && e.type === 'string')) return null
     return els.map((e) => String(e.value))
@@ -20008,8 +20063,54 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    * capture shows what a `na` size or position draws. So a default-less switch
    * is read only when its subject is an `input.string` whose `options` every arm
    * covers — then "nothing matches" cannot happen and the last arm is the else.
-   * Anything else is refused (null), which drops the prop by name upstream.
+   * Anything else is refused (null).
+   *
+   * ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07): under an ENUM walk that refusal used to
+   * drop only the PROP, so the drawing was drawn with the renderer's default style
+   * even on the bars where an arm DID match (`st(m) => switch m "A" => line.style_dashed`
+   * drew solid where TradingView draws dashed). A default-less switch that can miss
+   * is an `na` enum (`ENUM_NA_SENTENCE`): the whole drawing is withheld (`enum:na`).
    */
+  /** ⭐ HONESTY-SWEEP item 1 — a ternary chain whose `na` tail cannot be reached.
+   *
+   *      s == 'Solid' ? line.style_solid : s == 'Dotted' ? line.style_dotted
+   *        : s == 'Dashed' ? line.style_dashed : na
+   *
+   *  When every test is `<subject> == '<label>'` over ONE subject that opens to an
+   *  `input.string` whose `options` the labels all cover (`inputOptionsOf`, the rule a
+   *  default-less `switch` already reads by), the final `na` is dead and the chain is
+   *  read with its last arm as the else. Returns the rewritten node, or null (the
+   *  chain is read as written, and its `na` refuses by name: `ENUM_NA_SENTENCE`). */
+  const coveredNaTail = (node, scope) => {
+    const isNa = (n) => n && n.type === 'name' && n.name === 'na'
+    const tests = []
+    let n = node
+    for (let hop = 0; n && n.type === 'ternary' && hop < 64; hop += 1) {
+      tests.push(n)
+      if (isNa(n.no)) break
+      n = n.no
+    }
+    const last = tests[tests.length - 1]
+    if (!last || !isNa(last.no) || tests.length < 1) return null
+    let subject = null
+    const labels = []
+    for (const t of tests) {
+      const c = t.test
+      if (!c || c.type !== 'binary' || c.op !== '==') return null
+      const [lit, subj] = c.left && c.left.type === 'string' ? [c.left, c.right]
+        : c.right && c.right.type === 'string' ? [c.right, c.left] : [null, null]
+      if (!lit || !subj || subj.type !== 'name') return null
+      if (subject && subject !== subj.name) return null
+      subject = subj.name
+      labels.push(String(lit.value))
+      if (isNa(t.yes)) return null
+    }
+    const opts = inputOptionsOf({ type: 'name', name: subject }, scope || scopeEnv)
+    if (!opts || !opts.every((o) => labels.includes(o))) return null
+    const rebuild = (k) => (k === tests.length - 1 ? tests[k].yes : { ...tests[k], no: rebuild(k + 1) })
+    return rebuild(0)
+  }
+
   const switchTextOf = (sw, depth, inline) => {
     if (!sw || !sw.subject || !Array.isArray(sw.arms)) return null
     const env = sw.env || scopeEnv
@@ -20031,9 +20132,25 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (sw.fallback) {
       tail = armText(sw.fallback)
     } else {
-      const opts = inline ? null : inputOptionsOf(sw.subject, env)
+      // ⭐ HONESTY-SWEEP item 1 — the same coverage rule THROUGH A CALL: a helper
+      // `lineStyle(x) => switch x …` whose subject is its own parameter, called with an
+      // `input.string` whose `options` every arm covers, cannot miss either.
+      let opts = null
+      if (!inline) opts = inputOptionsOf(sw.subject, env)
+      else if (sw.subject.type === 'name' && inline.bound && Array.isArray(inline.bound.params)) {
+        const k = inline.bound.params.indexOf(sw.subject.name)
+        const a = k >= 0 && Array.isArray(inline.args) ? inline.args[k] : null
+        const argNode = a && !a.name ? (a.value !== undefined ? a.value : a) : null
+        if (argNode) opts = inputOptionsOf(argNode, inline.callerEnv || env)
+      }
       const covered = opts && opts.every((o) => arms.some((a) => String(a.label.value) === o))
-      if (!covered || !arms.length) return null
+      if (!covered || !arms.length) {
+        if (enumLeaves) {
+          enumNaSeen = true
+          textRefuse('pine:enum-na', ENUM_NA_SENTENCE)
+        }
+        return null
+      }
       tail = armText(arms[arms.length - 1].binding)
       arms = arms.slice(0, -1)
     }
@@ -20341,6 +20458,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (!a || !b) return null
       return { t: 'cat', args: [a, b] }
     }
+    if (node.type === 'ternary' && enumLeaves) {
+      // ⭐ HONESTY-SWEEP item 1 — an unreachable `na` tail is not an `na` enum.
+      const pruned = coveredNaTail(node, scope)
+      if (pruned) return textNodeOf(pruned, scope, depth + 1, inline, envAt)
+    }
     if (node.type === 'ternary') {
       // ⭐ C10 — A TEST THAT IS THE SAME ON EVERY BAR ANSWERS WITH ITS LIVE ARM
       // WHEN THE DEAD ONE CANNOT BE READ, as the resolver's own `ternary` case
@@ -20374,7 +20496,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // re-captions are recorded with `t: ""`. ⚰️ It fell to the numeric last
     // resort and printed "NaN". (`str.tostring(na)` is NOT this: that call
     // prints "NaN", F3.)
-    if (node.type === 'name' && node.name === 'na') return { t: 'lit', s: '' }
+    //
+    // ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07) — BUT NOT IN AN ENUM SLOT. F4's capture
+    // pins `na` as `""` for a TEXT; it says nothing about a `style`, a `size` or a
+    // `position` that is `na` (an `if` with no `else`, a `switch` with no default,
+    // `c ? line.style_dashed : na`). The reference lists only the named constants
+    // for those slots, and the renderer turned `""` into its own default (a solid
+    // line, a default label). Refused by name (`ENUM_NA_SENTENCE`) until capture
+    // Q-HS1 (`vw-hs1-enum-na.pine`) says what TradingView draws.
+    if (node.type === 'name' && node.name === 'na') {
+      if (enumLeaves) {
+        enumNaSeen = true
+        textRefuse('pine:enum-na', ENUM_NA_SENTENCE)
+        return null
+      }
+      return { t: 'lit', s: '' }
+    }
     if (node.type === 'name') {
       // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
       // `valueRef` already produces for a table written with a literal position,
@@ -21234,6 +21371,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  and is a real capability (`input.string` read as an enum word — 689 sites
    *  across 109 drawing scripts); crashing is very much worse than either. */
   const enumNodeOf = (node, scope) => {
+    enumNaSeen = false
     enumLeaves = true
     textEqGate.off = true
     let t = null
@@ -21576,6 +21714,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
       const e = enumNodeOf(node, scopeEnv)
       if (e) return { v: 'text', node: e }
+      // ⛔⛔ HONESTY-SWEEP item 1 — an `na` this walk reached is not an unreadable
+      // word: the drawing that holds it is WITHHELD by name (`enumNaDrop`, read by
+      // the create / setter / cell converters), never drawn with a default style.
+      if (enumNaSeen) {
+        diagnostics.enumNa = (diagnostics.enumNa || 0) + 1
+        enumNaDrop = 'na'
+        return null
+      }
+      // ⛔⛔ HONESTY-SWEEP r1 (review N1) — a helper called with a NAMED argument computes this
+      // word, and this reader does not inline that call: withheld (`enum:named-call`), never
+      // dropped to the renderer's default (`ENUM_NAMED_CALL_SENTENCE`).
+      if (namedHelperCallIn(node, scopeEnv)) {
+        diagnostics.enumNamedCall = (diagnostics.enumNamedCall || 0) + 1
+        enumNaDrop = 'named'
+        return null
+      }
       // ⛔⛔ AND IT STOPS HERE. An enum slot this reader cannot turn into a WORD
       // is DROPPED — it must never fall through to the numeric paths below.
       //
@@ -23545,6 +23699,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const raw = namedOrPositional(op.args, order)
       const props = {}
       let bad = false
+      let enumNa = false
       const required = REQUIRED[op.family] || new Set()
       stateOk = !loopIds.length
       stateOp = op
@@ -23564,8 +23719,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         // the sentence is taken only when THIS slot's read wrote a new one.
         const refusalBefore = lastCanonRefusal
         const textRefusalBefore = lastTextRefusal
+        enumNaDrop = false
         const v = valueRef(node, k)
         if (!v) {
+          if (enumNaDrop) {
+            // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — withheld by name, never a default style.
+            noteCreateDrop(op, k, enumNaDrop === 'named'
+              ? { guard: 'pine:enum-named-call', message: ENUM_NAMED_CALL_SENTENCE }
+              : { guard: 'pine:enum-na', message: ENUM_NA_SENTENCE })
+            enumNa = enumNaDrop
+            bad = true
+            break
+          }
           if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
             // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
             noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal
@@ -23583,7 +23748,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); lostInto(op); dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa === 'named') dropped('enum:named-call'); else if (enumNa) dropped('enum:na'); else dropped(`create:${op.family}`); continue }
       if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
@@ -23608,6 +23773,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       let bad = false
       stateOk = !loopIds.length
       stateOp = op
+      enumNaDrop = false
       try {
         op.props.forEach((name, i) => {
           const node = op.args[i] && op.args[i].value
@@ -23619,7 +23785,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (bad || !Object.keys(props).length) {
         contentLostBy(op, target)
         stateLostBy(op, target)
-        dropped('update:props')
+        // ⛔ HONESTY-SWEEP item 1 — a setter whose style can be `na` is named as such.
+        if (enumNaDrop === 'named') dropped('enum:named-call')
+        else if (enumNaDrop) dropped('enum:na')
+        else dropped('update:props')
         // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
         // bars its guard holds (`lostGeometryOp`)
         const m = lostGeometryOp(op, target, when, lastBarOnly)
@@ -23686,7 +23855,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const cellRefusalBefore = lastCanonRefusal
         const textRefusalBefore = lastTextRefusal
+        enumNaDrop = false
         const v = valueRef(node, k)
+        if (!v && enumNaDrop) {
+          // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
+          // computed by a helper called with a named argument, is withheld by name.
+          noteWhy('cellTextWhy', enumNaDrop === 'named'
+            ? `cell@${op.line === undefined ? '?' : op.line}: pine:enum-named-call ${ENUM_NAMED_CALL_SENTENCE.slice(0, 200)}`
+            : `cell@${op.line === undefined ? '?' : op.line}: pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 200)}`)
+          badCell = enumNaDrop === 'named' ? 'enum:named-call' : 'enum:na'
+          break
+        }
         if (!v) {
           // ⭐ P2 — the sentence behind a `cell:text` count, as `createDropWhy`
           // gives a create's (diagnostics only; nothing reads it to decide).
@@ -23707,6 +23886,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         props[k] = v
       }
+      if (badCell === 'enum:named-call') { dropped('enum:named-call'); continue }
+      if (badCell === 'enum:na') { dropped('enum:na'); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
