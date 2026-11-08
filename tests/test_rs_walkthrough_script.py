@@ -6,6 +6,7 @@ the safety checks are the pure functions `capture.py` runs before any browser op
 import copy
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -107,6 +108,84 @@ def test_semantic_rules_catch_what_the_schema_cannot():
     text = "\n".join(cap.semantic_errors(bad))
     assert "needs 'value'" in text and "needs 'role'" in text and "'tablet'" in text
     assert "first step must be required" in text
+
+
+# ─── the phone's long press (a11y gate §12.2: the phone readout step was skipped) ──
+
+def _long_press_ms_in_the_hook():
+    src = (ROOT / "app" / "src" / "components" / "mobile" / "useLongPress.js").read_text(encoding="utf-8")
+    m = re.search(r"\{\s*ms\s*=\s*(\d+)", src)
+    assert m, "useLongPress declares its default ms"
+    return int(m.group(1))
+
+
+def test_the_phone_readout_step_long_presses_the_chip_and_desktop_still_clicks():
+    def step(vp):
+        return next(s for s in cap.steps_for(SCRIPT, vp) if s["id"] == "chip_readout")
+    phone = [a["do"] for a in step("phone")["actions"]]
+    assert "long_press" in phone and phone.index("long_press") < phone.index("wait")
+    assert "long_press" not in [a["do"] for a in step("desktop")["actions"]]
+    lp = next(a for a in step("phone")["actions"] if a["do"] == "long_press")
+    assert lp["targets"] and lp.get("press_ms", cap.LONG_PRESS_MS) > _long_press_ms_in_the_hook()
+
+
+def test_the_long_press_outlasts_use_long_press():
+    assert cap.LONG_PRESS_MIN_MS == _long_press_ms_in_the_hook() == 450
+    assert cap.LONG_PRESS_MS == 600
+
+
+def test_long_press_is_a_targeted_action_and_press_ms_is_its_own():
+    bad = copy.deepcopy(SCRIPT)
+    acts = next(s for s in bad["steps"] if s["id"] == "chip_readout" and s["viewports"] == ["phone"])["actions"]
+    next(a for a in acts if a["do"] == "long_press").pop("targets")
+    acts[0]["press_ms"] = 600                                          # on a click
+    text = "\n".join(cap.semantic_errors(bad))
+    assert "long_press needs at least one target" in text
+    assert "'press_ms' belongs to long_press only" in text
+    short = copy.deepcopy(SCRIPT)
+    acts = next(s for s in short["steps"] if s["id"] == "chip_readout" and s["viewports"] == ["phone"])["actions"]
+    next(a for a in acts if a["do"] == "long_press")["press_ms"] = 300   # shorter than the hook's timer
+    for force in (False, True):
+        _, errs = cap.schema_errors(short, force_builtin=force)
+        assert errs, force
+
+
+class _FakePage:
+    def __init__(self, log):
+        self.log = log
+
+    def wait_for_timeout(self, ms):
+        self.log.append(("wait", ms))
+
+
+class _FakeLocator:
+    def __init__(self):
+        self.log = []
+        self.page = _FakePage(self.log)
+
+    def scroll_into_view_if_needed(self, timeout=None):
+        pass
+
+    def hover(self, timeout=None):
+        pass
+
+    def bounding_box(self, timeout=None):
+        return {"x": 10, "y": 20, "width": 40, "height": 10}
+
+    def dispatch_event(self, kind, init=None):
+        self.log.append((kind, dict(init or {})))
+
+
+def test_long_press_is_a_touch_down_held_past_the_timer_then_up():
+    loc = _FakeLocator()
+    cap._apply(loc, "long_press", None, False, 600)
+    events = [e for e in loc.log if e[0] != "wait" or e[1] >= 450]
+    assert [e[0] for e in events] == ["pointerdown", "wait", "pointerup"]
+    down, hold, up = events
+    assert down[1]["pointerType"] == "touch" and up[1]["pointerType"] == "touch"   # the hook ignores a mouse
+    assert (down[1]["clientX"], down[1]["clientY"]) == (30, 25)                     # the target's centre
+    assert hold[1] == 600 and hold[1] > _long_press_ms_in_the_hook()
+    assert down[1]["buttons"] == 1 and up[1]["buttons"] == 0
 
 
 # ─── the refusals ───────────────────────────────────────────────────────────────

@@ -73,11 +73,11 @@
       "id": "chip_readout",
       "viewports": ["phone"],
       "optional": true,
-      "caption": "Tap the UCT RS label. The readout puts the line into words: the rating, the market regime and the four checks.",
+      "caption": "Press and hold the UCT RS label. The readout puts the line into words: the rating, the market regime and the four checks.",
       "hold_ms": 8000,
       "actions": [
         {"do": "click", "timeout_ms": 3000, "targets": [{"by": "css", "value": ".tv-lightweight-charts"}]},
-        {"do": "click", "timeout_ms": 3000, "targets": [{"by": "css", "value": "[data-instance-id][aria-label^=\"UCT RS\"]"}]},
+        {"do": "long_press", "press_ms": 600, "timeout_ms": 5000, "targets": [{"by": "css", "value": "[data-guide=\"chart.chip\"][aria-label^=\"UCT R\"]"}, {"by": "css", "value": "[data-instance-id][aria-label^=\"UCT RS\"]"}, {"by": "role", "role": "button", "name_regex": "^UCT (RS|Relative Strength)"}]},
         {"do": "wait", "timeout_ms": 5000, "targets": [{"by": "css", "value": "[data-readout-rows]"}, {"by": "css", "value": "[data-legend-head=\"readout\"]"}]}
       ]
     },
