@@ -181,3 +181,27 @@ describe('⭐⭐ W34-I6a a wrapped `switch` arm is one expression', () => {
     expect(one.ok || !/a value arm that ends in a block/.test(one.refusal.message)).toBe(true)
   })
 })
+
+// ⭐ Rail gaps (review W34-I6a N3): a wrapped DEFAULT arm and a tab-led wrap, each served and each
+// equal to its one-line form. Both rest on the manual sentences quoted at the top: a wrapped line
+// may use "any indentation length _except_ multiples of four", and "Pine uses four-space or tab
+// indentations to define local code blocks" (so a tab is one block level, a tab + a space is not).
+describe('⭐ W34-I6a N3 rail gaps: the default arm and tab indentation', () => {
+  it('⭐ a wrapped DEFAULT arm (`=> a` / `     - b`) equals its one-line form', () => {
+    const one = `${HEAD}m = bar_index % 3\nv = switch m\n    0 => close\n    => high - low * 0.5 + open[1] * 0.25\nplot(v)\n`
+    const wrap = `${HEAD}m = bar_index % 3\nv = switch m\n    0 => close\n    => high\n     - low * 0.5\n      + open[1] * 0.25\nplot(v)\n`
+    const out = run(one)
+    expect(new Set(out.filter((x, i) => i % 3 !== 0 && !Number.isNaN(x))).size).toBeGreaterThan(100)
+    same(out, run(wrap))
+  })
+  it('⭐ tab-indented arms with a tab + space wrap equal the one-line form', () => {
+    const one = `${HEAD}m = bar_index % 2\nv = switch m\n\t0 => close + open * 0.5 - low[1] * 0.25\n\t=> high\nplot(v)\n`
+    const wrap = `${HEAD}m = bar_index % 2\nv = switch m\n\t0 => close\n\t + open * 0.5\n\t  - low[1] * 0.25\n\t=> high\nplot(v)\n`
+    same(run(one), run(wrap))
+  })
+  it('⛔ CONTROL — tab + tab under an arm is a block indent (eight columns): refused by name, not joined', () => {
+    const r = refusalOf(`${HEAD}m = bar_index % 2\nv = switch m\n\t0 => close\n\t\t+ open * 0.5\n\t=> high\nplot(v)\n`)
+    expect(r.guard).toBe('runtime:block-value')
+    expect(r.message).toMatch(/ends in a block this lane reads no value from/)
+  })
+})

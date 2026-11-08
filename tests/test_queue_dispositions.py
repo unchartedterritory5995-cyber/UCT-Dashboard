@@ -124,8 +124,13 @@ COMMITTED = {
     "capture-queue-2026-10-31-prod-ternary": {
         "L3": "engine-gap", "L4": "engine-gap", "L5": "closed", "L6": "engine-gap", "G-a": "closed",
         "G-g": "by-design", "G-h": "engine-gap", "G-b": "engine-gap", "G-c": "engine-gap", "G-d": "engine-gap",
-        "G-e": "by-design"},
+        "G-e": "by-design",
+        # PR #937 (reviewed): accum2-accum4 `?:` is a guard to build, L2's capture is already queued
+        # (vw-pt-request-arm R03/E03/P03). G-f / G-i are NOT dispositioned: they belong to lane PT-GAPS.
+        "a stamped ?: inside a multi-state recurrence (accum2-accum4)": "engine-gap", "L2": "withheld-ledger"},
     "capture-queue-2026-10-31-wse": {"Q-WSE5": "builtin"},
+    # PR #937 (reviewed): a measure-pair of our own two doors, not a TradingView reading.
+    "capture-queue-2026-11-06-w6-t6": {"object door": "engine-gap"},
 }
 
 
@@ -138,9 +143,9 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
                 assert r["notCapture"]["reason"].strip()
                 got.setdefault(p.stem, {})[r["key"].split("#", 1)[1]] = r["notCapture"]["disposition"]
     assert got == COMMITTED
-    # the real capture questions beside them stay queued as needing a probe (L2 names its probe only in a
-    # prose column; G-f / G-i are queued as captures by PT-GAPS; the unstamped multi-state shape is a question)
+    # the real capture questions beside them stay queued as needing a probe (G-f / G-i are queued as captures
+    # by PT-GAPS; L2 left this list in PR #937, its capture already queued as vw-pt-request-arm)
     q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
     needing = {r["key"] for r in q["rowsNeedingProbe"]}
-    for rid in ("L2", "G-f", "G-i"):
+    for rid in ("G-f", "G-i"):
         assert f"capture-queue-2026-10-31-prod-ternary#{rid}" in needing
