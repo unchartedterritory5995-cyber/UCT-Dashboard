@@ -3991,6 +3991,9 @@ const RS_LINE_RAW = {
     // exported to `api/data/rs_teaching.json`; `rsTeaching.test.js` pins this
     // equal to both, with the tagline once, on card 5.
     tour: RS_TOUR,
+    // ⭐ THE GLOSSARY (unit 4-05, D15): the public page every RS term is defined on
+    // (`pages/RsGlossary.jsx`), linked from the About page beside the lessons.
+    glossaryHref: '/methodology/relative-strength',
     // ⭐ THE RSI SIGNPOST (unit 4-04, D13): a member whose WHOLE search is "rsi" or
     // "relative strength index" may be looking for strength versus the market, so
     // the library prints this line with an Add button. Exact match only, never a

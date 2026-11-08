@@ -1586,7 +1586,7 @@
    inline; a stylesheet `max-width` still wins over an inline `width`, and the
    body scrolls inside when the page is taller than the window. Scoped with
    `:has()` to a popover holding readout content, so no other menu changes. */
-:global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark) {
+:global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark, .legTour) {
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
   overflow-y: auto;
@@ -1916,3 +1916,92 @@
 }
 /* The About page's copy of the lessons list sits under the description. */
 .legAboutLessons { margin-top: 8px; }
+/* ⭐ 4-05 — the About page's Glossary link: a lesson-row look, under the lessons. */
+.legAboutGlossary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  margin-top: 4px;
+  font: 500 12px 'Instrument Sans', sans-serif;
+  color: var(--text);
+  text-decoration: none;
+}
+.legAboutGlossary:hover,
+.legAboutGlossary:focus-visible { color: var(--ut-gold); outline: none; }
+
+/* ─── 4-05 — "Ask Compass about this", under the readout rows ──────────────
+   The assist button renders null without a VoiceProvider (and for a free
+   member), and `:empty` then removes the row's border and padding too. */
+.legAsk {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.legAsk:empty { display: none; }
+
+/* ─── 4-05 — THE TOUR PAGE: the definition's `meta.tour`, one card at a time ──
+   Same popover as the cards. A card is capped at 60 + 240 characters by
+   `defSchema`, so the page never scrolls inside 296 px or on a 390 px phone. */
+.legTour {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-family: 'Instrument Sans', sans-serif;
+  color: var(--text);
+}
+.legTourHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--border);
+  font: 600 11px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.legTourName { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legTourCount { flex: none; font-variant-numeric: tabular-nums; }
+.legTourCard { display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 6px; }
+.legTourTitle { font: 600 13px/18px 'Instrument Sans', sans-serif; color: var(--text-bright); }
+.legTourBody { font: 400 12px/18px 'Instrument Sans', sans-serif; color: var(--text); }
+.legTourDots { display: flex; gap: 5px; padding: 4px 10px 2px; }
+.legTourDot { width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
+.legTourDotOn { background: var(--text-bright); }
+.legTourNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 10px;
+}
+.legTourSteps { display: flex; align-items: center; gap: 6px; }
+.legTourSkip,
+.legTourBack,
+.legTourNext {
+  appearance: none;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font: 600 12px 'Instrument Sans', sans-serif;
+  cursor: pointer;
+}
+.legTourSkip { background: none; border: 0; padding-left: 0; color: var(--text-muted); }
+.legTourBack { background: none; border: 1px solid var(--border); color: var(--text-bright); }
+.legTourNext { background: var(--text-bright); border: 1px solid var(--text-bright); color: var(--bg-elevated, #14161a); }
+.legTourSkip:hover,
+.legTourSkip:focus-visible { color: var(--text-bright); outline: none; }
+.legTourBack:hover,
+.legTourBack:focus-visible { background: var(--bg-hover); outline: none; }
+.legTourNext:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+@media (max-width: 1024px) {
+  .legTourSkip, .legTourBack, .legTourNext, .legAboutGlossary { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  .legTourTitle { font-size: 15px; line-height: 21px; }
+  .legTourBody { font-size: 14px; line-height: 21px; }
+  .legTourSkip, .legTourBack, .legTourNext { font-size: 14px; padding: 6px 14px; }
+}

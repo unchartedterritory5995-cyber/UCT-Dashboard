@@ -183,6 +183,12 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
+// ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
+// first-add Tour page, the About page's Glossary link and "Ask Compass about this".
+import useIndicatorTours from './chart/useIndicatorTours'
+import { tourCardsOf, claimTour, tourClaimed } from './chart/legend/indicatorTour'
+import { readoutPageHint } from './chart/legend/readoutPageHint'
+import CompassAssistButton from './voice/CompassAssistButton'
 import { needsScriptForUpgrade, UPGRADE_NOTICE_LABEL } from './chart/builder/memberPane/savedScriptUpgrade'
 import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
@@ -520,6 +526,8 @@ function chipMenuRowToPopoverRow(it) {
  * on the way in.
  */
 const EMPTY_READOUT_ROWS = Object.freeze([])
+/** How long a first-add tour waits for its new chip to derive before giving up (unit 4-05). */
+const TOUR_WAIT_MS = 8000
 
 /**
  * ⭐ Phase 2a (unit 2a-10) — `rows`: the chip's READOUT ROWS, what the legend
@@ -861,6 +869,54 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard, rowA
           </LearnLink>
         ) : null}
         <LegendLessons lessons={lessons} def={def} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * ⭐ UCT RS Phase 4 (unit 4-05) — THE TOUR PAGE of the chip popover: the
+ * definition's `meta.tour` cards, ONE AT A TIME, opened by the chart on the
+ * member's first add (D12). Next / Back move through them; "Skip tour" and the
+ * last card's "Done" both mark the tour seen (`useIndicatorTours.markSeen`, the
+ * caller's `onFinish`). Same popover as the menu and the cards (296 px on an RS
+ * chip, the readout sheet on the phone); a card is capped at 60 + 240 characters
+ * by `defSchema`, so it always fits without scrolling.
+ */
+function LegendTourPage({ cards, step, name, onStep, onFinish }) {
+  const total = cards.length
+  const at = Math.min(Math.max(0, step | 0), total - 1)
+  const card = cards[at]
+  const last = at === total - 1
+  return (
+    <div className={styles.legTour} data-legend-tour="" data-tour-step={at}>
+      <div className={styles.legTourHead}>
+        <span className={styles.legTourName}>{name}</span>
+        <span className={styles.legTourCount} data-tour-count="">{`${at + 1} of ${total}`}</span>
+      </div>
+      <div className={styles.legTourCard} data-tour-card={at} aria-live="polite">
+        <div className={styles.legTourTitle} data-tour-title="">{card.title}</div>
+        <div className={styles.legTourBody} data-tour-body="">{card.body}</div>
+      </div>
+      <div className={styles.legTourDots} aria-hidden="true">
+        {cards.map((_, i) => (
+          <span key={i} className={i === at ? `${styles.legTourDot} ${styles.legTourDotOn}` : styles.legTourDot} />
+        ))}
+      </div>
+      <div className={styles.legTourNav}>
+        {!last ? (
+          <button type="button" className={styles.legTourSkip} data-tour-skip="" onClick={onFinish}>Skip tour</button>
+        ) : <span />}
+        <span className={styles.legTourSteps}>
+          {at > 0 ? (
+            <button type="button" className={styles.legTourBack} data-tour-back="" onClick={() => onStep(at - 1)}>Back</button>
+          ) : null}
+          {last ? (
+            <button type="button" className={styles.legTourNext} data-tour-done="" onClick={onFinish}>Done</button>
+          ) : (
+            <button type="button" className={styles.legTourNext} data-tour-next="" onClick={() => onStep(at + 1)}>Next</button>
+          )}
+        </span>
       </div>
     </div>
   )
@@ -6029,6 +6085,64 @@ export default function StockChart({
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [rsPickArmed, cancelRsPick])
+
+  // ⭐ UCT RS Phase 4 (unit 4-05) — THE FIRST-ADD TOUR (D12). The library reports the
+  // first add of a definition with an unseen `meta.tour` (`onIndicatorFirstAdd`,
+  // through the toolbar, which closes the library first); this chart then waits for
+  // the new instance's chip and opens ITS chip menu on the Tour page (`tour:<n>`).
+  // On the phone the same popover is the readout sheet (C5), so there is one path.
+  //
+  // ⛔ NEVER OVER ANYTHING. A tour that would open over an armed pick, another chip
+  // menu, the About page, a settings dialog or the report dialog is DROPPED, not
+  // queued: nothing is marked seen, so the member meets it on a later first add,
+  // never as a surprise minutes after the add. ⛔ AND ONCE PER PAGE: a tour this
+  // chart opens is claimed (`indicatorTour.claimTour`), so a second chart on the
+  // page never reopens it before the seen write lands.
+  const { seen: tourSeen, markSeen: markTourSeen } = useIndicatorTours(showDrawingTools)
+  const [tourPending, setTourPending] = useState(null)
+  const tourBlockedRef = useRef(false)
+  tourBlockedRef.current = !!(rsPickArmed || chipMenu || chipAbout || settingsInstanceId || reportFor)
+  const handleIndicatorFirstAdd = useCallback((defId) => {
+    if (!defId || tourClaimed(defId) || tourSeen(defId)) return
+    if (!tourCardsOf(engineRegistry.getDefinition(defId)).length) return
+    setTourPending({ defId, sym, tf: resolvedTf })
+  }, [tourSeen, sym, resolvedTf])
+  useEffect(() => {
+    if (!tourPending) return undefined
+    if (tourPending.sym !== sym || tourPending.tf !== resolvedTf) { setTourPending(null); return undefined }
+    const started = Date.now()
+    let timer = null
+    const tick = () => {
+      const chip = latestChips().find((c) => c && c.defId === tourPending.defId && c.instanceId)
+      if (!chip) {
+        // The instance's chip never derived (no data, a refused bind): give up quietly.
+        if (Date.now() - started > TOUR_WAIT_MS) { setTourPending(null); return }
+        timer = setTimeout(tick, 120)
+        return
+      }
+      setTourPending(null)
+      if (tourBlockedRef.current || tourClaimed(tourPending.defId) || !claimTour(tourPending.defId)) return
+      let anchor = null
+      try {
+        const el = [...(containerRef.current?.querySelectorAll('[data-instance-id]') || [])]
+          .find((n) => n.getAttribute('data-instance-id') === chip.instanceId && n.offsetParent !== null)
+          || [...(containerRef.current?.querySelectorAll('[data-instance-id]') || [])]
+            .find((n) => n.getAttribute('data-instance-id') === chip.instanceId)
+        const r = el && el.getBoundingClientRect()
+        if (r) anchor = { x: r.left, y: r.bottom + 3 }
+      } catch { /* noop */ }
+      if (!anchor) {
+        const r = containerRef.current ? containerRef.current.getBoundingClientRect() : null
+        anchor = { x: (r ? r.left : 0) + 12, y: (r ? r.top : 0) + 40 }
+      }
+      setChipAbout(null)
+      setChipPage('tour:0')
+      setChipMenu({ chip, anchor })
+    }
+    timer = setTimeout(tick, 0)
+    return () => { if (timer) clearTimeout(timer) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `latestChips` reads refs at call time
+  }, [tourPending, sym, resolvedTf])
 
   // ⭐ VA2 — `rs_on` / `rs_off_within_60s` / `rs_benchmark` (plan §13), OBSERVED from
   // the stored instance list rather than wired per door, so every door counts and
@@ -19795,6 +19909,32 @@ export default function StockChart({
         // by `.legMenuHeadRs`'s host rule. A chip with no readout keeps 204.
         const readoutMenu = declaresReadout(def)
         const menuWidth = readoutMenu ? 296 : 204
+        // ⭐ 4-05 — THE TOUR PAGE (`tour:<n>`), opened by the chart on a first add.
+        // Done and Skip mark the tour seen; closing the popover any other way does
+        // not (the page-session claim still keeps it from reopening on this page).
+        const tourStep = typeof chipPage === 'string' && chipPage.startsWith('tour:') ? Number(chipPage.slice(5)) : null
+        const tourCards = tourStep != null ? tourCardsOf(def) : EMPTY_READOUT_ROWS
+        if (tourStep != null && tourCards.length) {
+          const finishTour = () => {
+            close()
+            try { Promise.resolve(markTourSeen(c.defId)).catch(() => {}) } catch { /* noop */ }
+          }
+          return (
+            <ContextPopover
+              guide="chart.chipMenu"
+              open
+              onClose={close}
+              anchor={chipMenu.anchor}
+              width={296}
+              dense
+              sheetClassName={sheetCls}
+            >
+              <LegendTourPage cards={tourCards} step={tourStep}
+                name={(def && def.meta && def.meta.name) || c.label}
+                onStep={(n) => setChipPage(`tour:${n}`)} onFinish={finishTour} />
+            </ContextPopover>
+          )
+        }
         const items = chipMenuItems(c, def, {
           onPreset: (id, presetId) => { close(); handleChipPreset(id, presetId) },
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
@@ -19954,6 +20094,29 @@ export default function StockChart({
             </ContextPopover>
           )
         }
+        // ⭐ 4-05 — "ASK COMPASS ABOUT THIS" (D16): a definition with a readout
+        // offers a voice question about what the rows say, with the glance rows as
+        // the page hint (`readoutPageHint`, ≤ 480 characters, reusable by any
+        // assistant). `CompassAssistButton` renders null without a VoiceProvider
+        // (and for a free member), and the row collapses with it (`.legAsk:empty`).
+        const benchRow = readoutRows.find((r) => r && r.key === 'benchmark' && typeof r.text === 'string' && r.text)
+        const askHint = readoutMenu && glanceRows.length
+          ? readoutPageHint(glanceRows, {
+              name: (def && def.meta && (def.meta.shortName || def.meta.name)) || menuName,
+              sym,
+              vs: benchRow ? benchRow.text : '',
+              skip: benchRow ? ['benchmarkName'] : [],
+            })
+          : ''
+        const askCompass = askHint && chipPage !== 'move' ? (
+          // The press starts the conversation (the button's own click), then the
+          // menu closes so the member sees the chart while they talk.
+          <div className={styles.legAsk} data-legend-ask=""
+            onClick={(e) => { if (e.target && e.target.closest && e.target.closest('button')) close() }}>
+            <CompassAssistButton pageHint={askHint} label="Ask Compass about this"
+              ariaLabel="Ask Compass about this" />
+          </div>
+        ) : null
         // ⭐ A8 — the header's value falls back to the last known one, muted.
         const liveValue = Number.isFinite(Number(c.value)) ? chipValueText(c) : ''
         const headValue = liveValue || (surface && surface.fallback ? surface.fallback.text : '')
@@ -19978,7 +20141,7 @@ export default function StockChart({
                so it alone overflowed a 320 px screen. Not a row, not focusable. */
             header={chipPage === 'move'
               ? (readoutMenu ? <span className={styles.legReadoutMark} aria-hidden="true" data-readout-mark="" /> : null)
-              : (
+              : (<>
               <LegendMenuHeader
                 label={menuName}
                 hidden={!!c.hidden}
@@ -19991,7 +20154,10 @@ export default function StockChart({
                 rowAction={rowAction}
                 onCard={(row) => { noteRsCard(def, row.key); setChipPage(`card:${row.key}`) }}
               />
-            )}
+              {/* ⭐ 4-05 — the Ask row follows the header (not a menu row: the
+                  button is its own control, and a row's button cannot hold one). */}
+              {askCompass}
+            </>)}
             items={page.map(chipMenuRowToPopoverRow)}
             sheetClassName={sheetCls}
           />
@@ -20065,6 +20231,15 @@ export default function StockChart({
                   (`meta.learn`), as Desk video links. Nothing for a definition
                   that declares none. */}
               <LegendLessons lessons={learnLessons(def)} className={styles.legAboutLessons} def={def} />
+              {/* ⭐ 4-05 (D15) — the definition's public glossary page
+                  (`meta.glossaryHref`, an in-app path `defSchema` checks), beside
+                  the lessons. Nothing for a definition that declares none. */}
+              {typeof meta.glossaryHref === 'string' && meta.glossaryHref ? (
+                <LearnLink href={meta.glossaryHref} className={styles.legAboutGlossary} data-glossary-link="">
+                  <UIcon name="book" size={11} gold={false} />
+                  <span>Glossary</span>
+                </LearnLink>
+              ) : null}
               {notices.map((n) => (
                 <div
                   key={n.plotKey}
@@ -21876,6 +22051,8 @@ export default function StockChart({
           <ChartToolbar
             ref={toolbarRef}
             hiddenHost={mobileDrawBar}
+            /* ⭐ 4-05 — the first add of a toured definition opens its tour here. */
+            onIndicatorFirstAdd={handleIndicatorFirstAdd}
             sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
             favBoundsRef={containerRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped

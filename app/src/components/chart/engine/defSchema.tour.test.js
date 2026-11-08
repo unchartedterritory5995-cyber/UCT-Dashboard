@@ -8,8 +8,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   validateDefinition, normalizeHintQuery,
-  TOUR_MAX_CARDS, TOUR_TITLE_MAX, TOUR_BODY_MAX, SEARCH_HINT_LINE_MAX, SEARCH_HINT_CTA_MAX,
+  TOUR_MAX_CARDS, TOUR_TITLE_MAX, TOUR_BODY_MAX, SEARCH_HINT_LINE_MAX, SEARCH_HINT_CTA_MAX, GLOSSARY_HREF_MAX,
 } from './defSchema'
+import { getDefinition } from './nativeRegistry'
 import { tourProbeRaw, TOUR } from '../__tests__/tourProbe.fixture'
 
 const accept = (meta) => {
@@ -98,5 +99,30 @@ describe('normalizeHintQuery — the one form a search is compared in', () => {
     expect(normalizeHintQuery('Relative   Strength\tIndex')).toBe('relative strength index')
     expect(normalizeHintQuery('rsi divergence')).toBe('rsi divergence')
     expect(normalizeHintQuery(null)).toBe('')
+  })
+})
+
+// ─── unit 4-05 · `meta.glossaryHref`, the About page's Glossary link ─────────
+describe('meta.glossaryHref', () => {
+  it('accepts an in-app path (with an optional #anchor), and absent or null', () => {
+    expect(accept({ glossaryHref: '/methodology/relative-strength' }).meta.glossaryHref).toBe('/methodology/relative-strength')
+    expect(accept({ glossaryHref: '/methodology/relative-strength#rs-line' }).meta.glossaryHref)
+      .toBe('/methodology/relative-strength#rs-line')
+    expect(accept({}).meta.glossaryHref).toBeUndefined()
+    expect(validateDefinition(tourProbeRaw({ glossaryHref: null })).ok).toBe(true)
+  })
+
+  it('refuses anything that could leave the site, and junk', () => {
+    for (const bad of ['https://example.com/x', '//example.com/x', 'methodology/rs', '/a b', '/a//b',
+      'javascript:alert(1)', '/a?b=1']) {
+      expect(refuse({ glossaryHref: bad }), bad).toMatch(/meta\.glossaryHref: .* is not an in-app path/)
+    }
+    expect(refuse({ glossaryHref: '' })).toMatch(/meta\.glossaryHref: expected an in-app path string/)
+    expect(refuse({ glossaryHref: 42 })).toMatch(/meta\.glossaryHref: expected an in-app path string/)
+    expect(refuse({ glossaryHref: `/${'a'.repeat(GLOSSARY_HREF_MAX)}` })).toMatch(/at most 120/)
+  })
+
+  it('the shipped UCT RS declares the public glossary page', () => {
+    expect(getDefinition('rsLine').meta.glossaryHref).toBe('/methodology/relative-strength')
   })
 })

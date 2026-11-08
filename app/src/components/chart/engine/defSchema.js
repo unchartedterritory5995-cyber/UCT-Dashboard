@@ -1194,6 +1194,30 @@ export function normalizeHintQuery(q) {
   return String(q ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+// ─── `meta.glossaryHref` (UCT RS Phase 4, unit 4-05) ────────────────────────
+//
+// The definition's public glossary page, linked from its About page beside the
+// Learn links ("Glossary"). An IN-APP path only: it starts with one "/", carries
+// no scheme, no host and no whitespace, so a definition can never point a member
+// off the site from the chart. Behavioural (it renders a link), so checked.
+
+/** The glossary path's length cap, in characters. */
+export const GLOSSARY_HREF_MAX = 120
+
+function validateMetaGlossaryHref(href, errors) {
+  if (typeof href !== 'string' || !href) {
+    errors.push(`meta.glossaryHref: expected an in-app path string such as "/methodology/relative-strength", got ${fmt(href)}`)
+    return
+  }
+  if (href.length > GLOSSARY_HREF_MAX) {
+    errors.push(`meta.glossaryHref: ${href.length} characters — at most ${GLOSSARY_HREF_MAX}`)
+    return
+  }
+  if (!/^\/[A-Za-z0-9][A-Za-z0-9/_\-.]*(#[A-Za-z0-9_\-]+)?$/.test(href) || href.includes('//')) {
+    errors.push(`meta.glossaryHref: "${href}" is not an in-app path (one leading "/", letters, digits, "-", "_", "." and "/", an optional #anchor)`)
+  }
+}
+
 function validateMetaTour(tour, errors) {
   if (!Array.isArray(tour)) {
     errors.push(`meta.tour: expected an array of cards [{title, body}], got ${fmt(tour)}`)
@@ -1499,6 +1523,10 @@ function validateMeta(meta, def, errors) {
   }
   if (meta.searchHint !== undefined && meta.searchHint !== null) {
     validateMetaSearchHint(meta.searchHint, errors)
+  }
+  // `glossaryHref` (unit 4-05): the About page's Glossary link. `null` reads as absent.
+  if (meta.glossaryHref !== undefined && meta.glossaryHref !== null) {
+    validateMetaGlossaryHref(meta.glossaryHref, errors)
   }
   // `meta.legendFallback` (2026-11-07): the pane label's declared alternative value,
   // in the readout grammar. Each entry needs a scalar/payload source and a known format;
