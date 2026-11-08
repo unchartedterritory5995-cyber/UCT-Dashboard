@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
-import { EndReport, EndStatement, EndTrophy, bySetup, tierOf } from './EndLooks'
+import { EndReport, EndStatement, EndTrophy } from './EndLooks'
+import { bySetup, tierOf } from './endMath'
 
 // Focus round 3: three end screens. Every number on them is counted from the run; these pin the counting.
 const log = [

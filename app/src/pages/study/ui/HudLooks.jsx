@@ -96,4 +96,33 @@ export function HudRoute({ step = 0, total = 8, results = [], live = false }) {
   )
 }
 
-export const HUD_LOOKS = { journey: HudJourney, scoreboard: HudScoreboard, route: HudRoute }
+/** THE COMBINED STATUS LINE (round 22; the owner on focus round 1, every version Okay: "Essentially a combo of all 4 of
+ *  them would be ideal, incorporating all the best parts of each"). Today's mode tag; Journey's thick glossy bar with our
+ *  mark riding it and the streak flame; Scoreboard's mark per chart, lit gold or red, and its big gold score; Route's
+ *  waypoints along the track, a check or a cross on each. */
+export function HudCombo({ step = 0, total = 8, results = [], live = false, stepTestId = 'hard-step' }) {
+  const { named, streak, answered, at } = tally(step, total, results)
+  const seg = (i) => ((i + 0.5) / Math.max(1, total)) * 100
+  return (
+    <div className={`${h.hud} ${h.combo}`} role="group" aria-label={`Hard mode, chart ${at + 1} of ${total}, ${named} named`}>
+      <span className={`${h.badge} ${live ? h.live : ''}`}><Star /><span className={h.badgeText}>Hard mode</span></span>
+      <div className={h.cTrack} aria-hidden="true">
+        <div className={h.jFill} style={{ width: `${Math.min(100, (answered / Math.max(1, total)) * 100)}%` }}><i className={h.jGloss} /></div>
+        {Array.from({ length: total }, (_, i) => {
+          const r = results[i]
+          const st = r === true ? 'done' : r === false ? 'miss' : 'ahead'
+          if (i === at && r !== true && r !== false) return null
+          return (
+            <span key={i} className={`${h.cPip} ${h[st]}`} style={{ left: `${seg(i)}%` }}>
+              {st === 'done' ? <UIcon name="check" size={10} gold={false} /> : st === 'miss' ? <b>×</b> : null}
+            </span>
+          )
+        })}
+        <span className={`${h.cRider} ${live ? h.live : ''}`} style={{ left: `${seg(at)}%` }}><img src={brandMark} alt="" /></span>
+      </div>
+      <span className={`${h.flame} ${streak >= 2 ? h.hot : ''}`} title="in a row"><UIcon name="flame" size={18} gold={false} /><b>{streak}</b></span>
+      <span className={h.cScore}><b>{named}</b><small>named</small><em data-testid={stepTestId || undefined}>chart {at + 1} of {total}</em></span>
+    </div>
+  )
+}
+

@@ -456,3 +456,16 @@
 @media (prefers-reduced-motion: reduce) {
   .kit *, .kit *::before, .kit *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ROUND 22 · the trade in the lesson card (the owner, batch 22: "Entry, Stop, Trim, Trail, Advance") */
+.legs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.leg { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--k-line); background: linear-gradient(180deg, #17181b, #111214); }
+.leg small { font-size: 10.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--k-ink-dim); }
+.leg b { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); }
+.leg span { font-size: 12.5px; line-height: 1.35; color: var(--k-ink-dim); }
+.leg_gold { border-color: rgba(220, 187, 94, .45); } .leg_gold b { color: var(--k-gold-bright); }
+.leg_down { border-color: rgba(223, 70, 70, .4); } .leg_down b { color: #ff9d9d; }
+.leg_up { border-color: rgba(47, 175, 104, .45); } .leg_up b { color: #8fe3b1; }
+.tradeLine { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: var(--k-ink-soft); }
+.tradeLine b { color: var(--k-ink); }
+@media (max-width: 640px) { .legs { grid-template-columns: 1fr 1fr; } .leg b { font-size: 19px; } }

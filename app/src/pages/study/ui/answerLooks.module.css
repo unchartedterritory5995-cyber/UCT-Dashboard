@@ -32,7 +32,8 @@
 .lTile.wrong .lKey { border-color: var(--dn); background: var(--dn); color: #2a0507; }
 .lTile.quiet { opacity: .42; }
 .lTile:disabled { cursor: default; }
-.lFoot { margin: 4px -18px -18px; padding: 16px 18px 18px; border-top: 1px solid var(--line); border-radius: 0 0 18px 18px; transition: background .3s; }
+.lFoot { margin: 2px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); border-radius: 16px; transition: background .3s, padding .3s; }
+.lFoot.footOk, .lFoot.footBad { padding: 14px; }
 .lFoot.footOk { background: linear-gradient(180deg, rgba(47, 175, 104, .16), rgba(47, 175, 104, .05)); border-top-color: rgba(47, 175, 104, .4); }
 .lFoot.footBad { background: linear-gradient(180deg, rgba(223, 70, 70, .16), rgba(223, 70, 70, .05)); border-top-color: rgba(223, 70, 70, .4); }
 .lCheck { display: block; width: 100%; height: 56px; border-radius: 16px; border: 0; cursor: pointer; font-size: 16px !important; font-weight: 900 !important; letter-spacing: .2em; text-transform: uppercase;
@@ -40,6 +41,9 @@
 .lCheck:disabled { cursor: default; }
 .lCheck.ready { background: linear-gradient(180deg, #f1d892, #d4b155 60%, #b8922f); color: #1a1406 !important; box-shadow: 0 4px 0 #7c6220, 0 10px 24px rgba(220, 187, 94, .22); }
 .lCheck.ready:active { transform: translateY(4px); box-shadow: 0 0 0 #7c6220; }
+.lCheck.busy { position: relative; overflow: hidden; }
+.lCheck.busy::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent); animation: sweep 1s linear infinite; }
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .lCheck.good { background: linear-gradient(180deg, #4fd38b, #2faf68 60%, #228a50); box-shadow: 0 4px 0 #136036; color: #04170b !important; }
 .lCheck.bad { background: linear-gradient(180deg, #f07a7a, #df4646 60%, #b23434); box-shadow: 0 4px 0 #6e1a1d; color: #2a0507 !important; }
 

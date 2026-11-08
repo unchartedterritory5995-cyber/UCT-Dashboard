@@ -99,3 +99,30 @@
   .jFill, .jRider, .rWalked, .rShip, .rPoint { transition: none; }
   .jRider, .flame.hot svg, .badge.live svg, .bSlot.now .candle, .bSlot.done .candle, .bSlot.miss .candle, .rShip.live::before { animation: none; }
 }
+
+/* ── Round 22 · the combined line ─────────────────────────────────────────────────────────────────────────── */
+.combo { gap: 14px; }
+.cTrack { position: relative; flex: 1; height: 24px; border-radius: 999px; background: #17181c; box-shadow: inset 0 2px 5px rgba(0, 0, 0, .85), inset 0 0 0 1px #2a2c32; }
+.cPip { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 1;
+  background: #101114; border: 1.5px solid #3a3c43; transition: background .35s, border-color .35s, box-shadow .35s; }
+.cPip b { font-size: 12px; line-height: 1; color: #ffd6d6; }
+.cPip.done { background: radial-gradient(circle at 35% 30%, #fff3c8, #d4b155 65%, #8a6f22); border-color: #fbefc4; color: #1a1406; box-shadow: 0 0 10px rgba(220, 187, 94, .6); animation: pipPop .45s cubic-bezier(.2, .9, .2, 1.3) both; }
+.cPip.miss { background: radial-gradient(circle at 35% 30%, #f08080, #b03434 70%); border-color: #ffb3b3; box-shadow: 0 0 10px rgba(223, 70, 70, .55); animation: pipPop .45s cubic-bezier(.2, .9, .2, 1.3) both; }
+.cRider { position: absolute; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; z-index: 2; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%, #2a2414, #0d0b06 70%); box-shadow: 0 0 0 2px var(--g), 0 0 22px rgba(233, 205, 119, .55), 0 6px 14px rgba(0, 0, 0, .6);
+  transition: left .7s cubic-bezier(.2, .9, .2, 1.08); animation: bob 2.4s ease-in-out infinite; }
+.cRider::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 1.5px solid rgba(233, 205, 119, .55); opacity: 0; }
+.cRider.live::before { animation: ping 1.8s ease-out infinite; }
+.cRider img { width: 28px; height: 28px; object-fit: contain; }
+.cScore { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 6px; min-width: 96px; }
+.cScore b { font-size: 32px; line-height: 1; font-weight: 900; background: linear-gradient(180deg, #fbefc4, #dcbb5e 55%, #9b7a24); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cScore small { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--g); }
+.cScore em { grid-column: 1 / -1; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-top: 3px; white-space: nowrap; }
+@keyframes pipPop { 0% { transform: scale(.4); } 100% { transform: scale(1); } }
+@media (max-width: 640px) {
+  .combo { gap: 8px; } .cTrack { height: 20px; } .cPip { width: 14px; height: 14px; margin: -7px 0 0 -7px; } .cPip svg { width: 8px; height: 8px; } .cPip b { font-size: 10px; }
+  .cRider { width: 32px; height: 32px; margin: -16px 0 0 -16px; } .cRider img { width: 22px; height: 22px; }
+  .cScore { min-width: 0; } .cScore b { font-size: 24px; } .cScore small { display: none; } .cScore em { font-size: 9.5px; letter-spacing: .04em; }
+  .combo .flame { height: 30px; padding: 0 8px; font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { .cRider, .cPip.done, .cPip.miss, .cRider.live::before { animation: none; } .cRider { transition: none; } }

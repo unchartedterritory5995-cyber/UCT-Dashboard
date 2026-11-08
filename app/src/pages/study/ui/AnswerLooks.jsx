@@ -12,6 +12,7 @@
 // Inputs: choices (labels), pick (index or null), state ask | ok | bad, answer (the right label, known after Check),
 // step/total, busy, onPick(i), onCheck(), onNext(). No market fact is written here: the detail line only says where to
 // look on the chart.
+import { useEffect } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import a from './answerLooks.module.css'
 
@@ -31,17 +32,30 @@ function Mark({ st, n }) {
   return n
 }
 
-/** A · Lesson app */
-export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = null, step = 0, total = 8, busy = false, onPick, onCheck, onNext }) {
+/** A · Lesson app. In the product (round 22): `head` replaces the question once the answer is checked (the verdict line,
+ *  which the owner ranked Good, stays as it was), `hotkey` makes Enter press Check and then Next, and the test ids are the
+ *  ones Hard mode always carried. */
+export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = null, step = 0, total = 8, busy = false, onPick, onCheck, onNext, head = null, nextLabel = 'Next', hotkey = false, eyebrow = null, cardsTestId = null, checkTestId = null, nextTestId = null }) {
   const ctx = { pick, state, answer }
+  useEffect(() => {
+    if (!hotkey) return undefined
+    const k = (e) => {
+      if (e.key !== 'Enter' || e.repeat || (e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) return
+      if (state === 'ask') { if (pick != null && !busy) onCheck?.() } else onNext?.()
+    }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [hotkey, state, pick, busy, onCheck, onNext])
   return (
     <div className={`${a.area} ${a.lesson}`}>
-      <div className={a.lHead}>
-        <span className={a.lEyebrow}>Chart {step + 1} of {total} · Daily · ticker hidden</span>
-        <h2 className={a.lQ}>{Q}</h2>
-        <p className={a.lDetail}>{DETAIL}</p>
-      </div>
-      <div className={a.lGrid} role="group" aria-label="Your answer">
+      {state !== 'ask' && head ? head : (
+        <div className={a.lHead}>
+          <span className={a.lEyebrow}>{eyebrow || <>Chart {step + 1} of {total} · Daily · ticker hidden</>}</span>
+          <h2 className={a.lQ}>{Q}</h2>
+          <p className={a.lDetail}>{DETAIL}</p>
+        </div>
+      )}
+      <div className={a.lGrid} role="group" aria-label="Your answer" data-testid={cardsTestId || undefined}>
         {choices.map((c, i) => {
           const st = tileState(i, c, ctx)
           return (
@@ -54,8 +68,8 @@ export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = 
       </div>
       <div className={`${a.lFoot} ${state === 'ok' ? a.footOk : state === 'bad' ? a.footBad : ''}`}>
         {state === 'ask'
-          ? <button type="button" className={`${a.lCheck} ${pick != null ? a.ready : ''}`} disabled={pick == null || busy} onClick={onCheck}>{busy ? 'Checking' : 'Check'}</button>
-          : <button type="button" className={`${a.lCheck} ${a.ready} ${state === 'ok' ? a.good : a.bad}`} onClick={onNext}>Next</button>}
+          ? <button type="button" className={`${a.lCheck} ${pick != null ? a.ready : ''} ${busy ? a.busy : ''}`} disabled={pick == null || busy} onClick={onCheck} data-testid={checkTestId || undefined} aria-busy={busy || undefined}>{busy ? 'Checking' : 'Check'}</button>
+          : <button type="button" className={`${a.lCheck} ${a.ready} ${state === 'ok' ? a.good : a.bad}`} onClick={onNext} data-testid={nextTestId || undefined}>{nextLabel}</button>}
       </div>
     </div>
   )
@@ -134,4 +148,3 @@ export function AnswerTicket({ choices, pick = null, state = 'ask', answer = nul
   )
 }
 
-export const ANSWER_LOOKS = { lesson: AnswerLessonApp, quiz: AnswerQuizShow, ticket: AnswerTicket }

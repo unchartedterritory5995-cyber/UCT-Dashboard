@@ -10,47 +10,13 @@
 //                     run, a blotter of every chart (a broker's daily statement)
 //
 // Every number is counted from the run itself: right, total, xp and the log rows. Nothing about a stock is written here.
+import { useEffect } from 'react'
 import { Medal } from './Medal'
 import UIcon from '../../../components/ui/UIcon'
 import brandMark from '../../../components/intro/assets/compass-mark.png'
 import { useCountUp } from '../../../lab/fx'
+import { bySetup, bestStreak, tierOf, verdictWord } from './endMath'
 import e from './endLooks.module.css'
-
-export function verdictWord(right, total) {
-  const r = total ? right / total : 0
-  if (total > 0 && right === total) return 'Legendary'
-  if (r >= 0.75) return 'Sharp eyes'
-  if (r >= 0.5) return 'Getting there'
-  return 'Tough run'
-}
-
-export function bestStreak(results) {
-  let best = 0, run = 0
-  for (const r of results) { run = r ? run + 1 : 0; if (run > best) best = run }
-  return best
-}
-
-/** Tiers by the share named: a perfect run is Legendary, then gold at 6 of 8, silver at 4, bronze at 1. */
-export function tierOf(right, total) {
-  if (total > 0 && right === total) return { key: 'legend', name: 'Legendary', next: null }
-  const r = total ? right / total : 0
-  const need = (share) => Math.max(0, Math.ceil(share * total) - right)
-  if (r >= 0.75) return { key: 'gold', name: 'Gold', next: { name: 'Legendary', more: total - right } }
-  if (r >= 0.5) return { key: 'silver', name: 'Silver', next: { name: 'Gold', more: need(0.75) } }
-  if (right >= 1) return { key: 'bronze', name: 'Bronze', next: { name: 'Silver', more: need(0.5) } }
-  return { key: 'none', name: 'No medal', next: { name: 'Bronze', more: 1 } }
-}
-
-/** Every setup in the run with how many of its charts were named, worst first. */
-export function bySetup(log) {
-  const m = new Map()
-  for (const r of log) {
-    const x = m.get(r.name) || { name: r.name, n: 0, ok: 0 }
-    x.n += 1; if (r.ok) x.ok += 1
-    m.set(r.name, x)
-  }
-  return [...m.values()].sort((p, q) => (p.ok / p.n) - (q.ok / q.n) || q.n - p.n || p.name.localeCompare(q.name))
-}
 
 function Actions({ onAgain, onBack, againLabel = 'Run it again' }) {
   return (
@@ -78,7 +44,7 @@ export function EndTrophy({ right, total, xp = 0, log = [], results = [], onAgai
               <i className={e.coinShine} aria-hidden="true" />
             </div>
           )}
-        <span className={e.ribbon}>{tier.name}</span>
+        <span className={e.ribbon}>{tier.key === 'legend' ? `${total} for ${total}` : tier.name}</span>
       </div>
       <div className={e.tTitle}>{verdictWord(right, total)}</div>
       <div className={e.tSub}>{right} of {total} named without a ticker{tier.next ? <> · <b>{tier.next.more} more</b> for {tier.next.name}</> : null}</div>
@@ -203,4 +169,79 @@ export function EndStatement({ right, total, xp = 0, log = [], results = [], onA
   )
 }
 
-export const END_LOOKS = { trophy: EndTrophy, report: EndReport, statement: EndStatement }
+/** HARD MODE'S END (round 22): the owner's three versions merged the way he asked of the status line ("a combo ... all
+ *  the best parts of each"): Trophy's coin struck in the run's tier with the next tier named; one slim stats bar;
+ *  Report card's setups scored and the weakest real setup named; the run as cards with what was said on a miss. The
+ *  test ids are the ones Hard mode's end always carried. Enter runs it again. */
+export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain, onBack }) {
+  const tier = tierOf(right, total)
+  const shown = useCountUp(xp, true, 28)
+  const acc = total ? Math.round((right / total) * 100) : 0
+  const rows = bySetup(log)
+  const weak = rows.find((r) => r.ok < r.n && r.name !== 'Nothing fired') || null
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'Enter' && !e.repeat && !(e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) onAgain?.() }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [onAgain])
+  return (
+    <div className={`${e.end} ${e.trophy} ${e.hardEnd} ${e['t_' + tier.key] || ''}`} data-testid="hard-done">
+      <div className={e.coinStage}>
+        <i className={e.rays} aria-hidden="true" />
+        {tier.key === 'legend'
+          ? <Medal lit ignite size={150} />
+          : (
+            <div className={e.coin} data-testid="hard-score" aria-label={`${right} of ${total} named`}>
+              <div className={e.coinFace}><img src={brandMark} alt="" /><b>{right}<small>/{total}</small></b></div>
+              <i className={e.coinShine} aria-hidden="true" />
+            </div>
+          )}
+        <span className={e.ribbon}>{tier.key === 'legend' ? `${total} for ${total}` : tier.name}</span>
+      </div>
+      <div className={e.tTitle}>{verdictWord(right, total)}</div>
+      <div className={e.tSub}>{right} of {total} named without a ticker{tier.next ? <> · <b>{tier.next.more} more</b> for {tier.next.name}</> : null}</div>
+      {tier.key === 'legend' ? null : <span className={e.legendHint}><Medal size={22} /> {total} for {total} lights the Legendary medal</span>}
+      <div className={e.tBar}>
+        <span data-testid="hard-xp"><UIcon name="star" size={16} gold={false} /><b>+{shown}</b> XP</span>
+        <span data-testid="hard-right"><UIcon name="check" size={16} gold={false} /><b>{right}/{total}</b> named</span>
+        <span data-testid="hard-streak"><UIcon name="flame" size={16} gold={false} /><b>{bestStreak(results)}</b> best streak</span>
+        <span><b>{acc}%</b> accuracy</span>
+      </div>
+      {rows.length ? (
+        <div className={e.rCols}>
+          <div className={e.rBox}>
+            <span className={e.rBoxHead}>By setup</span>
+            {rows.map((r) => (
+              <div key={r.name} className={e.rSet}>
+                <span className={e.rSetName}>{r.name}</span>
+                <span className={e.rSetBar}><i style={{ width: `${(r.ok / r.n) * 100}%` }} /></span>
+                <span className={`${e.rSetNum} ${r.ok === r.n ? e.ok : r.ok === 0 ? e.miss : ''}`}>{r.ok} of {r.n}</span>
+              </div>
+            ))}
+          </div>
+          <div className={`${e.rBox} ${e.rFocus}`}>
+            <span className={e.rBoxHead}>Work on next</span>
+            {weak
+              ? <><div className={e.rFocusName}>{weak.name}</div><div className={e.rFocusWhy}>You named {weak.ok} of its {weak.n} chart{weak.n > 1 ? 's' : ''} in this run. Read its rule in the lesson the next time it comes up.</div></>
+              : <div className={e.rFocusWhy}>Every setup in this run was named. Run it again for a new eight.</div>}
+          </div>
+        </div>
+      ) : null}
+      <div className={e.rTimeline} role="list" aria-label="The run" data-testid="run-log">
+        {log.map((r, i) => (
+          <div key={i} role="listitem" className={`${e.rCard} ${r.ok ? e.ok : e.miss}`} style={{ '--i': i }}>
+            <span className={e.rCardTop}><small>{i + 1}</small>{r.ok ? <UIcon name="check" size={13} gold={false} /> : <UIcon name="x" size={13} gold={false} />}</span>
+            <b>{r.name}</b>
+            <em>{r.ticker || '—'}</em>
+            {!r.ok && r.said ? <i>you said {r.said}</i> : null}
+          </div>
+        ))}
+      </div>
+      <div className={e.actions}>
+        <button type="button" className={e.primary} onClick={onAgain} data-testid="hard-again">Run it again<UIcon name="chevronRight" size={18} gold={false} /></button>
+        <button type="button" className={e.ghost} onClick={onBack}>Back to Study</button>
+      </div>
+    </div>
+  )
+}
+

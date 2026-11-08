@@ -15,9 +15,9 @@ const RUNS = {
 }
 
 const LOOKS = [
-  { key: 'trophy', name: 'A · Trophy', ref: "like Apple Fitness awards and Duolingo's league trophies: the run strikes a coin, bronze, silver or gold, the Legendary medal at 8 for 8; the next tier named", C: EndTrophy },
-  { key: 'report', name: 'B · Report card', ref: "like Chess.com's Game Review: accuracy as a dial, every setup scored, the weakest one named with a way to practise it, the run as a timeline", C: EndReport },
-  { key: 'statement', name: 'C · Statement', ref: "like a broker's daily statement: the result as a P&L line, a step curve of charts named, a blotter of every chart", C: EndStatement },
+  { key: 'trophy', name: 'A · Trophy', ref: "like Apple Fitness awards and Duolingo's league trophies: the run strikes a coin, bronze, silver or gold, the Legendary medal at 8 for 8; the next tier named", View: EndTrophy },
+  { key: 'report', name: 'B · Report card', ref: "like Chess.com's Game Review: accuracy as a dial, every setup scored, the weakest one named with a way to practise it, the run as a timeline", View: EndReport },
+  { key: 'statement', name: 'C · Statement', ref: "like a broker's daily statement: the result as a P&L line, a step curve of charts named, a blotter of every chart", View: EndStatement },
 ]
 
 export default function Piece68EndFocus() {
@@ -34,15 +34,15 @@ export default function Piece68EndFocus() {
           <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>The end of a run, three ways</div>
           <div style={{ fontSize: 13, color: '#a39e94', marginTop: 4 }}>A sample run of {right} of 8. Other runs: {['mid', 'tough', 'perfect'].map((k, i) => <span key={k}>{i ? ' · ' : ''}<a href={`?piece=68&run=${k}`} style={{ color: k === key ? '#e9cd77' : '#a39e94' }}>{k === 'mid' ? '5 of 8' : k === 'tough' ? '1 of 8' : '8 of 8'}</a></span>)}</div>
         </div>
-        {LOOKS.map(({ key: k, name, ref, C }) => (
+        {LOOKS.map((look) => { const { key: k, name, ref } = look; const View = look.View; return (
           <section key={k} data-look={k} style={{ border: '1px solid rgba(220,187,94,.28)', borderRadius: 18, padding: '14px 18px 22px', background: 'linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.008))' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
               <b style={{ fontSize: 15, color: '#e9cd77' }}>{name}</b>
               <span style={{ fontSize: 12.5, color: '#a39e94' }}>{ref}</span>
             </div>
-            <C {...props} />
+            <View {...props} />
           </section>
-        ))}
+        )})}
       </div>
     </div>
   )

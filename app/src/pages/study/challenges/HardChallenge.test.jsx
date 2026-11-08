@@ -161,7 +161,12 @@ describe('HardChallenge', () => {
     // the coach's card: a direct headline, the last candle measured, the rule
     const lesson = screen.getByTestId('hard-lesson')
     expect(lesson).toHaveTextContent('Why it’s a Kicker')
-    expect(lesson).toHaveTextContent('The last candle, measured')
+    // round 22: the trade on the owner's Kicker rules replaces the table of numbers. The signal bar's high is 13.20 and day 2
+    // trades to 13.80, so the entry triggers; the stop is 3.5% under it (12.74), closer than the Kicker's low (12.50)
+    expect(lesson).toHaveTextContent('The trade · your Kicker rules')
+    expect(lesson).toHaveTextContent('$13.20')
+    expect(lesson).toHaveTextContent('$12.74')
+    expect(lesson).not.toHaveTextContent('The last candle, measured')
     expect(lesson).toHaveTextContent('Gap over the close, close above the high.')
     expect(screen.getByTestId('hard-next')).toHaveTextContent('See the run')
     fireEvent.click(screen.getByTestId('hard-next'))

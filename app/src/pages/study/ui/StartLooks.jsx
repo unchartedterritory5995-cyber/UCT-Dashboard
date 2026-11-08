@@ -10,6 +10,7 @@
 //                   face-down charts on the right, "Deal the charts"
 //
 // The chart in A is a drawing, not a stock: fixed shapes, no prices, no ticker.
+import { useEffect } from 'react'
 import { Medal } from './Medal'
 import UIcon from '../../../components/ui/UIcon'
 import st from './startLooks.module.css'
@@ -44,10 +45,17 @@ function ChartArt() {
   )
 }
 
-/** A · Arena */
-export function StartArena({ total = 8, ready = true, onStart }) {
+/** A · Arena. In the product (round 22): `label` says what the button can do while the bank loads, Enter starts, and the
+ *  test ids are the ones Hard mode's intro always carried. */
+export function StartArena({ total = 8, ready = true, onStart, label = null, testId = null, startTestId = null, hotkey = false }) {
+  useEffect(() => {
+    if (!hotkey || !ready) return undefined
+    const k = (e) => { if (e.key === 'Enter' && !e.repeat && !(e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) onStart?.() }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [hotkey, ready, onStart])
   return (
-    <div className={`${st.start} ${st.arena}`}>
+    <div className={`${st.start} ${st.arena}`} data-testid={testId || undefined}>
       <div className={st.aCard}>
         <span className={st.aPlate}>Hard</span>
         <ChartArt />
@@ -56,7 +64,7 @@ export function StartArena({ total = 8, ready = true, onStart }) {
       <div className={st.aTitle}>Hard mode</div>
       <div className={st.aStakes}><b>{total} charts</b><i /> no ticker<i /> one try each</div>
       <div className={st.aReward}><Medal size={40} testId={null} /><span><b>{total} for {total}</b> lights the Legendary medal</span></div>
-      <button type="button" className={st.go} disabled={!ready} onClick={onStart}>{ready ? 'Start' : 'Loading the charts'}<UIcon name="chevronRight" size={20} gold={false} /></button>
+      <button type="button" className={st.go} disabled={!ready} onClick={onStart} data-testid={startTestId || undefined}>{label || (ready ? 'Start' : 'Loading the charts')}<UIcon name="chevronRight" size={20} gold={false} /></button>
     </div>
   )
 }
@@ -111,4 +119,3 @@ export function StartBriefing({ total = 8, ready = true, onStart }) {
   )
 }
 
-export const START_LOOKS = { arena: StartArena, legend: StartLegendary, brief: StartBriefing }

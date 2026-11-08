@@ -22,10 +22,10 @@ function useRun(still) {
 }
 
 const LOOKS = [
-  { key: 'today', name: 'Today', ref: 'round 21, the one you ranked Cut', C: Hud },
-  { key: 'journey', name: 'A · Journey', ref: "like Duolingo's lesson bar: a thick glossy bar our mark rides, a streak flame", C: HudJourney },
-  { key: 'scoreboard', name: 'B · Scoreboard', ref: 'like a game HUD (Chess.com Puzzle Rush): a candle per chart, a big gold score', C: HudScoreboard },
-  { key: 'route', name: 'C · Route', ref: "like our intro's map: a route of waypoints, our compass travelling it", C: HudRoute },
+  { key: 'today', name: 'Today', ref: 'round 21, the one you ranked Cut', View: Hud },
+  { key: 'journey', name: 'A · Journey', ref: "like Duolingo's lesson bar: a thick glossy bar our mark rides, a streak flame", View: HudJourney },
+  { key: 'scoreboard', name: 'B · Scoreboard', ref: 'like a game HUD (Chess.com Puzzle Rush): a candle per chart, a big gold score', View: HudScoreboard },
+  { key: 'route', name: 'C · Route', ref: "like our intro's map: a route of waypoints, our compass travelling it", View: HudRoute },
 ]
 
 export default function Piece66StatusLineFocus() {
@@ -39,15 +39,15 @@ export default function Piece66StatusLineFocus() {
           <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>Three versions, playing a run of eight charts</div>
           <div style={{ fontSize: 13, color: '#a39e94', marginTop: 4 }}>Gold is a chart you named, red a miss. Pick the one to build on, or name an app that does it better.</div>
         </div>
-        {LOOKS.map(({ key, name, ref, C }) => (
+        {LOOKS.map((look) => { const { key, name, ref } = look; const View = look.View; return (
           <section key={key} data-look={key} style={{ border: `1px solid ${key === 'today' ? '#2a2c31' : 'rgba(220,187,94,.28)'}`, borderRadius: 18, padding: '14px 16px 18px', background: 'linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.008))', opacity: key === 'today' ? 0.75 : 1 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
               <b style={{ fontSize: 15, color: key === 'today' ? '#a39e94' : '#e9cd77' }}>{name}</b>
               <span style={{ fontSize: 12.5, color: '#a39e94' }}>{ref}</span>
             </div>
-            <C mode="hard" step={run.step} total={TOTAL} results={run.results} live={run.live} stepTestId={null} />
+            <View mode="hard" step={run.step} total={TOTAL} results={run.results} live={run.live} stepTestId={null} />
           </section>
-        ))}
+        )})}
       </div>
     </div>
   )

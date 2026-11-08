@@ -131,3 +131,40 @@ export function withArticle(name) {
   const n = String(name || '')
   return `${/^[AEIOU]/i.test(n) ? 'an' : 'a'} ${n}`
 }
+
+/** THE KICKER TRADE (round 22; the owner's rules, stored 2026-11-02): entry "over previous day high" on day 2, so over the
+ *  kicker candle's own high on the first session after it (his other entry, the day-1 30-minute opening-range break,
+ *  needs intraday bars the chart does not carry); stop "under the kicker candle low or entry with a 3.5% stop", whichever
+ *  is closer to the entry. A bar that reaches the stop ends the trade before its high counts (the order inside a bar is
+ *  unknown, so the cautious reading). Advance is the best high after entry while the trade was alive, from the entry.
+ *  { triggered: false, entry } when day 2 never cleared the high; null when there is nothing to measure. */
+export const KICKER_MAX_STOP = 0.035
+export function kickerTrade(signal, forward) {
+  if (!signal || !Number.isFinite(signal.h) || !Number.isFinite(signal.l) || !forward?.length) return null
+  const entry = signal.h
+  if (!(forward[0].h > entry)) return { kind: 'kicker', triggered: false, entry }
+  const stop = Math.max(signal.l, entry * (1 - KICKER_MAX_STOP))
+  let best = entry, bestAt = null, stoppedAt = null
+  for (let k = 0; k < forward.length; k++) {
+    const b = forward[k]
+    if (b.l <= stop) { stoppedAt = k; break }
+    if (b.h > best) { best = b.h; bestAt = k }
+  }
+  const riskPct = ((entry - stop) / entry) * 100
+  const advancePct = ((best - entry) / entry) * 100
+  return {
+    kind: 'kicker', triggered: true, entry, stop, riskPct, best, advancePct,
+    bestSessions: bestAt == null ? null : bestAt + 1, stoppedSession: stoppedAt == null ? null : stoppedAt + 1,
+    r: riskPct > 0 ? advancePct / riskPct : null,
+  }
+}
+
+/** The trade the lesson card reviews: the owner's own rules where he has given them (the Kicker), and otherwise the move
+ *  measured from the signal candle (its close, its low or high as the line the trade must hold, the culmination). */
+export function tradeOf(name, signal, forward, culm, fired) {
+  if (fired !== true || !signal) return null
+  if (name === 'Kicker') return kickerTrade(signal, forward)
+  if (!culm) return null
+  const short = SHORT_SETUPS.includes(name)
+  return { kind: 'signal', short, close: signal.c, line: short ? signal.h : signal.l, advancePct: culm.pct, sessions: culm.sessions, broke: culm.broke == null ? null : culm.broke + 1 }
+}
