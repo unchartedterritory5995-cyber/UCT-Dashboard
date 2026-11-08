@@ -1430,6 +1430,7 @@ export function collectObjectOps(stmts, h) {
             const a = argsOf(t)
             const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
             if (c && decls.get(c) && decls.get(c).kind === 'coll') loseColl(c, `coll:${method}`, t[0])
+            else if (refuseFieldCreates(t, c)) continue
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -2388,6 +2389,41 @@ export function collectObjectOps(stmts, h) {
     return true
   }
 
+  /** ⭐⭐ A DRAWING CREATED STRAIGHT INTO A LIST THIS PROGRAM DOES NOT HOLD —
+   *  `k._box.unshift(box.new(…))`, `array.push(k._box, line.new(…))`,
+   *  `k._box.insert(0, …)` / `.set(i, …)` on a user type's FIELD (or any list
+   *  this pass never declared). ⚰️ Before this every such statement fell through
+   *  each reader with no op and no count: the boxes were simply missing, and the
+   *  member was told nothing.
+   *
+   *  ⛔ WITHHELD BY NAME, WITH A COUNT, NEVER SERVED AS A BARE CREATE. Pine draws
+   *  the object at `box.new`, but its only handle lives in a list this program
+   *  has no register for, so every later step on it (a setter, a `pop().delete()`,
+   *  a `box.delete(k._box.get(0))`) is unaddressable — serving the create would put
+   *  objects on screen that TradingView moves or removes. Coordinator ruling
+   *  2026-11-08: such creates are lost by name (`<family>.new` in `unsupported`,
+   *  one `content:lost` each in the converter, `fieldCreates`), the rest of the
+   *  script keeps serving. A create that ALSO lands in a register (`b = box.new(…)`
+   *  then `k._box.push(b)`) is served by its own statement and never reaches here.
+   *  @returns {boolean} true when the statement named a create and was refused. */
+  function refuseFieldCreates(toks, coll) {
+    if (coll && decls.get(coll) && decls.get(coll).kind === 'coll') return false
+    const fams = []
+    for (const x of toks || []) {
+      if (!x || x.kind !== 'ident' || x.member) continue
+      const v = String(x.value)
+      const ns = nsOf(v)
+      if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(v) === 'new') fams.push(ns)
+    }
+    if (!fams.length) return false
+    if (!diagnostics.fieldCreates) diagnostics.fieldCreates = []
+    for (const f of fams) {
+      diagnostics.unsupported.push(`${f}.new`)
+      diagnostics.fieldCreates.push(f)
+    }
+    return true
+  }
+
   /** ⭐⭐ A REMOVAL OR SETTER ON A CHAINED ELEMENT THIS PROGRAM DOES NOT HOLD —
    *  `k._box.pop().delete()` on a `type` field, `x.shift().delete()` on a list it
    *  never declared. Pine's reference states the semantics (`array.pop` "removes
@@ -2530,7 +2566,7 @@ export function collectObjectOps(stmts, h) {
       return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method)
     }
     const d = decls.get(recv)
-    if (!d) return false
+    if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method)) && refuseFieldCreates(toks, recv)
     const ns = d.kind === 'coll' ? 'array' : d.family
     const args = argsOf(toks)
     // ⛔ THE SPAN GUARD'S ANSWER IS A COUNTED DROP, NOT SILENCE. `argsOf` returns
@@ -2560,7 +2596,7 @@ export function collectObjectOps(stmts, h) {
     if (!args || !args.length) return
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
-    if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
+    if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') { refuseFieldCreates(toks, collName); return }
     // ⛔⛔ AFTER THE RELEVANCE CHECK, NEVER BEFORE IT — MASTER'S TASK 1, AND THIS
     // MERGE PUT IT BACK THE WRONG WAY ROUND ONCE. `array` is Pine's one generic
     // namespace, so a scratch `array.new_float()` calls the same method spellings

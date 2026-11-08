@@ -19584,6 +19584,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // invisible to it.
     dropped(`fn:${rc.why}`)
   }
+  // ⭐⭐ A CREATE INTO A LIST THIS PROGRAM DOES NOT HOLD (`pineObjects.js::
+  // refuseFieldCreates`, `k._box.unshift(box.new(…))`): one attempt and one
+  // `content:lost` each — the object is withheld, by name, and counted.
+  for (const fam of (collected.diagnostics && collected.diagnostics.fieldCreates) || []) {
+    diagnostics.attemptedOps += 1
+    lostCreate(fam)
+    dropped('content:lost')
+  }
   if (refusedCalls.length) {
     diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
       + (rc.detail ? ` (${rc.detail})` : ''))
