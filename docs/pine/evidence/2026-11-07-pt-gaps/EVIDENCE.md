@@ -66,3 +66,12 @@ A first folder run was stopped mid-way because a source file was edited while it
 ## Not done
 
 Light phase only: no `mutate.py`, measure-pair or final-tip. No new parity column (L4 needs none). No translation-cache bump: a saved document gains the new stamps when it is translated again.
+
+## r1 (review GO-WITH-NOTES @0d31b677f6, `_resume-2026-11-01/dsk/reviews/PT-GAPS.md`)
+
+- **S1** a fill G-h drops (its colour's block mark has no guard to carry) is now said by name: "`fill` is not drawn: its colour is withheld — <the gate's sentence>" (`resolveFillHandles` records it in `withheldFills`; `chartOnlySentence`'s `how.withheld`). Before, it read "its two edges are not both plots this door carries", which was false.
+- **N4** the notes-only mode (`condGateNotesOnly`) is removed. It had a distinguishing shape: `float s = na` / `if barstate.islast` / `s := ta.sma(close, 3)` / `bgcolor(close > s ? …)` painted the every-bar `sma` on the last bar with NO gate, where the plot reads the one-run value (C42). A paint or fill colour now reads a one-run block the way a plot does; rail added.
+- **S2 / N3 / N5** rails added to `ptGaps.test.js` (19 → 23 tests): a paint withheld `pine:block` on the self-referencing guard (`if na(s) or s > s[1]`); the same fill dropped with the by-name sentence (control: a plain fill drawn); a nested arm inside a multi-state recurrence keeps its own test; the paint's one-run read; G-d's sentence on the UNKNOWN-value path.
+- **Reviewer survivors, re-run on the r1 code** (copy, mutate, run `ptGaps.test.js`, restore by copy, `cmp`): R2 (context kept through `multiState`) KILLED; R6 (fill refusal keeps the band) KILLED; R7 (paint refusal draws) KILLED; R8 (notes-only reintroduced) KILLED; R10 (G-d sentence dropped on UNKNOWN) KILLED. R9 (host-lane check dropped in `resolvePaints`) stays equivalent: the screen lane has no paints by construction.
+- **Runs on the r1 code and again after merging `origin/master`** (merge clean, `721ba338f2`): `ptGaps` 23, targeted 9 files 211 passed + 1 skipped (incl. `blockRunsParity`, `c45ArmRuns`, `c48CallSite`, `postfixMember`, `fillColourRuns`, `chartOnly`, `paramIds`); `tests/test_block_runs_parity.py` 28 passed; service suite on Node 24.13.1 139/139; `pine_runtime_host_parity.mjs --host node --check` HP-1 GREEN 166/166; `evidence_engine.py queue --check` PASS (no regeneration needed).
+- Owed to the coordinator: measure-pair (census 1) and final-tip. Engine bump at merge (translation output changes, per the review).
