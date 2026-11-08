@@ -97,6 +97,7 @@ By the manual, every one of those is a wrap, and each still has a real block or 
   - targeted: i6aN4BlockIndent 25/25, w34I6SwitchArmWrap 9/9;
   - guardCensus, pine.test, tabIndent, pine.continuation, pine.community(+guards), p3WsaReviewFixes and objectDoorGate: green after the registrations;
   - editorStatus*: 90/90.
+- ⛔ **CORRECTION (final-tip, 2026-11-07): the folder run below was NOT a folder pass.** The shared node_modules broke while it ran, so 310 test files never started (`Failed to start forks worker`). Vitest did not report them in its failed count. One of them, `symbolRosterSpeaks.test.js`, pins `Object.keys(REFUSALS).length`, and final-tip found it red (44 -> 45, the new `pine:indent`). It is re-pinned to 45, with the reason. The full folders are final-tip's to answer.
 - Full `engine/ast` + `engine/runtime` (heavy lock `heavy-final6.lock`, label i6an4, free RAM 11.2 GB before): 5772 pass, 1 fail, 6 skipped, 203 files.
   - The one failing test was the census roster's alphabetical order (`pine:indent` placed before `pine:hidden-only`). It is fixed and re-run green (see the re-run line below).
   - One file failed to load: `serverBundle.rail.test.js`, "Cannot find package '@adobe/css-tools'". That is the shared `pine-base` node_modules (junctioned), which another session was reinstalling during the run (modified 17:44). It is not this change.
@@ -128,3 +129,13 @@ A body of one tab then two spaces measures 6 (the L2 lexer rule: a tab advances 
 Results:
 - queue tests: test_evidence_engine, test_queue_dispositions, test_pine_w34_d1_queue_targets and test_saved_probe_integrity gave 63 passed;
 - rails: i6aN4BlockIndent, w34I6SwitchArmWrap, guardCensus, tabIndent and editorStatus* gave 7 files and 130/130.
+
+## Final-tip red: the REFUSALS count pin
+
+- `symbolRosterSpeaks.test.js` now pins 45, and its comment names `pine:indent` (I6a-N4, the manual's block-indent rule).
+- I searched every other registry for a REFUSALS count or a full list of codes:
+  - `pine.guardCensus.test.js` (the unexercised roster) was already updated;
+  - so were `editorStatus.js` and the spec's section 4;
+  - the other counts (`sentence.test.js`, `budget.test.js`) count `parse.js` / `interpret.js` / `sentence.js` / `budget.js` tables, which this lane did not touch;
+  - `refusalLaundering` and `pine.test` read the keys rather than restating them.
+- Run (Node 20, `--maxWorkers=1`): every `engine/ast` test file naming REFUSALS (29, measure files excluded), plus i6aN4BlockIndent, w34I6SwitchArmWrap and editorStatus*: 34 files, 1161/1161 pass.
