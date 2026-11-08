@@ -61,8 +61,8 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
       <div className={`${d5.cards} ${d5.cascade}`}>{item.choices.map((c, k) => { const st = state === 'ask' ? (pick === k ? 'sel' : 'idle') : pick === k ? (state === 'ok' ? 'right' : 'wrong') : 'quiet'; return <Tile key={c} n={k + 1} i={k} label={c} state={st} disabled={state !== 'ask'} onClick={() => { setPick(k); tapFeedback(prefs) }} /> })}</div>
       {state !== 'ask' && why ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{why}</p></details> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
-        {state === 'ask' ? <button type="button" className={`${d5.btn} ${pick != null ? d5.live : ''}`} disabled={pick == null} onClick={check} data-testid="boss-check">Check</button>
-          : <button type="button" className={`${d5.btn} ${state === 'ok' ? d5.live : d5.red}`} onClick={() => onDone(state === 'ok', item, xp)} data-testid="boss-next">{state === 'ok' ? (idx + 1 < total ? 'Next' : 'Claim the trophy') : 'See what to review'}</button>}
+        {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="boss-check">Check</StudyButton>
+          : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(state === 'ok', item, xp)} testId="boss-next">{state === 'ok' ? (idx + 1 < total ? 'Next' : 'Claim the trophy') : 'See what to review'}</StudyButton>}
       </div></div>
     </div>
   )
