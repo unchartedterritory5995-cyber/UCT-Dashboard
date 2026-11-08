@@ -951,7 +951,13 @@ export function runOurSide(capture) {
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
           : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
+        // ⭐ HONESTY-SWEEP r3 — say WHY, when the door recorded it. A runtime run stopped by
+        // its wall-clock budget (`runtime:time-budget`, 1,000 ms) read here as a bare "no
+        // column", so a measure-pair could not tell a load-sensitive stop from a lane that
+        // dropped its columns (delta-rsi RDDT, MATCH -> INCONCLUSIVE, 2026-11-08).
+        const why = registry.columnErrors(cols)[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
+          + (why && why.guard ? ` (${why.guard})` : '')
       }
       plots.push({
         title: o ? o.title : null,

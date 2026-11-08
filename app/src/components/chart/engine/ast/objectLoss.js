@@ -111,6 +111,15 @@ export const DROP_KEYS = Object.freeze({
     "a delete whose condition reads a drawing's state this chart cannot carry — the object Pine deletes stays"),
   // ⭐ C18 — a drawing whose values the runtime lane answers, one of whose
   // properties could not be read: dropped whole (`pine.js::rtHeldProp`).
+  // ⛔ HONESTY-SWEEP item 1 (2026-11-07) — a drawing (or a setter, or a cell) whose `style` /
+  // `size` / `position` can be `na`: what TradingView draws for that is not captured (Q-HS1),
+  // so it is withheld (`pine.js`, `ENUM_NA_SENTENCE`). A missing object, never an extra one.
+  'enum:na': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position can be `na` — withheld, never drawn with a default style'),
+  // ⛔ HONESTY-SWEEP r1 (review N1) — the same word computed by a helper called with a named
+  // argument, which this door does not read (Q-HS7). Missing, never extra.
+  'enum:named-call': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position a helper computes from a named argument — withheld, never drawn with a default style'),
   'runtime:prop': C(LOSS.PARTIAL,
     'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
@@ -347,8 +356,12 @@ export function assessObjectLoss(t) {
     // ⭐ THE SAME FAMILY TEST THE PASS APPLIES TO ITS OWN LOST REMOVALS: a
     // `box.delete` the reader never carried removes nothing from a program that
     // draws no box.
+    // ⛔ `object.<m>` NAMES NO FAMILY — the tokens could not say which (a
+    // chained `(c ? a : b).delete()`, a loop body's handle-form removal). An
+    // unnamed family reaches, the same fail-closed rule as `lostRemovals`'
+    // `reaches: !family`; "no `object` is drawn" would be true of every chart.
     const fam = name.split('.')[0]
-    if (cls === LOSS.REMOVES && !carried.families.has(fam)) {
+    if (cls === LOSS.REMOVES && fam !== 'object' && !carried.families.has(fam)) {
       cls = LOSS.PARTIAL
       why = `${why}, except that no ${fam} is drawn here at all`
     }
@@ -369,6 +382,12 @@ export function assessObjectLoss(t) {
     .filter((k) => k.startsWith('strategy:') && reasons[k] > 0)
     .reduce((n, k) => n + reasons[k], 0))
   const strategyRemoves = removes.some((r) => r.key.startsWith('strategy:'))
+  // ⭐ r2 — A FAMILY WITHHELD WHOLE: one the script keeps in a list this chart
+  // cannot follow (`removalWithheldFamilies`, `fieldCreateFamilies`) and of which
+  // NOTHING is drawn. The note names it, rather than leaving the member to infer
+  // it from a list of call names.
+  const hiddenFamilies = uniq([...(d.removalWithheldFamilies || []), ...(d.fieldCreateFamilies || [])])
+    .filter((f) => !carried.families.has(f)).sort()
   const lossy = dropped > 0 || readerNames.length > 0
   return {
     verdict: removes.length ? 'removes' : lossy ? 'partial' : 'clean',
@@ -378,6 +397,7 @@ export function assessObjectLoss(t) {
     readerNames,
     ...(strategyDropped > 0 ? { strategyDropped } : {}),
     ...(strategyRemoves ? { strategyRemoves } : {}),
+    ...(hiddenFamilies.length ? { hiddenFamilies } : {}),
   }
 }
 
@@ -512,5 +532,18 @@ export function objectLossNote(loss, opts = {}) {
       ? `It also uses ${names}, which this chart doesn't draw yet.`
       : `This script uses ${names}, which this chart doesn't draw yet, so what it draws is incomplete.`)
   }
+  if (loss.hiddenFamilies && loss.hiddenFamilies.length) parts.push(hiddenFamiliesSentence(loss.hiddenFamilies))
   return { name: DRAWING_NOTE_NAME, note: parts.join(' ') }
+}
+
+/** ⭐ r2 — the member's sentence for a family withheld whole: `No box or line is
+ *  shown: …`. One clause, the families in the reader's words. Wording: coordinator
+ *  ruling 2026-11-08 (it fires for objects outside lists and for user-type fields
+ *  too, and implies no removal). */
+export function hiddenFamiliesSentence(families) {
+  const fs = (families || []).map((f) => (f === 'linefill' ? 'fill between lines' : f === 'table' ? 'table' : f))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
+  return `No ${list} is shown: the script keeps some of them where this chart can't follow yet `
+    + '(in a list or in a field of its own type), so which ones TradingView would show, and where, '
+    + "can't be known."
 }

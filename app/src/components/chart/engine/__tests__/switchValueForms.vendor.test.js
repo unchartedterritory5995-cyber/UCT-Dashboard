@@ -26,7 +26,7 @@ import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
 import { buildObjectLane, runObjectLane } from '../runtime/objectLane.js'
-import { translatePine } from '../ast/pine.js'
+import { translatePine, ENUM_NA_SENTENCE } from '../ast/pine.js'
 
 /** The member door on the capture's own bars → our render state + the vendor's records. */
 function drawCapture(id) {
@@ -96,13 +96,18 @@ describe('the rule, one clause at a time, on the runtime lane', () => {
     expect(t.position).toBe('bottom_left')
   })
 
-  it('⛔ CONTROL — an option no arm covers could be `na`, so the size is dropped, not guessed', () => {
+  // ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07): this CONTROL used to assert the cell still drew with
+  // `text_size` dropped, i.e. at the renderer's default size, which no reference sentence or
+  // capture states for a size that can be `na`. The cell is now WITHHELD by name (`enum:na`,
+  // `ENUM_NA_SENTENCE`, capture row Q-HS1); `honestySweep.test.js` rails the rule.
+  it('⛔ CONTROL — an option no arm covers could be `na`, so the cell is withheld by name, never drawn at a default size', () => {
     const src = table(sizeSwitch(['Small', 'Large', 'Huge'], [['Small', 'size.small'], ['Large', 'size.large']]), 'position.bottom_left', 's')
     const t = translatePine(src, { strict: true, objects: true })
-    const cell = t.objects.ops.find((o) => o.k === 'cell')
-    expect(cell, 'the cell itself still draws').toBeTruthy()
-    expect(cell.props.text_size).toBeUndefined()
-    expect(t.objectDiagnostics.enumUnreadable).toBe(1)
+    expect(t.objects.ops.find((o) => o.k === 'cell'), 'the cell is withheld').toBeUndefined()
+    expect(t.objectDiagnostics.dropReasons['enum:na']).toBe(1)
+    expect(t.objectDiagnostics.enumNa).toBe(1)
+    expect(t.objectDiagnostics.enumUnreadable).toBeUndefined()
+    expect((t.objectDiagnostics.cellTextWhy || []).join('|')).toContain(`pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 60)}`)
     // …and the covered version of the same script DOES carry it (same reader, one option less)
     const covered = translatePine(src.replace(`, ${String.fromCharCode(34)}Huge${String.fromCharCode(34)}`, ''), { strict: true, objects: true })
     expect(covered.objects.ops.find((o) => o.k === 'cell').props.text_size).toBeTruthy()
