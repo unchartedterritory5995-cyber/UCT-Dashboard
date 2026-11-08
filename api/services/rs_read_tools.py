@@ -85,7 +85,7 @@ READING_DESCRIPTION = (
     "SPY / RSP / the sector agree, the market regime and the four UCT checks. Plain summaries "
     "only; a missing piece says it is missing. RS compares the stock with the market and is NOT "
     "RSI: never offer RSI as an alternative. One ticker per call: never call it in a loop over a "
-    "list (a watchlist question goes to grade_watchlist). A reading, not a buy signal. Call for "
+    "list (a watchlist question goes to grade_watchlist). A reading of strength, not a trade signal. Call for "
     "'is NVDA leading the market', 'what is AAPL's RS', 'how is TSLA doing against QQQ'."
 )
 READING_PARAMETERS = {
@@ -373,7 +373,7 @@ def summarize_envelope(sym: str, benchmark: str, envelope: Any) -> dict:
     return {"ok": True, "symbol": sym, "benchmark_requested": benchmark,
             "state": _text(payload.get("state")), "fields": fields, "missing": missing,
             "narration": head + ". " + ". ".join(lines) + ".",
-            "note": "RS compares the stock with the benchmark; it is not RSI. A reading, not a buy signal."}
+            "note": "RS compares the stock with the benchmark; it is not RSI. A reading of strength, not a trade signal."}
 
 
 def rs_reading(symbol: str, benchmark: str = DEFAULT_BENCHMARK) -> dict:
