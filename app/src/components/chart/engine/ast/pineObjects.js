@@ -47,6 +47,7 @@ import {
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
   barInvariantNames, guardIsBarInvariant, guardIsLastBarOnly, oneExecutionBody, callOwnedSeriesFor,
   oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, literalInit, isMutator,
+  collectionFamilies, familyOfCollection, ELEMENT_METHODS,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -405,6 +406,8 @@ export function collectObjectOps(stmts, h) {
   // it is CALLED, under the call's guards, with its own per-call-site locals.
   const fnDefs = readFunctionDefs(stmts, h)
   const objColls = objectCollections(stmts, h)
+  // ⭐ the family each named collection holds, top-level and `type` fields alike
+  const collFams = collectionFamilies(stmts, h)
   const drawing = drawingFunctions(fnDefs, objColls)
   const drawFns = new Set([...drawing].filter((n) => !fnDefs.get(n).isMethod))
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
@@ -520,7 +523,7 @@ export function collectObjectOps(stmts, h) {
   const refuseCall = (why, fn, st, detail) => {
     const def = fnDefs.get(fn)
     const effects = why === 'return-type' ? { kinds: {}, families: [], creates: [] }
-      : def ? bodyEffects(def, fnDefs, objColls)
+      : def ? bodyEffects(def, fnDefs, objColls, collFams)
         : { kinds: { delete: 1 }, families: [null], creates: [null] }
     diagnostics.refusedCalls.push({
       why, fn, line: st && st.header && st.header[0] ? st.header[0].line : null,
@@ -2367,12 +2370,12 @@ export function collectObjectOps(stmts, h) {
     const asMethod = recv.name === 'array.get'
       ? recv
       : (methodFormCall(recv, receiverNs, isDefined) || {}).node
-    if (!asMethod || asMethod.name !== 'array.get') return false
+    if (!asMethod || asMethod.name !== 'array.get') return refuseChainedElement(node, recv)
     if (!Array.isArray(asMethod.args) || asMethod.args.length !== 2) return false
     const cn = asMethod.args[0] && asMethod.args[0].value
     const collName = cn && cn.type === 'name' ? cn.name : null
     const d = collName ? decls.get(collName) : null
-    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return false
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return refuseChainedElement(node, recv)
     const method = node.name
     if (method.startsWith('get_')) { diagnostics.getters.push(`${d.family}.${method}`); return true }
     if (inLoop) { diagnostics.loopBlocked.push(`${d.family}.${method}`); return true }
@@ -2382,6 +2385,48 @@ export function collectObjectOps(stmts, h) {
     // target and the drawing would address nothing.
     emitMethodOn(d.family, method, { name: null, value: asMethod, tok: toks[0] },
       node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⭐⭐ A REMOVAL OR SETTER ON A CHAINED ELEMENT THIS PROGRAM DOES NOT HOLD —
+   *  `k._box.pop().delete()` on a `type` field, `x.shift().delete()` on a list it
+   *  never declared. Pine's reference states the semantics (`array.pop` "removes
+   *  the last element from an array and returns its value"; the `delete` method
+   *  is `box.delete(id)` on it), but the list lives where the object program has
+   *  no register (a user type's field), so it cannot be EXECUTED, only named.
+   *
+   *  ⛔ REFUSED BY NAME, WITH ITS FAMILY: `box.delete` in `unsupported`. The door
+   *  classifies it as a removal (`classifyReaderName`) that reaches only a chart
+   *  that draws that family — so the rest of the script (a table the capture
+   *  matches) is not refused for a box removal no box on screen could feel.
+   *  ⚰️ Before this, the statement fell through every branch with no op and no
+   *  count. A declared object list (`decls`) is never claimed here: its own
+   *  readers answer (`poppedFrom`, `emitMethodForm`'s `array.first`). */
+  function refuseChainedElement(node, recv) {
+    const method = String(node.name || '')
+    if (!(method === 'delete' || method.startsWith('set_')) || isDefined(method)) return false
+    const name = String((recv && recv.name) || '')
+    let coll = null
+    let m = null
+    if (name.startsWith('array.')) {
+      m = name.slice('array.'.length)
+      const a = recv.args && recv.args[0] && recv.args[0].value
+      if (a && a.type === 'name') coll = a.name
+    } else {
+      const sp = splitMethodName(name)
+      if (sp) { m = sp.method; coll = sp.recv }
+    }
+    if (!coll || !ELEMENT_METHODS.includes(m) || isDefined(m)) return false
+    const d = decls.get(coll)
+    if (d && d.kind === 'coll') return false
+    const fam = familyOfCollection(coll, collFams)
+    diagnostics.unsupported.push(`${fam || 'object'}.${method}`)
+    // ⭐ A NAMED family's removal is carried to the converter, which withholds
+    // that family's objects (`removalWithheldFamilies` in `pine.js`).
+    if (method === 'delete' && fam) {
+      if (!diagnostics.chainedRemovals) diagnostics.chainedRemovals = []
+      diagnostics.chainedRemovals.push(fam)
+    }
     return true
   }
 
@@ -2858,7 +2903,7 @@ export function collectObjectOps(stmts, h) {
    *  removal whose family the tokens cannot name is `object.delete`, which the
    *  door classifies as a removal (`classifyReaderName`), never as nothing. */
   function loopBodyEffects(def, fnName, st) {
-    const fx = bodyEffects(def, fnDefs, objColls)
+    const fx = bodyEffects(def, fnDefs, objColls, collFams)
     const kinds = { ...(fx.kinds || {}) }
     for (const fam of fx.families || []) {
       const clear = fam === 'table' && (kinds.clear || 0) > 0

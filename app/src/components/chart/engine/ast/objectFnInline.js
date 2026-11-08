@@ -345,6 +345,96 @@ export function objectCollections(stmts, h) {
   return out
 }
 
+const DRAWING_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
+/** The collection methods that RETURN one element (Pine reference: `array.pop`
+ *  "Removes the last element from an array and returns its value", `array.shift`
+ *  "...the first element...", `array.remove` "Changes the contents of an array by
+ *  removing the element with the specified index", returning it; `array.get`,
+ *  `array.first`, `array.last` return one without removing it). */
+export const ELEMENT_METHODS = Object.freeze(['pop', 'shift', 'remove', 'get', 'first', 'last'])
+
+/** ⭐ THE DRAWING FAMILY EVERY COLLECTION THE SCRIPT NAMES HOLDS. Two sources:
+ *  a top-level `x = array.new_<fam>()` / `array.new<fam>()` (key `x`), and a
+ *  `type` FIELD declared `array<fam> f` or `fam[] f` (key `.f`, read off the
+ *  field's last dotted segment, `k._box` → `._box`). A field name declared with
+ *  two different families answers null: the tokens cannot say which. */
+export function collectionFamilies(stmts, h) {
+  const out = new Map()
+  const put = (k, fam) => { out.set(k, out.has(k) && out.get(k) !== fam ? null : fam) }
+  for (const st of stmts || []) {
+    const t = st.header || []
+    if (t[0] && t[0].kind === 'ident' && (t[0].value === 'type' || (t[0].value === 'export' && t[1] && t[1].value === 'type'))) {
+      // ⚠️ The block reaches here FLATTENED onto the header (`type kz array<box>
+      // _box line[] _hi_line …`), so the fields are read as a token stream —
+      // header after the name, then any sub-statements, the same two shapes.
+      const ft = [...t.slice(t[0].value === 'export' ? 3 : 2), ...(st.sub || []).flatMap((f) => f.header || [])]
+      for (let j = 0; j < ft.length; j += 1) {
+        const a = ft[j]
+        if (!a || a.kind !== 'ident') continue
+        let fam = null
+        let nm = null
+        if (a.value === 'array' && Array.isArray(a.typeArgs)) { fam = String(a.typeArgs[0] || ''); nm = ft[j + 1] }
+        else if (h.isPunct(ft[j + 1], '[') && h.isPunct(ft[j + 2], ']')) { fam = String(a.value); nm = ft[j + 3] }
+        if (nm && nm.kind === 'ident' && DRAWING_FAMILIES.includes(fam)) put(`.${nm.value}`, fam)
+      }
+      continue
+    }
+    const eq = h.findTop(t, (x) => h.isPunct(x, '='))
+    if (eq < 1) continue
+    const rhs = t[eq + 1]
+    if (!rhs || rhs.kind !== 'ident') continue
+    const v = String(rhs.value)
+    const fam = v.startsWith('array.new_') ? v.slice('array.new_'.length)
+      : (v === 'array.new' && Array.isArray(rhs.typeArgs) ? String(rhs.typeArgs[0] || '') : null)
+    const nameTok = t[eq - 1]
+    if (fam && DRAWING_FAMILIES.includes(fam) && nameTok && nameTok.kind === 'ident') put(String(nameTok.value), fam)
+  }
+  return out
+}
+
+/** The family a collection expression names: a declared top-level name, else
+ *  a field's last segment (`k._box`). Null when neither says. */
+export function familyOfCollection(name, fams) {
+  const n = String(name || '')
+  if (!n || !fams) return null
+  if (fams.has(n)) return fams.get(n)
+  const dot = n.lastIndexOf('.')
+  return dot >= 0 ? (fams.get(`.${n.slice(dot + 1)}`) || null) : null
+}
+
+/** ⭐ THE ELEMENT A CHAINED CALL HANDS ON — the member token at `toks[i]` follows
+ *  `<coll>.pop()` / `array.shift(<coll>)` / `<coll>.get(i)` … : `{coll, method,
+ *  family}`, else null. The collection is a single identifier (dotted for a field);
+ *  anything richer is not read. */
+export function chainedElementOf(toks, i, fams) {
+  const dot = toks[i - 1]
+  const close = toks[i - 2]
+  if (!dot || !(dot.kind === 'punct' && dot.value === '.') || !close || !(close.kind === 'punct' && close.value === ')')) return null
+  let depth = 0
+  let open = -1
+  for (let k = i - 2; k >= 0; k -= 1) {
+    const t = toks[k]
+    if (t.kind !== 'punct') continue
+    if (t.value === ')') depth += 1
+    else if (t.value === '(') { depth -= 1; if (depth === 0) { open = k; break } }
+  }
+  const callee = open > 0 ? toks[open - 1] : null
+  if (!callee || callee.kind !== 'ident' || callee.member || callee.line !== toks[open].line) return null
+  const v = String(callee.value)
+  let coll = null
+  let method = null
+  if (v.startsWith('array.')) {
+    method = v.slice('array.'.length)
+    const a = toks[open + 1]
+    if (a && a.kind === 'ident') coll = String(a.value)
+  } else {
+    const d = v.lastIndexOf('.')
+    if (d > 0) { method = v.slice(d + 1); coll = v.slice(0, d) }
+  }
+  if (!coll || !ELEMENT_METHODS.includes(method)) return null
+  return { coll, method, family: familyOfCollection(coll, fams) }
+}
+
 /** The subset of `defs` whose body WRITES a drawing — directly, through an
  *  object collection, or by calling another function that does. A fixpoint,
  *  because a helper may be defined below its first caller. */
@@ -360,7 +450,10 @@ export function drawingFunctions(defs, objColls) {
       // is null and a body whose only drawing step is written that way was "not
       // a drawing function": never inlined, its removal gone with no count. A
       // user METHOD so named is the script's own and is judged as one.
-      if (tk.member && onValueReceiver(toks, i)) {
+      // ⭐ AND ON A CHAINED ELEMENT — `x.pop().delete()`, `k._box.shift().delete()`,
+      // `array.remove(a, i).delete()` (`chainedElementOf`): the same lone member
+      // token, the same silence before this.
+      if (tk.member && (onValueReceiver(toks, i) || chainedElementOf(toks, i, null))) {
         const um = defs.get(v)
         if (writesObject(v) && !(um && um.isMethod)) return true
         continue
@@ -443,7 +536,7 @@ const DRAWN_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
 const ARRAY_MUTATORS = new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
   'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat'])
 
-export function bodyEffects(def, defs, objColls) {
+export function bodyEffects(def, defs, objColls, fams = null) {
   const kinds = {}
   const families = []
   const creates = []
@@ -455,6 +548,9 @@ export function bodyEffects(def, defs, objColls) {
   // setters never ran, so the objects they would have moved or re-captioned are
   // not TradingView's (`pine.js`, `lostUnaddressed`).
   const setters = []
+  // ⭐ the named families of removals on a CHAINED ELEMENT (`chainedElementOf`):
+  // the converter withholds those families' objects (`pine.js`).
+  const chained = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -469,6 +565,21 @@ export function bodyEffects(def, defs, objColls) {
       // ⭐ A METHOD ON A VALUE RECEIVER (`l[1].delete()`, `onValueReceiver`):
       // family unnamed by the tokens — fail-closed exactly as the handle form
       // below. A user METHOD so named falls through to the reading it had.
+      // ⭐ AND ON A CHAINED ELEMENT (`chainedElementOf`): the family is the
+      // collection's, read off its declaration (`collectionFamilies`) — so a lost
+      // `k._box.pop().delete()` is a lost BOX removal, which reaches only a chart
+      // that draws boxes. A `.clear()` there is counted only on a table element
+      // (an unnamed `.clear()` may be a numeric array's: ruling, 2026-11-08).
+      const el = tk.member && !(defs.get(v) && defs.get(v).isMethod) ? chainedElementOf(toks, i, fams) : null
+      if (el) {
+        if (v === 'delete') { add('delete'); families.push(el.family); if (el.family) chained.push(el.family) } else if (v === 'clear' && el.family === 'table') {
+          add('clear'); families.push('table')
+        } else if (v.startsWith('set_')) setters.push([el.family, v])
+        if (['pop', 'shift', 'remove'].includes(el.method) && objColls.has(el.coll)) {
+          add(`coll_${el.method}`); colls.push(el.coll)
+        }
+        continue
+      }
       if (tk.member && onValueReceiver(toks, i) && !(defs.get(v) && defs.get(v).isMethod)) {
         if (v === 'delete') { add('delete'); families.push(null) } else if (v === 'clear') {
           add('clear'); families.push(null)
@@ -512,7 +623,7 @@ export function bodyEffects(def, defs, objColls) {
     }
   }
   visit(def)
-  return { kinds, families, creates, colls, ...(setters.length ? { setters } : {}) }
+  return { kinds, families, creates, colls, ...(setters.length ? { setters } : {}), ...(chained.length ? { chained } : {}) }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */
