@@ -24,7 +24,7 @@ import path from 'node:path'
 
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { translatePine } from '../../ast/pine'
-import { runtimeColumnsFor, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD } from '../../runtime/runtimeColumns'
+import { runtimeColumnsFor, resetRuntimeSessions, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD } from '../../runtime/runtimeColumns'
 
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
@@ -69,6 +69,10 @@ describe('PT-GAPS r2 — delta-rsi (v4, runtime-only) is untouched by the host-l
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     const cap = loadCapture(path.join(HARNESS_DIR, `${CAPTURE}.json`)).capture
+    // ⛔ COLD, as on the box that flipped it: the earlier cases in this file leave a runtime
+    // session whose reused build skips the front end, and a warm run MATCHES on any clock.
+    // Without this reset the case stayed green with the parity clock removed (review M1).
+    resetRuntimeSessions()
     let t = 0
     vi.spyOn(globalThis.performance, 'now').mockImplementation(() => { t += RUNTIME_PANE_TIME_BUDGET_MS + 1; return t })
     const v = gradeCapture(cap).verdict
