@@ -1,7 +1,8 @@
 /**
- * Spot the Kicker rails: the round paints the candidates, a card pick (or a chart tap) selects one, Check posts the
- * bank's Yes when the real candle was picked (No otherwise, the picked bar beside it) into the item's session, and
- * the rule cards open on every candidate after the verdict.
+ * Spot the Setup rails (the owner, 2026-11-08: "SPOT THE KICKER SHOULD be SPOT THE SETUP"): the round names the setup,
+ * paints the server's look-alikes and the real candle, a card pick (or a chart tap) selects one, Check posts the bank's
+ * Yes when the real candle was picked (No otherwise, the picked bar beside it) into the item's session, and every card
+ * opens after the verdict: the fakes measured beside the real one, the Kicker's own rules on a Kicker.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
@@ -15,10 +16,9 @@ vi.mock('../../../components/StockChart', () => ({
 }))
 vi.mock('../../../components/study/StudyMark', () => ({ default: () => <span data-testid="mark" /> }))
 
-import KickerChallenge, { yesNo } from './KickerChallenge'
+import SpotSetupChallenge, { yesNo } from './SpotSetupChallenge'
 
 const bar = (t, o, h, l, c) => ({ t, o, h, l, c, v: 100 })
-// ends on a real Kicker with a baby-red look-alike and a weak-close look-alike before it (see kickerRules.test)
 const BARS = [
   bar(20250301, 10, 10.2, 9.9, 10), bar(20250302, 10, 10.1, 9.9, 10),
   bar(20250303, 10, 10.05, 9.9, 9.95), bar(20250304, 9.97, 10.6, 9.9, 10.5),
@@ -28,10 +28,13 @@ const BARS = [
   bar(20250310, 10.0, 10.7, 9.95, 10.6),
 ]
 const item = { id: 'k1', type: 'spot', skill_id: 'setup.family3.kicker', prompt_json: { q: 'Does a Kicker fire on the last candle?', choices: ['Yes', 'No'] }, bars: { symbol: 'k1', tf: 'D', bars: BARS } }
+const F = (gap, chg, pos, rvol) => ({ gap_pct: gap, chg_pct: chg, body_pct: 1, close_pos: pos, rvol, green: true })
+const LOOK = { real: 9, real_features: F(0.5, 6.5, 93, 2.4), lookalikes: [{ i: 3, features: F(0.2, 5.5, 85, 1.1) }, { i: 6, features: F(0.5, 1, 50, 0.9) }] }
 
-function fetcherWith(posts) {
+function fetcherWith(posts, { look = LOOK } = {}) {
   return vi.fn(async (url, opts = {}) => {
-    if (url === '/api/study/sessions') return { session_id: 'sess-k', items: [item] }
+    if (url === '/api/study/sessions') return opts.body?.skill_id === 'setup.family3.kicker' ? { session_id: 'sess-k', items: [item] } : { session_id: 's0', items: [] }
+    if (url.startsWith('/api/study/items/k1/lookalikes')) { if (!look) throw new Error('404'); return look }
     if (url === '/api/study/attempts') { posts.push(opts.body); return { correct: opts.body.answer.choice === 'Yes', reveal: { lesson: 'Gap over the close, close above the high.', forward_bars: [] }, progress: { xp_gained: 10 } } }
     if (url === '/api/study/house-chart') return { chart_settings: null }
     throw new Error(`unexpected ${url}`)
@@ -48,35 +51,43 @@ describe('yesNo', () => {
   })
 })
 
-describe('KickerChallenge', () => {
-  it('starts, paints three gold candidates, posts Yes for the real candle picked by card, and opens the rule cards', async () => {
+describe('SpotSetupChallenge', () => {
+  it('names the setup, paints the server look-alikes and the real candle, posts Yes for the real one and opens every card', async () => {
     const posts = []
-    render(<KickerChallenge fetcher={fetcherWith(posts)} onClose={() => {}} />)
+    render(<SpotSetupChallenge fetcher={fetcherWith(posts)} onClose={() => {}} />)
+    expect(await screen.findByText('Spot the Setup')).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: /^Start/ }))
-    const cards = await screen.findByTestId('kicker-cards')
+    const cards = await screen.findByTestId('spot-cards')
     const buttons = cards.querySelectorAll('button')
     expect(buttons).toHaveLength(3)
+    expect(screen.getByText(/Spot the Kicker\./)).toBeInTheDocument()
     expect(screen.getByTestId('stock-chart').getAttribute('data-highlight').split('|')).toHaveLength(3)
-    fireEvent.click(buttons[2])                                  // C = the last bar = the real Kicker
-    fireEvent.click(screen.getByTestId('kicker-check'))
+    fireEvent.click(buttons[2])                                  // C = the last bar = the real one
+    fireEvent.click(screen.getByTestId('spot-check'))
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0]).toMatchObject({ item_id: 'k1', session_id: 'sess-k', answer: { choice: 'Yes', picked_bar: '2025-03-10', picked_kind: 'real' } })
     expect(await screen.findByText('Gap over the close, close above the high.')).toBeInTheDocument()
-    expect(cards.textContent).toContain('A real red day before it')
-    expect(screen.getByTestId('kicker-next')).toHaveTextContent('Finish')
+    expect(cards.textContent).toContain('The Kicker rules do not fire here.')
+    expect(cards.textContent).toContain('Volume 1.1x its average')         // a fake measured beside the real one
+    expect(cards.textContent).toContain('A real red day before it')        // and on a Kicker, his own three rules
+    expect(screen.getByTestId('spot-next')).toHaveTextContent('Finish')
   })
 
-  it('a chart tap (the library click, a touch too) near a candidate picks it; a look-alike posts No with its kind', async () => {
+  it('a chart tap near a candidate picks it; a look-alike posts No', async () => {
     const posts = []
-    render(<KickerChallenge fetcher={fetcherWith(posts)} onClose={() => {}} />)
+    render(<SpotSetupChallenge fetcher={fetcherWith(posts)} onClose={() => {}} />)
     fireEvent.click(await screen.findByRole('button', { name: /^Start/ }))
-    await screen.findByTestId('kicker-cards')
+    await screen.findByTestId('spot-cards')
     fireEvent.click(screen.getByTestId('chart-lib-tap'))          // the stub taps the LAST bar: the real one
-    expect(screen.getByTestId('kicker-cards').textContent).toContain('your pick')
-    // then switch to the baby red by card and check
-    fireEvent.click(screen.getByTestId('kicker-cards').querySelectorAll('button')[0])
-    fireEvent.click(screen.getByTestId('kicker-check'))
+    expect(screen.getByTestId('spot-cards').textContent).toContain('your pick')
+    fireEvent.click(screen.getByTestId('spot-cards').querySelectorAll('button')[0])
+    fireEvent.click(screen.getByTestId('spot-check'))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].answer).toMatchObject({ choice: 'No', picked_kind: 'baby' })
+    expect(posts[0].answer).toMatchObject({ choice: 'No', picked_kind: 'fake' })
+  })
+
+  it('a chart the server says cannot play is never offered', async () => {
+    render(<SpotSetupChallenge fetcher={fetcherWith([], { look: null })} onClose={() => {}} />)
+    expect(await screen.findByRole('button', { name: /No charts yet/ })).toBeInTheDocument()
   })
 })

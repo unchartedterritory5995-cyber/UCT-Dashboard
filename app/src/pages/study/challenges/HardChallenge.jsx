@@ -23,7 +23,7 @@ import { useRunOnTo } from '../../../lab/fx'   // pure motion (bars running on);
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import { fetchForwardRest, fetchSpotPool, scoreAttempt } from './challengeBank'
-import { yesNo } from './KickerChallenge'
+import { yesNo } from './SpotSetupChallenge'
 import {
   HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, SHORT_SETUPS, culmination, culminationLabel, hardAnswer, hardChoices, hardRight,
   idSeed, runLength, setupFired, tradeOf, withArticle,
