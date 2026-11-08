@@ -484,6 +484,9 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
   const TOGGLE_OF = Object.freeze({
     dotNH: 'showNewHigh', dotNHbeforePx: 'showNewHighBeforePrice', dotNHpartial: 'shortHistoryDots',
     dotNHred: 'showRedDay', dotNL: 'showNewLow',
+    // design round (2026-11-08): the client-derived cross triangles, absent while
+    // their switch is off (`plots[].derive.activeWhen`, `derivedColumns.js`)
+    dotCrossUp: 'showCrossMarkers', dotCrossDown: 'showCrossMarkers',
   })
   // ⭐ v4 (unit 3-08): THE READING decides which family draws. The server keeps
   // the chosen view's family and blanks every other one
@@ -492,7 +495,8 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
   // draws when its own `activeWhen` holds (the client's evaluator, on the stored
   // `view`).
   const VIEW_FAMILIES = Object.freeze({
-    ratio: ['rsLine', 'rsMa', 'rsAbove', 'dotNH', 'dotNHbeforePx', 'dotNHred', 'dotNHpartial', 'dotNL'],
+    // + the cross triangles: they ride `rsLine`, so its blanking is theirs (design round)
+    ratio: ['rsLine', 'rsMa', 'rsAbove', 'dotNH', 'dotNHbeforePx', 'dotNHred', 'dotNHpartial', 'dotNL', 'dotCrossUp', 'dotCrossDown'],
     mansfield: ['mansfield', 'dotMansfieldCross'],
     rotation: ['rsRatio', 'rsMomentum'],
     quality: ['clenowScore', 'dotClenowGap'],
@@ -515,6 +519,15 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
         const ref = plot.$refs && plot.$refs[field]
         const hex = ref ? inputs[ref] : plot[field]
         if (typeof hex === 'string' && hex.toLowerCase() !== NEUTRAL) hues.add(hex.toLowerCase())
+      }
+      // design round (2026-11-08): a band the plot owns paints its two colours while
+      // its own switch holds (`plots[].fill.activeWhen`)
+      const aw = plot.fill && plot.fill.activeWhen
+      if (aw && inputs[aw.key] === aw.equals) {
+        for (const f of ['colorUp', 'colorDown']) {
+          const hex = plot.fill[f]
+          if (typeof hex === 'string' && hex.toLowerCase() !== NEUTRAL) hues.add(hex.toLowerCase())
+        }
       }
     }
     return hues
@@ -553,6 +566,18 @@ describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral ove
     expect(hues.size).toBeLessThanOrEqual(3)
     expect([...hues].sort()).toEqual([IND_TOKENS.classic.bull, IND_TOKENS.classic.bear, IND_TOKENS.classic.premium].sort())
     expect(preset('phase').dotColor).toBe(NEUTRAL)
+    // design round (2026-11-08): Phase draws the band and the cross triangles, in the
+    // line's own bull and bear, so the three hues are still the only three
+    expect(drawn({ ...defaults, ...preset('phase') }).map((p) => p.key))
+      .toEqual(['rsLine', 'rsMa', 'dotNH', 'dotCrossUp', 'dotCrossDown', 'dotNHbeforePx', 'dotNHpartial'])
+    expect(preset('phase')).toMatchObject({ shadeVsAverage: true, showCrossMarkers: true })
+  })
+
+  it('design round: Classic with the band switched on is the member\'s choice of the bull and bear tint; with the triangles on, still one blue', () => {
+    const markers = huesOf({ ...preset('classic'), showCrossMarkers: true })
+    expect([...markers].sort()).toEqual(TWO)
+    const shaded = huesOf({ ...preset('classic'), shadeVsAverage: true })
+    expect([...shaded].sort()).toEqual([...TWO, IND_TOKENS.classic.bull, IND_TOKENS.classic.bear].sort())
   })
 
   it('Trend (and Trend weekly): Mansfield view — the Mansfield line, its cross-up dots and the zero line alone, info blue plus the neutral, no gold', () => {

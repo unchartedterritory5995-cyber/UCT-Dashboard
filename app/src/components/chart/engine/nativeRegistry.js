@@ -3888,6 +3888,14 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
 const RS_NEUTRAL = '#8a8574'
 const RS_INFO = '#6ba3be'
 const RS_GOLD = '#c9a84c'
+// ⭐ THE THEME'S BULL AND BEAR (`designTokens.IND_TOKENS.classic.bull/bear`, the
+// app's --gain and --loss), the two hues the Phase preset already draws the line
+// in. The shaded band between the line and its average uses them at low opacity
+// (design round, 2026-11-08: green while the line is above, red while below).
+const RS_BULL = '#3cb868'
+const RS_BEAR = '#e74c3c'
+/** The band's opacity: a tint under the line, never a second line. */
+const RS_SHADE_OPACITY = 0.12
 /** The toggles every preset states explicitly, so `detectPreset` (first match
  *  wins, in declaration order) never reads a Trend or Stress instance as Classic:
  *  a preset that stays silent on `showMansfield` would match an instance that
@@ -3900,7 +3908,11 @@ const RS_GOLD = '#c9a84c'
 const RS_CLASSIC_TOGGLES = Object.freeze({ view: 'ratio', showMansfield: false, showRedDay: false, showNewLow: false,
   // ⭐ A3: Stress switches before-price highs OFF and gives the red-day dot the
   // gold, so the Classic family states both back. Classic after Stress is Classic.
-  showNewHighBeforePrice: true, dotRedColor: RS_INFO })
+  showNewHighBeforePrice: true, dotRedColor: RS_INFO,
+  // ⭐ DESIGN ROUND (2026-11-08): Phase turns the shaded band and the cross
+  // markers ON, so the Classic family states both back OFF. Classic after Phase is
+  // Classic, and a Classic instance with either switched on reads as Custom.
+  shadeVsAverage: false, showCrossMarkers: false })
 /** ⭐ THE HONESTY SENTENCE (Phase 2b, unit 2b-09) — the static evidence line of
  *  every card whose signal the nightly backtest measures, printed until the
  *  measured sentence replaces it through `card.evidenceSource`. ⛔ ONE FACT IN
@@ -4003,6 +4015,30 @@ const RS_LINE_RAW = {
       queries: ['rsi', 'relative strength index'],
       line: 'Looking for strength versus the market? That is UCT Relative Strength.',
     },
+    // ⭐⭐ THE RANKS TABLE (design round, 2026-11-08; `engine/paneTable.js`, drawn by
+    // StockChart in the pane's top-right corner). Deepvue's RS Line pane prints its
+    // 1M 3M 6M 9M 12M ranks there; ours prints the four component ranks the
+    // nightly row holds (`rating.m1/m3/m6/m12`, the Components row's numbers) and
+    // the IBD-style rating. Daily charts only (the ratings are daily). Shown while
+    // the RS Rating switch and the Ranks table switch are both on and the server
+    // holds a row (`rating.asof` is set only then). A missing rank prints a muted
+    // dash, never a number. ⭐ The 9M column is `optional`: it appears the day the
+    // server sends `rating.m9` (a later round), with no client change. The numbers
+    // take the site's rating bands only while Rating colours is on.
+    paneTable: {
+      label: 'RS ranks',
+      when: ['input:showRating', 'input:showRanksTable', 'scalar:rating.asof'],
+      timeframes: ['D'],
+      columns: [
+        { key: 'm1', label: '1M', source: 'scalar:rating.m1' },
+        { key: 'm3', label: '3M', source: 'scalar:rating.m3' },
+        { key: 'm6', label: '6M', source: 'scalar:rating.m6' },
+        { key: 'm9', label: '9M', source: 'scalar:rating.m9', optional: true },
+        { key: 'm12', label: '12M', source: 'scalar:rating.m12' },
+        { key: 'rating', label: 'RS', source: 'scalar:rating.ibd', emphasis: true },
+      ],
+      band: { when: 'input:ratingBands' },
+    },
     // Read by the preset picker (plan §5, §6.8): a named set of input values,
     // applied to the CURRENT instance through `setInstanceInput`, plus (2a-12)
     // the optional `visibility` / `dotSize` fields `applyPresetInputs` chains
@@ -4028,7 +4064,11 @@ const RS_LINE_RAW = {
         inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
         dotSize: 'medium', visibility: 'all' },
       { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
-        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: '#3cb868', lineDownColor: '#e74c3c', dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES },
+        // ⭐ DESIGN ROUND (2026-11-08): the Deepvue Webby RS look — the band between
+        // the line and its average and a small triangle at each cross, both in the
+        // line's own bull and bear. Stated AFTER the Classic toggles they override.
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_BULL, lineDownColor: RS_BEAR, dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES,
+          shadeVsAverage: true, showCrossMarkers: true },
         dotSize: 'medium', visibility: 'all' },
       // ⭐ TREND (Weinstein's Mansfield, plan §5 / §7 item 13; visual round A2).
       // Mansfield view: the pane draws the Mansfield line ALONE around its zero
@@ -4056,7 +4096,10 @@ const RS_LINE_RAW = {
       { id: 'stress', label: 'Stress test (UCT)', origin: 'UCT workshops; Kell; TraderLion down days',
         inputs: { maLength: 21, maType: 'EMA', lookback: 252, showRedDay: true, showNewHighBeforePrice: false,
           dotRedColor: RS_GOLD, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO,
-          view: 'ratio', showMansfield: false, showNewLow: false },
+          view: 'ratio', showMansfield: false, showNewLow: false,
+          // design round: Stress states its whole ratio look, so the band and the
+          // cross markers a Phase instance carried come off here too
+          shadeVsAverage: false, showCrossMarkers: false },
         dotSize: { dotNHred: 'large' }, visibility: { preset: 'dailyUp' } },
       // ⭐⭐ THE PHASE 3 READINGS (plan §5; unit 3-08). Each is `requiresServer`
       // (listed only once the live row declares every key it sets) and each sets
@@ -4150,6 +4193,16 @@ const RS_LINE_RAW = {
     { ...colorInput('lineDownColor', 'Line below avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
       tooltip: 'Line colour below its average; the Phase preset sets red here' },
     { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
+    // ⭐ DESIGN ROUND (2026-11-08) — two presentation switches, OFF by default so
+    // Classic draws exactly as before; the Phase preset turns both on. Neither is
+    // a server input (`meta.serverInputs` is unchanged, so the fetch key and
+    // `compute.rev` do not move): the band is a declared fill gated on its switch
+    // (a `fill` with an `activeWhen`), the markers a client-derived column
+    // (`plots[].derive`).
+    { key: 'shadeVsAverage', type: 'bool', label: 'Shade vs avg', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Shade the gap between the RS line and its average: green while the line is above the average, red while it is below.' },
+    { key: 'showCrossMarkers', type: 'bool', label: 'Cross markers', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'A small triangle where the RS line crosses its average: pointing up where it crosses above, down where it crosses below. They take the line\'s two colours.' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -4188,6 +4241,11 @@ const RS_LINE_RAW = {
     { key: 'showComponents', type: 'bool', label: 'Components', default: false, group: 'Rating',
       activeWhen: RS_RATING_ON,
       tooltip: 'Add the four parts of the rating to the Rating card: how the 1, 3, 6 and 12-month returns each rank, 1 to 99, against the same names.' },
+    // ⭐ DESIGN ROUND (2026-11-08) — the ranks table's switch (`meta.paneTable`).
+    // Presentation only, like every rating input: not a server input.
+    { key: 'showRanksTable', type: 'bool', label: 'Ranks table', default: true, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'A small table in the corner of the pane on daily charts: how the 1, 3, 6 and 12-month returns each rank, 1 to 99, and the RS Rating. On a narrow screen it steps aside and the Rating card shows the same numbers.' },
     { key: 'ratingBands', type: 'bool', label: 'Rating colours', default: true, group: 'Rating',
       activeWhen: RS_RATING_ON,
       tooltip: 'Colour the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
@@ -4258,8 +4316,18 @@ const RS_LINE_RAW = {
       tooltip: 'Blank uses the benchmark\'s lowest close of the last 20 sessions' },
   ],
   plots: [
+    // ⭐ DESIGN ROUND (2026-11-08) — THE BAND TO ITS AVERAGE (`fill`, the engine's
+    // plot-to-plot band, `fillPrimitive.js`): bull while the line is above the
+    // average and bear while below, read off the same `rsAbove` column the line's
+    // two colours read, at a 12% tint. Drawn only while the member's "Shade vs
+    // avg" switch is on (`fill.activeWhen`); the Phase preset turns it on. Under
+    // every other Reading the server blanks the line and its average, so the band
+    // has no area there by construction.
     { key: 'rsLine', label: 'RS line', style: 'line', colorMode: 'column:rsAbove',
       color: '$color', colorUp: '$color', colorDown: '$lineDownColor', width: '$lineWidth',
+      fill: { with: 'rsMa', colorMode: 'column:rsAbove', colorUp: RS_BULL, colorDown: RS_BEAR,
+        activeWhen: { key: 'shadeVsAverage', equals: true } },
+      fillOpacity: RS_SHADE_OPACITY,
       // ⭐ `precision: 4` keeps the axis tag and the legend saying the same number
       // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
       // It takes `pool`'s matching `minMove: 0.0001` (decision B1) to do so: LWC
@@ -4344,6 +4412,20 @@ const RS_LINE_RAW = {
     // at every bar spacing. ⛔ `width` here is the dot RADIUS, never the RS line's.
     { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
       restyle: false, legend: { hide: true } },
+    // ⭐ DESIGN ROUND (2026-11-08) — THE CROSS MARKERS. The server sends the crosses
+    // as 0/1 events (`crossUp`, `crossDown`, never blanked); a glyph drawn `inBar`
+    // sits AT its column's value, so each is a client-derived column (`derive`,
+    // `engine/derivedColumns.js`): the RS value on the cross bar, NaN elsewhere. A
+    // small triangle ON the line, in the line's own colour for that side (Classic:
+    // one blue, the direction told by the shape; Phase: bull up, bear down), so
+    // the markers add no hue to any view. Absent while "Cross markers" is off.
+    // Declared before the large glyphs so the gold before-price dot paints on top.
+    { key: 'dotCrossUp', label: 'RS crossed above average', style: 'markers', color: '$color', width: 1, role: 'context',
+      marker: { shape: 'arrowUp', position: 'inBar', size: 0.6 }, restyle: false, legend: { hide: true },
+      derive: { from: 'rsLine', where: 'crossUp', activeWhen: { key: 'showCrossMarkers', equals: true } } },
+    { key: 'dotCrossDown', label: 'RS crossed below average', style: 'markers', color: '$lineDownColor', width: 1, role: 'context',
+      marker: { shape: 'arrowDown', position: 'inBar', size: 0.6 }, restyle: false, legend: { hide: true },
+      derive: { from: 'rsLine', where: 'crossDown', activeWhen: { key: 'showCrossMarkers', equals: true } } },
     { key: 'dotNHred', label: 'RS high on a red day', style: 'markers', color: '$dotRedColor', width: 1, role: 'context',
       marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
     { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',

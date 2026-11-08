@@ -181,6 +181,9 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 // overlays and the volume pane. They became removable with `chartDefaults`'s
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
 import LegendRow from './chart/legend/LegendRow'
+// ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
+import PaneRanksTable from './chart/pane/PaneRanksTable'
+import { paneTableShownOn, paneTableFits } from './chart/engine/paneTable'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
@@ -4749,6 +4752,10 @@ export default function StockChart({
    *  reason `volLegendRef` is: they must slide WITH the divider the user is
    *  dragging, and a re-render per frame fights the drag instead of following it. */
   const paneLegendRefs = useRef(new Map())
+  /** ⭐ UCT RS design round (2026-11-08) — each pane's corner table node, by the
+   *  same pane key. Pinned by `pinPaneLegend` in the same frame as the label it
+   *  must never touch. */
+  const paneTableRefs = useRef(new Map())
   /** Which indicator panes exist, in order — published by the layout effect.
    *
    *  ⭐ STATE, NOT A READ OF `paneLayoutRef` DURING RENDER. The layout lives in a
@@ -18328,6 +18335,8 @@ export default function StockChart({
       }
       const hide = drawnAt === null
       if ((el.style.display === 'none') !== hide) el.style.display = hide ? 'none' : ''
+      const tableEl = paneTableRefs.current.get(key) || null
+      if (tableEl && (tableEl.style.display === 'none') !== hide) tableEl.style.display = hide ? 'none' : ''
       if (hide) return
       const index = drawnAt === undefined ? row.index : drawnAt
       const panes = chart.panes ? chart.panes() : null
@@ -18340,6 +18349,32 @@ export default function StockChart({
       }
       const want = `${Math.round(top + 3)}px`
       if (el.style.top !== want) el.style.top = want
+      // ⭐ UCT RS design round (2026-11-08) — THE CORNER TABLE, same pane, same top,
+      // its right edge 6 px left of the price scale (the axis column every pane
+      // shares, so it never sits over a price label). It steps aside while it
+      // would touch the label (`paneTable.paneTableFits`, measured here every
+      // frame): on a 390 px phone the label spans most of the plot, and the
+      // readout's Rating card carries the same numbers one tap away.
+      if (tableEl) {
+        if (tableEl.style.top !== want) tableEl.style.top = want
+        let axisW = 0
+        try { axisW = chart.priceScale('right').width() || 0 } catch { axisW = 0 }
+        let leftW = 0
+        try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
+        let plotW = 0
+        try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+        const right = `${Math.round(axisW + 6)}px`
+        if (tableEl.style.right !== right) tableEl.style.right = right
+        const fits = paneTableFits({
+          plotWidth: leftW + plotW,
+          labelRight: (el.offsetLeft || 0) + (el.offsetWidth || 0),
+          tableWidth: tableEl.offsetWidth || 0,
+        })
+        if (tableEl.hasAttribute('data-collapsed') === fits) {
+          if (fits) { tableEl.removeAttribute('data-collapsed'); tableEl.removeAttribute('aria-hidden') }
+          else { tableEl.setAttribute('data-collapsed', ''); tableEl.setAttribute('aria-hidden', 'true') }
+        }
+      }
     } catch { /* pane API missing → the CSS default */ }
   }, [])
 
@@ -21903,9 +21938,27 @@ export default function StockChart({
         // so the readout sits above the bars instead of stacking down over them.
         // ⭐ `csView`, so a follow-the-chart COT pane is titled for the market it drew.
         const group = paneGroupOf(row.chips, csView)
+        // ⭐ UCT RS design round (2026-11-08) — the pane's corner table: the first
+        // chip in the pane whose definition declares one and resolves it, on a
+        // timeframe it is shown on (the RS ranks are daily). One table per pane.
+        const tableChip = row.chips.find((c) => c && c.paneTable && paneTableShownOn(c.paneTable, resolvedTf)) || null
         return (
+        <Fragment key={row.key}>
+        {tableChip ? (
+          <PaneRanksTable
+            table={tableChip.paneTable}
+            paneKey={row.key}
+            ref={(el) => {
+              const m = paneTableRefs.current
+              if (el) {
+                m.set(row.key, el)
+                const lg = paneLegendRefs.current.get(row.key)
+                if (lg) pinPaneLegend(lg, row.key)
+              } else m.delete(row.key)
+            }}
+          />
+        ) : null}
         <div
-          key={row.key}
           ref={(el) => {
             const m = paneLegendRefs.current
             if (el) { m.set(row.key, el); pinPaneLegend(el, row.key) } else m.delete(row.key)
@@ -22002,6 +22055,7 @@ export default function StockChart({
             />
           ))}
         </div>
+        </Fragment>
         )
       })}
       {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'

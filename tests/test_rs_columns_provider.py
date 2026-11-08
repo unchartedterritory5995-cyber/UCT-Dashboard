@@ -1250,6 +1250,57 @@ def test_every_readout_source_resolves_in_a_real_provider_payload(v4_row, monkey
         assert payload[block]["reason"] is None and payload[block]["summary"], (block, payload[block])
 
 
+
+# ── THE PANE TABLE'S SOURCES (design round, 2026-11-08) ──────────────────────
+#
+# `RS_LINE_RAW.meta.paneTable` (nativeRegistry.js) prints `scalar:` paths in the
+# RS pane's corner table. The same rail as the readout's: every REQUIRED column
+# must resolve in a real provider payload, and the one OPTIONAL column (9M) must
+# name a key the provider does not send yet, so the day `_rs_rating` adds
+# `m9` this test asks for the column to become required.
+
+def _js_rs_pane_table_sources() -> list:
+    import re
+    body = _js_rs_line_source().split("const RS_LINE_RAW = {", 1)[1]
+    block = body.split("\n    paneTable: {", 1)[1].split("\n    },", 1)[0]
+    out = []
+    for line in block.split("\n"):
+        m = re.search(r"\{ key: '(\w+)', label: '([^']+)', source: '((?:scalar|payload):[A-Za-z0-9_.]+)'(.*)\}", line)
+        if m:
+            out.append((m.group(1), m.group(2), m.group(3), "optional: true" in m.group(4)))
+    gates = re.findall(r"'((?:input|scalar):[A-Za-z0-9_.=]+)'", block.split("columns:", 1)[0])
+    return out, gates
+
+
+def test_every_pane_table_source_resolves_in_a_real_provider_payload(v4_row, monkeypatch):
+    cols, gates = _js_rs_pane_table_sources()
+    assert [c[1] for c in cols] == ["1M", "3M", "6M", "9M", "12M", "RS"], cols
+    assert gates == ["input:showRating", "input:showRanksTable", "scalar:rating.asof"], gates
+    store = _long_daily()
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
+        "NVDA": {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": 7,
+                 "m1": 91, "m3": 97, "m6": 95, "m12": 96}})
+    payload = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    for key, label, src, optional in cols:
+        ok, value = _resolve_path(payload, src.split(":", 1)[1])
+        if optional:
+            assert not ok, f"{label} ({src}) now arrives from the provider: make the column required"
+        else:
+            assert ok and isinstance(value, int) and 1 <= value <= 99, (label, src, value)
+    for g in gates:
+        kind, path = g.split(":", 1)
+        if kind == "input":
+            _check_input_gate("paneTable", "when", path)
+        else:
+            assert _resolve_path(payload, path) == (True, "2026-11-05"), g
+    # ⛔ and the gate CLOSES on a symbol with no row: asof is None there
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
+    empty = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    assert empty["rating"]["asof"] is None and empty["rating"]["m1"] is None
+
+
 def test_the_readout_source_parser_reads_the_rows_it_claims_to():
     sources = _js_rs_readout_sources()
     by_key = {}
