@@ -19517,6 +19517,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     lostRemovals: [],
   }
   const lostRemovalFamilies = []
+  /** ⭐⭐ FAMILIES WHOSE OBJECTS ARE WITHHELD BECAUSE A REMOVAL OF THEM CANNOT BE
+   *  EXECUTED — `k._box.pop().delete()` on a user type's field
+   *  (`pineObjects.js::refuseChainedElement`, `objectFnInline.js::bodyEffects`'s
+   *  `chained`). Pine's reference states what the step does; this program has no
+   *  register for the list it acts on, so it cannot say WHICH box went. Every
+   *  box is therefore withheld and counted (`content:lost`), never drawn where
+   *  TradingView deleted one — and the script's other drawings (the table the
+   *  ict-killzones capture matches) keep serving. Coordinator ruling 2026-11-08:
+   *  per-object withholding, never the whole script. */
+  const removalWithheldFamilies = new Set(
+    ((collected.diagnostics && collected.diagnostics.chainedRemovals) || []).filter(Boolean))
   const lostRemoval = (via, op) => {
     const family = op && op.k === 'clear' ? 'table' : (op && op.family) || null
     lostRemovalFamilies.push({ via, family })
@@ -19574,6 +19585,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.attemptedOps += 1
     const fx = rc.effects || { kinds: { delete: 1 }, families: [null], creates: [null] }
     for (const family of fx.families || []) lostRemovalFamilies.push({ via, family })
+    for (const family of fx.chained || []) removalWithheldFamilies.add(family)
     for (const family of fx.creates || []) lostCreate(family)
     for (const [k, n] of Object.entries(fx.kinds || {})) {
       if (!diagnostics.unconvertedFnOps) diagnostics.unconvertedFnOps = {}
@@ -19584,6 +19596,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // to derive the key families it must classify, and a variable argument is
     // invisible to it.
     dropped(`fn:${rc.why}`)
+  }
+  // ⭐⭐ A CREATE INTO A LIST THIS PROGRAM DOES NOT HOLD (`pineObjects.js::
+  // refuseFieldCreates`, `k._box.unshift(box.new(…))`): one attempt and one
+  // `content:lost` each — the object is withheld, by name, and counted.
+  for (const fam of (collected.diagnostics && collected.diagnostics.fieldCreates) || []) {
+    diagnostics.attemptedOps += 1
+    lostCreate(fam)
+    dropped('content:lost')
+  }
+  if (collected.diagnostics && collected.diagnostics.fieldCreates && collected.diagnostics.fieldCreates.length) {
+    diagnostics.fieldCreateFamilies = [...new Set(collected.diagnostics.fieldCreates)].sort()
   }
   if (refusedCalls.length) {
     diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
@@ -24351,8 +24374,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // object that register can hold, because nothing here can say which of them
   // the lost step would have reached.
   statePass()
+  if (removalWithheldFamilies.size) diagnostics.removalWithheldFamilies = [...removalWithheldFamilies].sort()
   const withholdContent = () => {
-  if (contentLost.length || geometryLost.length || unaddressed.length) {
+  if (contentLost.length || geometryLost.length || unaddressed.length || removalWithheldFamilies.size) {
     const each = (list, fn) => {
       for (const o of list || []) { fn(o); if (o.k === 'loop') each(o.body, fn) }
     }
@@ -24440,7 +24464,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       return [...req].some((k) => isNaLiteral(o.props && o.props[k])
         && !written.has(`${o.family}.${k}`) && !written.has(`*.${k}`))
     }
-    const content = spread([...contentLost, ...captioned])
+    // ⭐ every create of a family a lost chained removal names (see
+    // `removalWithheldFamilies`) — table and linefill included.
+    const removalSeeds = []
+    if (removalWithheldFamilies.size) {
+      each(ops, (o) => { if (o.k === 'create' && removalWithheldFamilies.has(o.family)) removalSeeds.push({ r: 'site', id: o.site }) })
+    }
+    const content = spread([...contentLost, ...captioned, ...removalSeeds])
     // ⭐ C25 — an object a lost step would have MOVED (`geometryLost`) is held
     // the same way, and counted under its own name.
     let geometry = spread([...geometryLost, ...moved])
