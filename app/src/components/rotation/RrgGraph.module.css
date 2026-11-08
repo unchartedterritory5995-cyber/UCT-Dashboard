@@ -2,7 +2,8 @@
    pages/terminal/panels/comparePanels.module.css (UCT RS Phase 3, unit 3-12); the box, chart,
    axis and axis-text rules are copies of the ones that file keeps for REL and CORR. App tokens
    only: the graph wears the member's theme. The quadrant colours are the Terminal graph's
-   (gain / warn / loss / info); no gold on this graph. */
+   (gain / warn / loss / info). --warn is the gold in the default theme, so a host with no gold
+   overrides it through --rrg-weakening (below). */
 
 .chartBox {
   width: 100%;
@@ -60,7 +61,9 @@
 }
 
 .qLeading { stroke: var(--gain); fill: var(--gain); }
-.qWeakening { stroke: var(--warn); fill: var(--warn); }
+/* --rrg-weakening: a host that must carry no gold (the Compare panel's Rotation tab) sets it to
+   the non-gold amber; unset, Weakening is the Terminal's --warn exactly as before. */
+.qWeakening { stroke: var(--rrg-weakening, var(--warn)); fill: var(--rrg-weakening, var(--warn)); }
 .qLagging { stroke: var(--loss); fill: var(--loss); }
 .qImproving { stroke: var(--info); fill: var(--info); }
 
