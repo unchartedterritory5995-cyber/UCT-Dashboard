@@ -702,6 +702,26 @@ function ChartPane({
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
    *  holding Escape at a time — the hazard `openFormulaBuilder` describes). */
+  /** ⭐ UCT RS Phase 4 (4-11) — Chart Settings → Indicators' FIRST add of a toured
+   *  definition (the indicator's first-add tour, unit 4-05).
+   *
+   *  ⛔ HELD UNTIL THE MODAL CLOSES, NOT OPENED UNDER IT, AND THE MODAL IS NOT
+   *  CLOSED FOR IT. This door's own flow is "search → add → see it land → edit it":
+   *  the new row's Inspector takes the right column so the member configures what
+   *  they just added, and closing the modal on the add would take that step away.
+   *  The tour describes the PANE on the chart, which the modal covers, so it waits:
+   *  the moment the member closes Chart Settings, the chart's own handler gets the
+   *  definition and applies its own rules (seen, claimed, nothing open over the
+   *  chart; a removed instance never derives a chip, so no tour). The newest add
+   *  wins; one tour per close. */
+  const pendingTourRef = useRef(null)
+  const onSettingsFirstAdd = useCallback((defId) => { pendingTourRef.current = defId || null }, [])
+  useEffect(() => {
+    if (settingsOpen || !pendingTourRef.current) return
+    const defId = pendingTourRef.current
+    pendingTourRef.current = null
+    try { paneToolbarApi.current?.indicatorFirstAdd?.(defId) } catch { /* noop */ }
+  }, [settingsOpen])
   const definitionDoors = useMemo(() => ({
     canModify: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
     modify: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openCreateIndicator?.({ defId }) ?? false } catch { return false } },
@@ -1226,6 +1246,7 @@ function ChartPane({
         onCreateIndicator={openCreateIndicator}
         definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
+        onIndicatorFirstAdd={onSettingsFirstAdd}
       />
       {/* The Create Indicator dock host. Always mounted (so the panel can portal
           into it the moment it opens) and `display: none` while empty, so a closed

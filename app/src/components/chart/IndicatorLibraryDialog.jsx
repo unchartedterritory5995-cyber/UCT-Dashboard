@@ -81,6 +81,7 @@ import { isUctIntelligenceAdded, addUctIntelligence, removeUctIntelligence } fro
 import { revivableSlotIndex, reviveSlot } from './maAdoption'
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
+import { isTouredFirstAdd } from './legend/indicatorTour'
 import styles from './IndicatorLibraryDialog.module.css'
 // ⭐⭐ THE SAME UNIFIED DOOR THE SETTINGS TAB OPENS. Symbols and breadth are
 // results in this list too, created through `createFromResult` — one discovery
@@ -92,6 +93,11 @@ import {
 } from './discoveryCatalog'
 import useSymbolDiscovery from './useSymbolDiscovery'
 import { tagRestatesName } from './shortTag'
+// ⭐ UCT RS Phase 4, unit 4-03 — definition-level onboarding. The engine names no
+// indicator: a definition declares `meta.tour` / `meta.searchHint` (defSchema) and
+// this surface reads them generically.
+import { normalizeHintQuery } from './engine/defSchema'
+import useIndicatorTours from './useIndicatorTours'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -244,8 +250,14 @@ export function toggledRow(row, settings, registry) {
 // ⭐ `extraRows`: rows a HOST offers on top of the catalogue — today only the chart's UCT Intelligence row,
 // passed only while the pattern layer exists for this viewer (absent prop = absent row, the same rule as
 // `onCreateFormula`). Never part of `catalogRows()` or `BUILT_IN_ROWS`, whose consumers are railed id-for-id.
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '', extraRows = null }) {
+//
+// ⭐ `onFirstAdd(defId)` (Phase 4, unit 4-03): called when a click here adds the FIRST live instance of a
+// definition that declares `meta.tour` and whose tour this member has not seen (`useIndicatorTours`). Never on
+// showing a hidden instance, never on a second instance. The HOST shows the tour and calls `markSeen` when the
+// member finishes or skips it; this dialog only reports the add. Absent prop ⇒ no preferences read for it.
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '', extraRows = null, onFirstAdd = null }) {
   const [query, setQuery] = useState('')
+  const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
 
   // Search-first: the box has focus the moment the dialog opens, so the flow is
@@ -411,6 +423,38 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   const blurbBase = useId()
   const blurbId = (row) => `${blurbBase}-blurb-${String(row.key || row.id).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)}`
 
+  // ─── THE SEARCH HINT (Phase 4, unit 4-03) ─────────────────────────────────
+  //
+  // A shipped definition may declare `meta.searchHint.queries`; when the WHOLE
+  // search equals one of them (in `normalizeHintQuery`'s form), one muted row is
+  // printed under the results. ⛔ AN EXACT COMPARISON, NEVER A SUBSTRING OR A
+  // REGEX: "rsi divergence" is a search for RSI and gets no correction, and a
+  // pattern over names matches more than one definition (see the warning in
+  // `IndicatorLibraryDialog.test.jsx` about a name lookup hitting two rows).
+  // A member's own formula never carries one here: its meta is member-written,
+  // and a hint is an editorial row. The first declaring definition in list order
+  // wins, so there is only ever one row.
+  const searchHint = useMemo(() => {
+    const q = normalizeHintQuery(query)
+    if (!q) return null
+    for (const row of all) {
+      if (row.userDefined || row.builtIn || row.carvedOut || row.restores) continue
+      const def = typeof registry?.getDefinition === 'function' ? registry.getDefinition(row.id) : null
+      const h = def && def.meta && def.meta.searchHint
+      if (h && Array.isArray(h.queries) && h.queries.includes(q)) return { row, def, hint: h }
+    }
+    return null
+  }, [all, query, registry])
+
+  /** Report a first add to the host (`isTouredFirstAdd`), unless the member has
+   *  seen the definition's tour. */
+  const reportFirstAdd = useCallback((row, before, after) => {
+    if (typeof onFirstAdd !== 'function' || !row) return
+    if (!isTouredFirstAdd(row, before, after, registry)) return
+    if (tourSeen(row.id)) return
+    onFirstAdd(row.id)
+  }, [onFirstAdd, registry, tourSeen])
+
   const toggle = useCallback((row) => {
     // ⭐ A DISCOVERY RESULT CREATES THROUGH THE FACADE. `toggledRow` speaks
     // definitions, overlays and settings slices; a SYMBOL is none of those, and
@@ -427,8 +471,11 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     // the caller must be able to skip persisting. Calling `onChange`
     // unconditionally would persist a no-op and mark the preset custom for a
     // click that changed nothing.
-    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry, symbolRows])
+    if (next !== settings) {
+      onChange?.({ ...next, preset: 'custom' })
+      reportFirstAdd(row, settings, next)
+    }
+  }, [settings, onChange, registry, symbolRows, reportFirstAdd])
 
   /** ⭐ chart-UX-walls TASK 6 — "+ Add another", on a row that is already ON.
    *
@@ -452,8 +499,11 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     const next = row.builtIn
       ? toggledRow(row, settings, registry)
       : addInstance(settings, row.id, registry)
-    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry])
+    if (next !== settings) {
+      onChange?.({ ...next, preset: 'custom' })
+      reportFirstAdd(row, settings, next)
+    }
+  }, [settings, onChange, registry, reportFirstAdd])
 
   if (!open) return null
 
@@ -582,9 +632,9 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                         {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
                             definition's declared badge. See `repaintNotice`. */}
                         {repaintNotice(row)}
-                        {/* Tier is shown only when it is NOT free. Every native
-                            is free today, so this renders for nothing — which is
-                            why the test asserts its ABSENCE rather than its text.
+                        {/* Tier is shown only when it is NOT free: a free row
+                            carries no badge, which is why the test asserts its
+                            ABSENCE on a free definition rather than its text.
 
                             ⛔ AND NEVER ON THE MEMBER'S OWN FORMULA. A custom
                             indicator IS premium-tier, so this badge was true and
@@ -620,6 +670,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             </ul>
           </section>
         ))}
+        {searchHint && renderSearchHint(searchHint, settings, toggle)}
         {/* 🔴 SAVED, AND NOT OFFERED — WITH THE REASON. Rendered LAST, and only
             when something was actually refused, so a member whose formulas all
             install sees no new section, no empty heading and no warning about
@@ -671,6 +722,36 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
         )}
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * ⭐ THE SEARCH HINT ROW (Phase 4, unit 4-03): the definition's own `line`, and
+ * one button that calls the dialog's `toggle` for the hinted row — the same door
+ * a click on the row itself uses. The label is `cta`, or "Add <meta.name>"; it
+ * never hard-codes an indicator.
+ *
+ * ⛔ THE BUTTON FOLLOWS THE ROW'S STATE. `toggle` on a SHOWN row hides it, so an
+ * "Add" button there would take the indicator off the chart. Shown ⇒ no button,
+ * a plain note instead; hidden ⇒ "Show <name>", which is what the toggle does.
+ */
+function renderSearchHint({ row, def, hint }, settings, toggle) {
+  const name = (def && def.meta && def.meta.name) || row.name
+  const state = rowVisibility(row, settings).state
+  return (
+    <div className={styles.hintRow} data-testid="library-search-hint" data-def-id={row.id}>
+      <span className={styles.hintLine}>{hint.line}</span>
+      {state === 'shown' ? (
+        <span className={styles.hintOn} data-testid="library-search-hint-on">{name} is already on this chart.</span>
+      ) : (
+        <button
+          type="button"
+          className={styles.hintButton}
+          data-testid="library-search-hint-add"
+          onClick={() => toggle(row)}
+        >{state === 'hidden' ? `Show ${name}` : (hint.cta || `Add ${name}`)}</button>
+      )}
+    </div>
   )
 }
 
