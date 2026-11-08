@@ -8083,8 +8083,11 @@ async def lifespan(app: FastAPI):
 
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-58/2", timezone=_ET),
-                               id="tweet_poll_burst_open", max_instances=1, replace_existing=True)
+            # tweet_poll_burst_open (09:30-09:58 every 2 min) was REMOVED 2026-11-07:
+            # the premarket job above already fires every 2 min through 09:58, so it
+            # polled the open twice per tick -- billed twice under the timeline mode.
+            # ⛔ replace_existing does not delete a job id that is no longer added;
+            # the scheduler's job store is in-memory, so a restart is what retires it.
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-58/2", timezone=_ET),
                                id="tweet_poll_burst_close", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/2", timezone=_ET),

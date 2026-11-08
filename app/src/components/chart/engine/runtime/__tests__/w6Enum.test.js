@@ -240,3 +240,30 @@ describe('W6-T10-N Pine names are case-sensitive (manual, Identifiers; Enums: `S
     }
   })
 })
+
+// ⭐ Rail gap (review W6-T10 N2): an enum-typed collection. REF keyword `enum`: "Additionally, one can
+// use an enum in a collection's type template to restrict the values it will allow as elements."
+// What this lane serves of that today is pinned here, so the shape is deliberate, not incidental:
+// - an EMPTY map whose VALUE type is an enum builds and runs; it holds no pair (REF map.new creates
+//   "a new map object", and nothing was put), so `size` is 0;
+// - an enum KEY, and an enum array or matrix with no initial value, STOP the run by name: what Pine
+//   fills them with (or how an enum key is held) is not measured, so nothing is guessed.
+const runAll = (src, v = 6) => {
+  const b = build(src, {}, v)
+  expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+  const p = lowerIrProgram(b.ir)
+  return execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true, barTimes: BARS.map((x) => x.t) })
+    .outputs.map((o) => Array.from(o))
+}
+describe('W6-T10 N2 an enum in a collection\'s type template', () => {
+  it('an empty map<string, E> builds and runs: size 0 (method and name form)', () => {
+    expect(runAll(`${D}m = map.new<string, E>()\nplot(m.size())\nplot(map.size(m))`)).toEqual([ones(0), ones(0)])
+  })
+  it('an enum KEY stops the run by name (map.new<E, float>), never an empty map read as data', () => {
+    expect(() => runAll(`${D}m = map.new<E, float>()\nplot(m.size())`)).toThrow(/map\.new<E, …>: this runtime holds a map keyed by int, float, bool, string or color/)
+  })
+  it('an enum array or matrix with no initial value stops the run by name (its fill is unmeasured)', () => {
+    expect(() => runAll(`${D}a = array.new<E>(2)\nplot(a.size())`)).toThrow(/array\.new<E>\(2\) with no initial value/)
+    expect(() => runAll(`${D}m = matrix.new<E>(1, 1)\nplot(m.rows())`)).toThrow(/matrix\.new<E>\(1, 1\) with no initial value.*W6-M1/)
+  })
+})
