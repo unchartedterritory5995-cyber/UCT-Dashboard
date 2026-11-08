@@ -1100,6 +1100,13 @@
    the MA editor's hand-rolled rows are untouched. Tokens only; the font is
    Instrument Sans inherited from the sheet. */
 .paramField { display: flex; flex-direction: column; }
+/* ⭐ VA2 — "Save as my default" / "Reset to UCT default" under the study's groups:
+   two neutral chips (44 px tall, the tap floor) on one wrapping line, the note
+   under them as the help text every field carries. */
+.defaultField { padding-top: 8px; }
+.defaultBtns { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 6px; }
+.defaultBtns .chipOpt { min-height: var(--tap-min); }
+.defaultBtns .chipOpt:disabled { opacity: 0.4; }
 .paramTip {
   padding: 0 16px 8px;
   font-size: 11.5px;

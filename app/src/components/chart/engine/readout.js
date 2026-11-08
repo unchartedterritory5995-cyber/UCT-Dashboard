@@ -374,7 +374,8 @@ function stampReadout(chip, def, inputs, opts) {
   if (rows && rows.length) {
     for (const r of readoutChipRows(def, rows)) {
       if (identity.has(r.key)) identity.set(r.key, r.text)
-      else extra.push(r.text)
+      // ⭐ VA2 — a row's `chipPrefix` word rides the pane label only (`fast 91`).
+      else extra.push(typeof r.chipText === 'string' && r.chipText ? r.chipText : r.text)
     }
   }
   const lead = [...identity.values()].map((v) => ` · ${v}`).join('')

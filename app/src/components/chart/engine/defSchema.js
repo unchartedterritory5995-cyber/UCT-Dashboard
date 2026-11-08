@@ -132,7 +132,7 @@ import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from '.
 // modules, and a format the resolver cannot print cannot be declared.
 import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
-  parseReadoutSource,
+  READOUT_CONDITION_OPS, parseReadoutSource,
 } from './readoutSchema'
 // ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
 // 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
@@ -1624,6 +1624,50 @@ function validateReadout(def, inputsByKey, errors) {
     }
     if (entry.muted !== undefined && typeof entry.muted !== 'boolean') {
       errors.push(`${path}.muted: ${who} — expected a boolean, got ${fmt(entry.muted)}`)
+    }
+    // ⭐ VA2 — `chipWhen` / `chipPrefix` / `band` (UCT RS rating inputs). Each is
+    // behavioural, so each fails closed at registration rather than at render.
+    if (entry.chipWhen !== undefined) {
+      const cw = entry.chipWhen
+      if (entry.chip !== true) {
+        errors.push(`${path}.chipWhen: ${who} — only a chip row (\`chip: true\`) carries a chip condition`)
+      } else if (!isPlainObject(cw) || typeof cw.key !== 'string') {
+        errors.push(`${path}.chipWhen: ${who} — expected {key, <comparator>} naming a declared input, got ${fmt(cw)}`)
+      } else if (!inputsByKey.has(cw.key)) {
+        errors.push(
+          `${path}.chipWhen.key: ${who} — ${fmt(cw.key)} names no declared input. ` +
+          `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+        )
+      } else {
+        const ops = Object.keys(cw).filter((k) => k !== 'key')
+        if (ops.length !== 1 || !READOUT_CONDITION_OPS.includes(ops[0])) {
+          errors.push(`${path}.chipWhen: ${who} — expected exactly one comparator of: ${list(READOUT_CONDITION_OPS)}, got ${fmt(ops)}`)
+        } else if (ops[0] === 'in' && !Array.isArray(cw.in)) {
+          errors.push(`${path}.chipWhen.in: ${who} — expected an array of values, got ${fmt(cw.in)}`)
+        }
+      }
+    }
+    if (entry.chipPrefix !== undefined && !isNonEmptyString(entry.chipPrefix)) {
+      errors.push(`${path}.chipPrefix: ${who} — expected a non-empty word, got ${fmt(entry.chipPrefix)}`)
+    }
+    if (entry.band !== undefined) {
+      const b = entry.band
+      if (!isPlainObject(b)) {
+        errors.push(`${path}.band: ${who} — expected {source, when?}, got ${fmt(b)}`)
+      } else {
+        for (const k of Object.keys(b)) {
+          if (k !== 'source' && k !== 'when') errors.push(`${path}.band.${k}: ${who} — unknown band field, expected source or when`)
+        }
+        for (const k of ['source', 'when']) {
+          if (k === 'when' && (b.when === undefined || b.when === null)) continue
+          const parsed = parseReadoutSource(b[k])
+          if (!parsed) {
+            errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} is not a readout source; ${SOURCE_HELP}`)
+          } else if (parsed.kind === 'input' && (parsed.path.length !== 1 || !inputsByKey.has(parsed.path[0]))) {
+            errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} names no declared input`)
+          }
+        }
+      }
     }
     if (entry.words !== undefined) {
       if (entry.format !== 'bool') {

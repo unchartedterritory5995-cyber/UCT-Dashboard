@@ -82,6 +82,31 @@
   padding-bottom: 4px;
 }
 
+/* ⭐ VA2 — "Save as my default" / "Reset to UCT default", above the footer. The
+   buttons reuse the preset button (44 px on touch); the note is the origin line's
+   size and ink. */
+.defaults {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 2px 0;
+  flex: 0 0 auto;
+}
+.defaultsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+}
+.defaultsNote {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-bottom: 4px;
+}
+
 /* ── tabs ─────────────────────────────────────────────────────────────────── */
 
 .tabs {

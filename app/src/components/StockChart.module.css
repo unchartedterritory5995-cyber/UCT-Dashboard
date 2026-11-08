@@ -1635,6 +1635,16 @@
 }
 .legMenuRowMuted .legMenuRowLabel,
 .legMenuRowMuted .legMenuRowVal { color: var(--text-muted); font-weight: 500; }
+/* ⭐ VA2 — the RS rating's band (the site's cuts: 80 and above, 60 to 79, 40 to
+   59, below 40; `readoutSchema.RATING_BANDS`), while the member's Rating colours
+   switch is on. Theme tokens only, so the light popover keeps its contrast. The
+   60 to 79 band keeps the row's own ink: two greens side by side read as one.
+   Two classes per rule: `.legCardNumVal` is declared further down and would
+   otherwise win on order. */
+.legMenuRowVal.legBandLead, .legCardNumVal.legBandLead { color: var(--gain); }
+.legMenuRowVal.legBandStrong, .legCardNumVal.legBandStrong { color: var(--text-bright); }
+.legMenuRowVal.legBandNeutral, .legCardNumVal.legBandNeutral { color: var(--warn); }
+.legMenuRowVal.legBandLag, .legCardNumVal.legBandLag { color: var(--loss); }
 /* The row's `note`: a muted second line in the VALUE column (grid row 2), one
    step smaller, so a fallback reason or a benchmark gap reads as a qualifier of
    the value above it, never as a row of its own. */

@@ -7,7 +7,9 @@ import { catalogRows, userCatalogRows, catalogGeneration } from '../../../compon
 import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/IndicatorLibraryDialog'
 import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed } from '../../../components/chart/indicatorRegistry'
 import { setInstanceInput, removeInstance, applyPresetInputs,
-         presetsOf, detectPreset, CUSTOM_PRESET } from '../../../components/chart/engine/instanceControls'
+         presetsOf, detectPreset, CUSTOM_PRESET,
+         saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState } from '../../../components/chart/engine/instanceControls'
+import { memberDefaultNote, saveDefaultIsNoop, SAVE_DEFAULT_LABEL, RESET_DEFAULT_LABEL } from '../../../components/chart/memberDefaultCopy'
 import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryButtons'
 import UnavailableIndicators from '../../../components/chart/UnavailableIndicators'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
@@ -282,6 +284,7 @@ function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value,
 // instance so the switch here and the chart agree.
 import { averageSlotView, writeAverageSlot, MA_DEF_ID } from '../../../components/chart/maAdoption'
 import { safeCssColour } from '../../../components/chart/engine/objectColour'
+import { noteRsPreset } from '../../../lib/rsTelemetry'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
@@ -431,8 +434,17 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   const applyPreset = (preset) => {
     if (!studyDef || !studyInst || !preset) return
     haptics.tap()
+    noteRsPreset(studyDef, preset)
     const next = applyPresetInputs(cs, studyInst.instanceId, studyDef, preset, engineRegistry)
     if (next !== cs) onWrite({ ...next, preset: 'custom' })
+  }
+
+  // ⭐ VA2 (UCT RS §17.8) — "Save as my default" / "Reset to UCT default", the
+  // desktop dialog's two controls through the same engine writers. One `onWrite`
+  // each; identity = nothing changed = nothing persisted.
+  const studyDefault = memberDefaultState(cs, studyInst, studyDef)
+  const writeDefault = (next) => {
+    if (next && next !== cs) { haptics.tap(); onWrite({ ...next, preset: 'custom' }) }
   }
 
   const renderStudyField = (f) => {
@@ -726,6 +738,23 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
               </div>
             )}
             {sections.map(renderSection)}
+            {studyDefault.available && (
+              <div className={`${styles.paramField} ${styles.defaultField}`} data-testid="my-default">
+                <div className={styles.defaultBtns}>
+                  <button
+                    type="button" className={styles.chipOpt} data-testid="save-default"
+                    disabled={saveDefaultIsNoop(studyDefault)}
+                    onClick={() => writeDefault(saveInstanceAsDefault(cs, studyInst.instanceId, engineRegistry))}
+                  >{SAVE_DEFAULT_LABEL}</button>
+                  <button
+                    type="button" className={styles.chipOpt} data-testid="reset-default"
+                    disabled={studyDefault.atUct}
+                    onClick={() => writeDefault(resetInstanceToUctDefault(cs, studyInst.instanceId, engineRegistry))}
+                  >{RESET_DEFAULT_LABEL}</button>
+                </div>
+                <span className={styles.paramTip} data-testid="my-default-note" role="status">{memberDefaultNote(studyDefault)}</span>
+              </div>
+            )}
             <button
               type="button"
               className={`${styles.row} ${styles.removeRow}`}

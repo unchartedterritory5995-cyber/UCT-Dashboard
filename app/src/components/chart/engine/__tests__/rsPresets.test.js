@@ -183,19 +183,24 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(READOUT_ENTRY_FIELDS).toContain('detailOf')
   })
 
-  it('⛔ the chip rows are unaffected: the pane still reads `UCT Relative Strength · XLK · 94`', () => {
+  it('⛔ the chip rows: the pane reads `UCT Relative Strength · XLK · 94 · fast 91` under the default headline (VA2)', () => {
     const sector = { ...PAYLOAD, benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology sector (XLK)', fallback: null, bars: 852 } }
-    expect(readoutChipRows(RS, rows(sector)).map((r) => [r.key, r.text])).toEqual([['benchmark', 'XLK'], ['rating', '94']])
+    expect(readoutChipRows(RS, rows(sector)).map((r) => [r.key, r.text]))
+      .toEqual([['benchmark', 'XLK'], ['rating', '94'], ['fastRating', '91']])
     const b = { instanceId: 'inst:rsLine:1', defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'rs' }, lastValue: 0.4187 }
     const inst = { instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs: { benchmark: 'SECTOR' }, hidden: false }
     const chip = legendChips([b], null, engineRegistry, [inst], { scalarsOf: () => sector })[0]
-    expect(chip.suffix).toBe(' · XLK · 94')
-    expect(paneReadoutLabel(chip, RS, null)).toBe('UCT Relative Strength · XLK · 94')
+    // VA2: headline rating `both` (the plan's default, decision 4) puts both in the label
+    expect(chip.suffix).toBe(' · XLK · 94 · fast 91')
+    expect(paneReadoutLabel(chip, RS, null)).toBe('UCT Relative Strength · XLK · 94 · fast 91')
+    // the IBD-style headline is the Phase 2a label, byte for byte
+    const ibd = { ...inst, inputs: { benchmark: 'SECTOR', headlineRating: 'ibd' } }
+    expect(legendChips([b], null, engineRegistry, [ibd], { scalarsOf: () => sector })[0].suffix).toBe(' · XLK · 94')
     // a fallback benchmark reads its note in the Benchmark card, never in the suffix
     const fellBack = { ...sector, benchmark: { ...sector.benchmark, resolved: 'SPY', fallback: 'symbol is an ETF',
       note: 'Sector ETF not available for an ETF; using SPY' } }
     expect(rows(fellBack).find((r) => r.key === 'benchmarkNote')).toMatchObject({ detailOf: 'benchmarkName' })
-    expect(legendChips([b], null, engineRegistry, [inst], { scalarsOf: () => fellBack })[0].suffix).toBe(' · SPY · 94')
+    expect(legendChips([b], null, engineRegistry, [ibd], { scalarsOf: () => fellBack })[0].suffix).toBe(' · SPY · 94')
   })
 })
 

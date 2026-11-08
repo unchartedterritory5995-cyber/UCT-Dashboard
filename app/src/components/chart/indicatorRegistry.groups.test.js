@@ -18,7 +18,8 @@ const flatKeys = (rows) => rows.flatMap((r) => r.keys)
 
 describe('initialCollapsed(def)', () => {
   it('is the definition\'s meta.groupsCollapsed as a Set of strings', () => {
-    expect([...initialCollapsed(rsDef())]).toEqual(['Line', 'New highs'])
+    // VA2: the plan's five folded groups (§6.3)
+    expect([...initialCollapsed(rsDef())]).toEqual(['Line', 'New highs', 'Rating', 'Stress test', 'Method'])
   })
   it('is empty with no hint, and drops junk', () => {
     expect(initialCollapsed(engineRegistry.getDefinition('rsi')).size).toBe(0)
@@ -29,13 +30,14 @@ describe('initialCollapsed(def)', () => {
 })
 
 describe('sectionize(def, fields) over the shipped UCT RS definition', () => {
-  it('yields Simple, Line, New highs in declaration order, keys per group in order, the hint on collapsed', () => {
+  it('yields Simple, Line, New highs, Rating, Stress test, Method in declaration order, keys per group in order, the hint on collapsed', () => {
     const def = rsDef()
     const model = fieldsForInstance(def, rsInst)
     const sections = sectionize(def, model.all)
-    expect(sections.map((s) => s.group)).toEqual(['Simple', 'Line', 'New highs'])
-    expect(sections.map((s) => s.label)).toEqual(['Simple', 'Line', 'New highs'])
-    expect(sections.map((s) => s.collapsed)).toEqual([false, true, true])
+    const groups = ['Simple', 'Line', 'New highs', 'Rating', 'Stress test', 'Method']
+    expect(sections.map((s) => s.group)).toEqual(groups)
+    expect(sections.map((s) => s.label)).toEqual(groups)
+    expect(sections.map((s) => s.collapsed)).toEqual([false, true, true, true, true, true])
     // Keys partition the declared inputs, in declaration order, nothing lost.
     const declared = def.inputs.map((i) => i.key)
     expect(sections.flatMap((s) => s.keys)).toEqual(declared)
@@ -63,9 +65,10 @@ describe('sectionize(def, fields) over the shipped UCT RS definition', () => {
     const style = sectionize(def, model.style)
     expect(inputs.flatMap((s) => s.keys)).toEqual(model.inputs.map((f) => f.key))
     expect(style.flatMap((s) => s.keys)).toEqual(model.style.map((f) => f.key))
-    // The Style half holds only the two hinted groups, each marked collapsed —
-    // the CONSUMER decides whether to honour the hint there (the dialog does not).
-    expect(style.map((s) => s.group)).toEqual(['Line', 'New highs'])
+    // The Style half holds only hinted groups, each marked collapsed — the
+    // CONSUMER decides whether to honour the hint there (the dialog does not).
+    // Rating has no colour or width, so it is not on the Style tab (VA2).
+    expect(style.map((s) => s.group)).toEqual(['Line', 'New highs', 'Stress test', 'Method'])
     expect(style.every((s) => s.collapsed)).toBe(true)
   })
 })

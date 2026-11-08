@@ -127,8 +127,8 @@ describe('A5c — swatches: the current colour, always present, always marked', 
   test('on a fresh Classic instance every colour row is stacked and marks exactly one swatch, the drawn colour', async () => {
     const user = userEvent.setup()
     mount(rsCs(), rsEditing)
-    await user.click(headNamed('Line'))
-    await user.click(headNamed('New highs'))
+    // VA2: the colour rows live in the plan's five folded groups
+    for (const g of ['Line', 'New highs', 'Stress test', 'Method']) await user.click(headNamed(g))
     const colours = rsDef().inputs.filter((i) => i.type === 'color')
     expect(colours.length).toBeGreaterThan(5)
     for (const input of colours) {
