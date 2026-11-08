@@ -337,9 +337,9 @@ def _rs_phase3_methods() -> list:
          "one_line": "Which of the four rotation quadrants the stock sits in against SPY, on weekly bars.",
          "scale": " | ".join(q["quadrants"]),
          "how": (f"RRG-style, UCT's formula, the one the Terminal's rotation graph draws, on WEEKLY "
-                 f"bars resampled from the daily closes (SPY resampled the same way): "
-                 f"{_rrg_formula_prose(q)}, where C is the stock's weekly close and B is SPY's for "
-                 f"the same week, and 100 itself counts as the upper side. {lead}: RS-Ratio and "
+                 f"bars resampled from the daily closes (SPY resampled the same way). With C the "
+                 f"stock's weekly close and B SPY's for the same week: {_rrg_formula_prose(q)}, "
+                 f"and 100 itself counts as the upper side. {lead}: RS-Ratio and "
                  f"RS-Momentum both at or above 100. {weak}: RS-Ratio at or above 100, RS-Momentum "
                  f"below. {lag}: both below 100. {imp}: RS-Ratio below 100, RS-Momentum at or "
                  f"above. Only weeks both series have are compared. Blank until "
