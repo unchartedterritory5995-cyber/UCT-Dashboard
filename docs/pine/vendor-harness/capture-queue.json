@@ -76,19 +76,19 @@
   }
  },
  "counts": {
-  "targets": 279,
+  "targets": 287,
   "byStatus": {
    "CAPTURED": 78,
    "NEEDS_CHART": 54,
    "NEEDS_LIVE": 9,
-   "QUEUED": 138
+   "QUEUED": 146
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
     "NEEDS_CHART": 52,
     "NEEDS_LIVE": 9,
-    "QUEUED": 115
+    "QUEUED": 116
    },
    "W1": {
     "QUEUED": 5
@@ -99,7 +99,7 @@
    "W4": {
     "CAPTURED": 9,
     "NEEDS_CHART": 2,
-    "QUEUED": 17
+    "QUEUED": 24
    },
    "W7": {
     "CAPTURED": 2,
@@ -111,7 +111,7 @@
     "CAPTURED": 61,
     "NEEDS_CHART": 53,
     "NEEDS_LIVE": 9,
-    "QUEUED": 124
+    "QUEUED": 132
    },
    "1-2": {
     "CAPTURED": 17,
@@ -262,7 +262,7 @@
    },
    "w6-t6": {
     "CAPTURED": 1,
-    "QUEUED": 3
+    "QUEUED": 11
    },
    "w9": {
     "CAPTURED": 1,
@@ -288,17 +288,17 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 8,
+  "rowsNeedingProbe": 1,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
-  "rowsNotCaptureQuestions": 28,
+  "rowsNotCaptureQuestions": 33,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
    "by-design": 2,
    "closed": 2,
-   "engine-gap": 10,
+   "engine-gap": 14,
    "ruling": 4,
-   "withheld-ledger": 9
+   "withheld-ledger": 10
   },
   "rowsNamingUnreadableCharts": 0
  },
@@ -2383,6 +2383,405 @@
    "oldestDoc": "2026-11-06",
    "rows": [
     "capture-queue-2026-11-06-w6#W6-A1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-fn-two-sites@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-fn-two-sites.pine",
+   "sourceKind": "probe",
+   "sha256": "75a42c0d55c2458ed6714b35c62b048e966d894838ae72f277383852a4ec17d5",
+   "bytes": 1118,
+   "stem": "vw-w6-forin-fn-two-sites",
+   "captureStem": "vw-w6-forin-fn-two-sites",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-fn-value@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-fn-value.pine",
+   "sourceKind": "probe",
+   "sha256": "9a681f0372f9c6a582d23447ada59f58cc559a317cd4e75cf906fa6754e56259",
+   "bytes": 1080,
+   "stem": "vw-w6-forin-fn-value",
+   "captureStem": "vw-w6-forin-fn-value",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-loopvar-write@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-loopvar-write.pine",
+   "sourceKind": "probe",
+   "sha256": "84e609121702c3f0a398c8b4f6657181c30fa9ccfc0414c6fd00e9ea9534ca98",
+   "bytes": 1078,
+   "stem": "vw-w6-forin-loopvar-write",
+   "captureStem": "vw-w6-forin-loopvar-write",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-map@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-map.pine",
+   "sourceKind": "probe",
+   "sha256": "e13f5b5a82db9016da8a01747a4140fc68f230c6ef8653d59cb89e59d91f4410",
+   "bytes": 1403,
+   "stem": "vw-w6-forin-map",
+   "captureStem": "vw-w6-forin-map",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-matrix@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-matrix.pine",
+   "sourceKind": "probe",
+   "sha256": "20239813fd7cbef5878d67bd9382d1515eeaa3a17bc63fd2233a7594d46e4f5f",
+   "bytes": 1246,
+   "stem": "vw-w6-forin-matrix",
+   "captureStem": "vw-w6-forin-matrix",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-polyline-all@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-polyline-all.pine",
+   "sourceKind": "probe",
+   "sha256": "c4e91fb8ac7df1aea7ab3ad5a86995be534dcde0604f7ff76429759518640b8b",
+   "bytes": 1257,
+   "stem": "vw-w6-forin-polyline-all",
+   "captureStem": "vw-w6-forin-polyline-all",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-write-through@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-write-through.pine",
+   "sourceKind": "probe",
+   "sha256": "4af605296f87356724856e313d7979a5102e7170dd23ae1933c5553c9a0bfd20",
+   "bytes": 1200,
+   "stem": "vw-w6-forin-write-through",
+   "captureStem": "vw-w6-forin-write-through",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 23,
+    "upperSample": [
+     "builtin:pivot-points-standard__Pivot1Points",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
+     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+     "committed:range-filter-dw__pshyCmQSql",
+     "committed:session-tpo-profile__41088ef96d",
+     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
    ],
    "origins": [
     "queue-doc"
@@ -13150,6 +13549,48 @@
    ]
   },
   {
+   "id": "vw-w6-forin-held-alias@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-held-alias.pine",
+   "sourceKind": "probe",
+   "sha256": "9033c3fd051671f8e342fd40dca94bd7b27f135826ea56e9fe3fee7a759fbc27",
+   "bytes": 3864,
+   "stem": "vw-w6-forin-held-alias",
+   "captureStem": "vw-w6-forin-held-alias",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#Q-W6T6-H (N1b, indirect, shape b)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-w6-forin-held-fn@NYSE:RDDT@D",
    "status": "QUEUED",
    "evidence": [],
@@ -13329,87 +13770,6 @@
    "guards": [],
    "namedScripts": [],
    "text": "Q-S1c | find a bar with `open - low == high - open` (`plot(open - low == high - open ? 1 : 0)` on SPY 1D and RDDT 1D first, pick one), place `strategy.entry(\"L\", strategy.long, limit = <bar's low>)` and `strategy.exit(\"x\", \"L\", limit = <bar's high>)` the bar before | trades CSV: does the entry and the exit both fill on that bar? | the path on a tie"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#a stamped ?: inside a multi-state recurrence (accum2-accum4)",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 52,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "a stamped `?:` inside a multi-state recurrence (`accum2`-`accum4`) whose test reads a state bind | drawn as before (no standalone guard can be written for it; `armRunGates` carries no gate rather than refuse) | not a capture question: a guard over the multi-state tuple one bar back, as `previousBarOf` builds for `accum`"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#L2",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 62,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "L2 | a stamped `?:` INSIDE a `request.security(…)` expression is stamped like any other, but its guard is evaluated on the CHART's bars by the bind, while the arm runs in the REQUESTED context | either way (probe `vw-pt-request-arm.pine` R03 / E03 / P03, NYSE:RDDT 1D from the listing) | `Resolver.stampTernaryArms` (no request-context test); `engine/blockRuns.js` evaluates every guard on the chart'"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-i",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 70,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-i | (C48, final run 2026-11-02) on the DRAWING lane's text reader a helper that reads a `var` is refused only when the var's last write is a top-level `:=` (runs every bar): that reader's scope is the whole drawing, not the env at the call, so a write in a block may not have run before the call and the folded value (the previous bar's) is then Pine's. Refusing every later write took rsi-swing-in"
-  },
-  {
-   "key": "capture-queue-2026-10-31-prod-ternary#G-f",
-   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 75,
-   "docWave": "prod-ternary",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "G-f | (object lane, pre-existing; found while merging #604) a `ta.*` call written in a drawing's NON-colour argument inside a block that varies (`if close > close[1]` / `label.new(…, str.tostring(ta.sma(close, 5)))`) is drawn off the every-bar call; and a colour `var` written in such a block (`c := … ta.rising(…) …`) is not carried at all, so the drawing paints the renderer's default | under-withh"
-  },
-  {
-   "key": "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)",
-   "doc": "docs/pine/capture-queue-2026-11-06-w6-t6.md",
-   "line": 11,
-   "docWave": "w6-t6",
-   "needsProbe": "probe file owed: vw-w6-forin-runtime.pine",
-   "needsLive": false,
-   "guards": [
-    "runtime:array"
-   ],
-   "namedScripts": [],
-   "text": "W6-F1 (W6-BREAKDOWN §5) | `vw-w6-forin-runtime.pine` | `NYSE:RDDT 1D` | \"inside a function body, …\"; \"the value of a `for … in` loop …\"; \"`polyline.all` is not yet captured\"; \"a walk over a matrix / map …\" (here first refused at the matrix / map creation, `runtime:array`); \"the body writes the loop variable `x` or through it\"; \"the body hands the element `x` to a function that may write through it"
-  },
-  {
-   "key": "capture-queue-2026-11-06-w6-t6#Q-W6T6-H (N1b, indirect, shape b)",
-   "doc": "docs/pine/capture-queue-2026-11-06-w6-t6.md",
-   "line": 14,
-   "docWave": "w6-t6",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [],
-   "namedScripts": [],
-   "text": "Q-W6T6-H (N1b, indirect, shape b) | same probe file, own plots: `for q in qs` with `a = q.arr` then `array.push(a, 1.0)`; a chain `a = q.arr`, `b = a`, `b.push(1.0)`; an outer `var array<float> g = array.new_float()` with `g := q.arr` then `array.push(g, 1.0)` in the body; a list read off the walked list BEFORE the walk, `pre = array.get(qs, 0).arr`, changed by `array.push(pre, 1.0)` in the body; "
-  },
-  {
-   "key": "capture-queue-2026-11-06-w6-t6#object door",
-   "doc": "docs/pine/capture-queue-2026-11-06-w6-t6.md",
-   "line": 15,
-   "docWave": "w6-t6",
-   "needsProbe": "no probe file named (an inline shape or prose)",
-   "needsLive": false,
-   "guards": [
-    "runtime:object-door"
-   ],
-   "namedScripts": [],
-   "text": "object door | none: measure-pair | — | `runtime:object-door` \"a `for … in` loop is served on the runtime pane only …\" | the C18 door serving `for … in` | a follow-up that shows 0 C18 diffs with the door gate lifted"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -13574,6 +13934,26 @@
    "text": "Q-L2b | **no probe** — a v6 script importing a v5 library (`boitoki/AwesomeColor/9` from `fx-market-sessions`) | any | not a value question: TradingView compiles each at its own version. Recorded so a reader does not queue it; the wall (`pine:module` / `runtime:library`, \"written in Pine v5 and this script in v6\") stays refused until a lane compiles a library under its own version's rules | 4 scri"
   },
   {
+   "key": "capture-queue-2026-10-31-prod-ternary#a stamped ?: inside a multi-state recurrence (accum2-accum4)",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 52,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "the row says so: \"not a capture question: a guard over the multi-state tuple one bar back, as previousBarOf builds for accum\"",
+   "dispositionLine": 146,
+   "text": "a stamped `?:` inside a multi-state recurrence (`accum2`-`accum4`) whose test reads a state bind | drawn as before (no standalone guard can be written for it; `armRunGates` carries no gate rather than refuse) | not a capture question: a guard over the multi-state tuple one bar back, as `previousBarOf` builds for `accum`"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#L2",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 62,
+   "docWave": "prod-ternary",
+   "disposition": "withheld-ledger",
+   "reason": "a row of \"Known gaps\" (every column but the id prose); its capture is vw-pt-request-arm R03 / E03 / P03 on NYSE:RDDT 1D from the listing, the file the \"Shapes this branch does NOT stamp\" row 1 already queues (one capture reads R01-R03)",
+   "dispositionLine": 147,
+   "text": "L2 | a stamped `?:` INSIDE a `request.security(…)` expression is stamped like any other, but its guard is evaluated on the CHART's bars by the bind, while the arm runs in the REQUESTED context | either way (probe `vw-pt-request-arm.pine` R03 / E03 / P03, NYSE:RDDT 1D from the listing) | `Resolver.stampTernaryArms` (no request-context test); `engine/blockRuns.js` evaluates every guard on the chart'"
+  },
+  {
    "key": "capture-queue-2026-10-31-prod-ternary#L3",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
    "line": 63,
@@ -13644,6 +14024,16 @@
    "text": "G-h | (pre-existing, found in the re-review of F2) C48's BLOCK gates never reach a paint's or a fill's colour: `resolvePaints` and the fill-colour reader resolve with `condGate` off, so `resolveBinding` notes no `condCall` / `stateRuns` gate there. `bgcolor(close > s ? color.red : na)`, `s` filled from a `ta.*` call in a block that skips, paints from the every-bar `s` — on master too | under-withh"
   },
   {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-i",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 70,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap of the drawing lane's text reader (staleOuterStateRead): what closes it is carrying the call's position into the reader's frame, a build, not a reading",
+   "dispositionLine": 148,
+   "text": "G-i | (C48, final run 2026-11-02) on the DRAWING lane's text reader a helper that reads a `var` is refused only when the var's last write is a top-level `:=` (runs every bar): that reader's scope is the whole drawing, not the env at the call, so a write in a block may not have run before the call and the folded value (the previous bar's) is then Pine's. Refusing every later write took rsi-swing-in"
+  },
+  {
    "key": "capture-queue-2026-10-31-prod-ternary#G-b",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
    "line": 71,
@@ -13684,6 +14074,16 @@
    "text": "G-e | (by design, M1) off the listing a recurrence's bounded window reads its SEED W bars back, where an arm in it holds the every-bar history; not gated, because the window's own convergence rule already answers for the seed | — | `interpret.js` bounded window | not a gap of this rule"
   },
   {
+   "key": "capture-queue-2026-10-31-prod-ternary#G-f",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 75,
+   "docWave": "prod-ternary",
+   "disposition": "engine-gap",
+   "reason": "a known gap of the object lane (valueRef text / number slots, colour vars not carried): what closes it is extending #604's C48 object-lane gate, a build; C48's per-run rule is already captured (vw-call-site-history)",
+   "dispositionLine": 149,
+   "text": "G-f | (object lane, pre-existing; found while merging #604) a `ta.*` call written in a drawing's NON-colour argument inside a block that varies (`if close > close[1]` / `label.new(…, str.tostring(ta.sma(close, 5)))`) is drawn off the every-bar call; and a colour `var` written in such a block (`c := … ta.rising(…) …`) is not carried at all, so the drawing paints the renderer's default | under-withh"
+  },
+  {
    "key": "capture-queue-2026-10-31-wse#Q-WSE5",
    "doc": "docs/pine/capture-queue-2026-10-31-wse.md",
    "line": 13,
@@ -13692,6 +14092,16 @@
    "reason": "the TradingView built-in STD;RSI: no probe file can stand in for a built-in (batch-b PR #923)",
    "dispositionLine": 21,
    "text": "Q-WSE5 | builtin Relative Strength Index (`STD;RSI`) | NYSE:RDDT 1D from the listing | the RSI line and its two zone gradient fills | the gradient `fill` is lowered as an UNDRAWN fill (no fill is drawn from the run, solid or gradient) and named in the document's \"Not drawn by this pane\" note; the RSI line is the run's | grades the line; the fill stays undrawn until a run fill renderer exists (see "
+  },
+  {
+   "key": "capture-queue-2026-11-06-w6-t6#object door",
+   "doc": "docs/pine/capture-queue-2026-11-06-w6-t6.md",
+   "line": 15,
+   "docWave": "w6-t6",
+   "disposition": "engine-gap",
+   "reason": "the row's own probe cell says \"none: measure-pair\": what lifts runtime:object-door is our own C18 diff (0 diffs with the door gate lifted), a build and a measure-pair of our two doors, not a TradingView reading",
+   "dispositionLine": 27,
+   "text": "object door | none: measure-pair | — | `runtime:object-door` \"a `for … in` loop is served on the runtime pane only …\" | the C18 door serving `for … in` | a follow-up that shows 0 C18 diffs with the door gate lifted"
   }
  ],
  "licenceHeldCensus": [

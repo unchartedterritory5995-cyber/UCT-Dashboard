@@ -143,3 +143,7 @@ Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here lea
 | G-c | engine-gap | a known gap: the counter fold's JSON copy drops a stamp; a structural copy, not a reading; PT-GAPS fixes it |
 | G-d | engine-gap | a known gap: a withheld colour's refusal is not surfaced on the plot; UI disclosure, not a reading; PT-GAPS fixes it |
 | G-e | by-design | by design (M1; the row says so): "not a gap of this rule" |
+| a stamped `?:` inside a multi-state recurrence (`accum2`-`accum4`) whose test reads a state bind | engine-gap | the row says so: "not a capture question: a guard over the multi-state tuple one bar back, as `previousBarOf` builds for `accum`" |
+| L2 | withheld-ledger | a row of "Known gaps" (every column but the id prose); its capture is `vw-pt-request-arm` R03 / E03 / P03 on NYSE:RDDT 1D from the listing, the file the "Shapes this branch does NOT stamp" row 1 already queues (one capture reads R01-R03) |
+| G-i | engine-gap | a known gap of the drawing lane's text reader (`staleOuterStateRead`): what closes it is carrying the call's position into the reader's frame, a build, not a reading |
+| G-f | engine-gap | a known gap of the object lane (`valueRef` text / number slots, colour `var`s not carried): what closes it is extending #604's C48 object-lane gate, a build; C48's per-run rule is already captured (`vw-call-site-history`) |
