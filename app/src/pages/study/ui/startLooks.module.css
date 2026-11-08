@@ -131,7 +131,7 @@
 .aGo { width: min(440px, 100%); margin-top: 4px; }
 @media (max-width: 640px) {
   .aTitle.aTitle { font-size: 46px; }
-  .aChip { min-width: 0; flex: 1 1 28%; padding: 10px 8px 8px; } .aChip b { font-size: 20px; } .aChip small { font-size: 9.5px; letter-spacing: .06em; white-space: nowrap; }
+  .aChip { min-width: 0; flex: 1 1 28%; padding: 10px 8px 8px; } .aChip b { font-size: 20px; } .aChip small { font-size: 9.5px; letter-spacing: .06em; text-align: center; line-height: 1.25; }
   .aGo { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .aTitle.aTitle, .aChip, .artPill { animation: none !important; opacity: 1; background-position: 50% 0; } }

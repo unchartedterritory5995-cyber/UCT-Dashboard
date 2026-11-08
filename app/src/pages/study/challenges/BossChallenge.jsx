@@ -4,6 +4,7 @@
 // never a number invented here; a boss bonus is a server decision for later.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StartArena } from '../ui/StartLooks'
+import HowItPlays from '../ui/HowItPlays'
 import { EndHard } from '../ui/EndLooks'
 import { Medal } from '../ui/Medal'
 import { Confetti } from '../../../lab/bits'
@@ -124,8 +125,12 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
         <StartArena plate="Boss" title="Boss" caption="Does it fire on the last candle?" testId="boss-intro" startTestId="boss-start" hotkey
           total={total || BOSS_TOTAL} stakes={[{ v: total || BOSS_TOTAL, l: 'charts' }, { v: 1, l: 'heart' }, { v: 1, l: 'miss ends it' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
           label={pool == null ? 'Loading the bank' : pool.length ? 'Face the boss' : 'No charts yet'}
-          lead="Charts from the UCT bank, each with a setup named. Say whether it fires on the last candle. Clear them all with one heart and the trophy is yours."
-          reward={<><Medal size={40} testId={null} /><span><b>{total || BOSS_TOTAL} for {total || BOSS_TOTAL}</b> wins the trophy</span></>} />
+          reward={<><Medal size={40} testId={null} /><span><b>{total || BOSS_TOTAL} for {total || BOSS_TOTAL}</b> wins the trophy</span></>}
+          howTo={<HowItPlays mode="boss" testId="boss-howto" steps={[
+            { icon: 'eye', title: 'A setup is named', body: 'Each chart comes with a setup. Read it and its last candle.' },
+            { icon: 'check', title: 'Yes or No', body: 'Yes if the setup fires on the last candle, No if it does not.' },
+            { icon: 'flame', title: 'One heart', body: 'One miss ends the run. Clear every chart and the trophy is yours.' },
+          ]} />} />
       </div>
     )
   }

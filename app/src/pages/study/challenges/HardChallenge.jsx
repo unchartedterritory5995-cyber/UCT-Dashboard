@@ -34,6 +34,7 @@ import { HudCombo } from '../ui/HudLooks'
 import { AnswerLessonApp } from '../ui/AnswerLooks'
 import { EndHard } from '../ui/EndLooks'
 import { StartArena } from '../ui/StartLooks'
+import HowItPlays from '../ui/HowItPlays'
 import Prompt from '../ui/Prompt'
 import Stamp from '../ui/Stamp'
 import StudyChart from '../ui/StudyChart'
@@ -211,7 +212,12 @@ export default function HardChallenge({ profile = null, fetcher = studyFetch, on
     return (
       <div className={s.kit} style={{ padding: '26px 0 34px' }}>
         <StartArena total={count} ready={!!pool?.length} hotkey onStart={() => pool?.length && start()} testId="hard-intro" startTestId="hard-start"
-          label={pool == null ? 'Loading the bank' : pool.length ? 'Start' : 'No charts yet'} />
+          label={pool == null ? 'Loading the bank' : pool.length ? 'Start' : 'No charts yet'}
+          howTo={<HowItPlays mode="hard" testId="hard-howto" steps={[
+            { icon: 'lock', title: 'Read the chart', body: 'A real chart from the UCT bank with the ticker hidden. The last candle is ringed.' },
+            { icon: 'eye', title: 'Name what fired', body: 'Pick the setup that fired on that candle, or Nothing fired. One try each.' },
+            { icon: 'play', title: 'Watch the trade', body: 'The chart runs on with the trade drawn: entry, stop, targets, and a key that says why each level sits there.' },
+          ]} />} />
       </div>
     )
   }

@@ -10,6 +10,7 @@
 // picked the real candle and No otherwise, so the attempt is scored on the server like any other.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StartArena } from '../ui/StartLooks'
+import HowItPlays from '../ui/HowItPlays'
 import { Stamp } from '../../../lab/bits'
 import { useRunOn } from '../../../lab/fx'
 import { rayAt } from '../../../lab/pointers'
@@ -196,7 +197,11 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
         <StartArena plate="Spot" title="Spot the Setup" caption="Which candle is the real one?" testId="spot-intro" startTestId="spot-start" hotkey
           total={total || ROUNDS} stakes={[{ v: total || ROUNDS, l: 'charts' }, { v: setups.length || 'All', l: setups.length === 1 ? 'setup' : 'setups' }, { v: 3, l: 'candles each' }]}
           ready={!!total} onStart={() => total && setPhase('play')} label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'}
-          lead="One chart, a few gold candles that look alike. Only one is the real setup named at the top. Tap it, then read how the others measure up against it." />
+          howTo={<HowItPlays mode="spot" testId="spot-howto" steps={[
+            { icon: 'eye', title: 'A setup is named', body: 'The chart has three gold candles that look alike. Only one is that setup.' },
+            { icon: 'check', title: 'Tap the real one', body: 'Tap it on the chart or pick its card, then Check.' },
+            { icon: 'info', title: 'See why', body: 'The cards measure each look-alike against the real one: the gap, the day, the close, the volume.' },
+          ]} />} />
       </div>
     )
   }

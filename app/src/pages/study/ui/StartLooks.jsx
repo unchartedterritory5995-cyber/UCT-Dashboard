@@ -69,7 +69,7 @@ const asChip = (x) => (x && typeof x === 'object' ? x : { v: x, l: '' })
  *  the design templates and graphics to be uniform throughout each section!"): the plate, the title, the caption under
  *  the drawing, the stakes, one lead line and the reward are the mode's own; the defaults are Hard mode's. */
 export function StartArena({ total = 8, ready = true, onStart, label = null, testId = null, startTestId = null, hotkey = false,
-  plate = 'Hard', title = 'Hard mode', caption = 'What fired on the last candle?', stakes = null, lead = null, reward = undefined, children = null }) {
+  plate = 'Hard', title = 'Hard mode', caption = 'What fired on the last candle?', stakes = null, lead = null, reward = undefined, howTo = null, children = null }) {
   useEffect(() => {
     if (!hotkey || !ready) return undefined
     const k = (e) => { if (e.key === 'Enter' && !e.repeat && !(e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) onStart?.() }
@@ -91,6 +91,7 @@ export function StartArena({ total = 8, ready = true, onStart, label = null, tes
       </div>
       {lead ? <p className={st.aLead}>{lead}</p> : null}
       {prize ? <div className={st.aReward}>{prize}</div> : null}
+      {howTo}
       <div className={st.aGo}>
         <StudyButton kind="primary" size="xl" arrow wide disabled={!ready} onClick={onStart} testId={startTestId}>{label || (ready ? 'Start' : 'Loading the charts')}</StudyButton>
       </div>

@@ -105,7 +105,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 
 | Notes | What he asked | Status | Where |
 |---|---|---|---|
-| N036 | Each game begins with a tutorial | Not yet | a one-line lead on each start screen only (rule 12) |
+| N036 | Each game begins with a tutorial | Done | `ui/HowItPlays.jsx` on every game's start screen, above Start: three steps, open by itself on a member's first visit, one tap away after |
 | N042 | Blitz needs hundreds of examples, never the same three | Done | about 100 questions a run (a run answers about 30), a fresh draw from the bank every run (`fetchNamedPool` seed, `fetchSpotPool` 8 a setup, `fetchRecallPool` 16 a skill) |
 | N047 | Blitz: both question kinds and more quick-recognition kinds | Done | five kinds |
 | (found 2026-11-08) | Never a wrong example: Blitz asked "What setup fired on the last candle?" on bank charts that can be "No, it does not fire" charts | Done | "name it" now uses only charts the detectors verify (`POST /api/study/spot-setup`, the Spot the Setup pool); test in `challengeBank.test.js` |
@@ -147,7 +147,7 @@ for this section.
 2. His call: the ticker on the lesson card (N029) and the full-screen answer (N071).
 4. Spot the Setup: the candidates gently brought in, so the choosable candles read at a glance (N040).
 5. The Study home and the course path, Duolingo-like, on the shared design (N021, N022, N027, N030, N035).
-6. A short tutorial at the start of each mode (N036).
+6. Done 2026-11-08: a short tutorial at the start of each game (N036).
 7. The reward system: XP, streaks, tiers that mean something across runs (N035).
 8. Draw-it in the product, on the shared design (N039, N045, N052, N057).
 9. Simpler lesson words, as drafts for his review (N087, N096, N116, N118).
