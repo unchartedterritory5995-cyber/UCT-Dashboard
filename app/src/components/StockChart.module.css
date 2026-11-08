@@ -1678,6 +1678,33 @@
 .legMenuRowBtn:hover,
 .legMenuRowBtn:focus-visible { background: var(--bg-hover); outline: none; }
 .legMenuRowChev { display: inline-flex; align-self: center; justify-self: end; color: var(--text-muted); flex: none; }
+/* ⭐ UCT RS 3-09 — A READOUT ROW'S ACTION ("Pick a date on the chart", "Use the
+   default anchor", "Open the rotation map"): its own button directly under the
+   row, its text starting in the row's VALUE column so it reads as that row's.
+   The bright ink, never gold (gold is the card's one look-here mark). The
+   padding-left is the label column plus the gap: 88 + 8 in the menu, 104 + 8 in
+   a card's numbers block (`.legRowActionCard`), and the phone's wider columns. */
+.legRowAction {
+  appearance: none;
+  background: none;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: calc(100% + 8px);
+  min-height: 28px;
+  margin: 0 -4px 2px;
+  padding: 4px 4px 4px 100px;
+  border-radius: 4px;
+  font: 600 12px/16px 'Instrument Sans', sans-serif;
+  color: var(--text-bright);
+  text-align: left;
+  cursor: pointer;
+}
+.legRowAction:hover,
+.legRowAction:focus-visible { background: var(--bg-hover); outline: none; }
+.legRowActionCard { padding-left: 116px; }
 
 /* ─── THE ABOUT CARD — one readout row, explained in three lines ───────────
    Rendered through `ContextPopover`'s `children` branch, so it REPLACES the
@@ -1856,6 +1883,7 @@
   .legPresetRow { min-height: var(--tap-min); }
   .legMenuRowBtn { min-height: var(--tap-min); }
   .legCardNumBtn { min-height: var(--tap-min); }
+  .legRowAction { min-height: var(--tap-min); }
 }
 
 /* PHONE (≤640px): one size per list, 14 px; the wider grid; three lines. */
@@ -1871,6 +1899,8 @@
     min-height: 32px;
   }
   .legMenuRowBtn { min-height: var(--tap-min); }
+  .legRowAction { font-size: 14px; line-height: 20px; padding-left: 124px; }
+  .legRowActionCard { padding-left: 132px; }
   .legMenuRowVal { -webkit-line-clamp: 3; line-clamp: 3; }
   .legCardNum,
   .legCardNumBtn {

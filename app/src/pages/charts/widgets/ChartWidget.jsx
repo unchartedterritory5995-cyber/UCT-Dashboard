@@ -49,7 +49,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
@@ -653,6 +653,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           watermarkAdjusting: wmAdjusting,
           onWatermarkAdjustEnd: endWatermarkAdjust,
           onWatermarkAnchor: adoptWatermarkAnchor,
+          // ⭐ UCT RS 3-09 — the workspace mounts a Compare Symbols panel (desktop
+          // only), so a readout row may offer "Open the rotation map". Any other
+          // host of this widget (breadth drill, screener focus) leaves it off.
+          canOpenCompare: canOpenCompare === true,
           // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
