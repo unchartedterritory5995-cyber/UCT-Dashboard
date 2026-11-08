@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import tempfile
 import threading
@@ -85,6 +86,50 @@ SIGNAL_LABELS: dict = {
     "rs_cross_up_21ema": "RS line crosses above its 21-day average",
     "mansfield_cross_up": "Mansfield crosses above zero",
 }
+
+#: THE SPAN RULE (unit VA3, 2026-11-07): a measured number prints only when the
+#: events with a complete window at the printed horizon fell on at least this many
+#: DIFFERENT sessions, as well as clearing the artifact's display floor on n.
+#: Events on one session share one market, so 5,000 red-day highs on 40 red
+#: sessions are 40 observations, not 5,000 (research base 03-evidence.md §(c):
+#: "report distinct event dates"; "suppress display when effective N < 100").
+#: 100 is the research base's own number for effective N; it is what review #6's
+#: rule (effective N = min(n, sessions) >= 100) already required, so stating it
+#: here keeps that bar, where a smaller number (20) would have lowered it.
+MIN_EVENT_DATES = 100
+
+#: The uncertainty range printed beside a measured hit rate: a Wilson score
+#: interval at this confidence. Its ``n`` is the EFFECTIVE n (``min(n,
+#: sessions)``), not the raw event count: events that share a session are not
+#: independent draws, so an interval over every event would read narrower than
+#: the data can support. Counting each session once is the cautious side.
+INTERVAL_CONFIDENCE_PCT = 95
+#: The two-sided normal quantile for :data:`INTERVAL_CONFIDENCE_PCT` (95 %).
+INTERVAL_Z = 1.959963984540054
+#: The words the range takes in the sentence, for a reader who has never met a
+#: confidence interval: ``"58.3% (likely between 51.9% and 64.4%)"``.
+INTERVAL_WORDS = "likely between"
+
+
+def wilson_interval(hit_rate: float, n: float, z: float = INTERVAL_Z):
+    """The Wilson score interval ``(low, high)`` as fractions for a share
+    ``hit_rate`` (0-1) observed over ``n`` trials; ``None`` without a positive
+    ``n`` or a share in range. Wilson rather than the plain normal range because
+    it stays inside 0-1 and behaves near 0 % and 100 %."""
+    try:
+        p, n = float(hit_rate), float(n)
+    except (TypeError, ValueError):
+        return None
+    if not (n > 0 and 0.0 <= p <= 1.0):
+        return None
+    z2 = z * z
+    den = 1.0 + z2 / n
+    centre = (p + z2 / (2.0 * n)) / den
+    half = z * math.sqrt(p * (1.0 - p) / n + z2 / (4.0 * n * n)) / den
+    low = 0.0 if p == 0.0 else max(0.0, centre - half)     # the bounds are exact at the ends;
+    high = 1.0 if p == 1.0 else min(1.0, centre + half)    # float error must not print 99.99...
+    return low, high
+
 
 #: The calendar span each measured horizon covers, in the sentence's own words.
 #: A horizon not listed prints its session count alone.
@@ -272,22 +317,32 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
     the artifact carries no block for the signal.
 
     ``{signal, label, n, sessions, effective_n, incomplete, hit_rate_pct,
-    median_excess_pct, baseline_hit_rate_pct, horizon_bars, start, end,
-    benchmark, asof, survivorship, survivorship_corrected, display_floor_n,
-    displayable, outcome}``. ``outcome`` is :func:`outcome_phrase`: what the hit
-    rate counts, base included, so a caller printing the number prints its basis.
+    hit_rate_low_pct, hit_rate_high_pct, median_excess_pct,
+    baseline_hit_rate_pct, horizon_bars, start, end, benchmark, asof,
+    survivorship, survivorship_corrected, split_unchecked, display_floor_n,
+    min_event_dates, displayable, outcome}``. ``outcome`` is
+    :func:`outcome_phrase`: what the hit rate counts, base included, so a caller
+    printing the number prints its basis.
 
     THE FLOOR IS ON EFFECTIVE N, NOT RAW n (review #6, 2026-11-07). Events that
     share a session share one market: 5,000 red-day highs on 40 red sessions
     are 40 observations, not 5,000 (research base 03-evidence.md, the
-    effective-N rule; measure.py's own header). ``sessions`` is the artifact's
-    per-signal ``dates`` (distinct sessions with an event) and ``effective_n``
-    is ``min(n, sessions)``; ``displayable`` is ``effective_n >=
-    method.display_floor_n`` (the floor the artifact carries, `DISPLAY_FLOOR_N`
-    when it does not) AND a hit rate exists AND the window has both dates. An
-    artifact without ``dates`` has no effective N and is not displayable. The
-    same rule governs the Discord evidence line, which filters on
-    ``displayable`` (main.py `_rs_evidence_for`).
+    effective-N rule; measure.py's own header). ``sessions`` is the horizon
+    block's ``dates`` (distinct sessions with an event whose window at this
+    horizon is complete, unit VA3), or the per-signal ``dates`` (every session
+    with an event) on an artifact built before that field; ``effective_n`` is
+    ``min(n, sessions)``. ``displayable`` is ``n >= method.display_floor_n``
+    (the floor the artifact carries, `DISPLAY_FLOOR_N` when it does not) AND
+    ``sessions >= MIN_EVENT_DATES`` (the span rule) AND a hit rate exists AND
+    the window has both dates. An artifact without ``dates`` has no span and is
+    not displayable. The same rule governs the Discord evidence line, which
+    filters on ``displayable`` (main.py `_rs_evidence_for`).
+
+    ``hit_rate_low_pct`` / ``hit_rate_high_pct`` are the :func:`wilson_interval`
+    at :data:`INTERVAL_CONFIDENCE_PCT` over ``effective_n``. ``split_unchecked``
+    is how many names behind this signal had a split list the guard could not
+    judge (the artifact's ``split_guard.unchecked_by_signal``, else its run-level
+    ``unchecked``); ``None`` on an artifact that does not say.
 
     ``baseline_hit_rate_pct`` is the all-bars hit rate at the same horizon, so
     the sentence reads as lift and not as a number on its own. A null statistic
@@ -303,7 +358,9 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
     h = (block.get("horizons") or {}).get(str(int(horizon)))
     h = h if isinstance(h, dict) else {}
     n = _int(h.get("n"))
-    sessions = _int(block.get("dates"))
+    sessions = _int(h.get("dates"))
+    if sessions is None:                                 # an artifact from before unit VA3
+        sessions = _int(block.get("dates"))
     effective = min(n, sessions) if (n is not None and sessions is not None) else None
     hit = _num(h.get("hit_rate"))
     med = _num(h.get("median_excess"))
@@ -313,8 +370,9 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
         floor = DISPLAY_FLOOR_N
     window = art.get("window") if isinstance(art.get("window"), dict) else {}
     start, end = window.get("from"), window.get("to")
-    displayable = (effective is not None and effective >= floor and hit is not None
-                   and isinstance(start, str) and isinstance(end, str))
+    displayable = (n is not None and n >= floor and sessions is not None and sessions >= MIN_EVENT_DATES
+                   and hit is not None and isinstance(start, str) and isinstance(end, str))
+    band = wilson_interval(hit, effective) if (hit is not None and effective) else None
     base = baseline_for(horizon, art)
     return {
         "signal": signal,
@@ -324,6 +382,8 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
         "effective_n": effective,
         "incomplete": _int(h.get("incomplete")),
         "hit_rate_pct": round(hit * 100.0, 2) if hit is not None else None,
+        "hit_rate_low_pct": round(band[0] * 100.0, 2) if band else None,
+        "hit_rate_high_pct": round(band[1] * 100.0, 2) if band else None,
         "median_excess_pct": round(med, 2) if med is not None else None,
         "baseline_hit_rate_pct": base.get("hit_rate_pct") if base else None,
         "horizon_bars": int(horizon),
@@ -333,10 +393,27 @@ def evidence_for(signal: str, horizon: int = DEFAULT_HORIZON, artifact: Optional
         "asof": art.get("asof"),
         "survivorship": art.get("survivorship") or SURVIVORSHIP_NOTE,
         "survivorship_corrected": False,
+        "split_unchecked": split_unchecked_for(signal, art),
         "display_floor_n": floor,
+        "min_event_dates": MIN_EVENT_DATES,
         "displayable": bool(displayable),
         "outcome": outcome_phrase(art.get("benchmark"), horizon),
     }
+
+
+def split_unchecked_for(signal: str, artifact: Optional[dict]) -> Optional[int]:
+    """How many names behind ``signal`` the split guard could not judge: the
+    artifact's per-signal count when it carries one, else the run-level count,
+    else ``None`` (an artifact from before unit VA3 says nothing, and nothing is
+    printed for it)."""
+    guard = artifact.get("split_guard") if isinstance(artifact, dict) else None
+    if not isinstance(guard, dict):
+        return None
+    by_signal = guard.get("unchecked_by_signal")
+    if isinstance(by_signal, dict) and _int(by_signal.get(signal)) is not None:
+        return max(0, _int(by_signal.get(signal)))
+    run_level = _int(guard.get("unchecked"))
+    return max(0, run_level) if run_level is not None else None
 
 
 def baseline_for(horizon: int = DEFAULT_HORIZON, artifact: Optional[dict] = None) -> Optional[dict]:
@@ -361,6 +438,21 @@ def _sentence_case(note: str) -> str:
     return (note[:1].upper() + note[1:] + ".") if note else ""
 
 
+def requirement_phrase(floor, min_dates=MIN_EVENT_DATES) -> str:
+    """What a measured number needs before it prints, in plain words (the
+    withheld sentence and the methodology page both read it from here)."""
+    return f"it needs at least {int(floor):,} events on at least {int(min_dates):,} different sessions"
+
+
+def split_unchecked_phrase(count) -> str:
+    """The measured sentence's disclosure of names the split guard could not
+    judge; ``""`` when there are none (or the artifact does not say)."""
+    n = _int(count)
+    if not n or n <= 0:
+        return ""
+    return f"Stock splits not yet checked for {n:,} {'name' if n == 1 else 'names'}."
+
+
 def _below_floor_sentence(ev: dict) -> Optional[str]:
     """What UCT measured when it is too little to print (review #22,
     2026-11-07): the honesty line says "has not measured one yet", which is
@@ -370,35 +462,45 @@ def _below_floor_sentence(ev: dict) -> Optional[str]:
     if not isinstance(floor, int) or not isinstance(n, int) or not isinstance(sessions, int):
         return None
     h = ev.get("horizon_bars")
+    min_dates = ev.get("min_event_dates")
+    min_dates = min_dates if isinstance(min_dates, int) else MIN_EVENT_DATES
+    need = requirement_phrase(floor, min_dates)
     if n == 0:
         pending = ev.get("incomplete")
         if isinstance(pending, int) and pending > 0 and isinstance(h, int):
             return (f"UCT has recorded {pending:,} events on {sessions:,} sessions, none with a complete "
                     f"{h}-session window yet, so no hit rate is printed.")
-        return f"UCT measured 0 events, too few to print a hit rate (floor {floor})."
-    if min(n, sessions) >= floor:
+        return f"UCT measured 0 events, too few to print a hit rate: {need}."
+    if n >= floor and sessions >= min_dates:
         return None
-    return f"UCT measured {n:,} events on {sessions:,} sessions, too few to print a hit rate (floor {floor})."
+    return f"UCT measured {n:,} events on {sessions:,} sessions, too few to print a hit rate: {need}."
 
 
 def sentence_for(ev: Optional[dict]) -> str:
     """The evidence sentence for an `evidence_for` dict, in operator voice.
 
     Displayable: the count, the sessions it fell on, the window, then the hit
-    rate with its base (:func:`outcome_phrase`: from the next session's open,
-    N6) against the all-bars baseline (review #6) at a horizon stated in
-    SESSIONS, measured on daily bars (review #7: the same sentence prints on a
-    weekly chart, where "63 bars" would read as 63 weeks). Under the floor: what
-    was measured and why it is withheld (review #22). No artifact block for the
-    signal (or a block the floor does not explain): `HONESTY_SENTENCE`."""
+    rate with its likely range (:func:`wilson_interval`, unit VA3) and its base
+    (:func:`outcome_phrase`: from the next session's open, N6) against the
+    all-bars baseline (review #6) at a horizon stated in SESSIONS, measured on
+    daily bars (review #7: the same sentence prints on a weekly chart, where "63
+    bars" would read as 63 weeks); then, only when the artifact counts any,
+    the names whose splits could not be checked (unit VA3), then the
+    survivorship caveat. Under the floor or the span rule: what was measured
+    and what a number needs (review #22). No artifact block for the signal (or
+    a block the floor does not explain): `HONESTY_SENTENCE`."""
     if not isinstance(ev, dict):
         return HONESTY_SENTENCE
     if not ev.get("displayable"):
         return _below_floor_sentence(ev) or HONESTY_SENTENCE
     h = int(ev["horizon_bars"])
     on = f" on {int(ev['sessions']):,} sessions" if isinstance(ev.get("sessions"), int) else ""
+    band = ""
+    if ev.get("hit_rate_low_pct") is not None and ev.get("hit_rate_high_pct") is not None:
+        band = (f" ({INTERVAL_WORDS} {float(ev['hit_rate_low_pct']):.1f}% and "
+                f"{float(ev['hit_rate_high_pct']):.1f}%)")
     text = (f"{int(ev['n']):,} {ev['label']}{on}, {ev['start']} to {ev['end']}, daily bars: "
-            f"{float(ev['hit_rate_pct']):.1f}% {outcome_phrase(ev.get('benchmark'), h)}")
+            f"{float(ev['hit_rate_pct']):.1f}%{band} {outcome_phrase(ev.get('benchmark'), h)}")
     notes = [w for w in (HORIZON_WORDS.get(h),) if w]
     if ev.get("median_excess_pct") is not None:
         notes.append(f"median {float(ev['median_excess_pct']):+.1f}%")
@@ -407,6 +509,9 @@ def sentence_for(ev: Optional[dict]) -> str:
     if ev.get("baseline_hit_rate_pct") is not None:
         text += f", against {float(ev['baseline_hit_rate_pct']):.1f}% for all bars"
     text += "."
+    splits = split_unchecked_phrase(ev.get("split_unchecked"))
+    if splits:
+        text += f" {splits}"
     tail = _sentence_case(ev.get("survivorship") or SURVIVORSHIP_NOTE)
     return f"{text} {tail}" if tail else text
 

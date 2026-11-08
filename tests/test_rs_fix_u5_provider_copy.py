@@ -46,7 +46,8 @@ def fresh_gen(monkeypatch):
 
 def test_6_the_measured_sentence_carries_the_all_bars_baseline():
     line = ep.summary_line("rs_new_high_before_price", 63, fixture_artifact())
-    assert "58.3% beat SPY from the next session's open" in line, "the base is stated (N6)"
+    assert "58.3% (likely between 52.0% and 64.4%) beat SPY from the next session's open" in line, \
+        "the base is stated (N6), the hit rate with its likely range (VA3)"
     assert "against 50.2% for all bars" in line, line
     assert "on 240 sessions" in line, "the sessions the events fell on are printed"
 
@@ -235,7 +236,9 @@ def test_21_the_green_on_red_threshold_cites_no_6_of_20_starter():
 def test_22_a_signal_under_the_floor_says_what_was_measured():
     art = fixture_artifact()
     line = ep.summary_line("rs_new_high_red_day", 63, art)
-    assert line == "UCT measured 40 events on 12 sessions, too few to print a hit rate (floor 100)."
+    # Pin moved 2026-11-07 (unit VA3): the requirement in plain words, not "(floor 100)".
+    assert line == ("UCT measured 40 events on 12 sessions, too few to print a hit rate: it needs at least "
+                    "100 events on at least 100 different sessions.")
     assert "has not measured" not in line
     assert "has not measured" not in ep.summary_line("mansfield_cross_up", 63, art)
     # no artifact, or no block for the signal: the honesty line stands

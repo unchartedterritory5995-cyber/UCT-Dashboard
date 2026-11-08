@@ -37,8 +37,11 @@ SIGNALS = ("rs_new_high", "rs_new_high_before_price", "rs_new_high_red_day", "rs
 # events fell on, says "sessions" and "daily bars" (true on a weekly chart too)
 # and reads the hit rate against the all-bars baseline. Moved again 2026-11-07
 # (owner decision N6): the hit rate states its base, the next session's open.
+# Moved again 2026-11-07 (unit VA3): the hit rate carries its likely range, a 95%
+# Wilson interval over the effective n (240 sessions, not 1,284 events).
 BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: "
-                         "58.3% beat SPY from the next session's open to the close 63 sessions later "
+                         "58.3% (likely between 52.0% and 64.4%) beat SPY from the next session's open to the "
+                         "close 63 sessions later "
                          "(about 3 months; median +2.1%), against 50.2% for all bars. "
                          "Universe as held, survivorship not yet corrected.")
 
@@ -271,13 +274,16 @@ def test_evidence_for_reads_one_signal_at_one_horizon_and_judges_displayability(
     # Pin moved 2026-11-07 (RS review #6): the dict carries the sessions, the
     # effective n the floor is checked on, the incomplete count and the baseline;
     # and (N6) the outcome phrase, so whoever prints the number prints its base.
+    # Moved again (unit VA3): the likely range, the unchecked-split count (None:
+    # the fixture's builder call passes none) and the span rule's minimum.
     assert ep.evidence_for("rs_new_high_before_price", 63, art) == {
         "signal": "rs_new_high_before_price", "label": "RS new highs before price", "n": 1284,
         "sessions": 240, "effective_n": 240, "incomplete": 0,
-        "hit_rate_pct": 58.3, "median_excess_pct": 2.1, "baseline_hit_rate_pct": 50.2, "horizon_bars": 63,
+        "hit_rate_pct": 58.3, "hit_rate_low_pct": 51.98, "hit_rate_high_pct": 64.36,
+        "median_excess_pct": 2.1, "baseline_hit_rate_pct": 50.2, "horizon_bars": 63,
         "start": "2025-11-05", "end": "2026-11-04", "benchmark": "SPY", "asof": "2026-11-04",
         "survivorship": "universe as held, survivorship not yet corrected", "survivorship_corrected": False,
-        "display_floor_n": 100, "displayable": True,
+        "split_unchecked": None, "display_floor_n": 100, "min_event_dates": 100, "displayable": True,
         "outcome": "beat SPY from the next session's open to the close 63 sessions later"}
     assert ep.evidence_for("rs_new_high_before_price", artifact=art)["horizon_bars"] == 63, "63 is the default horizon"
     # the floor is the ARTIFACT's: 40 red-day signals carry their numbers but are not displayable
@@ -331,14 +337,16 @@ def test_summary_line_prints_the_measured_sentence_or_the_honesty_sentence():
     # line wherever the artifact carries the signal.
     assert ep.summary_line("rs_new_high_before_price", 63, art) == BEFORE_PRICE_SENTENCE
     assert ep.summary_line("rs_new_high", 63, art) == (
-        "4,700 RS new highs on 250 sessions, 2025-11-05 to 2026-11-04, daily bars: 55.2% beat SPY from the "
-        "next session's open to the close 63 sessions later (about 3 months; median +1.4%), against 50.2% for all bars. "
+        "4,700 RS new highs on 250 sessions, 2025-11-05 to 2026-11-04, daily bars: 55.2% (likely between 49.0% "
+        "and 61.2%) beat SPY from the next session's open to the close 63 sessions later (about 3 months; "
+        "median +1.4%), against 50.2% for all bars. "
         "Universe as held, survivorship not yet corrected.")
     assert ep.summary_line("rs_cross_up_21ema", 63, art).startswith(
         "8,500 RS line crosses above its 21-day average on 250 sessions, ")
     assert ep.summary_line("mansfield_cross_up", 21, art).startswith("290 Mansfield crosses above zero on 100 sessions, ")
     assert ep.summary_line("rs_new_high_red_day", 63, art) == (                       # under the floor
-        "UCT measured 40 events on 12 sessions, too few to print a hit rate (floor 100).")
+        "UCT measured 40 events on 12 sessions, too few to print a hit rate: it needs at least 100 events on "
+        "at least 100 different sessions.")
     assert ep.summary_line("mansfield_cross_up", 63, art) == (                        # no complete window yet
         "UCT has recorded 300 events on 100 sessions, none with a complete 63-session window yet, "
         "so no hit rate is printed.")

@@ -1199,11 +1199,16 @@ EVIDENCE_KEYS = ("rsHigh", "beforePrice", "redDay", "phase", "mansfield")
 # sessions, daily bars and the all-bars baseline; a signal the artifact carries
 # under the floor says what was measured instead of "has not measured one yet".
 # Moved again 2026-11-07 (owner decision N6): the hit rate states its base, the next open.
+# Moved again 2026-11-07 (unit VA3): the hit rate carries its likely range (a 95% Wilson
+# interval over the effective n, 240 sessions), and the withheld sentence says in plain
+# words what a number needs instead of "(floor 100)".
 BEFORE_PRICE_SENTENCE = ("1,284 RS new highs before price on 240 sessions, 2025-11-05 to 2026-11-04, daily bars: "
-                         "58.3% beat SPY from the next session's open to the close 63 sessions later "
+                         "58.3% (likely between 52.0% and 64.4%) beat SPY from the next session's open to the "
+                         "close 63 sessions later "
                          "(about 3 months; median +2.1%), against 50.2% for all bars. "
                          "Universe as held, survivorship not yet corrected.")
-RED_DAY_BELOW_FLOOR = "UCT measured 40 events on 12 sessions, too few to print a hit rate (floor 100)."
+RED_DAY_BELOW_FLOOR = ("UCT measured 40 events on 12 sessions, too few to print a hit rate: it needs at least "
+                       "100 events on at least 100 different sessions.")
 MANSFIELD_PENDING = ("UCT has recorded 300 events on 100 sessions, none with a complete 63-session window yet, "
                      "so no hit rate is printed.")
 

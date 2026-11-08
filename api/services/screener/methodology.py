@@ -518,7 +518,11 @@ def _rs_evidence_params() -> dict:
     return {"floor": _ep.DISPLAY_FLOOR_N, "horizon": _ep.DEFAULT_HORIZON,
             "honesty": _ep.HONESTY_SENTENCE, "survivorship": _ep.SURVIVORSHIP_NOTE,
             "cards": dict(_ep.CARD_SIGNALS), "labels": dict(_ep.SIGNAL_LABELS),
-            "key": _ep.ARTIFACT_KEY, "outcome": _ep.outcome_phrase}
+            "key": _ep.ARTIFACT_KEY, "outcome": _ep.outcome_phrase,
+            # unit VA3: the span rule and the likely range, read at call time
+            "min_dates": _ep.MIN_EVENT_DATES, "confidence": _ep.INTERVAL_CONFIDENCE_PCT,
+            "interval_words": _ep.INTERVAL_WORDS, "need": _ep.requirement_phrase,
+            "splits": _ep.split_unchecked_phrase}
 
 
 def rs_evidence_section() -> dict:
@@ -527,6 +531,7 @@ def rs_evidence_section() -> dict:
     and the honesty sentence a card carries until then."""
     p = _rs_evidence_params()
     floor, h, surv = p["floor"], p["horizon"], p["survivorship"]
+    min_dates, conf, words = p["min_dates"], p["confidence"], p["interval_words"]
     return {
         "label": "Evidence",
         "statements": [dict(s) for s in RS_EVIDENCE_STATEMENTS],
@@ -535,16 +540,25 @@ def rs_evidence_section() -> dict:
                         for card, name in p["cards"].items()],
             "horizon_bars": h,
             "display_floor_n": floor,
+            "min_event_dates": min_dates,
+            "interval_confidence_pct": conf,
             "artifact": p["key"],
             "survivorship": surv,
             # The base (owner decision N6, 2026-11-07) is the next session's open: the
             # phrase is the pull module's `outcome_phrase`, the card sentence's own.
             "rule": (
                 f"A measured number prints on a chart card only when the nightly backtest counted "
-                f"at least {floor} events for that signal, each with a complete {h}-bar window after "
-                f"it. The sentence carries the sample size, the window's dates, the share that "
-                f"{p['outcome']('the benchmark', h)} (the hit rate), the median excess return and the "
-                f"caveat. Signals are read point-in-time, from the bars as held on each session, never "
+                f"at least {floor} events for that signal, each with a complete {h}-session window "
+                f"after it, and those events fell on at least {min_dates} different sessions: events "
+                f"on the same day share one market, so many names firing on a few days are a few "
+                f"observations, not many. The sentence carries the sample size, the sessions it fell "
+                f"on, the window's dates, the share that {p['outcome']('the benchmark', h)} (the hit "
+                f"rate) with the range it is {words} ({conf}% confidence, a Wilson interval that counts "
+                f"each session once, so it is wider than one over every event), the median excess "
+                f"return, the same share for all bars, and the caveats. When the split guard could not "
+                f"check some names (their list of past stock splits was not available) the sentence "
+                f"says how many, for example: {p['splits'](37)} "
+                f"Signals are read point-in-time, from the bars as held on each session, never "
                 f"from today's history. The forward return starts at the next session's open, the "
                 f"first price a member who sees the dot after the close can act on, and ends at the "
                 f"close {h} sessions after the signal; it carries no costs or slippage, so the hit rate "
@@ -553,12 +567,18 @@ def rs_evidence_section() -> dict:
                 f"adjusted for is left out and counted, never measured across two price scales. The "
                 f"population is the {surv}: a name delisted since is counted only where its bars are "
                 f"still held, which flatters the numbers until the registry correction lands. Under "
-                f"the floor, with no complete window, or before the first artifact has been pulled, "
-                f"the card says: {p['honesty']}"),
+                f"the floor or the session rule the card says how many events and sessions were "
+                f"measured and that {p['need'](floor, min_dates)}; with no complete window yet it says "
+                f"so. Before the first artifact has been pulled, or for a signal the backtest does not "
+                f"measure, the card says: {p['honesty']}"),
             "form": (
                 f"<count> <signal> on <sessions> sessions, <first date> to <last date>, daily bars: "
-                f"<hit rate>% {p['outcome']('<benchmark>', h)} (median <excess>%), against "
-                f"<all-bars hit rate>% for all bars. {surv[:1].upper()}{surv[1:]}."),
+                f"<hit rate>% ({words} <low>% and <high>%) {p['outcome']('<benchmark>', h)} "
+                f"(<horizon in months>; median <excess>%), against <all-bars hit rate>% for all bars. "
+                f"[Stock splits not yet checked for <N> names.] {surv[:1].upper()}{surv[1:]}."),
+            "form_withheld": (
+                f"UCT measured <count> events on <sessions> sessions, too few to print a hit rate: "
+                f"{p['need'](floor, min_dates)}."),
         },
         "honesty": p["honesty"],
         "not_claimed": [

@@ -267,7 +267,8 @@ def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
     ev = _evidence()
     assert ev["measured"]["display_floor_n"] == ep.DISPLAY_FLOOR_N == 100
     assert ev["measured"]["horizon_bars"] == ep.DEFAULT_HORIZON == 63
-    assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-bar window" in ev["measured"]["rule"]
+    # Pin moved 2026-11-07 (unit VA3): "session", the sentence's own word, and the span rule.
+    assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-session window" in ev["measured"]["rule"]
     # 2026-11-07 (N6): the hit rate is stated with its base, in the pull's own phrase.
     assert ep.outcome_phrase("the benchmark", 63) in ev["measured"]["rule"]
     assert ep.outcome_phrase("<benchmark>", 63) in ev["measured"]["form"]
@@ -284,7 +285,7 @@ def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
     monkeypatch.setattr(ep, "SURVIVORSHIP_NOTE", "universe as held, delistings restored")
     ev = _evidence()
     assert ev["measured"]["display_floor_n"] == 250 and "at least 250 events" in ev["measured"]["rule"]
-    assert ev["measured"]["horizon_bars"] == 126 and "complete 126-bar window" in ev["measured"]["rule"]
+    assert ev["measured"]["horizon_bars"] == 126 and "complete 126-session window" in ev["measured"]["rule"]
     assert "126 sessions later" in ev["measured"]["form"] and "63" not in ev["measured"]["form"]
     assert ev["honesty"] == "Nothing measured." and ev["measured"]["rule"].endswith("Nothing measured.")
     assert "universe as held, delistings restored" in ev["measured"]["rule"]
