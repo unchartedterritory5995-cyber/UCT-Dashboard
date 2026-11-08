@@ -124,3 +124,71 @@ should confirm. Item 3 corpus: the two matrix scripts using `row`/`fill` refuse 
 | M17 | the word not recorded | KILLED (4) |
 | M18 | `wrapComment` not marked | KILLED (2) |
 | M19 | the comment-line test never matches | KILLED (2) |
+
+## r1 (2026-11-07): review NO-GO @cc37660d4c (`_resume-2026-11-01/dsk/reviews/HONESTY-SWEEP.md`)
+Merged `origin/master` (engine 33) as `91db547eef`; the one conflict, `capture-queue.json`, was regenerated with
+`evidence_engine.py queue` (`--check` PASS, 7 HONESTY-SWEEP targets, `rowsNeedingProbe` 3).
+
+**B1 (blocker).** `engine/__tests__/switchValueForms.vendor.test.js`'s CONTROL "an option no arm covers could be `na`"
+asserted the cell still drew with `text_size` dropped (the renderer's default size). Confirmed first: its script is a
+default-less `switch sz` over `input.string(options = ["Small", "Large", "Huge"])` with arms only for Small and Large.
+"Huge" misses, so the size can be `na`. That is item 1's unbacked case exactly. The CONTROL now asserts the cell is
+withheld: no `cell` op, `dropReasons['enum:na'] = 1`, `enumNa = 1`, no `enumUnreadable`, and the sentence in
+`cellTextWhy`. Its covered half (one option fewer) still carries the size. Also found by the full run, fixed:
+`builder/editorStatus.families.test.js` needs every guard literal in a family. `pine:enum-na` and
+`pine:enum-named-call` join the `drawing` family (`editorStatus.js` and `docs/pine/EDITOR-STATUS-PANEL-SPEC.md`
+section 4, the same table).
+
+**The 4 surviving mutations now have rails (`honestySweep.test.js`).**
+- R1: a ternary chain over TWO inputs (each one's options covered only by the union of labels) reaches `na`: withheld.
+- R7: a `map<float, float>` handed where `map<int, float>` is declared refuses (the key word).
+- R9: on the runtime lane, `label` / `table` / `box` `na` styles withhold their own family, not only `line`.
+- R10: a blank line THEN a comment-only line in a wrap gap refuses.
+
+**N1, the named-argument helper: CHOSEN = refuse by name (Q-HS7).** `style = st(m = mode)` fell to `enumUnreadable`:
+the prop was dropped and the renderer drew its default (solid), whatever the helper returns. The reference's default
+(`line.new`: "The default is line.style_solid") is the value when the argument is OMITTED; it states nothing about a
+value the script passed that this door could not read. So it is not backed. The host object program now withholds the
+drawing, setter or cell: drop reason `enum:named-call`, classified PARTIAL in `objectLoss.js`. The sentence is
+`ENUM_NAMED_CALL_SENTENCE` (`engine/enumNaRule.js`), counted as `enumNamedCall`. The detector is `namedHelperCallIn`:
+a call to the script's own function with a named argument, directly, through `expr` name bindings, or in a ternary
+arm. The runtime lane runs the helper and is unchanged. Queue row Q-HS7, probe
+`tools/visual_conformance/probes/vw-hs7-enum-named-call.pine`. Corpus: 0 of 266 scripts reach it (`enumNamedCall`
+counted over the member-door translation of `corpus/committed`).
+
+**N2 corrections to "Corpus impact" above.**
+- smart-money-volume-activity-algoalpha changes diagnostics only. Its object program is null on both sides, so 4
+  scripts draw differently, not 5.
+- swing-points-and-liquidity's object program is null on both sides too. Only the drop reason changes
+  (`geometry:lost` becomes `enum:na`), so no member-visible drawing changes.
+- Recorded (review c, safe direction): `st("A")`, a helper switch called with a LITERAL, is withheld although Pine's
+  answer is fixed.
+
+**Runs (node 20.20.2, `--maxWorkers=1`, free RAM 11.0 GB, under `heavy-final6.lock`).**
+- `engine/__tests__` + `engine/ast` + `engine/runtime` + `builder`: 1058 files, 17459 passed, 141 skipped, 15 failed.
+- Fixed after the run: the 2 guard-family tests (editorStatus; 90/90 after).
+- Identical with master's 8 changed sources swapped in by copy and restored by copy (not this lane):
+  - `controlDoorCensus` BULK_BLOB_SITES;
+  - `macdFlipAParity` histogram options;
+  - `priceFormatMinMove.realChart` x4;
+  - `stockChartWiring` MACD band;
+  - `vendorHarness.test.js` comparator tolerance.
+- Also not this lane: the 5 `.measure` corpus timeouts, as in round 0, and `vendorHarness.coverageAudit`
+  delta-rsi RDDT: red in the full run, INCONCLUSIVE on both sides per the reviewer. It passes alone on this tip
+  (185 passed, 7 skipped), so it is load-sensitive.
+- Targeted after the fixes: `honestySweep` 55/55, `objectLoss`, `switchValueForms.vendor` 6/6: 77/77 with honestySweep.
+
+**Hand mutations r1 (same method, `honestySweep.test.js`, `cmp` same after each restore: all 9).**
+
+| id | mutation | result |
+|---|---|---|
+| R1 | the one-subject check removed from `coveredNaTail` | KILLED (1) |
+| R7 | the map KEY word ignored | KILLED (1) |
+| R9 | the runtime store withholds `line` only | KILLED (1) |
+| R10 | the comment scan reads only the first gap line | KILLED (1) |
+| N1a | the named-call check off | KILLED (5) |
+| N1b | the detector does not follow a name binding | KILLED (1) |
+| N1c | a cell named `enum:na` instead of `enum:named-call` | KILLED (1) |
+| N1d | a setter named `enum:na` instead of `enum:named-call` | KILLED (1) |
+| N1e | the detector never sees a named argument | KILLED (5) |
+- Service suite, node 24.13.1: 139/139. `pine_runtime_host_parity.mjs --host node --check`: HP-1 GREEN 166/166.

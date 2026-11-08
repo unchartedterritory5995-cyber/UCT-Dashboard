@@ -116,6 +116,10 @@ export const DROP_KEYS = Object.freeze({
   // so it is withheld (`pine.js`, `ENUM_NA_SENTENCE`). A missing object, never an extra one.
   'enum:na': C(LOSS.PARTIAL,
     'a drawing whose style, size or position can be `na` — withheld, never drawn with a default style'),
+  // ⛔ HONESTY-SWEEP r1 (review N1) — the same word computed by a helper called with a named
+  // argument, which this door does not read (Q-HS7). Missing, never extra.
+  'enum:named-call': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position a helper computes from a named argument — withheld, never drawn with a default style'),
   'runtime:prop': C(LOSS.PARTIAL,
     'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),

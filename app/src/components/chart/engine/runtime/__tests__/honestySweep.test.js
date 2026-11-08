@@ -16,7 +16,7 @@
 // Synthetic shapes only; no licence-held script text.
 import { describe, it, expect } from 'vitest'
 
-import { translatePine, ENUM_NA_SENTENCE, LEGACY_BARS_SIGN_SENTENCE } from '../../ast/pine.js'
+import { translatePine, ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE, LEGACY_BARS_SIGN_SENTENCE } from '../../ast/pine.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { probeObjectRuntime } from '../runtimeColumns.js'
 import { memberInputTranslation } from '../../../builder/builderInputs.js'
@@ -134,6 +134,50 @@ describe('⛔ item 1 — a drawing whose enum slot can be `na` is WITHHELD by na
     const t = door(`${head()}if barstate.islast\n    label.new(bar_index, close, na)\nplot(close)\n`)
     expect(creates(t)[0].props.text).toEqual({ v: 'text', node: { t: 'lit', s: '' } })
   })
+  // r1 (review R1) — the covered-tail rule needs ONE subject: tests over two inputs, each
+  // option list covered by the union of labels but neither by its own, still reach `na`.
+  it('r1: a ternary chain over TWO subjects is not pruned (the `na` is reached at "B" / "A")', () => {
+    const src = `${head()}ma = input.string("B", "a", options = ["A", "B"])\nmb = input.string("A", "b", options = ["A", "B"])\n`
+      + `s = ma == "A" ? line.style_dashed : mb == "B" ? line.style_dotted : na\n${LINE('s')}`
+    const t = door(src)
+    expect(creates(t)).toEqual([])
+    expect(diag(t).dropReasons['enum:na']).toBe(1)
+  })
+})
+
+// ── r1 (review N1) — a helper computing the word, called with a NAMED argument ───────────
+// The reference's default (`line.new`: "The default is line.style_solid") applies when `style` is
+// OMITTED; it does not state what a value this door could not read draws. Withheld (Q-HS7).
+describe('⛔ r1 N1 — a helper called with a named argument in an enum slot is withheld by name', () => {
+  const SHAPES = {
+    'uncovered switch, the member picks "A" (the I6b-N2 shape)': `${ST_SWITCH}${MODE('A')}${LINE('st(m = mode)')}`,
+    'a covered switch': `${ST_SWITCH}${MODE('A', '["A", "B"]')}${LINE('st(m = mode)')}`,
+    'a switch WITH a default arm': `st(m) =>\n    switch m\n        "A" => line.style_dashed\n        => line.style_dotted\n${MODE('A')}${LINE('st(m = mode)')}`,
+    'through a name': `${ST_SWITCH}${MODE('A', '["A", "B"]')}sty = st(m = mode)\n${LINE('sty')}`,
+  }
+  for (const [name, body] of Object.entries(SHAPES)) {
+    it(`${name}: no drawing, enum:named-call, the sentence named`, () => {
+      const t = door(`${head()}${body}`)
+      expect(creates(t)).toEqual([])
+      expect(diag(t).dropReasons['enum:named-call']).toBe(1)
+      expect(diag(t).enumNamedCall).toBe(1)
+      expect(diag(t).enumUnreadable).toBeUndefined()
+      expect((diag(t).createDropWhy || []).join('|')).toContain(`pine:enum-named-call ${ENUM_NAMED_CALL_SENTENCE.slice(0, 60)}`)
+    })
+  }
+  it('a setter and a cell are withheld the same way', () => {
+    const set = door(`${head()}${ST_SWITCH}${MODE('A', '["A", "B"]')}var l = line.new(bar_index, close, bar_index, close)\nif barstate.islast\n    line.set_style(l, st(m = mode))\nplot(close)\n`)
+    expect(diag(set).dropReasons['enum:named-call']).toBe(1)
+    const sz = 'sz(k) =>\n    switch k\n        "S" => size.small\n        => size.large\n'
+    const cell = door(`${head()}${sz}k0 = input.string("S", "k")\nvar tb = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(tb, 0, 0, "x", text_size = sz(k = k0))\nplot(close)\n`)
+    expect(diag(cell).dropReasons['enum:named-call']).toBe(1)
+    expect(diag(cell).dropReasons['cell:text']).toBeUndefined()
+  })
+  it('CONTROL: the same helper called POSITIONALLY is read (the covered switch draws its word)', () => {
+    const t = door(`${head()}${ST_SWITCH}${MODE('A', '["A", "B"]')}${LINE('st(mode)')}`)
+    expect(creates(t)).toHaveLength(1)
+    expect(diag(t).enumNamedCall).toBeUndefined()
+  })
 })
 
 // ── item 1 — the runtime lane's own drawings (RT5, `objectStore.js`) ──────────────────────
@@ -147,6 +191,16 @@ describe('⛔ item 1 — the runtime lane withholds the family by the same sente
   it('a setter handed `na` withholds the family too', () => {
     const f = fin('var l = line.new(bar_index, close, bar_index, close)\nif barstate.islast\n    line.set_style(l, na)\n')
     expect(f.withheld.line).toBe(ENUM_NA_SENTENCE)
+  })
+  // r1 (review R9) — every family, not only `line`.
+  it('a label `style = na` withholds the label family; a cell `text_size = na` the table family; a box `border_style = na` the box family', () => {
+    const lb = fin('if barstate.islast\n    label.new(bar_index, close, "x", style = na)\n')
+    expect(lb.withheld.label).toBe(ENUM_NA_SENTENCE)
+    expect(lb.live.filter((o) => o.family === 'label')).toEqual([])
+    const tb = fin('var t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x", text_size = na)\n')
+    expect(tb.withheld.table).toBe(ENUM_NA_SENTENCE)
+    const bx = fin('if barstate.islast\n    box.new(bar_index - 1, high, bar_index, low, border_style = na)\n')
+    expect(bx.withheld.box).toBe(ENUM_NA_SENTENCE)
   })
   it('CONTROL: style omitted (the default stands) and a named constant both draw', () => {
     const f = fin('if barstate.islast\n    line.new(bar_index - 1, close, bar_index, close)\n    line.new(bar_index - 1, open, bar_index, open, style = line.style_dashed)\n')
@@ -250,6 +304,12 @@ describe('⛔ item 5 — a collection of `int` handed where one of `float` is de
     expect(refusal(`${head()}method m(matrix<float> id) =>\n    id.rows() + 1\nvar matrix<int> a = matrix.new<int>()\nplot(a.m())\n`).message).toMatch(Q)
     expect(refusal(`${head()}method m(map<string, float> id) =>\n    id.size() + 1\nvar map<string, int> a = map.new<string, int>()\nplot(a.m())\n`).message).toMatch(Q)
   })
+  // r1 (review R7) — a map's KEY word counts too.
+  it('a `map<float, float>` handed where `map<int, float>` is declared refuses (the key word)', () => {
+    const r = refusal(`${head()}f(map<int, float> id) =>\n    id.size() + 1\nvar map<float, float> a = map.new<float, float>()\nplot(f(a))\n`)
+    expect(r.message).toMatch(Q)
+    expect(r.message).toMatch(/`map<int, float>` and is handed one of `map<float, float>`/)
+  })
   it('the reverse (an `array<float>` where `array<int>` is declared) refuses too', () => {
     expect(refusal(`${head()}f(array<int> id) =>\n    id.size() + 1\nvar array<float> a = array.new<float>()\nplot(f(a))\n`).message).toMatch(Q)
   })
@@ -273,6 +333,10 @@ describe('⛔ item 6 — a `switch` arm wrapped across a comment-only line refus
   })
   it('the same with the comment at a block indent', () => {
     expect(refusal(SW('        // note\n')).message).toMatch(/Q-HS6/)
+  })
+  // r1 (review R10) — every line of the gap is read, not only the first.
+  it('a blank line THEN a comment-only line in the gap refuses too', () => {
+    expect(refusal(SW('\n      // note\n')).message).toMatch(/Q-HS6/)
   })
   it('CONTROLS: no comment, an end-of-line comment, and a real block with a comment are served', () => {
     const want = per((b, i) => (b.c > b.o ? b.c + 1 : b.o))

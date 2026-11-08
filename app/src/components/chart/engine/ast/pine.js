@@ -886,7 +886,7 @@ const OWN_SYMBOL_NAMES = new Set([
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
-import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
+import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE } from '../enumNaRule.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -18685,7 +18685,7 @@ const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
 const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
 // ⛔⛔ HONESTY-SWEEP item 1 — the enum-`na` refusal sentence (`../enumNaRule.js`), re-exported.
-export { ENUM_NA_SENTENCE }
+export { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE }
 
 export function objectEnumValue(name) {
   if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
@@ -19718,8 +19718,24 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Set by `textNodeOf`'s `na` branch while `enumLeaves` is on; read by
    *  `valueRef`'s enum arm, which sets `enumNaDrop`. See `ENUM_NA_SENTENCE`. */
   let enumNaSeen = false
-  /** Set when a slot's enum read refused on `na`; reset by each converter before it reads a slot. */
+  /** Set when a slot's enum read refused: `'na'` (an `na` reached) or `'named'` (a helper called
+   *  with a named argument, review r1 N1); reset (false) by each converter before it reads a slot. */
   let enumNaDrop = false
+  /** ⛔ HONESTY-SWEEP r1 — does this enum expression reach a call to the script's own function
+   *  with a NAMED argument (directly, through `expr` name bindings, or in a ternary arm)? */
+  const namedHelperCallIn = (n, env, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 8) return false
+    if (n.type === 'call') {
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      return !!(b && b.kind === 'fn' && (n.args || []).some((a) => a && a.name))
+    }
+    if (n.type === 'name') {
+      const o = openName(n, env, 0)
+      return !!(o && namedHelperCallIn(o.node, o.env || env, depth + 1))
+    }
+    if (n.type === 'ternary') return namedHelperCallIn(n.yes, env, depth + 1) || namedHelperCallIn(n.no, env, depth + 1)
+    return false
+  }
 
   /** ⭐⭐ THE ONE PLACE A TEXT NODE BECOMES A FORMATTED NUMBER.
    *
@@ -21509,7 +21525,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // the create / setter / cell converters), never drawn with a default style.
       if (enumNaSeen) {
         diagnostics.enumNa = (diagnostics.enumNa || 0) + 1
-        enumNaDrop = true
+        enumNaDrop = 'na'
+        return null
+      }
+      // ⛔⛔ HONESTY-SWEEP r1 (review N1) — a helper called with a NAMED argument computes this
+      // word, and this reader does not inline that call: withheld (`enum:named-call`), never
+      // dropped to the renderer's default (`ENUM_NAMED_CALL_SENTENCE`).
+      if (namedHelperCallIn(node, scopeEnv)) {
+        diagnostics.enumNamedCall = (diagnostics.enumNamedCall || 0) + 1
+        enumNaDrop = 'named'
         return null
       }
       // ⛔⛔ AND IT STOPS HERE. An enum slot this reader cannot turn into a WORD
@@ -23505,9 +23529,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const v = valueRef(node, k)
         if (!v) {
           if (enumNaDrop) {
-            // ⛔ HONESTY-SWEEP item 1 — withheld by name, never a default style.
-            noteCreateDrop(op, k, { guard: 'pine:enum-na', message: ENUM_NA_SENTENCE })
-            enumNa = true
+            // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — withheld by name, never a default style.
+            noteCreateDrop(op, k, enumNaDrop === 'named'
+              ? { guard: 'pine:enum-named-call', message: ENUM_NAMED_CALL_SENTENCE }
+              : { guard: 'pine:enum-na', message: ENUM_NA_SENTENCE })
+            enumNa = enumNaDrop
             bad = true
             break
           }
@@ -23528,7 +23554,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa) dropped('enum:na'); else dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa === 'named') dropped('enum:named-call'); else if (enumNa) dropped('enum:na'); else dropped(`create:${op.family}`); continue }
       if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
@@ -23566,7 +23592,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         contentLostBy(op, target)
         stateLostBy(op, target)
         // ⛔ HONESTY-SWEEP item 1 — a setter whose style can be `na` is named as such.
-        if (enumNaDrop) dropped('enum:na')
+        if (enumNaDrop === 'named') dropped('enum:named-call')
+        else if (enumNaDrop) dropped('enum:na')
         else dropped('update:props')
         // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
         // bars its guard holds (`lostGeometryOp`)
@@ -23637,9 +23664,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         enumNaDrop = false
         const v = valueRef(node, k)
         if (!v && enumNaDrop) {
-          // ⛔ HONESTY-SWEEP item 1 — a cell whose size or alignment can be `na` is withheld by name.
-          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 200)}`)
-          badCell = 'enum:na'
+          // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
+          // computed by a helper called with a named argument, is withheld by name.
+          noteWhy('cellTextWhy', enumNaDrop === 'named'
+            ? `cell@${op.line === undefined ? '?' : op.line}: pine:enum-named-call ${ENUM_NAMED_CALL_SENTENCE.slice(0, 200)}`
+            : `cell@${op.line === undefined ? '?' : op.line}: pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 200)}`)
+          badCell = enumNaDrop === 'named' ? 'enum:named-call' : 'enum:na'
           break
         }
         if (!v) {
@@ -23662,6 +23692,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         props[k] = v
       }
+      if (badCell === 'enum:named-call') { dropped('enum:named-call'); continue }
       if (badCell === 'enum:na') { dropped('enum:na'); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }

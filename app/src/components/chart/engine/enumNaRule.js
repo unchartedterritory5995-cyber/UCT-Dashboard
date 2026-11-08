@@ -16,3 +16,13 @@
 export const ENUM_NA_SENTENCE = 'the style, size or position of this drawing can be `na` (an `if` with no '
   + '`else`, a `switch` with no default arm, or `na` itself); the Pine reference lists only the named '
   + 'constants there, and what TradingView draws for `na` is not yet captured (Q-HS1)'
+
+// ⛔⛔ HONESTY-SWEEP r1 (review N1) — a helper that computes the enum, called with a NAMED
+// argument (`style = st(m = mode)`). The host object program does not inline that call, and it
+// used to DROP the prop, so the renderer drew its default (a solid line). The reference's default
+// (`line.new`: "style ... The default is line.style_solid") applies when the argument is OMITTED,
+// not to a value the script passed and this door could not read: withheld, capture row Q-HS7
+// (`tools/visual_conformance/probes/vw-hs7-enum-named-call.pine`).
+export const ENUM_NAMED_CALL_SENTENCE = 'the style, size or position of this drawing is computed by a helper '
+  + 'called with a named argument, which this door does not read; the reference default applies only '
+  + 'when the argument is omitted, so the drawing is withheld rather than drawn with a default (Q-HS7)'
