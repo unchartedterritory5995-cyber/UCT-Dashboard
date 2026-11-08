@@ -179,6 +179,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
+import { strategyTaintSinks } from './strategyTaint.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -892,6 +893,18 @@ import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWrit
 import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE } from '../enumNaRule.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
+
+/** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. */
+const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
+  'plotarrow', 'alertcondition', 'bgcolor', 'barcolor'])
+/** ⛔ W9-OQ-N2 — sinks with no row and no object of their own (a `fill` band, `alert()`, `hline`):
+ *  a broker value reaching one refuses the script. Every OTHER tainted sink is a drawing, and the
+ *  object pass withholds that one drawing step by name (`strategyTaintDrawingAtLine`). */
+const STRATEGY_TAINT_SCRIPT_SINKS = new Set(['fill', 'alert', 'hline'])
+/** ⛔ W9-OQ-N2 — the drawing sink a broker value reaches on a line, set per `translatePineResult`. */
+let strategyTaintDrawingAtLine = () => null
+/** ⛔ W9-OQ-N2 — the current translation's taint verdict at a line, set per `translatePineResult`. */
+let strategyTaintAtLine = () => null
 
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
@@ -23553,12 +23566,20 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     rtArgNodes = rtOp ? rtCollectArgNodes(op) : null
     rtMarkSpecs = rtSpecs.length
     rtMarkDropped = diagnostics.droppedProps || 0
-    const g = guardOf(op.guards, op)
+    // ⛔⛔ W9-OQ-N2 — A DRAWING STEP A BROKER VALUE REACHES (`strategyTaint.js`) is withheld BY
+    // NAME through the same lost-op bookkeeping a refused guard takes: its object, handle,
+    // removals and setters are accounted for, `dropReasons['strategy:<kind>']` counts it and
+    // `guardRefusals` names the read. Only that step: the script's other drawings and plots stand.
+    const brokerTaint = op.k !== 'loop' && Number.isInteger(op.line) ? strategyTaintDrawingAtLine(op.line) : null
+    const brokerRefusal = brokerTaint
+      ? { guard: 'pine:strategy-call', message: `${REFUSALS['pine:strategy-call']} — \`${brokerTaint.word}\`` }
+      : null
+    const g = brokerTaint ? undefined : guardOf(op.guards, op)
     // ⭐ C45 / C48 — set for EVERY op before any of its values is read (no reset needed)
     colourOpConditional = !!(g && g.varies)
     colourOpFirstBarOnly = firstBarOnlyCreate(op, g)
     if (g === undefined) {
-      noteGuardRefusal(op, lastCanonRefusal)
+      noteGuardRefusal(op, brokerRefusal || lastCanonRefusal)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
@@ -23569,7 +23590,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (op.k === 'delete') stateLostBy(op, targetRef(op.target))
       if (op.k.startsWith('coll_')) lostColl(op.coll, `guard:${op.k}@${op.line === undefined ? '?' : op.line}`)
       if (op.k === 'copy') lostCopy(op)
-      dropped(`guard:${op.k}`)
+      if (brokerRefusal) dropped(`strategy:${op.k}`)
+      else dropped(`guard:${op.k}`)
       // ⭐ C22 — a lost setter that would have MOVED its object marks it, every bar
       if (op.k === 'update') { const m = lostGeometryOp(op, targetRef(op.target), undefined); if (m) ops.push(m) }
       continue
@@ -24780,6 +24802,8 @@ export function translatePine(source, opts = {}) {
   const outerLowerSink = LOWER_TF_SINK
   const outerLibrarySink = LIBRARY_LINK_SINK
   const outerDeclWords = DECL_WORDS_SINK
+  const outerTaintAt = strategyTaintAtLine
+  const outerTaintDrawingAt = strategyTaintDrawingAtLine
   LIBRARY_LINK_SINK = null
   DECL_WORDS_SINK = null
   const sink = new Map()
@@ -24799,6 +24823,8 @@ export function translatePine(source, opts = {}) {
     LOWER_TF_SINK = outerLowerSink
     LIBRARY_LINK_SINK = outerLibrarySink
     DECL_WORDS_SINK = outerDeclWords
+    strategyTaintAtLine = outerTaintAt
+    strategyTaintDrawingAtLine = outerTaintDrawingAt
   }
   if (!t || typeof t !== 'object') return t
   // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
@@ -25220,6 +25246,37 @@ function translatePineResult(source, opts = {}) {
   // before the walk starts; its declaration is passed over where it stands
   // (`hoistBlockVars`). FIRST, because a same-spelled sibling is renamed on the
   // tokens every later reader sees.
+  // ⛔⛔ W9-OQ-N2 (2026-11-07) - WHERE A BROKER VALUE REACHES WHAT A MEMBER SEES (`strategyTaint.js`).
+  // Read on the original statements, before any renaming. Host lane only: the screener lane
+  // refuses a `strategy()` script whole (`pine:declaration-strategy`). A row and a paint read
+  // their verdict where they are built (`strategyTaintAtLine`); a band, a drawing, `alert()` or
+  // `hline` a broker value reaches has no row to refuse, so it refuses the script by name.
+  let strategyTaint = new Map()
+  if (isHostLane(opts)) {
+    // ⛔ A trace that fails is not a clean trace: the script refuses by name rather than serve.
+    try { strategyTaint = strategyTaintSinks(stmts) } catch {
+      hardRefusals.push(refusalValue('pine:strategy-call',
+        `${REFUSALS['pine:strategy-call']} — where its \`strategy.*\` values reach could not be traced`, null))
+    }
+  }
+  strategyTaintAtLine = (line, name) => {
+    for (const v of strategyTaint.values()) if (v.tok.line === line && v.name === name) return v
+    return null
+  }
+  // ⛔ OWNER RULING (2026-11-08, STRAT-COLOR r2): a drawing a broker value reaches is withheld
+  // ALONE, by name, in the object pass; refusing the script would also refuse its untainted plots
+  // (`rsi-vwap-indicator`'s RSI), an invisible over-refusal.
+  strategyTaintDrawingAtLine = (line) => {
+    for (const v of strategyTaint.values()) {
+      if (v.tok.line === line && !STRATEGY_TAINT_ROW_SINKS.has(v.name) && !STRATEGY_TAINT_SCRIPT_SINKS.has(v.name)) return v
+    }
+    return null
+  }
+  for (const v of strategyTaint.values()) {
+    if (!STRATEGY_TAINT_SCRIPT_SINKS.has(v.name)) continue
+    hardRefusals.push(refusalValue('pine:strategy-call',
+      `${REFUSALS['pine:strategy-call']} — \`${v.word}\` (reaches \`${v.name}\`)`, locate(v.tok)))
+  }
   const hoistedVars = hoistBlockVars(stmts)
   ctx.hoisted = hoistedVars.skip
   // ⭐ O1 (step 67) — a counted loop that only searches for the FIRST index whose
@@ -26191,6 +26248,9 @@ function translatePineResult(source, opts = {}) {
         let pargs = null
         try { pargs = parseArguments(new Cursor(toks.slice(2))) } catch { pargs = null }
         const paintRec = { kind: word, args: pargs, env: new Map(env), tok: first }
+        // ⛔ W9-OQ-N2 — the broker value this paint's arguments reach, if any.
+        const paintTaint = strategyTaintAtLine(first.line, word)
+        if (paintTaint) paintRec.strategyWord = paintTaint.word
         paints.push(paintRec)
         // ⭐ the sentence waits for `resolvePaints` (drawn / withheld / hidden / `na`)
         const paintHow = { lane: 'host', site: 'top', paint: null }
@@ -26858,6 +26918,19 @@ function translatePineResult(source, opts = {}) {
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
       if (resolver.condRefusal) throw resolver.condRefusal
+      // ⛔⛔ W9-OQ-N2 (2026-11-07) - AN OUTPUT A BROKER VALUE REACHES REFUSES BY NAME.
+      // With the broker dark, a `strategy.*` STATE value reaching ANY argument of this call
+      // (its colour above all, which falls soft to one default colour when uncarried) is a
+      // value no lane computes. `strategyTaintSinks` follows it through names, `var` / `:=`,
+      // ternaries, `switch` / `if` blocks, functions, methods and collections; a row it reaches
+      // is refused `pine:strategy-call`, as a direct read already is.
+      {
+        const sinkTaint = strategyTaintAtLine(out.tok.line, out.kind)
+        if (sinkTaint) {
+          throw new PineRefusal('pine:strategy-call',
+            `${REFUSALS['pine:strategy-call']} — \`${sinkTaint.word}\``, locate(sinkTaint.tok))
+        }
+      }
       // ⛔⛔ F2 (review) — A GATE ONLY THE COLOUR NOTED IS THE COLOUR'S (H1's rule,
       // `colourBlockRunsOf`). One resolver reads the value and then the
       // presentation, so a colour that reads a conditional call (`condCall`) or a
@@ -29500,6 +29573,10 @@ function resolvePaint(p, ctx) {
   const at = locate(p.tok)
   const rec = { kind: p.kind, line: at ? at.line : null }
   const withhold = (code, why) => ({ ...rec, withheld: { code, reason: why } })
+  // ⛔ W9-OQ-N2 — a paint a broker value reaches is withheld BY NAME, before anything is read.
+  if (p.strategyWord) {
+    return withhold('pine:strategy-call', `${REFUSALS['pine:strategy-call']} — \`${p.strategyWord}\``)
+  }
   if (!Array.isArray(p.args)) return withhold('paint:arguments', `\`${p.kind}(…)\`'s arguments could not be read`)
   const legacy = isLegacyPineVersion(ctx.version)
   const sig = (legacy ? PAINT_SIGNATURES.legacy : PAINT_SIGNATURES.modern)[p.kind]
