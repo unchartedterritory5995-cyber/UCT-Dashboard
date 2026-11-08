@@ -508,11 +508,11 @@ def _rs_plural(n: int, word: str) -> str:
 #: U+00A0. A v4 summary keeps each number with its label or unit on one line
 #: (``R² 0.09`` broke between the two in the readout row, 3-14); the readout
 #: wraps at the ordinary spaces between the phrases instead.
-_RS_NBSP = " "
+_RS_NBSP = "\u00a0"
 
 
 def _rs_count(n: int, word: str) -> str:
-    """`_rs_plural` with the number held to its unit: ``6 weeks`` (v4 summaries)."""
+    """`_rs_plural` with the number held to its unit: ``6 weeks`` (U+00A0 between) (v4 summaries)."""
     return _rs_plural(n, word).replace(" ", _RS_NBSP, 1)
 
 
