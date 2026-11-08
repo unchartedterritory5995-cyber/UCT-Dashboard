@@ -205,9 +205,10 @@ describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [
   }
   it('an unserved order command / argument / value refuses by name', () => {
     const cases = [
-      ['strategy.order("o", strategy.long)\n', 'runtime:strategy-option'],
-      ['strategy.exit("x", trail_points = 10, trail_offset = 5)\n', 'runtime:strategy-option'],
-      ['strategy.close("L", qty = 1)\n', 'runtime:strategy-option'],
+      // W9-T7 serves `strategy.order`, `trail_*` and the close's `qty` behind their rules
+      // (w9T7Exits.test.js); an exit's `oca_name` (a reduce group across exit commands) still refuses
+      ['strategy.exit("x", stop = 1, oca_name = "g")\n', 'runtime:strategy-option'],
+      ['strategy.entry("L", strategy.long, qty_percent = 50)\n', 'runtime:strategy-option'],
       ['plot(strategy.max_drawdown)\n', 'runtime:strategy-value'],
     ]
     for (const [line, guard] of cases) {

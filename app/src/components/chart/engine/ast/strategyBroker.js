@@ -154,6 +154,8 @@ const SIGNATURES = Object.freeze({
     'strategy.close_all': ['when', 'comment', 'alert_message'],
     'strategy.cancel': ['id', 'when'],
     'strategy.cancel_all': ['when'],
+    // W9-T7: R4 `strategy.order` syntax
+    'strategy.order': ['id', 'long', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'comment', 'when', 'alert_message'],
   }),
   5: Object.freeze({
     'strategy.entry': ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'comment', 'alert_message',
@@ -165,6 +167,9 @@ const SIGNATURES = Object.freeze({
     'strategy.close_all': ['comment', 'alert_message', 'immediately', 'disable_alert'],
     'strategy.cancel': ['id'],
     'strategy.cancel_all': [],
+    // W9-T7: R6 `strategy.order` syntax (v5 the same)
+    'strategy.order': ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'comment', 'alert_message',
+      'disable_alert'],
   }),
 })
 const signatureOf = (version, fn) => {
@@ -175,16 +180,13 @@ const signatureOf = (version, fn) => {
 /** Arguments that label an order and change no broker value. */
 const LABELS = new Set(['comment', 'comment_profit', 'comment_loss', 'comment_trailing', 'alert_message',
   'alert_profit', 'alert_loss', 'alert_trailing', 'disable_alert'])
-/** Arguments served only at their documented default, and that default. */
+/** Arguments served only at their documented default, and that default.
+ *  ⭐ W9-T7 — `qty`, `qty_percent`, `immediately`, `trail_*` and the entry / order `oca_*` are broker
+ *  parameters now (`BROKER_OPS`), each behind its rule. What is left is `strategy.exit`'s `oca_name`:
+ *  R6 "All orders from this command are of the strategy.oca.reduce OCA type" - a group spanning several
+ *  exit commands - which no broker rule serves yet (capture row W9-X3). */
 const AT_DEFAULT = Object.freeze({
-  qty: (n) => n.type === 'name' && n.name === 'na',
   oca_name: (n) => n.type === 'string' && n.value === '',
-  oca_type: (n) => n.type === 'name' && n.name === 'strategy.oca.none',
-  qty_percent: (n) => numOf(n) === 100,
-  immediately: (n) => numOf(n) === 0,
-  trail_price: (n) => n.type === 'name' && n.name === 'na',
-  trail_points: (n) => n.type === 'name' && n.name === 'na',
-  trail_offset: (n) => n.type === 'name' && n.name === 'na',
 })
 
 /**
@@ -212,7 +214,8 @@ export function orderArgsOf(fn, call, version) {
     if (spec.params.includes(key === 'long' ? 'direction' : key) || LABELS.has(key)) continue
     const ok = AT_DEFAULT[key]
     if (!(ok && node && ok(node))) {
-      throw new StrategyOptionError(`\`${fn}\`'s \`${key}\` is not served (only its default is)`, node && node.tok)
+      throw new StrategyOptionError(`\`${fn}\`'s \`${key}\` is not served (only its default is)`
+        + (key === 'oca_name' ? '; capture row W9-X3' : ''), node && node.tok)
     }
   }
   return spec.params.map((p) => {

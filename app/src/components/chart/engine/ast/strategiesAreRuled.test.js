@@ -177,13 +177,16 @@ describe('D7: the strategy-backtest scorecard wording', () => {
       `0 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
-    expect(BROKER_RULE_IDS.length).toBe(22)
+    // 22 rules at T1 (S1's settled set); W9-T7 named 8 more (the exit family and the other order
+    // kinds, each pinned by its own capture row: W9-X1..X4, Q-S1j, Q-S1k). A rule added without
+    // moving this number is the drift this line exists to catch.
+    expect(BROKER_RULE_IDS.length).toBe(30)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {
     const ledger = { rules: { 'B-MARKET': ['fx'], 'B-FILL': ['fx'], 'NOT-A-RULE': ['fx'] } }
     expect(pinnedBrokerRules(ledger)).toEqual(['B-FILL', 'B-MARKET'])
-    expect(strategyScorecardWording({ ledger })).toMatch(/^2 of 22 broker rules are pinned/)
+    expect(strategyScorecardWording({ ledger })).toMatch(/^2 of 30 broker rules are pinned/)
   })
 
   it('drops the not-served sentence only when the caller says it is served', () => {

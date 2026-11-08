@@ -237,9 +237,9 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
     expect(err.rule).toBe('B-QTY')
     expect(err.message).toMatch(/Q-S1a/)
   })
-  it('the D7 scorecard is unchanged: 0 of 22, derived', () => {
-    expect(BROKER_RULE_IDS.length).toBe(22)
-    expect(strategyScorecardWording()).toMatch(/^0 of 22 broker rules are pinned/)
+  it('the D7 scorecard pins nothing: 0 of every named rule, derived (22 at T4; 30 once W9-T7 named its 8)', () => {
+    expect(BROKER_RULE_IDS.length).toBe(30)
+    expect(strategyScorecardWording()).toMatch(/^0 of 30 broker rules are pinned/)
   })
 })
 

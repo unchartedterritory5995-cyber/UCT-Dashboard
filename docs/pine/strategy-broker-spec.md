@@ -73,8 +73,7 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 | Q-S1p | v5 `when`; a strategy's outputs on the forming bar | B-WHEN carried from R4; B-EXEC from M only |
 
 Not served at all (refused by name at build, `runtime:strategy-option` / `runtime:strategy-value`):
-`strategy.order`, `strategy.risk.*`, trailing stops (`trail_*`), partial exits (`qty`,
-`qty_percent` other than 100), OCA groups, `immediately = true`, commission, slippage,
+`strategy.risk.*`, a `strategy.exit` `oca_name` (W9-X3), commission, slippage,
 `process_orders_on_close = true`, `calc_on_order_fills`, bar magnifier, `close_entries_rule = "ANY"`,
 an account currency, and every `strategy.*` value outside B-VAL (`max_drawdown`, `*_percent` but
 `netprofit_percent`, `position_entry_name`, `avg_*`, `max_contracts_held_*`, the per-trade functions
@@ -109,5 +108,38 @@ Every rule above serves only when `pinned(rule)` is true, asked when a run REACH
 | B-QTY | Q-S1a | qty = na takes the declared default size |
 | B-DEFAULTS | Q-S1b | the per-version declaration defaults |
 | B-VAL | Q-S1-core | the strategy.* values and per-trade reads |
+
+| B-TRAIL | W9-X1 | (W9-T7) trailing stop: activation via `trail_price` / `trail_points` beyond the entry, then `trail_offset` ticks behind the best price on the intrabar path |
+| B-EXIT-QTY | W9-X2 | (W9-T7) `strategy.exit` `qty` / `qty_percent` and several exit commands on one trade: call-order reservation; a fill closes the reserved part, and that exit id is done with the trade |
+| B-CLOSE-QTY | W9-X2 | (W9-T7) `strategy.close` `qty` / `qty_percent`: closes that much of the id's trades, oldest first |
+| B-OCA | W9-X3 | (W9-T7) `oca_name` / `oca_type` on `strategy.entry` / `strategy.order`: cancel or reduce the group's other unfilled orders |
+| B-ORDER | W9-X4 | (W9-T7) `strategy.order`: no pyramiding limit; against the position it closes its size oldest first, never reverses |
+| B-IMMEDIATELY | W9-X4 | (W9-T7) `close` / `close_all` `immediately = true`: filled at the bar close it is placed on |
+| B-STOP-LIMIT | Q-S1j | (W9-T7) stop-limit entry / order: the stop places a limit at `limit` |
+| B-EXIT-LEVELS | Q-S1k | (W9-T7) `profit` + `limit` (or `loss` + `stop`): v5 keeps the price, v6 the level reached first |
+
+## W9-T7: the exit family and the other order kinds (all unpinned)
+
+Each rule is its own row so that pinning Q-S1-core (B-EXIT-BIND, B-CLOSE) never serves a trailing
+stop or a partial exit. Text quoted from the v6 Language Reference (R6) unless named. **Everything
+the text leaves open is either a HYPOTHESIS behind the rule above (served only once that rule is
+pinned) or a named refusal.**
+
+| rule | the reference says | HYPOTHESIS built (graded by the capture row) | refused by name |
+|---|---|---|---|
+| B-TRAIL | "A trailing stop order activates when the price moves `trail_points` ticks past the entry price or touches the `trail_price` level. Once activated, the stop follows `trail_offset` ticks behind the market price each time the trade's profit reaches a new high." `trail_offset`: "a trailing stop with an initial value `trail_offset` ticks away from that level" | on history the market price is the B-PATH path: the best ratchets to each point the path reaches (the open, then each segment's end), so a bar's favourable extreme moves the stop and the fall after it on the same bar can fill it; a gap through the activation level activates at the open (best = the open); the stop fills at its level, or at the open on a gap | half a trail (no offset, or no activation); `trail_price` and `trail_points` together ("the value expected to activate the stop first"); a stop-loss beside a trail ("places only the order that is supposed to fill first"); an activation not beyond the entry ("creates the trailing stop immediately", starting point unstated); offset or points not a positive whole number of ticks. All W9-X1 |
+| B-EXIT-QTY | "Each call to this command reserves a portion of the position ... A second call can close a maximum of 30 contracts, even if its `qty` is 50 and one of its orders executes first." R4: "If the function strategy.exit is called once, it exits a position only once." | a call with no `qty` reserves the whole trade; each call reserves `min(wanted, size - what the other live exits on the trade reserve)`, recomputed on every call of that id; a reservation of 0 places nothing; once an exit id fills part of a trade it is never re-applied to that trade, even when re-called every bar. One full exit alone on a trade is S1's case and asks nothing new | a percent that is not a whole number of units; a partial size bound to more than one trade (per trade or in total); a reservation larger than the trade still holds when it fills. All W9-X2 |
+| B-CLOSE-QTY | `qty`: "If specified, the command uses this value instead of `qty_percent`"; `qty_percent`: "The percentage calculation depends on the total size of the open trades with the `id` entry identifier"; remarks: FIFO "starting with the first open trade", "the maximum exit order size still depends on the trades opened by orders with the `id` identifier" | a `qty` above the id's total closes them all; filled at the next open as B-CLOSE | a non-whole percent, and two partial closes of one id on one bar (W9-X2); a closing walk that would reach a trade of another id first (Q-S1h) |
+| B-OCA | `strategy.oca.cancel`: "cancels the unfilled order when another order with the same `oca_name` and `oca_type` executes"; `.reduce`: "reduces the unfilled order by that order's size ... reaches 0 ... the same as canceling"; `.none`: "executes independently"; `oca_name` "" = no group | a group is (name, type); the filled order's size reduces the others | `strategy.exit`'s `oca_name` (a reduce group across exit commands) at build, W9-X3 |
+| B-ORDER | "not affected by the `pyramiding` parameter"; "does not automatically reverse ... an order from this command with a `qty` of 5 and a `direction` of strategy.short triggers the sale of five shares, which closes the position" | against the position it closes its size oldest first (B-FIFO) | an order larger than the position it meets (does the rest open the other side?); one id used by both `strategy.entry` and `strategy.order`. W9-X4 |
+| B-IMMEDIATELY | "the closing order executes on the same tick when the strategy places it, ignoring the strategy properties that restrict execution to the opening tick of the following bar" | on a historical bar that tick is the bar close: filled at the close, stamped with that bar | a `strategy.*` value read later in the same execution (does it see the fill?), W9-X4 |
+| B-STOP-LIMIT | "generates a limit order at the `limit` price only after the market price reaches the `stop` value or a worse price" | the limit is live from the stop's tick and fills at its level on the path | the stop already reached at the signal close, and a limit at or beyond the stop (does it fill on the stop's own tick, and where?). Q-S1j |
+| B-EXIT-LEVELS | R5 `profit`: "The command ignores this parameter if the limit value is not na"; R6 `profit` / `loss`: "places a take-profit order only at the price level expected to trigger an exit first" | v5: the price wins; v6: the level nearer the entry on that leg's side | the pair in v4 (no v4 text read), Q-S1k |
+
+Left as they were (named refusals; their capture rows gate T7 per the design): Q-S1d (several orders on
+one tick, now also an activation or a stop-limit trigger beside another order), Q-S1f (an exit with no
+`from_entry` after a reversal), Q-S1g (a price entry at the pyramiding limit), Q-S1h (the FIFO split).
+`B-CANCEL` now also cancels `strategy.order` orders and releases exits waiting on them; it still has
+no capture row queued.
 
 B-START is not a pin rule: Q-S1n is a fact capture that pins nothing. A run is refused `runtime:strategy-start` unless it is told the history window (`bars_window.HISTORY_WINDOW_BARS`, via the run context) and holds no more bars than it.

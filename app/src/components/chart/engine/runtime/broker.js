@@ -36,7 +36,9 @@ export { UNPINNED_GUARD }
  *  item that would settle it. */
 export class BrokerRefusal extends Error {
   constructor(message, probe) {
-    super(`${message}${probe ? ` (unsettled: ${probe}, docs/pine/capture-queue-2026-10-05-s1.md)` : ''}`)
+    // ⭐ W9-T7: a W9 capture row is queued in the W9 design (5.2), not in S1's queue
+    const where = /^W9-[A-Z]{1,2}\d/.test(String(probe || '')) ? 'docs/pine/W9-STRATEGY-DESIGN.md 5.2' : 'docs/pine/capture-queue-2026-10-05-s1.md'
+    super(`${message}${probe ? ` (unsettled: ${probe}, ${where})` : ''}`)
     this.name = 'BrokerRefusal'
     this.guard = BROKER_UNSETTLED_GUARD
     this.probe = probe || null
@@ -73,10 +75,15 @@ export const BROKER_OPS = Object.freeze({
   // the symbol's tick and point value, through the columnar lane's own authority
   // (`syminfo.mintick` / `syminfo.pointvalue`, settled per symbol at bind)
   '#symbol': { params: ['mintick', 'pointvalue'], returns: 'void' },
-  'strategy.entry': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'when'], returns: 'void' },
-  'strategy.close': { params: ['id', 'when'], returns: 'void' },
-  'strategy.close_all': { params: ['when'], returns: 'void' },
-  'strategy.exit': { params: ['id', 'from_entry', 'profit', 'limit', 'loss', 'stop', 'when'], returns: 'void' },
+  // ⭐⭐ W9-T7 — `oca_*`, `strategy.order`, the exit's `qty` / `qty_percent` / `trail_*`, and the
+  // close's `qty` / `qty_percent` / `immediately` are parameters now (each behind its own rule,
+  // `brokerRules.js`); `when` stays LAST so `vm.js`'s positional spread needs no special case.
+  'strategy.entry': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'when'], returns: 'void' },
+  'strategy.order': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'when'], returns: 'void' },
+  'strategy.close': { params: ['id', 'qty', 'qty_percent', 'immediately', 'when'], returns: 'void' },
+  'strategy.close_all': { params: ['immediately', 'when'], returns: 'void' },
+  'strategy.exit': { params: ['id', 'from_entry', 'qty', 'qty_percent', 'profit', 'limit', 'loss', 'stop',
+    'trail_price', 'trail_points', 'trail_offset', 'when'], returns: 'void' },
   'strategy.cancel': { params: ['id', 'when'], returns: 'void' },
   'strategy.cancel_all': { params: ['when'], returns: 'void' },
   // ── values ──
@@ -156,12 +163,22 @@ export function makeBroker(cfg, data) {
   const open = []
   /** closed trades, in close order: `+ { exitPrice, exitBar, profit }` (profit in price units × qty) */
   const closed = []
-  /** unfilled entry orders: `{ id, dir, qty, type, level, placedBar, immediate, seq }` */
+  /** unfilled entry orders: `{ id, kind ('entry' | 'order'), dir, qty, type, level, limit, placedBar,
+   *  immediate, oca }`. A stop-limit waits as `type: 'stoplimit'` (its `level` the stop) and becomes a
+   *  `limit` at `limit` once the stop is reached ([B-STOP-LIMIT], W9-T7). */
   let entries = []
-  /** unfilled market exits from `strategy.close` / `close_all`: `{ kind, id, placedBar }` */
+  /** unfilled market exits from `strategy.close` / `close_all`: `{ kind, id, spec }` (`spec` the
+   *  partial size, [B-CLOSE-QTY]) */
   let closes = []
-  /** exit commands: `{ id, fromEntry, tp, sl, all, trades:Set, orders:Set, maybe:Set, seq }` */
+  /** exit commands: `{ id, fromEntry, tp, sl, trail, qtySpec, all, trades:Set, orders:Set, maybe:Set,
+   *  res:Map(trade -> reserved units), trailState:Map(trade -> { best }), done:Set }` */
   let exits = []
+  /** ⭐ W9-T7 [B-EXIT-QTY] the trades each exit id has already exited from, kept past the command's
+   *  own life: R4 `strategy.exit` "If the function strategy.exit is called once, it exits a position
+   *  only once", so an exit re-called every bar does not exit the same trade a second time. */
+  const exitDone = new Map()
+  /** ⭐ W9-T7 [B-IMMEDIATELY] the bar an `immediately = true` close filled on, if any */
+  let immediateBar = -1
 
   const needSymbol = () => {
     if (!finite(mintick) || !finite(pointvalue)) {
@@ -180,7 +197,32 @@ export function makeBroker(cfg, data) {
     if (i < 0) return
     open.splice(i, 1)
     closed.push({ ...t, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact, profit: (price - t.price) * t.dir * t.qty })
-    for (const x of exits) { x.trades.delete(t); x.maybe.delete(t) }
+    for (const x of exits) { x.trades.delete(t); x.maybe.delete(t); x.res.delete(t) }
+  }
+  /** ⭐ W9-T7 — close `units` of trade `t`: the whole trade, or a split (a closed trade of `units`,
+   *  the open one keeps the rest, its entry price, bar and id). [B-EXIT-QTY] [B-CLOSE-QTY] [B-ORDER] */
+  const closePart = (t, units, price, bar, exact) => {
+    if (units >= t.qty) { closeTrade(t, price, bar, exact); return }
+    closed.push({ ...t, qty: units, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact,
+      profit: (price - t.price) * t.dir * units })
+    t.qty -= units
+  }
+  /** ⭐ W9-T7 — close `units` of the position, OLDEST trade first ([B-FIFO]; R6 `strategy.close`
+   *  remarks: "exits from the position starting with the first open trade"). `allowed`, when given, are
+   *  the trades the command names: touching any other is the FIFO split this broker does not model. */
+  const reduceFifo = (units, price, bar, exact, allowed) => {
+    rule('B-FIFO')
+    let left = units
+    for (const t of open.slice()) {
+      if (!(left > 0)) break
+      if (allowed && !allowed.includes(t)) {
+        throw new BrokerRefusal('an exit targets an open trade that is not the oldest, and TradingView closes the '
+          + 'oldest trades first (FIFO) with a split this broker does not model', 'Q-S1h')
+      }
+      const take = Math.min(left, t.qty)
+      closePart(t, take, price, bar, exact)
+      left -= take
+    }
   }
   /** [B-FIFO] an exit fills against the OLDEST open trades first; this broker
    *  serves only fills whose targets ARE the oldest open trades. */
@@ -227,7 +269,66 @@ export function makeBroker(cfg, data) {
   }
   /** the rule the fill being made rests on - stamped on the trade (the record's `rule`) */
   let fillRule = 'B-FILL'
+  /** ⭐ W9-T7 [B-OCA] after `o` filled `q` units: the other unfilled orders of its group are cancelled
+   *  (`strategy.oca.cancel`) or reduced by `q`, cancelled at 0 (`strategy.oca.reduce`). R6
+   *  `strategy.oca.reduce`: "reduces the unfilled order by that order's size. If the unfilled order's
+   *  size reaches 0 after reduction, it is the same as canceling the order entirely." */
+  const ocaAfterFill = (o, q) => {
+    if (!o.oca) return
+    for (const e of entries.slice()) {
+      if (e === o || !e.oca || e.oca.name !== o.oca.name || e.oca.type !== o.oca.type) continue
+      if (o.oca.type === 'cancel') dropEntry(e)
+      else { e.qty -= q; if (!(e.qty > 0)) dropEntry(e) }
+    }
+  }
+  const dropEntry = (e) => {
+    entries = entries.filter((x) => x !== e)
+    for (const x of exits) x.orders.delete(e)
+  }
+  /** ⭐ W9-T7 — a new open trade from order `o`, bound to the exits waiting for it. */
+  const openTrade = (o, price, bar, exact, reversed) => {
+    const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule }
+    open.push(t)
+    for (const x of exits) {
+      if (x.orders.has(o)) { x.orders.delete(o); bindExit(x, t) } else if (x.all) {
+        // [B-EXIT-LIFE] "until the position closes": whether a reversal (close + open
+        // on one fill) ends that life is not stated - such an exit MAY cover the new trade.
+        if (reversed) x.maybe.add(t)
+        else bindExit(x, t)
+      }
+    }
+    return t
+  }
+  /** ⭐⭐ W9-T7 [B-ORDER] a `strategy.order` fill. R6 `strategy.order`: "not affected by the
+   *  `pyramiding` parameter ... Strategies can open any number of trades in the same direction";
+   *  "does not automatically reverse open positions ... if there is an open long position of five
+   *  shares, an order from this command with a `qty` of 5 and a `direction` of strategy.short triggers
+   *  the sale of five shares, which closes the position." Against the position it closes its size,
+   *  oldest first ([B-FIFO]). ⛔ An order LARGER than the position it meets is not stated (does the rest
+   *  open the other side?): refused, W9-X4. */
+  const fillOrder = (o, price, bar, exact) => {
+    entries = entries.filter((e) => e !== o)
+    rule('B-ORDER')
+    if (!open.length || open[0].dir === o.dir) {
+      const t = openTrade(o, price, bar, exact, false)
+      ocaAfterFill(o, o.qty)
+      marginCheck(price)
+      return t
+    }
+    const total = sum(open, (t) => t.qty)
+    if (o.qty > total) {
+      throw new BrokerRefusal(`\`strategy.order\` \`${o.id}\` trades ${o.qty} against a position of ${total}, and whether `
+        + 'the rest opens a position the other way is not stated', 'W9-X4')
+    }
+    // it opened no trade, so an exit waiting for this id has nothing to bind
+    for (const x of exits) x.orders.delete(o)
+    reduceFifo(o.qty, price, bar, exact, null)
+    afterPositionChange()
+    ocaAfterFill(o, o.qty)
+    return null
+  }
   const fillEntry = (o, price, bar, exact) => {
+    if (o.kind === 'order') return fillOrder(o, price, bar, exact)
     entries = entries.filter((e) => e !== o)
     let reversed = false
     if (open.length && open[0].dir !== o.dir) {
@@ -244,28 +345,120 @@ export function makeBroker(cfg, data) {
         + 'cancelled or kept waiting is not stated', 'Q-S1g')
     }
     if (open.length && maxEntries > 1) { rule('B-PYR'); if (defaulted.pyramiding) rule('B-DEFAULTS') }
-    const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule }
-    open.push(t)
-    for (const x of exits) {
-      if (x.orders.has(o)) { x.orders.delete(o); x.trades.add(t) } else if (x.all) {
-        // [B-EXIT-LIFE] "until the position closes": whether a reversal (close + open
-        // on one fill) ends that life is not stated - such an exit MAY cover the new trade.
-        if (reversed) x.maybe.add(t)
-        else x.trades.add(t)
-      }
-    }
+    const t = openTrade(o, price, bar, exact, reversed)
     if (reversed) afterPositionChange()
+    ocaAfterFill(o, o.qty)
     marginCheck(price)
     return t
+  }
+
+  // ─── W9-T7: exit binding, reservation and the trailing stop ──────────────────
+  /** The activation level of exit `x`'s trailing stop for trade `t` (NaN = none). */
+  const activationOf = (x, t) => {
+    if (!x.trail) return NaN
+    if (finite(x.trail.price)) return x.trail.price
+    needSymbol()
+    return t.price + t.dir * x.trail.points * mintick
+  }
+  /** ⭐⭐ W9-T7 bind exit `x` to trade `t`: check its trailing stop, then reserve its share. */
+  const bindExit = (x, t) => {
+    if (x.done.has(t)) return
+    x.trades.add(t)
+    x.maybe.delete(t)
+    if (x.trail) {
+      // R6 `trail_price`: "If the value is more favorable than the entry price, the command creates a
+      // trailing stop when the market price reaches that value. If less favorable than the entry price,
+      // the command creates the trailing stop immediately ..." - the second case's starting point (the
+      // activation level, or the entry fill?) is not stated, so only the first is served.
+      const act = activationOf(x, t)
+      if (!(t.dir > 0 ? act > t.price : act < t.price)) {
+        throw new BrokerRefusal(`\`strategy.exit\` \`${x.id}\`'s trailing stop activates at ${act}, not beyond the entry `
+          + `price ${t.price}, and where such a stop starts is not stated`, 'W9-X1')
+      }
+    }
+    reserve(x, t)
+  }
+  /**
+   * ⭐⭐ W9-T7 [B-EXIT-QTY] — how much of trade `t` exit `x` may close. R6 `strategy.exit`: "Each call to
+   * this command reserves a portion of the position to close until the strategy fills or cancels its
+   * orders. For example, if there is an open position of 50 contracts and a strategy.exit() call
+   * specifies a `qty` of 20, that call's orders reserve 20 contracts out of the position. A second call
+   * can close a maximum of 30 contracts, even if its `qty` is 50 and one of its orders executes first."
+   * `qty_percent`: "The percentage calculation depends on the total size of the applicable open trades
+   * without considering the reserved amount from other strategy.exit() calls."
+   *
+   * HYPOTHESIS (unpinned until W9-X2 MATCHes): a call with no `qty` reserves the whole trade; each call
+   * reserves `min(wanted, trade size - what the OTHER exits on that trade reserve)`, recomputed on every
+   * call of that id; a reservation of 0 places no order. ⭐ ONE full exit alone on a trade is S1's served
+   * case and asks nothing new; a SECOND command on the same trade, or any partial size, asks B-EXIT-QTY.
+   * ⛔ Refused by name (W9-X2): a percent that is not a whole number of units, a partial size spread
+   * over more than one trade (per trade or in total is not stated).
+   */
+  const reserve = (x, t) => {
+    const others = exits.filter((y) => y !== x && (y.trades.has(t) || y.maybe.has(t)))
+    if (!x.qtySpec && !others.length) { x.res.delete(t); return }
+    rule('B-EXIT-QTY')
+    if (x.qtySpec && x.trades.size + x.maybe.size > 1) {
+      throw new BrokerRefusal(`\`strategy.exit\` \`${x.id}\` closes part of more than one open trade, and whether its `
+        + 'size applies to each trade or to them together is not stated', 'W9-X2')
+    }
+    let want = t.qty
+    if (x.qtySpec && x.qtySpec.qty !== undefined) want = x.qtySpec.qty
+    else if (x.qtySpec) {
+      want = t.qty * x.qtySpec.pct / 100
+      if (Math.abs(want - Math.round(want)) > 1e-9) {
+        throw new BrokerRefusal(`\`strategy.exit\` \`${x.id}\` closes ${x.qtySpec.pct}% of ${t.qty}, which is not a whole `
+          + 'number of units, and how TradingView rounds it is not stated', 'W9-X2')
+      }
+      want = Math.round(want)
+    }
+    const taken = sum(others, (y) => (y.res.has(t) ? y.res.get(t) : t.qty))
+    x.res.set(t, Math.max(0, Math.min(want, t.qty - taken)))
+  }
+  /** ⭐⭐ W9-T7 [B-TRAIL] the trailing stops' best price moves with the market: called with each
+   *  price the intrabar path REACHES (the open, then each segment's end). Between those points the
+   *  path is monotonic, so a segment's end is its extreme, and a trailing stop can only fill on the
+   *  segment against it, where its best does not move. */
+  const ratchetTrails = (px) => {
+    for (const x of exits) {
+      if (!x.trail) continue
+      for (const [t, st] of x.trailState) {
+        if (!x.trades.has(t)) continue
+        if (t.dir > 0 ? px > st.best : px < st.best) st.best = px
+      }
+    }
+  }
+  /** The trailing stop's level for a trade whose stop is active: `trail_offset` ticks behind the best. */
+  const trailLevel = (x, t, st) => {
+    needSymbol()
+    // the best is a price the path reached; on the tick grid the level is counted in whole ticks, and
+    // divided (not multiplied) back so 10500 ticks of 0.01 read 105, not 105.00000000000001
+    const inv = Math.round(1 / mintick)
+    if (onTick(st.best) && Math.abs(inv * mintick - 1) < 1e-12) {
+      return (Math.round(st.best / mintick) - t.dir * x.trail.offset) / inv
+    }
+    return st.best - t.dir * x.trail.offset * mintick
   }
 
   /** An exit command's two levels for one trade: `{ tp, sl }` (NaN = none). */
   const levelsFor = (x, t) => {
     const lv = (spec, sign) => {
       if (!spec) return NaN
+      const rel = () => { needSymbol(); return t.price + sign * t.dir * spec.ticks * mintick }
+      if (spec.both) {
+        // ⭐⭐ W9-T7 [B-EXIT-LEVELS] both a price and a tick distance for one leg. HYPOTHESIS by
+        // version (Q-S1k, `w9-q-s1k-exit-levels.pine` and `-v6`): R5 `strategy.exit` `profit`: "The
+        // command ignores this parameter if the limit value is not na" - v5 keeps the PRICE; R6
+        // `profit`: "If this parameter and `limit` are not na, the command places a take-profit order
+        // only at the price level expected to trigger an exit first" - v6 keeps the level NEARER the
+        // entry on that leg's side (a take-profit's lower level for a long, a stop's higher one).
+        if (cfg.version === 5) return spec.abs
+        const r = rel()
+        // the level reached first: for a long's take-profit (sign +1) the lower; its stop (sign -1) the higher
+        return sign * t.dir > 0 ? Math.min(spec.abs, r) : Math.max(spec.abs, r)
+      }
       if (finite(spec.abs)) return spec.abs
-      needSymbol()
-      return t.price + sign * t.dir * spec.ticks * mintick
+      return rel()
     }
     return { tp: lv(x.tp, 1), sl: lv(x.sl, -1) }
   }
@@ -275,6 +468,8 @@ export function makeBroker(cfg, data) {
     const out = []
     for (const o of entries) {
       if (o.type === 'market' || o.immediate) continue
+      // [B-STOP-LIMIT] a stop-limit waits on its STOP, which triggers as a stop does
+      if (o.type === 'stoplimit') { out.push({ kind: 'trigger', level: o.level, up: o.dir > 0, o }); continue }
       // long limit / short stop trigger on a fall; long stop / short limit on a rise
       const up = (o.type === 'stop') === (o.dir > 0)
       out.push({ kind: 'entry', level: o.level, up, o })
@@ -282,10 +477,19 @@ export function makeBroker(cfg, data) {
     for (const x of exits) {
       for (const [set, maybe] of [[x.trades, false], [x.maybe, true]]) {
         for (const t of set) {
+          // [B-EXIT-QTY] a command left nothing to close of this trade places no order
+          if (x.res.get(t) === 0) continue
           const { tp, sl } = levelsFor(x, t)
           // a long's take-profit triggers on a rise, its stop-loss on a fall
           if (finite(tp)) out.push({ kind: 'exit', level: tp, up: t.dir > 0, x, t, maybe, leg: 'tp' })
           if (finite(sl)) out.push({ kind: 'exit', level: sl, up: t.dir < 0, x, t, maybe, leg: 'sl' })
+          if (x.trail) {
+            // [B-TRAIL] before activation the stop does not exist; its activation level is reached
+            // like a take-profit's. After it, a stop `trail_offset` ticks behind the best price.
+            const st = x.trailState.get(t)
+            if (!st) out.push({ kind: 'activate', level: activationOf(x, t), up: t.dir > 0, x, t, maybe })
+            else out.push({ kind: 'exit', level: trailLevel(x, t, st), up: t.dir < 0, x, t, maybe, leg: 'trail' })
+          }
         }
       }
     }
@@ -299,9 +503,42 @@ export function makeBroker(cfg, data) {
         + 'whether a reversal ends that exit is not stated', 'Q-S1f')
     }
     if (lo.kind === 'entry') return fillEntry(lo.o, price, bar, exact)
+    if (lo.kind === 'trigger') {
+      // ⭐⭐ W9-T7 [B-STOP-LIMIT] R6 `strategy.entry`: a stop-limit "generates a limit order at the
+      // `limit` price only after the market price reaches the `stop` value or a worse price". No fill.
+      rule('B-STOP-LIMIT')
+      lo.o.type = 'limit'
+      lo.o.level = lo.o.limit
+      return null
+    }
+    if (lo.kind === 'activate') {
+      // ⭐⭐ W9-T7 [B-TRAIL] R6 `trail_offset`: "When the market price reaches the activation level ...
+      // the command creates a trailing stop with an initial value `trail_offset` ticks away from that
+      // level". The best starts at the price the activation was reached at (the level on the path,
+      // the open on a gap). No fill.
+      rule('B-TRAIL')
+      lo.x.trailState.set(lo.t, { best: price })
+      return null
+    }
     rule('B-EXIT-BIND')
+    const keep = fillRule
+    if (lo.leg === 'trail') fillRule = 'B-TRAIL'
     requireOldest([lo.t])
-    closeTrade(lo.t, price, bar, exact)
+    const units = lo.x.res.has(lo.t) ? lo.x.res.get(lo.t) : lo.t.qty
+    if (units > lo.t.qty) {
+      throw new BrokerRefusal(`exit \`${lo.x.id}\` reserved ${units} of a trade that now holds ${lo.t.qty}, and what `
+        + 'TradingView fills then is not stated', 'W9-X2')
+    }
+    if (units < lo.t.qty) {
+      // [B-EXIT-QTY] a partial exit closes its reserved part; that command is done with the trade
+      fillRule = lo.leg === 'trail' ? 'B-TRAIL' : 'B-EXIT-QTY'
+      closePart(lo.t, units, price, bar, exact)
+      lo.x.trades.delete(lo.t); lo.x.res.delete(lo.t); lo.x.done.add(lo.t)
+    } else {
+      lo.x.done.add(lo.t)
+      closeTrade(lo.t, price, bar, exact)
+    }
+    fillRule = keep
     afterPositionChange()
     return null
   }
@@ -343,10 +580,7 @@ export function makeBroker(cfg, data) {
       const cl = closes[0]
       closes = []
       fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET')
-      const targets = cl.kind === 'all' ? open.slice() : open.filter((t) => t.entryId === cl.id)
-      requireOldest(targets)
-      for (const t of targets) closeTrade(t, o, bar, true)
-      afterPositionChange()
+      executeClose(cl, o, bar, true)
     } else if (markets.length) {
       const m = markets[0]
       fillRule = m.immediate ? 'B-IMMEDIATE' : 'B-MARKET'
@@ -368,6 +602,7 @@ export function makeBroker(cfg, data) {
     }
     marginCheckBar(bar)
     checkActivation(o, fresh)
+    ratchetTrails(o)
     // ── the path through the bar ([B-PATH]) ──
     if (!(h > l)) return
     fillRule = 'B-PATH'
@@ -404,7 +639,30 @@ export function makeBroker(cfg, data) {
         checkActivation(best, made)
       }
       p = target
+      ratchetTrails(target)
     }
+  }
+  /** [B-CLOSE] a market close's fill: the trades of its id (or all), whole, or ([B-CLOSE-QTY], W9-T7)
+   *  its size of them, oldest first. */
+  const executeClose = (cl, price, bar, exact) => {
+    const targets = cl.kind === 'all' ? open.slice() : open.filter((t) => t.entryId === cl.id)
+    if (!cl.spec) {
+      requireOldest(targets)
+      for (const t of targets) closeTrade(t, price, bar, exact)
+    } else {
+      // R6 `strategy.close` `qty_percent`: "The percentage calculation depends on the total size of the
+      // open trades with the `id` entry identifier"; remarks: "the maximum exit order size still
+      // depends on the trades opened by orders with the `id` identifier" - a larger `qty` closes them all.
+      const total = sum(targets, (t) => t.qty)
+      let units = cl.spec.qty !== undefined ? Math.min(cl.spec.qty, total) : total * cl.spec.pct / 100
+      if (Math.abs(units - Math.round(units)) > 1e-9) {
+        throw new BrokerRefusal(`\`strategy.close\` \`${cl.id}\` closes ${cl.spec.pct}% of ${total}, which is not a whole `
+          + 'number of units, and how TradingView rounds it is not stated', 'W9-X2')
+      }
+      units = Math.round(units)
+      if (units > 0) reduceFifo(units, price, bar, exact, targets)
+    }
+    afterPositionChange()
   }
   /** [B-MARGIN] the bar's worst price for the position, after its fills. */
   const marginCheckBar = (bar) => {
@@ -413,82 +671,196 @@ export function makeBroker(cfg, data) {
   }
 
   // ─── the order commands (called while the script runs on `bar`) ───────────
-  const entry = (a, bar) => {
-    const [id0, dirV, qtyV, limV, stpV, when] = a
+  /** ⭐ W9-T7 [B-OCA] an order's One-Cancels-All group: `null`, or `{ name, type }`. R6 `oca_name`:
+   *  "The default is an empty string, which means the order does not belong to an OCA group";
+   *  `strategy.oca.none`: "the order executes independently of all other orders, including those with
+   *  the same `oca_name`". The front end reads `strategy.oca.*` as the texts 'none' / 'cancel' / 'reduce'. */
+  const ocaOf = (nameV, typeV, fn) => {
+    const name = nameV === undefined ? '' : idText(nameV, `${fn} oca_name`)
+    const type = typeV === undefined ? 'none' : typeV
+    if (type !== 'none' && type !== 'cancel' && type !== 'reduce') {
+      throw new BrokerRefusal(`${fn} oca_type ${String(typeV)} is not strategy.oca.none / cancel / reduce`)
+    }
+    if (name === '') return null
+    rule('B-OCA')
+    return type === 'none' ? null : { name, type }
+  }
+  /** `strategy.entry` (kind 'entry') and ⭐ W9-T7 `strategy.order` (kind 'order', [B-ORDER]). */
+  const placeOrder = (a, bar, kind) => {
+    const [id0, dirV, qtyV, limV, stpV, ocaN, ocaT, when] = a
+    const fn = kind === 'order' ? '`strategy.order`' : '`strategy.entry`'
     rule('B-SIG')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
-    const id = idText(id0, '`strategy.entry`')
+    if (kind === 'order') rule('B-ORDER')
+    const id = idText(id0, fn)
     rule('B-DIR')
     let dir
     if (dirV === 1 || dirV === true) dir = 1
     else if (dirV === 0 || dirV === -1 || dirV === false) dir = -1
-    else throw new BrokerRefusal(`\`strategy.entry\` direction ${String(dirV)} is neither long nor short`)
+    else throw new BrokerRefusal(`${fn} direction ${String(dirV)} is neither long nor short`)
     const lim = finite(limV); const stp = finite(stpV)
-    if (lim && stp) throw new BrokerRefusal('a stop-limit entry is not served', 'Q-S1j')
-    const type = lim ? 'limit' : (stp ? 'stop' : 'market')
-    const level = lim ? limV : (stp ? stpV : NaN)
+    const type = lim && stp ? 'stoplimit' : (lim ? 'limit' : (stp ? 'stop' : 'market'))
+    const level = stp ? stpV : (lim ? limV : NaN)
+    const cl = C[bar]
+    if (type === 'stoplimit') {
+      // ⭐⭐ W9-T7 [B-STOP-LIMIT] served only where the reference's sentence is the whole story: the
+      // stop not yet reached at the signal close, and the limit strictly BETTER than the stop (a long's
+      // below it), so the limit cannot fill on the stop's own tick. Otherwise refused by name (Q-S1j):
+      // whether a limit at or beyond the stop fills at the stop's tick, and at which price, is not stated.
+      rule('B-STOP-LIMIT')
+      if (dir > 0 ? stpV <= cl : stpV >= cl) {
+        throw new BrokerRefusal(`the stop-limit ${fn} \`${id}\` was placed with its stop already reached, and when its `
+          + 'limit becomes live then is not stated', 'Q-S1j')
+      }
+      if (dir > 0 ? !(limV < stpV) : !(limV > stpV)) {
+        throw new BrokerRefusal(`the stop-limit ${fn} \`${id}\` has its limit at or beyond its stop, and whether it fills on `
+          + 'the stop\'s own tick is not stated', 'Q-S1j')
+      }
+    }
     let qty = qtyV
     // [B-QTY] na -> the declaration's default order size (W9-T4: fixed, cash or percent of equity)
-    if (!finite(qty)) qty = defaultSize(type, id, bar)
-    if (!(qty > 0)) throw new BrokerRefusal(`\`strategy.entry\` with a quantity of ${qty}`, 'Q-S1a')
+    if (!finite(qty)) qty = defaultSize(type === 'stoplimit' ? 'stop-limit' : type, id, bar)
+    if (!(qty > 0)) throw new BrokerRefusal(`${fn} with a quantity of ${qty}`, 'Q-S1a')
     // [B-IMMEDIATE] a limit at a worse price than the market (or a stop at a better
     // one) fills on the next tick rather than waiting
-    const cl = C[bar]
     const immediate = type === 'limit' ? (dir > 0 ? level >= cl : level <= cl)
       : type === 'stop' ? (dir > 0 ? level <= cl : level >= cl) : false
-    const o = { id, dir, qty, type, level, placedBar: bar, immediate }
+    const oca = ocaOf(ocaN, ocaT, fn)
+    const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca }
     // [B-MODIFY] an unfilled order with the same id is modified, not duplicated
     const prev = entries.find((e) => e.id === id)
     if (prev) {
+      if (prev.kind !== kind) {
+        throw new BrokerRefusal(`the id \`${id}\` names an unfilled order of both strategy.entry and strategy.order, and `
+          + 'whether one modifies the other is not stated', 'W9-X4')
+      }
       rule('B-MODIFY')
       Object.assign(prev, o)
       return
     }
     entries.push(o)
   }
-  const close = (a) => {
-    const [id0, when] = a
+  /** `strategy.close` / `close_all` size: `null` (all of it), or ⭐ W9-T7 [B-CLOSE-QTY] `{ qty }` /
+   *  `{ pct }`. R6 `qty`: "If specified, the command uses this value instead of `qty_percent`". */
+  const closeSpec = (qtyV, pctV, fn) => {
+    if (finite(qtyV)) {
+      if (!(qtyV > 0)) throw new BrokerRefusal(`${fn} with a quantity of ${qtyV}`, 'W9-X2')
+      return { qty: qtyV }
+    }
+    if (finite(pctV) && pctV !== 100) {
+      if (!(pctV > 0 && pctV < 100)) throw new BrokerRefusal(`${fn} with qty_percent ${pctV}`, 'W9-X2')
+      return { pct: pctV }
+    }
+    return null
+  }
+  /** ⭐⭐ W9-T7 [B-IMMEDIATELY] R6 `strategy.close` `immediately`: "If true, the closing order executes on
+   *  the same tick when the strategy places it, ignoring the strategy properties that restrict execution
+   *  to the opening tick of the following bar." On a historical bar the script runs on the close, so the
+   *  fill is at the bar's close and is stamped on that bar. ⛔ Whether a `strategy.*` value read later
+   *  in the SAME execution sees it is not stated: such a read refuses (W9-X4, `value`). */
+  const closeNow = (cl, bar) => {
+    rule('B-IMMEDIATELY')
+    const keep = fillRule
+    fillRule = 'B-IMMEDIATELY'
+    executeClose(cl, C[bar], bar, onTick(C[bar]))
+    fillRule = keep
+    immediateBar = bar
+  }
+  const close = (a, bar) => {
+    const [id0, qtyV, pctV, now, when] = a
     rule('B-SIG'); rule('B-CLOSE')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     const id = idText(id0, '`strategy.close`')
+    const spec = closeSpec(qtyV, pctV, '`strategy.close`')
+    if (spec) rule('B-CLOSE-QTY')
     // [B-CLOSE] no open trade with this id when the command is called: no effect
     if (!open.some((t) => t.entryId === id)) return
-    if (!closes.some((c) => c.kind === 'id' && c.id === id)) closes.push({ kind: 'id', id })
+    if (now !== undefined && truthy(now)) { closeNow({ kind: 'id', id, spec }, bar); return }
+    const prev = closes.find((c) => c.kind === 'id' && c.id === id)
+    if (prev && (spec || prev.spec)) {
+      throw new BrokerRefusal(`\`strategy.close\` \`${id}\` was called twice on one bar with a partial size, and whether `
+        + 'that is one order or two is not stated', 'W9-X2')
+    }
+    if (!prev) closes.push({ kind: 'id', id, spec })
   }
-  const closeAll = (a) => {
+  const closeAll = (a, bar) => {
+    const [now, when] = a
     rule('B-SIG'); rule('B-CLOSE')
-    if (a[0] !== undefined) rule('B-WHEN')
-    if (!truthy(a[0])) return
+    if (when !== undefined) rule('B-WHEN')
+    if (!truthy(when)) return
     if (!open.length) return
-    if (!closes.some((c) => c.kind === 'all')) closes.push({ kind: 'all' })
+    if (now !== undefined && truthy(now)) { closeNow({ kind: 'all', spec: null }, bar); return }
+    if (!closes.some((c) => c.kind === 'all')) closes.push({ kind: 'all', spec: null })
   }
   const exit = (a) => {
-    const [id0, from0, profit, limit, loss, stop, when] = a
+    const [id0, from0, qtyV, pctV, profit, limit, loss, stop, trP, trPts, trOff, when] = a
     rule('B-SIG')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     rule('B-EXIT-BIND')
     const id = idText(id0, '`strategy.exit`')
     const from = from0 === undefined || from0 === '' ? '' : idText(from0, '`strategy.exit` from_entry')
-    if (finite(profit) && finite(limit)) {
-      throw new BrokerRefusal('`strategy.exit` with both `profit` and `limit`: the reference says `limit` wins, the '
-        + 'manual says the level reached first wins', 'Q-S1k')
+    // ⭐⭐ W9-T7 [B-EXIT-LEVELS] both a price and a distance for one leg: the version's rule (`levelsFor`).
+    // v4 refuses: no v4 text for the pair was read.
+    const both = (abs, ticks, word) => {
+      rule('B-EXIT-LEVELS')
+      if (cfg.version !== 5 && cfg.version !== 6) {
+        throw new BrokerRefusal(`\`strategy.exit\` with both ${word} in Pine version ${cfg.version}`, 'Q-S1k')
+      }
+      return { both: true, abs, ticks }
     }
-    if (finite(loss) && finite(stop)) {
-      throw new BrokerRefusal('`strategy.exit` with both `loss` and `stop`: the reference says `stop` wins, the '
-        + 'manual says the level reached first wins', 'Q-S1k')
-    }
-    const tp = finite(limit) ? { abs: limit } : (finite(profit) ? { ticks: profit } : null)
-    const sl = finite(stop) ? { abs: stop } : (finite(loss) ? { ticks: loss } : null)
+    const tp = finite(profit) && finite(limit) ? both(limit, profit, '`profit` and `limit`')
+      : (finite(limit) ? { abs: limit } : (finite(profit) ? { ticks: profit } : null))
+    const sl = finite(loss) && finite(stop) ? both(stop, loss, '`loss` and `stop`')
+      : (finite(stop) ? { abs: stop } : (finite(loss) ? { ticks: loss } : null))
     for (const s of [tp, sl]) {
       if (s && s.ticks !== undefined && !Number.isInteger(s.ticks)) {
         throw new BrokerRefusal(`\`strategy.exit\` with a distance of ${s.ticks} ticks, not a whole number of ticks`, 'Q-S1k')
       }
     }
+    // ⭐⭐ W9-T7 [B-TRAIL] R6 `strategy.exit`: "This command can create trailing stop orders when its call
+    // specifies a `trail_price` or `trail_points` argument and a `trail_offset` argument."
+    let trail = null
+    if (finite(trP) || finite(trPts) || finite(trOff)) {
+      rule('B-TRAIL')
+      if (!(finite(trP) || finite(trPts)) || !finite(trOff)) {
+        throw new BrokerRefusal('`strategy.exit` with only half of a trailing stop (an activation level and an offset '
+          + 'are both needed), and what it places then is not stated', 'W9-X1')
+      }
+      if (finite(trP) && finite(trPts)) {
+        throw new BrokerRefusal('`strategy.exit` with both `trail_price` and `trail_points`: "the value expected to '
+          + 'activate the stop first" is not served', 'W9-X1')
+      }
+      if (sl) {
+        // R6 remarks: "If a strategy.exit() call includes arguments for creating stop-loss and trailing
+        // stop orders, the command places only the order that is supposed to fill first"
+        throw new BrokerRefusal('`strategy.exit` with a stop-loss and a trailing stop: "only the order that is supposed '
+          + 'to fill first" is not served', 'W9-X1')
+      }
+      if (!(Number.isInteger(trOff) && trOff > 0)) {
+        throw new BrokerRefusal(`\`strategy.exit\` with a trail_offset of ${trOff} ticks, not a positive whole number`, 'W9-X1')
+      }
+      if (finite(trPts) && !(Number.isInteger(trPts) && trPts > 0)) {
+        throw new BrokerRefusal(`\`strategy.exit\` with trail_points ${trPts}, not a positive whole number of ticks `
+          + '(a stop activated at once is not served)', 'W9-X1')
+      }
+      trail = { price: finite(trP) ? trP : NaN, points: finite(trPts) ? trPts : NaN, offset: trOff }
+    }
+    // [B-EXIT-QTY] the size: `qty` wins over `qty_percent` (R6: "The command ignores this parameter if
+    // the `qty` value is not na"); `qty_percent` 100 is the whole trade
+    let qtySpec = null
+    if (finite(qtyV)) {
+      if (!(qtyV > 0)) throw new BrokerRefusal(`\`strategy.exit\` with a quantity of ${qtyV}`, 'W9-X2')
+      qtySpec = { qty: qtyV }
+    } else if (finite(pctV) && pctV !== 100) {
+      if (!(pctV > 0 && pctV < 100)) throw new BrokerRefusal(`\`strategy.exit\` with qty_percent ${pctV}`, 'W9-X2')
+      qtySpec = { pct: pctV }
+    }
+    if (qtySpec) rule('B-EXIT-QTY')
     let x = exits.find((e) => e.id === id)
-    if (!tp && !sl) {
+    if (!tp && !sl && !trail) {
       rule('B-EXIT-NA')
       // [B-EXIT-NA] every level na and no such exit waiting: nothing is placed
       if (x) {
@@ -501,15 +873,21 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`\`strategy.exit\` \`${id}\` was called again for a different entry`, 'Q-S1k')
     }
     if (!x) {
-      x = { id, fromEntry: from, tp, sl, all: from === '', trades: new Set(), orders: new Set(), maybe: new Set() }
+      if (!exitDone.has(id)) exitDone.set(id, new Set())
+      x = { id, fromEntry: from, tp, sl, trail, qtySpec, all: from === '', trades: new Set(), orders: new Set(),
+        maybe: new Set(), res: new Map(), trailState: new Map(), done: exitDone.get(id) }
       exits.push(x)
     }
     x.tp = tp
     x.sl = sl
+    x.trail = trail
+    x.qtySpec = qtySpec
     // [B-EXIT-BIND] the open trades (and unfilled entries) with that id, or every
-    // open trade when no `from_entry` is given; a call again confirms a maybe
+    // open trade when no `from_entry` is given; a call again confirms a maybe.
+    // ⭐ W9-T7: each binding (re)takes this command's reservation ([B-EXIT-QTY]); a trade this exit
+    // id has already exited from is not bound again.
     for (const t of open) {
-      if (from === '' || t.entryId === from) { x.trades.add(t); x.maybe.delete(t) }
+      if (from === '' || t.entryId === from) bindExit(x, t)
     }
     if (from !== '') for (const o of entries) if (o.id === from) x.orders.add(o)
   }
@@ -519,7 +897,7 @@ export function makeBroker(cfg, data) {
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     const id = idText(id0, '`strategy.cancel`')
-    entries = entries.filter((e) => e.id !== id)
+    for (const e of entries.filter((o) => o.id === id)) dropEntry(e)
     exits = exits.filter((x) => x.id !== id)
   }
   const cancelAll = (a) => {
@@ -643,6 +1021,10 @@ export function makeBroker(cfg, data) {
   }
   const value = (fn, a, bar) => {
     rule('B-VAL')
+    if (immediateBar === bar) {
+      throw new BrokerRefusal(`\`${fn}\` is read on the bar an \`immediately = true\` close filled, after that close, `
+        + 'and whether the value already reflects the fill is not stated', 'W9-X4')
+    }
     switch (fn) {
       case 'strategy.position_size': return sum(open, (t) => t.dir * t.qty)
       case 'strategy.position_avg_price': {
@@ -706,9 +1088,10 @@ export function makeBroker(cfg, data) {
         if (finite(args[0]) && args[0] > 0) mintick = args[0]
         if (finite(args[1]) && args[1] > 0) pointvalue = args[1]
         return undefined
-      case 'strategy.entry': entry(args, bar); return undefined
-      case 'strategy.close': close(args); return undefined
-      case 'strategy.close_all': closeAll(args); return undefined
+      case 'strategy.entry': placeOrder(args, bar, 'entry'); return undefined
+      case 'strategy.order': placeOrder(args, bar, 'order'); return undefined
+      case 'strategy.close': close(args, bar); return undefined
+      case 'strategy.close_all': closeAll(args, bar); return undefined
       case 'strategy.exit': exit(args); return undefined
       case 'strategy.cancel': cancel(args); return undefined
       case 'strategy.cancel_all': cancelAll(args); return undefined
