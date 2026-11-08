@@ -144,6 +144,20 @@ CREATE TABLE IF NOT EXISTS study_bars (
   sha256       TEXT
 );
 
+-- the replay within the day (2026-11-08): a chart's forward days as their regular-session 30-minute (or hourly) bars,
+-- only the days that add up to the daily candle the chart draws (study_intraday.build); filled once on the server
+-- (scripts/study/fill_replay_intraday.py), served only after the member's own attempt
+CREATE TABLE IF NOT EXISTS study_intraday (
+  bars_id      TEXT PRIMARY KEY,                     -- study_bars.id
+  tf           TEXT NOT NULL,                        -- '30' or '60' (minutes)
+  days_json    TEXT NOT NULL,                        -- {"YYYYMMDD": [[t,o,h,l,c,v], ...]}
+  passed       INTEGER NOT NULL DEFAULT 0,
+  failed       INTEGER NOT NULL DEFAULT 0,
+  why_json     TEXT,
+  source       TEXT,
+  fetched_at   TEXT
+);
+
 CREATE TABLE IF NOT EXISTS study_corrections (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   item_id      TEXT NOT NULL,
@@ -619,6 +633,51 @@ def get_forward_bars(item_id: str) -> list:
             "SELECT b.forward_json FROM study_items i JOIN study_bars b ON b.id=i.bars_ref "
             "WHERE i.id=?", (item_id,)).fetchone()
     return _loads(row["forward_json"], []) if row else []
+
+
+def upsert_intraday(bars_id: str, tf: str, built: dict, *, source: str = "") -> None:
+    """Store one chart's replay within the day (`study_intraday.build`'s result). A re-fill replaces the row."""
+    with _write() as c:
+        c.execute(
+            "INSERT INTO study_intraday (bars_id, tf, days_json, passed, failed, why_json, source, fetched_at) "
+            "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(bars_id) DO UPDATE SET tf=excluded.tf, days_json=excluded.days_json, "
+            "passed=excluded.passed, failed=excluded.failed, why_json=excluded.why_json, source=excluded.source, "
+            "fetched_at=excluded.fetched_at",
+            (bars_id, str(tf), _dumps(built.get("days") or {}), int(built.get("passed") or 0),
+             int(built.get("failed") or 0), _dumps(built.get("why") or {}), source or None,
+             datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
+
+
+def intraday_candidates() -> list[dict]:
+    """Approved daily chart items that name their symbol: what the replay within the day can be filled for. One row per
+    item (several items can share a chart snapshot; the fill groups by `bars_ref`)."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT i.id, i.type, i.skill_id, i.sym, i.bars_ref FROM study_items i JOIN study_bars b ON b.id=i.bars_ref "
+            "WHERE i.review_status=? AND b.tf='D' AND i.sym IS NOT NULL AND i.sym != '' ORDER BY i.id",
+            (STATUS_APPROVED,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def intraday_filled(*, with_days_only: bool = False) -> set:
+    """The chart snapshots that already have a replay within the day stored; `with_days_only`: only those where at least
+    one day added up (so a re-try skips just those)."""
+    q = "SELECT bars_id FROM study_intraday" + (" WHERE passed > 0" if with_days_only else "")
+    with contextlib.closing(_connect()) as c:
+        return {r["bars_id"] for r in c.execute(q)}
+
+
+def get_intraday(item_id: str) -> Optional[dict]:
+    """An item's replay within the day: {tf, days}. ⛔ Like the forward bars, callers must have verified the member's own
+    attempt at this item first (the days ARE the forward bars, finer)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT d.tf, d.days_json FROM study_items i JOIN study_intraday d ON d.bars_id=i.bars_ref "
+            "WHERE i.id=?", (item_id,)).fetchone()
+    if not row:
+        return None
+    days = _loads(row["days_json"], {}) or {}
+    return {"tf": row["tf"], "days": days} if days else None
 
 
 def reveal_for(item: dict) -> dict:

@@ -144,6 +144,11 @@ def _step_without_attempt(c):
     return c.post("/api/study/attempts/1/step", json={"n": 5})
 
 
+def _intraday_without_attempt(c):
+    # the replay within the day is the forward bars, finer: refused without the member's own attempt, like /step
+    return c.get("/api/study/attempts/1/intraday")
+
+
 def _house_chart(c):
     # the owner's saved look, stubbed: the walk is about what the route returns
     from unittest import mock
@@ -196,6 +201,7 @@ WALKS = [
     ("GET", "/api/study/items/{item_id}/bars", _bars),
     ("POST", "/api/study/attempts", _attempt_on_a_draft),
     ("POST", "/api/study/attempts/{attempt_id}/step", _step_without_attempt),
+    ("GET", "/api/study/attempts/{attempt_id}/intraday", _intraday_without_attempt),
     ("GET", "/api/study/profile", _profile),
     ("PUT", "/api/study/profile", _put_profile),
     ("GET", "/api/study/leaderboard", _leaderboard),

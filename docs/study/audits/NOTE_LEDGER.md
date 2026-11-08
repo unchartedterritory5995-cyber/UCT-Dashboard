@@ -78,7 +78,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N092 | Run on to the full culmination of the move, not 5 to 10 days | Done | `hardMode.culmination`, `useRunOnTo` |
 | N044 | Show the next candles a bit slower | Done | `RUN_ON_MS` slow mode |
 | N061 | No switch between a labelled and a bare chart; pick one | Done | rule 18 |
-| N010, N014, N019, N025 | Start closer, teach as it plays, tick by tick within each day (30-minute or hourly), faster between the key days, no flashing, no bouncing text | Partly | no flashing or bouncing; the replay is daily bars; ticks within the day need intraday bars for each bank chart, which the bank does not hold yet |
+| N010, N014, N019, N025 | Start closer, teach as it plays, tick by tick within each day (30-minute or hourly), faster between the key days, no flashing, no bouncing text | Built 2026-11-08; live once the server fill runs | each forward day grows through its real 30-minute closes (`useRunOnTicks`, `challenges/replayTicks.js`), every close on the key days (the first two, the targets, the stop, the best price), at most four between; a steady clock on the chart ("DAY 3 · 11:30 AM", `ui/ReplayClock.jsx`); the replay opens 40 sessions wide and widens with the run (`replayView`, the chart's anchor frame); Hard mode, Spot the Setup, Boss and Draw it. The bars: fetched once on the server and kept only for days that add up to the daily candle (`api/services/study_intraday.py`, `scripts/study/fill_replay_intraday.py`); checked on a real screen with the real hourly bars the server fetched for the Go Signal build (3,785 days, none off the daily candle). Charts before Sept 2003 keep the daily replay |
 | N072, N102 | Better replay graphics and animation | Partly | levels, BOUGHT / 2R / 3R / STOPPED OUT marks and the key; no change aimed at the motion itself |
 
 ## 8. Status line and progress
@@ -157,4 +157,4 @@ for this section.
 7. Done 2026-11-08: the reward system (N035).
 8. Done 2026-11-08: Draw it in the product (N039, N045, N052, N057).
 9. Drafted 2026-11-08: the setups in plain words, waiting on his approval (N087, N096, N116, N118).
-10. The replay within the day, once intraday bars are stored with each chart (N025).
+10. Built 2026-11-08: the replay within the day (N010, N014, N019, N025); the server fill runs after the merge.

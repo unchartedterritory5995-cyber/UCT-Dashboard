@@ -496,7 +496,7 @@
 @media (prefers-reduced-motion: reduce) { .prompt.promptOk::after, .prompt.promptBad::after { animation: none; display: none; } .prompt.promptOk, .prompt.promptBad { animation: none; } }
 
 /* THE ARENA: the chart's targeting frame (gold corner brackets), on every game's hero chart, as on the lesson's */
-.heroChart { position: relative; }
+.heroChart { position: relative; scroll-margin-top: 60px; }   /* room for the status line when the review brings it into view */
 .heroChart::after { content: ''; position: absolute; inset: -7px; z-index: 4; pointer-events: none;
   --b: #e9cd77;
   background:
@@ -519,3 +519,15 @@
 .drawChipOn.drawChipStop { border-color: rgba(239, 106, 90, .7); box-shadow: inset 4px 0 0 #ef6a5a, 0 0 0 1px rgba(239, 106, 90, .5), 0 0 22px rgba(239, 106, 90, .22); }
 .drawFail { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; color: #ffc2c2; background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .35); }
 .drawFail button { padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(255, 194, 194, .5); background: none; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
+
+/* the replay clock (ReplayClock.jsx): the session and the close just drawn, steady at the top centre of the chart */
+.replayClock { position: absolute; left: 50%; top: 9px; transform: translateX(-50%); z-index: 5; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 8px;
+  padding: 6px 11px 6px 10px; border-radius: 10px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(28, 26, 20, .92), rgba(14, 14, 16, .92));
+  border: 1px solid rgba(233, 205, 119, .45); box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  font-variant-numeric: tabular-nums; }
+.replayClock b { font-size: 17px; font-weight: 800; color: #f6e2a0; letter-spacing: .01em; min-width: 5.4em; }
+.replayDay { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: #a39e94; }
+/* a phone: the ticker and its name fill the identity row, so the clock sits just under it, in the plot's top-left corner
+   (the price legend is hidden on a phone, so that corner is free) */
+@media (max-width: 640px) { .replayClock { left: 10px; top: 58px; transform: none; padding: 4px 8px; gap: 6px; } .replayClock b { font-size: 14px; min-width: 4.9em; } .replayDay { font-size: 10px; letter-spacing: .12em; } }

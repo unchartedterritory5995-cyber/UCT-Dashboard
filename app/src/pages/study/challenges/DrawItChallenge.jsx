@@ -16,15 +16,17 @@ import VerdictTakeover from '../ui/VerdictTakeover'
 import Prompt from '../ui/Prompt'
 import UiStamp from '../ui/Stamp'
 import ChartKey from '../ui/ChartKey'
+import ReplayClock from '../ui/ReplayClock'
 import s2 from '../ui/study.module.css'
 import sa from '../ui/answerLooks.module.css'
 import lab from '../../../lab/lab.module.css'
-import { useRunOn } from '../../../lab/fx'
+import { useRunOnTicks } from '../../../lab/fx'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { reviewTrade, withArticle } from './hardMode'
+import { replayView, reviewTrade, withArticle } from './hardMode'
 import { tradeAnnotations } from './tradeMarks'
+import { alignTicks, developing, keyDays, showChart } from './replayTicks'
 import { setupName } from './challengeBank'
 import { normalizeBars, studyFetch } from '../useStudySession'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
@@ -48,14 +50,20 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
   const [active, setActive] = useState('entry')
   const [state, setState] = useState('ask')          // ask | ok | bad
   const [takeover, setTakeover] = useState(false)
+  const chartBox = useRef(null)   // the review brings the chart into view (showChart)
   const [res, setRes] = useState(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const live = useRef(true)
   useEffect(() => { live.current = true; return () => { live.current = false } }, [])
   const fwd = useMemo(() => (res ? normalizeBars(res.forward_bars || []) : []), [res])
-  const all = useRunOn(vis, fwd, state !== 'ask' && !takeover, 200)
   const trade = useMemo(() => (res?.plan ? reviewTrade(res.plan, vis[n - 1], fwd) : null), [res, vis, n, fwd])
+  // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
+  const intraday = useMemo(() => (res?.forward_intraday?.days ? { tf: Number(res.forward_intraday.tf) || 30, days: res.forward_intraday.days } : null), [res])
+  const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
+  const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
+  const { bars: all, clock } = useRunOnTicks(vis, fwd, fwd.length, state !== 'ask' && !takeover,
+    { slowMs: 200, fastMs: 200, ticks, keys, develop: developing })
 
   const tap = ({ price }) => {
     if (state !== 'ask' || !Number.isFinite(price)) return
@@ -94,10 +102,12 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
   )
   return (
     <div className={`${s2.kit} ${s2.screen}`} data-testid="draw-round">
-      {state !== 'ask' && takeover ? <VerdictTakeover ok={ok} title={title} sub={offLine} label={trade ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="draw-takeover" /> : null}
+      {state !== 'ask' && takeover ? <VerdictTakeover ok={ok} title={title} sub={offLine} label={trade ? 'See the trade' : 'See why'} onContinue={() => { setTakeover(false); showChart(chartBox.current) }} testId="draw-takeover" /> : null}
       <HudCombo label="Draw it" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="draw-step" />
-      <div className={`${lab.chartBox} ${s2.heroChart}`}>
-        <ChallengeChart id={item.id} bars={all} view={Math.min(all.length, 80 + (all.length - n))} height={phone ? 340 : 480} annotations={annotations} onBarTap={state === 'ask' ? tap : null} fetcher={fetcher} />
+      <div className={`${lab.chartBox} ${s2.heroChart}`} ref={chartBox}>
+        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? Math.min(all.length, 80) : replayView(all.length, n)} height={phone ? 340 : 480} annotations={annotations} onBarTap={state === 'ask' ? tap : null} fetcher={fetcher}
+          frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
+        <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="draw-clock" />
       </div>
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="draw-key" /> : null}
       {state === 'ask'

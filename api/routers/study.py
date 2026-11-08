@@ -391,7 +391,9 @@ def post_draw_score(body: DrawIn, _user: dict = Depends(require_paid)):
     return {"item_id": body.item_id, "sym": full.get("sym"), "plan": plan, "tolerance": round(tol, 4),
             "entry": judge(body.entry, entry), "stop": judge(body.stop, stop),
             "correct": bool(judge(body.entry, entry)["ok"] and judge(body.stop, stop)["ok"]),
-            "forward_bars": fwd[:REVEAL_FORWARD_BARS]}
+            "forward_bars": fwd[:REVEAL_FORWARD_BARS],
+            # the replay within the day for those bars (the member has placed both lines: the answer is in)
+            "forward_intraday": (study_store.get_intraday(body.item_id) or {"tf": None, "days": {}})}
 
 
 @router.get("/items/{item_id}/lookalikes", dependencies=_ARMED)
@@ -467,6 +469,20 @@ def post_step(attempt_id: int, body: StepIn, user: dict = Depends(require_paid))
     return {"item_id": att["item_id"], "offset": off, "bars": chunk,
             "next_offset": off + len(chunk), "done": off + len(chunk) >= len(fwd),
             "forward_total": len(fwd)}
+
+
+@router.get("/attempts/{attempt_id}/intraday", dependencies=_ARMED)
+def get_attempt_intraday(attempt_id: int, user: dict = Depends(require_paid)):
+    """THE REPLAY WITHIN THE DAY (the owner: "tick by tick so each day has multiuple ticks like using each 30 min or
+    hourly close to show how everyday moved"). The chart's forward days as their 30-minute (or hourly) bars, keyed
+    "YYYYMMDD", ONLY when the attempt is this member's own (the same gate as /step: these are the forward bars, finer).
+    Only days that add up to the daily candle were stored (study_intraday.build); a chart with none answers an empty
+    `days`, and its run-on stays daily."""
+    att = study_store.get_attempt(attempt_id)
+    if not att or att.get("user_id") != user["id"]:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    got = study_store.get_intraday(att["item_id"]) or {}
+    return {"item_id": att["item_id"], "tf": got.get("tf"), "days": got.get("days") or {}}
 
 
 def _profile_view(p: dict) -> dict:

@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { StartArena } from '../ui/StartLooks'
 import HowItPlays from '../ui/HowItPlays'
 import { Stamp } from '../../../lab/bits'
-import { useRunOn } from '../../../lab/fx'
+import { useRunOnTicks } from '../../../lab/fx'
 import { rayAt } from '../../../lab/pointers'
 import { POINTER, calloutLook } from '../ui/callout'
 import StudyButton from '../ui/StudyButton'
@@ -27,12 +27,14 @@ import sa from '../ui/answerLooks.module.css'
 import { reviewTrade } from './hardMode'
 import { tradeAnnotations } from './tradeMarks'
 import ChartKey from '../ui/ChartKey'
+import ReplayClock from '../ui/ReplayClock'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { beginRunXp, runXp, scoreAttempt, setupName } from './challengeBank'
+import { alignTicks, developing, fetchIntraday, keyDays, showChart } from './replayTicks'
 import { normalizeBars } from '../useStudySession'
 import { rules } from './kickerRules'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
@@ -68,7 +70,9 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')
   const [takeover, setTakeover] = useState(false)
+  const chartBox = useRef(null)   // the review brings the chart into view (showChart)
   const [fwd, setFwd] = useState(null)
+  const [intraday, setIntraday] = useState(null)   // the forward days' 30-minute bars, when the server stored them
   const [lesson, setLesson] = useState('')
   const [plan, setPlan] = useState(null)
   const shownAt = useRef(0)
@@ -84,7 +88,12 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     return [...fakes, { i: n - 1, kind: 'real', f: item.look?.real_features }].sort((a, b) => a.i - b.i)
   }, [item, n, VIEW])
   const view = useMemo(() => (cands.length ? Math.min(n, Math.max(50, n - cands[0].i + 24)) : Math.min(n, 70)), [cands, n])
-  const all = useRunOn(vis, fwd, state !== 'ask' && !takeover, 200)
+  const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, vis[n - 1], fwd) : null), [plan, state, vis, n, fwd])
+  // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
+  const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
+  const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
+  const { bars: all, clock } = useRunOnTicks(vis, fwd, fwd?.length || 0, state !== 'ask' && !takeover,
+    { slowMs: 200, fastMs: 200, ticks, keys, develop: developing })
   const highlight = useMemo(() => (state === 'ask' ? cands.map((c) => vis[c.i].t) : null), [cands, vis, state])
   const extra = useMemo(() => (highlight ? { highlightBarTime: highlight, highlightColor: GOLD } : null), [highlight])
   const word = name.toUpperCase()
@@ -110,6 +119,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     try {
       const a = await scoreAttempt(item, { choice: ok ? yes : no, picked_bar: vis[pick]?.t ?? null, picked_kind: picked?.kind || null }, performance.now() - shownAt.current, fetcher)
       right = !!a.correct; setFwd(a.forward); setLesson(a.reveal?.lesson || ''); setPlan(a.reveal?.trade || null)
+      fetchIntraday(a, fetcher).then((d) => { if (d) setIntraday(d) })
     } catch { /* the verdict stays the local one; the attempt is not recorded */ }
     setState(right ? 'ok' : 'bad'); setTakeover(true); revealFeedback(right, prefs)
   }
@@ -119,7 +129,6 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     if (near && near.dd <= (phone ? 5 : 4)) { setPick(near.c.i); tapFeedback(prefs) }
   }
   const real = cands.find((c) => c.kind === 'real')
-  const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, vis[n - 1], fwd) : null), [plan, state, vis, n, fwd])
   // the trade on the chart and its key, as in Hard mode; a setup with no trade keeps the line at its close
   const annotations = useMemo(() => {
     if (state === 'ask' || !n) return null
@@ -133,11 +142,13 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
       {state !== 'ask' && takeover ? <VerdictTakeover ok={ok} title={ok ? `That is the ${name}.` : 'Not that one.'}
         answer={ok ? null : `${name}, candle ${String.fromCharCode(65 + Math.max(0, cands.findIndex((c) => c.kind === 'real')))}`}
         sub={ok ? 'The cards measure the others against it.' : <>The <b>{name}</b> is the green one on the chart; the cards say why the others are not.</>}
-        label={trade ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="spot-takeover" /> : null}
+        label={trade ? 'See the trade' : 'See why'} onContinue={() => { setTakeover(false); showChart(chartBox.current) }} testId="spot-takeover" /> : null}
       <HudCombo label="Spot the Setup" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="spot-step" />
-      <div className={`${lab.chartBox} ${s2.heroChart}`}>
+      <div className={`${lab.chartBox} ${s2.heroChart}`} ref={chartBox}>
         {state === 'ask' && pick == null ? <span className={lab.tapHint}>spot the {name}</span> : null}
-        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? view : Math.min(all.length, view + (all.length - n))} height={phone ? 340 : 480} annotations={annotations} callouts={callouts} calloutLook={look} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher} />
+        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? view : Math.min(all.length, view + (all.length - n))} height={phone ? 340 : 480} annotations={annotations} callouts={callouts} calloutLook={look} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher}
+          frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
+        <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="spot-clock" />
       </div>
       {trade ? <ChartKey trade={trade} testId="spot-key" /> : null}
       {state === 'ask'

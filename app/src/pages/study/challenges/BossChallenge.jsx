@@ -8,7 +8,7 @@ import HowItPlays from '../ui/HowItPlays'
 import { EndHard } from '../ui/EndLooks'
 import { Medal } from '../ui/Medal'
 import { Confetti } from '../../../lab/bits'
-import { useRunOn } from '../../../lab/fx'
+import { useRunOnTicks } from '../../../lab/fx'
 import { rayAt } from '../../../lab/pointers'
 import { calloutLook, hardCallouts } from '../ui/callout'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -18,14 +18,16 @@ import Prompt from '../ui/Prompt'
 import VerdictTakeover from '../ui/VerdictTakeover'
 import UiStamp from '../ui/Stamp'
 import LessonCard from '../ui/LessonCard'
-import { reviewTrade } from './hardMode'
+import { replayView, reviewTrade } from './hardMode'
 import { tradeAnnotations } from './tradeMarks'
 import ChartKey from '../ui/ChartKey'
+import ReplayClock from '../ui/ReplayClock'
 import s2 from '../ui/study.module.css'
 import d5 from '../../../lab/duo.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { BOSS_TOTAL, beginRunXp, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
+import { alignTicks, developing, fetchIntraday, keyDays, showChart } from './replayTicks'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 
@@ -34,7 +36,9 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')
   const [takeover, setTakeover] = useState(false)
+  const chartBox = useRef(null)   // the review brings the chart into view (showChart)
   const [fwd, setFwd] = useState(null)
+  const [intraday, setIntraday] = useState(null)   // the forward days' 30-minute bars, when the server stored them
   const [why, setWhy] = useState('')
   const [plan, setPlan] = useState(null)
   const [xp, setXp] = useState(0)
@@ -43,7 +47,13 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   useEffect(() => { shownAt.current = performance.now() }, [])
   const bars = item.bars
   const n = bars.length
-  const all = useRunOn(bars, fwd, state !== 'ask' && !takeover, 160)
+  const signal = bars[n - 1]
+  const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, signal, fwd) : null), [plan, state, signal, fwd])
+  // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
+  const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
+  const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
+  const { bars: all, clock } = useRunOnTicks(bars, fwd, fwd?.length || 0, state !== 'ask' && !takeover,
+    { slowMs: 160, fastMs: 160, ticks, keys, develop: developing })
   // the pointer is the one Hard mode uses (the owner's rule 4: a designed arrow and label in open space, never over a
   // candle); after the verdict the close stays marked with a ray
   const ann = useMemo(() => (!n || !all || state === 'ask' ? null : rayAt(bars[n - 1], 'l', { id: `b${idx}l`, label: '' })), [all, bars, n, state, idx])
@@ -55,7 +65,7 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
     let ok = false
     try {
       const a = await scoreAttempt(item, { choice }, performance.now() - shownAt.current, fetcher)
-      ok = !!a.correct; setFwd(a.forward); setWhy(a.reveal?.lesson || ''); setPlan(a.reveal?.trade || null); setXp(Number(a.progress?.xp_gained || 0)); setSym(a.reveal?.sym || a.reveal?.ticker || '')
+      ok = !!a.correct; setFwd(a.forward); fetchIntraday(a, fetcher).then((d) => { if (d) setIntraday(d) }); setWhy(a.reveal?.lesson || ''); setPlan(a.reveal?.trade || null); setXp(Number(a.progress?.xp_gained || 0)); setSym(a.reveal?.sym || a.reveal?.ticker || '')
     } catch { ok = false }
     setState(ok ? 'ok' : 'bad'); setTakeover(true); revealFeedback(ok, prefs)
   }
@@ -70,8 +80,6 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   const results = [...Array(idx).fill(true), ...(state === 'ask' ? [] : [state === 'ok'])]
   const picked = pick == null ? null : item.choices[pick]
   const answer = state === 'ask' ? null : state === 'ok' ? picked : (item.choices.find((c) => c !== picked) ?? null)
-  const signal = bars[n - 1]
-  const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, signal, fwd) : null), [plan, state, signal, fwd])
   // the trade on the chart and its key, as in Hard mode (the levels, BOUGHT, the targets, STOPPED OUT)
   const marks = useMemo(() => (trade ? tradeAnnotations(trade, signal, all, n) : null), [trade, signal, all, n])
   return (
@@ -79,10 +87,12 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
       {state !== 'ask' ? <span className={`${s2.flash} ${state === 'ok' ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       {state === 'bad' ? <div className={d5.vignetteRed} /> : null}
       {state !== 'ask' && takeover ? <VerdictTakeover ok={state === 'ok'} title={state === 'ok' ? 'Still standing.' : 'That was the heart.'}
-        answer={answer} sub={<>{item.name}{sym ? <> · <b>{sym}</b></> : null}</>} xp={xp} label={trade ? 'See the trade' : 'See why'} onContinue={() => setTakeover(false)} testId="boss-takeover" /> : null}
+        answer={answer} sub={<>{item.name}{sym ? <> · <b>{sym}</b></> : null}</>} xp={xp} label={trade ? 'See the trade' : 'See why'} onContinue={() => { setTakeover(false); showChart(chartBox.current) }} testId="boss-takeover" /> : null}
       <HudCombo label="Boss" step={idx} total={total} results={results} live={state === 'ask'} stepTestId="boss-step" />
-      <div className={`${s2.heroChart} ${state === 'bad' ? s2.shake : ''}`}>
-        <ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={phone ? 340 : 480} annotations={marks || ann} callouts={callouts} calloutLook={look} fetcher={fetcher} />
+      <div className={`${s2.heroChart} ${state === 'bad' ? s2.shake : ''}`} ref={chartBox}>
+        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? Math.min(90, all?.length || 0) : replayView(all?.length || 0, n)} height={phone ? 340 : 480} annotations={marks || ann} callouts={callouts} calloutLook={look} fetcher={fetcher}
+          frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
+        <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="boss-clock" />
       </div>
       {trade ? <ChartKey trade={trade} testId="boss-key" /> : null}
       <AnswerLessonApp choices={item.choices} pick={pick} state={state} answer={answer} step={idx} total={total} hotkey={!takeover}

@@ -119,6 +119,11 @@ export function runLength(forwardLen, culm, fired) {
   return Math.min(forwardLen, RUN_NOTHING)
 }
 
+/** The replay starts closer than the question (the owner: "the replay starts way too far back"): this many sessions of
+ *  history and the signal, widening as each day of the run-on arrives so the whole run stays in view. */
+export const REPLAY_BACK = 40
+export const replayView = (shown, n) => Math.min(shown, REPLAY_BACK + Math.max(0, shown - n))
+
 /** "+23.4% in 14 sessions": the culmination as the chart's label. */
 export function culminationLabel(culm) {
   if (!culm || !Number.isFinite(culm.pct)) return ''

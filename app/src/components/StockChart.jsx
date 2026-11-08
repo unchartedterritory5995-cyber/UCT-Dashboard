@@ -2875,6 +2875,8 @@ export default function StockChart({
                               // zoom ending at this day's bar (marker line drawn there); later bars
                               // stay LOADED off-screen right (scroll to reveal). View-only — never
                               // slices data (contrast replayCutoff). User pan/zoom releases it.
+  hideAnchorMarker = false,   // Study's replay (2026-11-08): frame to anchorDate as each day arrives, without the marker line
+                              // (it would sit on the candle being drawn). View-only, like anchorDate itself.
   exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
@@ -21937,7 +21939,7 @@ export default function StockChart({
           anchorMarker) so the line and the frame's right edge designate one bar. Its own
           mount rather than a shared one — Custom-Period Sort's wiring above stays exactly
           as it was, and startMarker keeps precedence when a surface sets both. */}
-      {!startMarker && anchorMarker && (
+      {!startMarker && anchorMarker && !hideAnchorMarker && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
           <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={anchorMarker.bars} date={anchorMarker.date} color="#c9a84c" />
         </div>
