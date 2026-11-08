@@ -100,7 +100,7 @@ def test_schema_refuses_a_goto_off_the_sandbox():
 
 def test_semantic_rules_catch_what_the_schema_cannot():
     bad = copy.deepcopy(SCRIPT)
-    bad["steps"][1]["actions"][2].pop("value")                      # a fill with nothing to type
+    next(a for a in bad["steps"][1]["actions"] if a["do"] == "fill").pop("value")  # a fill with nothing to type
     bad["steps"][1]["actions"][0]["targets"] = [{"by": "role"}]    # a role target with no role
     bad["steps"][2]["viewports"] = ["tablet"]                       # an undeclared viewport
     bad["steps"][0]["optional"] = True                              # the opening step may not be skipped
