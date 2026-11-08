@@ -59,6 +59,11 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 a dark pod reads no RSP, settles no benchmark and pays no CPU
                 for the ten columns. Armed, the receipt's ``bars_rs`` block
                 carries the step's measured time.
+  - UCT RS Phase 3 columns -> the same step, ``collect_one(phase3=True)``
+                (unit 3-10): ``rrg_quadrant`` (weekly), ``clenow_score``,
+                ``vars_state`` (daily). DARK unless ``rs_v3_enabled()``
+                (``RS_V3_ENABLED``) as well; the receipt's
+                ``bars_rs.phase3_ms`` is their share of the step's time.
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -94,6 +99,28 @@ def rs_v2_enabled() -> bool:
     try:
         from api.services.signature import registry_defs
         return bool(registry_defs.RS_V2_ENABLED)
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def rs_v3_enabled() -> bool:
+    """``registry_defs.RS_V3_ENABLED``, read per call: the twin of
+    :func:`rs_v2_enabled` (engineering map unit 3-10). Gates the three Phase 3
+    columns inside the ``bars_rs`` step (``rs_columns.PHASE3_COLUMNS``), which
+    itself runs only under RS_V2, so a pod with RS_V3 armed and RS_V2 dark
+    writes none of the thirteen.
+
+    ⚠️ MERGE NOTE. ``registry_defs.RS_V3_ENABLED`` is declared by unit 3-05
+    (``_os.environ.get("RS_V3_ENABLED", "0") == "1"`` at import, the RS_V2
+    shape). Until that lands, the attribute is absent and the same environment
+    test is made here, so the gate means the same thing on either tree. Once
+    3-05 is merged, the attribute exists and the fallback is never reached."""
+    try:
+        from api.services.signature import registry_defs
+        flag = getattr(registry_defs, "RS_V3_ENABLED", None)
+        if flag is None:
+            return os.environ.get("RS_V3_ENABLED", "0") == "1"
+        return bool(flag)
     except Exception:                                        # noqa: BLE001
         return False
 
@@ -416,7 +443,8 @@ def rs_fields(rs_row) -> dict:
 def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
               market_row=None, failures=None, identity_state=None,
-              spy_bars=None, rsp_bars=None, rs_timing=None) -> dict:
+              spy_bars=None, rsp_bars=None, rs_timing=None,
+              rs_weekly_cache=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -468,6 +496,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     now DERIVED from the same SPY read (``spy_closes_from_bars``). The ten run
     only while ``rs_v2_enabled()``; ``rs_timing`` (optional ``{"rows", "ms"}``)
     accumulates the step's wall time for the build receipt.
+
+    The three Phase 3 columns (unit 3-10) run inside the same step only while
+    ``rs_v3_enabled()`` as well; ``rs_timing["phase3_ms"]`` is their share of
+    the step's time, and ``rs_weekly_cache`` (optional, one dict per build) holds
+    SPY's weekly resample so it is made once per session, not once per row.
 
     ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
     every ``_read_*`` in this file already reports into; ``run_build`` passes
@@ -598,10 +631,20 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             # `mansfield_cross_bars_ago` at 199, so a filter of 148+ never
             # matched and the column went blank on day 148 while the chart still
             # drew the dot (review finding #18). Same newest bar, same session.
+            #
+            # ⭐ PHASE 3 (unit 3-10, decision D7): `rrg_quadrant` on WEEKLY bars
+            # resampled from `bars_full` (the whole series, like the weekly
+            # candle), `clenow_score` and `vars_state` on the same daily window.
+            # DARK unless RS_V3_ENABLED too, read per row like RS_V2; dark, the
+            # collector is not asked and the three stay NULL at no cost.
+            _p3 = rs_v3_enabled()
             row.update(_step("bars_rs",
                              lambda: rs_columns.collect_one(
                                  rs_bars, spy_bars, rsp_bars,
-                                 session=_asof_of(bars), stats=_rs_stats)))
+                                 session=_asof_of(bars), stats=_rs_stats,
+                                 **({"phase3": True, "full": bars_full,
+                                     "weekly_cache": rs_weekly_cache,
+                                     "timing": rs_timing} if _p3 else {}))))
             if rs_timing is not None:
                 rs_timing["rows"] = rs_timing.get("rows", 0) + 1
                 rs_timing["ms"] = rs_timing.get("ms", 0.0) + \
@@ -1612,7 +1655,12 @@ def _run_build_locked(max_tickers=None) -> dict:
     # and its `rsp_bars` census entry. SPY is always read: `rs_line_trend`
     # (pre-2a, member-visible) is derived from it.
     rs_on = rs_v2_enabled()
-    rs_timing = {"enabled": rs_on, "rows": 0, "ms": 0.0}
+    # `phase3` / `phase3_ms` (unit 3-10): whether the three Phase 3 columns ran
+    # this build (RS_V3 under RS_V2) and their share of the step's time.
+    rs_p3 = rs_on and rs_v3_enabled()
+    rs_timing = {"enabled": rs_on, "rows": 0, "ms": 0.0,
+                 "phase3": rs_p3, "phase3_ms": 0.0}
+    rs_weekly_cache: dict = {}
     spy_bars = _read_benchmark_bars("SPY")
     rsp_bars = _read_benchmark_bars("RSP") if rs_on else []
     spy_closes = spy_closes_from_bars(spy_bars)
@@ -1865,7 +1913,7 @@ def _run_build_locked(max_tickers=None) -> dict:
                             context_row=context_row, market_row=market_row,
                             failures=sources, identity_state=identity_state,
                             spy_bars=spy_bars, rsp_bars=rsp_bars,
-                            rs_timing=rs_timing)
+                            rs_timing=rs_timing, rs_weekly_cache=rs_weekly_cache)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
@@ -1912,6 +1960,7 @@ def _run_build_locked(max_tickers=None) -> dict:
     # ⭐ The `bars_rs` step's measured cost, in the receipt (review finding #5):
     # the figure to read on the pod before RS_V2_ENABLED is armed for members.
     rs_timing["ms"] = round(rs_timing["ms"], 1)
+    rs_timing["phase3_ms"] = round(rs_timing.get("phase3_ms", 0.0), 1)
     rs_timing["ms_per_row"] = (round(rs_timing["ms"] / rs_timing["rows"], 2)
                                if rs_timing["rows"] else None)
     log.info("[screener] bars_rs step: %s", rs_timing)

@@ -204,6 +204,17 @@ COLUMNS = [
     # init.
     "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
     "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m",
+    # ⭐ UCT RELATIVE STRENGTH, Phase 3 (unit 3-10, decision D7). ONE writer,
+    # `rs_columns.collect_one(..., phase3=True)` inside the same `bars_rs` step,
+    # and only while `snapshot_builder.rs_v3_enabled()` (RS_V3_ENABLED, dark by
+    # default: NULL on every row until it is armed). `rrg_quadrant` TEXT
+    # (Leading / Weakening / Lagging / Improving, WEEKLY bars vs SPY, the
+    # Terminal's RRG), `clenow_score` REAL (Clenow annualised slope x R^2 over
+    # 90 DAILY closes, a fraction to 4 dp), `vars_state` TEXT (Strong, rising /
+    # Strong, fading / Weak, improving / Weak, falling, DAILY). NULL when the
+    # history is short or the maths has no answer, never a guessed value.
+    # Additive: ALTER-added on init.
+    "rrg_quadrant", "clenow_score", "vars_state",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -226,6 +237,8 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          # typing made it harmless). New DBs now declare it TEXT; existing DBs
          # keep the old declaration and keep working.
          "accdis", "rs_line_trend", "theme",
+         # UCT RS Phase 3 (3-10): the two classification names
+         "rrg_quadrant", "vars_state",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
          "earnings_setup_grade", "analyst_consensus", "sponsorship",
@@ -855,7 +868,9 @@ def _ensure_build_runs(conn) -> None:
 
     ``bars_rs`` (UCT RS Phase 2a, unit U3) is the JSON of ``stats["bars_rs"]``:
     the RS column step's switch and measured wall time (``{"enabled", "rows",
-    "ms", "ms_per_row"}``), so the cost of arming ``RS_V2_ENABLED`` is on the
+    "ms", "ms_per_row", "phase3", "phase3_ms"}``; the last two since UCT RS
+    Phase 3 unit 3-10, the Phase 3 columns' switch and their share of ``ms``),
+    so the cost of arming ``RS_V2_ENABLED`` / ``RS_V3_ENABLED`` is on the
     receipt, not only in a log line. A dark pod stores ``enabled: false`` with
     zero rows; NULL means a receipt written before the column existed."""
     conn.execute(_BUILD_RUNS_SQL)
