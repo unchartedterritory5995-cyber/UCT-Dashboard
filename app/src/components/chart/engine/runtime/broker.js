@@ -128,9 +128,10 @@ const idText = (v, what) => {
  * Make one run's broker.
  *
  * @param {object} cfg   `program.broker` — the declaration as the front end read it:
- *   `{ pyramiding, defaultQty, initialCapital, marginLong, marginShort }`. `defaultQty`
- *   is `null` when the declaration leaves the default order size to a rule the spec
- *   does not settle; an order that needs it then stops the run ([B-QTY]).
+ *   `{ pyramiding, defaultQty, qtyType, qtyValue, initialCapital, marginLong, marginShort }`.
+ *   `defaultQty` is the FIXED default size (`null` for a cash / percent default or none);
+ *   `qtyType` / `qtyValue` are the declared-or-defaulted `default_qty_*`, which `defaultSize`
+ *   turns into units for an order whose `qty` is na ([B-QTY], W9-T4).
  * @param {object} data  `{ series }` — the VM's price series (open, high, low, close).
  */
 export function makeBroker(cfg, data) {
@@ -423,21 +424,14 @@ export function makeBroker(cfg, data) {
     if (dirV === 1 || dirV === true) dir = 1
     else if (dirV === 0 || dirV === -1 || dirV === false) dir = -1
     else throw new BrokerRefusal(`\`strategy.entry\` direction ${String(dirV)} is neither long nor short`)
-    let qty = qtyV
-    if (!finite(qty)) {
-      // [B-QTY] na -> the declaration's default order size
-      if (!finite(cfg.defaultQty)) {
-        throw new BrokerRefusal('this order takes the default order size, and the default this strategy declares '
-          + '(or its Pine version documents) is a size rule this broker does not serve', 'Q-S1a')
-      }
-      rule('B-QTY'); if (defaulted.qty) rule('B-DEFAULTS')
-      qty = cfg.defaultQty
-    }
-    if (!(qty > 0)) throw new BrokerRefusal(`\`strategy.entry\` with a quantity of ${qty}`, 'Q-S1a')
     const lim = finite(limV); const stp = finite(stpV)
     if (lim && stp) throw new BrokerRefusal('a stop-limit entry is not served', 'Q-S1j')
     const type = lim ? 'limit' : (stp ? 'stop' : 'market')
     const level = lim ? limV : (stp ? stpV : NaN)
+    let qty = qtyV
+    // [B-QTY] na -> the declaration's default order size (W9-T4: fixed, cash or percent of equity)
+    if (!finite(qty)) qty = defaultSize(type, id, bar)
+    if (!(qty > 0)) throw new BrokerRefusal(`\`strategy.entry\` with a quantity of ${qty}`, 'Q-S1a')
     // [B-IMMEDIATE] a limit at a worse price than the market (or a stop at a better
     // one) fills on the next tick rather than waiting
     const cl = C[bar]
@@ -556,6 +550,80 @@ export function makeBroker(cfg, data) {
     if (defaulted.initialCapital) rule('B-DEFAULTS')
     return cfg.initialCapital
   }
+  /** [B-VAL] `strategy.equity` at bar `bar`'s close: initial capital + net profit + open profit. */
+  const equityAt = (bar, what) => {
+    exactOpen(what); exactClosed(what); needSymbol()
+    return capital() + (netPts() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty)) * pointvalue
+  }
+
+  /**
+   * ⭐⭐ W9-T4 [B-QTY] — the size of an entry whose `qty` is na, from the declaration's
+   * `default_qty_type` / `default_qty_value` (v6 reference, `strategy()`: "strategy.fixed for
+   * contracts/shares/lots, strategy.cash for currency amounts, or strategy.percent_of_equity for a
+   * percentage of available equity"; `strategy.entry` `qty`: "The default is na, which means that the
+   * command uses the default_qty_type and default_qty_value parameters ... to determine the quantity").
+   *
+   * ⛔⛔ THE REFERENCE AND THE MANUAL STATE NO FORMULA for cash and percent: neither says which price
+   * turns money into units, nor how a fractional result is rounded (`strategy-broker-spec.md`, Q-S1a).
+   * What follows is the HYPOTHESIS the Q-S1a probes are built to grade (they plot the open size at the
+   * fill and `equity` / `close` at the signal), and nothing here is served until B-QTY is pinned:
+   *   - the size is taken when the order is PLACED, on the signal bar, from that bar's close;
+   *   - cash:    units = value / (close × pointvalue);
+   *   - percent: units = equity × value / 100 / (close × pointvalue), `equity` = `strategy.equity` at
+   *     that close (the v6 constant's text: "a percentage (0-100) of equity");
+   *   - rounded DOWN to whole units (`syminfo.mincontract`: "For most other types of asset, it is often
+   *     1"; this run is not told the symbol's minimum contract, so a whole unit is the step).
+   * Every case the hypothesis does not reach refuses by name (Q-S1a): a price (limit / stop) order,
+   * whose sizing price could be its level or the signal close; a percent order placed while trades are
+   * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
+   * whole unit.
+   */
+  const defaultSize = (type, id, bar) => {
+    const qtyType = cfg.qtyType === undefined ? (finite(cfg.defaultQty) ? 'fixed' : null) : cfg.qtyType
+    if (qtyType === 'fixed') {
+      if (!finite(cfg.defaultQty)) {
+        throw new BrokerRefusal('this order takes the default order size, and this strategy\'s Pine version '
+          + 'documents no default value', 'Q-S1a')
+      }
+      rule('B-QTY'); if (defaulted.qty) rule('B-DEFAULTS')
+      return cfg.defaultQty
+    }
+    const v = cfg.qtyValue
+    if ((qtyType !== 'cash' && qtyType !== 'percent_of_equity') || !(finite(v) && v > 0)) {
+      throw new BrokerRefusal('this order takes the default order size, and the default this strategy declares '
+        + '(or its Pine version documents) is a size rule this broker does not serve', 'Q-S1a')
+    }
+    rule('B-QTY'); if (defaulted.qty) rule('B-DEFAULTS')
+    const unit = qtyType === 'cash' ? 'cash' : 'percent-of-equity'
+    if (type !== 'market') {
+      throw new BrokerRefusal(`the ${type} entry \`${id}\` takes a ${unit} default size, and whether its level or `
+        + 'the signal bar\'s close sizes it is not stated', 'Q-S1a')
+    }
+    needSymbol()
+    const px = C[bar]
+    if (!(finite(px) && px > 0)) {
+      throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size on a bar without a close`, 'Q-S1a')
+    }
+    let money
+    if (qtyType === 'cash') money = v
+    else {
+      if (v > 100) {
+        throw new BrokerRefusal(`a percent-of-equity default size of ${v} (more than 100) is not served`, 'Q-S1a')
+      }
+      if (open.length) {
+        throw new BrokerRefusal(`the entry \`${id}\` takes a percent-of-equity default size while trades are open, `
+          + 'and whether "available equity" excludes what they hold is not stated', 'Q-S1a')
+      }
+      money = equityAt(bar, '`strategy.entry` sized as a percent of equity') * v / 100
+    }
+    // a hair of tolerance so 10000 / 100 does not floor to 99 through binary rounding
+    const units = Math.floor(money / (px * pointvalue) + 1e-9)
+    if (!(units >= 1)) {
+      throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size of less than one whole unit `
+        + `(${money} at a close of ${px})`, 'Q-S1a')
+    }
+    return units
+  }
   const tradeAt = (list, k, fn) => {
     if (!(finite(k) && Number.isInteger(k) && k >= 0 && k < list.length)) {
       throw new BrokerRefusal(`\`${fn}(${k})\` outside the ${list.length} trades`, 'Q-S1m')
@@ -599,10 +667,7 @@ export function makeBroker(cfg, data) {
       case 'strategy.openprofit':
         exactOpen('`strategy.openprofit`'); needSymbol()
         return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue
-      case 'strategy.equity': {
-        exactOpen('`strategy.equity`'); exactClosed('`strategy.equity`'); needSymbol()
-        return capital() + (netPts() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty)) * pointvalue
-      }
+      case 'strategy.equity': return equityAt(bar, '`strategy.equity`')
       case 'strategy.initial_capital': return capital()
       case 'strategy.opentrades.entry_price': {
         const t = tradeAt(open, a[0], fn)
