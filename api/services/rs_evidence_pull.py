@@ -444,6 +444,23 @@ def requirement_phrase(floor, min_dates=MIN_EVENT_DATES) -> str:
     return f"it needs at least {int(floor):,} events on at least {int(min_dates):,} different sessions"
 
 
+def likely_range_phrase(low_pct, high_pct) -> str:
+    """The hit rate's likely range as it follows the number, with its leading
+    space: `` (likely between 51.9% and 64.4%)``; ``""`` when either bound is
+    missing. The ONE wording (:data:`INTERVAL_WORDS`): the card sentence and the
+    Discord evidence line both read it from here."""
+    lo, hi = _num(low_pct), _num(high_pct)
+    if lo is None or hi is None:
+        return ""
+    return f" ({INTERVAL_WORDS} {lo:.1f}% and {hi:.1f}%)"
+
+
+def survivorship_sentence(note=None) -> str:
+    """The survivorship caveat as a sentence (``Universe as held, survivorship
+    not yet corrected.``), from the artifact's own note or `SURVIVORSHIP_NOTE`."""
+    return _sentence_case(note or SURVIVORSHIP_NOTE)
+
+
 def split_unchecked_phrase(count) -> str:
     """The measured sentence's disclosure of names the split guard could not
     judge; ``""`` when there are none (or the artifact does not say)."""
@@ -495,10 +512,7 @@ def sentence_for(ev: Optional[dict]) -> str:
         return _below_floor_sentence(ev) or HONESTY_SENTENCE
     h = int(ev["horizon_bars"])
     on = f" on {int(ev['sessions']):,} sessions" if isinstance(ev.get("sessions"), int) else ""
-    band = ""
-    if ev.get("hit_rate_low_pct") is not None and ev.get("hit_rate_high_pct") is not None:
-        band = (f" ({INTERVAL_WORDS} {float(ev['hit_rate_low_pct']):.1f}% and "
-                f"{float(ev['hit_rate_high_pct']):.1f}%)")
+    band = likely_range_phrase(ev.get("hit_rate_low_pct"), ev.get("hit_rate_high_pct"))
     text = (f"{int(ev['n']):,} {ev['label']}{on}, {ev['start']} to {ev['end']}, daily bars: "
             f"{float(ev['hit_rate_pct']):.1f}%{band} {outcome_phrase(ev.get('benchmark'), h)}")
     notes = [w for w in (HORIZON_WORDS.get(h),) if w]
@@ -512,7 +526,7 @@ def sentence_for(ev: Optional[dict]) -> str:
     splits = split_unchecked_phrase(ev.get("split_unchecked"))
     if splits:
         text += f" {splits}"
-    tail = _sentence_case(ev.get("survivorship") or SURVIVORSHIP_NOTE)
+    tail = survivorship_sentence(ev.get("survivorship"))
     return f"{text} {tail}" if tail else text
 
 

@@ -5,7 +5,10 @@
 //   showRating      `when: 'input:showRating'` on every rating row: off omits the
 //                   Rating glance row, its card's numbers and the pane-label number.
 //   headlineRating  `chipWhen` on the two rating chip rows: which number rides the
-//                   pane label (`ibd` 94, `fast` "fast 91", `both`), the card keeps both.
+//                   pane label (`ibd` 94, the default since 2026-11-07, `fast`
+//                   "fast 91", `both`), the card keeps both.
+//   showComponents  `when` on the Components detail row (off by default): the four
+//                   component ranks the server sends as `rating.components`.
 //   ratingBands     `band` on the rating rows: the site's 80 / 60 / 40 cuts, only
 //                   while the switch is on.
 //   and the schema half: the three new entry fields fail closed at registration,
@@ -22,7 +25,8 @@ import * as engineRegistry from '../nativeRegistry'
 const RS = engineRegistry.getDefinition('rsLine')
 const PAYLOAD = Object.freeze({
   benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology (XLK)', fallback: null, bars: 852 },
-  rating: { ibd: 94, fast: 55, asof: '2026-11-05', d5: 2, d20: 7, source: 'row', summary: '94 · fast 55' },
+  rating: { ibd: 94, fast: 55, asof: '2026-11-05', d5: 2, d20: 7, source: 'row', summary: '94 · fast 55',
+    m1: 91, m3: 97, m6: 95, m12: 96, components: '1M 91 · 3M 97 · 6M 95 · 12M 96' },
 })
 const rows = (inputs = {}, payload = PAYLOAD) => readoutRows(RS, payload, { inputs })
 const keys = (rs) => rs.map((r) => r.key)
@@ -33,28 +37,32 @@ const chip = (inputs = {}, payload = PAYLOAD) => {
 }
 
 describe('the RS definition declares the rating inputs the plan names (§6.3)', () => {
-  it('showRating (Simple), headlineRating and ratingBands (Rating), with the plan defaults', () => {
+  it('showRating (Simple), headlineRating, showComponents and ratingBands (Rating), with their defaults', () => {
     const by = Object.fromEntries(RS.inputs.map((i) => [i.key, i]))
     expect(by.showRating).toMatchObject({ type: 'bool', default: true, group: 'Simple' })
-    expect(by.headlineRating).toMatchObject({ type: 'enum', default: 'both', group: 'Rating' })
+    // ⭐ 2026-11-07: the headline defaults to IBD-style (the plan said both), so the
+    // pane label is the Phase 2a one, byte for byte
+    expect(by.headlineRating).toMatchObject({ type: 'enum', default: 'ibd', group: 'Rating' })
     expect(by.headlineRating.options.map((o) => o[0])).toEqual(['ibd', 'fast', 'both'])
     expect(by.ratingBands).toMatchObject({ type: 'bool', default: true, group: 'Rating' })
     // both Rating controls dim while the rating is off
     expect(by.headlineRating.activeWhen).toEqual({ key: 'showRating', equals: true })
     expect(by.ratingBands.activeWhen).toEqual({ key: 'showRating', equals: true })
-    // ⛔ a switch with nothing behind it is not shipped: no component ranks in the payload yet
-    expect(by.showComponents).toBeUndefined()
+    // the payload carries the component ranks now (shape 4), so the switch ships, off
+    expect(by.showComponents).toMatchObject({ type: 'bool', default: false, group: 'Rating',
+      activeWhen: { key: 'showRating', equals: true } })
+    // ⛔ a switch with nothing behind it is not shipped: there is no rating pane
     expect(by.showRatingHistory).toBeUndefined()
   })
 
   it('⛔ none is a server input, and the compute revision did not move', () => {
-    for (const k of ['showRating', 'headlineRating', 'ratingBands']) expect(RS.meta.serverInputs).not.toContain(k)
+    for (const k of ['showRating', 'headlineRating', 'showComponents', 'ratingBands']) expect(RS.meta.serverInputs).not.toContain(k)
     expect(RS.compute.rev).toBe(3)
     expect(RS.version).toBe(3)
   })
 
   it('every label and tooltip is plain words: no emoji, no "heuristic"', () => {
-    for (const k of ['showRating', 'headlineRating', 'ratingBands']) {
+    for (const k of ['showRating', 'headlineRating', 'showComponents', 'ratingBands']) {
       const i = RS.inputs.find((x) => x.key === k)
       for (const s of [i.label, i.tooltip, ...(i.options || []).map((o) => o[1])]) {
         expect(s, k).not.toMatch(/\p{Extended_Pictographic}/u)
@@ -68,11 +76,13 @@ describe('showRating', () => {
   it('on (default): the Rating glance row, its numbers and the pane-label numbers', () => {
     const r = rows()
     expect(keys(r)).toEqual(expect.arrayContaining(['ratingSummary', 'rating', 'fastRating', 'ratingAsOf']))
-    expect(chip().suffix).toBe(' · XLK · 94 · fast 55')
+    expect(chip().suffix).toBe(' · XLK · 94')
   })
   it('off: every rating row is omitted, and the pane label keeps the benchmark alone', () => {
     const r = rows({ showRating: false })
     for (const k of ['ratingSummary', 'rating', 'fastRating', 'ratingAsOf']) expect(keys(r), k).not.toContain(k)
+    // the Components row sits in the Rating card, so it goes with it, even switched on
+    expect(keys(rows({ showRating: false, showComponents: true }))).not.toContain('ratingSummary')
     expect(keys(r)).toContain('benchmarkName')
     expect(chip({ showRating: false }).suffix).toBe(' · XLK')
   })
@@ -83,13 +93,14 @@ describe('showRating', () => {
 })
 
 describe('headlineRating', () => {
-  it('ibd: the IBD-style number alone, exactly the Phase 2a label', () => {
+  it('ibd (default): the IBD-style number alone, exactly the Phase 2a label', () => {
     expect(chip({ headlineRating: 'ibd' }).suffix).toBe(' · XLK · 94')
+    expect(chip().suffix).toBe(' · XLK · 94')
   })
   it('fast: the fast number, labelled so it never reads as the IBD-style one', () => {
     expect(chip({ headlineRating: 'fast' }).suffix).toBe(' · XLK · fast 55')
   })
-  it('both (default): IBD-style then fast', () => {
+  it('both: IBD-style then fast', () => {
     expect(chip({ headlineRating: 'both' }).suffix).toBe(' · XLK · 94 · fast 55')
   })
   it('the card keeps both numbers whatever the headline says, and the prefix never reaches the card', () => {
@@ -103,6 +114,26 @@ describe('headlineRating', () => {
     const p = { ...PAYLOAD, rating: { ...PAYLOAD.rating, fast: null, summary: '94' } }
     expect(chip({}, p).suffix).toBe(' · XLK · 94')
     expect(chip({ headlineRating: 'fast' }, p).suffix).toBe(' · XLK')
+  })
+})
+
+describe('showComponents', () => {
+  it('off (default): no Components row', () => {
+    expect(keys(rows())).not.toContain('ratingComponents')
+  })
+  it('on: the text the server sends, verbatim, as a detail row of the Rating card', () => {
+    expect(rows({ showComponents: true }).find((x) => x.key === 'ratingComponents'))
+      .toMatchObject({ label: 'Components', text: '1M 91 · 3M 97 · 6M 95 · 12M 96', detailOf: 'ratingSummary', muted: false })
+  })
+  it('on, with no component in the payload: the row is omitted, never a stand-in', () => {
+    const p = { ...PAYLOAD, rating: { ...PAYLOAD.rating, m1: null, m3: null, m6: null, m12: null, components: null } }
+    expect(keys(rows({ showComponents: true }, p))).not.toContain('ratingComponents')
+  })
+  it('never rides the pane label and is never banded', () => {
+    const r = rows({ showComponents: true })
+    expect(readoutChipRows(RS, r).map((x) => x.key)).not.toContain('ratingComponents')
+    expect(r.find((x) => x.key === 'ratingComponents').band).toBeUndefined()
+    expect(chip({ showComponents: true }).suffix).toBe(' · XLK · 94')
   })
 })
 

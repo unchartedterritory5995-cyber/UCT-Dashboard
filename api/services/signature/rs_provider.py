@@ -394,8 +394,9 @@ _RS_GREEN_ON_RED_WINDOW = 20
 _RS_GREEN_ON_RED_PASS = 6
 _RS_PULLBACK_EMA = 8          # pullback distance from the 8-day EMA (v3 §7.20)
 #: The v2 payload's shape, in the cache key (bump when a payload field or a
-#: wire blanking rule changes inside one `compute.rev`).
-_RS_PAYLOAD_SHAPE = 3
+#: wire blanking rule changes inside one `compute.rev`). 4 (2026-11-07):
+#: `rating.m1` / `m3` / `m6` / `m12` and `rating.components`.
+_RS_PAYLOAD_SHAPE = 4
 #: What Mansfield view blanks in the wire (A2): the ratio, its average, the
 #: above flag and every RS-line dot. Event columns are never blanked here.
 _RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
@@ -660,15 +661,26 @@ def _rs_data_generation(now: float | None = None) -> str:
     return value
 
 
+#: The rating's component ranks as `rs_history` stores them, and the label each
+#: prints under in the Components row (plan §6.6: ``1M 91 · 3M 97 · 6M 95 · 12M 96``).
+#: Each is the 1 to 99 percentile of the plain 21 / 63 / 126 / 252-bar return
+#: (`rs_history.COMPONENTS`), ranked like the rating: a RANK, never a return.
+_RS_COMPONENTS: tuple[tuple[str, str], ...] = (("m1", "1M"), ("m3", "3M"), ("m6", "6M"), ("m12", "12M"))
+
+
 def _rs_rating(sym: str) -> dict:
-    """``{ibd, fast, asof, d5, d20, source}`` from `rs_history.read_fields`.
+    """``{ibd, fast, asof, d5, d20, m1, m3, m6, m12, source, summary, components}``
+    from `rs_history.read_fields`.
 
     ``source`` is ``row`` when the history table holds the symbol, ``dark`` when
     `RS_HISTORY_ENABLED` is off (the table is never written on a dark pod) and
     ``missing`` when it is on and the symbol has no row yet. Never raises and
-    never fabricates a number: every value is ``None`` until a row exists.
+    never fabricates a number: every value is ``None`` until a row exists, and a
+    component the row does not hold (a young listing has no 12-month rank) stays
+    ``None`` and is left out of ``components``.
     """
-    out = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "source": "missing"}
+    out = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None,
+           "m1": None, "m3": None, "m6": None, "m12": None, "source": "missing"}
     dark = os.environ.get("RS_HISTORY_ENABLED", "0") != "1"
     row: dict = {}
     try:
@@ -678,7 +690,7 @@ def _rs_rating(sym: str) -> dict:
         logger.exception("signature: rs rating read failed for %s", sym)
         row = {}
     if row and (row.get("ibd") is not None or row.get("fast") is not None):
-        for k in ("ibd", "fast", "d5", "d20"):
+        for k in ("ibd", "fast", "d5", "d20") + tuple(k for k, _ in _RS_COMPONENTS):
             v = row.get(k)
             out[k] = int(v) if _rs_num(v) else None
         out["asof"] = row.get("asof")
@@ -686,7 +698,15 @@ def _rs_rating(sym: str) -> dict:
     else:
         out["source"] = "dark" if dark else "missing"
     out["summary"] = _rs_rating_summary(out["ibd"], out["fast"])
+    out["components"] = _rs_components_summary(out)
     return out
+
+
+def _rs_components_summary(rating: dict) -> str | None:
+    """The Components row (plan §6.6): ``1M 91 · 3M 97 · 6M 95 · 12M 96``, the
+    component ranks that exist in order; None when none does (the row is omitted)."""
+    parts = [f"{label} {rating[k]}" for k, label in _RS_COMPONENTS if rating.get(k) is not None]
+    return " · ".join(parts) or None
 
 
 def _rs_rating_summary(ibd, fast) -> str | None:

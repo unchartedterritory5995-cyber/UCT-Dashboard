@@ -4044,15 +4044,26 @@ const RS_LINE_RAW = {
       tooltip: 'RS new lows: small dot when the RS line is at its lowest level of the lookback. Relative weakness. Daily and weekly charts only.' },
     { ...colorInput('dotLowColor', 'New-low dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW,
       tooltip: 'Colour of the small RS new-low dot' },
-    // ⭐ VA2 — THE RATING GROUP (plan §6.3, collapsed). Both dim while the rating
-    // is switched off. `showComponents` (the 1, 3, 6 and 12-month ranks) and
-    // `showRatingHistory` (the rating pane) are NOT declared: the provider's
-    // `payload.rating` carries no component ranks yet and there is no rating
-    // pane, and a switch with nothing behind it is not shipped.
-    { key: 'headlineRating', type: 'enum', label: 'Headline rating', default: 'both', group: 'Rating',
+    // ⭐ VA2 — THE RATING GROUP (plan §6.3, collapsed). Every control dims while
+    // the rating is switched off. `showRatingHistory` (the rating pane) is NOT
+    // declared: there is no rating pane, and a switch with nothing behind it is
+    // not shipped.
+    //
+    // ⭐ THE HEADLINE DEFAULTS TO IBD-STYLE (2026-11-07, owner call): the pane
+    // label stays exactly the Phase 2a one (`UCT RS · XLK · 94`) and the phone
+    // legend stays one tight row. `both` is the member's choice, not the default
+    // (plan §6.3 said both; this supersedes it).
+    { key: 'headlineRating', type: 'enum', label: 'Headline rating', default: 'ibd', group: 'Rating',
       activeWhen: RS_RATING_ON,
       options: [['ibd', 'IBD-style'], ['fast', 'UCT fast'], ['both', 'Both']],
       tooltip: 'Which rating the pane label shows beside the benchmark. IBD-style is the nightly rank of the 3, 6, 9 and 12-month return; UCT fast is the site\'s quicker rank. The readout always shows both.' },
+    // ⭐ THE COMPONENTS ROW'S SWITCH (2026-11-07): the provider sends the four
+    // component ranks (`payload.rating.m1` / `m3` / `m6` / `m12`, read from
+    // `rs_history`) and their one-line text (`rating.components`). Presentation
+    // only, like the other rating inputs: not a server input.
+    { key: 'showComponents', type: 'bool', label: 'Components', default: false, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'Add the four parts of the rating to the Rating card: how the 1, 3, 6 and 12-month returns each rank, 1 to 99, against the same names.' },
     { key: 'ratingBands', type: 'bool', label: 'Rating colours', default: true, group: 'Rating',
       activeWhen: RS_RATING_ON,
       tooltip: 'Colour the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
@@ -4168,12 +4179,18 @@ const RS_LINE_RAW = {
   // ⭐ THE EVIDENCE LINES (unit 2b-09; research base 03-evidence.md §b). A card
   // whose signal the nightly backtest measures (2b-01 → `rs/evidence.json` →
   // 2b-03 `payload.evidence.sentence.<key>`) declares `evidenceSource`; the
-  // surface prints that sentence VERBATIM — "1,284 RS new highs before price
-  // on 240 sessions, … daily bars: 58.3% beat SPY from the next session's open
-  // to the close 63 sessions later (about 3 months; median +2.1%), against 50.2%
-  // for all bars. Universe as held, survivorship not yet corrected." (the base
-  // is the next open since owner decision N6, 2026-11-07) — and the static
-  // `evidence` (the honesty sentence) only when no envelope has landed. A
+  // surface prints that sentence VERBATIM, as `rs_evidence_pull.sentence_for`
+  // writes it — "1,284 RS new highs before price on 240 sessions, 2025-11-05 to
+  // 2026-11-04, daily bars: 58.3% (likely between 52.0% and 64.4%) beat SPY from
+  // the next session's open to the close 63 sessions later (about 3 months;
+  // median +2.1%), against 50.2% for all bars. Stock splits not yet checked for
+  // 3 names. Universe as held, survivorship not yet corrected." The base is the
+  // next open (owner decision N6, 2026-11-07); the likely range is a 95% Wilson
+  // interval over the effective n, and the split note prints only when the
+  // artifact counts names the split guard could not judge (unit VA3). Below the
+  // display floor the server sends what was measured and what a number needs
+  // instead; the static `evidence` (the honesty sentence) prints only when no
+  // envelope has landed. A
   // sourced card's literature sentences (Bulkowski on Before price) lead the
   // server sentence, which replaces only the closing honesty sentence
   // (`readoutSchema.cardEvidenceText`, review finding #22, 2026-11-07). The
@@ -4239,6 +4256,13 @@ const RS_LINE_RAW = {
         origin: 'The site\'s existing RS rank (rs_ranking), read once a night beside the IBD-style rating; the Rated as of row dates both. A different formula from the IBD-style rating, so the two can differ widely.' } },
     { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text', detailOf: 'ratingSummary',
       when: 'input:showRating' },
+    // ⭐ THE COMPONENTS ROW (plan §6.6: `1M 91 · 3M 97 · 6M 95 · 12M 96`), the
+    // server's `rating.components`: each part's 1 to 99 rank, the ones the nightly
+    // row holds, in order. A detail row of the Rating card, so it prints only
+    // while the Rating row does (the RS Rating switch), and only while the member
+    // turns Components on. Omitted when the row holds no component.
+    { key: 'ratingComponents', label: 'Components', source: 'scalar:rating.components', format: 'text',
+      detailOf: 'ratingSummary', when: 'input:showComponents' },
     { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
       card: { what: 'Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read.',
         origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',

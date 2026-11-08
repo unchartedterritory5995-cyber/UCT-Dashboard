@@ -78,7 +78,7 @@ describe('A1 — the glance list and the detail rows', () => {
     }
     const of = (key) => details.filter((e) => e.detailOf === key).map((e) => e.key)
     expect(of('benchmarkName')).toEqual(['benchmarkRequested', 'benchmark', 'benchmarkNote'])
-    expect(of('ratingSummary')).toEqual(['rating', 'fastRating', 'ratingAsOf'])
+    expect(of('ratingSummary')).toEqual(['rating', 'fastRating', 'ratingAsOf', 'ratingComponents'])
     expect(of('phase')).toEqual(['fromMa'])
     expect(of('mansfield')).toEqual(['mansfieldValue', 'mansfieldCross', 'mansfieldLength'])
     expect(of('rsHigh')).toEqual(['rsHighAge', 'beforePrice', 'redDay', 'history'])
@@ -183,17 +183,22 @@ describe('A1 — the glance list and the detail rows', () => {
     expect(READOUT_ENTRY_FIELDS).toContain('detailOf')
   })
 
-  it('⛔ the chip rows: the pane reads `UCT Relative Strength · XLK · 94 · fast 91` under the default headline (VA2)', () => {
+  it('⛔ the chip rows: the pane reads `UCT Relative Strength · XLK · 94` under the default headline (VA2, 2026-11-07)', () => {
     const sector = { ...PAYLOAD, benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology sector (XLK)', fallback: null, bars: 852 } }
     expect(readoutChipRows(RS, rows(sector)).map((r) => [r.key, r.text]))
-      .toEqual([['benchmark', 'XLK'], ['rating', '94'], ['fastRating', '91']])
+      .toEqual([['benchmark', 'XLK'], ['rating', '94']])
     const b = { instanceId: 'inst:rsLine:1', defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'rs' }, lastValue: 0.4187 }
     const inst = { instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs: { benchmark: 'SECTOR' }, hidden: false }
     const chip = legendChips([b], null, engineRegistry, [inst], { scalarsOf: () => sector })[0]
-    // VA2: headline rating `both` (the plan's default, decision 4) puts both in the label
-    expect(chip.suffix).toBe(' · XLK · 94 · fast 91')
-    expect(paneReadoutLabel(chip, RS, null)).toBe('UCT Relative Strength · XLK · 94 · fast 91')
-    // the IBD-style headline is the Phase 2a label, byte for byte
+    // the default headline (IBD-style since 2026-11-07; the plan said both) is the
+    // Phase 2a label, byte for byte: the fast chip row resolves and stays out
+    expect(chip.suffix).toBe(' · XLK · 94')
+    expect(paneReadoutLabel(chip, RS, null)).toBe('UCT Relative Strength · XLK · 94')
+    // headline `both` is the member's choice and puts both in the label
+    const both = { ...inst, inputs: { benchmark: 'SECTOR', headlineRating: 'both' } }
+    const bothChip = legendChips([b], null, engineRegistry, [both], { scalarsOf: () => sector })[0]
+    expect(bothChip.suffix).toBe(' · XLK · 94 · fast 91')
+    expect(paneReadoutLabel(bothChip, RS, null)).toBe('UCT Relative Strength · XLK · 94 · fast 91')
     const ibd = { ...inst, inputs: { benchmark: 'SECTOR', headlineRating: 'ibd' } }
     expect(legendChips([b], null, engineRegistry, [ibd], { scalarsOf: () => sector })[0].suffix).toBe(' · XLK · 94')
     // a fallback benchmark reads its note in the Benchmark card, never in the suffix

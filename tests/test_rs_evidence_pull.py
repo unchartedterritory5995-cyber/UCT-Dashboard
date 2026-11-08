@@ -383,9 +383,12 @@ def test_an_evidence_dict_feeds_the_discord_evidence_line_under_its_label():
     from api.services import rs_discord_post as rp
     ev = ep.evidence_for("rs_new_high_before_price", 63, fixture_artifact())
     assert ev["outcome"] == ep.outcome_phrase("SPY", 63)
+    # 2026-11-07: and the card's likely range, from the same phrase the card reads
     assert rp.evidence_line({**ev, "signal": ev["label"]}) == (
-        "Evidence: 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% beat SPY from "
-        "the next session's open to the close 63 sessions later. Universe as held, survivorship not yet corrected.")
+        "Evidence: 1,284 RS new highs before price from 2025-11-05 to 2026-11-04; 58.3% (likely between "
+        "52.0% and 64.4%) beat SPY from the next session's open to the close 63 sessions later. Universe as "
+        "held, survivorship not yet corrected.")
+    assert ep.likely_range_phrase(ev["hit_rate_low_pct"], ev["hit_rate_high_pct"]) in ep.sentence_for(ev)
     assert ep.outcome_phrase(None, 21) == "beat the benchmark from the next session's open to the close 21 sessions later"
 
 

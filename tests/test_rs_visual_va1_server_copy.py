@@ -477,7 +477,7 @@ def test_the_v2_cache_key_carries_the_payload_shape_and_v1_does_not(v2_row, monk
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.append(k))
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
-    assert rsp._RS_PAYLOAD_SHAPE == 3 and f"rs3p{rsp._RS_PAYLOAD_SHAPE}" in seen[-1], seen[-1]
+    assert rsp._RS_PAYLOAD_SHAPE == 4 and f"rs3p{rsp._RS_PAYLOAD_SHAPE}" in seen[-1], seen[-1]
     monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(False))
     monkeypatch.setattr(rd, "RS_V2_ENABLED", False)
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
@@ -527,13 +527,15 @@ def _key_paths(obj, path=""):
 
 
 #: The v2 payload's key paths at `_RS_PAYLOAD_SHAPE` 3 (2026-11-07: benchmark.note,
-#: history.summary, mansfield.lengthText). ⛔ A field added or removed here without a
+#: history.summary, mansfield.lengthText), and at 4 (2026-11-07: rating.m1, rating.m3,
+#: rating.m6, rating.m12, rating.components, the Components row). ⛔ A field added or removed here without a
 #: bump is served the OLD shape for up to a session: the pod carries its cache across
 #: a restart (`cache_snapshot`), and an RS envelope lives until the next session
 #: close. Measured in the sandbox the day this rail was written.
 _SHAPE_3_TOP = {"benchmark", "checks", "evidence", "history", "inputs", "intraday", "lastRsHigh", "legend",
                 "mansfield", "rating", "regime", "sensitivity", "state", "theme"}
-_SHAPE_3_FIELDS = {"benchmark.note", "history.summary", "mansfield.lengthText", "mansfield.lastCross"}
+_SHAPE_3_FIELDS = {"benchmark.note", "history.summary", "mansfield.lengthText", "mansfield.lastCross",
+                   "rating.m1", "rating.m3", "rating.m6", "rating.m12", "rating.components"}
 
 
 def test_a_payload_field_change_comes_with_a_shape_bump(v2_row, monkeypatch):
@@ -545,6 +547,6 @@ def test_a_payload_field_change_comes_with_a_shape_bump(v2_row, monkeypatch):
     assert _SHAPE_3_FIELDS <= got
     import hashlib
     digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
-    assert (rsp._RS_PAYLOAD_SHAPE, digest) == (3, "769dd755aa5ddc93"), (
+    assert (rsp._RS_PAYLOAD_SHAPE, digest) == (4, "0946aceab7795a4e"), (
         f"the RS payload's key paths changed (digest {digest}): bump signature._RS_PAYLOAD_SHAPE, "
         f"then pin the new pair here. Paths: {sorted(got)}")

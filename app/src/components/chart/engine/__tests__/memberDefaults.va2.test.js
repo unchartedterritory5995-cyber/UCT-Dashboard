@@ -35,9 +35,9 @@ const instOf = (cs, id) => findInstance(cs, id)
 
 describe('saveInstanceAsDefault', () => {
   it('saves only what differs from UCT\'s values, and identity when nothing would change', () => {
-    const cs = withRs({ benchmark: 'RSP', maLength: 21, headlineRating: 'ibd', color: '#6ba3be' })
+    const cs = withRs({ benchmark: 'RSP', maLength: 21, headlineRating: 'both', color: '#6ba3be' })
     const next = saveInstanceAsDefault(cs, 'rs-1', engineRegistry)
-    expect(next[INDICATOR_DEFAULTS_KEY]).toEqual({ rsLine: { inputs: { benchmark: 'RSP', headlineRating: 'ibd' } } })
+    expect(next[INDICATOR_DEFAULTS_KEY]).toEqual({ rsLine: { inputs: { benchmark: 'RSP', headlineRating: 'both' } } })
     // the copy on the chart is untouched
     expect(instOf(next, 'rs-1')).toEqual(instOf(cs, 'rs-1'))
     // saving again is a no-op by identity

@@ -2,8 +2,8 @@
 //
 // ─── UCT RS unit VA2 — the plan's §13 counts (`lib/rsTelemetry.js`) ──────────
 //
-//   · DARK by default: with no build flag nothing is sent, not even a request the
-//     server would refuse (the six events are not on its client list yet);
+//   · ON by default since the server lists the six events (2026-11-07); a build
+//     with `VITE_RS_TELEMETRY_ENABLED=0` (the kill switch) sends nothing at all;
 //   · through the app's own door (`lib/indicatorTelemetry` → `/api/indicator-telemetry/event`);
 //   · props are short identifiers only (ticker, preset id, benchmark code, row key,
 //     lesson key), everything else dropped;
@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   logRsEvent, noteRsPreset, noteRsCard, noteRsLearn, createRsInstanceTracker, rsTelemetryEnabled,
-  __setRsTelemetrySink, RS_TELEMETRY_EVENTS, RS_QUICK_OFF_MS,
+  __setRsTelemetrySink, __setRsTelemetryOffForTests, RS_TELEMETRY_EVENTS, RS_QUICK_OFF_MS, SYMBOL_RE,
 } from './rsTelemetry'
 
 const rs = (instanceId, inputs = {}, hidden = false) => ({ instanceId, defId: 'rsLine', inputs, hidden })
@@ -21,6 +21,9 @@ const rs = (instanceId, inputs = {}, hidden = false) => ({ instanceId, defId: 'r
 let sent
 beforeEach(() => {
   sent = []
+  // the shared test setup turns the default off for the chart suites; this file
+  // rails the real gate
+  __setRsTelemetryOffForTests(false)
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-11-07T15:00:00Z'))
 })
@@ -28,13 +31,23 @@ afterEach(() => {
   __setRsTelemetrySink(null)
   vi.useRealTimers()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 const sink = () => __setRsTelemetrySink((event, props) => sent.push([event, props]))
 
-describe('dark by default', () => {
-  it('sends nothing and makes no request without the build flag', () => {
+describe('on by default, with a build kill switch', () => {
+  it('with no build flag the gate is open and an event posts', () => {
     const fetchSpy = vi.fn(() => Promise.resolve({ ok: true }))
     vi.stubGlobal('fetch', fetchSpy)
+    vi.stubEnv('VITE_RS_TELEMETRY_ENABLED', undefined)
+    expect(rsTelemetryEnabled()).toBe(true)
+    expect(noteRsPreset({ id: 'rsLine' }, { id: 'classic' })).toBe(true)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+  it('VITE_RS_TELEMETRY_ENABLED=0 sends nothing and makes no request', () => {
+    const fetchSpy = vi.fn(() => Promise.resolve({ ok: true }))
+    vi.stubGlobal('fetch', fetchSpy)
+    vi.stubEnv('VITE_RS_TELEMETRY_ENABLED', '0')
     expect(rsTelemetryEnabled()).toBe(false)
     expect(logRsEvent('rs_on', { symbol: 'NVDA' })).toBe(false)
     expect(noteRsPreset({ id: 'rsLine' }, { id: 'classic' })).toBe(false)
@@ -42,6 +55,18 @@ describe('dark by default', () => {
     t.observe([])
     t.observe([rs('a')])
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+  it('any other value is on: only an explicit 0 turns it off', () => {
+    for (const v of ['1', 'true', '']) {
+      vi.stubEnv('VITE_RS_TELEMETRY_ENABLED', v)
+      expect(rsTelemetryEnabled(), JSON.stringify(v)).toBe(true)
+    }
+  })
+  it('the switch in the shared test setup closes it, and a sink opens it either way', () => {
+    __setRsTelemetryOffForTests(true)
+    expect(rsTelemetryEnabled()).toBe(false)
+    sink()
+    expect(rsTelemetryEnabled()).toBe(true)
   })
 })
 
@@ -56,11 +81,18 @@ describe('the six events and their props', () => {
     logRsEvent('rs_preset', { name: 'classic', email: 'a@b.c' })
     logRsEvent('rs_on', { symbol: 'BRK.B', name: 'x' })
     logRsEvent('rs_learn', { target: 'not an identifier!' })
+    // a symbol the server's ticker rule refuses is dropped, and the count still lands
+    logRsEvent('rs_off_within_60s', { symbol: 'nvda' })
     expect(sent).toEqual([
       ['rs_preset', { name: 'classic' }],
       ['rs_on', { symbol: 'BRK.B' }],
       ['rs_learn', {}],
+      ['rs_off_within_60s', {}],
     ])
+  })
+  it('the symbol rule is the ticker rule of the server (`indicator_telemetry._RS_TICKER`)', () => {
+    for (const ok of ['NVDA', 'BRK-B', 'BRK.B', 'X:BTCUSD', 'A']) expect(SYMBOL_RE.test(ok), ok).toBe(true)
+    for (const bad of ['nvda', 'NV DA', '', '-NVDA', 'ABCDEFGHIJKLM', 'NVDA!']) expect(SYMBOL_RE.test(bad), bad).toBe(false)
   })
   it('the door helpers fire for UCT RS only', () => {
     sink()

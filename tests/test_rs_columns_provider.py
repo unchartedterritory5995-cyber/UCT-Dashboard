@@ -313,9 +313,11 @@ def test_provider_v2_envelope_columns_payload_and_bar_count(v2_row, monkeypatch)
     # the v3 blocks are all present, each either answered or null WITH a reason
     for k in ("rating", "mansfield", "regime", "sensitivity", "checks", "theme"):
         assert k in p, k
-    # Pin moved 2026-11-06 (visual round VA1): the rating carries its summary.
+    # Pin moved 2026-11-06 (visual round VA1): the rating carries its summary;
+    # 2026-11-07 (shape 4): and its four component ranks and their Components text.
     assert p["rating"] == {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "source": "dark",
-                           "summary": None}
+                           "m1": None, "m3": None, "m6": None, "m12": None,
+                           "summary": None, "components": None}
     assert p["theme"] is None, "no industry map on a test box ⇒ no theme, never a guess"
     assert p["mansfield"]["length"] == 200 and p["mansfield"]["value"] is not None, "330 bars clear the 200-bar average"
     # events are 0/1/None and dots sit on the line
@@ -796,12 +798,33 @@ def test_the_cross_dot_builder_sits_at_zero_on_crosses_up_unlike_the_rs_dot_buil
 def test_rating_reads_the_history_row_and_names_its_source(monkeypatch):
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
         "NVDA": {"ibd": 94, "fast": 91, "m1": 90, "asof": "2026-11-05", "d5": 2, "d20": -7}})
+    # The component ranks the row holds are carried; the ones it does not stay
+    # None and are left out of the Components text (never fabricated).
     assert rsp._rs_rating("nvda") == {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": -7, "source": "row",
-                                      "summary": "94 · fast 91"}
+                                      "m1": 90, "m3": None, "m6": None, "m12": None,
+                                      "summary": "94 · fast 91", "components": "1M 90"}
+
+
+def test_rating_components_are_the_four_ranks_in_order_as_the_spec_prints_them(monkeypatch):
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
+        "NVDA": {"ibd": 96, "fast": 98, "m1": 91, "m3": 97, "m6": 95, "m12": 96, "asof": "2026-11-05"}})
+    r = rsp._rs_rating("NVDA")
+    assert (r["m1"], r["m3"], r["m6"], r["m12"]) == (91, 97, 95, 96)
+    assert r["components"] == "1M 91 · 3M 97 · 6M 95 · 12M 96"
+    # a young listing: no 12-month rank, so no 12M in the text
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
+        "NVDA": {"ibd": 80, "fast": None, "m1": 70, "m3": 85, "m6": 88, "m12": None, "asof": "2026-11-05"}})
+    assert rsp._rs_rating("NVDA")["components"] == "1M 70 · 3M 85 · 6M 88"
+    # a rated row with no component at all prints no Components row
+    monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {"NVDA": {"ibd": 80}})
+    r = rsp._rs_rating("NVDA")
+    assert r["components"] is None and r["m1"] is None
+    assert rsp._rs_components_summary({}) is None
 
 
 def test_rating_is_null_never_raises_and_says_dark_or_missing(monkeypatch):
-    blank = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "summary": None}
+    blank = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "summary": None,
+             "m1": None, "m3": None, "m6": None, "m12": None, "components": None}
     monkeypatch.delenv("RS_HISTORY_ENABLED", raising=False)
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
     assert rsp._rs_rating("NVDA") == {**blank, "source": "dark"}

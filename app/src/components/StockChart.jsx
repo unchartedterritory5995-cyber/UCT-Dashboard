@@ -158,7 +158,7 @@ import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipV
 import { scalarsFor } from './chart/engine/serverCompute'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
-// ⭐ VA2 — the plan's §13 counts (dark until the server lists the events; see the module).
+// ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
 import { createRsInstanceTracker, noteRsPreset, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
 // ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
 // mounted without one on several surfaces (popups, the Model Book, its own
@@ -5857,7 +5857,7 @@ export default function StockChart({
   // ⭐ VA2 — `rs_on` / `rs_off_within_60s` / `rs_benchmark` (plan §13), OBSERVED from
   // the stored instance list rather than wired per door, so every door counts and
   // the next one needs no edit (`lib/rsTelemetry`). The first observation is this
-  // chart's baseline; a no-op unless the build turns RS telemetry on.
+  // chart's baseline; a no-op only in a build with VITE_RS_TELEMETRY_ENABLED=0.
   const rsTrackerRef = useRef(null)
   if (!rsTrackerRef.current) rsTrackerRef.current = createRsInstanceTracker()
   const storedInstances = cs ? cs.indicatorInstances : null

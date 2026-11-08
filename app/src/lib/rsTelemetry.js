@@ -14,14 +14,13 @@
  * `POST /api/indicator-telemetry/event` → `landing_events`, the door the authoring
  * studio already uses. No vendor, no endpoint.
  *
- * ⛔⛔ DARK UNTIL THE SERVER LISTS THE EVENTS. That door refuses any event outside
- * `api/services/indicator_telemetry.CLIENT_FIREABLE_EVENTS` (400) and keeps only the
- * props its `EVENT_SCHEMAS` names. The six `rs_*` events are not on that list yet,
- * and this unit may not edit Python, so every call here is a no-op unless the build
- * carries `VITE_RS_TELEMETRY_ENABLED=1` — set it in the same deploy that adds the
- * six events (and their props: `symbol`, `name`, `value`, `kind`, `target`) to the
- * server's lists. Until then nothing is sent, so no member's browser posts a request
- * the server refuses.
+ * ⭐ ON BY DEFAULT SINCE THE SERVER LISTS THE EVENTS (2026-11-07). That door refuses
+ * any event outside `api/services/indicator_telemetry.CLIENT_FIREABLE_EVENTS` (400)
+ * and any prop its `EVENT_SCHEMAS` / `_VALUE_RULES` do not allow (422). The six
+ * `rs_*` events and their one prop each are on those lists now, each value held to
+ * a closed set (preset ids, benchmark codes, card keys, lesson keys) or the ticker
+ * pattern, so the gate is open. ⛔ KILL SWITCH: a build with
+ * `VITE_RS_TELEMETRY_ENABLED=0` sends nothing at all; any other value, or none, is on.
  *
  * ⛔ NO PERSONAL DATA. A prop is a ticker symbol, a preset id, a benchmark code, a
  * readout row key or a lesson key: a short identifier, checked against
@@ -49,6 +48,10 @@ export const RS_TELEMETRY_EVENTS = Object.freeze({
 /** A prop value is a short identifier: a ticker (`BRK-B`, `BRK.B`), a preset id, a code. */
 export const PROP_VALUE_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,31}$/
 
+/** ⭐ The server's ticker rule for `symbol` (`indicator_telemetry._RS_TICKER`), so a
+ *  symbol the door would refuse is dropped here and the count still lands without it. */
+export const SYMBOL_RE = /^[A-Z0-9][A-Z0-9.:-]{0,11}$/
+
 /** How long a copy may have been drawing for `rs_off_within_60s`. */
 export const RS_QUICK_OFF_MS = 60_000
 
@@ -56,8 +59,9 @@ export const RS_QUICK_OFF_MS = 60_000
  *  chart's tracker. The same event about the same thing inside this window is one. */
 export const RS_DEDUPE_MS = 5_000
 
+/** On unless the build says `VITE_RS_TELEMETRY_ENABLED=0` (the kill switch). */
 function envEnabled() {
-  try { return import.meta.env?.VITE_RS_TELEMETRY_ENABLED === '1' } catch { return false }
+  try { return import.meta.env?.VITE_RS_TELEMETRY_ENABLED !== '0' } catch { return false }
 }
 
 let _sink = null
@@ -70,9 +74,19 @@ export function __setRsTelemetrySink(fn) {
   _onAt.clear()
 }
 
-/** Is RS telemetry on for this build? */
+let _suiteOff = false
+/** Test seam for `src/test-setup.js`: the suites written while this was dark mount
+ *  RS charts under a `fetch` mock that counts calls, so the shared setup turns the
+ *  default off (`true`); `rsTelemetry.test.js` turns it back (`false`) to rail the
+ *  real gate. A sink (`__setRsTelemetrySink`) opens the gate either way. */
+export function __setRsTelemetryOffForTests(off) {
+  _suiteOff = off === true
+}
+
+/** Is RS telemetry on for this build? On unless `VITE_RS_TELEMETRY_ENABLED=0`. */
 export function rsTelemetryEnabled() {
-  return _forced === null ? envEnabled() : _forced
+  if (_forced !== null) return _forced
+  return _suiteOff ? false : envEnabled()
 }
 
 const _recent = new Map()
@@ -84,7 +98,7 @@ function cleanProps(event, props) {
   if (!allowed || !props || typeof props !== 'object') return out
   for (const key of allowed) {
     const v = props[key]
-    if (typeof v === 'string' && PROP_VALUE_RE.test(v)) out[key] = v
+    if (typeof v === 'string' && PROP_VALUE_RE.test(v) && (key !== 'symbol' || SYMBOL_RE.test(v))) out[key] = v
   }
   return out
 }
