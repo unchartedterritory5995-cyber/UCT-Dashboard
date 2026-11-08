@@ -346,8 +346,12 @@ export function assessObjectLoss(t) {
     // ⭐ THE SAME FAMILY TEST THE PASS APPLIES TO ITS OWN LOST REMOVALS: a
     // `box.delete` the reader never carried removes nothing from a program that
     // draws no box.
+    // ⛔ `object.<m>` NAMES NO FAMILY — the tokens could not say which (a
+    // chained `(c ? a : b).delete()`, a loop body's handle-form removal). An
+    // unnamed family reaches, the same fail-closed rule as `lostRemovals`'
+    // `reaches: !family`; "no `object` is drawn" would be true of every chart.
     const fam = name.split('.')[0]
-    if (cls === LOSS.REMOVES && !carried.families.has(fam)) {
+    if (cls === LOSS.REMOVES && fam !== 'object' && !carried.families.has(fam)) {
       cls = LOSS.PARTIAL
       why = `${why}, except that no ${fam} is drawn here at all`
     }

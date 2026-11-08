@@ -1404,6 +1404,12 @@ export function collectObjectOps(stmts, h) {
       if (!word && h.isPunct(t[0], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
         continue
       }
+      // ⭐ THE SAME STATEMENT ON A HISTORY RECEIVER: `l[1].delete()`. ⚰️ It opens
+      // with `l [`, so neither branch above nor the bare-call branch below read
+      // it — the removal vanished with no op and no count (STRAT-COLOR review).
+      if (word && h.isPunct(t[1], '[') && emitPostfix(t, guards, inLoop, st, localScope)) {
+        continue
+      }
 
       // ── a bare call statement ────────────────────────────────────────────
       if (word && h.isPunct(t[1], '(')) {
@@ -2319,6 +2325,12 @@ export function collectObjectOps(stmts, h) {
     try { node = h.parseWholeExpression(toks) } catch { return false }
     if (!node || node.type !== 'method') return false
     const recv = node.recv
+    // ⭐⭐ A VALUE RECEIVER — `l[1].delete()`, `(up ? a : b).delete()`. See
+    // `emitOnValueReceiver`: the name form with the receiver moved back, or a
+    // refusal by name. ⚰️ Before it, both shapes produced no op and no count.
+    if (recv && (recv.type === 'offset' || recv.type === 'ternary')) {
+      return emitOnValueReceiver(node, toks, guards, inLoop, st, scope)
+    }
     // ⛔ THE ONE RECEIVER `targetRef` CAN ADDRESS. A `name` receiver never
     // reaches here — the parser folds `(b).delete()` back into the dotted name
     // `b.delete`, which is the bare-call branch's business — so this is the
@@ -2369,6 +2381,64 @@ export function collectObjectOps(stmts, h) {
     // which `targetRef` answers null for — so the op would be emitted with NO
     // target and the drawing would address nothing.
     emitMethodOn(d.family, method, { name: null, value: asMethod, tok: toks[0] },
+      node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** The drawing family a VALUE receiver holds, read off the declarations —
+   *  `l[1]` → `l`'s family; a ternary → the one family every non-`na` arm names.
+   *  Null when the tokens cannot name exactly one family. */
+  function valueReceiverFamily(v) {
+    if (!v) return null
+    if (v.type === 'name') {
+      const d = decls.get(v.name)
+      return d && d.kind !== 'coll' && OBJECT_NAMESPACES.includes(d.family) ? d.family : null
+    }
+    if (v.type === 'offset') return v.arg && v.arg.type === 'name' ? valueReceiverFamily(v.arg) : null
+    if (v.type === 'ternary') {
+      const arms = [v.yes, v.no].filter((a) => !(a && a.type === 'name' && a.name === 'na'))
+      const fams = arms.map(valueReceiverFamily)
+      return fams.length && fams.every((f) => f && f === fams[0]) ? fams[0] : null
+    }
+    return null
+  }
+
+  /** ⭐⭐ `l[1].delete()` IS `line.delete(l[1])` — A METHOD ON A VALUE RECEIVER.
+   *
+   *  Pine's manual (Methods: built-in methods) defines `id.f(args)` as
+   *  `<ns>.f(id, args)` for every built-in type, and the `line.delete` reference
+   *  example is `line.delete(l[1])`: `l[1]` is the id the variable held on the
+   *  previous bar. So the method form is lowered to EXACTLY the name form's op —
+   *  same family (from the declaration, never the method name), same target node,
+   *  same emitter (`emitMethodOn`) — and from there it is served or refused
+   *  wherever the name form is: `l[n]` on a declared handle resolves to
+   *  `{r:'reg', back:n}`; a ternary target does not resolve and is dropped as
+   *  `<k>:target`, the name form's own named drop.
+   *
+   *  ⛔⛔ WHAT THE TOKENS CANNOT NAME A FAMILY FOR IS REFUSED BY NAME, NEVER
+   *  LEFT TO FALL THROUGH. ⚰️ Before this, `l[1].delete()` opened with `l [` and
+   *  no branch read it; `(c ? a : b).delete()` reached `emitPostfix` and was
+   *  answered false. Both emitted no op and no count — the removal vanished and a
+   *  member's chart kept every object the author deleted. A `delete` or `set_*`
+   *  whose family is unknown is `object.<method>` in `unsupported` (classified a
+   *  removal / a lost setter by name, `classifyReaderName`).
+   *
+   *  ⛔ THE SCRIPT'S OWN METHOD WINS, as in `emitMethodForm`: a defined method of
+   *  that name answers false and the statement is the inliner's business. */
+  function emitOnValueReceiver(node, toks, guards, inLoop, st, scope) {
+    const method = String(node.name || '')
+    if (!method || isDefined(method)) return false
+    const fam = valueReceiverFamily(node.recv)
+    if (!fam) {
+      if (method === 'delete' || method.startsWith('set_')) {
+        diagnostics.unsupported.push(`object.${method}`)
+        return true
+      }
+      return false
+    }
+    if (method.startsWith('get_')) { diagnostics.getters.push(`${fam}.${method}`); return true }
+    if (inLoop) { diagnostics.loopBlocked.push(`${fam}.${method}`); return true }
+    emitMethodOn(fam, method, { name: null, value: node.recv, tok: toks[0] },
       node.args || [], toks[0], guards, st, scope)
     return true
   }

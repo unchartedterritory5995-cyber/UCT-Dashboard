@@ -109,6 +109,37 @@ const writesObject = (method) => method === 'delete' || method.startsWith('set_'
   || method === 'cell' || method.startsWith('cell_set_') || method === 'clear'
   || method === 'merge_cells' || method === 'new'
 
+/** ⭐ Is the MEMBER token at `toks[i]` a method on a VALUE receiver — a history
+ *  read `l[1].delete()` or a parenthesised expression `(c ? a : b).delete()` —
+ *  the shapes `pineObjects.js::emitOnValueReceiver` reads?
+ *
+ *  ⛔ NOT a chained CALL (`k._box.pop().delete()`, `ls.get(0).set_x2(…)`): the
+ *  `)` there closes a call (an ident stands before its `(`), and that is a
+ *  different, pre-existing question this rule deliberately does not widen —
+ *  measured, widening it re-reads `ict-killzones-pivots-tfo`'s UDT helpers as
+ *  drawing functions and flips a capture-matched table to refused. */
+export function onValueReceiver(toks, i) {
+  const dot = toks[i - 1]
+  const prev = toks[i - 2]
+  if (!dot || dot.kind !== 'punct' || dot.value !== '.' || !prev || prev.kind !== 'punct') return false
+  if (prev.value === ']') return true
+  if (prev.value !== ')') return false
+  let depth = 0
+  for (let k = i - 2; k >= 0; k -= 1) {
+    const t = toks[k]
+    if (t.kind !== 'punct') continue
+    if (t.value === ')') depth += 1
+    else if (t.value === '(') {
+      depth -= 1
+      if (depth === 0) {
+        const before = toks[k - 1]
+        return !(before && before.kind === 'ident' && before.line === t.line)
+      }
+    }
+  }
+  return false
+}
+
 /** Pine's own namespaces. ⛔ A dotted token under one of these is a built-in,
  *  never a method call on a script's handle — `color.new(…)` is not `x.new`. */
 const KNOWN_NAMESPACES = new Set(['math', 'str', 'ta', 'color', 'request', 'array', 'matrix',
@@ -324,6 +355,16 @@ export function drawingFunctions(defs, objColls) {
       const tk = toks[i]
       if (tk.kind !== 'ident') continue
       const v = String(tk.value)
+      // ⭐ A METHOD ON A VALUE RECEIVER — `l[1].delete()`, `(c ? a : b).set_x(…)`
+      // (`onValueReceiver`). The segment lexes as a lone MEMBER token, so `nsOf`
+      // is null and a body whose only drawing step is written that way was "not
+      // a drawing function": never inlined, its removal gone with no count. A
+      // user METHOD so named is the script's own and is judged as one.
+      if (tk.member && onValueReceiver(toks, i)) {
+        const um = defs.get(v)
+        if (writesObject(v) && !(um && um.isMethod)) return true
+        continue
+      }
       const ns = nsOf(v)
       if (!ns) continue
       const m = methodOf(v)
@@ -425,6 +466,15 @@ export function bodyEffects(def, defs, objColls) {
       const next = toks[i + 1]
       if (tk.kind !== 'ident' || next.kind !== 'punct' || next.value !== '(') continue
       const v = String(tk.value)
+      // ⭐ A METHOD ON A VALUE RECEIVER (`l[1].delete()`, `onValueReceiver`):
+      // family unnamed by the tokens — fail-closed exactly as the handle form
+      // below. A user METHOD so named falls through to the reading it had.
+      if (tk.member && onValueReceiver(toks, i) && !(defs.get(v) && defs.get(v).isMethod)) {
+        if (v === 'delete') { add('delete'); families.push(null) } else if (v === 'clear') {
+          add('clear'); families.push(null)
+        } else if (v.startsWith('set_')) setters.push([null, v])
+        continue
+      }
       const ns = nsOf(v)
       if (!ns) {
         const callee = defs.get(v)
