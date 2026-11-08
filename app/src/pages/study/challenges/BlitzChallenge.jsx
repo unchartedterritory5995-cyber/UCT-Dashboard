@@ -123,7 +123,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
     return (
       <div className={s2.kit}>
         <StartArena plate="Blitz" title="Blitz" caption="Read the chart, answer, next" testId="blitz-intro" startTestId="blitz-start" hotkey
-          stakes={[{ v: 60, l: 'seconds' }, { v: 0, l: 'hearts' }, { v: 'x5', l: 'top multiplier' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
+          stakes={[{ v: 60, l: 'seconds', icon: 'clock' }, { v: 0, l: 'hearts', icon: 'x' }, { v: 'x5', l: 'top multiplier', icon: 'bolt' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
           label={pool?.length ? 'Start the clock' : pool == null ? 'Loading the bank' : 'Nothing to play yet'}
           reward={<><UIcon name="star" size={22} /><span>Your best <b data-testid="blitz-best">{bestEver}</b> points</span></>}
           howTo={<HowItPlays mode="blitz" testId="blitz-howto" steps={[

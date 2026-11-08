@@ -122,6 +122,12 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N021, N022, N027, N030, N035 | The home and the course path like Duolingo, our brand, 3x the production, progressing sensibly (foundations and setups mixed) | Not yet | the next round (`IMPROVEMENT_WORKFLOW.md` round 24) |
 | N035 | A much better reward system and scoring | Not yet | rule 14 |
 
+## 12b. The look as a whole
+
+| Notes | What he asked | Status | Where |
+|---|---|---|---|
+| (2026-11-08) | "This still needs significant graphic improvements imo. Use some creativity for Christ sake!" | Built, waiting on his rank | THE ARENA: a stage behind every Study screen (a gold stage light, a faint skyline of giant candles, a lit floor grid drifting toward the member; `DrillPlayer.module.css`), gold targeting brackets on every chart, the start screen's drawing as a tilted lit display with a spotlight on the candle, a struck 3D gold title, metal-rimmed crests with icons for the stakes (`ui/startLooks.module.css`, `ui/study.module.css`) |
+
 ## 13. Rulings that are standing rules
 
 | Notes | Ruling | Status |

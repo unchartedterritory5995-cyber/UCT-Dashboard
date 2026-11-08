@@ -135,3 +135,29 @@
   .aGo { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .aTitle.aTitle, .aChip, .artPill { animation: none !important; opacity: 1; background-position: 50% 0; } }
+
+/* ── THE ARENA start (2026-11-08, "Use some creativity"): the drawing stands as a lit display tilted back on the arena
+   floor, with its reflection below and a spotlight on the candle in question; the title is struck in 3D gold; the
+   stakes are metal-rimmed crests ─────────────────────────────────────────────────────────────────────────────────── */
+.aCard.aCard { transform: perspective(1400px) rotateX(9deg); transform-origin: 50% 100%; animation-name: riseTilt;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 180, .25), 0 0 0 1px #000, 0 40px 70px rgba(0, 0, 0, .7), 0 0 90px rgba(220, 187, 94, .16); }
+@keyframes riseTilt { from { opacity: 0; transform: perspective(1400px) rotateX(24deg) translateY(30px); } to { opacity: 1; transform: perspective(1400px) rotateX(9deg); } }
+.artSpot { opacity: 0; animation: spotOn .9s ease 1.6s forwards; mix-blend-mode: screen; }
+@keyframes spotOn { to { opacity: 1; } }
+/* the title struck in 3D: the element itself is the extruded bronze body, the gold face sits on it (::after, the same
+   words), so the face is never covered */
+.aTitle.aTitle { isolation: isolate; filter: none; animation: none; background: none; -webkit-background-clip: border-box; background-clip: border-box;
+  color: #4a370b; -webkit-text-fill-color: #4a370b;
+  text-shadow: 0 1px 0 #8a6a1c, 0 2px 0 #7a5d17, 0 3px 0 #6b5114, 0 4px 0 #5c4511, 0 5px 0 #4d390d, 0 6px 0 #3f2e0a, 0 7px 0 #322407,
+    0 14px 22px rgba(0, 0, 0, .8), 0 0 50px rgba(220, 187, 94, .35); }
+.aTitle.aTitle::after { content: attr(data-text); position: absolute; inset: 0; text-shadow: none;
+  background: linear-gradient(100deg, #b8922f 0%, #e9cd77 22%, #fff6d6 34%, #e9cd77 46%, #b8922f 70%, #e9cd77 100%); background-size: 260% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; animation: titleSheen 1.8s cubic-bezier(.4, 0, .2, 1) .5s 1 both; }
+.aTitle.aTitle::before { content: none; }
+.aChip.aChip { position: relative; padding-top: 22px; border: 1px solid transparent;
+  background: linear-gradient(180deg, #1d1e22, #111215) padding-box, linear-gradient(160deg, #f6e2a0, #7a5d17 38%, #2c2e34 62%, #c9a443) border-box; }
+.aChipIcon { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  color: #15120a; background: radial-gradient(circle at 35% 30%, #fff2c4, #dcbb5e 55%, #8a6a1c); box-shadow: 0 2px 0 #4d390d, 0 6px 14px rgba(0, 0, 0, .6); font-style: normal; }
+.aChips { margin-top: 10px; }
+@media (max-width: 640px) { .aCard.aCard { transform: perspective(900px) rotateX(7deg); } .aChip.aChip { padding-top: 18px; } }
+@media (prefers-reduced-motion: reduce) { .aCard.aCard { animation: none; } .artSpot { animation: none; opacity: 1; } .aTitle.aTitle::after { animation: none; background-position: 50% 0; } }

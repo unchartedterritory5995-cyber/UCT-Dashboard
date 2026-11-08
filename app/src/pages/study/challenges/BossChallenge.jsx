@@ -123,7 +123,7 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
     return (
       <div className={s2.kit}>
         <StartArena plate="Boss" title="Boss" caption="Does it fire on the last candle?" testId="boss-intro" startTestId="boss-start" hotkey
-          total={total || BOSS_TOTAL} stakes={[{ v: total || BOSS_TOTAL, l: 'charts' }, { v: 1, l: 'heart' }, { v: 1, l: 'miss ends it' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
+          total={total || BOSS_TOTAL} stakes={[{ v: total || BOSS_TOTAL, l: 'charts', icon: 'play' }, { v: 1, l: 'heart', icon: 'shield' }, { v: 1, l: 'miss ends it', icon: 'flame' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
           label={pool == null ? 'Loading the bank' : pool.length ? 'Face the boss' : 'No charts yet'}
           reward={<><Medal size={40} testId={null} /><span><b>{total || BOSS_TOTAL} for {total || BOSS_TOTAL}</b> wins the trophy</span></>}
           howTo={<HowItPlays mode="boss" testId="boss-howto" steps={[

@@ -195,7 +195,7 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
     return (
       <div className={s2.kit}>
         <StartArena plate="Spot" title="Spot the Setup" caption="Which candle is the real one?" testId="spot-intro" startTestId="spot-start" hotkey
-          total={total || ROUNDS} stakes={[{ v: total || ROUNDS, l: 'charts' }, { v: setups.length || 'All', l: setups.length === 1 ? 'setup' : 'setups' }, { v: 3, l: 'candles each' }]}
+          total={total || ROUNDS} stakes={[{ v: total || ROUNDS, l: 'charts', icon: 'play' }, { v: setups.length || 'All', l: setups.length === 1 ? 'setup' : 'setups', icon: 'eye' }, { v: 3, l: 'candles each', icon: 'star' }]}
           ready={!!total} onStart={() => total && setPhase('play')} label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'}
           howTo={<HowItPlays mode="spot" testId="spot-howto" steps={[
             { icon: 'eye', title: 'A setup is named', body: 'The chart has three gold candles that look alike. Only one is that setup.' },

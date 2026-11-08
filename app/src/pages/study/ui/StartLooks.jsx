@@ -47,6 +47,13 @@ function ChartArt({ caption = '' }) {
           </g>
         )
       })}
+      <defs>
+        <linearGradient id="artSpot" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff2c4" stopOpacity=".02" />
+          <stop offset="1" stopColor="#f6e2a0" stopOpacity=".34" />
+        </linearGradient>
+      </defs>
+      <polygon className={st.artSpot} points={`${ring.x - 4},0 ${ring.x + 4},0 ${ring.x + cw * 1.5},${ring.top + 46} ${ring.x - cw * 1.5},${ring.top + 46}`} fill="url(#artSpot)" />
       <g className={st.artRing} style={{ '--i': n }}>
         <rect x={ring.x - cw * 0.62} y={ring.top} width={cw * 1.24} height={y(65) - y(80) + 20} rx="8" />
       </g>
@@ -76,7 +83,7 @@ export function StartArena({ total = 8, ready = true, onStart, label = null, tes
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [hotkey, ready, onStart])
-  const chips = (stakes || [{ v: total, l: 'charts' }, { v: 'No', l: 'ticker' }, { v: 1, l: 'try each' }]).map(asChip)
+  const chips = (stakes || [{ v: total, l: 'charts', icon: 'play' }, { v: 'No', l: 'ticker', icon: 'lock' }, { v: 1, l: 'try each', icon: 'check' }]).map(asChip)
   const prize = reward === undefined ? <><Medal size={40} testId={null} /><span><b>{total} for {total}</b> lights the Legendary medal</span></> : reward
   return (
     <div className={`${st.start} ${st.arena}`} data-testid={testId || undefined}>
@@ -85,9 +92,9 @@ export function StartArena({ total = 8, ready = true, onStart, label = null, tes
         <ChartArt caption={caption} />
       </div>
       <span className={st.aEyebrow}><i />UCT Study · Challenge<i /></span>
-      <div className={st.aTitle}>{title}</div>
+      <div className={st.aTitle} data-text={title}>{title}</div>
       <div className={st.aChips}>
-        {chips.map((c, i) => <span key={i} className={st.aChip} style={{ '--i': i }}><b>{c.v}</b><small>{c.l}</small></span>)}
+        {chips.map((c, i) => <span key={i} className={st.aChip} style={{ '--i': i }}>{c.icon ? <i className={st.aChipIcon}><UIcon name={c.icon} size={15} gold={false} /></i> : null}<b>{c.v}</b><small>{c.l}</small></span>)}
       </div>
       {lead ? <p className={st.aLead}>{lead}</p> : null}
       {prize ? <div className={st.aReward}>{prize}</div> : null}

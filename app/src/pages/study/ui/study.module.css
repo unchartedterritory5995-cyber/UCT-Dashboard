@@ -494,3 +494,14 @@
 @keyframes bandSweep { to { transform: translateX(110%); } }
 @media (max-width: 640px) { .promptOk .promptTitle, .promptBad .promptTitle { font-size: 23px; } .prompt.promptOk, .prompt.promptBad { padding: 12px 12px 12px 12px; } }
 @media (prefers-reduced-motion: reduce) { .prompt.promptOk::after, .prompt.promptBad::after { animation: none; display: none; } .prompt.promptOk, .prompt.promptBad { animation: none; } }
+
+/* THE ARENA: the chart's targeting frame (gold corner brackets), on every game's hero chart, as on the lesson's */
+.heroChart { position: relative; }
+.heroChart::after { content: ''; position: absolute; inset: -7px; z-index: 4; pointer-events: none;
+  --b: #e9cd77;
+  background:
+    linear-gradient(var(--b), var(--b)) left top / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left top / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) right top / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right top / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) left bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left bottom / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) right bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right bottom / 2px 26px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(233, 205, 119, .55)); }
