@@ -99,6 +99,17 @@ describe('(d) a removal on a map element — the map\'s family, withheld per obj
       expect(t.objectDiagnostics.removalWithheldFamilies).toEqual(['label'])
     })
   }
+  it('G6: a `map<K, fam>` FIELD takes its family from the VALUE type, never the key', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    const lines = ['type Z', '    map<string, label> _m', 'var z = Z.new(map.new<string, label>())', L0, `var l1 = ${LAB}`,
+      'if z._m.size() > 0', '    z._m.get("a").delete()']
+    const t = host(lines)
+    expect(t.objectDiagnostics.unsupported).toContain('label.delete')
+    expect(t.objectDiagnostics.unsupported).not.toContain('object.delete')
+    expect(t.objectDiagnostics.removalWithheldFamilies).toEqual(['label'])
+    expect(assessObjectLoss(t).verdict).toBe('partial')
+    expect(door(lines).ok, door(lines).reason).toBe(true)
+  })
   for (const stmt of ['m.get("a").delete()', 'map.get(m, "a").delete()']) {
     it(`in a REFUSED helper (\`${stmt}\`), the family is still withheld`, () => {
       const t = host([MAP, L0, `var l1 = ${LAB}`, 'del() =>', '    if m.size() > 0', `        ${stmt}`, '    1',

@@ -135,8 +135,10 @@ describe('r2 — a user `method delete(T)` and the member note', () => {
       'del(kz q) =>', '    if q._box.size() > 3', '        q._box.pop().delete()', 'del(k)']
     const loss = assessObjectLoss(host(lines))
     expect(loss.hiddenFamilies).toEqual(['box'])
-    expect(objectLossNote(loss).note).toContain('No box is shown: the script keeps them in a list '
-      + "this chart can't follow yet, so which of them TradingView would still show can't be known.")
+    expect(objectLossNote(loss).note).toContain("No box is shown: the script keeps some of them where this "
+      + "chart can't follow yet (in a list or in a field of its own type), so which ones TradingView would "
+      + "show, and where, can't be known.")
+    expect(objectLossNote(loss).note).not.toMatch(/keeps them in a list/)
     expect(hiddenFamiliesSentence(['box', 'label', 'line'])).toMatch(/^No box, label or line is shown: /)
   })
   it('⭐ a family still drawn is not called hidden', () => {

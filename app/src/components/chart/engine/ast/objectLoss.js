@@ -490,10 +490,13 @@ export function objectLossNote(loss, opts = {}) {
 }
 
 /** ⭐ r2 — the member's sentence for a family withheld whole: `No box or line is
- *  shown: …`. One clause, the families in the reader's words. */
+ *  shown: …`. One clause, the families in the reader's words. Wording: coordinator
+ *  ruling 2026-11-08 (it fires for objects outside lists and for user-type fields
+ *  too, and implies no removal). */
 export function hiddenFamiliesSentence(families) {
   const fs = (families || []).map((f) => (f === 'linefill' ? 'fill between lines' : f === 'table' ? 'table' : f))
   const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
-  return `No ${list} is shown: the script keeps them in a list this chart can't follow yet, `
-    + "so which of them TradingView would still show can't be known."
+  return `No ${list} is shown: the script keeps some of them where this chart can't follow yet `
+    + '(in a list or in a field of its own type), so which ones TradingView would show, and where, '
+    + "can't be known."
 }
