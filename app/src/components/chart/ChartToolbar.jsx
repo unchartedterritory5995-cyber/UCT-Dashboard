@@ -1112,6 +1112,10 @@ function ChartToolbar({
   studioDockHost = null,
   onStudioDockChange = null,
   onOpenLibrary = null,
+  // ⭐ UCT RS Phase 4 (unit 4-05) — the first add of a definition with an unseen
+  // `meta.tour` (the library's `onFirstAdd`). The library closes first, so the
+  // host's tour never opens under a sheet. Absent ⇒ the library reads no tour state.
+  onIndicatorFirstAdd = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
@@ -1137,6 +1141,11 @@ function ChartToolbar({
   // read-only chart cannot sprout an add-dialog, without a second prop that
   // could disagree with the first (spec §5 "mount-site scoping").
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // ⭐ 4-05 — a first add of a toured definition closes the library, then tells the host.
+  const handleLibraryFirstAdd = useCallback((defId) => {
+    setLibraryOpen(false)
+    try { onIndicatorFirstAdd?.(defId) } catch { /* noop */ }
+  }, [onIndicatorFirstAdd])
   // ⭐ PHASE D TASK 11 — the formula builder, held here for the SAME reason the
   // library is: it is opened from the settings panel, `Sheet` portals to
   // `document.body`, and the panel closes on outside mousedown — so a dialog
@@ -1921,6 +1930,7 @@ function ChartToolbar({
             registry={engineRegistry}
             sheetClassName={sheetClassName}
             extraRows={libraryExtraRows}
+            onFirstAdd={typeof onIndicatorFirstAdd === 'function' ? handleLibraryFirstAdd : null}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
                `ChartSettingsPanel` (below) has held the builder's single entry

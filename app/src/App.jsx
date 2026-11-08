@@ -213,6 +213,7 @@ const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Methodology = lazy(() => import('./pages/Methodology'))
 const MeasuredEdgeMethod = lazy(() => import('./pages/MeasuredEdgeMethod'))
+const RsGlossary = lazy(() => import('./pages/RsGlossary'))
 const ProvenanceDemo = lazy(() => import('./pages/ProvenanceDemo'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
@@ -501,6 +502,10 @@ export default function App() {
             {/* The "Measured edge" chip's Method link (owner decision 2): how the outcome replay works. Public,
                 same class as /methodology; the path is api/services/measured_edge.METHOD_URL. */}
             <Route path="/methodology/measured-edge" element={<MeasuredEdgeMethod />} />
+            {/* The public Relative Strength glossary (RS unit 4-06, engineering map D15): static terms, misconceptions,
+                the shipped formulas and outside references. No member data, the same class as the measured-edge page.
+                D15: the RS About page links here; it is not a NAV_ITEMS entry. */}
+            <Route path="/methodology/relative-strength" element={<RsGlossary />} />
             {/* ⚰️ /provenance-demo lived HERE, public/no-gate, until 2026-09-25 — it
                 was "same class as /methodology" only while /api/provenance/quote was
                 itself public. OI-17 gated the sibling market-data endpoints on

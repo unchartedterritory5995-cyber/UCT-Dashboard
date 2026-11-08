@@ -947,7 +947,18 @@ def status() -> dict:
     # re-queried: a second authority over one number is how these two drift.
     return {**prov, "latest_built_at": built,
             "latest_snapshot_date": prov["newest_snapshot_date"],
-            "last_build": last_build_run()}
+            "last_build": last_build_run(),
+            "rs_lists": _rs_lists_last_run()}
+
+
+def _rs_lists_last_run() -> dict | None:
+    """The newest `rs_lists_nightly` receipt (UCT RS Phase 4 unit 4-01), or None. Read-only
+    (a pod whose job never ran past its flag carries no table) and never raises."""
+    try:
+        from api.services import rs_lists                    # noqa: PLC0415 - lazy, no cycle
+        return rs_lists.last_run()
+    except Exception:                                        # noqa: BLE001
+        return None
 
 
 def get_projected(tickers: list, columns: list) -> dict:
