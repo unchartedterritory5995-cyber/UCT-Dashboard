@@ -374,6 +374,7 @@ export function collectionFamilies(stmts, h) {
         let fam = null
         let nm = null
         if (a.value === 'array' && Array.isArray(a.typeArgs)) { fam = String(a.typeArgs[0] || ''); nm = ft[j + 1] }
+        else if (a.value === 'map' && Array.isArray(a.typeArgs)) { fam = String(a.typeArgs[1] || ''); nm = ft[j + 1] }
         else if (h.isPunct(ft[j + 1], '[') && h.isPunct(ft[j + 2], ']')) { fam = String(a.value); nm = ft[j + 3] }
         if (nm && nm.kind === 'ident' && DRAWING_FAMILIES.includes(fam)) put(`.${nm.value}`, fam)
       }
@@ -384,8 +385,10 @@ export function collectionFamilies(stmts, h) {
     const rhs = t[eq + 1]
     if (!rhs || rhs.kind !== 'ident') continue
     const v = String(rhs.value)
+    // ⭐ gap (d): a MAP of drawings — `map.new<string, label>()` holds labels.
     const fam = v.startsWith('array.new_') ? v.slice('array.new_'.length)
-      : (v === 'array.new' && Array.isArray(rhs.typeArgs) ? String(rhs.typeArgs[0] || '') : null)
+      : (v === 'array.new' && Array.isArray(rhs.typeArgs) ? String(rhs.typeArgs[0] || '')
+        : (v === 'map.new' && Array.isArray(rhs.typeArgs) ? String(rhs.typeArgs[1] || '') : null))
     const nameTok = t[eq - 1]
     if (fam && DRAWING_FAMILIES.includes(fam) && nameTok && nameTok.kind === 'ident') put(String(nameTok.value), fam)
   }
@@ -423,8 +426,8 @@ export function chainedElementOf(toks, i, fams) {
   const v = String(callee.value)
   let coll = null
   let method = null
-  if (v.startsWith('array.')) {
-    method = v.slice('array.'.length)
+  if (v.startsWith('array.') || v.startsWith('map.')) {
+    method = v.slice(v.indexOf('.') + 1)
     const a = toks[open + 1]
     if (a && a.kind === 'ident') coll = String(a.value)
   } else {

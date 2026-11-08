@@ -78,10 +78,14 @@ describe('⭐ SERVED / CONTROLS', () => {
     expect(t.objectDiagnostics.unsupported).toEqual([])
   })
 
-  it('U1: `array.insert(declared, 0, box.new(…))` is never claimed as a field create', () => {
+  // ⚰️ This said the declared insert is never counted at all; that was the silent
+  // drop `fix/pine-silent-create-gaps` (a) closes (2026-11-08): the declared list's
+  // own mutator branch now counts it ONCE. What U1 pins is unchanged — the
+  // method-form hook (`recv !== 'array'`) never counts it a SECOND time.
+  it('U1: `array.insert(declared, 0, box.new(…))` is counted once, never again as a field create', () => {
     const t = host(['var a = array.new_box()', L0, `array.insert(a, 0, ${BOX})`])
-    expect(t.objectDiagnostics.unsupported).not.toContain('box.new')
-    expect(t.objectDiagnostics.fieldCreateFamilies).toBeUndefined()
+    expect(t.objectDiagnostics.unsupported.filter((n) => n === 'box.new').length).toBeLessThanOrEqual(1)
+    expect(t.objectDiagnostics.dropReasons['content:lost']).toBe(1)
   })
 
   it('the note names a family whose every create went into a field', () => {

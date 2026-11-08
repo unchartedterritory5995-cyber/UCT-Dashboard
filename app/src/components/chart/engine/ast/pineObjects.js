@@ -414,6 +414,13 @@ export function collectObjectOps(stmts, h) {
   const objColls = objectCollections(stmts, h)
   // ⭐ the family each named collection holds, top-level and `type` fields alike
   const collFams = collectionFamilies(stmts, h)
+  // ⭐ the script's own `type` names (gap (c))
+  const userTypes = new Set()
+  for (const s0 of stmts || []) {
+    const ht = s0.header || []
+    const at = ht[0] && ht[0].value === 'export' ? 1 : 0
+    if (ht[at] && ht[at].kind === 'ident' && ht[at].value === 'type' && ht[at + 1] && ht[at + 1].kind === 'ident') userTypes.add(String(ht[at + 1].value))
+  }
   const drawing = drawingFunctions(fnDefs, objColls, collFams)
   const drawFns = new Set([...drawing].filter((n) => !fnDefs.get(n).isMethod))
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
@@ -1203,6 +1210,16 @@ export function collectObjectOps(stmts, h) {
       const assign = h.findTop(t, (x) => h.isPunct(x, ':=')) >= 0
         ? h.findTop(t, (x) => h.isPunct(x, ':='))
         : h.findTop(t, (x) => h.isPunct(x, '='))
+      // ⭐ gap (c): `p = P.new(box.new(…))` — a drawing created into a user type's
+      // SCALAR field. Its only handle is `p.b`, which this program holds no
+      // register for: named and counted (`refuseFieldCreates`), never silent.
+      // ⛔ It falls through afterwards: the statement still binds `p` for the
+      // statements after it (the block scope below), and no reader emits an op
+      // for a `<UserType>.new` right-hand side.
+      if (assign > 0 && t[assign + 1] && t[assign + 1].kind === 'ident'
+          && userTypes.has(String(nsOf(String(t[assign + 1].value)) || '')) && methodOf(String(t[assign + 1].value)) === 'new') {
+        refuseFieldCreates(t.slice(assign + 2), null)
+      }
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
@@ -1435,7 +1452,10 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_MUTATORS.has(method)) {
             const a = argsOf(t)
             const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
-            if (c && decls.get(c) && decls.get(c).kind === 'coll') loseColl(c, `coll:${method}`, t[0])
+            // ⭐ gap (a): a create written INTO the change (`array.insert(a, i,
+            // box.new(…))`) is not carried with it — named and counted, never
+            // left to vanish with the list's divergence.
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') { loseColl(c, `coll:${method}`, t[0]); refuseFieldCreates(t, c, true) }
             else if (refuseFieldCreates(t, c)) continue
           }
         }
@@ -2412,8 +2432,8 @@ export function collectObjectOps(stmts, h) {
    *  script keeps serving. A create that ALSO lands in a register (`b = box.new(…)`
    *  then `k._box.push(b)`) is served by its own statement and never reaches here.
    *  @returns {boolean} true when the statement named a create and was refused. */
-  function refuseFieldCreates(toks, coll) {
-    if (coll && decls.get(coll) && decls.get(coll).kind === 'coll') return false
+  function refuseFieldCreates(toks, coll, force = false) {
+    if (!force && coll && decls.get(coll) && decls.get(coll).kind === 'coll') return false
     const fams = []
     for (const x of toks || []) {
       if (!x || x.kind !== 'ident' || x.member) continue
@@ -2450,8 +2470,8 @@ export function collectObjectOps(stmts, h) {
     const name = String((recv && recv.name) || '')
     let coll = null
     let m = null
-    if (name.startsWith('array.')) {
-      m = name.slice('array.'.length)
+    if (name.startsWith('array.') || name.startsWith('map.')) {
+      m = name.slice(name.indexOf('.') + 1)
       const a = recv.args && recv.args[0] && recv.args[0].value
       if (a && a.type === 'name') coll = a.name
     } else {
@@ -2581,7 +2601,10 @@ export function collectObjectOps(stmts, h) {
       return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method, sd.family)
     }
     const d = decls.get(recv)
-    if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method)) && refuseFieldCreates(toks, recv)
+    // ⭐ gap (b): `m.put(k, label.new(…))` / `map.put(m, k, …)` — a map of drawings
+    // is a list this program does not hold either.
+    if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method) || method === 'put')
+      && refuseFieldCreates(toks, recv)
     const ns = d.kind === 'coll' ? 'array' : d.family
     const args = argsOf(toks)
     // ⛔ THE SPAN GUARD'S ANSWER IS A COUNTED DROP, NOT SILENCE. `argsOf` returns
@@ -2593,6 +2616,7 @@ export function collectObjectOps(stmts, h) {
       if (!COLLECTION_CALLS.has(method)) {
         diagnostics.unsupported.push(`array.${method}`)
         if (COLLECTION_MUTATORS.has(method)) loseColl(recv, `coll:${method}`, toks[0])
+        refuseFieldCreates(toks, recv, true)                     // gap (a), method form
         return true
       }
       if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(recv, `loop:array.${method}`, toks[0]); return true }
