@@ -3982,8 +3982,13 @@ const RS_LINE_RAW = {
       { source: 'scalar:rotation.quadrant', format: 'text', when: 'input:view=rotation' },
       { source: 'scalar:quality.score', format: 'ratio', when: 'input:view=quality' },
       { source: 'scalar:vars.value', format: 'ratio', when: 'input:view=vars' },
-      // rev 5: the RS Rating Reading's last stored value (the pane has no axis tag, A4)
-      { source: 'scalar:ratingHistory.value', format: 'int', when: 'input:view=rating' },
+      // rev 5: the RS Rating Reading's own summary (the pane has no axis tag, A4):
+      // `82, up 2 in 20 sessions`, the last stored value first. Real-screen check
+      // 2026-11-08: the bare value printed `· 82  82` beside the chip's rating, and on a
+      // weekly chart the label fell through to the RS ratio's number over an empty
+      // pane; the server's reason ("daily charts only") now prints there, muted.
+      { source: 'scalar:ratingHistory.summary', format: 'text', when: 'input:view=rating',
+        muted: 'scalar:ratingHistory.reason' },
     ],
     // ⭐ THE INPUTS THE SERVER DECLARES — and therefore the only ones that key the
     // fetch (`serverCompute.pickServerInputs`). Colours and width stay on the
@@ -4409,8 +4414,13 @@ const RS_LINE_RAW = {
     // (the horizontal shape tells them from the line), drawn only under this Reading. The
     // server blanks both columns under every other view and on every timeframe but
     // daily; a session with no stored rating is a gap, never a guess.
+    // ⭐ `autoscaleInclude` (real-screen check 2026-11-08): the pane fitted the line
+    // alone, so a rating in the 60s-80s never showed the 90 guide. The scale now
+    // always spans 80 to 90 while the line has data; blank under every other Reading,
+    // it reframes nothing there.
     { key: 'ratingLine', label: 'RS Rating', style: 'line', color: RS_INFO, width: '$lineWidth',
-      precision: 0, role: 'context', legend: { hide: true }, requiresServer: true },
+      precision: 0, role: 'context', legend: { hide: true }, requiresServer: true,
+      autoscaleInclude: { min: 80, max: 90 } },
     { key: 'ratingMa', label: 'Rating avg', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
       precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'ratingGuides', label: '80 and 90', style: 'hlines', levels: [80, 90], color: RS_NEUTRAL, width: 1,

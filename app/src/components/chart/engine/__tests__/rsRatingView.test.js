@@ -21,7 +21,7 @@ import { getDefinition } from '../nativeRegistry'
 import { readoutRows } from '../readoutSchema'
 import { validateDefinition } from '../defSchema'
 import { readoutFallbackValue, resolvedInputsOf } from '../readout'
-import { planBindings } from '../pool'
+import { planBindings, seriesOptionsForPlot, includeRangeProvider, AUTOSCALE_EXCLUDE } from '../pool'
 import { mergeChartSettings } from '../../chartDefaults'
 import { setIndicatorEnabled, findInstance, applyPresetInputs, detectPreset, presetsOf } from '../instanceControls'
 import { legacyInstanceId } from '../instances'
@@ -96,6 +96,28 @@ describe('2 · the plots and the palette', () => {
     for (const view of V4_VIEWS) expect(guideKeys({ view }), view).not.toContain('ratingGuides')
   })
 
+  // ⭐ real-screen check 2026-11-08: the pane fitted the line alone (a rating in the
+  // 60s-80s), so the 90 guide was off screen. `autoscaleInclude` keeps 80-90 in view.
+  it('the scale always spans the 80 and 90 guides while the line has data, and reframes nothing without it', () => {
+    expect(plot('ratingLine').autoscaleInclude).toEqual({ min: 80, max: 90 })
+    const opt = seriesOptionsForPlot(plot('ratingLine'), { autoscale: 'default' })
+    expect(opt.autoscaleInfoProvider).toBe(includeRangeProvider(80, 90))         // memoised by range
+    const fit = (lo, hi) => opt.autoscaleInfoProvider(() => ({ priceRange: { minValue: lo, maxValue: hi }, margins: { above: 4, below: 4 } }))
+    expect(fit(62, 84)).toEqual({ priceRange: { minValue: 62, maxValue: 90 }, margins: { above: 4, below: 4 } })
+    expect(fit(91, 97).priceRange).toEqual({ minValue: 80, maxValue: 97 })
+    expect(fit(20, 35).priceRange).toEqual({ minValue: 20, maxValue: 90 })
+    // a blank series (every other Reading) answers what the library answered: nothing
+    expect(opt.autoscaleInfoProvider(() => null)).toBeNull()
+    // a guest on another axis is never widened
+    expect(seriesOptionsForPlot(plot('ratingLine'), { autoscale: 'exclude' }).autoscaleInfoProvider).toBe(AUTOSCALE_EXCLUDE)
+    // no other RS plot declares it
+    expect(RS.plots.filter((p) => p.autoscaleInclude).map((p) => p.key)).toEqual(['ratingLine'])
+    const bad = (r) => validateDefinition({ ...RS, plots: RS.plots.map((p) => (p.key === 'ratingLine' ? { ...p, autoscaleInclude: r } : p)) })
+    for (const r of [{ min: 90, max: 80 }, { min: 80 }, { min: 80, max: 90, pad: 1 }, [80, 90]]) {
+      expect(bad(r).errors.join('\n'), JSON.stringify(r)).toMatch(/autoscaleInclude/)
+    }
+  })
+
   it('no gold anywhere on the Reading', () => {
     const gold = IND_TOKENS.classic.premium.toLowerCase()
     for (const k of ['ratingLine', 'ratingMa', 'ratingGuides']) expect(String(plot(k).color).toLowerCase(), k).not.toBe(gold)
@@ -131,11 +153,27 @@ describe('3 · the readout', () => {
       ['Sessions drawn', '187'], ['Rated as of', '2026-11-06']])
   })
 
-  it('the pane label carries the last stored value under the Reading (the pane has no axis tag)', () => {
-    expect(RS.meta.legendFallback.at(-1)).toEqual({ source: 'scalar:ratingHistory.value', format: 'int', when: 'input:view=rating' })
-    expect(readoutFallbackValue(RS, PAYLOAD, 4, { view: 'rating' })).toEqual({ text: '82', muted: false })
+  // ⭐ real-screen check 2026-11-08: the bare value read `· 82  82` beside the chip's
+  // rating, and a weekly chart printed the RS ratio's number over the empty pane.
+  it('the pane label carries the server summary (last value first); a reason prints MUTED, never another reading', () => {
+    expect(RS.meta.legendFallback.at(-1)).toEqual({ source: 'scalar:ratingHistory.summary', format: 'text',
+      when: 'input:view=rating', muted: 'scalar:ratingHistory.reason' })
+    expect(readoutFallbackValue(RS, PAYLOAD, 4, { view: 'rating' })).toEqual({ text: `82, up${NB}6 in 20${NB}sessions`, muted: false })
+    const weekly = { ...PAYLOAD, ratingHistory: { ...HISTORY, value: null, summary: 'daily charts only', reason: 'daily charts only' } }
+    expect(readoutFallbackValue(RS, weekly, 4, { view: 'rating' })).toEqual({ text: 'daily charts only', muted: true })
     // another Reading never prints it
     expect(readoutFallbackValue(RS, PAYLOAD, 4, { view: 'ratio' })).toEqual({ text: '0.4187 · Nov 5', muted: true })
+    // an entry WITHOUT a muted gate keeps the old rule: Mansfield prints live
+    expect(readoutFallbackValue(RS, { ...PAYLOAD, mansfield: { value: 12.3 } }, 4, { view: 'mansfield' }))
+      .toEqual({ text: '+12.3%', muted: false })
+  })
+
+  it('defSchema refuses a legendFallback muted that is not a readout gate', () => {
+    const lf = (muted) => validateDefinition({ ...RS, meta: { ...RS.meta,
+      legendFallback: [{ source: 'scalar:ratingHistory.summary', format: 'text', when: 'input:view=rating', muted }] } })
+    expect(lf('scalar:ratingHistory.reason').ok).toBe(true)
+    expect(lf(true).errors.join('\n')).toMatch(/legendFallback\[0\]\.muted/)
+    expect(lf('input:view=rating').errors.join('\n')).toMatch(/legendFallback\[0\]\.muted/)
   })
 
   it('the card: what / origin / the honesty sentence; plain words, RS never RSI, no buy or sell', () => {

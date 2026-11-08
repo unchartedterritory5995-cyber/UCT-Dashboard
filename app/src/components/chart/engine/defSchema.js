@@ -1560,6 +1560,14 @@ function validateMeta(meta, def, errors) {
             if (fault) errors.push(`meta.legendFallback[${i}].when: ${fault}`)
           }
         }
+        // ⭐ rsLine rev 5 — an optional `muted` GATE (`scalar:<path>`): while it holds the
+        // entry prints in the muted ink (`readout.readoutFallbackValue`).
+        if (isPlainObject(e) && e.muted !== undefined) {
+          const gate = typeof e.muted === 'string' ? parseReadoutGate(e.muted) : null
+          if (!gate || typeof gate.equals === 'string') {
+            errors.push(`meta.legendFallback[${i}].muted: expected a readout gate such as 'scalar:<a.b>', got ${fmt(e.muted)}`)
+          }
+        }
       })
     }
   }
@@ -2774,6 +2782,18 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `${fmt(plot.displace)}. A rightward displacement belongs in the tree as a bar offset ` +
       `(\`x[N]\`), never here — carrying it on the plot too would draw it twice as far.`,
     )
+  }
+  // ⭐ rsLine rev 5 (2026-11-08) — `plots[].autoscaleInclude: {min, max}`: a range the
+  // plot's own autoscale always WIDENS to include while the plot has data on screen
+  // (guides at fixed levels stay in view: the RS Rating's 80 and 90). It never
+  // clips, and a plot with no data in view contributes nothing, so a series the
+  // server blanks under another reading cannot reframe that reading's scale.
+  if (plot.autoscaleInclude !== undefined) {
+    const r = plot.autoscaleInclude
+    if (!(isPlainObject(r) && Number.isFinite(r.min) && Number.isFinite(r.max) && r.min < r.max
+          && Object.keys(r).every((k) => k === 'min' || k === 'max'))) {
+      errors.push(`${path}.autoscaleInclude: expected {min, max} with finite min < max, got ${fmt(r)}`)
+    }
   }
   // `plots[].displaceFrom` — the displacement's relation to ONE declared parameter,
   // `scale * value + add`, so a parameter edit moves the drawing with the maths.
