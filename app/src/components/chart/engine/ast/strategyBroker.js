@@ -64,7 +64,8 @@ const nameOf = (node) => (node && node.type === 'name' ? node.name : null)
  * @param {object} call  the parse node of `strategy(...)`
  * @param {number} version the script's `//@version`
  * @returns {{pyramiding:number, defaultQty:(number|null), initialCapital:(number|null),
- *   marginLong:(number|null), marginShort:(number|null), calcOnEveryTick:boolean, version:number}}
+ *   marginLong:(number|null), marginShort:(number|null), calcOnEveryTick:boolean, version:number,
+ *   processOrdersOnClose:boolean, calcOnOrderFills:boolean, fillLimitsTicks:number}}
  */
 export function readStrategyDeclaration(call, version) {
   const v = Number(version)
@@ -78,6 +79,8 @@ export function readStrategyDeclaration(call, version) {
   const cfg = {
     pyramiding: 0, defaultQty: null, initialCapital: d ? d.initialCapital : null,
     marginLong: d ? d.margin : null, marginShort: d ? d.margin : null, calcOnEveryTick: false, version: v,
+    // W9-T6: fill timing at its documented defaults (R6 `strategy()`: false, false, 0)
+    processOrdersOnClose: false, calcOnOrderFills: false, fillLimitsTicks: 0,
   }
   let qtyType = d ? d.qtyType : null
   let qtyValue = d ? d.qtyValue : null
@@ -101,11 +104,15 @@ export function readStrategyDeclaration(call, version) {
       case 'margin_long': need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.marginLong = n; break
       case 'margin_short': need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.marginShort = n; break
       case 'calc_on_every_tick': need(key, n === 0 || n === 1, 'is not a true / false literal'); cfg.calcOnEveryTick = n === 1; break
+      // ⭐⭐ W9-T6 — fill timing is READ, and the broker asks its rule (B-POC, B-FILLS, B-FILL-LIMITS)
+      // when a run reaches it: unpinned, the run stops `runtime:strategy-unpinned` by name.
+      case 'calc_on_order_fills': need(key, n === 0 || n === 1, 'is not a true / false literal'); cfg.calcOnOrderFills = n === 1; break
+      case 'process_orders_on_close': need(key, n === 0 || n === 1, 'is not a true / false literal'); cfg.processOrdersOnClose = n === 1; break
+      case 'backtest_fill_limits_assumption': need(key, Number.isInteger(n) && n >= 0, 'is not a whole-number literal'); cfg.fillLimitsTicks = n; break
       // ── served only at their documented defaults ──
-      case 'calc_on_order_fills': need(key, n === 0, '= true (an extra execution after every fill) is not served'); break
-      case 'process_orders_on_close': need(key, n === 0, '= true (fills on the bar close) is not served'); break
+      // [T6] the July-2026 "On history bar tick" menu: deferred (W9 design 4, Deferred)
+      case 'calc_on_every_history_tick': need(key, n === 0, '= true (an execution on every historical tick) is not served'); break
       case 'use_bar_magnifier': need(key, n === 0, '= true (lower-timeframe fills) is not served'); break
-      case 'backtest_fill_limits_assumption': need(key, n === 0, 'other than 0 is not served'); break
       case 'slippage': need(key, n === 0, 'other than 0 is not served'); break
       case 'commission_value': need(key, n === 0, 'other than 0 is not served'); break
       case 'calc_bars_count': need(key, n === 0, 'other than 0 is not served'); break

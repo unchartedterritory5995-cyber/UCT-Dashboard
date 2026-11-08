@@ -189,7 +189,9 @@ describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [
   })
   for (const [decl, what] of [
     ['commission_value = 0.1', 'commission_value'],
-    ['process_orders_on_close = true', 'process_orders_on_close'],
+    // W9-T6: `process_orders_on_close` is now READ (its rule B-POC refuses at run time until pinned,
+    // w9T6FillTiming.test.js); the July-2026 history-tick menu off its default still refuses at build
+    ['calc_on_every_history_tick = true', 'calc_on_every_history_tick'],
     ['slippage = 2', 'slippage'],
     ['close_entries_rule = "ANY"', 'close_entries_rule'],
   ]) {

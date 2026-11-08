@@ -75,7 +75,7 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 Not served at all (refused by name at build, `runtime:strategy-option` / `runtime:strategy-value`):
 `strategy.order`, `strategy.risk.*`, trailing stops (`trail_*`), partial exits (`qty`,
 `qty_percent` other than 100), OCA groups, `immediately = true`, commission, slippage,
-`process_orders_on_close = true`, `calc_on_order_fills`, bar magnifier, `close_entries_rule = "ANY"`,
+bar magnifier, `calc_on_every_history_tick = true` (W9-T6 made `process_orders_on_close`, `calc_on_order_fills` and `backtest_fill_limits_assumption` READ: each refuses at run time by its rule until pinned), `close_entries_rule = "ANY"`,
 an account currency, and every `strategy.*` value outside B-VAL (`max_drawdown`, `*_percent` but
 `netprofit_percent`, `position_entry_name`, `avg_*`, `max_contracts_held_*`, the per-trade functions
 other than `opentrades.entry_price / entry_bar_index / size` and `closedtrades.entry_price / exit_price
@@ -109,5 +109,13 @@ Every rule above serves only when `pinned(rule)` is true, asked when a run REACH
 | B-QTY | Q-S1a | qty = na takes the declared default size |
 | B-DEFAULTS | Q-S1b | the per-version declaration defaults |
 | B-VAL | Q-S1-core | the strategy.* values and per-trade reads |
+| B-J1 | W9-J1 | (W9-T6) a next-bar fill made under the July-2026 Properties defaults: order execution delay one tick, limit order execution 0 ticks, bar detalization off, history-bar ticks off |
+| B-POC | W9-P1 | (W9-T6) `process_orders_on_close`: a market order (entry, close, close_all) placed on bar t fills at t's close, after the script ran on t; the script reads it from t+1 |
+| B-POC-PRICE | W9-P1 | (W9-T6) `process_orders_on_close`: a price order placed on bar t gets one attempt at t's close and fills there only if the close meets its level; otherwise it is live from the next open |
+| B-POC-PYR | W9-P1 | (W9-T6) `process_orders_on_close` with pyramiding: a close fill that adds to the position |
+| B-POC-FILLS | W9-P1b | (W9-T6) `process_orders_on_close` + `calc_on_order_fills`: a close fill re-runs the bar from its start state |
+| B-FILLS | W9-P2 | (W9-T6) `calc_on_order_fills` on history: an extra execution on each fill tick (open, path level, extreme); OHLC hold the bar's final values; rolled back; its orders fill from the next tick |
+| B-TICK-HIST | W9-P3 | (W9-T6) `calc_on_every_tick` on history: a historical bar executes once, on its close |
+| B-FILL-LIMITS | none queued | (W9-T6) `backtest_fill_limits_assumption = N`: a limit fills only once the price passes its level by N ticks, at its level |
 
 B-START is not a pin rule: Q-S1n is a fact capture that pins nothing. A run is refused `runtime:strategy-start` unless it is told the history window (`bars_window.HISTORY_WINDOW_BARS`, via the run context) and holds no more bars than it.

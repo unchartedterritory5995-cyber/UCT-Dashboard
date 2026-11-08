@@ -632,9 +632,46 @@ export function execute(program, ctx, limits, opts) {
     pkNest = bc.LOOP_NESTING
   }
   const realtime = opts && opts.realtime && entryPc === 0 ? opts.realtime : null
+  // ⭐⭐ W9-T6 — THE STEP ORDER OF A BAR THAT RE-RUNS ([B-FILLS], [B-POC-FILLS]). Under
+  // calc_on_order_fills a bar may execute more than once: at each fill tick (an extra execution) and,
+  // with process_orders_on_close, after a fill on its close. Every execution but the bar's last is
+  // ROLLED BACK to the bar's start state - `var`s, history, held and carried state, iteration buffers,
+  // drawings and this bar's outputs - the realtime rollback model; the broker's own state is kept,
+  // which is the point of the re-run. Only a broker run under calc_on_order_fills takes this path;
+  // every other run never snapshots and steps exactly as before.
+  const brokerReruns = !!broker && program.broker.calcOnOrderFills === true
+  if (brokerReruns && realtime) {
+    throw new BrokerRefusal('`calc_on_order_fills` re-runs a bar, and this run also keeps realtime state '
+      + '(`varip` / `barstate.isnew`) whose value across those re-runs is not stated', 'W9-P1b')
+  }
+  let barSnap = null
+  let barReruns = 0
+  const snapBar = (bar) => {
+    const [p, ini, h, hd, cs, c2, wn, it] = cloneValues([persist, initialised, hist, held, carState, car2State, winObsN, iters])
+    return { bar, committed, persist: p, initialised: ini, hist: h, held: hd, carState: cs, car2State: c2, winObsN: wn,
+      winObs: winObs.map((o) => (o ? Array.from(o) : null)), iters: it,
+      out: outputs.map((o) => o[bar]), store: store ? store.snapshot() : null }
+  }
+  const restoreBar = (sn) => {
+    const [p, ini, h, hd, cs, c2, wn, it] = cloneValues([sn.persist, sn.initialised, sn.hist, sn.held, sn.carState,
+      sn.car2State, sn.winObsN, sn.iters])
+    const put = (into, from) => { for (let i = 0; i < into.length; i += 1) into[i] = from[i] }
+    put(persist, p); put(initialised, ini); put(hist, h); put(held, hd)
+    put(carState, cs); put(car2State, c2); put(winObsN, wn)
+    for (let w = 0; w < winObs.length; w += 1) if (winObs[w]) put(winObs[w], sn.winObs[w])
+    for (let k = 0; k < iters.length; k += 1) put(iters[k], it[k])
+    for (let k = 0; k < nOut; k += 1) outputs[k][sn.bar] = sn.out[k]
+    if (store && sn.store) store.restore(sn.store)
+    committed = sn.committed
+  }
   for (let bar = startBar; bar < runBars; bar += 1) {
     // ⭐⭐ S1 — [B-FILL] the orders the last bar placed fill BEFORE this bar's script runs.
-    if (broker) broker.beginBar(bar)
+    // ⭐⭐ W9-T6 — `true`: the walk stopped at a fill tick and THIS execution is an extra one ([B-FILLS]).
+    let extraRun = false
+    if (broker) {
+      if (brokerReruns && (!barSnap || barSnap.bar !== bar)) { barSnap = snapBar(bar); barReruns = 0 }
+      extraRun = broker.beginBar(bar)
+    }
     if (realtime) realtime.barStart(bar, persist, initialised)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -1424,6 +1461,21 @@ export function execute(program, ctx, limits, opts) {
       throw new VmError(
         `bar ${bar}: the program left ${sp} value(s) on the stack — every value a `
         + 'bar pushes must be consumed by the end of it')
+    }
+
+    // ⭐⭐ W9-T6 — [B-POC] the close execution has run: the orders it placed get their attempt at this
+    // close. Then, under calc_on_order_fills, an extra execution (or a close fill) re-runs the bar.
+    if (broker) {
+      const again = extraRun || broker.endBar(bar)
+      if (again) {
+        barReruns += 1
+        if (barReruns > 64) {
+          throw new BrokerRefusal(`bar ${bar} re-ran more than 64 times under \`calc_on_order_fills\``, 'W9-P2')
+        }
+        restoreBar(barSnap)
+        bar -= 1
+        continue
+      }
     }
 
     // ─── ⭐⭐⭐ THE END-OF-BAR COMMIT ───────────────────────────────────────

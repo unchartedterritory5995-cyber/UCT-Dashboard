@@ -41,7 +41,6 @@ export const STRATEGY_RECORD_UNSERVED = Object.freeze({
   'trades.drawdown': 'W9-T13a',
   'settings.commission': 'W9-T5',
   'settings.slippage': 'W9-T5',
-  'settings.process_orders_on_close': 'W9-T6',
   'settings.bar_detalization': 'W9-T9',
   'settings.currency': 'W9-T4',
 })
@@ -102,11 +101,14 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
       margin_long: Number.isFinite(cfg.marginLong) ? cfg.marginLong : null,
       margin_short: Number.isFinite(cfg.marginShort) ? cfg.marginShort : null,
       calc_on_every_tick: cfg.calcOnEveryTick === true,
+      // ⭐⭐ W9-T6 — fill timing, as the declaration set it (each asks its own rule when a run reaches it)
+      process_orders_on_close: cfg.processOrdersOnClose === true,
+      calc_on_order_fills: cfg.calcOnOrderFills === true,
+      backtest_fill_limits_assumption: Number.isInteger(cfg.fillLimitsTicks) ? cfg.fillLimitsTicks : 0,
       // which of the above are the version's defaults, not the script's own (B-DEFAULTS)
       defaulted: Object.keys(defaulted).filter((k) => defaulted[k] === true).sort(),
       commission: null,
       slippage: null,
-      process_orders_on_close: null,
       bar_detalization: null,
       currency: null,
     },
