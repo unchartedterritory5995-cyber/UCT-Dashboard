@@ -370,6 +370,33 @@ function gateHolds(gate, scalars, def, inputs) {
   return gateOpen(v)
 }
 
+/**
+ * ⭐ A GATE STRING (the `when` grammar: a source read for truthiness, or the
+ * `input:<key>=<value>` equals form) evaluated over one envelope and one
+ * instance. Exported for the other declarative readers of the same payload
+ * (`paneTable.js`), so there is one gate language, not two. A gate that does
+ * not parse is CLOSED. Never throws.
+ */
+export function readoutGateOpen(when, scalars, def, inputs) {
+  try {
+    return gateHolds(parseReadoutGate(when), isPlainObject(scalars) ? scalars : null, def,
+      isPlainObject(inputs) ? inputs : {})
+  } catch { return false }
+}
+
+/**
+ * The raw value one `source` string (`scalar:` / `payload:` / `input:`)
+ * resolves to, or `undefined` when it does not parse or walks off the payload.
+ * `null` is returned as `null`: the server SENT the key and said "nothing", which
+ * a reader can tell from a key the payload does not carry at all. Never throws.
+ */
+export function readoutSourceValue(source, scalars, def, inputs) {
+  try {
+    return readSource(parseReadoutSource(source), isPlainObject(scalars) ? scalars : null, def,
+      isPlainObject(inputs) ? inputs : {})
+  } catch { return undefined }
+}
+
 /** ⭐ UCT RS 3-08 — is the row's value printed in the quiet ink? `muted: true`
  *  always; a `muted` GATE (the `when` grammar) while it holds — the server's
  *  `reason` beside a reading it could not make, so the row says why in the muted

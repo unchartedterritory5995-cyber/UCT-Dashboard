@@ -788,9 +788,9 @@ describe('⭐⭐ `opts.scalarsOf` — the readout rows ride the chip; the label 
     legend: { pctFromMa: 1.84, maSlope: 1, above: true },
     rating: { ibd: 94, fast: 91, asof: '2026-11-05' },
   }
-  const strip = (c) => { const o = { ...c }; delete o.readout; delete o.suffix; return o }
+  const strip = (c) => { const o = { ...c }; delete o.readout; delete o.suffix; delete o.paneTable; return o }
 
-  it('⛔ the label and the text are BYTE-IDENTICAL with and without a reader — only readout and suffix are added', () => {
+  it('⛔ the label and the text are BYTE-IDENTICAL with and without a reader — only readout and suffix (and the declared pane table) are added', () => {
     const without = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })])
     const withReader = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
       { scalarsOf: () => PAYLOAD })
@@ -799,7 +799,10 @@ describe('⭐⭐ `opts.scalarsOf` — the readout rows ride the chip; the label 
     expect(withReader.map(strip)).toEqual(without.map(strip))
     for (const c of withReader) {
       const extra = Object.keys(c).filter((k) => !(k in without[0]))
-      expect(extra.sort()).toEqual(['readout'])            // `suffix` was already there (` · SECTOR`)
+      // `suffix` was already there (` · SECTOR`). Design round (2026-11-08): the RS
+      // definition declares `meta.paneTable` and this payload carries a rating row,
+      // so the chip also carries `paneTable`, from the same scalars, and nothing else
+      expect(extra.sort()).toEqual(['paneTable', 'readout'])
     }
     // …and the same holds through `chipsFrom` directly, with a crosshair value
     const e = { defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'x' }, instanceId: 'inst:rsLine:1' }

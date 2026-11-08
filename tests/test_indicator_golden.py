@@ -87,7 +87,9 @@ RS_PHASE3_CASES = ["rs_rrg", "rs_clenow", "rs_vars"]
 # Phase 3 public-method parity (unit 3-13): NOT compute_case inputs. Each holds what an
 # outside reference publishes (Quant Investing's Clenow example, OANDA's VARS case study,
 # a person's StockCharts RRG reading) and is read by tests/test_rs_phase3_parity.py.
-RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcharts"]
+# Design round (2026-11-08): `rs_parity_deepvue` records our RS Rating beside Deepvue's
+# ranks for 21 names; read by tests/test_rs_parity_deepvue.py.
+RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcharts", "rs_parity_deepvue"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as

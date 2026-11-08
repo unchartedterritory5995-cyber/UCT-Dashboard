@@ -104,6 +104,7 @@ import { safeCssColour } from './objectColour'
 // no serverCompute, no DOM. The scalars themselves arrive through `opts.scalarsOf`
 // (see `stampReadout`), so this module still imports no server lane.
 import { readoutRows, readoutChipRows } from './readoutSchema'
+import { paneTableFor } from './paneTable'
 import { inputsAsRead } from './legacyInputs'
 import { identityTextFor } from './defSchema'
 
@@ -379,15 +380,21 @@ function stampReadout(chip, def, inputs, opts) {
   const reader = (opts && typeof opts.scalarsOf === 'function') ? opts.scalarsOf : null
   const identity = legendIdentityParts(def, inputs)
   let rows = null
+  // ⭐ DESIGN ROUND (2026-11-08) — the pane table (`meta.paneTable`), resolved from
+  // the SAME scalars read the rows are, so the corner table and the Rating card
+  // can never print two different numbers for one rank.
+  let table = null
+  const wantsTable = !!(def.meta && def.meta.paneTable)
   if (reader) {
     rows = []
-    if (Array.isArray(def.readout) && def.readout.length) {
+    if ((Array.isArray(def.readout) && def.readout.length) || wantsTable) {
       let scalars = null
       try { scalars = reader(def, resolvedInputsOf(def, inputs)) } catch { scalars = null }
       // A plain object or nothing: an array, a string or a number is not a
       // payload, and "nothing landed" prints no rows — not even a fallback.
       if (scalars && typeof scalars === 'object' && !Array.isArray(scalars)) {
-        rows = readoutRows(def, scalars, { inputs })
+        if (Array.isArray(def.readout) && def.readout.length) rows = readoutRows(def, scalars, { inputs })
+        if (wantsTable) table = paneTableFor(def, scalars, { inputs })
       }
     }
   }
@@ -405,6 +412,9 @@ function stampReadout(chip, def, inputs, opts) {
   const suffix = `${lead}${sibling}${tail}`
   if (rows) chip.readout = rows
   if (suffix || rows) chip.suffix = suffix
+  // Present only when the definition declares a table AND it resolves, so every
+  // other chip keeps exactly the fields it had.
+  if (table) chip.paneTable = table
   return chip
 }
 

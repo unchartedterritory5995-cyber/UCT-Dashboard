@@ -77,6 +77,11 @@ const MANSFIELD_DOT_TO_EVENTS = Object.freeze({
 /** 3-08 — the wire-only gap dot the provider derives from `rs_clenow`'s bars:
  *  its oracle is the score column plus the one-bar move rule, pinned below. */
 const DERIVED_DOTS = Object.freeze({ dotClenowGap: 'rs_clenow' })
+/** Design round (2026-11-08) — the two CLIENT-derived cross triangles
+ *  (`plots[].derive`, `derivedColumns.js`): no wire column of their own, so their
+ *  oracle is the fixture's `rsLine` and the event they read, checked in
+ *  `rsDesignRound.test.js` (the RS value exactly where the event is 1). */
+const CLIENT_DERIVED_DOTS = Object.freeze({ dotCrossUp: 'crossUp', dotCrossDown: 'crossDown' })
 /** Which fixture each LINE plot's column lives in. */
 const LINE_FIXTURE = Object.freeze({
   rsLine: 'rs_events_default', rsAbove: 'rs_events_default', rsMa: 'rs_events_default', mansfield: 'rs_mansfield',
@@ -120,11 +125,16 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
       // 🔴 A new marker plot without a fixture column is a dot with no oracle.
       const inMansfield = Object.prototype.hasOwnProperty.call(MANSFIELD_DOT_TO_EVENTS, p.key)
       const derived = Object.prototype.hasOwnProperty.call(DERIVED_DOTS, p.key)
-      expect(DOT_TO_EVENT[p.key] || inMansfield || derived,
+      const clientDerived = Object.prototype.hasOwnProperty.call(CLIENT_DERIVED_DOTS, p.key)
+      expect(DOT_TO_EVENT[p.key] || inMansfield || derived || clientDerived,
         `marker plot "${p.key}" has no dot → event pairing in rsIndicator.golden.test.js — `
         + 'add the pairing AND the fixture columns before shipping the dot').toBeTruthy()
       if (derived) {
         expect(loadCase(DERIVED_DOTS[p.key]).expected, `${p.key}'s source column`).toHaveProperty('clenowScore')
+      } else if (clientDerived) {
+        expect(p.derive, `${p.key} is client-derived`).toMatchObject({ from: 'rsLine', where: CLIENT_DERIVED_DOTS[p.key] })
+        expect(exp, `${p.key}'s event column`).toHaveProperty(CLIENT_DERIVED_DOTS[p.key])
+        expect(exp, `${p.key}'s value column`).toHaveProperty('rsLine')
       } else if (inMansfield) {
         expect(m.expected, `marker plot "${p.key}" names a column rs_mansfield.json does not carry`).toHaveProperty(p.key)
         for (const ev of MANSFIELD_DOT_TO_EVENTS[p.key]) expect(m.expected, `event "${ev}" is not in rs_mansfield.json`).toHaveProperty(ev)
@@ -150,8 +160,10 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     // large ones glyphs, and the Mansfield cross dot is PLAIN because its value
     // may be ≤ 0. Visual round A3: the red-day glyph carries NO text (platform §7)
     // and is declared before the before-price glyph, so gold paints on top.
+    // Design round (2026-11-08): the two small cross triangles are glyphs too, at 0.6,
+    // declared before the large ones so the gold paints on top.
     expect(markers.map(p => [p.key, p.marker ? 'glyph' : 'point'])).toEqual([
-      ['dotNH', 'point'], ['dotNHred', 'glyph'], ['dotNHbeforePx', 'glyph'],
+      ['dotNH', 'point'], ['dotCrossUp', 'glyph'], ['dotCrossDown', 'glyph'], ['dotNHred', 'glyph'], ['dotNHbeforePx', 'glyph'],
       ['dotNHpartial', 'point'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'], ['dotClenowGap', 'point'],
     ])
     // L1 (2026-11-07): both large glyphs are size 1.6 (13 px at the floor), was 2.0

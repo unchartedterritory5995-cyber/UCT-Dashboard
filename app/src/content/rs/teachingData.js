@@ -31,7 +31,10 @@ export const GLOSSARY = Object.freeze([
     definition: 'The stock\'s price divided by the benchmark\'s price, drawn as a line: up means the stock is beating the market, down means it is lagging. Only its direction and its own prior highs matter, not where it sits beside price.',
     aliases: ['relative strength line', 'price relative'] },
   { key: 'rsRating', term: 'RS Rating',
-    definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style; how closely it matches the MarketSurge rating has not been measured yet.',
+    // ⭐ MEASURED 2026-11-08 (design round; `tests/fixtures/indicators/rs_parity_deepvue.json`,
+    // railed by `tests/test_rs_parity_deepvue.py`): 21 names, Spearman 1.00 against
+    // Deepvue's 12M, mean |diff| 1.4 at 75 and above, ours 11.1 lower below 75.
+    definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranks stocks in the same order as Deepvue\'s RS rating: at 75 and above it reads within about a point, and below that about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock; it has not been measured against MarketSurge.',
     aliases: ['relative strength rating', 'IBD-style rating'] },
   { key: 'rsNewHigh', term: 'RS new high',
     definition: 'The RS line closes higher than at any point in its lookback. The stock is outperforming the market by the most it has in that window.',

@@ -103,9 +103,14 @@ describe('glossary', () => {
     expect(sentenceCount('Read as "beat X% of the group". Then this.')).toBe(2)
   })
 
-  it('the RS Rating carries the v4 §18 line, not the 3 to 5 point MarketSurge figure', () => {
+  it('the RS Rating carries the MEASURED Deepvue comparison (2026-11-08), not the 3 to 5 point MarketSurge figure', () => {
     const rating = GLOSSARY.find((t) => t.key === 'rsRating')
-    expect(rating.definition).toContain('has not been measured yet')
+    // the measurement `tests/test_rs_parity_deepvue.py` rails, in plain words
+    expect(rating.definition).toContain('in the same order as Deepvue\'s RS rating')
+    expect(rating.definition).toContain('at 75 and above it reads within about a point')
+    expect(rating.definition).toContain('about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock')
+    expect(rating.definition).toContain('it has not been measured against MarketSurge')
+    expect(rating.definition).not.toContain('has not been measured yet')
     expect(ALL_TEXT.join('\n')).not.toMatch(/3\s*[–-]\s*5 points|±/)
   })
 })

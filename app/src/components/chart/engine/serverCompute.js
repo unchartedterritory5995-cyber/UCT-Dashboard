@@ -29,6 +29,8 @@
 // overlay — never a retry storm and never a client-side "are you paid?" branch
 // that could disagree with the server.
 
+import { withDerivedColumns } from './derivedColumns'
+
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
 
@@ -435,7 +437,10 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   // whose columns exist and ignores the rest, which on the v1 server is exactly
   // "the RS line and nothing else". `revMismatch` stays exported as a SIGNAL for
   // the readout ("this chart is drawing an older server answer").
-  return alignColumns(parsed, bars)
+  // ⭐ UCT RS design round (2026-11-08): the declared `plots[].derive` columns —
+  // an event's glyph riding the line — are built here, the one place a server
+  // definition's columns are aligned, from columns the envelope already carries.
+  return withDerivedColumns(def, alignColumns(parsed, bars), inputs)
 }
 
 /**
