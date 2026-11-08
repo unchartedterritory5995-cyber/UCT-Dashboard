@@ -528,6 +528,8 @@ function chipMenuRowToPopoverRow(it) {
 const EMPTY_READOUT_ROWS = Object.freeze([])
 /** How long a first-add tour waits for its new chip to derive before giving up (unit 4-05). */
 const TOUR_WAIT_MS = 8000
+/** How long it then waits for that chip's own label to paint, to anchor beside it, before using the chart's corner. */
+const TOUR_ANCHOR_WAIT_MS = 1500
 
 /**
  * ⭐ Phase 2a (unit 2a-10) — `rows`: the chip's READOUT ROWS, what the legend
@@ -6111,6 +6113,7 @@ export default function StockChart({
     if (!tourPending) return undefined
     if (tourPending.sym !== sym || tourPending.tf !== resolvedTf) { setTourPending(null); return undefined }
     const started = Date.now()
+    let chipSeenAt = null
     let timer = null
     const tick = () => {
       const chip = latestChips().find((c) => c && c.defId === tourPending.defId && c.instanceId)
@@ -6120,14 +6123,28 @@ export default function StockChart({
         timer = setTimeout(tick, 120)
         return
       }
+      // ⛔ SEARCH THE WRAPPER, NOT THE PLOT. An own-pane study's label (the pane
+      // readout, `[data-pane-legend]`) renders as a SIBLING of `containerRef`, so a
+      // plot-only search never found it and the card always fell back to the
+      // chart's top-left corner, over the price legend and far from the new pane it
+      // explains (measured on the 4-11 sandbox pass). And the chip's row can derive
+      // a frame before its label paints, so wait for it a bounded while first.
+      let el = null
+      try {
+        const scope = wrapperRef.current || containerRef.current
+        const nodes = [...(scope?.querySelectorAll('[data-instance-id]') || [])]
+          .filter((n) => n.getAttribute('data-instance-id') === chip.instanceId)
+        el = nodes.find((n) => n.offsetParent !== null) || nodes[0] || null
+      } catch { /* noop */ }
+      if (chipSeenAt === null) chipSeenAt = Date.now()
+      if (!el && Date.now() - chipSeenAt < TOUR_ANCHOR_WAIT_MS) {
+        timer = setTimeout(tick, 120)
+        return
+      }
       setTourPending(null)
       if (tourBlockedRef.current || tourClaimed(tourPending.defId) || !claimTour(tourPending.defId)) return
       let anchor = null
       try {
-        const el = [...(containerRef.current?.querySelectorAll('[data-instance-id]') || [])]
-          .find((n) => n.getAttribute('data-instance-id') === chip.instanceId && n.offsetParent !== null)
-          || [...(containerRef.current?.querySelectorAll('[data-instance-id]') || [])]
-            .find((n) => n.getAttribute('data-instance-id') === chip.instanceId)
         const r = el && el.getBoundingClientRect()
         if (r) anchor = { x: r.left, y: r.bottom + 3 }
       } catch { /* noop */ }
