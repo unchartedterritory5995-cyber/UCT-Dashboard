@@ -2453,6 +2453,20 @@ function validateServerGates(def, inputs, errors) {
       )
     }
   })
+  // ⭐ UCT RS 3-14 — `plots[].requiresServer: true`: a column only the gated row
+  // sends; the inspector offers no Plot style for it until the live row declares
+  // every gated input (`indicatorRegistry.isPlotHidden`). On a definition with no
+  // gated input it could never appear, so that is refused like the rest.
+  const anyGatedInput = inputs.some((i) => isPlainObject(i) && i.requiresServer === true)
+  ;(Array.isArray(def.plots) ? def.plots : []).forEach((plot, i) => {
+    if (!isPlainObject(plot) || plot.requiresServer === undefined) return
+    const at = `plots[${i}].requiresServer`
+    if (plot.requiresServer !== true) errors.push(`${at}: expected true or absent, got ${fmt(plot.requiresServer)}`)
+    else if (!serverDoc) errors.push(`${at}: ${kindNote}`)
+    else if (!anyGatedInput) {
+      errors.push(`${at}: the definition declares no requiresServer input, so the live row can never arm it and the plot's style row would stay hidden forever`)
+    }
+  })
   const presets = isPlainObject(def.meta) && Array.isArray(def.meta.presets) ? def.meta.presets : []
   presets.forEach((p, i) => {
     if (!isPlainObject(p) || p.requiresServer === undefined) return
@@ -2558,6 +2572,31 @@ function enumOptionLabel(option) {
   if (Array.isArray(option)) return typeof option[1] === 'string' ? option[1] : null
   if (isPlainObject(option) && typeof option.label === 'string') return option.label
   return null
+}
+
+/**
+ * ⭐ THE ONE READER OF THE PAIR (unit 3-14). The text an identity value prints:
+ * for an `enum` input whose option `raw` has a companion text box (a `string`
+ * input declaring `identityFor: <that key>` and `activeWhen: {key, equals: raw}`),
+ * the box's typed value, or the option's LABEL while the box is empty; every
+ * other value comes back unchanged. Read by `readout` (the chip and the pane
+ * suffix) and by `sourceRef.instanceLabel` (the settings list, the Display-in
+ * menu), so no surface prints the code `CUSTOM` for "Your symbol".
+ */
+export function identityTextFor(def, key, raw, inputs) {
+  if (typeof raw !== 'string' || !raw || !def || !Array.isArray(def.inputs)) return raw
+  const inp = def.inputs.find((i) => i && i.key === key)
+  if (!inp || inp.type !== 'enum') return raw
+  const companion = def.inputs.find((c) => c && c.identityFor === key && c.type === 'string'
+    && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === key && c.activeWhen.equals === raw)
+  if (!companion) return raw
+  const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
+  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    if (Array.isArray(o) && o[0] === raw) return typeof o[1] === 'string' && o[1] ? o[1] : raw
+    if (o && typeof o === 'object' && !Array.isArray(o) && o.value === raw) return typeof o.label === 'string' && o.label ? o.label : raw
+  }
+  return raw
 }
 
 function validateIdentityFor(def, inputs, inputsByKey, errors) {

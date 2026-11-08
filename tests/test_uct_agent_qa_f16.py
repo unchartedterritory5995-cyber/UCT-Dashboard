@@ -121,7 +121,13 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # rs_history.py (split guard, backfill), snapshot_db.py (the bars_rs receipt column) and
 # methodology.py on purpose. The pin is that work's last Screener commit; master changed no
 # Screener file since the RS branches split from it, so the go-live merge adds nothing here.
-SCREENER_PIN = "e4a6491b60a76c53b5353e16331e005ca3d2a384"
+# Re-pinned 2026-11-08 (UCT RS Phase 3, integration unit 3-14): the Phase 3 programme changes the
+# Screener on purpose, dark behind RS_V3_ENABLED: afc25422d7 (VA3, methodology's evidence sentence),
+# df1ffd8472 (3-10, the rrg_quadrant / clenow_score / vars_state collector in rs_columns.py,
+# snapshot_builder.py and snapshot_db.py), 30300b263e and fa88a026c5 (3-11, their filters and
+# methodology entries). The pin is that work's last Screener commit; master changed no Screener
+# file since the Phase 3 branch split from it.
+SCREENER_PIN = "fa88a026c5be087452bd02b4bd24b92f4351ef2b"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -170,7 +176,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/rs_history.py" in r.stdout.split()  # a file the pinned commit changed (the review fixes)
+    assert "api/services/screener/methodology.py" in r.stdout.split()  # a file the pinned commit changed (3-11's RRG method line)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

@@ -320,12 +320,18 @@
    look-here mark (engineering map 3-08). */
 .cardWide {
   width: 640px;
+}
+/* A tall card scrolls inside itself, never off screen (3-14, measured on the sandbox at 1440x900:
+   fourteen compared symbols made the Overlay card 1214 px tall, and the centring backdrop pushed
+   its head and the Overlay / Rotation tabs 109 px above the viewport, out of reach). The head and
+   the tabs stay put; the active tab's body scrolls. Rotation (graph + up to 12 rows + notes) too. */
+.card {
   max-height: 92vh;
   display: flex;
   flex-direction: column;
 }
-/* A tall rotation (graph + up to 12 rows + notes) scrolls inside the card, never off screen. */
-.cardWide .body { min-height: 0; overflow-y: auto; }
+.card > .head, .card > .tabs { flex: 0 0 auto; }
+.card > .body { min-height: 0; overflow-y: auto; }
 .tabs {
   display: flex;
   gap: 4px;

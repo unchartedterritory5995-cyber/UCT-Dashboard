@@ -1137,7 +1137,7 @@
 }
 .textInput::placeholder { color: var(--text-dim); }
 .textInput:focus-visible { outline: none; border-color: var(--ut-gold); }
-.textInput[aria-invalid='true'] { border-color: var(--color-warning, #f0b429); }
+.textInput[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
 .textInput:disabled { cursor: default; }
 .paramMiss { margin-top: -4px; }
 

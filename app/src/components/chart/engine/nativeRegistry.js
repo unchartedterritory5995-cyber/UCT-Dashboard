@@ -4290,22 +4290,24 @@ const RS_LINE_RAW = {
     // ROTATION (D1, the Terminal's RRG formula): RS-Ratio in info blue and
     // RS-Momentum in the neutral, both around 100, with the 100 guide drawn only
     // under the Rotation reading. Intraday-blank like the dots (the server's rule).
+    // ⭐ 3-14 — `requiresServer` on each Phase 3 line: a v3 server never sends the
+    // column, so the inspector offers no Plot style for it there (`isPlotHidden`).
     { key: 'rsRatio', label: 'RS-Ratio', style: 'line', color: RS_INFO, width: '$lineWidth',
-      precision: 2, role: 'context', legend: { hide: true } },
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'rsMomentum', label: 'Momentum', style: 'line', color: RS_NEUTRAL, width: '$lineWidth',
-      precision: 2, role: 'context', legend: { hide: true } },
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'rotationCentre', label: '100', style: 'hlines', levels: [100], color: RS_NEUTRAL, width: 1,
       lineStyle: 'solid', role: 'context', activeWhen: RS_ROTATION_VIEW },
     // QUALITY (Clenow): the score in info blue. Daily charts only (the server
     // sends nothing on weekly or intraday bars and the readout says why).
     { key: 'clenowScore', label: 'Quality', style: 'line', color: RS_INFO, width: '$lineWidth',
-      precision: 4, role: 'context', legend: { hide: true } },
+      precision: 4, role: 'context', legend: { hide: true }, requiresServer: true },
     // VOLATILITY-ADJUSTED (VARS): the line in info blue, its 50-bar average dashed
     // in the neutral, and the zero guide only under the VARS reading.
     { key: 'vars', label: 'VARS', style: 'line', color: RS_INFO, width: '$lineWidth',
-      precision: 2, role: 'context', legend: { hide: true } },
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'varsMa', label: 'VARS avg', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
-      precision: 2, role: 'context', legend: { hide: true } },
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'varsZero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
       lineStyle: 'solid', role: 'context', activeWhen: RS_VARS_VIEW },
     // ⭐⭐ TWO RENDERERS FOR THE DOTS, AND WHY (review finding V1, 2026-11-06).

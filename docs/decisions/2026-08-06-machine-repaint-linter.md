@@ -112,9 +112,9 @@ adding one.
 ```
 LINTER-MEASUREMENT-V1
 definitions 53
-plots 135
+plots 143
 decided 1
-undecidable-hand-written 134
+undecidable-hand-written 142
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
@@ -136,6 +136,14 @@ and gave Session VWAP six optional σ-band plots. Every one of them is hand-writ
 JS, so all eighty plots land in `undecidable-hand-written`: `decided` stays 1, the
 one verdict and the one disagreement are unchanged. Re-measured here, never edited
 into agreement — the same response as the `dollarVolume` note above.
+
+⭐ **2026-11-08 — the counts moved by eight plots and no definition, and the FINDING
+did not move at all.** UCT RS Phase 3 (`feat/uct-rs-phase3`, unit 3-08, rsLine v4) added
+the Phase 3 readings' plots: `rsRatio`, `rsMomentum`, the `rotationCentre` guide,
+`clenowScore`, `vars`, `varsMa`, the `varsZero` guide and the `dotClenowGap` dot. `rsLine`
+is a `server` compute, so all eight land in `undecidable-hand-written`: `decided` stays 1,
+the one verdict and the one disagreement are unchanged. Measured by `ast/lint.test.js` in
+the 3-14 integration gate (143 rows, 19 of them `rsLine.*`), never edited into agreement.
 
 ⭐ **2026-11-07 — the counts moved by ten plots and no definition, and the FINDING
 did not move at all.** The UCT RS work (branches `feat/uct-rs-phase1` →

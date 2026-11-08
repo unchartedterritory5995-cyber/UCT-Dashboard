@@ -1916,7 +1916,7 @@
 .insFieldCtl .insText::placeholder { color: var(--menu-text-faint, #6b6b6b); }
 .insFieldCtl .insText:hover:not(:disabled) { border-color: rgb(var(--csm-ink, 255 255 255) / 0.16); }
 .insFieldCtl .insText:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); }
-.insFieldCtl .insText[aria-invalid='true'] { border-color: var(--color-warning, #f0b429); }
+.insFieldCtl .insText[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
 .insFieldCtl .insText:disabled { opacity: 0.55; cursor: not-allowed; }
 .insTextMiss {
   font-size: 10.5px;

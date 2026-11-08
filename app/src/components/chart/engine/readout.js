@@ -105,6 +105,7 @@ import { safeCssColour } from './objectColour'
 // (see `stampReadout`), so this module still imports no server lane.
 import { readoutRows, readoutChipRows } from './readoutSchema'
 import { inputsAsRead } from './legacyInputs'
+import { identityTextFor } from './defSchema'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -282,7 +283,8 @@ function chipLabel(def, plot, inputs, displayName) {
   const params = (def.meta && def.meta.legendParams) || []
   if (!params.length) return name
   const declared = new Map((def.inputs || []).map(i => [i.key, i.default]))
-  const values = params.map(k => (inputs && inputs[k] !== undefined ? inputs[k] : declared.get(k)))
+  // 3-14: an option that is only a door to a text box prints the typed text (`UCT RS(XLK)`), never its code.
+  const values = params.map(k => identityTextFor(def, k, (inputs && inputs[k] !== undefined ? inputs[k] : declared.get(k)), inputs))
   return `${name}(${values.join(', ')})`
 }
 
@@ -330,24 +332,9 @@ const IDENTITY_INPUT_TYPES = new Set(['enum', 'string'])
 // typed value, or the option's LABEL while the box is empty — never the code.
 // Every other value, and every definition with no companion, reads exactly as
 // before. The server's resolved row still replaces it in `stampReadout`.
-function optionLabelOf(inp, value) {
-  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
-    if (Array.isArray(o)) { if (o[0] === value) return typeof o[1] === 'string' ? o[1] : null }
-    else if (o && typeof o === 'object' && 'value' in o) { if (o.value === value) return typeof o.label === 'string' ? o.label : null }
-    else if (o === value) return null
-  }
-  return null
-}
-
+// The pair's reader is `defSchema.identityTextFor`, shared with `sourceRef.instanceLabel`.
 function identityTextOf(inp, raw, def, inputs) {
-  if (inp.type !== 'enum') return raw
-  const companion = (def.inputs || []).find((c) => c && c.identityFor === inp.key && c.type === 'string'
-    && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === inp.key && c.activeWhen.equals === raw)
-  if (!companion) return raw
-  const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
-  if (typeof typed === 'string' && typed.trim()) return typed.trim()
-  const label = optionLabelOf(inp, raw)
-  return (typeof label === 'string' && label) ? label : raw
+  return identityTextFor(def, inp.key, raw, inputs)
 }
 
 /** `legendParams` whose input is a named choice, resolved for THIS instance:
