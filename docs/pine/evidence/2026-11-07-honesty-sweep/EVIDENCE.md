@@ -194,3 +194,17 @@ counted over the member-door translation of `corpus/committed`).
 | N1d | a setter named `enum:na` instead of `enum:named-call` | KILLED (1) |
 | N1e | the detector never sees a named argument | KILLED (5) |
 - Service suite, node 24.13.1: 139/139. `pine_runtime_host_parity.mjs --host node --check`: HP-1 GREEN 166/166.
+
+## r2 (2026-11-08): review GO-WITH-NOTES @767d481b86
+- **Q-HS7 citation corrected** in `enumNaRule.js`, the rail comment, the r1 section above and the capture row. The Pine
+  reference states NO default for `line.new`'s `style`. `line.style_solid` is the User Manual's (`[UM]`), per
+  `docs/pine/pine-presentation-spec.md` section 4.4.1 ("Provenance note, verified against the payload"). The
+  refusal is unchanged. The sentence now says "a documented default applies only when the argument is omitted".
+- **Q7a rail**: `style = close > open ? st(m = mode) : line.style_dotted` (the named-argument call in a ternary arm)
+  is withheld as `enum:named-call`. Mutant Q7a (the detector ignores ternary arms): KILLED (1), restored by copy,
+  `cmp` same.
+- Merged `origin/master` (engine 34). The `capture-queue.json` conflict was regenerated with `evidence_engine.py
+  queue`: `--check` PASS, 7 HONESTY-SWEEP targets.
+- Runs: honestySweep 56/56 within 266/266 across 8 files (with objectLoss, switchValueForms.vendor, editorStatus x3,
+  w6Map, w6Matrix). Queue python rails: 22 passed. Service suite on node 24.13.1: 139/139. hostParity HP-1 GREEN
+  166/166.
