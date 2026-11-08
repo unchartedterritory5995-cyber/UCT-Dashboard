@@ -117,3 +117,14 @@ Method: copy to the scratchpad, mutate, run the rail, restore by copy, then `cmp
 | M4 | refuse on any wrap, even with a block line | KILLED, 2 red (wrapped condition; corpus guard) |
 | M5 | check `switch` only | KILLED, 7 red |
 | M6 | count bracketed lines as block lines | first SURVIVED, then a rail was added (`if` body at 6 whose only indent-4 line is inside brackets), and it is KILLED, 1 red |
+
+## Review note N1 (reviews/I6A-N4.md, GO-WITH-NOTES @397e6ed193): a tab plus two spaces
+
+A body of one tab then two spaces measures 6 (the L2 lexer rule: a tab advances to the next multiple of four) and is refused `pine:indent`. The manual does not say how a tab followed by spaces is counted. So this is queued, not asserted:
+- capture row I6A-N4-1d and its probe `tools/visual_conformance/probes/i6a-n4-if-tab2.pine` (a real tab, then two spaces);
+- the rail's probe-file test now also checks that this file refuses on both lanes;
+- `docs/pine/vendor-harness/capture-queue.json` was regenerated after merging origin/master (`88c8009212`). `evidence_engine.py queue --check` PASS.
+
+Results:
+- queue tests: test_evidence_engine, test_queue_dispositions, test_pine_w34_d1_queue_targets and test_saved_probe_integrity gave 63 passed;
+- rails: i6aN4BlockIndent, w34I6SwitchArmWrap, guardCensus, tabIndent and editorStatus* gave 7 files and 130/130.

@@ -202,8 +202,8 @@ describe('⛔ I6a-N4 over-refusal guard: no committed corpus script reaches the 
 describe('⭐ I6a-N4 the capture probes say what our engine answers today', () => {
   const PROBES = path.resolve(process.cwd(), '../tools/visual_conformance/probes')
   const read = (f) => fs.readFileSync(path.join(PROBES, f), 'utf8')
-  it('⭐ refused `pine:indent` on both lanes: switch at 9, switch at 6, `if` at 6', () => {
-    for (const f of ['i6a-n4-switch-9.pine', 'i6a-n4-switch-6.pine', 'i6a-n4-if-6.pine']) {
+  it('⭐ refused `pine:indent` on both lanes: switch at 9, switch at 6, `if` at 6, `if` at a tab plus 2', () => {
+    for (const f of ['i6a-n4-switch-9.pine', 'i6a-n4-switch-6.pine', 'i6a-n4-if-6.pine', 'i6a-n4-if-tab2.pine']) {
       const r = build(read(f))
       expect(r.ok, f).toBe(false)
       expect(r.refusal.guard, f).toBe('pine:indent')

@@ -22,6 +22,7 @@ refusal stands, and it is not widened back to a serve.
 | I6A-N4-1a | `i6a-n4-switch-9.pine` | `AMEX:SPY 1D` | refused `pine:indent` | compile error (refusal right) or a value (compare N01 to the control: equal = TradingView reads indent 9 as a block, so the refusal over-refuses) | I6a-N4 |
 | I6A-N4-1b | `i6a-n4-switch-6.pine` | `AMEX:SPY 1D` | refused `pine:indent` | as 1a, at indent 6 | I6a-N4 |
 | I6A-N4-1c | `i6a-n4-if-6.pine` | `AMEX:SPY 1D` | refused `pine:indent` (master served it on both lanes) | as 1a, for an `if` body at indent 6 | I6a-N4 |
+| I6A-N4-1d | `i6a-n4-if-tab2.pine` | `AMEX:SPY 1D` | refused `pine:indent` (one tab then two spaces, measured 6 by the lexer's tab-to-next-multiple-of-four rule) | as 1a, for a tab-led body that is not at a block indent; the manual does not say how a tab followed by spaces is counted | I6a-N4 |
 | I6A-N4-2 | `i6a-n4-switch-12.pine` | `AMEX:SPY 1D` | serves, unchanged | whether two levels of indent (12 under a line at 4) is a block; compile error = an over-serve for a later lane | later lane |
 
 Each probe is pasted ALONE: a Pine script compiles as a whole, so one invalid shape would hide the
