@@ -377,7 +377,9 @@ describe('A6.5 — a plot with restyle: false offers no Plot style row', () => {
   it('a v4 row adds the Phase 3 lines after the three, still no dot style', () => {
     show(withRs()); select(RS_ROW)
     armV3()
-    expect(styleKeysNow()).toEqual(['rsLine', 'rsMa', 'mansfield', 'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa'])
+    // + the RS Rating Reading's two lines (rev 5, Deepvue round 2)
+    expect(styleKeysNow()).toEqual(['rsLine', 'rsMa', 'mansfield', 'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa',
+      'ratingLine', 'ratingMa'])
     expect(styleKeysNow().some((k) => k.startsWith('dot'))).toBe(false)
     expect(field('__dotSize__')).not.toBeNull()
   })
