@@ -1,0 +1,55 @@
+"""THE TRADE PLAN (api/services/study_trade.py): entry, stop and the 2R / 3R targets come from the setup's own detector
+(its trigger and stop, the shared make_levels), the Kicker on the owner's rulings (a cent over the red day's high, the
+Kicker's low or 3.5% under the entry, the closer), the Bear gap short from the gap day. Fake rules stand in for the
+detectors so each branch is reachable on a small chart."""
+from __future__ import annotations
+
+import pytest
+
+from api.services import study_hard as H
+from api.services import study_trade as T
+
+
+def _bars(n=40, last=None):
+    out = [{"t": f"d{i}", "o": 10.0, "h": 10.3, "l": 9.8, "c": 10.1, "v": 1000} for i in range(n)]
+    out[-2] = {"t": "red", "o": 10.6, "h": 10.7, "l": 10.0, "c": 10.05, "v": 1000}
+    out[-1] = last or {"t": "k", "o": 10.2, "h": 11.2, "l": 10.5, "c": 11.1, "v": 3000}
+    return out
+
+
+@pytest.fixture()
+def rules(monkeypatch):
+    monkeypatch.setattr(T.U, "series", lambda bars: {})
+    def kicker(bars, S, i):
+        b, p = bars[i], bars[i - 1]
+        return {"trigger": p["h"] if b["o"] <= p["h"] else b["o"], "stop": b["l"], "prior_high": p["h"]} if i == len(bars) - 1 else None
+    def bear(bars, S, i):
+        return {"gap": True} if i == len(bars) - 1 else None
+    monkeypatch.setattr(H, "SETUP_RULES", {T.KICKER: (kicker,), T.BEAR_GAP: (bear,), "setup.family4.oops": (lambda *a: None,)})
+
+
+def test_the_kicker_enters_a_cent_over_the_red_days_high_and_stops_at_the_closer_of_its_low_and_3_5_pct(rules):
+    p = T.plan(T.KICKER, _bars())
+    assert p["entry"] == 10.71                       # the red day's high 10.70, a cent over
+    assert p["stop"] == 10.5                         # the Kicker's low, closer than 3.5% under the entry (10.34)
+    assert p["direction"] == "bullish"
+    risk = p["entry"] - p["stop"]
+    assert p["t1"] == pytest.approx(round(p["entry"] + 2 * risk, 2), abs=0.011)
+    assert p["t2"] == pytest.approx(round(p["entry"] + 3 * risk, 2), abs=0.011)
+    assert p["enters_intraday"] is True and "red day's high" in p["entry_note"]
+
+
+def test_the_stop_is_3_5_pct_under_the_entry_when_the_kickers_low_is_further(rules):
+    p = T.plan(T.KICKER, _bars(last={"t": "k", "o": 10.2, "h": 11.2, "l": 10.0, "c": 11.1, "v": 3000}))
+    assert p["stop"] == round(10.71 * (1 - 0.035), 2)
+
+
+def test_the_bear_gap_is_a_short_from_the_gap_days_close_with_its_high_as_the_stop(rules):
+    p = T.plan(T.BEAR_GAP, _bars(last={"t": "g", "o": 9.0, "h": 9.4, "l": 8.6, "c": 8.8, "v": 5000}))
+    assert p["direction"] == "bearish" and p["entry"] == 8.8 and p["stop"] == 9.4
+    assert p["t1"] < p["entry"] and p["t2"] < p["t1"]
+
+
+def test_no_plan_when_the_setup_does_not_fire_or_is_unknown(rules):
+    assert T.plan("setup.family4.oops", _bars()) is None
+    assert T.plan("setup.nope", _bars()) is None

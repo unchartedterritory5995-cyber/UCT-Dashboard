@@ -56,8 +56,9 @@ work through.
 ### Teaching
 * **Now:** the lesson leads with a one-line takeaway; the trade on the Kicker's rules; numbers in gold; the chart marks
   BOUGHT and STOPPED OUT.
-* **Next, waiting on him:** entry and stop for every setup besides the Kicker, and trim and trail for all of them
-  (rule 8). Nothing is invented in their place.
+* **Done 2026-11-08:** every setup's entry, stop, trims (2R, 3R) and trail come from the app's own detectors, the Kicker
+  on his rulings (`docs/study/TRADE_PLANS.md`, `api/services/study_trade.py`); the lesson reviews the trade against what
+  followed, and the chart marks BOUGHT, 2R, 3R and STOPPED OUT.
 * **Next, not waiting:**
   * the chart explains itself, with levels, action items and why, at every reveal in every mode, not only Hard (rule 3);
   * simpler lesson text where the bank allows (rule 9).
@@ -87,9 +88,9 @@ work through.
 
 ## 3. What only he can give (the blockers)
 
-* Trim and trail rules for every setup; entry and stop for every setup except the Kicker.
-* The Go Signal definition. The Levels rulings, starting with the Kicker. Whether a chart where two setups fire counts
-  for both.
+* Nothing on the rules any more: the trade plans and the Go Signal are in the app (`docs/study/TRADE_PLANS.md`); he
+  corrects any he would trade differently.
+* Whether a chart where two setups fire counts for both.
 * His ranks on each batch, and "ship" when a round is ready for members.
 
 ## 4. The cadence

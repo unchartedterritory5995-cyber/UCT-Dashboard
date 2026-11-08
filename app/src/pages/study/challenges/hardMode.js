@@ -132,38 +132,48 @@ export function withArticle(name) {
   return `${/^[AEIOU]/i.test(n) ? 'an' : 'a'} ${n}`
 }
 
-/** THE KICKER TRADE (round 22; the owner's rules, stored 2026-11-02): entry "over previous day high" on day 2, so over the
- *  kicker candle's own high on the first session after it (his other entry, the day-1 30-minute opening-range break,
- *  needs intraday bars the chart does not carry); stop "under the kicker candle low or entry with a 3.5% stop", whichever
- *  is closer to the entry. A bar that reaches the stop ends the trade before its high counts (the order inside a bar is
- *  unknown, so the cautious reading). Advance is the best high after entry while the trade was alive, from the entry.
- *  { triggered: false, entry } when day 2 never cleared the high; null when there is nothing to measure. */
-export const KICKER_MAX_STOP = 0.035
-export function kickerTrade(signal, forward) {
-  if (!signal || !Number.isFinite(signal.h) || !Number.isFinite(signal.l) || !forward?.length) return null
-  const entry = signal.h
-  if (!(forward[0].h > entry)) return { kind: 'kicker', triggered: false, entry }
-  const stop = Math.max(signal.l, entry * (1 - KICKER_MAX_STOP))
-  let best = entry, bestAt = null, stoppedAt = null
-  for (let k = 0; k < forward.length; k++) {
-    const b = forward[k]
-    if (b.l <= stop) { stoppedAt = k; break }
-    if (b.h > best) { best = b.h; bestAt = k }
+/** THE TRADE, REVIEWED (round 23; the owner, 2026-11-08: the answers "are out there ... in the app"). The plan comes from
+ *  the server with the reveal (api/services/study_trade.py: the setup's own detector's trigger and stop, targets at 2R
+ *  and 3R, the trail; the Kicker on his rulings), and this plays it against the bars after the signal: the best price
+ *  while the trade was alive, when each target was reached, and when the stop was. A Kicker or an Oops enters during the
+ *  signal day (that day's extreme counts once it has entered; its own low never stops it); every other setup enters on
+ *  the signal's close. A bar that reaches the stop ends the trade before its extreme counts. Short setups mirror it. */
+export function reviewTrade(plan, signal, forward) {
+  if (!plan || !signal || !Number.isFinite(plan.entry) || !Number.isFinite(plan.stop)) return null
+  const long = plan.direction !== 'bearish'
+  const { entry, stop, t1, t2 } = plan
+  const beyond = (x, lvl) => (long ? x >= lvl : x <= lvl)
+  const better = (x, than) => (long ? x > than : x < than)
+  const ext = (b) => (long ? b.h : b.l)
+  let best = entry, bestAt = null, t1At = null, t2At = null, stoppedAt = null
+  if (plan.enters_intraday && better(ext(signal), entry)) {
+    best = ext(signal); bestAt = 0
+    if (Number.isFinite(t1) && beyond(ext(signal), t1)) t1At = 0
+    if (Number.isFinite(t2) && beyond(ext(signal), t2)) t2At = 0
   }
-  const riskPct = ((entry - stop) / entry) * 100
-  const advancePct = ((best - entry) / entry) * 100
+  const fwd = forward || []
+  for (let k = 0; k < fwd.length; k++) {
+    const b = fwd[k]
+    if (long ? b.l <= stop : b.h >= stop) { stoppedAt = k + 1; break }
+    if (better(ext(b), best)) { best = ext(b); bestAt = k + 1 }
+    if (t1At == null && Number.isFinite(t1) && beyond(ext(b), t1)) t1At = k + 1
+    if (t2At == null && Number.isFinite(t2) && beyond(ext(b), t2)) t2At = k + 1
+  }
+  const risk = Math.abs(entry - stop)
   return {
-    kind: 'kicker', triggered: true, entry, stop, riskPct, best, advancePct,
-    bestSessions: bestAt == null ? null : bestAt + 1, stoppedSession: stoppedAt == null ? null : stoppedAt + 1,
-    r: riskPct > 0 ? advancePct / riskPct : null,
+    ...plan, kind: 'plan', long, best, bestSessions: bestAt, t1At, t2At, stoppedSession: stoppedAt,
+    riskPct: (risk / entry) * 100,
+    advancePct: long ? (best / entry - 1) * 100 : (1 - best / entry) * 100,
+    r: risk > 0 ? Math.abs(best - entry) / risk : null,
   }
 }
 
-/** The trade the lesson card reviews: the owner's own rules where he has given them (the Kicker), and otherwise the move
- *  measured from the signal candle (its close, its low or high as the line the trade must hold, the culmination). */
-export function tradeOf(name, signal, forward, culm, fired) {
+/** The trade the lesson card reviews: the setup's own plan from the server when it came with the reveal (every setup the
+ *  detectors cover, the Kicker on the owner's rulings), and otherwise the move measured from the signal candle (its
+ *  close, its low or high as the line the trade must hold, the culmination). */
+export function tradeOf(name, signal, forward, culm, fired, plan = null) {
   if (fired !== true || !signal) return null
-  if (name === 'Kicker') return kickerTrade(signal, forward)
+  if (plan) return reviewTrade(plan, signal, forward)
   if (!culm) return null
   const short = SHORT_SETUPS.includes(name)
   return { kind: 'signal', short, close: signal.c, line: short ? signal.h : signal.l, advancePct: culm.pct, sessions: culm.sessions, broke: culm.broke == null ? null : culm.broke + 1 }

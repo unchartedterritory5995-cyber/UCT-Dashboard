@@ -42,45 +42,48 @@ import { Confetti } from '../ui/Stage'
 import { calloutLook, hardCallouts } from '../ui/callout'
 import s from '../ui/study.module.css'
 
-// Round 22: the trade drawn on the chart as it runs on. Dashed rays from the signal candle with a chip each: the Kicker's
-// ENTRY and STOP on the owner's rules, or for any other setup the line a close must not break (MUST HOLD, or MUST STAY
-// UNDER for a short setup). The chips sit two sessions past the signal candle, clear of its ring.
+// The trade drawn on the chart as it runs on (round 23, the owner's rule 3: "they can see it all by looking at the chart
+// the why and the what and where"). For a setup with its plan (the detector's own entry and stop, targets at 2R and 3R):
+// dashed rays from the signal candle for ENTRY, STOP, 2R and 3R, each with its price, and the action items on the bars
+// where they happened: BOUGHT (or SHORTED), 2R HIT, 3R HIT, STOPPED OUT. Without a plan, the line a close must not
+// break. Chips sit a few sessions apart so two never overlap.
 function tradeAnnotations(trade, signal, all, n) {
   if (!trade || !signal || !all?.length) return null
   const t0 = signal.t
-  // each chip a few sessions further right than the one above it, so an entry and a stop 3.5% apart never overlap
-  const chipAt = (k) => all[Math.min(all.length - 1, n + 1 + k * 6)]?.t ?? t0
-  const lines = trade.kind === 'kicker'
-    ? (trade.triggered ? [['ENTRY', trade.entry, '#dcbb5e'], ['STOP', trade.stop, '#df4646']] : [['ENTRY (NOT TRIGGERED)', trade.entry, '#8d7a3c']])
-    : [[trade.short ? 'MUST STAY UNDER' : 'MUST HOLD', trade.line, '#df4646']]
+  const chipAt = (k) => all[Math.min(all.length - 1, n + 1 + k * 5)]?.t ?? t0
+  const plan = trade.kind === 'plan'
+  const GOLD = '#dcbb5e', RED = '#df4646', GREEN = '#2faf68'
+  const lines = plan
+    ? [['ENTRY', trade.entry, GOLD], ['STOP', trade.stop, RED], ['2R', trade.t1, GREEN], ['3R', trade.t2, GREEN]]
+    : [[trade.short ? 'MUST STAY UNDER' : 'MUST HOLD', trade.line, RED]]
   const out = []
   for (const [k, [label, price, color]] of lines.entries()) {
     if (!Number.isFinite(price)) continue
-    const tChip = chipAt(k)
-    out.push({ id: `hard-${label}`, type: 'hray', points: [{ time: t0, price }], color, lineWidth: 2, lineStyle: 'dashed', showPriceLabel: true })
-    out.push({ id: `hard-${label}-chip`, type: 'text', points: [{ time: tChip, price }], text: `${label} ${price.toFixed(2)}`, color: '#0b0b0f', fontSize: 12, bgEnabled: true, bgColor: color, borderEnabled: false })
+    out.push({ id: `hard-${label}`, type: 'hray', points: [{ time: t0, price }], color, lineWidth: label === 'ENTRY' || label === 'STOP' ? 2 : 1.5, lineStyle: 'dashed', showPriceLabel: true })
+    out.push({ id: `hard-${label}-chip`, type: 'text', points: [{ time: chipAt(k), price }], text: `${label} ${price.toFixed(2)}`, color: '#0b0b0f', fontSize: 12, bgEnabled: true, bgColor: color, borderEnabled: false })
   }
-  // the action items, on the bars where they happened (the owner, batch 24: "list the levels and action items in the
-  // chart ... they can see it all by looking at the chart the why and the what and where")
-  const at = (k) => (k >= 0 && k < all.length ? all[k] : null)
-  const mark = (id, bar, text, color, below = true) => {
+  // the action items, on the bars where they happened
+  const at = (s2) => (s2 == null ? null : all[n - 1 + s2] || null)
+  const mark = (id, bar, text, color, below) => {
     if (!bar) return
     out.push({ id, type: 'text', points: [{ time: bar.t, price: below ? bar.l * 0.982 : bar.h * 1.018 }], text, color: '#0b0b0f', fontSize: 11, bgEnabled: true, bgColor: color, borderEnabled: false })
   }
-  if (trade.kind === 'kicker' && trade.triggered) {
-    mark('hard-act-buy', at(n), `▲ BOUGHT ${trade.entry.toFixed(2)}`, '#dcbb5e')
-    if (trade.stoppedSession) mark('hard-act-stop', at(n + trade.stoppedSession - 1), '✕ STOPPED OUT', '#df4646')
-  } else if (trade.kind === 'signal' && trade.broke) {
-    mark('hard-act-broke', at(n + trade.broke - 1), trade.short ? '✕ CLOSED OVER THE LINE' : '✕ CLOSED UNDER THE LINE', '#df4646', !trade.short)
+  if (plan) {
+    const long = trade.long
+    mark('hard-act-in', at(0), long ? `▲ BOUGHT ${trade.entry.toFixed(2)}` : `▼ SHORTED ${trade.entry.toFixed(2)}`, GOLD, long)
+    if (trade.t1At != null && trade.t1At !== 0) mark('hard-act-t1', at(trade.t1At), '✓ 2R', GREEN, !long)
+    if (trade.t2At != null && trade.t2At !== 0) mark('hard-act-t2', at(trade.t2At), '✓ 3R', GREEN, !long)
+    if (trade.stoppedSession) mark('hard-act-stop', at(trade.stoppedSession), '✕ STOPPED OUT', RED, long)
+  } else if (trade.broke) {
+    mark('hard-act-broke', at(trade.broke), trade.short ? '✕ CLOSED OVER THE LINE' : '✕ CLOSED UNDER THE LINE', RED, !trade.short)
   }
   return out.length ? out : null
 }
 
-// The chart's gold label at the move's best point. On a Kicker the owner's rules took (entry over the Kicker's high on day
-// 2), it is the advance from that entry at the trade's own best bar, so the chart and the lesson say the same number;
-// otherwise the culmination measured from the signal close.
+// The chart's gold label at the move's best point: with a plan, the advance from the entry at the trade's own best bar,
+// so the chart and the lesson say the same number; otherwise the culmination measured from the signal close.
 function peakOf(trade, culm, n, k) {
-  if (trade?.kind === 'kicker' && trade.triggered && trade.bestSessions) {
+  if (trade?.kind === 'plan' && trade.bestSessions) {
     const off = trade.bestSessions - 1
     if (k <= off) return null
     const v = trade.advancePct
@@ -95,6 +98,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const [fwd, setFwd] = useState(null)
   const [lesson, setLesson] = useState('')
   const [rule, setRule] = useState(null)
+  const [plan, setPlan] = useState(null)        // the setup's trade plan, from the reveal (api/services/study_trade.py)
   const [ticker, setTicker] = useState('')
   const [fired, setFired] = useState(null)
   const [xp, setXp] = useState(0)
@@ -114,7 +118,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const view = Math.min(90, all?.length || 0)
   const look = useMemo(() => calloutLook(phone), [phone])
   const truth = fired === true ? item.name : fired === false ? NOTHING : 'The answer'
-  const trade = useMemo(() => tradeOf(item.name, bars[n - 1], fwd, culm, fired), [item.name, bars, n, fwd, culm, fired])
+  const trade = useMemo(() => tradeOf(item.name, bars[n - 1], fwd, culm, fired, plan), [item.name, bars, n, fwd, culm, fired, plan])
   const callouts = useMemo(() => hardCallouts({
     index: n - 1,
     label: state === 'ask' ? 'Last candle' : truth,
@@ -136,7 +140,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
       attempt = await scoreAttempt(item, hardAnswer(picked, item, yes, no), performance.now() - shownAt.current, fetcher)
       right = hardRight(picked, item, attempt.correct)
       wasFired = setupFired(picked, item, attempt.correct, attempt.reveal?.answer)
-      setFwd(attempt.forward); setLesson(attempt.reveal?.lesson || ''); setRule(attempt.reveal?.setup_rule || null)
+      setFwd(attempt.forward); setLesson(attempt.reveal?.lesson || ''); setRule(attempt.reveal?.setup_rule || null); setPlan(attempt.reveal?.trade || null)
       setTicker(attempt.reveal?.sym || attempt.reveal?.ticker || ''); setXp(Number(attempt.progress?.xp_gained || 0))
     } catch { right = false }
     if (!live.current) return

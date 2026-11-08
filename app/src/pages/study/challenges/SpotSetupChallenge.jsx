@@ -155,7 +155,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
  *  round-robin by setup so a run is not eight of one kind. */
 async function loadPool(fetcher, view) {
   const pool = await fetchSpotPool(Object.keys(SETUP_SKILLS), 6, fetcher, undefined, { hard: true })
-  const looked = await Promise.all(pool.slice(0, 40).map((it) => fetcher(`/api/study/items/${encodeURIComponent(it.id)}/lookalikes?view=${view}`)
+  const looked = await Promise.all(pool.slice(0, 24).map((it) => fetcher(`/api/study/items/${encodeURIComponent(it.id)}/lookalikes?view=${view}`)
     .then((look) => (look?.lookalikes?.length ? { ...it, name: setupName(it.skill), look } : null)).catch(() => null)))
   const by = new Map()
   for (const it of looked.filter(Boolean)) { if (!by.has(it.skill)) by.set(it.skill, []); by.get(it.skill).push(it) }

@@ -35,6 +35,8 @@ test_study_no_sym_leak.py` walks every member response shape.
 """
 from __future__ import annotations
 
+import logging
+
 import json
 import os
 from datetime import date, timedelta
@@ -322,6 +324,15 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
     if item["type"] == "spot" and item.get("skill_id") in study_hard.SETUP_RULES:
         # the setup's rule in the bank's own words, for a lesson that is a near-miss template (study_hard.setup_rule)
         reveal["setup_rule"] = study_hard.setup_rule(item["skill_id"])
+        # the trade on the setup's own rules (study_trade: entry, stop, 2R / 3R, the trail), when it fired on this chart
+        try:
+            from api.services import study_trade
+            _vis = (study_store.get_visible_bars(item["id"]) or {}).get("bars") or []
+            _tp = study_trade.plan(item["skill_id"], _vis)
+            if _tp:
+                reveal["trade"] = _tp
+        except Exception as e:  # noqa: BLE001  (a lesson never fails for want of its trade)
+            logging.getLogger(__name__).warning("study: trade plan failed for %s: %s", item.get("id"), e)
     reveal["ref"] = study_store.short_ref(item["id"])      # named from Discord: /study ref:872a0a
     if item.get("bars_ref") or item["type"] in _CHART_REVEAL_TYPES:
         fwd = _forward_bars(item)

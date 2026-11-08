@@ -1,41 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { KICKER_MAX_STOP, kickerTrade, tradeOf } from './hardMode'
+import { reviewTrade, tradeOf } from './hardMode'
 
-// Round 22: the Kicker trade on the owner's own rules (entry over the kicker's high on day 2; stop under the kicker's low
-// or 3.5% under the entry, whichever is closer), and the measured move for every other setup.
-const K = { o: 10, h: 11, l: 9.8, c: 10.9 }
+// Round 23: the trade plan comes from the server with the reveal (api/services/study_trade.py: the setup's own entry and
+// stop, targets at 2R and 3R); the client plays it against the bars after the signal.
+const K = { o: 10.2, h: 11.2, l: 10.5, c: 11.1 }
+const KICK = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 10.71, stop: 10.5, t1: 11.13, t2: 11.34, enters_intraday: true }
 
-describe('the Kicker trade', () => {
-  it('enters over the kicker high on day 2 and keeps the stop within 3.5%', () => {
-    const t = kickerTrade(K, [{ o: 11, h: 11.5, l: 10.9, c: 11.4 }, { o: 11.4, h: 12.4, l: 11.2, c: 12.2 }, { o: 12.2, h: 12.1, l: 10.5, c: 10.7 }])
-    expect(t.triggered).toBe(true)
-    expect(t.entry).toBe(11)
-    expect(t.stop).toBeCloseTo(11 * (1 - KICKER_MAX_STOP), 6)   // the kicker's low (9.8) is further than 3.5%
-    expect(t.best).toBe(12.4)
-    expect(t.bestSessions).toBe(2)
-    expect(t.stoppedSession).toBe(3)
-    expect(t.advancePct).toBeCloseTo((12.4 / 11 - 1) * 100, 6)
-  })
-  it('uses the kicker low when it is the closer stop', () => {
-    const t = kickerTrade({ o: 10, h: 11, l: 10.8, c: 10.95 }, [{ o: 11, h: 11.3, l: 10.9, c: 11.2 }])
-    expect(t.stop).toBe(10.8)
-  })
-  it('has no entry when day 2 never clears the kicker high', () => {
-    expect(kickerTrade(K, [{ o: 10.7, h: 10.95, l: 10.4, c: 10.6 }])).toEqual({ kind: 'kicker', triggered: false, entry: 11 })
-  })
-  it('a bar that reaches the stop ends the trade before its high counts', () => {
-    const t = kickerTrade(K, [{ o: 11, h: 11.2, l: 10.9, c: 11.1 }, { o: 11.1, h: 13, l: 10.5, c: 12.9 }])
-    expect(t.best).toBe(11.2)
+describe('reviewTrade', () => {
+  it('counts the Kicker day once it has entered, marks each target and the stop', () => {
+    const t = reviewTrade(KICK, K, [{ o: 11.1, h: 11.5, l: 10.9, c: 11.4 }, { o: 11.4, h: 11.3, l: 10.4, c: 10.5 }])
+    expect(t.best).toBe(11.5)
+    expect(t.bestSessions).toBe(1)
+    expect(t.t1At).toBe(0)                 // 2R (11.13) was already reached on the Kicker day (high 11.20)
+    expect(t.t2At).toBe(1)                 // 3R (11.34) the next session
     expect(t.stoppedSession).toBe(2)
+    expect(t.advancePct).toBeCloseTo((11.5 / 10.71 - 1) * 100, 6)
+    expect(t.r).toBeCloseTo((11.5 - 10.71) / 0.21, 6)
+  })
+  it('a close entry starts the next session, and a bar that reaches the stop ends the trade before its high counts', () => {
+    const plan = { direction: 'bullish', entry: 11.1, stop: 10.5, t1: 12.3, t2: 12.9, enters_intraday: false }
+    const t = reviewTrade(plan, K, [{ o: 11.1, h: 11.6, l: 10.9, c: 11.5 }, { o: 11.5, h: 13.5, l: 10.4, c: 13.4 }])
+    expect(t.best).toBe(11.6)
+    expect(t.t1At).toBeNull()
+    expect(t.stoppedSession).toBe(2)
+  })
+  it('a short mirrors it', () => {
+    const plan = { direction: 'bearish', entry: 8.8, stop: 9.4, t1: 7.6, t2: 7.0, enters_intraday: false }
+    const t = reviewTrade(plan, { o: 9, h: 9.4, l: 8.6, c: 8.8 }, [{ o: 8.7, h: 8.9, l: 7.5, c: 7.6 }, { o: 7.6, h: 9.5, l: 7.4, c: 9.3 }])
+    expect(t.long).toBe(false)
+    expect(t.best).toBe(7.5)
+    expect(t.t1At).toBe(1)
+    expect(t.stoppedSession).toBe(2)
+    expect(t.advancePct).toBeCloseTo((1 - 7.5 / 8.8) * 100, 6)
   })
 })
 
 describe('the trade the lesson reviews', () => {
-  it('is the Kicker trade for a Kicker, the measured move for anything else, nothing when nothing fired', () => {
-    expect(tradeOf('Kicker', K, [{ o: 11, h: 11.5, l: 10.9, c: 11.4 }], null, true).kind).toBe('kicker')
+  it('is the plan when the reveal carries one, the measured move otherwise, nothing when nothing fired', () => {
+    expect(tradeOf('Kicker', K, [], null, true, KICK).kind).toBe('plan')
     const t = tradeOf('Slingshot', K, [], { pct: 12.5, sessions: 9, broke: null }, true)
-    expect(t).toMatchObject({ kind: 'signal', close: 10.9, line: 9.8, advancePct: 12.5, sessions: 9, broke: null })
-    expect(tradeOf('Bear gap', K, [], { pct: -8, sessions: 4, broke: 6 }, true)).toMatchObject({ short: true, line: 11, broke: 7 })
-    expect(tradeOf('Kicker', K, [], null, false)).toBeNull()
+    expect(t).toMatchObject({ kind: 'signal', close: 11.1, line: 10.5, advancePct: 12.5, sessions: 9, broke: null })
+    expect(tradeOf('Bear gap', K, [], { pct: -8, sessions: 4, broke: 6 }, true)).toMatchObject({ short: true, line: 11.2, broke: 7 })
+    expect(tradeOf('Kicker', K, [], null, false, KICK)).toBeNull()
   })
 })

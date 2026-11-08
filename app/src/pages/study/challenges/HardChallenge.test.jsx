@@ -37,6 +37,10 @@ import {
 
 const bar = (t, c) => ({ t, o: c - 0.2, h: c + 0.3, l: c - 0.4, c, v: 100 })
 const BARS = Array.from({ length: 30 }, (_, i) => bar(20250101 + i, 10 + i * 0.1))
+// the plan api/services/study_trade.py sends with the reveal for this chart: a cent over the red day's high (13.10), the
+// stop 3.5% under the entry (closer than the Kicker's low, 12.50), targets at 2R and 3R
+const KICKER_PLAN = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 13.11, stop: 12.65, t1: 14.03, t2: 14.49, enters_intraday: true,
+  entry_note: "over the red day's high, on the Kicker day", stop_note: "under the Kicker's low, or 3.5% under the entry if that is closer", trail: 'under each higher low, or under the 10-day average' }
 const kicker = { id: 'k1', type: 'spot', skill_id: 'setup.family3.kicker', prompt_json: { q: "Does the firm's Kicker Candle setup fire on the last bar of this chart?", choices: ['Yes', 'No'] }, bars: { symbol: 'k1', tf: 'D', bars: BARS } }
 
 /** The sandbox-shaped fetcher: one chart (a positive Kicker, key Yes) in the Kicker skill, nothing in the others. The
@@ -47,7 +51,7 @@ function fetcherWith(posts, sessions = []) {
     if (url === '/api/study/attempts') {
       posts.push(opts.body)
       const ok = opts.body.answer.choice === 'Yes'
-      return { attempt_id: 7, correct: ok, reveal: { lesson: 'Gap over the close, close above the high.', forward_bars: [bar(20250201, 13.5)], forward_total: 3, sym: 'JBI' }, progress: { xp_gained: ok ? 10 : 0 } }
+      return { attempt_id: 7, correct: ok, reveal: { lesson: 'Gap over the close, close above the high.', forward_bars: [bar(20250201, 13.5)], forward_total: 3, sym: 'JBI', trade: KICKER_PLAN }, progress: { xp_gained: ok ? 10 : 0 } }
     }
     if (url === '/api/study/attempts/7/step') { posts.push({ step: opts.body }); return { bars: [bar(20250202, 14.5), bar(20250203, 13.9)] } }
     if (url === '/api/study/house-chart') return { chart_settings: { overlays: [{ id: 'ma20', enabled: true, period: 20 }], volume: { visible: true } } }
@@ -161,11 +165,13 @@ describe('HardChallenge', () => {
     // the coach's card: a direct headline, the last candle measured, the rule
     const lesson = screen.getByTestId('hard-lesson')
     expect(lesson).toHaveTextContent('Why it’s a Kicker')
-    // round 22: the trade on the owner's Kicker rules replaces the table of numbers. The signal bar's high is 13.20 and day 2
-    // trades to 13.80, so the entry triggers; the stop is 3.5% under it (12.74), closer than the Kicker's low (12.50)
+    // round 23: the trade is the server's plan (entry a cent over the red day's high, the stop, 2R and 3R), reviewed
+    // against the bars after the signal; the table of numbers is gone
     expect(lesson).toHaveTextContent('The trade · your Kicker rules')
-    expect(lesson).toHaveTextContent('$13.20')
-    expect(lesson).toHaveTextContent('$12.74')
+    expect(lesson).toHaveTextContent('$13.11')
+    expect(lesson).toHaveTextContent('$12.65')
+    expect(lesson).toHaveTextContent('$14.03 · $14.49')
+    expect(lesson).toHaveTextContent('Trail under each higher low')
     expect(lesson).not.toHaveTextContent('The last candle, measured')
     expect(lesson).toHaveTextContent('Gap over the close, close above the high.')
     expect(screen.getByTestId('hard-next')).toHaveTextContent('See the run')

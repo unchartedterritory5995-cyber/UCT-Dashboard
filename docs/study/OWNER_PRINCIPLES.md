@@ -49,7 +49,8 @@ Spot the Kicker), and the kit in `app/src/pages/study/ui/`.
 8. **Teach the trade, with numbers.** Entry, stop, sizing, trim, trail and the advance, on his rules. *"give some entry
    and sizing indications or entry tactics"* · *"I would rather have Entry, Stop, Trim, Trail, Advance"* · Kicker: entry
    *"over previous day high or on day 1 kicker ORB on the 30 minute"*, stop *"under the kicker candle low or entry with
-   a 3.5% stop"*. Trim, trail and the other setups' rules wait on him; nothing is invented.
+   a 3.5% stop"*. Every other setup's entry, stop, trims (2R, 3R) and trail come from the app's own detectors
+   (*"Those answers are out there. Either in the app, somewhere, or on the internet"*, 2026-11-08): `docs/study/TRADE_PLANS.md`.
 9. **A mentor's voice, simply.** Short, direct, easy to read; the numbers a trader uses (*"% down from highs and %
    extended from MAs"*), not bar counts or jargon (*"dont need the word body"*), not tables of figures (*"The table of
    data and numbers I dont like really"*). *"simpler to read and more direct as a teacher and mentor"* · *"easier to read
