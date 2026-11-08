@@ -1,11 +1,14 @@
-import { useMemo, useState, useId } from 'react'
+import { useMemo, useState, useId, useSyncExternalStore } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
 import * as engineRegistry from '../../../components/chart/engine/nativeRegistry'
 import { catalogRows, userCatalogRows, catalogGeneration } from '../../../components/chart/indicatorCatalog'
 import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/IndicatorLibraryDialog'
-import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed } from '../../../components/chart/indicatorRegistry'
+import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed,
+         visiblePresets, textInputCommit, textInputDraft } from '../../../components/chart/indicatorRegistry'
+// ⭐ UCT RS Phase 3, unit 3-02 — what the LIVE server row declares (the gate).
+import { serverDeclares, subscribeServerDefinitions } from '../../../components/chart/engine/serverCompute'
 import { setInstanceInput, removeInstance, applyPresetInputs,
          presetsOf, detectPreset, CUSTOM_PRESET,
          saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState } from '../../../components/chart/engine/instanceControls'
@@ -99,7 +102,7 @@ function liveInstanceOf(cs, defId) {
 // member it does not exist; one that is visibly inert teaches them what to
 // change first. The row keeps its place and its text at reduced opacity, the
 // controls are `disabled` + `aria-disabled`, and `data-active` says which.
-function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, stacked = false, children }) {
+function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, stacked = false, miss = null, missId = null, children }) {
   return (
     <div
       className={`${styles.paramField} ${active ? '' : styles.paramFieldOff}`}
@@ -115,6 +118,7 @@ function ParamRow({ inputKey, label, labelId, tip, tipId, active = true, stacked
         {children}
       </div>
       {tip && <span className={styles.paramTip} id={tipId}>{tip}</span>}
+      {miss && <span className={`${styles.paramTip} ${styles.paramMiss}`} id={missId} role="status">{miss}</span>}
     </div>
   )
 }
@@ -195,16 +199,25 @@ function ChipRow({ inputKey, label, labelId, tip, tipId, active = true, value, o
   return (
     <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active} stacked={stacked}>
       <div className={`${styles.chipsWrap} ${stacked ? styles.chipsStacked : ''}`}>
-        {options.map(([val, lab]) => (
-          <button
-            key={String(val)}
-            type="button"
-            className={`${styles.chipOpt} ${value === val ? styles.chipOptOn : ''}`}
-            onClick={() => onChange(val)}
-            aria-pressed={value === val}
-            {...aria}
-          >{lab}</button>
-        ))}
+        {options.map(([val, lab, extra]) => {
+          // ⭐ 3-02 — `{disabled: true}` is a STORED gated value the live server does
+          // not declare (`fieldsForInstance`): pressed, so the row tells the truth,
+          // and inert, so it cannot be chosen again.
+          const unavailable = !!(extra && extra.disabled)
+          return (
+            <button
+              key={String(val)}
+              type="button"
+              className={`${styles.chipOpt} ${value === val ? styles.chipOptOn : ''}`}
+              onClick={() => { if (!unavailable) onChange(val) }}
+              aria-pressed={value === val}
+              {...aria}
+              disabled={!active || unavailable}
+              aria-disabled={String(!active || unavailable)}
+              data-unavailable={unavailable ? 'true' : undefined}
+            >{lab}</button>
+          )
+        })}
       </div>
     </ParamRow>
   )
@@ -239,6 +252,57 @@ function SwatchRow({ inputKey, label, labelId, tip, tipId, active = true, value,
           )
         })}
       </div>
+    </ParamRow>
+  )
+}
+
+/** ⭐ UCT RS Phase 3, unit 3-02 — a `string` input as a text box, the phone half
+ *  of the dialog's control. Commits on Enter or blur, and only a value the input
+ *  accepts (`textInputCommit`: trimmed, upper-cased when told to, then the
+ *  engine's own `validateInputValue`); a miss writes NOTHING, keeps the typed text
+ *  so it can be fixed, marks the box `aria-invalid` and prints the input's own
+ *  `hint` as a muted line under the row. The box is 44 px tall (the tap floor)
+ *  with 16 px text, or iOS zooms on focus. */
+function TextRow({ inputKey, label, labelId, tip, tipId, active = true, value, field, onChange }) {
+  const [draft, setDraft] = useState(null)   // null = showing the stored value
+  const [miss, setMiss] = useState(null)
+  const missId = `${labelId}-miss`
+  const stored = value == null ? '' : String(value)
+  const commit = () => {
+    if (draft == null) return
+    const c = textInputCommit(field, draft)
+    if (!c.ok) { setMiss(c.hint); return }
+    setDraft(null)
+    setMiss(null)
+    if (c.value !== stored) onChange(c.value)
+  }
+  const aria = controlAria(tipId, active)
+  return (
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active}
+      miss={miss} missId={missId}>
+      <input
+        type="text"
+        className={styles.textInput}
+        aria-labelledby={labelId}
+        {...aria}
+        aria-describedby={[tipId, miss ? missId : null].filter(Boolean).join(' ') || undefined}
+        aria-invalid={miss ? 'true' : undefined}
+        placeholder={field.placeholder}
+        maxLength={Number.isInteger(field.maxLength) ? field.maxLength : undefined}
+        autoCapitalize={field.case === 'upper' ? 'characters' : undefined}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="done"
+        value={draft == null ? stored : draft}
+        onChange={(e) => {
+          const text = textInputDraft(field, e.target.value)
+          setDraft(text)
+          if (miss && textInputCommit(field, text).ok) setMiss(null)
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
+      />
     </ParamRow>
   )
 }
@@ -395,15 +459,29 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   // headerless section, so RSI renders the rows it always did.
   const studyDef = editing?.kind === 'study' ? editTarget?.def || null : null
   const studyInst = editing?.kind === 'study' ? editTarget?.inst || null : null
+  // ⭐ UCT RS Phase 3, unit 3-02 — the server gate, read the dialog's way: only a
+  // `server` definition can carry one, so only one asks (an RSI editor never
+  // spends the page's one definitions GET). The snapshot is memoised and frozen.
+  const gateId = studyDef && studyDef.compute && studyDef.compute.kind === 'server' ? studyDef.id : null
+  const declared = useSyncExternalStore(
+    subscribeServerDefinitions,
+    () => (gateId ? serverDeclares(gateId) : null),
+    () => null,
+  )
   const studyModel = useMemo(
-    () => (studyDef && studyInst ? fieldsForInstance(studyDef, studyInst) : null),
-    [studyDef, studyInst],
+    () => (studyDef && studyInst ? fieldsForInstance(studyDef, studyInst, { declared }) : null),
+    [studyDef, studyInst, declared],
   )
   const sections = useMemo(
     () => (studyDef && studyModel ? sectionize(studyDef, studyModel.all) : []),
     [studyDef, studyModel],
   )
-  const presets = useMemo(() => presetsOf(studyDef), [studyDef])
+  // ⭐ 3-02 — through `visiblePresets`, the dialog's filter, so the two surfaces
+  // list the same presets for one instance.
+  const presets = useMemo(() => {
+    const shownPresets = new Set(visiblePresets(studyDef, declared))
+    return presetsOf(studyDef).filter((p) => shownPresets.has(p))
+  }, [studyDef, declared])
   // ⭐ U8 #27 (2026-11-07): the third argument compares a preset's visibility, dot
   // size and display target too, exactly as the desktop dialog does, so the two
   // surfaces cannot name different presets for one instance.
@@ -471,6 +549,10 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
         return <SwitchRow key={f.key} {...common} value={!!cur} onChange={write} />
       case 'select':
         return <ChipRow key={f.key} {...common} value={cur} options={f.options || []} onChange={write} />
+      case 'text':
+        // keyed by instance too, so a half-typed draft never follows the member
+        // into another copy's editor
+        return <TextRow key={`${studyInst.instanceId}:${f.key}`} {...common} value={cur} field={f} onChange={write} />
       default:
         // `source`, `datetime`, `session`: no phone control yet — the same gap
         // the hand loop had (returned null for them), named rather than hidden.

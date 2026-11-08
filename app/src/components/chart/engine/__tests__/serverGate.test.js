@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   serverDeclares, fetchServerDefinitions, primeServerDefinitions, clearServerDefinitions,
   declarationFromRow, subscribeServerDefinitions, __setServerDefinitionsFetcherForTests,
-  SERVER_DEFINITIONS_PATH,
+  SERVER_DEFINITIONS_PATH, DEFINITIONS_RETRY_MS,
 } from '../serverCompute'
 import {
   fieldsForInstance, fieldsFromDefinition, fieldFromInput, styleInputKeys, visiblePresets,
@@ -157,6 +157,92 @@ describe('serverDeclares — the live row, read once per page load', () => {
     } finally {
       spy.mockRestore()
     }
+  })
+})
+
+// ⭐ UCT RS Phase 3, unit 3-02 — ONE retry. 3-01 remembered a failure for the
+// whole page load; a pod restarting under a page load then kept every gated
+// control dark until a reload. Now a failure is "nothing declared" at once and
+// the request is asked exactly once more, `DEFINITIONS_RETRY_MS` later.
+describe('⭐ 3-02 — one retry after a failed definitions fetch', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  it('a failure is null at once; ONE more ask ~30 s later; its success lands and is announced; never a third', async () => {
+    vi.useFakeTimers()
+    expect(DEFINITIONS_RETRY_MS).toBe(30_000)
+    const fetcher = vi.fn()
+      .mockImplementationOnce(async () => { throw new Error('HTTP 503') })
+      .mockImplementation(async () => realBody())
+    const seen = vi.fn()
+    const unsub = subscribeServerDefinitions(seen)
+    serverDeclares('probeServer', fetcher)
+    await fetchServerDefinitions()
+    expect(serverDeclares('probeServer')).toBeNull()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(seen).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS - 1)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    await fetchServerDefinitions()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher).toHaveBeenLastCalledWith(SERVER_DEFINITIONS_PATH)
+    const d = serverDeclares('probeServer')
+    expect(d.inputs).toEqual(['benchmark', 'length'])
+    expect(serverDeclares('probeServer')).toBe(d)       // still memoised
+    expect(seen).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS * 10)
+    for (let i = 0; i < 5; i++) serverDeclares('probeServer', fetcher)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    unsub()
+  })
+
+  it('⛔ a second failure stays "nothing declared", and nothing asks a third time', async () => {
+    vi.useFakeTimers()
+    const fetcher = vi.fn(async () => { throw new Error('HTTP 402') })
+    serverDeclares('probeServer', fetcher)
+    await fetchServerDefinitions()
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS)
+    await fetchServerDefinitions()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(serverDeclares('probeServer')).toBeNull()
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS * 10)
+    serverDeclares('probeServer', fetcher)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it('a malformed body counts as a failure (one retry); a success schedules none', async () => {
+    vi.useFakeTimers()
+    const malformed = vi.fn().mockImplementationOnce(async () => ({ detail: 'nope' })).mockImplementation(async () => realBody())
+    serverDeclares('probeServer', malformed)
+    await fetchServerDefinitions()
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS)
+    await fetchServerDefinitions()
+    expect(malformed).toHaveBeenCalledTimes(2)
+    expect(serverDeclares('probeServer')).not.toBeNull()
+
+    clearServerDefinitions()
+    const ok = vi.fn(async () => realBody())
+    serverDeclares('probeServer', ok)
+    await fetchServerDefinitions()
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS * 3)
+    expect(ok).toHaveBeenCalledTimes(1)
+  })
+
+  it('a new page load (clear) or a primed answer cancels a scheduled retry', async () => {
+    vi.useFakeTimers()
+    const fetcher = vi.fn(async () => { throw new Error('HTTP 503') })
+    serverDeclares('probeServer', fetcher)
+    await fetchServerDefinitions()
+    clearServerDefinitions()
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS * 2)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+
+    serverDeclares('probeServer', fetcher)
+    await fetchServerDefinitions()
+    primeServerDefinitions(realBody())
+    await vi.advanceTimersByTimeAsync(DEFINITIONS_RETRY_MS * 2)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(serverDeclares('probeServer')).not.toBeNull()
   })
 })
 
