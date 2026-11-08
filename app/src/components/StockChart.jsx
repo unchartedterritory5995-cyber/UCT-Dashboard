@@ -171,7 +171,7 @@ import { createRsInstanceTracker, noteRsPreset, noteRsCard, noteRsLearn } from '
 // mounted without one on several surfaces (popups, the Model Book, its own
 // suites), and `<Link>` calls `useHref`, which throws there.
 import { Link, useInRouterContext } from 'react-router-dom'
-import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
+import { rendererPaneIndexOf, reservedEmptyPaneIndex, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/cotFollow'
 // ⭐ P2 Track B — Create Indicator's ephemeral live-chart preview (a READ VIEW).
 import { withPreviewInstance, stripPreview } from './chart/builder/studio/chartPreview'
@@ -18092,9 +18092,16 @@ export default function StockChart({
       // identity -- see `engine/paneReadoutPlacement.js`. `null` = nothing of this
       // key drew, so there is no pane to label; `undefined` = cannot tell, keep
       // the slot.
-      const drawnAt = rendererPaneIndexOf(key,
+      let drawnAt = rendererPaneIndexOf(key,
         engineRef.current && engineRef.current.binder ? engineRef.current.binder.bindings() : null,
         chipPaneHostRef.current)
+      // ⭐ UCT RS 3-14 — nothing drew, but the arrangement reserved this key's band
+      // (an empty placeholder pane at its slot): label the band, so the member
+      // reads why it is empty and can open the indicator's menu.
+      if (drawnAt === null) {
+        const reserved = reservedEmptyPaneIndex(row.index, chart.panes ? chart.panes() : null)
+        if (reserved !== null) drawnAt = reserved
+      }
       const hide = drawnAt === null
       if ((el.style.display === 'none') !== hide) el.style.display = hide ? 'none' : ''
       if (hide) return
@@ -21663,8 +21670,11 @@ export default function StockChart({
                  definition prints exactly what it always did. */
               value={chipValueText(c) || (() => {
                 const s = readoutSurfaceOf(c)
+                // ⭐ 3-14 — the server's note (no bars for this benchmark yet) wraps
+                // under the name instead of running off a phone's edge.
                 return s && s.fallback
-                  ? <span className={styles.paneValueStale} data-stale-value="">{s.fallback.text}</span>
+                  ? <span className={s.fallback.note ? `${styles.paneValueStale} ${styles.paneValueNote}` : styles.paneValueStale}
+                      data-stale-value="" {...(s.fallback.note ? { 'data-empty-note': '' } : null)}>{s.fallback.text}</span>
                   : ''
               })()}
               color={c.color}

@@ -1298,10 +1298,16 @@ export function readoutDateText(asOf) {
  * (`payload.legend.asOf`): `0.4700 · Nov 4`. No finite value at all, or no
  * envelope yet → a muted `—`.
  *
+ * ⭐ UCT RS 3-14 — NO VALUE AT ALL, BUT THE SERVER SAID WHY: the first readout row
+ * carrying a `note` (the muted second line, e.g. the Benchmark row's `No XYZQ bars
+ * yet; they usually load within a minute`) is printed in place of the dash,
+ * muted, marked `note: true`. A pane whose every plot came back empty then tells
+ * the member why on screen instead of only inside the chip menu.
+ *
  * @param {object|null} def
  * @param {object|null} scalars the envelope payload (`scalarsFor`), or null
  * @param {number} [decimals] the plot's legend decimals (the chip's)
- * @returns {{text: string, muted: true}|null} null for a definition without a readout
+ * @returns {{text: string, muted: true, note?: true}|null} null for a definition without a readout
  */
 export function readoutFallbackValue(def, scalars, decimals, inputs) {
   if (!declaresReadout(def)) return null
@@ -1318,7 +1324,13 @@ export function readoutFallbackValue(def, scalars, decimals, inputs) {
   const legend = scalars && typeof scalars === 'object' && scalars.legend && typeof scalars.legend === 'object'
     ? scalars.legend : null
   const v = legend ? legend.lastValue : null
-  if (typeof v !== 'number' || !Number.isFinite(v)) return { text: '—', muted: true }
+  if (typeof v !== 'number' || !Number.isFinite(v)) {
+    if (scalars && typeof scalars === 'object') {
+      const noted = readoutRows(def, scalars, { inputs: inputs || {} }).find((r) => typeof r.note === 'string' && r.note)
+      if (noted) return { text: noted.note, muted: true, note: true }
+    }
+    return { text: '—', muted: true }
+  }
   const dp = Number.isInteger(decimals) ? decimals : 4
   const date = readoutDateText(legend.asOf)
   return { text: date ? `${v.toFixed(dp)} · ${date}` : v.toFixed(dp), muted: true }

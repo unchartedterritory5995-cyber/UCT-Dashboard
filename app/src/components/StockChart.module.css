@@ -1876,6 +1876,10 @@
 
 /* ⭐ A8 — the pane label's last known value, muted, with its date. */
 .paneValueStale { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
+/* ⭐ UCT RS 3-14 — a pane that drew nothing prints the server's note (`No XYZQ bars
+   yet; they usually load within a minute`). It wraps inside the band rather than
+   running past a 390 px phone's edge. */
+.paneValueNote { white-space: normal; max-width: min(320px, calc(100vw - 180px)); }
 
 /* TOUCH (≤1024px): every row that is a button meets the 44 px floor. */
 @media (max-width: 1024px) {
