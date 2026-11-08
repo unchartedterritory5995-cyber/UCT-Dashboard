@@ -163,7 +163,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
         {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="spot-check">Check</StudyButton>
           : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey={takeover ? null : 'Enter'} onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
       </div></div>
-      {state !== 'ask' && (lesson || trade) ? <LessonCard text={lesson} setup={name} fired={true} trade={trade} showReads={false} testId="spot-lesson" /> : null}
+      {state !== 'ask' && (lesson || trade) ? <LessonCard text={lesson} setup={name} skillId={item.skill_id || item.skill || null} fired={true} trade={trade} showReads={false} testId="spot-lesson" /> : null}
     </div>
   )
 }

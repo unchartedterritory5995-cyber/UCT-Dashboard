@@ -8,6 +8,7 @@
 //      (lesson.stepsOf), with the rest of the rule on demand.
 // Not a word of a lesson is rewritten. A near-miss chart's lesson is a template with no rule in it, so the rule comes
 // from the reveal's `setup_rule`: the same setup's definition as the approved lessons write it (study_hard.setup_rule).
+import { approvedPlainRule } from '../studyPlainRules'
 import brandMark from '../../../components/intro/assets/compass-mark.png'
 import { readCandle, readText, readTone } from './candleRead'
 import { sentencesOf, splitLesson, stepsOf } from './lesson'
@@ -19,14 +20,16 @@ import s from './study.module.css'
 const an = (n) => `${/^[AEIOU]/i.test(String(n || '')) ? 'an' : 'a'} ${n}`
 const low = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t)
 
-export default function LessonCard({ text, ticker = null, setup = null, fired = null, bars = null, signal = null, setupRule = null, tf = 'Daily', testId = 'hard-lesson', plain = false, trade = null, showReads = true }) {
+export default function LessonCard({ text, ticker = null, setup = null, fired = null, bars = null, signal = null, setupRule = null, tf = 'Daily', testId = 'hard-lesson', plain = false, trade = null, showReads = true, skillId = null }) {
   const L = splitLesson(brandWords(text))   // rule 11: UCT, never "the firm" (the bank's words are otherwise unchanged)
   const name = setup || L.setup
   // the rule: this lesson's own, or the setup's definition from the bank when this lesson is a template
   const R = L.ruleLead ? L : (setupRule?.text ? splitLesson(brandWords(`${setupRule.name || name}: ${setupRule.text}`)) : null)
   const ruleName = (R && R !== L ? (setupRule?.name || name) : (L.setup || name)) || name
-  const steps = R ? stepsOf(R.ruleLead) : []
-  const rest = R ? R.ruleRest : ''
+  // the setup in plain words, once the owner approves that setup's draft (studyPlainRules.js); the bank's words otherwise
+  const plainRule = approvedPlainRule(skillId)
+  const steps = plainRule ? plainRule.steps : R ? stepsOf(R.ruleLead) : []
+  const rest = plainRule ? plainRule.notIt : R ? R.ruleRest : ''
   const reads = bars && showReads ? readCandle(bars, signal == null ? bars.length - 1 : signal) : []
   const onChart = L.here ? sentencesOf(L.here) : (L.nothing && L.reason ? [`Not ${an(L.setup || name)}: ${low(L.reason)}`] : [])
   const title = fired === true ? `Why it’s ${an(name)}` : fired === false ? 'Why nothing fired' : 'The lesson'

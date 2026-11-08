@@ -171,7 +171,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
           seal={<Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} inline />} />}
         cardsTestId="hard-cards" checkTestId="hard-check" nextTestId="hard-next" />
       {state !== 'ask' && (lesson || rule) ? (
-        <LessonCard text={lesson} ticker={ticker || null} setup={item.name} fired={fired} bars={bars} setupRule={rule} trade={trade} showReads={false} />
+        <LessonCard text={lesson} ticker={ticker || null} setup={item.name} skillId={item.skill_id || item.skill || null} fired={fired} bars={bars} setupRule={rule} trade={trade} showReads={false} />
       ) : null}
     </div>
   )

@@ -72,8 +72,10 @@ import Piece68EndFocus from './pieces/Piece68EndFocus'
 import Piece69StartFocus from './pieces/Piece69StartFocus'
 import Piece70StationTrail from './pieces/Piece70StationTrail'
 import Piece71DrawIt from './pieces/Piece71DrawIt'
+import Piece72PlainRules from './pieces/Piece72PlainRules'
 
 const PIECES = {
+  72: Piece72PlainRules,
   71: Piece71DrawIt,
   70: Piece70StationTrail,
   69: Piece69StartFocus,

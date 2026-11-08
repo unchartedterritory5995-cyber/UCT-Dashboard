@@ -94,7 +94,7 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
         head={<Prompt mood={state === 'ok' ? 'happy' : 'oops'} tone={state} size={phone ? 40 : 48} title={state === 'ok' ? 'Still standing.' : 'That was the heart.'}
           sub={<>{item.name} · the answer was <b>{answer}</b>{xp > 0 ? ` · +${xp} XP` : ''}</>} seal={<UiStamp ok={state === 'ok'} inline />} />}
         cardsTestId="boss-cards" checkTestId="boss-check" nextTestId="boss-next" />
-      {state !== 'ask' && (why || trade) ? <LessonCard text={why} setup={item.name} fired={null} trade={trade} showReads={false} testId="boss-lesson" /> : null}
+      {state !== 'ask' && (why || trade) ? <LessonCard text={why} setup={item.name} skillId={item.skill_id || item.skill || null} fired={null} trade={trade} showReads={false} testId="boss-lesson" /> : null}
     </div>
   )
 }
