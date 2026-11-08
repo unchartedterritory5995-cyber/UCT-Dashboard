@@ -19,7 +19,8 @@
 @keyframes keyIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @media (max-width: 640px) {
   .key { grid-template-columns: 12px auto 1fr; column-gap: 8px; padding: 12px 12px 10px; }
-  .row > * { padding: 5px 0; border-top: 0 !important; }
+  .row > * { padding: 5px 0; }
+  .row > *:not(.swatch) { border-top: 0 !important; }
   .row > .swatch { margin-top: 10px; }
   .row > .name, .row > .price { padding-top: 12px; }
   .why { grid-column: 2 / -1; padding-top: 0 !important; border-top: 0 !important; font-size: 13px; }
