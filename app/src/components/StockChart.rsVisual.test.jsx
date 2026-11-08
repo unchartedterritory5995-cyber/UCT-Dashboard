@@ -654,6 +654,9 @@ describe('the wires, read from the source', () => {
   })
   it('A8: the pane label falls back to the muted last value for a readout definition', () => {
     expect(src).toMatch(/value=\{chipValueText\(c\) \|\| \(\(\) => \{/)
-    expect(src).toContain('<span className={styles.paneValueStale} data-stale-value="">{s.fallback.text}</span>')
+    // ⭐ 3-14: the same muted span; a server note (`fallback.note`, a pane that drew
+    // nothing) also takes `paneValueNote` (it wraps) and `data-empty-note`.
+    expect(src).toContain('<span className={s.fallback.note ? `${styles.paneValueStale} ${styles.paneValueNote}` : styles.paneValueStale}')
+    expect(src).toContain(`data-stale-value="" {...(s.fallback.note ? { 'data-empty-note': '' } : null)}>{s.fallback.text}</span>`)
   })
 })

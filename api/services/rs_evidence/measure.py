@@ -30,7 +30,11 @@ of complete events with ``excess > 0``, strictly), ``median_excess`` and
 of every measured ticker - the "all bars" comparison a card needs so a hit
 rate reads as lift, not as a number on its own. Per signal we also count
 ``dates`` (distinct sessions with an event: 5,000 events on 40 dates is 40
-observations - research base §(c)) and ``tickers``.
+observations - research base §(c)) and ``tickers``; and per signal AND horizon
+``dates`` again, over the events whose window at that horizon is COMPLETE (unit
+VA3, 2026-11-07): the sessions the printed hit rate actually stands on. The
+per-signal count also holds the newest sessions, whose longer windows are still
+open, so it overstates how many sessions a 63-session hit rate spans.
 
 THE SPLIT GUARD (owner decision N5, 2026-11-07). An unadjusted split inside a
 forward window would read a 2:1 split as a -50 % trade. The caller passes the
@@ -221,6 +225,7 @@ def summarise(rows: Iterable[Row], horizons: Sequence[int] = HORIZONS) -> dict:
     hs = tuple(int(h) for h in horizons)
     by_signal: Dict[str, List[List[MaybeNum]]] = {}
     dates: Dict[str, set] = {}
+    done_dates: Dict[str, List[set]] = {}
     tickers: Dict[str, set] = {}
     skipped: Dict[str, int] = {}
     for session, signal, ticker, ex in rows:
@@ -228,8 +233,12 @@ def summarise(rows: Iterable[Row], horizons: Sequence[int] = HORIZONS) -> dict:
             skipped[signal] = skipped.get(signal, 0) + 1
             continue
         cols = by_signal.setdefault(signal, [[] for _ in hs])
+        per_h = done_dates.setdefault(signal, [set() for _ in hs])
         for k in range(len(hs)):
-            cols[k].append(ex[k] if k < len(ex) else None)
+            v = ex[k] if k < len(ex) else None
+            cols[k].append(v)
+            if v is not None:
+                per_h[k].add(session)
         dates.setdefault(signal, set()).add(session)
         tickers.setdefault(signal, set()).add(ticker)
     per_signal = {}
@@ -240,7 +249,8 @@ def summarise(rows: Iterable[Row], horizons: Sequence[int] = HORIZONS) -> dict:
             "n_signals": len(cols[0]),
             "dates": len(dates[signal]),
             "tickers": len(tickers[signal]),
-            "horizons": {str(h): summarise_values(cols[k]) for k, h in enumerate(hs)},
+            "horizons": {str(h): {**summarise_values(cols[k]), "dates": len(done_dates[signal][k])}
+                         for k, h in enumerate(hs)},
         }
     base_cols = by_signal.get(BASELINE_KEY, [[] for _ in hs])
     baseline = {str(h): summarise_values(base_cols[k]) for k, h in enumerate(hs)}

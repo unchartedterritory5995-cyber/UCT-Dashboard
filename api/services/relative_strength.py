@@ -29,6 +29,55 @@ a glyph wherever the column is finite and ``> 0`` (`markerPrimitive.marks`).
 So a dot column carries the RS VALUE on event bars and ``None`` elsewhere — a
 positive number exactly where a dot belongs, at exactly the height of the
 line. The 0/1 event columns stay beside them for scans and alerts.
+
+⭐ PHASE 3 (unit 3-03): ROTATION, QUALITY AND VARS. Three more pure readings,
+added at the bottom of this module; none of them touches a Phase 1 or Phase 2a
+function, so `compute_phase1_columns` and `compute_mansfield_columns` stay
+byte-identical (the no-move rail in `tests/test_rs_phase3_math.py`). The
+choices the plan leaves open, each with its source:
+
+* **Rotation is the Terminal's formula, not plan §7.14** (engineering map 2026-
+  11-08, decision D1). `rrg_columns` is a line-for-line port of `rrgPath` in
+  `app/src/pages/terminal/panels/relativeMath.js` (`RRG_METHOD = { ratioLen:
+  10, momLen: 5, tail: 8 }`): ``RS = 100 × C / B``, ``RS-Ratio = 100 × RS /
+  SMA(RS, ratioLen)``, ``RS-Momentum = 100 × RS-Ratio / SMA(RS-Ratio,
+  momLen)``, quadrants split at 100 with ``≥`` on both axes (`quadrantOf`). The
+  two series are compared only on bars BOTH have (`alignCloses`), which is this
+  module's join-by-time-and-skip-the-gap rule. The SMA is the backend's one
+  window mean (re-summed, `compute_sma`); the Terminal's rolling accumulator
+  differs from it by float noise only (~1e-15), and `rs_rrg.json` is read by
+  both lanes at rel-tol 1e-9 so the two cannot drift. A non-positive close on
+  either side is a missing bar here, where `rrgPath` restarts its average; no
+  real close is non-positive and `closesFromBars` drops such bars anyway.
+* **Quality (Clenow)** is plan §7.15 as the map's contract spells it: OLS of
+  ``ln C`` on the bar ordinal over the last ``window`` valid closes,
+  ``annual = (1 + b)^252 − 1`` (a FRACTION: 0.42 is 42 % a year; KB
+  01-methodologies §4 notes 250 or 260 in other sources, the map fixes 252),
+  ``score = annual × R²``. The gap flag is Clenow's "a move > 15 % in the past
+  90 days" (KB §4): ``|C[t] − C[t−1]| / C[t−1] × 100 > gap_pct`` for any
+  consecutive pair INSIDE the window, strict, so exactly 15 % does not flag.
+  The move is written as a difference over the prior close (not ``C/C₋₁ − 1``)
+  so a 100 → 115 step is exactly 15.0 and the threshold is decidable. A window
+  whose ``ln C`` has zero variance (a frozen tape) has no R²: all four columns
+  are None there rather than a score of 0 (the zero-movement ruling of
+  `indicator_compute.rsi_from_wilder_averages`, applied to a regression).
+* **VARS** follows OANDA's published form (KB 01-methodologies §9):
+  ``ShareChg[t] = (C[t] − C[t−1]) / ATR_C[t]``, ``IndexChg[t] = (B[t] −
+  B[t−1]) / ATR_B[t]``, ``VARS = Σ_lookback ShareChg − Σ_lookback IndexChg``,
+  and its four states against an SMA of VARS (50 in OANDA's case studies). The
+  ATR is the repo's one Wilder ATR, `indicator_compute.compute_atr_raw` (TR
+  from bar 1, seeded with the simple mean of the first ``atr_length`` TRs,
+  landing on the ``atr_length``-th bar), each series on ITS OWN calendar and
+  read at the joined bar; ``ATR[t]`` includes bar t's own range, as OANDA's
+  ``ATR_t`` does. ``t − 1`` is the previous bar BOTH series have (the
+  Terminal's alignment rule). A close-only series (the equal-weight
+  composite, `rs_benchmarks.equal_weight_composite`, emits ``{t, c}``) has no
+  intrabar range, so its bars are given ``h = l = c`` and the true range is
+  the close-to-close move, which is exactly what Wilder's TR reduces to. A
+  VARS of exactly 0 (the stock IS its benchmark) has no state.
+
+All three join by bar time, skip gaps, and return None (never 0) during their
+warm-up and on any bar the benchmark does not carry.
 """
 
 from __future__ import annotations
@@ -39,6 +88,7 @@ from collections import deque
 from typing import Dict, List, Optional, Sequence
 
 from api.services.indicator_compute import (
+    compute_atr_raw,
     compute_ema,
     compute_rs_line_raw,
     compute_sma,
@@ -705,4 +755,259 @@ def legend_scalars(columns: Dict[str, Column]) -> dict:
     if 1 <= at < len(ma) and _is_num(ma[at]) and _is_num(ma[at - 1]):
         d = ma[at] - ma[at - 1]
         out["maSlope"] = 1 if d > 0 else (-1 if d < 0 else 0)
+    return out
+
+
+# ── Phase 3 (unit 3-03): Rotation, Quality and VARS ─────────────────────────
+#
+# Plan §7 items 14-16 with the engineering map's decision D1 (the Terminal's
+# RRG formula) and its 3-03 contract. The module header records every choice
+# the plan leaves open and where it came from. Same contract as everything
+# above: pure, aligned to ``bars``, no I/O, ``None`` (never 0) in the warm-up
+# and on any bar whose benchmark close is missing.
+
+# ⭐ THE TERMINAL'S `RRG_METHOD`, NOT A SECOND OPINION OF IT. `relativeMath.js`
+# owns `{ ratioLen: 10, momLen: 5 }`; `rs_rrg.json` carries the same two numbers
+# as its `params`, and BOTH lanes assert their constant equals the fixture's, so
+# a change on either side is red until the other moves with it.
+DEFAULT_RRG_RATIO_LEN = 10
+DEFAULT_RRG_MOM_LEN = 5
+# Quadrant code = index + 1; the same order as `relativeMath.QUADRANTS`, pinned
+# by `rs_rrg.json`'s `quadrantNames` in both lanes.
+RRG_QUADRANT_NAMES = ("Leading", "Weakening", "Lagging", "Improving")
+
+# Clenow (KB 01-methodologies §4; plan §6.3 `clenowWindow` 90, `clenowGapPct` 15).
+DEFAULT_CLENOW_WINDOW = 90
+DEFAULT_CLENOW_GAP_PCT = 15.0
+CLENOW_ANNUALISATION_BARS = 252
+
+# VARS (KB 01-methodologies §9; plan §6.3 `atrLength` 20, `varsLookback` 60;
+# OANDA's case studies read VARS against its 50-bar SMA).
+DEFAULT_ATR_LENGTH = 20
+DEFAULT_VARS_LOOKBACK = 60
+DEFAULT_VARS_MA_LENGTH = 50
+
+# ⛔ A THIRD TUPLE, NOT AN EXTENSION OF THE FIRST TWO (the PHASE2A_COLUMNS rule):
+# unit 3-05 joins these to the `rsLine` row when it bumps `compute.rev` to 4.
+PHASE3_COLUMNS = (
+    "rsRatio", "rsMomentum", "quadrant",
+    "clenowScore", "clenowAnnual", "clenowR2", "clenowGap",
+    "vars", "varsMa", "varsState",
+)
+
+
+def _length_or_none(v, minimum: int = 1) -> Optional[int]:
+    """A window length as an int (``int(round(f))``, the `resolve_phase1_inputs`
+    rounding), or ``None`` when it is not a finite number ``≥ minimum`` — a
+    degenerate length yields an all-``None`` column, never a raise or a guess."""
+    if not _is_num(v):
+        return None
+    n = int(round(float(v)))
+    return n if n >= minimum else None
+
+
+def _positive_closes(bars: Sequence[dict]) -> Column:
+    """``C[t]`` where it is a finite positive number, else ``None`` (a missing
+    bar). ``ln C`` and a ratio need a positive close; `closesFromBars` applies
+    the same ``c > 0`` filter on the Terminal's side."""
+    return [float(b["c"]) if _is_num(b.get("c")) and b["c"] > 0 else None for b in bars]
+
+
+def _quadrant_code(ratio: MaybeNum, momentum: MaybeNum) -> Optional[int]:
+    """`relativeMath.quadrantOf` as a code: 1 Leading, 2 Weakening, 3 Lagging,
+    4 Improving, ``None`` when either coordinate is missing. ``≥ 100`` counts
+    as the upper side on both axes, exactly as the Terminal splits them."""
+    if not (_is_num(ratio) and _is_num(momentum)):
+        return None
+    if ratio >= 100:
+        return 1 if momentum >= 100 else 2
+    return 4 if momentum >= 100 else 3
+
+
+def rrg_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                ratio_len: int = DEFAULT_RRG_RATIO_LEN,
+                mom_len: int = DEFAULT_RRG_MOM_LEN) -> Dict[str, list]:
+    """The rotation reading (decision D1: the Terminal's `rrgPath`), aligned to
+    ``bars``:
+
+        RS[t]          = 100 × C[t] / B[t]
+        rsRatio[t]     = 100 × RS[t] / SMA(RS, ratio_len)[t]
+        rsMomentum[t]  = 100 × rsRatio[t] / SMA(rsRatio, mom_len)[t]
+        quadrant[t]    = 1 Leading (ratio ≥ 100, momentum ≥ 100),
+                         2 Weakening (ratio ≥ 100, momentum < 100),
+                         3 Lagging (ratio < 100, momentum < 100),
+                         4 Improving (ratio < 100, momentum ≥ 100)
+
+    Both averages run over the bars BOTH series have, in order — a bar the
+    benchmark does not carry is ``None`` in all three columns and is skipped,
+    not zeroed and not a restart (`alignCloses` drops it on the Terminal's side,
+    the same thing). Warm-up: ``rsRatio`` from the ``ratio_len``-th joined bar,
+    ``rsMomentum`` and ``quadrant`` from the ``(ratio_len + mom_len − 1)``-th.
+    The Terminal plots a point only where both coordinates exist; the column
+    carries the ratio from its own warm-up on, because it is known there.
+    ``quadrant`` is an int code (a classification, like `mansfieldState`);
+    ``RRG_QUADRANT_NAMES[code − 1]`` is its name.
+    """
+    n = len(bars)
+    empty = {"rsRatio": [None] * n, "rsMomentum": [None] * n, "quadrant": [None] * n}
+    r_len = _length_or_none(ratio_len)
+    m_len = _length_or_none(mom_len)
+    if n == 0 or r_len is None or m_len is None:
+        return empty
+    closes = _positive_closes(bars)
+    bench = benchmark_closes_aligned(bars, benchmark_bars)
+    rs100: Column = [100.0 * c / b if (c is not None and b is not None and b > 0) else None
+                     for c, b in zip(closes, bench)]
+    rs_avg = rs_moving_average(rs100, r_len, "SMA")
+    ratio: Column = [100.0 * v / a if (_is_num(v) and _is_num(a) and a != 0) else None
+                     for v, a in zip(rs100, rs_avg)]
+    ratio_avg = rs_moving_average(ratio, m_len, "SMA")
+    momentum: Column = [100.0 * v / a if (_is_num(v) and _is_num(a) and a != 0) else None
+                        for v, a in zip(ratio, ratio_avg)]
+    quadrant = [_quadrant_code(x, y) for x, y in zip(ratio, momentum)]
+    return {"rsRatio": ratio, "rsMomentum": momentum, "quadrant": quadrant}
+
+
+def _r_squared(values: Sequence[float], slope: float) -> MaybeNum:
+    """R² of the least-squares line through ``values`` against ``0 … n−1`` whose
+    slope is ``slope`` (from `_slope`, the module's one OLS slope):
+    ``R² = b² · Sxx / Syy``. ``None`` when ``Syy`` is 0 — a flat series has no
+    variance for a line to explain (module header). The flat test is on the
+    values themselves, not on ``Syy``: the float mean of n equal values can miss
+    them by an ulp, leaving a ``Syy`` of 1e-31 that would divide noise by noise."""
+    n = len(values)
+    if max(values) == min(values):
+        return None
+    y_mean = sum(values) / n
+    syy = sum((v - y_mean) ** 2 for v in values)
+    if syy <= 0:
+        return None
+    x_mean = (n - 1) / 2.0
+    sxx = sum((i - x_mean) ** 2 for i in range(n))
+    return min(1.0, slope * slope * sxx / syy)
+
+
+def clenow_columns(bars: Sequence[dict], window: int = DEFAULT_CLENOW_WINDOW,
+                   gap_pct: float = DEFAULT_CLENOW_GAP_PCT) -> Dict[str, Column]:
+    """Clenow's momentum quality (*Stocks on the Move*; plan §7.15), aligned to
+    ``bars``. Over the last ``window`` VALID closes ending at bar t:
+
+        b             = OLS slope of ln C on the bar ordinal 0 … window−1
+        clenowAnnual  = (1 + b)^252 − 1                    a fraction
+        clenowR2      = R² of that fit
+        clenowScore   = clenowAnnual × clenowR2
+        clenowGap     = 1.0 when any consecutive pair inside the window moved
+                        |C[t] − C[t−1]| / C[t−1] × 100 > gap_pct, else 0.0
+
+    A bar with no positive close is ``None`` in every column and is skipped by
+    the windows (the ordinal counts valid closes only). ``None`` for the first
+    ``window − 1`` valid closes, and on a window whose ``ln C`` is flat (no R²,
+    module header). ``window`` below 2 has no line and is all ``None``.
+    """
+    n = len(bars)
+    out = {k: [None] * n for k in ("clenowScore", "clenowAnnual", "clenowR2", "clenowGap")}
+    w = _length_or_none(window, 2)
+    if n == 0 or w is None:
+        return out
+    threshold = float(gap_pct) if _is_num(gap_pct) else DEFAULT_CLENOW_GAP_PCT
+    closes = _positive_closes(bars)
+    idx = [i for i, c in enumerate(closes) if c is not None]
+    for j in range(w - 1, len(idx)):
+        seg = [closes[i] for i in idx[j - w + 1:j + 1]]
+        logs = [math.log(c) for c in seg]
+        b = _slope(logs)
+        r2 = _r_squared(logs, b) if b is not None else None
+        if r2 is None:
+            continue
+        annual = (1.0 + b) ** CLENOW_ANNUALISATION_BARS - 1.0
+        moves = (abs(seg[k] - seg[k - 1]) / seg[k - 1] * 100.0 for k in range(1, w))
+        t = idx[j]
+        out["clenowAnnual"][t] = annual
+        out["clenowR2"][t] = r2
+        out["clenowScore"][t] = annual * r2
+        out["clenowGap"][t] = 1.0 if any(m > threshold for m in moves) else 0.0
+    return out
+
+
+def _atr_by_time(bars: Sequence[dict], length: int) -> Dict[object, float]:
+    """``{t: ATR}`` from `indicator_compute.compute_atr_raw` (the one Wilder ATR)
+    over the series' OWN valid bars, in order. A bar without a finite positive
+    close is skipped; a bar without ``h``/``l`` (a close-only composite) gets
+    ``h = l = c``, so its true range is the close-to-close move (module header)."""
+    clean: List[dict] = []
+    for b in bars:
+        c = b.get("c")
+        if not (_is_num(c) and c > 0):
+            continue
+        h, lo = b.get("h"), b.get("l")
+        if not (_is_num(h) and _is_num(lo)):
+            h = lo = c
+        clean.append({"t": b.get("t"), "h": float(h), "l": float(lo), "c": float(c)})
+    atr = compute_atr_raw(clean, length)
+    return {b["t"]: a for b, a in zip(clean, atr) if _is_num(a)}
+
+
+def vars_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                 atr_length: int = DEFAULT_ATR_LENGTH,
+                 lookback: int = DEFAULT_VARS_LOOKBACK,
+                 ma_length: int = DEFAULT_VARS_MA_LENGTH) -> Dict[str, list]:
+    """Volatility-adjusted relative strength (OANDA VARS; plan §7.16), aligned
+    to ``bars``. On the bars BOTH series have, in order (``p`` the previous
+    such bar):
+
+        d[t]       = (C[t] − C[p]) / ATR_C[t] − (B[t] − B[p]) / ATR_B[t]
+        vars[t]    = Σ d over the last ``lookback`` joined bars
+                   = Σ ShareChg − Σ IndexChg
+        varsMa[t]  = SMA(vars, ma_length) over the valid vars values in order
+        varsState  = 1  vars > 0 and vars > MA   strong and gaining
+                     2  vars > 0 and vars ≤ MA   strong but fading
+                     3  vars < 0 and vars > MA   weak but improving
+                     4  vars < 0 and vars ≤ MA   weak
+                     None  vars or MA missing, or vars exactly 0
+
+    ATR is each series' own Wilder ATR (`_atr_by_time`), first known on its
+    ``atr_length``-th bar after the first; ``d`` needs both ATRs positive.
+    ``vars`` needs ``lookback`` consecutive joined ``d`` values; a bar the
+    benchmark does not carry is ``None`` in all three columns and is skipped.
+    The window is re-summed on every bar (one window sum, no rolling
+    accumulator — `tests/test_single_authority_rails.py`). ``varsState`` is an
+    int code, like `quadrant` and `mansfieldState`.
+    """
+    n = len(bars)
+    out = {"vars": [None] * n, "varsMa": [None] * n, "varsState": [None] * n}
+    a_len = _length_or_none(atr_length)
+    look = _length_or_none(lookback)
+    ma_len = _length_or_none(ma_length)
+    if n == 0 or a_len is None or look is None or ma_len is None:
+        return out
+    closes = _positive_closes(bars)
+    bench = benchmark_closes_aligned(bars, benchmark_bars)
+    atr_c = _atr_by_time(bars, a_len)
+    atr_b = _atr_by_time(benchmark_bars, a_len)
+    joined = [i for i in range(n) if closes[i] is not None and bench[i] is not None and bench[i] > 0]
+    d: Column = [None] * len(joined)
+    for j in range(1, len(joined)):
+        i, p = joined[j], joined[j - 1]
+        t = bars[i].get("t")
+        ac, ab = atr_c.get(t), atr_b.get(t)
+        if not (ac is not None and ab is not None and ac > 0 and ab > 0):
+            continue
+        d[j] = (closes[i] - closes[p]) / ac - (bench[i] - bench[p]) / ab
+    vars_col: Column = [None] * n
+    for j in range(look - 1, len(joined)):
+        seg = d[j - look + 1:j + 1]
+        if any(v is None for v in seg):
+            continue
+        vars_col[joined[j]] = sum(seg)
+    ma = rs_moving_average(vars_col, ma_len, "SMA")
+    state: List[Optional[int]] = [None] * n
+    for i in range(n):
+        v, m = vars_col[i], ma[i]
+        if not (_is_num(v) and _is_num(m)) or v == 0:
+            continue
+        if v > 0:
+            state[i] = 1 if v > m else 2
+        else:
+            state[i] = 3 if v > m else 4
+    out["vars"], out["varsMa"], out["varsState"] = vars_col, ma, state
     return out

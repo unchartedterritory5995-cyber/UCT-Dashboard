@@ -27,6 +27,7 @@ import re
 import pytest
 
 from api.routers import signature as sig
+from api.services.signature import rs_provider as rsp
 from api.services import relative_strength as rsmod
 from api.services import rs_benchmarks as rb
 from api.services.screener import rs_history
@@ -76,42 +77,42 @@ def _long_payload(monkeypatch, inputs=None, groups=None):
 # ── the number and plural rules ────────────────────────────────────────────
 
 def test_bars_ago_and_plural_follow_the_readout_rule():
-    assert sig._rs_ago(0) == "today"
-    assert sig._rs_ago(1) == "1 bar ago"
-    assert sig._rs_ago(2) == "2 bars ago" and sig._rs_ago(38) == "38 bars ago"
-    assert sig._rs_plural(1, "bar") == "1 bar" and sig._rs_plural(2, "bar") == "2 bars"
-    assert sig._rs_plural(0, "bar") == "0 bars" and sig._rs_plural(1, "red day") == "1 red day"
+    assert rsp._rs_ago(0) == "today"
+    assert rsp._rs_ago(1) == "1 bar ago"
+    assert rsp._rs_ago(2) == "2 bars ago" and rsp._rs_ago(38) == "38 bars ago"
+    assert rsp._rs_plural(1, "bar") == "1 bar" and rsp._rs_plural(2, "bar") == "2 bars"
+    assert rsp._rs_plural(0, "bar") == "0 bars" and rsp._rs_plural(1, "red day") == "1 red day"
 
 
 def test_percent_copy_matches_the_client_pct_format():
-    assert sig._rs_pct(18.66) == "+18.7%"
-    assert sig._rs_pct(-3.24) == "-3.2%"
-    assert sig._rs_pct(0.04) == "0.0%" and sig._rs_pct(-0.04) == "0.0%", "never -0.0% or +0.0%"
-    assert sig._rs_pct(0.0) == "0.0%"
+    assert rsp._rs_pct(18.66) == "+18.7%"
+    assert rsp._rs_pct(-3.24) == "-3.2%"
+    assert rsp._rs_pct(0.04) == "0.0%" and rsp._rs_pct(-0.04) == "0.0%", "never -0.0% or +0.0%"
+    assert rsp._rs_pct(0.0) == "0.0%"
 
 
 def test_short_date_and_ymd():
-    assert sig._rs_bar_ymd(20261104) == "20261104"
-    assert sig._rs_short_date("20261104") == "Nov 4" and sig._rs_short_date("20260105") == "Jan 5"
-    assert sig._rs_short_date(None) is None and sig._rs_bar_ymd(None) is None
+    assert rsp._rs_bar_ymd(20261104) == "20261104"
+    assert rsp._rs_short_date("20261104") == "Nov 4" and rsp._rs_short_date("20260105") == "Jan 5"
+    assert rsp._rs_short_date(None) is None and rsp._rs_bar_ymd(None) is None
 
 
 # ── rating.summary ─────────────────────────────────────────────────────────
 
 def test_rating_summary_patterns():
-    assert sig._rs_rating_summary(94, 91) == "94 · fast 91"
-    assert sig._rs_rating_summary(None, 91) == "fast 91 · nightly pending"
-    assert sig._rs_rating_summary(94, None) == "94"
-    assert sig._rs_rating_summary(None, None) is None
+    assert rsp._rs_rating_summary(94, 91) == "94 · fast 91"
+    assert rsp._rs_rating_summary(None, 91) == "fast 91 · nightly pending"
+    assert rsp._rs_rating_summary(94, None) == "94"
+    assert rsp._rs_rating_summary(None, None) is None
 
 
 def test_rating_summary_rides_the_rating_block(monkeypatch):
     _rated(monkeypatch)
-    assert sig._rs_rating("NVDA")["summary"] == "94 · fast 91"
+    assert rsp._rs_rating("NVDA")["summary"] == "94 · fast 91"
     _rated(monkeypatch, ibd=None, fast=88)
-    assert sig._rs_rating("NVDA")["summary"] == "fast 88 · nightly pending"
+    assert rsp._rs_rating("NVDA")["summary"] == "fast 88 · nightly pending"
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
-    assert sig._rs_rating("NVDA")["summary"] is None, "no rating ⇒ null, the row prints its muted fallback"
+    assert rsp._rs_rating("NVDA")["summary"] is None, "no rating ⇒ null, the row prints its muted fallback"
 
 
 # ── legend.summary / asOf / lastValue (A1, A8) ─────────────────────────────
@@ -119,22 +120,22 @@ def test_rating_summary_rides_the_rating_block(monkeypatch):
 def test_legend_summary_words_and_the_instance_average():
     p = {"maLength": 21, "maType": "EMA"}
     times = [20261103, 20261104]
-    leg = sig._rs_legend({"pctFromMa": 6.81, "maSlope": 1, "above": True, "index": 1, "lastValue": 0.5207}, times, p)
+    leg = rsp._rs_legend({"pctFromMa": 6.81, "maSlope": 1, "above": True, "index": 1, "lastValue": 0.5207}, times, p)
     assert leg["summary"] == "above its 21 EMA by 6.8%"
     assert leg["asOf"] == "20261104" and leg["stale"] is False and leg["lastValue"] == 0.5207
-    leg = sig._rs_legend({"pctFromMa": -2.08, "maSlope": -1, "above": False, "index": 1, "lastValue": 0.4},
+    leg = rsp._rs_legend({"pctFromMa": -2.08, "maSlope": -1, "above": False, "index": 1, "lastValue": 0.4},
                          times, {"maLength": 50, "maType": "sma"})
     assert leg["summary"] == "below its 50 SMA by 2.1%"
-    leg = sig._rs_legend({"pctFromMa": 0.03, "maSlope": 0, "above": True, "index": 1, "lastValue": 0.4}, times, p)
+    leg = rsp._rs_legend({"pctFromMa": 0.03, "maSlope": 0, "above": True, "index": 1, "lastValue": 0.4}, times, p)
     assert leg["summary"] == "at its 21 EMA"
-    leg = sig._rs_legend({"pctFromMa": -0.04, "maSlope": 0, "above": False, "index": 1, "lastValue": 0.4}, times, p)
+    leg = rsp._rs_legend({"pctFromMa": -0.04, "maSlope": 0, "above": False, "index": 1, "lastValue": 0.4}, times, p)
     assert leg["summary"] == "at its 21 EMA", "a sub-0.05% gap reads 'at', never 'below ... by 0.0%'"
     # stale: the reading is from the bar before the newest one
-    leg = sig._rs_legend({"pctFromMa": 6.81, "maSlope": 1, "above": True, "index": 0, "lastValue": 0.47}, times, p)
+    leg = rsp._rs_legend({"pctFromMa": 6.81, "maSlope": 1, "above": True, "index": 0, "lastValue": 0.47}, times, p)
     assert leg["stale"] is True and leg["asOf"] == "20261103"
     assert leg["summary"] == "above its 21 EMA by 6.8% · as of Nov 3"
     # nothing to read
-    leg = sig._rs_legend({"pctFromMa": None, "maSlope": None, "above": None, "index": None, "lastValue": None}, times, p)
+    leg = rsp._rs_legend({"pctFromMa": None, "maSlope": None, "above": None, "index": None, "lastValue": None}, times, p)
     assert leg["summary"] is None and leg["asOf"] is None and leg["stale"] is False
 
 
@@ -173,7 +174,7 @@ def test_a_benchmark_gap_on_the_newest_bar_keeps_the_reading_with_its_date(v2_ro
     assert leg["asOf"] == prev and leg["asOf"] != str(last_t)
     assert leg["lastValue"] == rs[-2] and leg["stale"] is True
     assert leg["above"] is not None and leg["pctFromMa"] is not None, "the reading no longer goes blank"
-    assert leg["summary"].endswith(f" · as of {sig._rs_short_date(prev)}"), leg["summary"]
+    assert leg["summary"].endswith(f" · as of {rsp._rs_short_date(prev)}"), leg["summary"]
     # control: the same chart with the benchmark complete is current, no date
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
     leg = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]["legend"]
@@ -195,23 +196,23 @@ def test_mansfield_summary_spells_out_sign_and_slope():
     vals = [None] * (n - 2) + [19.0, 18.66]
     up = [0.0] * n
     up[n - 1 - 57] = 1.0
-    m = sig._rs_mansfield_scalars(_mans(vals, up=up), 200)
+    m = rsp._rs_mansfield_scalars(_mans(vals, up=up), 200)
     assert m["summary"] == "+18.7%, above zero, falling"
     assert m["slope"] == -1 and m["crossDirection"] == "up" and m["lastCross"] == "up, 57 bars ago"
     assert m["stateLabel"] == "neutral", "the old field stays for its readers"
     down = [0.0] * n
     down[n - 1] = 1.0
-    m = sig._rs_mansfield_scalars(_mans([None] * (n - 2) + [-4.0, -3.2], down=down), 200)
+    m = rsp._rs_mansfield_scalars(_mans([None] * (n - 2) + [-4.0, -3.2], down=down), 200)
     assert m["summary"] == "-3.2%, below zero, rising" and m["lastCross"] == "down, today"
     down = [0.0] * n
     down[n - 2] = 1.0
-    assert sig._rs_mansfield_scalars(_mans([None] * (n - 2) + [-4.0, -3.2], down=down), 200)["lastCross"] == \
+    assert rsp._rs_mansfield_scalars(_mans([None] * (n - 2) + [-4.0, -3.2], down=down), 200)["lastCross"] == \
         "down, 1 bar ago"
-    m = sig._rs_mansfield_scalars(_mans([None] * (n - 2) + [2.0, 0.01]), 200)
+    m = rsp._rs_mansfield_scalars(_mans([None] * (n - 2) + [2.0, 0.01]), 200)
     assert m["summary"] == "0.0%, at zero, falling" and m["lastCross"] is None
-    m = sig._rs_mansfield_scalars(_mans([None] * (n - 1) + [5.0]), 200)
+    m = rsp._rs_mansfield_scalars(_mans([None] * (n - 1) + [5.0]), 200)
     assert m["summary"] == "+5.0%, above zero", "no slope word without a previous value"
-    assert sig._rs_mansfield_scalars(_mans([None] * n), 200)["summary"] is None
+    assert rsp._rs_mansfield_scalars(_mans([None] * n), 200)["summary"] is None
 
 
 # ── lastRsHigh.summary ─────────────────────────────────────────────────────
@@ -221,7 +222,7 @@ def _high(ago, bp=False, red=False):
 
 
 def test_last_rs_high_summary_patterns():
-    f = sig._rs_last_high
+    f = rsp._rs_last_high
     assert f(_high(0, bp=True), 252, 852, intraday=False, why=None)["summary"] == "today · before price"
     assert f(_high(1, bp=True, red=True), 252, 852, intraday=False, why=None)["summary"] == \
         "1 bar ago · before price · red day"
@@ -242,7 +243,7 @@ def _sens(stock, legs, groups=None):
 
     def fetch(sym, tf, count):
         return legs.get(sym, [])
-    return sig._rs_sensitivity("NVDA", stock, bench, "D", 40,
+    return rsp._rs_sensitivity("NVDA", stock, bench, "D", 40,
                                groups if groups is not None else {"sector": "Technology", "industry": "x"}, fetch)
 
 
@@ -271,7 +272,7 @@ def test_agreement_summary_patterns():
 
 
 def test_unavailable_sensitivity_keeps_a_null_summary_and_gains_legs():
-    s = sig._rs_sensitivity_unavailable("daily charts only")
+    s = rsp._rs_sensitivity_unavailable("daily charts only")
     assert s["summary"] is None
     assert s["legs"] == {"spy": "daily charts only", "rsp": "daily charts only", "sector": "daily charts only"}
 
@@ -297,7 +298,7 @@ def _check_bars(n=260, low_ago=None):
 
 def test_checks_summary_and_lines():
     stock, bench = _check_bars()
-    out = sig._rs_checks(stock, bench, "SPY", -0.5)
+    out = rsp._rs_checks(stock, bench, "SPY", -0.5)
     assert out["summary"] == "4 of 4 pass"
     for k in ("ma", "anchor", "pivotSpeed", "greenOnRed"):
         assert out[k]["line"] == f"pass · {out[k]['reason']}", k
@@ -305,19 +306,19 @@ def test_checks_summary_and_lines():
     assert re.fullmatch(r"\d+ of the last 10 red days closed in the top third", out["pivotSpeed"]["reason"])
     assert re.fullmatch(r"up on \d+ of \d+ red days in the last 20 sessions", out["greenOnRed"]["reason"])
     flat = [{"t": 1000 + i, "o": 50.0, "h": 51.0, "l": 49.0, "c": 50.0, "v": 1} for i in range(260)]
-    out = sig._rs_checks(flat, bench, "SPY", -0.5)
+    out = rsp._rs_checks(flat, bench, "SPY", -0.5)
     assert out["anchor"]["line"] == f"fail · {out['anchor']['reason']}"
     assert out["summary"] == f"{out['passed']} of 4 pass"
 
 
 def test_the_anchor_reason_leads_with_numbers_and_says_1_bar_ago():
     stock, bench = _check_bars(low_ago=1)
-    a = sig._rs_checks(stock, bench, "QQQ", -0.5)["anchor"]
+    a = rsp._rs_checks(stock, bench, "QQQ", -0.5)["anchor"]
     assert a["barsAgo"] == 1
     assert re.fullmatch(r"stock [+-]?\d+\.\d%, QQQ [+-]?\d+\.\d%; low was 1 bar ago", a["reason"]), a["reason"]
     assert not a["reason"].lower().startswith("since"), "a value never opens with its label's words"
     stock, bench = _check_bars(low_ago=7)
-    a = sig._rs_checks(stock, bench, "QQQ", -0.5)["anchor"]
+    a = rsp._rs_checks(stock, bench, "QQQ", -0.5)["anchor"]
     assert a["reason"].endswith("; low was 7 bars ago"), a["reason"]
 
 
@@ -325,13 +326,13 @@ def test_undecided_checks_print_the_reason_alone_with_plurals():
     n = 30
     stock = _bars([100.0 + i for i in range(n)])
     bench = _bars([400.0 + i for i in range(n - 2)] + [399.0, 401.0])   # one red day, at bar 28
-    out = sig._rs_checks(stock, bench, "SPY", -0.1)
+    out = rsp._rs_checks(stock, bench, "SPY", -0.1)
     assert out["ma"]["pass"] is None and out["ma"]["line"] == out["ma"]["reason"]
     assert out["pivotSpeed"]["reason"] == "only 1 red day in 30 bars (needs 10)"
     assert out["greenOnRed"]["reason"] == "up on 1 of 1 red day in the last 20 sessions", "the stock rose that day"
     calm = _bars([400.0 + i for i in range(n)])
-    assert sig._rs_checks(stock, calm, "SPY", -0.1)["greenOnRed"]["reason"] == "no red days in the last 20 sessions"
-    blank = sig._rs_checks_unavailable("daily charts only")
+    assert rsp._rs_checks(stock, calm, "SPY", -0.1)["greenOnRed"]["reason"] == "no red days in the last 20 sessions"
+    blank = rsp._rs_checks_unavailable("daily charts only")
     assert all(blank[k]["line"] == "daily charts only" for k in ("ma", "anchor", "pivotSpeed", "greenOnRed"))
     assert blank["summary"] == "daily charts only"
 
@@ -339,7 +340,7 @@ def test_undecided_checks_print_the_reason_alone_with_plurals():
 def test_regime_label_is_words():
     calm = [100.0 * (1.0 - 0.0005) ** i for i in range(880)]
     wild = [calm[-1] * (1.0 + (0.08 if i % 2 == 0 else -0.09)) ** (i + 1) for i in range(130)]
-    assert sig._rs_regime(calm + wild)["label"] == "rebound risk"
+    assert rsp._rs_regime(calm + wild)["label"] == "rebound risk"
 
 
 # ── A2: Mansfield view ─────────────────────────────────────────────────────
@@ -350,9 +351,9 @@ def test_mansfield_view_blanks_the_ratio_and_its_dots_but_keeps_every_column(v2_
     cols = on["columns"]
     assert set(cols) == set(V3_COLUMNS), "the exact-match column contract holds"
     n = len(on["times"])
-    for k in sig._RS_MANSFIELD_VIEW_BLANKS:
+    for k in rsp._RS_MANSFIELD_VIEW_BLANKS:
         assert len(cols[k]) == n and all(v is None for v in cols[k]), k
-    assert set(sig._RS_MANSFIELD_VIEW_BLANKS) == {"rsLine", "rsMa", "rsAbove", "dotNH", "dotNHbeforePx",
+    assert set(rsp._RS_MANSFIELD_VIEW_BLANKS) == {"rsLine", "rsMa", "rsAbove", "dotNH", "dotNHbeforePx",
                                                  "dotNHred", "dotNHpartial", "dotNL"}
     assert any(v is not None for v in off["columns"]["rsLine"]) and any(v is not None for v in off["columns"]["rsAbove"])
     # the Mansfield line draws alone
@@ -381,7 +382,7 @@ def test_the_mansfield_dot_is_a_cross_up_at_zero(v2_row, monkeypatch):
     last = max(ups + downs)
     m = env["payload"]["mansfield"]
     assert m["crossDirection"] == ("up" if last in ups else "down")
-    assert m["lastCross"] == f"{m['crossDirection']}, {sig._rs_ago(len(dot) - 1 - last)}"
+    assert m["lastCross"] == f"{m['crossDirection']}, {rsp._rs_ago(len(dot) - 1 - last)}"
     # off: the dot and the line are blank as before
     off = _long_payload(monkeypatch, {"showMansfield": False})
     assert all(v is None for v in off["columns"]["dotMansfieldCross"])
@@ -462,7 +463,7 @@ def test_no_server_string_says_1_bars_or_repeats_its_label(v2_row, monkeypatch):
             assert not reason.lower().startswith(word), f"checks.{k}.reason {reason!r}"
         assert "of the range" not in (p["checks"]["pivotSpeed"].get("reason") or "")
     stock, bench = _check_bars(low_ago=1)
-    for path, text in _strings(sig._rs_checks(stock, bench, "SPY", -0.5)):
+    for path, text in _strings(rsp._rs_checks(stock, bench, "SPY", -0.5)):
         assert not ONE_BARS.search(text), f"{path}: {text!r}"
 
 
@@ -471,12 +472,12 @@ def test_the_v2_cache_key_carries_the_payload_shape_and_v1_does_not(v2_row, monk
     n = 30
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher({"NVDA": _bars([100.0 + i for i in range(n)]),
                                                           "SPY": _bars([400.0] * n)}))
-    monkeypatch.setattr(sig, "_rs_data_generation", lambda now=None: "r-|e-")
+    monkeypatch.setattr(rsp, "_rs_data_generation", lambda now=None: "r-|e-")
     seen = []
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.append(k))
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
-    assert sig._RS_PAYLOAD_SHAPE == 3 and f"rs3p{sig._RS_PAYLOAD_SHAPE}" in seen[-1], seen[-1]
+    assert rsp._RS_PAYLOAD_SHAPE == 4 and f"rs3p{rsp._RS_PAYLOAD_SHAPE}" in seen[-1], seen[-1]
     monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(False))
     monkeypatch.setattr(rd, "RS_V2_ENABLED", False)
     sig._rs_line_provider("NVDA", "D", {"lookback": 20})
@@ -526,13 +527,15 @@ def _key_paths(obj, path=""):
 
 
 #: The v2 payload's key paths at `_RS_PAYLOAD_SHAPE` 3 (2026-11-07: benchmark.note,
-#: history.summary, mansfield.lengthText). ⛔ A field added or removed here without a
+#: history.summary, mansfield.lengthText), and at 4 (2026-11-07: rating.m1, rating.m3,
+#: rating.m6, rating.m12, rating.components, the Components row). ⛔ A field added or removed here without a
 #: bump is served the OLD shape for up to a session: the pod carries its cache across
 #: a restart (`cache_snapshot`), and an RS envelope lives until the next session
 #: close. Measured in the sandbox the day this rail was written.
 _SHAPE_3_TOP = {"benchmark", "checks", "evidence", "history", "inputs", "intraday", "lastRsHigh", "legend",
                 "mansfield", "rating", "regime", "sensitivity", "state", "theme"}
-_SHAPE_3_FIELDS = {"benchmark.note", "history.summary", "mansfield.lengthText", "mansfield.lastCross"}
+_SHAPE_3_FIELDS = {"benchmark.note", "history.summary", "mansfield.lengthText", "mansfield.lastCross",
+                   "rating.m1", "rating.m3", "rating.m6", "rating.m12", "rating.components"}
 
 
 def test_a_payload_field_change_comes_with_a_shape_bump(v2_row, monkeypatch):
@@ -544,6 +547,34 @@ def test_a_payload_field_change_comes_with_a_shape_bump(v2_row, monkeypatch):
     assert _SHAPE_3_FIELDS <= got
     import hashlib
     digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
-    assert (sig._RS_PAYLOAD_SHAPE, digest) == (3, "769dd755aa5ddc93"), (
+    assert (rsp._RS_PAYLOAD_SHAPE, digest) == (4, "0946aceab7795a4e"), (
         f"the RS payload's key paths changed (digest {digest}): bump signature._RS_PAYLOAD_SHAPE, "
+        f"then pin the new pair here. Paths: {sorted(got)}")
+
+
+#: The v4 payload's key paths (unit 3-06, `compute.rev` 4, `_RS_PAYLOAD_SHAPE_V4`
+#: 5): the v3 paths plus the `rotation`, `quality` and `vars` blocks, the nine
+#: Phase 3 `inputs` and `checks.anchor.source` / `date`. The v3 pin above is
+#: unchanged on purpose: with the flag off the v3 payload is byte-identical and
+#: its key still reads `rs3p4`. A v4 field added or removed needs
+#: `_RS_PAYLOAD_SHAPE_V4` bumped and this pair re-pinned.
+_SHAPE_5_NEW_TOP = {"rotation", "quality", "vars"}
+_SHAPE_5_FIELDS = {"rotation.summary", "rotation.inQuadrantBars", "quality.summary", "quality.annualPct",
+                   "vars.summary", "vars.stateWord", "inputs.view", "inputs.customBenchmark",
+                   "inputs.anchorDate", "checks.anchor.source", "checks.anchor.date"}
+
+
+def test_a_v4_payload_field_change_comes_with_a_v4_shape_bump(monkeypatch):
+    monkeypatch.setitem(rd._BY_ID, "rsLine", rd._rs_line_row(True, True))
+    monkeypatch.setattr(rd, "RS_V2_ENABLED", True)
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily()))
+    _no_cache(monkeypatch)
+    p = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
+    got = _key_paths(p)
+    assert {k for k in got if "." not in k} == _SHAPE_3_TOP | _SHAPE_5_NEW_TOP
+    assert _SHAPE_3_FIELDS | _SHAPE_5_FIELDS <= got
+    import hashlib
+    digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
+    assert (rsp._RS_PAYLOAD_SHAPE_V4, digest) == (5, "941624d86bef76c7"), (
+        f"the v4 RS payload's key paths changed (digest {digest}): bump rs_provider._RS_PAYLOAD_SHAPE_V4, "
         f"then pin the new pair here. Paths: {sorted(got)}")

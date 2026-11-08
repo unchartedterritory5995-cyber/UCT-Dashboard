@@ -299,6 +299,103 @@ _RS_RATING_NOTE = ("Written by the 04:15 ET rating job AFTER the 03:00 ET screen
                    "job, a name outside the rated population, or too few stored sessions.")
 
 
+#: Unit 3-11: what every Phase 3 entry says about when it fills.
+_RS_PHASE3_NOTE = ("Empty until the nightly build fills it: the 03:00 ET build writes this column "
+                   "only while its Phase 3 step is switched on, and until then every row is blank "
+                   "and the screener does not offer the control. Computed from the same daily bars "
+                   "and the same `relative_strength` functions the chart uses.")
+
+
+def _rs_phase3_params() -> dict:
+    from api.services import relative_strength as _rs           # noqa: PLC0415
+    from api.services.screener import rs_columns as _rsc        # noqa: PLC0415
+    return {
+        "ratio": _rsc.RRG_RATIO_LEN, "mom": _rsc.RRG_MOM_LEN,
+        "quadrants": tuple(_rs.RRG_QUADRANT_NAMES),
+        "clenow": _rsc.CLENOW_WINDOW, "clenow_dp": _rsc.CLENOW_DP,
+        "annual": _rs.CLENOW_ANNUALISATION_BARS,
+        "atr": _rs.DEFAULT_ATR_LENGTH, "vars_look": _rs.DEFAULT_VARS_LOOKBACK,
+        "vars_ma": _rs.DEFAULT_VARS_MA_LENGTH, "states": tuple(_rsc.VARS_STATE_NAMES),
+        "min": dict(_rsc.PHASE3_MIN_BARS),
+    }
+
+
+def _rrg_formula_prose(q: dict) -> str:
+    """Decision D1: the Terminal's formula, printed (`relative_strength.rrg_columns`)."""
+    return (f"RS = 100 x C / B; RS-Ratio = 100 x RS / SMA(RS, {q['ratio']}); RS-Momentum = "
+            f"100 x RS-Ratio / SMA(RS-Ratio, {q['mom']}); the quadrants split at 100 on both axes")
+
+
+def _rs_phase3_methods() -> list:
+    """Unit 3-11: the three Phase 3 columns (`rs_columns.PHASE3_COLUMNS`), every
+    number read from the writer so the page cannot drift from it."""
+    q = _rs_phase3_params()
+    lead, weak, lag, imp = q["quadrants"]
+    s_rise, s_fade, w_imp, w_fall = q["states"]
+    return [
+        {"column": "rrg_quadrant", "label": "Rotation Quadrant vs SPY (weekly)",
+         "one_line": "Which of the four rotation quadrants the stock sits in against SPY, on weekly bars.",
+         "scale": " | ".join(q["quadrants"]),
+         "how": (f"RRG-style, UCT's formula, the one the Terminal's rotation graph draws, on WEEKLY "
+                 f"bars resampled from the daily closes (SPY resampled the same way). With C the "
+                 f"stock's weekly close and B SPY's for the same week: {_rrg_formula_prose(q)}, "
+                 f"and 100 itself counts as the upper side. {lead}: RS-Ratio and "
+                 f"RS-Momentum both at or above 100. {weak}: RS-Ratio at or above 100, RS-Momentum "
+                 f"below. {lag}: both below 100. {imp}: RS-Ratio below 100, RS-Momentum at or "
+                 f"above. Only weeks both series have are compared. Blank until "
+                 f"{q['min']['rrg_quadrant']} joined weeks exist. " + _RS_PHASE3_NOTE),
+         "caveat": ("RRG-style, not StockCharts' Relative Rotation Graph: its JdK RS-Ratio and "
+                    "RS-Momentum use a normalisation that is not published, so the same stock can "
+                    "sit in a different quadrant there. The quadrant describes the past weeks' "
+                    "rotation against SPY, not the next one.")},
+        {"column": "clenow_score", "label": "Clenow Trend Score (90 days)",
+         "one_line": (f"How fast and how steadily price has trended over the last {q['clenow']} "
+                      f"trading days, in one number."),
+         "scale": (f"a fraction, signed, {q['clenow_dp']} places (0.50 is a 50%-a-year pace after "
+                   f"the R-squared discount)"),
+         "how": (f"Clenow-style, {q['clenow']} trading days: a straight line is fitted through the "
+                 f"natural log of the last {q['clenow']} daily closes (least squares on the bar "
+                 f"number). Its slope b is compounded to a yearly rate, (1 + b)^{q['annual']} - 1, "
+                 f"and multiplied by the fit's R-squared (0 to 1, how closely the closes follow the "
+                 f"line): score = annualised slope x R-squared, a FRACTION rounded to "
+                 f"{q['clenow_dp']} places, negative when the line slopes down. Blank until "
+                 f"{q['min']['clenow_score']} closes exist, or when the window is perfectly flat "
+                 f"(no R-squared exists). " + _RS_PHASE3_NOTE),
+         "caveat": ("Clenow-style: our own computation of the score from Andreas Clenow's Stocks on "
+                    "the Move. His method also applies rules this column does not (an index "
+                    "filter, a 100-day average, a check for a gap over 15%). A high score describes "
+                    "the last 90 sessions' trend; it says nothing about the next session, and it "
+                    "can sit on a stock that is already extended.")},
+        {"column": "vars_state", "label": "Volatility-Adjusted RS State",
+         "one_line": ("Whether the stock has out-moved SPY once each day's move is scaled by its "
+                      "own volatility, and which way that reading is heading."),
+         "scale": " | ".join(q["states"]),
+         "how": (f"VARS-style (OANDA's volatility-adjusted relative strength), on DAILY bars against "
+                 f"SPY: each session's change is divided by that series' own {q['atr']}-session "
+                 f"Wilder ATR (SPY's change by SPY's ATR), and VARS is the stock's sum minus SPY's "
+                 f"sum over the last {q['vars_look']} sessions both have. The state compares VARS "
+                 f"with its own {q['vars_ma']}-session simple average. {s_rise}: VARS above 0 and "
+                 f"above its average. {s_fade}: above 0, at or below its average. {w_imp}: below "
+                 f"0, above its average. {w_fall}: below 0, at or below its average. A VARS of "
+                 f"exactly 0 has no state. Blank until {q['min']['vars_state']} sessions exist. "
+                 + _RS_PHASE3_NOTE),
+         "caveat": (f"VARS-style: our own computation of OANDA's published form. The "
+                    f"{q['vars_look']}-session lookback is UCT's setting and the "
+                    f"{q['vars_ma']}-session average follows OANDA's case studies, so another "
+                    f"tool's VARS can differ. Strong and weak describe the past against SPY, not "
+                    f"a forecast.")},
+    ]
+
+
+def _rs_phase3_note() -> str:
+    q = _rs_phase3_params()
+    return (f"The rotation quadrant is RRG-style, UCT's formula, read on WEEKLY bars against SPY "
+            f"({_rrg_formula_prose(q)}), the formula the Terminal's rotation graph draws, not "
+            f"StockCharts'. The Clenow trend score is Clenow-style, {q['clenow']} trading days, "
+            f"a fraction rather than a percent. The VARS state is VARS-style, on daily bars "
+            f"against SPY. All three are empty until the nightly build fills them.")
+
+
 def _rs_column_methods() -> list:
     p = _rs_params()
     lb, ma, mt, mn = p["lookback"], p["ma"], p["ma_type"], p["mansfield"]
@@ -464,6 +561,7 @@ def _rs_column_methods() -> list:
                        "weighted rating; a high short-window rank beside a low long-window one "
                        "is a young move, not a leader yet."),
         })
+    out.extend(_rs_phase3_methods())
     for m in out:
         m["family"] = RS_FAMILY
     return out
@@ -518,7 +616,11 @@ def _rs_evidence_params() -> dict:
     return {"floor": _ep.DISPLAY_FLOOR_N, "horizon": _ep.DEFAULT_HORIZON,
             "honesty": _ep.HONESTY_SENTENCE, "survivorship": _ep.SURVIVORSHIP_NOTE,
             "cards": dict(_ep.CARD_SIGNALS), "labels": dict(_ep.SIGNAL_LABELS),
-            "key": _ep.ARTIFACT_KEY, "outcome": _ep.outcome_phrase}
+            "key": _ep.ARTIFACT_KEY, "outcome": _ep.outcome_phrase,
+            # unit VA3: the span rule and the likely range, read at call time
+            "min_dates": _ep.MIN_EVENT_DATES, "confidence": _ep.INTERVAL_CONFIDENCE_PCT,
+            "interval_words": _ep.INTERVAL_WORDS, "need": _ep.requirement_phrase,
+            "splits": _ep.split_unchecked_phrase}
 
 
 def rs_evidence_section() -> dict:
@@ -527,6 +629,7 @@ def rs_evidence_section() -> dict:
     and the honesty sentence a card carries until then."""
     p = _rs_evidence_params()
     floor, h, surv = p["floor"], p["horizon"], p["survivorship"]
+    min_dates, conf, words = p["min_dates"], p["confidence"], p["interval_words"]
     return {
         "label": "Evidence",
         "statements": [dict(s) for s in RS_EVIDENCE_STATEMENTS],
@@ -535,16 +638,25 @@ def rs_evidence_section() -> dict:
                         for card, name in p["cards"].items()],
             "horizon_bars": h,
             "display_floor_n": floor,
+            "min_event_dates": min_dates,
+            "interval_confidence_pct": conf,
             "artifact": p["key"],
             "survivorship": surv,
             # The base (owner decision N6, 2026-11-07) is the next session's open: the
             # phrase is the pull module's `outcome_phrase`, the card sentence's own.
             "rule": (
                 f"A measured number prints on a chart card only when the nightly backtest counted "
-                f"at least {floor} events for that signal, each with a complete {h}-bar window after "
-                f"it. The sentence carries the sample size, the window's dates, the share that "
-                f"{p['outcome']('the benchmark', h)} (the hit rate), the median excess return and the "
-                f"caveat. Signals are read point-in-time, from the bars as held on each session, never "
+                f"at least {floor} events for that signal, each with a complete {h}-session window "
+                f"after it, and those events fell on at least {min_dates} different sessions: events "
+                f"on the same day share one market, so many names firing on a few days are a few "
+                f"observations, not many. The sentence carries the sample size, the sessions it fell "
+                f"on, the window's dates, the share that {p['outcome']('the benchmark', h)} (the hit "
+                f"rate) with the range it is {words} ({conf}% confidence, a Wilson interval that counts "
+                f"each session once, so it is wider than one over every event), the median excess "
+                f"return, the same share for all bars, and the caveats. When the split guard could not "
+                f"check some names (their list of past stock splits was not available) the sentence "
+                f"says how many, for example: {p['splits'](37)} "
+                f"Signals are read point-in-time, from the bars as held on each session, never "
                 f"from today's history. The forward return starts at the next session's open, the "
                 f"first price a member who sees the dot after the close can act on, and ends at the "
                 f"close {h} sessions after the signal; it carries no costs or slippage, so the hit rate "
@@ -553,12 +665,18 @@ def rs_evidence_section() -> dict:
                 f"adjusted for is left out and counted, never measured across two price scales. The "
                 f"population is the {surv}: a name delisted since is counted only where its bars are "
                 f"still held, which flatters the numbers until the registry correction lands. Under "
-                f"the floor, with no complete window, or before the first artifact has been pulled, "
-                f"the card says: {p['honesty']}"),
+                f"the floor or the session rule the card says how many events and sessions were "
+                f"measured and that {p['need'](floor, min_dates)}; with no complete window yet it says "
+                f"so. Before the first artifact has been pulled, or for a signal the backtest does not "
+                f"measure, the card says: {p['honesty']}"),
             "form": (
                 f"<count> <signal> on <sessions> sessions, <first date> to <last date>, daily bars: "
-                f"<hit rate>% {p['outcome']('<benchmark>', h)} (median <excess>%), against "
-                f"<all-bars hit rate>% for all bars. {surv[:1].upper()}{surv[1:]}."),
+                f"<hit rate>% ({words} <low>% and <high>%) {p['outcome']('<benchmark>', h)} "
+                f"(<horizon in months>; median <excess>%), against <all-bars hit rate>% for all bars. "
+                f"[Stock splits not yet checked for <N> names.] {surv[:1].upper()}{surv[1:]}."),
+            "form_withheld": (
+                f"UCT measured <count> events on <sessions> sessions, too few to print a hit rate: "
+                f"{p['need'](floor, min_dates)}."),
         },
         "honesty": p["honesty"],
         "not_claimed": [
@@ -575,7 +693,7 @@ def rs_evidence_section() -> dict:
 
 
 def rs_columns_section() -> dict:
-    """The shared notes for the seventeen UCT Relative Strength columns: what
+    """The shared notes for the twenty UCT Relative Strength columns: what
     runs when, the two readings that differ from the textbook, the honesty
     line, and (2b-09) the Evidence subsection. The per-column entries sit in
     `all_methods()["methods"]` beside the composites; this is the paragraph a
@@ -593,7 +711,10 @@ def rs_columns_section() -> dict:
             "per build. The seven rating columns are written by the 04:15 ET rating job AFTER "
             "that build and read by the NEXT build, so a row carries the rating as of the "
             "session before its bars date: the rating lags the bar columns by one session by "
-            "design, and no number here is intraday."),
+            "design, and no number here is intraday. The three Phase 3 columns (the rotation "
+            "quadrant, the Clenow trend score and the VARS state) are computed in the same "
+            "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
+            "on, and are empty until then."),
         "notes": [
             f"Mansfield RS is read on {p['mansfield']} DAILY bars, the curriculum's daily form "
             f"of Weinstein's 52-week weekly average, never on weekly bars; the chart's "
@@ -609,6 +730,7 @@ def rs_columns_section() -> dict:
             "Denominator: the rating ranks the cap universe RS Rank already ranks over, minus "
             "ETFs, so the two ratings describe one population; it is not the whole market and "
             "not every name the screener builds, and a name outside it carries no rating.",
+            _rs_phase3_note(),
         ],
         "honesty": (
             "Every column here describes the past. Relative strength says which stocks to "

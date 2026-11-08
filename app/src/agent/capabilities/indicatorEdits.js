@@ -26,6 +26,9 @@ import { planIndicatorMutation, applyIndicatorMutation, confirmIndicatorMutation
 import { instancesOf } from '../../components/chart/builder/agentSeams'
 import { catalogRows, userCatalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { visibleInputs } from '../../components/chart/indicatorRegistry'
+import { serverDeclares } from '../../components/chart/engine/serverCompute'
+import { enumOptionRequiresServer } from '../../components/chart/engine/defSchema'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
 import { savedReferent } from './indicatorAuthoring'
@@ -71,7 +74,7 @@ export function addableRows() {
   try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id)) } catch { shipped = [] }
   try { mine = userCatalogRows(nativeRegistry).filter(r => owned.has(r.id)) } catch { mine = [] }
   return [...shipped, ...mine].map(r => {
-    const settings = settingsLine(r.inputs)
+    const settings = settingsLine(r.inputs, r.id)
     return settings ? { defId: r.id, name: r.name, settings } : { defId: r.id, name: r.name }
   })
 }
@@ -82,11 +85,36 @@ export function addableRows() {
 //   "period int 1-500 (5); maType sma|ema|wma|… (sma)". Colours, sources and text are left
 // out — the Agent sets lengths, multipliers, types and switches, not paint.
 const SETTABLE = new Set(['int', 'float', 'enum', 'bool'])
-export function settableInputs(inputs) {
-  return (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+// ⭐ UCT RS 3-14 — AND ONLY WHAT THE SETTINGS SURFACES SHOW. With `defId`, the list follows
+// the one visibility model the dialog, the phone sheet and the inspector read
+// (`indicatorRegistry.visibleInputs` over `serverCompute.serverDeclares`): a `requiresServer`
+// input or option the live row has not declared is not offered (fail closed while unknown),
+// and a `legacy` input only while its `mapsTo` successor is still gated off. A definition
+// that marks nothing gated or legacy is returned exactly as before.
+const optionValueOf = (o) => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' && 'value' in o ? o.value : o))
+const gatedDef = (def) => !!def && Array.isArray(def.inputs) && def.inputs.some(i => i && (i.legacy === true
+  || i.requiresServer === true || (Array.isArray(i.options) && i.options.some(enumOptionRequiresServer))))
+function shownInputsOf(defId) {
+  let def = null
+  try { def = defId ? nativeRegistry.getDefinition(defId) : null } catch { def = null }
+  if (!gatedDef(def)) return null
+  let declared = null
+  try { declared = serverDeclares(defId) } catch { declared = null }
+  return new Map(visibleInputs(def, declared).map(i => [i.key, i]))
 }
-function settingsLine(inputs) {
-  return settableInputs(inputs).map(i => {
+export function settableInputs(inputs, defId) {
+  const list = (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+  const shown = shownInputsOf(defId)
+  if (!shown) return list
+  return list.filter(i => shown.has(i.key)).map(i => {
+    const v = shown.get(i.key)
+    if (i.type !== 'enum' || !Array.isArray(i.options) || !Array.isArray(v.options)) return i
+    const ok = new Set(v.options.map(optionValueOf))
+    return { ...i, options: i.options.filter(o => ok.has(optionValueOf(o))) }
+  })
+}
+function settingsLine(inputs, defId) {
+  return settableInputs(inputs, defId).map(i => {
     const kind = i.type === 'enum' ? (i.options || []).map(o => String(o.value)).join('|')
       : i.type === 'bool' ? 'true|false'
         : `${i.type}${Number.isFinite(i.min) || Number.isFinite(i.max) ? ` ${i.min ?? ''}-${i.max ?? ''}` : ''}`
@@ -97,7 +125,7 @@ function settingsLine(inputs) {
 export function inputsOfDef(defId) {
   try {
     const row = [...catalogRows(nativeRegistry), ...userCatalogRows(nativeRegistry)].find(r => r.id === defId)
-    return settableInputs(row && row.inputs)
+    return settableInputs(row && row.inputs, defId)
   } catch { return [] }
 }
 
@@ -143,10 +171,21 @@ export function unsettableInput(defId, inputs) {
   if (!inputs) return null
   let declared = []
   try { declared = (nativeRegistry.getDefinition(defId) || {}).inputs || [] } catch { declared = [] }
+  const shown = shownInputsOf(defId)
   for (const key of Object.keys(inputs)) {
     const d = declared.find(i => i && i.key === key)
     if (d && !SETTABLE.has(d.type)) {
       return `I can't change an indicator's ${UNSETTABLE_WORD[d.type] || `“${d.label || key}” setting`} yet — use that indicator's settings on the chart.`
+    }
+    // ⭐ 3-14: a setting the settings surfaces do not show (gated off by the server, or a
+    // retired legacy switch) is not written either — the Agent writes what it advertises.
+    if (d && shown) {
+      const v = shown.get(key)
+      const value = inputs[key]
+      const optionHidden = v && d.type === 'enum' && Array.isArray(v.options)
+        && Array.isArray(d.options) && d.options.some(o => optionValueOf(o) === value)
+        && !v.options.some(o => optionValueOf(o) === value)
+      if (!v || optionHidden) return `“${d.label || key}”${optionHidden ? ` set to ${JSON.stringify(value)}` : ''} isn't available on this indicator yet, so I didn't change anything.`
     }
   }
   return null

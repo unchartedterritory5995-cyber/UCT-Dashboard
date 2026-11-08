@@ -7,7 +7,7 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2245,
+  "modules_scanned": 2246,
   "summary": {
     "named_access_count": 2,
     "positional_count": 50,
@@ -128,11 +128,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 136
+          "line": 141
         }
       ],
       "evidence": {
-        "line": 140,
+        "line": 145,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -631,11 +631,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 126
+          "line": 133
         }
       ],
       "evidence": {
-        "line": 202,
+        "line": 209,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -715,11 +715,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 767
+          "line": 810
         }
       ],
       "evidence": {
-        "line": 771,
+        "line": 814,
         "pattern": "int-subscript",
         "index": 0
       }

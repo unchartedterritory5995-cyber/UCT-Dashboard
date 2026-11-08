@@ -82,6 +82,31 @@
   padding-bottom: 4px;
 }
 
+/* ⭐ VA2 — "Save as my default" / "Reset to UCT default", above the footer. The
+   buttons reuse the preset button (44 px on touch); the note is the origin line's
+   size and ink. */
+.defaults {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 2px 0;
+  flex: 0 0 auto;
+}
+.defaultsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+}
+.defaultsNote {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-bottom: 4px;
+}
+
 /* ── tabs ─────────────────────────────────────────────────────────────────── */
 
 .tabs {
@@ -287,8 +312,37 @@
   border-radius: var(--radius-sm);
 }
 .unit { margin-left: 6px; font-size: 11px; color: var(--text-muted); }
-.num:disabled, .sel:disabled, .when:disabled { opacity: 0.4; cursor: not-allowed; }
-.num:focus-visible, .sel:focus-visible, .when:focus-visible { outline: none; border-color: var(--border-accent); }
+/* ⭐ UCT RS Phase 3, unit 3-02 — the generic text box (a `string` input). The
+   select's width, so a ticker box lines up under the Benchmark select above it;
+   `max-width: 100%` + `min-width: 0` so a narrow panel shrinks the box rather
+   than pushing the row past the panel edge. A miss reads in the warning colour
+   on the border only; the words under it stay muted (`.textMiss`). */
+.text {
+  width: var(--fld-sel-w);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+}
+.text::placeholder { color: var(--text-dim, var(--text-muted)); }
+.text[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
+.textMiss {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 2px;
+}
+
+.num:disabled, .sel:disabled, .when:disabled, .text:disabled { opacity: 0.4; cursor: not-allowed; }
+.num:focus-visible, .sel:focus-visible, .when:focus-visible, .text:focus-visible { outline: none; border-color: var(--border-accent); }
 
 .toggle {
   appearance: none;
@@ -390,7 +444,7 @@
    and silently lost min-height while the Sheet's own 16px input rule masked
    the font half — measured, not guessed). 16px also stops iOS zoom-on-focus. */
 @media (max-width: 640px) {
-  .num, .sel {
+  .num, .sel, .text {
     min-height: var(--tap-min);
     font-size: 16px;
   }
@@ -415,6 +469,7 @@
 @media (max-width: 1024px) {
   .num,
   .sel,
+  .text,
   .presetBtn {
     min-height: var(--tap-min);
   }

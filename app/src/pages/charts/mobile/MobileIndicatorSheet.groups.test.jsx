@@ -88,15 +88,18 @@ const rsEditing = { kind: 'study', defId: RS, instanceId: 'rs-1' }
 const rsDef = () => engineRegistry.getDefinition(RS)
 
 describe('groups — heads in declaration order, the hint honoured, tap to fold and unfold', () => {
-  test('Simple, Line, New highs — Simple open, the two hinted groups folded, bodies unmounted', () => {
+  test('Simple, Line, New highs, Rating, Stress test, Method — Simple open, the five hinted groups folded, bodies unmounted', () => {
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
-    // The premise: the shipped definition declares exactly these groups and this hint.
-    expect(rsDef().meta.groupsCollapsed).toEqual(['Line', 'New highs'])
-    expect(heads(ed).map((b) => b.textContent)).toEqual(['Simple', 'Line', 'New highs'])
+    // The premise: the shipped definition declares exactly these groups and this hint
+    // (VA2: the plan's five folded groups, §6.3).
+    const folded = ['Line', 'New highs', 'Rating', 'Stress test', 'Method']
+    // 3-08 adds Checks to the hint; it holds only the anchor date, a
+    // `requiresServer` input, so with no server declaration it has no head
+    expect(rsDef().meta.groupsCollapsed).toEqual([...folded, 'Checks'])
+    expect(heads(ed).map((b) => b.textContent)).toEqual(['Simple', ...folded])
     expect(headNamed(ed, 'Simple').getAttribute('aria-expanded')).toBe('true')
-    expect(headNamed(ed, 'Line').getAttribute('aria-expanded')).toBe('false')
-    expect(headNamed(ed, 'New highs').getAttribute('aria-expanded')).toBe('false')
+    for (const g of folded) expect(headNamed(ed, g).getAttribute('aria-expanded'), g).toBe('false')
     // Simple's rows are there; a folded group's rows are not in the DOM at all.
     expect(rowFor(ed, 'benchmark')).not.toBeNull()
     expect(rowFor(ed, 'maLength')).not.toBeNull()
@@ -140,10 +143,14 @@ describe('every field row carries data-input-key, one per declared input, in dec
     const user = userEvent.setup()
     mount(rsCs(), rsEditing)
     const ed = editor(RS_EDITOR)
-    await user.click(headNamed(ed, 'Line'))
-    await user.click(headNamed(ed, 'New highs'))
-    const declared = rsDef().inputs.map((i) => i.key)
+    for (const g of ['Line', 'New highs', 'Rating', 'Stress test', 'Method']) await user.click(headNamed(ed, g))
+    // 3-08: the Phase 3 inputs (`requiresServer`) wait for the server's
+    // declaration (unit 3-01). ⭐ 3-14: the legacy Mansfield switch renders while
+    // its successor (`view`) is undeclared, so the phone sheet carries it too.
+    const declared = rsDef().inputs.filter((i) => i.requiresServer !== true
+      && (i.legacy !== true || i.key === 'showMansfield')).map((i) => i.key)
     expect(declared.length).toBeGreaterThanOrEqual(15)
+    expect(declared).toContain('showMansfield')
     expect(rowKeys(ed)).toEqual(declared)
   })
 })
@@ -186,7 +193,8 @@ describe('the preset row — chips over meta.presets, the match pressed, one wri
     const onWrite = mount(initial, rsEditing)
     const ed = editor(RS_EDITOR)
     const row = within(ed).getByTestId('preset-row')
-    const ids = rsDef().meta.presets.map((p) => p.id)
+    // 3-08: the Phase 3 presets are `requiresServer`, so nothing declared lists the six
+    const ids = rsDef().meta.presets.filter((p) => p.requiresServer !== true).map((p) => p.id)
     expect(ids).toContain('classic')
     expect(ids).toContain('phase')
     for (const id of ids) expect(presetChip(row, id)).not.toBeNull()
@@ -258,7 +266,7 @@ describe('the preset row — chips over meta.presets, the match pressed, one wri
     const row = within(editor(RS_EDITOR)).getByTestId('preset-row')
     expect(row.dataset.preset).toBe('__custom')
     expect(presetChip(row, '__custom').getAttribute('aria-current')).toBe('true')
-    for (const p of rsDef().meta.presets) expect(presetChip(row, p.id).getAttribute('aria-pressed')).toBe('false')
+    for (const p of rsDef().meta.presets.filter((x) => x.requiresServer !== true)) expect(presetChip(row, p.id).getAttribute('aria-pressed')).toBe('false')
     expect(within(row).queryByTestId('preset-origin')).toBeNull()
   })
 

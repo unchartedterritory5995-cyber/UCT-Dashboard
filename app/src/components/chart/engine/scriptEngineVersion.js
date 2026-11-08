@@ -116,7 +116,8 @@
 /** 32 = W6-T10-N: v5 enum names footprint/volume_row and capitalised enum names serve per the manual's case-sensitivity; runtime lane only, the object door is unchanged */
 /** 33 = RULING-0927: input.time serves only its T16 default form on the host lane (other forms refuse by name); barstate.isnew stays refused with a sharper reason */
 /** 34 = I6a-N4: a block body at a non-multiple-of-4 indent refuses pine:indent with the manual's reason, on both lanes and the door */
-export const SCRIPT_ENGINE_VERSION = 34
+/** 35 = PT-GAPS: six host-lane engine gaps (L3, L4, L6, G-c, G-d, G-h) fixed per existing captures; G-f and G-i queued as Q-PT6/Q-PT7 */
+export const SCRIPT_ENGINE_VERSION = 35
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
