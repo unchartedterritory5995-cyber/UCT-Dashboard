@@ -52,14 +52,16 @@ def auth(tmp_path, monkeypatch):
 def leader(t, rating=95, **kw):
     return {"ticker": t, "bars_asof": YMD, "is_etf": 0, "rs_rating_ibd": rating,
             "rs_nh_bars_ago": 2, "pct_vs_sma200": 12.0, "rs_benchmark_agree": 1,
-            "rs_cross_up_bars_ago": None, "sector": "Technology", "theme": None,
+            "rs_cross_up_bars_ago": None, "rs_line_above_ma": 1, "sector": "Technology",
+            "theme": None,
             **LIQ, **kw}
 
 
 def emerging(t, rating=85, **kw):
     return {"ticker": t, "bars_asof": YMD, "is_etf": 0, "rs_rating_ibd": rating,
             "rs_nh_bars_ago": 40, "pct_vs_sma200": -3.0, "rs_benchmark_agree": 0,
-            "rs_cross_up_bars_ago": 2, "sector": "Industrials", "theme": None,
+            "rs_cross_up_bars_ago": 2, "rs_line_above_ma": 1, "sector": "Industrials",
+            "theme": None,
             **LIQ, **kw}
 
 
@@ -116,6 +118,18 @@ def test_a_leader_miss_with_a_fresh_cross_lands_on_emerging(sdb):
     seed([leader("R89X", rating=89, rs_cross_up_bars_ago=3)])
     out = run_build()
     assert syms(out["leaders"]) == [] and syms(out["emerging"]) == ["R89X"]
+
+
+def test_a_name_that_crossed_up_and_fell_back_is_not_emerging(sdb):
+    """The cross age keeps counting after the line gives the cross back, so Emerging also
+    needs the RS line above its 21-day average NOW (owner decision 2026-11-07)."""
+    seed([emerging("HELD"), emerging("FELLBACK", rs_line_above_ma=0),
+          emerging("UNKNOWN", rs_line_above_ma=None)])
+    out = run_build()
+    assert syms(out["emerging"]) == ["HELD"], "control HELD stays; the other two are out"
+    assert out["receipt"]["candidates"] == 1, "the SQL prefilter drops them too"
+    assert rl._is_emerging({"rating": 85, "rs_cross_up_bars_ago": 2, "rs_line_above_ma": 0}) is False
+    assert rl._is_emerging({"rating": 85, "rs_cross_up_bars_ago": 2, "rs_line_above_ma": 1}) is True
 
 
 def test_the_rating_is_the_sessions_history_row_and_the_column_only_without_one(sdb):
@@ -237,6 +251,7 @@ def test_the_descriptions_say_the_rule_in_plain_words():
         assert all(ord(c) < 128 for c in d), "no emoji or decorative glyphs"
     assert "90 or higher" in lead and "10 sessions" in lead and "200-day" in lead
     assert "80 or higher" in emer and "5 sessions" in emer and "RS Leaders" in emer
+    assert "within the last 5 sessions and is still above it" in emer
 
 
 # ───────────────────────────── the job and its guards ───────────────────────

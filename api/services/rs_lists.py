@@ -13,7 +13,9 @@ screener starters carry (`saved_screens._RS_LIQUID`, imported, never retyped):
 
   Leaders   rating >= 90 AND rs_nh_bars_ago <= 10 AND pct_vs_sma200 > 0
             AND rs_benchmark_agree = 1
-  Emerging  rs_cross_up_bars_ago <= 5 AND rating >= 80, minus every Leader
+  Emerging  rs_cross_up_bars_ago <= 5 AND rs_line_above_ma = 1 AND rating >= 80,
+            minus every Leader (the cross age keeps counting after a cross the line has
+            since given back, so "still above" is its own clause, as in the starter)
 
 "rating" is the IBD-style 1-99 rating for the screener session itself: the
 `rs_rating_history` row `rs_history_nightly` wrote for that session at 04:15, and the
@@ -71,6 +73,9 @@ LEADERS_RATING_MIN = 90
 LEADERS_NH_MAX_BARS = 10
 EMERGING_RATING_MIN = 80
 EMERGING_CROSS_MAX_BARS = 5
+#: Emerging also needs the RS line still above its 21-day average now (owner decision,
+#: 2026-11-07): a name that crossed up and fell back is not listed.
+EMERGING_ABOVE_MA = 1
 
 RUNS_TABLE = "rs_lists_runs"
 RUNS_KEEP = 60
@@ -88,8 +93,8 @@ LEADERS_DESC = (
 )
 EMERGING_DESC = (
     "Stocks with an RS rating of 80 or higher (on a 1 to 99 scale) whose RS line crossed "
-    "above its 21-day average within the last 5 sessions, leaving out every name already "
-    "on RS Leaders. No ETFs, " + _LIQUID_DESC + ". "
+    "above its 21-day average within the last 5 sessions and is still above it, leaving "
+    "out every name already on RS Leaders. No ETFs, " + _LIQUID_DESC + ". "
     f"Grouped by theme, at most {CAP} names, rebuilt each morning from the last session's "
     "close. " + _BENCH_DESC + " (the RS Leaders rule)."
 )
@@ -97,7 +102,7 @@ DESCRIPTIONS = {LEADERS_NAME: LEADERS_DESC, EMERGING_NAME: EMERGING_DESC}
 
 #: The screener columns one candidate row carries.
 _ROW_COLUMNS = ("ticker", "company", "sector", "theme", "rs_rating_ibd", "rs_nh_bars_ago",
-                "rs_cross_up_bars_ago", "pct_vs_sma200", "rs_benchmark_agree")
+                "rs_cross_up_bars_ago", "rs_line_above_ma", "pct_vs_sma200", "rs_benchmark_agree")
 
 _OPS = {"gte": (">=", "min"), "gt": (">", "min"), "lte": ("<=", "max"), "lt": ("<", "max")}
 
@@ -149,8 +154,9 @@ def _candidates(conn, session: str, etf_tickers) -> tuple[list, int]:
     judged = int(conn.execute(f"SELECT COUNT(*) {base}", [ymd, *largs]).fetchone()[0] or 0)
     sql = (f"SELECT {', '.join(_ROW_COLUMNS)} {base} AND ("
            "(rs_nh_bars_ago <= ? AND pct_vs_sma200 > 0 AND rs_benchmark_agree = 1) "
-           "OR (rs_cross_up_bars_ago >= 0 AND rs_cross_up_bars_ago <= ?))")
-    rows = conn.execute(sql, [ymd, *largs, LEADERS_NH_MAX_BARS, EMERGING_CROSS_MAX_BARS]).fetchall()
+           "OR (rs_cross_up_bars_ago >= 0 AND rs_cross_up_bars_ago <= ? AND rs_line_above_ma = ?))")
+    rows = conn.execute(sql, [ymd, *largs, LEADERS_NH_MAX_BARS, EMERGING_CROSS_MAX_BARS,
+                              EMERGING_ABOVE_MA]).fetchall()
     etfs = {str(t).upper() for t in (etf_tickers or ())}
     out = [dict(r) for r in rows if str(r["ticker"]).upper() not in etfs]
     return out, judged
@@ -187,7 +193,8 @@ def _is_leader(r) -> bool:
 def _is_emerging(r) -> bool:
     return (r["rating"] is not None and r["rating"] >= EMERGING_RATING_MIN
             and r.get("rs_cross_up_bars_ago") is not None
-            and 0 <= r["rs_cross_up_bars_ago"] <= EMERGING_CROSS_MAX_BARS)
+            and 0 <= r["rs_cross_up_bars_ago"] <= EMERGING_CROSS_MAX_BARS
+            and r.get("rs_line_above_ma") == EMERGING_ABOVE_MA)
 
 
 def _strength_key(r):
