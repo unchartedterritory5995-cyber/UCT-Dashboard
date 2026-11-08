@@ -663,6 +663,24 @@ function focusInto(root, selector) {
   return true
 }
 
+/** ⭐ a11y gate §12.2 — the focusable legend control of an instance's chip, the
+ *  element that hosts its menu: the `[data-instance-id]` node itself when it is the
+ *  button, else the row button around its label (the vertical grid variant puts the
+ *  id on the label). Never an ancestor outside `scope` (the chart region is
+ *  focusable too, and focus landing there is the bug this exists for). A visible
+ *  node wins over a folded one. */
+function chipFocusTarget(scope, instanceId) {
+  if (!scope || !instanceId) return null
+  let nodes = []
+  try {
+    nodes = [...scope.querySelectorAll('[data-instance-id]')].filter((n) => n.getAttribute('data-instance-id') === instanceId)
+  } catch { return null }
+  const targets = nodes
+    .map((n) => (n.matches('[role="button"][tabindex]') ? n : n.closest('[role="button"][tabindex]')))
+    .filter((n) => n && scope.contains(n) && n.getAttribute('tabindex') !== '-1')
+  return targets.find((n) => n.offsetParent !== null) || targets[0] || null
+}
+
 function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false, rowAction = null,
   focusRowKey = null, onRowFocused = null }) {
   // ⭐ a11y — back from a card: focus returns to the row that opened it.
@@ -20027,6 +20045,13 @@ export default function StockChart({
               width={296}
               dense
               sheetClassName={sheetCls}
+              /* ⭐ a11y gate §12.2: the tour opens on Next, its primary action (not
+                 on Skip tour, first in reading order), and Done / Skip / Escape hand
+                 focus to the chip it is about. The chart opened it on its own, so the
+                 focus recorded at open was the chart region or the page, never the
+                 chip. Resolved at close: the chip's node is whatever is live then. */
+              initialFocus="[data-tour-next], [data-tour-done]"
+              returnFocusTo={{ get current() { return chipFocusTarget(wrapperRef.current || containerRef.current, c.instanceId) } }}
             >
               <LegendTourPage cards={tourCards} step={tourStep}
                 name={(def && def.meta && def.meta.name) || c.label}

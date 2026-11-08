@@ -573,6 +573,44 @@ describe('3 · keyboard focus stays in the popover (spec §12.2 keyboard check)'
     expect(document.activeElement, 'card 1 has no Back: Next').toBe(tourEl().querySelector('[data-tour-next]'))
   })
 
+  // The chip's focusable control: the `[data-instance-id]` node, or the row button around it.
+  const chipButton = (el) => (el.matches('[role="button"][tabindex]') ? el : el.closest('[role="button"][tabindex]'))
+
+  it('the tour opens with focus on Next, its primary action, not on Skip tour', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    await chipOf(container, liveOf, TOUR_ID)
+    await waitTour()
+    await vi.waitFor(() => expect(document.activeElement, 'focus on Next').toBe(tourEl().querySelector('[data-tour-next]')))
+    expect(document.activeElement).not.toBe(tourEl().querySelector('[data-tour-skip]'))
+  })
+
+  it('Done hands focus back to the RS chip that hosts the menu, not the chart region', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    const chip = chipButton(await chipOf(container, liveOf, TOUR_ID))
+    expect(chip, 'the chip is a focusable button').toBeTruthy()
+    await waitTour()
+    await press(tourEl().querySelector('[data-tour-next]'))
+    await press(tourEl().querySelector('[data-tour-next]'))
+    await press(tourEl().querySelector('[data-tour-done]'))
+    expect(tourEl()).toBeNull()
+    await vi.waitFor(() => expect(document.activeElement, 'focus on the chip').toBe(chipButton(container.querySelector(`[data-instance-id="${liveOf(TOUR_ID)[0].instanceId}"]`))))
+    expect(document.activeElement).not.toBe(thief())
+  })
+
+  it('Skip tour hands focus back to the RS chip too', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    await chipOf(container, liveOf, TOUR_ID)
+    await waitTour()
+    await press(tourEl().querySelector('[data-tour-skip]'))
+    expect(tourEl()).toBeNull()
+    await vi.waitFor(() => expect(document.activeElement, 'focus on the chip').toBe(chipButton(container.querySelector(`[data-instance-id="${liveOf(TOUR_ID)[0].instanceId}"]`))))
+    expect(document.activeElement).not.toBe(thief())
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
   it('a readout row opens its card with focus on the back row, and back returns focus to that row', async () => {
     const { container } = await mount([{ instanceId: 'tf-1', defId: TOUR_ID, inputs: {}, hidden: false }], {}, { thief: true })
     const menu = await openMenu(container, 'tf-1')

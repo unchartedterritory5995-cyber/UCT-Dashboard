@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import Sheet from './Sheet'
@@ -66,11 +66,27 @@ export default function ContextPopover({
   // escaping any scoped theme tokens (the chart's Sunrise), exactly like every
   // other Sheet. Desktop's anchored menu ignores it (menu-dark by design).
   sheetClassName = '',
+  /** ⭐ OPT-IN, DESKTOP: a selector for the control that takes focus on open,
+   *  instead of the first focusable one. The RS tour opens on "Next", its primary
+   *  action, not on "Skip tour", which comes first in reading order (a11y gate
+   *  §12.2, 2026-11-08). Falls back to the first focusable when nothing matches. */
+  initialFocus,
+  /** ⭐ OPT-IN, BOTH BRANCHES: the element (or a ref to it) focus returns to on
+   *  close, the same contract as `Sheet`'s `returnFocusTo` (used only while it is
+   *  still connected; otherwise focus goes back to where it was on open). A menu
+   *  the CHART opened on its own (the RS tour) has no opener in focus, so without
+   *  it focus fell back to the chart region rather than the chip it is about. */
+  returnFocusTo,
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
   const [pos, setPos] = useState(null)
   const focusedOnce = useRef(false)
+  // Read through refs (as `Sheet` reads its own), so a new selector or element
+  // identity never re-runs the latched focus effect below.
+  const initialFocusRef = useRef(initialFocus)
+  const returnFocusToRef = useRef(returnFocusTo)
+  useLayoutEffect(() => { initialFocusRef.current = initialFocus; returnFocusToRef.current = returnFocusTo })
 
   // Desktop: clamp the anchored menu inside the viewport after it mounts
   useEffect(() => {
@@ -115,7 +131,10 @@ export default function ContextPopover({
     const takeFocus = () => {
       const el = menuRef.current
       if (!el) return
-      const first = focusableWithin(el)[0]
+      const sel = initialFocusRef.current
+      let picked = null
+      try { picked = sel ? el.querySelector(sel) : null } catch { picked = null }
+      const first = picked || focusableWithin(el)[0]
       ;(first || el).focus?.()
       if (!el.contains(document.activeElement) && tries < 12) {
         tries += 1
@@ -131,7 +150,13 @@ export default function ContextPopover({
     // test written for it could not fail, and a test that cannot fail reads as
     // coverage while providing none. Optional chaining is the whole guard: it
     // handles `restoreTo` being null, which IS distinguishable.
-    return () => { cancelAnimationFrame(raf); restoreTo?.focus?.() }
+    return () => {
+      cancelAnimationFrame(raf)
+      const named = returnFocusToRef.current
+      const to = named && typeof named === 'object' && 'current' in named ? named.current : named
+      if (to && to.isConnected && typeof to.focus === 'function') to.focus()
+      else restoreTo?.focus?.()
+    }
   }, [open, isTouch, pos])
 
   // Desktop: dismiss on outside click / Escape
@@ -194,7 +219,7 @@ export default function ContextPopover({
     return (
       // VIS-7 (audit 2026-11-05, axe aria-dialog-name): the sheet is a dialog and needs a name. The same rule as the
       // anchored menu below: the title when it is plain text (named BY the visible title), else Options / Actions.
-      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}
+      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName} returnFocusTo={returnFocusTo}
         labelledByTitle={typeof title === 'string' && Boolean(title)}
         ariaLabel={typeof title === 'string' && title ? undefined : (children != null ? 'Options' : 'Actions')}>
         <div className={styles.sheetList}>
