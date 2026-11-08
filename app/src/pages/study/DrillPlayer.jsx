@@ -34,6 +34,7 @@ import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFa
 import useStudySession from './useStudySession'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
+import { isRsPairItem, primeRsColumns, rsInstances, rsMarkMarkers, rsPairKey } from './studyRsOverlay'
 import { studyOpenMarkers } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
@@ -71,6 +72,7 @@ export function skillChip(skillId) {
   if (id === 'read.events') return 'Chart event'
   if (id === 'read.bases') return 'Base'
   if (id === 'read.levels') return 'Levels and lines'
+  if (id === 'read.rs') return 'Relative strength'
   if (id.startsWith('size.')) return 'Sizing'
   if (id.startsWith('regime.')) return 'Regime'
   return id.split('.').pop().replace(/_/g, ' ')
@@ -157,16 +159,30 @@ export default function DrillPlayer({
   const chartVisible = needsChart && chartItemId === item?.id && chartMounted
   const chartItem = chartItemId ? s.items.find((it) => it.id === chartItemId) || item : null
   const chartOpts = chartItem?.prompt_json?.chart
+  const chartTf = chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'
+  // RS 4-09: an RS drill draws the REAL UCT RS pane from the columns the item carries (studyRsOverlay). Primed
+  // into the server lane's cache HERE, in render, ahead of StockChart's bind: the chart's sym is the item id, so
+  // an unprimed rsLine would fetch /api/signature/columns. A TAP or red-day item's prompt blanks the dots (a dot is
+  // the answer, or gives it away); once scored, the reveal's own columns (reveal.rs) replace them on the same chart.
+  const rsRevealed = phase === 'reveal' && !!result && chartItemId === item?.id
+  const rsReveal = rsRevealed ? result.reveal || null : null
+  const rsPrimed = useMemo(
+    () => (chartItem && chartItemId ? primeRsColumns(chartItem, chartItemId, chartTf, { reveal: rsReveal, revealed: rsRevealed }) : []),
+    [chartItem, chartItemId, chartTf, rsReveal, rsRevealed],
+  )
+  const rsKey = useMemo(() => rsPairKey(rsPrimed), [rsPrimed])
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
-  const studyOverride = useMemo(
-    () => memberSettingsOverride(chartOpts, { instances: slingshotInstances(chartItem) }),
-    [chartOpts, chartItem],
-  )
+  const studyOverride = useMemo(() => {
+    const own = [...(slingshotInstances(chartItem) || []), ...(rsInstances(rsPrimed) || [])]
+    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null })
+  }, [chartOpts, chartItem, rsPrimed])
   // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
-  const sessionChart = useSessionChartSettings(studyOverride, chartItemId || null)
+  // An RS reveal starts a fresh session blob, so an edit made on the prompt cannot pin the blank-dot line.
+  const rsRevealKey = rsPrimed.some((p) => p.slot === 1) ? ':rs-reveal' : ''
+  const sessionChart = useSessionChartSettings(studyOverride, chartItemId ? `${chartItemId}${rsRevealKey}` : null)
   const entryDate = chartBars?.[0]?.t ?? null
   const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null
 
@@ -185,6 +201,8 @@ export default function DrillPlayer({
   const shownBars = chartBars
   const pointer = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
+    // a which-line-leads item asks about two RS lines, not a candle: no pointer
+    if (isRsPairItem(item)) return null
     const i = baseLen - 1
     if (phase === 'reveal' && result) {
       const color = result.correct ? '#2faf68' : '#df4646'
@@ -198,6 +216,11 @@ export default function DrillPlayer({
   // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
   // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
   const openMarkers = useMemo(() => (chartVisible ? studyOpenMarkers(item, chartBars) : null), [chartVisible, item, chartBars])
+  // An RS red-day item marks the session it asks about (prompt_json.chart.mark): a small muted dot under that bar.
+  const chartMarkers = useMemo(() => {
+    const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
+    return rs ? [...(openMarkers || []), ...rs] : openMarkers
+  }, [chartVisible, item, chartBars, openMarkers])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -345,6 +368,9 @@ export default function DrillPlayer({
           <div className={styles.qLine}>
             {skillChip(item.skill_id) && <span className={d5.qSetup}>{skillChip(item.skill_id)}</span>}
             {framingShort && <span className={styles.framingSm}>{framingShort}</span>}
+            {chartVisible && rsKey && (
+              <span className={styles.framingSm} data-testid="rs-pair-key">{rsKey[0]} is the upper RS line, {rsKey[1]} the lower.</span>
+            )}
           </div>
         ) : (framing && <p className={styles.framing}>{framing}</p>)}
         <div className={`${styles.chartRow} ${needsChart && stats.length > 0 ? styles.chartRowFacts : ''}`}>
@@ -358,7 +384,7 @@ export default function DrillPlayer({
           {chartMounted && (
             <StockChart
               sym={chartItemId}
-              tf={chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'}
+              tf={chartTf}
               height={CHART_HEIGHT}
               studyMode
               barsOverride={shownBars}
@@ -380,7 +406,7 @@ export default function DrillPlayer({
               annotations={annotations}
               annotationsVisible={!!annotations}
               annotationsTextVisible={!!annotations}
-              markers={openMarkers}
+              markers={chartMarkers}
               onCrosshairMove={onCrosshairMove}
               onChartTap={onChartTapLib}
             />

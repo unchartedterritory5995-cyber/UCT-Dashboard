@@ -1,0 +1,235 @@
+/**
+ * studyRsOverlay — the REAL UCT Relative Strength pane on a Study drill chart
+ * (RS Phase 4, unit 4-09). The bank's RS drills (`docs/study/bank/rs.drills.json`,
+ * generator `scripts/study/bank_v2/gen_rs.py`) carry the server's own columns,
+ * precomputed by `relative_strength.compute_phase1_columns` over `bars.db`:
+ *
+ *   prompt_json.chart.rs      = {columns: {rsLine, rsMa, dotNH, dotNHbeforePx}, times, inputs}
+ *   prompt_json.chart.rs_pair = {A: {...}, B: {...}}   (two stocks against SPY, on SPY's chart)
+ *   reveal_json.rs            = the real columns of a TAP or red-day item, whose prompt blanks the
+ *                               dots (a TAP item's dot IS the answer; a new-high dot on the marked
+ *                               red session says "strong that day"), served only after scoring
+ *   prompt_json.chart.mark    = {bar_index, time, label}: the red market day a spot item asks about
+ *
+ * The drill chart's `sym` is the item id, never the ticker (study_store), so the
+ * RS line can never be fetched from `/api/signature/columns`. Instead each line
+ * is PRIMED into the server lane's cache (`serverCompute.primeServerColumns`)
+ * under exactly the key the binder will ask for, and an ordinary `rsLine` engine
+ * instance with the Classic preset's inputs draws it. Nothing new is rendered:
+ * it is the indicator members add on the Charts tab.
+ *
+ * ⛔ THE REV IS READ FROM THE DEFINITION (`getDefinition('rsLine').compute.rev`),
+ * never typed: a primed wire whose rev differs from the client definition's is
+ * what `revMismatch` flags, and the definition's rev moves with the maths.
+ *
+ * ⛔ NO INSTANCE WITHOUT A PRIMED ENTRY. An `rsLine` instance whose key is not in
+ * the cache makes the binder fetch it — under the item id, from the network. So
+ * a line whose wire is malformed, or whose inputs disagree with the Classic
+ * preset the instance claims, is dropped whole: no line, and no request.
+ *
+ * ⭐ ONE KEY PER LINE. The cache key is (definition, chart symbol, timeframe, the
+ * server inputs). Two lines on one chart (Line A and Line B, or a TAP item's
+ * prompt and reveal columns) share the first three, so each line carries a slot
+ * number in `mansfieldLength`: a server input that only shapes the Mansfield
+ * column, which is blank outside Mansfield view (Classic keeps `showMansfield`
+ * off) and absent from every primed wire. Slot 0 is the Classic default (200),
+ * so a chart with one line carries the Classic preset exactly.
+ *
+ * ⚠️ THE PANE LABEL. The engine prints `UCT Relative Strength · SPY` (meta.name +
+ * the benchmark input; no rating, since the primed wire carries no payload): it
+ * reads the definition and the benchmark, never the chart's symbol, so it never
+ * names the stock. No instance field renames an `rsLine` pane (`display.name`
+ * names only a source-labelled definition), so the two leader lines are told
+ * apart by the drill's own key (`rsPairKey`), Line A above Line B.
+ * ⛔ KNOWN, AND AN ENGINE CHANGE TO FIX: on a leader chart the engine's sibling
+ * disambiguator (`readout.disambiguateSiblings`) names the one input the two
+ * lines differ in, so the pane label reads `UCT Relative Strength · SPY
+ * (mansfieldLength 200)` / `(mansfieldLength 201)` and the chip `UCT RS(SPY)
+ * (mansfieldLength 200)`. The cache key has no component but the instance's
+ * inputs (the chart's sym and tf are shared), and every input difference is
+ * printed, so no instance-side choice can separate the two entries silently.
+ * `studyRsOverlay.test.js` pins the label as rendered until that lands.
+ *
+ * Pure apart from the cache write in `primeRsColumns`. No React, no fetch.
+ */
+import { getDefinition, resolveInputs } from '../../components/chart/engine/nativeRegistry'
+import { pickServerInputs, primeServerColumns, serverColumnsKey } from '../../components/chart/engine/serverCompute'
+import { toChartTime } from '../../components/chart/patternTime'
+
+export const RS_DEF_ID = 'rsLine'
+export const RS_INSTANCE_ID = 'study:rs'
+export const RS_REVEAL_INSTANCE_ID = 'study:rs:reveal'
+export const RS_PAIR_SLOTS = Object.freeze(['A', 'B'])
+export const RS_TF = 'D'
+/** The RS line's own columns a drill wire may carry. Anything else on the wire is ignored. */
+export const RS_WIRE_COLUMNS = Object.freeze(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx'])
+/** The Classic default of `mansfieldLength`; slot n keys as SLOT_BASE + n. */
+const SLOT_BASE = 200
+/** The red-day mark: a small muted dot under the bar, never the gold of the setup level. */
+export const RS_MARK_COLOR = 'rgba(255, 255, 255, 0.55)'
+
+/** The `rsLine` definition, from the registry the chart draws with. */
+export function rsDefinition() {
+  return getDefinition(RS_DEF_ID)
+}
+
+/** The definition's `compute.rev`, read live (never typed), or null without one. */
+export function rsRev() {
+  const def = rsDefinition()
+  const rev = def && def.compute ? def.compute.rev : undefined
+  return Number.isFinite(rev) ? rev : null
+}
+
+/** The Classic preset's inputs, as the definition declares them (colours, toggles, average, lookback). */
+export function classicInputs() {
+  const def = rsDefinition()
+  const presets = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  const classic = presets.find((p) => p && p.id === 'classic')
+  return classic && classic.inputs ? { ...classic.inputs } : {}
+}
+
+function chartOf(item) {
+  const c = item && item.prompt_json && item.prompt_json.chart
+  return c && typeof c === 'object' ? c : null
+}
+
+/** Does this item draw an RS pane (one line, or the leader pair)? */
+export function isRsItem(item) {
+  const c = chartOf(item)
+  return !!(c && ((c.rs && typeof c.rs === 'object') || (c.rs_pair && typeof c.rs_pair === 'object')))
+}
+
+/** A leader item: two RS lines, Line A and Line B, on the market's chart. */
+export function isRsPairItem(item) {
+  const c = chartOf(item)
+  return !!(c && c.rs_pair && typeof c.rs_pair === 'object')
+}
+
+/**
+ * The lines this item draws in this phase: `[{slot, instanceId, label, wire}]`.
+ * A pair draws Line A and Line B. A single line draws the prompt's columns, and
+ * once the item is scored and the reveal carries its own (`reveal.rs`, a TAP or
+ * red-day item's dots), the reveal's.
+ */
+export function rsLinesFor(item, { reveal = null, revealed = false } = {}) {
+  const c = chartOf(item)
+  if (!c) return []
+  if (c.rs_pair && typeof c.rs_pair === 'object') {
+    return RS_PAIR_SLOTS
+      .map((name, n) => ({ slot: n, instanceId: `${RS_INSTANCE_ID}:${name}`, label: `Line ${name}`, wire: c.rs_pair[name] }))
+      .filter((l) => l.wire && typeof l.wire === 'object')
+  }
+  const after = revealed && reveal && reveal.rs && typeof reveal.rs === 'object' ? reveal.rs : null
+  if (after) return [{ slot: 1, instanceId: RS_REVEAL_INSTANCE_ID, label: null, wire: after }]
+  if (c.rs && typeof c.rs === 'object') return [{ slot: 0, instanceId: RS_INSTANCE_ID, label: null, wire: c.rs }]
+  return []
+}
+
+/** The instance inputs for slot n: the Classic preset, plus the slot key past slot 0. */
+export function slotInputs(slot) {
+  const inputs = classicInputs()
+  if (slot > 0) inputs.mansfieldLength = SLOT_BASE + slot
+  return inputs
+}
+
+/** The server inputs the binder keys the fetch with for these instance inputs (`computeFor`'s own path). */
+export function keyInputs(instanceInputs) {
+  const def = rsDefinition()
+  return pickServerInputs(def, resolveInputs(def, instanceInputs))
+}
+
+/**
+ * Does the wire's own `inputs` block (what the generator computed with) agree
+ * with the instance's server inputs on every key both name? A disagreement means
+ * the columns are not what the pane would say they are, so the line is dropped.
+ * Keys the instance does not send (`redDayThreshold` on a Classic chart) are the
+ * server's own and are not compared.
+ */
+export function wireAgrees(wire, instanceInputs) {
+  const sent = keyInputs(instanceInputs)
+  const own = wire && wire.inputs && typeof wire.inputs === 'object' ? wire.inputs : {}
+  for (const [k, v] of Object.entries(own)) {
+    if (!(k in sent)) continue
+    const a = sent[k]
+    if (typeof a === 'number' || typeof v === 'number') {
+      if (Number(a) !== Number(v)) return false
+    } else if (String(a) !== String(v)) return false
+  }
+  return true
+}
+
+/** The wire handed to the cache: the RS columns only, the times, the definition's rev, no payload. */
+export function primeWire(wire) {
+  const cols = wire && wire.columns && typeof wire.columns === 'object' ? wire.columns : {}
+  const columns = {}
+  for (const k of RS_WIRE_COLUMNS) if (Array.isArray(cols[k])) columns[k] = cols[k]
+  return { columns, times: Array.isArray(wire && wire.times) ? wire.times : [], rev: rsRev(), payload: null }
+}
+
+/**
+ * Prime every line this item draws into the server lane's cache, under the key
+ * the chart's binder will compute for it (`sym` = the chart's symbol, the item
+ * id; `tf` = the chart's timeframe). Call it BEFORE the chart binds (in render,
+ * ahead of StockChart): `primeServerColumns` does not notify, by design.
+ *
+ * @returns {{instanceId, slot, label, inputs, key}[]} the lines that primed; a
+ *   line that did not (a malformed wire, a disagreeing input, no rev, a non-daily
+ *   chart) is absent, and so is its instance.
+ */
+export function primeRsColumns(item, sym, tf, opts = {}) {
+  const def = rsDefinition()
+  const rev = rsRev()
+  if (!def || rev == null || !sym || String(tf || RS_TF) !== RS_TF) return []
+  const out = []
+  for (const line of rsLinesFor(item, opts)) {
+    const inputs = slotInputs(line.slot)
+    if (!wireAgrees(line.wire, inputs)) continue
+    const wire = primeWire(line.wire)
+    if (!Array.isArray(wire.columns.rsLine) || !wire.times.length) continue
+    const sent = keyInputs(inputs)
+    const parsed = primeServerColumns(RS_DEF_ID, sym, RS_TF, sent, wire)
+    if (!parsed) continue
+    out.push({ instanceId: line.instanceId, slot: line.slot, label: line.label, inputs, key: serverColumnsKey(RS_DEF_ID, sym, RS_TF, sent) })
+  }
+  return out
+}
+
+/**
+ * The engine instances for the primed lines, merged by id into the drill chart's
+ * `indicatorInstances` (`studyChartLook` `extras.instances`). A line the reveal
+ * replaced is tombstoned, so the prompt's blank-dot line never draws beside it.
+ */
+export function rsInstances(primed) {
+  if (!Array.isArray(primed) || !primed.length) return null
+  // A leader line carries its name as the instance's display name (`Line A`): inert for rsLine today (the engine
+  // prints `display.name` only for a source-labelled definition), and what the readout change in the 4-09 report
+  // would print in place of the sibling suffix.
+  const out = primed.map((p) => ({ instanceId: p.instanceId, defId: RS_DEF_ID, inputs: { ...p.inputs },
+    ...(p.label ? { display: { name: p.label } } : {}) }))
+  if (primed.some((p) => p.instanceId === RS_REVEAL_INSTANCE_ID)) out.push({ instanceId: RS_INSTANCE_ID, deleted: true })
+  return out
+}
+
+/** The drill's own key for the leader pair: the lines in pane order. Null for any other item. */
+export function rsPairKey(primed) {
+  const named = (Array.isArray(primed) ? primed : []).filter((p) => p.label)
+  if (named.length < 2) return null
+  return named.map((p) => p.label)
+}
+
+/**
+ * The red-day mark as a StockChart marker: a small muted dot under the marked
+ * bar (`prompt_json.chart.mark`), the session the question asks about. It says
+ * where to look, never what the answer is. Null for any other item, or when the
+ * bar is not on the chart.
+ */
+export function rsMarkMarkers(item, bars) {
+  const c = chartOf(item)
+  const m = c && c.mark && typeof c.mark === 'object' ? c.mark : null
+  if (!m || !Array.isArray(bars) || !bars.length) return null
+  const want = m.time != null ? toChartTime(m.time, RS_TF) : null
+  let bar = want ? bars.find((b) => toChartTime(b && b.t, RS_TF) === want) : null
+  if (!bar && Number.isInteger(m.bar_index)) bar = bars[m.bar_index] || null
+  if (!bar) return null
+  return [{ time: toChartTime(bar.t, RS_TF), position: 'belowBar', color: RS_MARK_COLOR, shape: 'circle', text: '', id: 'study-rs-mark' }]
+}
