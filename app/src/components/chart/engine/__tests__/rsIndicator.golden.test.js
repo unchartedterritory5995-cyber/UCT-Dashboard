@@ -416,6 +416,13 @@ describe('3-08 — the Rotation, Quality and VARS plots read the Phase 3 golden 
       expect(Math.max(...real), key).toBeGreaterThan(100)
       expect(plot(key)).toMatchObject({ style: 'line', role: 'context', legend: { hide: true } })
     }
+    // a11y gate §12.2 (owner decision): the two thin lines are told apart by the
+    // dash, not by colour alone — RS-Momentum is `largeDashed` like the RS MA, and
+    // RS-Ratio stays solid. Colours are unchanged (info blue / neutral).
+    expect(plot('rsMomentum').lineStyle).toBe(plot('rsMa').lineStyle)
+    expect(plot('rsMomentum').lineStyle).toBe('largeDashed')
+    expect(plot('rsRatio').lineStyle ?? 'solid').toBe('solid')
+    expect([plot('rsRatio').color, plot('rsMomentum').color]).toEqual(['#6ba3be', '#8a8574'])
     expectWireRoundTrip(r, ['rsRatio', 'rsMomentum'], def)
   })
 
