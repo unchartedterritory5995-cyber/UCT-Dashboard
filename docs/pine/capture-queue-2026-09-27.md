@@ -306,3 +306,14 @@ our store spells it (`GET /api/ticker-meta/<SYM>` → `exchange`). ⛔ The warra
 preferred legs are the open risk in what already ships: they carry the SAME store exchange as
 common stock (`NASDAQ`, `NYSE`) and have never been captured. If any reads other than
 `1 / 100`, the NASDAQ/NYSE rows are too broad and must be narrowed before anything else.
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| `barstate.isnew` | ruling | blocked by a RULING, not by a missing capture: `closedTable.json::_barstate.refused.isnew`, "requires per-tick evaluation" (owner ruling, lane RULING-0927) |
+| `input.time` | ruling | blocked by a RULING, not by a missing capture: `pine:input-kind`, "under the threshold", item (c); T16 already confirms the default value (lane RULING-0927) |
+| `ta.nvi` / `ta.pvi` | ruling | blocked by a RULING, not by a missing capture: `_functions_excluded.nvi` / `.pvi`, fetch-dependent level; the ruling stands until the owner reopens it (lane RULING-0927) |
+| `time(<session>)` on daily bars | ruling | blocked by a RULING, not by a missing capture: the refusal "This engine screens daily bars" (lane RULING-0927) |

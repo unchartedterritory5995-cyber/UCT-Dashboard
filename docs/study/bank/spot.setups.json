@@ -226026,5 +226026,501 @@
   "sym": "GBX",
   "type": "spot",
   "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2006-06-01",
+  "bars": {
+   "asof": "2006-06-01",
+   "forward": 20,
+   "sym": "LECO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5bbaaa3a948b",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 7.08% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2006-06-01",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "LECO"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "after_20": {
+     "daily_sd_pct": 2.14,
+     "range_pct": 14.0,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 11.4,
+    "base20_range_pct": 6.4,
+    "breakout20": true,
+    "close_pos": 1.0,
+    "close_pos_pct": 100,
+    "context": {
+     "era": "2005-09",
+     "industry": "Tools & Accessories",
+     "liq_rank": 894,
+     "liq_universe": 2483,
+     "market": "mixed",
+     "off_high_pct": 0.0,
+     "rs63_pct": 26.0,
+     "s200_rising": true,
+     "sector": "Industrials",
+     "vs200_pct": 32.5,
+     "vs50_pct": 10.3
+    },
+    "culmination": {
+     "broke_at": 7,
+     "culm_pct": 2.51,
+     "culm_sessions": 1,
+     "ret20_pct": 0.76
+    },
+    "day_pct": 7.08,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 6.71,
+    "ever_in_data": true,
+    "fwd_10d_pct": -3.5,
+    "fwd_20d_pct": 0.8,
+    "fwd_5d_pct": -2.8,
+    "fwd_closes_above_hvc": 2,
+    "fwd_max_gain_pct": 2.5,
+    "fwd_min_close_vs_hvc_pct": -8.4,
+    "fwd_reclaim_session": 20,
+    "fwd_sessions": 20,
+    "gap_pct": 0.0,
+    "hvc": 29.43,
+    "hve_low": 27.29,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 3060,
+    "range_atr": 2.1,
+    "run_prior_20d_pct": 1.0,
+    "rvol": 24.7,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 10
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#LECO#2006-06-01",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#LECO#2006-06-01",
+  "sym": "LECO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "1999-10-12",
+  "bars": {
+   "asof": "1999-10-12",
+   "forward": 20,
+   "sym": "TROW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a7ff24326309",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 5.92% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "1999-10-12",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "TROW"
+   },
+   "facts": {
+    "above_200": false,
+    "above_50": false,
+    "after_20": {
+     "daily_sd_pct": 3.91,
+     "range_pct": 41.0,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 19.7,
+    "base20_range_pct": 12.1,
+    "breakout20": true,
+    "close_pos": 0.11,
+    "close_pos_pct": 11,
+    "context": {
+     "era": "1995-99",
+     "industry": "Asset Management",
+     "liq_rank": 242,
+     "liq_universe": 1252,
+     "market": "mixed",
+     "off_high_pct": -26.3,
+     "rs63_pct": -4.4,
+     "s200_rising": false,
+     "sector": "Financial Services",
+     "vs200_pct": -6.8,
+     "vs50_pct": 3.1
+    },
+    "culmination": {
+     "broke_at": 1,
+     "culm_pct": -0.78,
+     "culm_sessions": 1,
+     "ret20_pct": 15.29
+    },
+    "day_pct": 5.92,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 9.9,
+    "ever_in_data": false,
+    "fwd_10d_pct": -3.5,
+    "fwd_20d_pct": 15.3,
+    "fwd_5d_pct": -10.2,
+    "fwd_closes_above_hvc": 9,
+    "fwd_max_gain_pct": 19.4,
+    "fwd_min_close_vs_hvc_pct": -12.0,
+    "fwd_reclaim_session": 12,
+    "fwd_sessions": 20,
+    "gap_pct": 9.45,
+    "hvc": 15.94,
+    "hve_low": 15.75,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 3420,
+    "range_atr": 3.06,
+    "run_prior_20d_pct": 2.0,
+    "rvol": 41.2,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#TROW#1999-10-12",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#TROW#1999-10-12",
+  "sym": "TROW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2013-12-09",
+  "bars": {
+   "asof": "2013-12-09",
+   "forward": 20,
+   "sym": "SYY",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b3206e7825b7",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 9.65% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "2013-12-09",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "SYY"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "after_20": {
+     "daily_sd_pct": 0.84,
+     "range_pct": 6.2,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 137.6,
+    "base20_range_pct": 3.6,
+    "breakout20": true,
+    "close_pos": 0.14,
+    "close_pos_pct": 14,
+    "context": {
+     "era": "2010-14",
+     "industry": "Food Distribution",
+     "liq_rank": 349,
+     "liq_universe": 4193,
+     "market": "uptrend",
+     "off_high_pct": -13.3,
+     "rs63_pct": 8.7,
+     "s200_rising": true,
+     "sector": "Consumer Defensive",
+     "vs200_pct": 11.6,
+     "vs50_pct": 14.1
+    },
+    "culmination": {
+     "broke_at": 3,
+     "culm_pct": 0.37,
+     "culm_sessions": 1,
+     "ret20_pct": -4.33
+    },
+    "day_pct": 9.65,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 4.06,
+    "ever_in_data": true,
+    "fwd_10d_pct": -3.0,
+    "fwd_20d_pct": -4.3,
+    "fwd_5d_pct": -3.8,
+    "fwd_closes_above_hvc": 0,
+    "fwd_max_gain_pct": 0.4,
+    "fwd_min_close_vs_hvc_pct": -4.5,
+    "fwd_reclaim_session": null,
+    "fwd_sessions": 20,
+    "gap_pct": 25.47,
+    "hvc": 37.62,
+    "hve_low": 36.69,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 9294,
+    "range_atr": 15.67,
+    "run_prior_20d_pct": 3.6,
+    "rvol": 21.9,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#SYY#2013-12-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#SYY#2013-12-09",
+  "sym": "SYY",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "1998-08-13",
+  "bars": {
+   "asof": "1998-08-13",
+   "forward": 20,
+   "sym": "KSS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ecd25a3e895b",
+  "lesson_origin": "session",
+  "lesson_text": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25). Here the stock closed up 8.8% on the heaviest volume of the lookback.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Does the firm's High Volume Edge setup fire on the last bar of this chart?"
+  },
+  "reveal_json": {
+   "detector": "uct_hve",
+   "example": {
+    "asof": "1998-08-13",
+    "found_by": "pod_find_setups.py (read-only scan)",
+    "sym": "KSS"
+   },
+   "facts": {
+    "above_200": true,
+    "above_50": true,
+    "after_20": {
+     "daily_sd_pct": 3.6,
+     "range_pct": 36.9,
+     "sessions": 20
+    },
+    "avg_dollar_volume_m": 22.5,
+    "base20_range_pct": 21.0,
+    "breakout20": false,
+    "close_pos": 0.67,
+    "close_pos_pct": 67,
+    "context": {
+     "era": "1995-99",
+     "industry": "Department Stores",
+     "liq_rank": 183,
+     "liq_universe": 1174,
+     "market": "mixed",
+     "off_high_pct": -1.3,
+     "rs63_pct": 35.0,
+     "s200_rising": true,
+     "sector": "Consumer Cyclical",
+     "vs200_pct": 36.0,
+     "vs50_pct": 9.6
+    },
+    "culmination": {
+     "broke_at": 6,
+     "culm_pct": 3.19,
+     "culm_sessions": 4,
+     "ret20_pct": -21.11
+    },
+    "day_pct": 8.8,
+    "detector_fires": true,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "edge_ratio": 2.39,
+    "ever_in_data": true,
+    "fwd_10d_pct": -9.6,
+    "fwd_20d_pct": -21.1,
+    "fwd_5d_pct": -1.0,
+    "fwd_closes_above_hvc": 3,
+    "fwd_max_gain_pct": 3.2,
+    "fwd_min_close_vs_hvc_pct": -23.3,
+    "fwd_reclaim_session": 2,
+    "fwd_sessions": 20,
+    "gap_pct": 7.12,
+    "hvc": 28.56,
+    "hve_low": 27.78,
+    "known_name": false,
+    "ma_periods": [
+     8,
+     20,
+     21,
+     30,
+     50,
+     200
+    ],
+    "prior_sessions": 1576,
+    "range_atr": 1.06,
+    "run_prior_20d_pct": -5.7,
+    "rvol": 26.8,
+    "second_source": {
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.01,
+     "p95_close_diff_pct": 0.02,
+     "sessions": 140,
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "yahoo_sessions": 140
+    },
+    "setup_score": 8
+   },
+   "fires": true,
+   "forward_bars": 20,
+   "quote": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
+   "setup": "High Volume Edge",
+   "source": "docs/study/setups/setup_examples.json#High Volume Edge#KSS#1998-08-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#High Volume Edge#KSS#1998-08-13",
+  "sym": "KSS",
+  "type": "spot",
+  "version": 1
  }
 ]

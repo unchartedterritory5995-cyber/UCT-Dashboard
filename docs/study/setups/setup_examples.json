@@ -132254,6 +132254,294 @@
     }
    },
    "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "LECO",
+   "asof": "2006-06-01",
+   "year": 2006,
+   "close": 29.425,
+   "facts": {
+    "day_pct": 7.08,
+    "close_pos": 1.0,
+    "gap_pct": 0.0,
+    "rvol": 24.7,
+    "edge_ratio": 6.71,
+    "prior_sessions": 3060,
+    "range_atr": 2.1,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 29.43,
+    "hve_low": 27.29,
+    "base20_range_pct": 6.4,
+    "run_prior_20d_pct": 1.0,
+    "breakout20": true,
+    "setup_score": 10,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -8.4,
+    "fwd_closes_above_hvc": 2,
+    "fwd_reclaim_session": 20,
+    "fwd_max_gain_pct": 2.5,
+    "fwd_5d_pct": -2.8,
+    "fwd_10d_pct": -3.5,
+    "fwd_20d_pct": 0.8,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 14.0,
+     "daily_sd_pct": 2.14
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 11.4,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": 0.0,
+     "vs50_pct": 10.3,
+     "vs200_pct": 32.5,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 26.0,
+     "era": "2005-09",
+     "sector": "Industrials",
+     "industry": "Tools & Accessories",
+     "liq_rank": 894,
+     "liq_universe": 2483
+    },
+    "culmination": {
+     "culm_pct": 2.51,
+     "culm_sessions": 1,
+     "broke_at": 7,
+     "ret20_pct": 0.76
+    }
+   },
+   "q": 10
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "TROW",
+   "asof": "1999-10-12",
+   "year": 1999,
+   "close": 15.9375,
+   "facts": {
+    "day_pct": 5.92,
+    "close_pos": 0.11,
+    "gap_pct": 9.45,
+    "rvol": 41.2,
+    "edge_ratio": 9.9,
+    "prior_sessions": 3420,
+    "range_atr": 3.06,
+    "detector_fires": true,
+    "ever_in_data": false,
+    "above_200": false,
+    "above_50": false,
+    "hvc": 15.94,
+    "hve_low": 15.75,
+    "base20_range_pct": 12.1,
+    "run_prior_20d_pct": 2.0,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -12.0,
+    "fwd_closes_above_hvc": 9,
+    "fwd_reclaim_session": 12,
+    "fwd_max_gain_pct": 19.4,
+    "fwd_5d_pct": -10.2,
+    "fwd_10d_pct": -3.5,
+    "fwd_20d_pct": 15.3,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 41.0,
+     "daily_sd_pct": 3.91
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 19.7,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -26.3,
+     "vs50_pct": 3.1,
+     "vs200_pct": -6.8,
+     "s200_rising": false,
+     "market": "mixed",
+     "rs63_pct": -4.4,
+     "era": "1995-99",
+     "sector": "Financial Services",
+     "industry": "Asset Management",
+     "liq_rank": 242,
+     "liq_universe": 1252
+    },
+    "culmination": {
+     "culm_pct": -0.78,
+     "culm_sessions": 1,
+     "broke_at": 1,
+     "ret20_pct": 15.29
+    }
+   },
+   "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "SYY",
+   "asof": "2013-12-09",
+   "year": 2013,
+   "close": 37.62,
+   "facts": {
+    "day_pct": 9.65,
+    "close_pos": 0.14,
+    "gap_pct": 25.47,
+    "rvol": 21.9,
+    "edge_ratio": 4.06,
+    "prior_sessions": 9294,
+    "range_atr": 15.67,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 37.62,
+    "hve_low": 36.69,
+    "base20_range_pct": 3.6,
+    "run_prior_20d_pct": 3.6,
+    "breakout20": true,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -4.5,
+    "fwd_closes_above_hvc": 0,
+    "fwd_reclaim_session": null,
+    "fwd_max_gain_pct": 0.4,
+    "fwd_5d_pct": -3.8,
+    "fwd_10d_pct": -3.0,
+    "fwd_20d_pct": -4.3,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 6.2,
+     "daily_sd_pct": 0.84
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.0,
+     "p95_close_diff_pct": 0.0,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 137.6,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -13.3,
+     "vs50_pct": 14.1,
+     "vs200_pct": 11.6,
+     "s200_rising": true,
+     "market": "uptrend",
+     "rs63_pct": 8.7,
+     "era": "2010-14",
+     "sector": "Consumer Defensive",
+     "industry": "Food Distribution",
+     "liq_rank": 349,
+     "liq_universe": 4193
+    },
+    "culmination": {
+     "culm_pct": 0.37,
+     "culm_sessions": 1,
+     "broke_at": 3,
+     "ret20_pct": -4.33
+    }
+   },
+   "q": 8
+  },
+  {
+   "setup": "High Volume Edge",
+   "sym": "KSS",
+   "asof": "1998-08-13",
+   "year": 1998,
+   "close": 28.56,
+   "facts": {
+    "day_pct": 8.8,
+    "close_pos": 0.67,
+    "gap_pct": 7.12,
+    "rvol": 26.8,
+    "edge_ratio": 2.39,
+    "prior_sessions": 1576,
+    "range_atr": 1.06,
+    "detector_fires": true,
+    "ever_in_data": true,
+    "above_200": true,
+    "above_50": true,
+    "hvc": 28.56,
+    "hve_low": 27.78,
+    "base20_range_pct": 21.0,
+    "run_prior_20d_pct": -5.7,
+    "breakout20": false,
+    "setup_score": 8,
+    "fwd_sessions": 20,
+    "fwd_min_close_vs_hvc_pct": -23.3,
+    "fwd_closes_above_hvc": 3,
+    "fwd_reclaim_session": 2,
+    "fwd_max_gain_pct": 3.2,
+    "fwd_5d_pct": -1.0,
+    "fwd_10d_pct": -9.6,
+    "fwd_20d_pct": -21.1,
+    "after_20": {
+     "sessions": 20,
+     "range_pct": 36.9,
+     "daily_sd_pct": 3.6
+    },
+    "second_source": {
+     "source": "Yahoo daily closes today (split-adjusted; the bars' own vendor)",
+     "cover_pct": 100.0,
+     "median_close_diff_pct": 0.01,
+     "p95_close_diff_pct": 0.02,
+     "sessions": 140,
+     "yahoo_sessions": 140
+    },
+    "avg_dollar_volume_m": 22.5,
+    "known_name": false,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "earnings_history": true,
+    "context": {
+     "off_high_pct": -1.3,
+     "vs50_pct": 9.6,
+     "vs200_pct": 36.0,
+     "s200_rising": true,
+     "market": "mixed",
+     "rs63_pct": 35.0,
+     "era": "1995-99",
+     "sector": "Consumer Cyclical",
+     "industry": "Department Stores",
+     "liq_rank": 183,
+     "liq_universe": 1174
+    },
+    "culmination": {
+     "culm_pct": 3.19,
+     "culm_sessions": 4,
+     "broke_at": 6,
+     "ret20_pct": -21.11
+    }
+   },
+   "q": 8
   }
  ],
  "kicker_pass2": {
@@ -148692,6 +148980,33 @@
     "setup": "Launchpad",
     "sym": "TRU",
     "asof": "2023-01-11"
+   }
+  ]
+ },
+ "deep_pass3_pod_universe": {
+  "generated": "2026-11-07",
+  "script": "scripts/study/bank_v2/draft_pass.py",
+  "why": "owner 2026-11-07: 'I THINK ALL OF THAT DATA IS AVIALABLE ON THE WEBSITE THOUGH'. Kicker and HVE hits from the tickers only the pod's bars hold (pod_scan_more.py: 329 hits in 248 tickers, the pod's whole universe for the institutional cut); under the same drafting rules, pod coverage and the Yahoo check, 4 HVE and no Kicker qualify (most hits were funds, delisted names or scores under 8).",
+  "added": [
+   {
+    "setup": "High Volume Edge",
+    "sym": "LECO",
+    "asof": "2006-06-01"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "TROW",
+    "asof": "1999-10-12"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "SYY",
+    "asof": "2013-12-09"
+   },
+   {
+    "setup": "High Volume Edge",
+    "sym": "KSS",
+    "asof": "1998-08-13"
    }
   ]
  }

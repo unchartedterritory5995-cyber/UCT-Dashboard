@@ -7,7 +7,7 @@
   * ``POST /api/pine/strategy-backtest``: dark (404 while the server stage admits nobody), auth
     (401), the plan gate (402), the window read from ``bars_window.HISTORY_WINDOW_BARS``, the start
     stated on every answer, refusals by name per symbol, transport refusals mapped by W5-T15's table,
-    the D5 cap, and one authority over the window (a record describing another window is a 500);
+    D5 single-symbol (none / several refused by name), the W5 server lanes' plan gate, and one authority over the window (a record describing another window is a 500);
   * W5-T15's descriptor path refuses a strategy document ``runtime:strategy-start``;
   * the JS constants the codec mirrors are read from the JS sources, so they cannot drift;
   * E-3 walks the new route.
@@ -221,9 +221,9 @@ def test_auth_unauthenticated_is_401_and_unpaid_is_402(world):
 
 
 def test_the_window_is_the_one_authority_and_the_start_is_stated(world):
-    r = post(world, symbols=["aaa", "BBB", "AAA"])
+    r = post(world, symbols=[" aaa "])
     assert r.status_code == 200, r.text
-    assert world["reads"] == [("AAA", "D", HISTORY_WINDOW_BARS), ("BBB", "D", HISTORY_WINDOW_BARS)]
+    assert world["reads"] == [("AAA", "D", HISTORY_WINDOW_BARS)]
     [call] = world["client"].calls
     assert call["profile"] == "backtest"
     for job in call["jobs"]:
@@ -258,9 +258,9 @@ def test_every_script_refusal_is_answered_by_name_per_symbol(world, guard):
 
 
 def test_a_symbol_with_no_bars_is_stated_and_never_sent(world):
-    r = post(world, symbols=["NONE", "AAA"]).json()["results"]
+    r = post(world, symbols=["NONE"]).json()["results"]
     assert r[0]["refusal"]["guard"] == "runtime:strategy-no-bars" and r[0]["window"] is None
-    assert [j.job for j in world["client"].calls[0]["jobs"]] == ["AAA"]
+    assert world["client"].calls == []
 
 
 @pytest.mark.parametrize("guard,code", [(prc.UNAVAILABLE, 503), (prc.BUSY, 503), (prc.INTEGRITY, 500),
@@ -278,14 +278,60 @@ def test_one_authority_a_record_describing_another_window_is_a_500(world):
     assert post(world).status_code == 500
 
 
-def test_the_D5_cap_is_symbols_times_the_window_within_max_cells(world, monkeypatch):
-    monkeypatch.setenv("SCREEN_BACKTEST_MAX_CELLS", str(HISTORY_WINDOW_BARS * 3))
-    assert pst.max_symbols() == 3
-    r = post(world, symbols=["A", "B", "C", "D"])
-    assert r.status_code == 413 and "at most 3" in r.json()["detail"]
-    assert post(world, symbols=["A", "B", "C"]).status_code == 200
-    monkeypatch.delenv("SCREEN_BACKTEST_MAX_CELLS")
-    assert pst.max_symbols() == min(sbt.INLINE_MAX_SYMBOLS, sbt.max_cells() // HISTORY_WINDOW_BARS)
+def test_D5_the_refusal_names_are_the_published_ones():
+    """The names a member (and the docs) read; a rename is a contract change, not a refactor."""
+    assert pst.MULTI_SYMBOL_GUARD == "runtime:strategy-multi-symbol"
+    assert pst.NO_SYMBOL_GUARD == "runtime:strategy-no-symbol"
+    assert pst.MAX_SYMBOLS == 1
+
+
+def test_D5_one_symbol_passes_the_gate_and_is_run(world):
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    assert [a["symbol"] for a in r.json()["results"]] == ["AAA"]
+    assert [j.job for j in world["client"].calls[0]["jobs"]] == ["AAA"]
+
+
+@pytest.mark.parametrize("symbols", [["AAA", "BBB"], ["AAA", "AAA"], ["AAA", "aaa"], ["A", "B", "C", "D", "E"]])
+def test_D5_two_or_more_symbols_refuse_by_name_and_nothing_runs(world, symbols):
+    """Single-symbol only (D5, 2026-11-07). Never truncated: even the same ticker twice is refused,
+    so the answer never covers fewer symbols than were sent."""
+    r = post(world, symbols=symbols)
+    assert r.status_code == 400
+    assert r.json()["detail"].startswith(pst.MULTI_SYMBOL_GUARD + ":")
+    assert f"names {len(symbols)}" in r.json()["detail"]
+    assert world["reads"] == [] and world["client"].calls == []
+
+
+def test_D5_zero_symbols_refuse_by_name_and_nothing_runs(world):
+    r = post(world, symbols=[])
+    assert r.status_code == 400
+    assert r.json()["detail"].startswith(pst.NO_SYMBOL_GUARD + ":")
+    assert world["reads"] == [] and world["client"].calls == []
+
+
+def test_D5_the_refusals_come_after_the_dark_and_plan_gates(world):
+    """A caller the stage does not admit, or an unpaid one, never learns the symbol rule."""
+    world["paid"] = False
+    assert post(world, symbols=["A", "B"]).status_code == 402
+    world["open"] = False
+    assert post(world, symbols=[]).status_code == 404
+
+
+def test_D5_the_plan_gate_is_the_W5_server_lanes_own_predicate():
+    """D5: "the same plan gate as the W5 server lane". Every W5 server-lane door gates on
+    `auth_middleware.is_paid_user` over `get_current_user_with_plan`; this route's `require_paid`
+    calls that very function (not a copy), behind its dark gate, which reads the same user."""
+    import inspect
+    from api.middleware import auth_middleware
+    from api.routers import definition_record, scan_results, user_definitions as udr
+    assert pst.is_paid_user is auth_middleware.is_paid_user
+    for door in (sbt, scan_results, udr, definition_record):
+        assert door.is_paid_user is auth_middleware.is_paid_user, door.__name__
+    assert "is_paid_user(user)" in inspect.getsource(pst.require_paid)
+    open_dep = inspect.signature(pst.require_paid).parameters["user"].default.dependency
+    assert open_dep is pst._require_open
+    assert inspect.signature(pst._require_open).parameters["user"].default.dependency is get_current_user_with_plan
 
 
 def test_the_store_and_the_stamp_are_asked_first(world):

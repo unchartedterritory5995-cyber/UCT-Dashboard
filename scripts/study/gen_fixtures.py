@@ -90,6 +90,31 @@ def to_bars(raw: list) -> list[dict]:
     return out
 
 
+#: The owner's definitions (gen_setup_examples.SETUPS, his rulings 2026-10-23..27) give a fixture item a real lesson in
+#: place of the one-line template (2026-11-07). Items he already approved with the template lesson keep it EXACTLY: an
+#: import at the same version would swap an approved lesson silently (pod_study_report.py listed those 16 ids).
+FROZEN_FILE = REPO / "docs" / "study" / "bank_v2" / "approved_template_ids_2026-11-07.json"
+
+
+def _definitions() -> dict:
+    from scripts.study.gen_setup_examples import SETUPS
+    return {name: d for name, (_skill, d, _det) in SETUPS.items()}
+
+
+def _frozen() -> set:
+    import json
+    return set(json.loads(FROZEN_FILE.read_text(encoding="utf-8"))) if FROZEN_FILE.exists() else set()
+
+
+def _with_lesson(item: dict, lesson: str | None, definition: str | None) -> dict:
+    """The new lesson (and the definition it quotes, on the reveal, so its numbers are grounded) unless the owner
+    approved the item with its template lesson: then the item stays byte for byte as it was."""
+    if lesson and item["id"] not in _frozen():
+        item["lesson_text"], item["lesson_origin"] = lesson, "source"   # his definition + the fixture note, quoted
+        item["reveal_json"] = dict(item["reveal_json"], owner_definition=definition)
+    return item
+
+
 def items_for(fx: dict) -> list[dict]:
     name, skill, family = DETECTORS[fx["detector"]]
     bars = to_bars(fx["bars"])
@@ -99,12 +124,17 @@ def items_for(fx: dict) -> list[dict]:
     reveal = {"detector": fx["detector"], "setup": name, "fixture": fx["name"], "fires": fx["fires"],
               "category": fx["category"], "quote": fx["note"], "source": ref,
               "window_bars": len(bars), "note_on_supply": "fixture: seed only (C15)"}
+    definition = _definitions().get(name)
+    verdict = "fires" if fx["fires"] else "does not fire"
+    spot_lesson = (f"{definition} Here the firm's {name} detector {verdict} on the last bar. The fixture's own note: "
+                   f"{fx['note'].rstrip('.')}.") if definition else None
     out = [make_item(
         type="spot", skill_id=skill, q=f"Does the firm's {name} setup fire on the last bar of this chart?",
         answer="yes" if fx["fires"] else "no", choices=["Yes", "No"],
         prompt_extra={"chart": {"window_bars": len(bars), "tf": "D"}},
         reveal=reveal, source_kind="fixture", source_ref=ref, difficulty=3,
         sym=fx["sym"], asof=asof, adjustment_basis="split-adjusted", bars_embed=embed)]
+    _with_lesson(out[0], spot_lesson, definition)
     if fx["fires"] and family:
         d = [f for f in FAMILIES if f != family]
         out.append(make_item(
@@ -113,6 +143,7 @@ def items_for(fx: dict) -> list[dict]:
             prompt_extra={"chart": {"window_bars": len(bars), "tf": "D"}},
             reveal=dict(reveal, family=family), source_kind="fixture", source_ref=ref + "#family",
             difficulty=2, sym=fx["sym"], asof=asof, adjustment_basis="split-adjusted", bars_embed=embed))
+        _with_lesson(out[-1], (f"{name} belongs to the {family} family. {definition}") if definition else None, definition)
     return out
 
 

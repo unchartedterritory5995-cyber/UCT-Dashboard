@@ -70,7 +70,7 @@ export function skillChip(skillId) {
   if (id === 'read.cycle') return 'Cycle of price action'
   if (id === 'read.events') return 'Chart event'
   if (id === 'read.bases') return 'Base'
-  if (id === 'read.levels') return 'Tap the spot'
+  if (id === 'read.levels') return 'Levels and lines'
   if (id.startsWith('size.')) return 'Sizing'
   if (id.startsWith('regime.')) return 'Regime'
   return id.split('.').pop().replace(/_/g, ' ')
@@ -379,6 +379,7 @@ export default function DrillPlayer({
               onSettingsPersist={sessionChart.onSettingsPersist}
               annotations={annotations}
               annotationsVisible={!!annotations}
+              annotationsTextVisible={!!annotations}
               markers={openMarkers}
               onCrosshairMove={onCrosshairMove}
               onChartTap={onChartTapLib}

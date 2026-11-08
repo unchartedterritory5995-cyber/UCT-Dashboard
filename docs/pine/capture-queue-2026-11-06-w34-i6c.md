@@ -14,8 +14,8 @@ every door (the translator's vendor-measured v1-v4 re-route).
 
 | id | probe | symbol / tf | refusal kept (object door) | unblocks | settles | owner |
 |---|---|---|---|---|---|---|
-| W4-S1-v4 | `vw-w4-series-length-v4.pine` (to write; sibling of W4-S1's `vw-w4-series-length.pine`), text below | `AMEX:SPY 1D`, `NYSE:RDDT 1D` | `runtime:history-dynamic-offset` | `zigzag-multi-time-frame-with-fibonacci-retracement` (sole, a drawing script: object door) | that v4 reads a per-bar length (last `len` bars), the value on bar 0, the SIGN of v4 bare `highestbars`/`lowestbars` under a per-bar length (non-positive, as the translator's v1-v4 re-route to `ta.highestbars` says), and `na` / `nz` handling | I6c (REFERENCE -> VENDOR) |
-| W4-S1 (inherited) | `vw-w4-series-length.pine` (`W4-BREAKDOWN.md`) | `AMEX:SPY 1D`, `NYSE:RDDT 1D` | as W4-S1 | the v5/v6 reference the v4 rail is graded beside | as W4-S1 | T8 |
+| W4-S1-v4 | `vw-w4-series-length-v4.pine` (written 2026-11-07; sibling of W4-S1's `vw-w4-series-length.pine`), text below | `AMEX:SPY 1D`, `NYSE:RDDT 1D` | `runtime:history-dynamic-offset` | `zigzag-multi-time-frame-with-fibonacci-retracement` (sole, a drawing script: object door) | that v4 reads a per-bar length (last `len` bars), the value on bar 0, the SIGN of v4 bare `highestbars`/`lowestbars` under a per-bar length (non-positive, as the translator's v1-v4 re-route to `ta.highestbars` says), and `na` / `nz` handling | I6c (REFERENCE -> VENDOR) |
+| W4-S1 (inherited) | `vw-w4-series-length.pine` (`W4-BREAKDOWN.md`; written 2026-11-07 from that row) | `AMEX:SPY 1D`, `NYSE:RDDT 1D` | as W4-S1 | the v5/v6 reference the v4 rail is graded beside | as W4-S1 | T8 |
 
 Probe text (written for this queue; no licence-held text):
 

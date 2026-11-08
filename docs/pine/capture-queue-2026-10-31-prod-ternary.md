@@ -127,3 +127,23 @@ is not a capture. What would do it inside the conventions:
 Until then the per-row grading lives in `vendorHarness.c45ArmRuns.test.js`, which runs the probe
 without its three G rows through the member door on both captures' bars, the way
 `vendorHarness.c48CallSite.test.js` runs its probe's one-execution half.
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| L3 | engine-gap | a known gap of the `?:` stamp (`armRunGates`, no enclosing-arm conjunction): a build, not a reading; PT-GAPS (`feat/pine-pt-gaps`) fixes it |
+| L4 | engine-gap | a known gap of the `?:` gate on an `na` test (`blockRuns.firstRunAfterSkip`): a build, already witnessed by `rt1-na-test-*`; PT-GAPS fixes it |
+| L5 | closed | CLOSED by H1 (the row says so); the block-gate half is G-h |
+| L6 | engine-gap | translation cost only ("slow, never wrong"): a memo, nothing to read; PT-GAPS fixes it |
+| G-a | closed | CLOSED (fix/prod-plot-var-cond-history, review F2; the row says so) |
+| G-g | by-design | by design (review F3; the row says so): a window-1 exemption is a per-function proof, and the error is a withheld plot, never a wrong number |
+| G-h | engine-gap | a known gap: block gates never reach a paint's or fill's colour (`resolvePaints`); a build, not a reading; PT-GAPS fixes it |
+| G-b | engine-gap | a known gap of the v1-v4 bare-name roster; its witness is Q-PT3, which already names its probe (`vw-arm-history-v4.pine`) |
+| G-c | engine-gap | a known gap: the counter fold's JSON copy drops a stamp; a structural copy, not a reading; PT-GAPS fixes it |
+| G-d | engine-gap | a known gap: a withheld colour's refusal is not surfaced on the plot; UI disclosure, not a reading; PT-GAPS fixes it |
+| G-e | by-design | by design (M1; the row says so): "not a gap of this rule" |
+| a stamped `?:` inside a multi-state recurrence (`accum2`-`accum4`) whose test reads a state bind | engine-gap | the row says so: "not a capture question: a guard over the multi-state tuple one bar back, as `previousBarOf` builds for `accum`" |
+| L2 | withheld-ledger | a row of "Known gaps" (every column but the id prose); its capture is `vw-pt-request-arm` R03 / E03 / P03 on NYSE:RDDT 1D from the listing, the file the "Shapes this branch does NOT stamp" row 1 already queues (one capture reads R01-R03) |

@@ -839,6 +839,15 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"AL|2007-05-07": {
+"cover_pct": 0.0,
+"median_close_diff_pct": null,
+"ok": false,
+"p95_close_diff_pct": null,
+"sessions": 140,
+"why": "Yahoo has no history for this ticker then",
+"yahoo_sessions": 0
+},
 "AMBA|2014-06-17": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -10567,6 +10576,14 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"KSS|1998-08-13": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.01,
+"ok": true,
+"p95_close_diff_pct": 0.02,
+"sessions": 140,
+"yahoo_sessions": 140
+},
 "KTOS|2019-06-26": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -10640,6 +10657,14 @@
 "yahoo_sessions": 140
 },
 "LDOS|2014-11-04": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"LECO|2006-06-01": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -17408,6 +17433,15 @@
 "sessions": 140,
 "yahoo_sessions": 140
 },
+"SUNE|2015-05-07": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 99.93,
+"ok": false,
+"p95_close_diff_pct": 99.94,
+"sessions": 140,
+"why": "closes differ by 99.93% median, 99.94% at the 95th percentile",
+"yahoo_sessions": 140
+},
 "SWKS|2008-06-16": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
@@ -17561,6 +17595,14 @@
 "yahoo_sessions": 140
 },
 "SYNA|2021-11-15": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"SYY|2013-12-09": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,
@@ -18377,6 +18419,14 @@
 "yahoo_sessions": 140
 },
 "TRN|2017-09-20": {
+"cover_pct": 100.0,
+"median_close_diff_pct": 0.0,
+"ok": true,
+"p95_close_diff_pct": 0.0,
+"sessions": 140,
+"yahoo_sessions": 140
+},
+"TROW|1999-10-12": {
 "cover_pct": 100.0,
 "median_close_diff_pct": 0.0,
 "ok": true,

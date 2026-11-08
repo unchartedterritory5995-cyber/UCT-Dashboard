@@ -1,7 +1,8 @@
 """W9-T14 -- server-side strategy backtests: ``POST /api/pine/strategy-backtest``.
 
-W9 design 3.4 ("W9.4 composed with W5") and ruling D5 (a separate route, the screener backtest's
-plan gate, multi-symbol capped like ``max_cells``). A member's OWN stored strategy document runs on
+W9 design 3.4 ("W9.4 composed with W5") and ruling D5 (coordinator, 2026-11-07,
+``docs/pine/W9-DECISIONS-2026-11-07.md``: the W5 server lane's plan gate, and SINGLE-SYMBOL only for
+now; multi-symbol is deferred until the broker's cost on the service is measured). A member's OWN stored strategy document runs on
 the pine-runtime service, one job per symbol, under profile ``backtest`` with
 ``want: ["#strategy"]``, and each symbol answers either the run's ``strategy`` record (design 3.2)
 or the refusal that stopped it, by name.
@@ -21,8 +22,10 @@ WHAT THIS ROUTE DECIDES, AND WHAT IT DOES NOT.
 
 REUSED, BY IMPORT, NEVER COPIED: W5-T11's client and codec (``pine_runtime_client``,
 ``pine_runtime_codec``); W5-T12's admission and W5-T15's status mapping
-(``screener_backtest._runtime_admission`` / ``_refuse_runtime``), its bar-time rule
-(``_service_bars``) and its memory bound (``max_cells``, ``INLINE_MAX_SYMBOLS``).
+(``screener_backtest._runtime_admission`` / ``_refuse_runtime``) and its bar-time rule
+(``_service_bars``). THE PLAN GATE is the W5 server lanes' own predicate, ``is_paid_user`` over
+``get_current_user_with_plan`` (the screener backtest, scan results, user definitions and
+definition record doors all gate on it), behind this route's dark gate.
 
 DARK. ``_require_open`` answers 404 to every caller the SERVER stage does not admit
 (``runtime_definitions.server_permitted``: ``PINE_RUNTIME_SERVER_STAGE`` unset = ``off`` = nobody),
@@ -41,7 +44,7 @@ import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.routers import screener_backtest as sbt
@@ -79,33 +82,35 @@ def require_paid(user: dict = Depends(_require_open)) -> dict:
 class StrategyBacktestRequest(BaseModel):
     #: The member's OWN stored strategy document (scoped at the store: another member's id is a 404).
     def_id: str
-    #: One backtest per symbol, each over the same window rule.
-    symbols: list[str] = Field(min_length=1)
+    #: EXACTLY ONE symbol (D5). A list, so a request naming none or several is refused BY NAME
+    #: (``_symbols``) rather than by a schema error or a silent truncation.
+    symbols: list[str]
     #: The script's input values (``ctx.runtimeInputs``), as the chart sends them.
     inputs: Optional[dict[str, Any]] = None
 
 
-def max_symbols() -> int:
-    """D5: ``symbols x HISTORY_WINDOW_BARS`` within the screener backtest's ``max_cells()``, and never
-    more than its inline bound (this route has no background receipt in v1)."""
-    return min(sbt.INLINE_MAX_SYMBOLS, sbt.max_cells() // HISTORY_WINDOW_BARS)
+#: D5: one symbol per request for now (its cost is bounded at ``HISTORY_WINDOW_BARS`` bars per call).
+MAX_SYMBOLS = 1
+NO_SYMBOL_GUARD = "runtime:strategy-no-symbol"
+MULTI_SYMBOL_GUARD = "runtime:strategy-multi-symbol"
 
 
 def _symbols(raw: list[str]) -> list[str]:
+    """The one symbol asked, or a 400 naming why not. Never truncated: two entries (even the same
+    ticker twice) are refused, so the member is never answered about fewer symbols than they sent."""
+    if len(raw) == 0:
+        raise HTTPException(status_code=400, detail=(
+            f"{NO_SYMBOL_GUARD}: a strategy backtest needs one symbol, and this request names none"))
+    if len(raw) > MAX_SYMBOLS:
+        raise HTTPException(status_code=400, detail=(
+            f"{MULTI_SYMBOL_GUARD}: a strategy backtest takes one symbol at a time for now, and this "
+            f"request names {len(raw)}; nothing was run. Send one request per symbol."))
     out: list[str] = []
     for s in raw:
         t = s.strip().upper() if isinstance(s, str) else ""
         if not _TICKER.match(t):
             raise HTTPException(status_code=400, detail=f"{s!r} is not a ticker")
-        if t not in out:
-            out.append(t)
-    cap = max_symbols()
-    if len(out) > cap:
-        raise HTTPException(
-            status_code=413,
-            detail=(f"{len(out)} symbols asked; a strategy backtest takes at most {cap} "
-                    f"(the inline bound {sbt.INLINE_MAX_SYMBOLS}, and symbols x {HISTORY_WINDOW_BARS} "
-                    f"bars within SCREEN_BACKTEST_MAX_CELLS = {sbt.max_cells()})"))
+        out.append(t)
     return out
 
 

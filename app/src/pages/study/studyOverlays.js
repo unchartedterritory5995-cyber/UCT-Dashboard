@@ -12,6 +12,7 @@ import { hveAnnotations, isHveItem } from './hveOverlay'
 import { gapAnnotations, isGapSupportItem } from './gapSupportOverlay'
 import { goSignalAnnotations, goSignalOpenBarTimes, isGoSignalHourlyItem } from './goSignalOverlay'
 import { bearGapAnnotations, isBearGapItem } from './bearGapOverlay'
+import { hasLines, lineAnnotations } from './lineChoices'
 import { toChartTime } from '../../components/chart/patternTime'
 
 export function studyAnnotations(item, bars) {
@@ -20,6 +21,7 @@ export function studyAnnotations(item, bars) {
   if (isGapSupportItem(item)) return gapAnnotations(item, bars)
   if (isGoSignalHourlyItem(item)) return goSignalAnnotations(item, bars)
   if (isBearGapItem(item)) return bearGapAnnotations(item, bars)
+  if (hasLines(item)) return lineAnnotations(item, bars, true)   // the reviewer's card: the keyed line gold
   return null
 }
 
@@ -44,5 +46,5 @@ export function studyOpenMarkers(item, bars) {
 }
 
 export function hasStudyOverlay(item) {
-  return isHveItem(item) || isGapSupportItem(item) || isGoSignalHourlyItem(item) || isBearGapItem(item)
+  return isHveItem(item) || isGapSupportItem(item) || isGoSignalHourlyItem(item) || isBearGapItem(item) || hasLines(item)
 }

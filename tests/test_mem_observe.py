@@ -204,19 +204,80 @@ def _drop(path):
         os.close(fd)
 
 
+_SYS_CACHESTAT = 451   # cachestat(2), Linux >= 6.5; 451 in the unified table (x86_64 and arm64 alike)
+
+
+def _kernel_cached_bytes(path):
+    """Bytes of `path` in the page cache per cachestat(2): the KERNEL'S own count, independent of
+    mem_observe (no mmap, no mincore). None when the syscall is absent."""
+    import ctypes
+    import mmap as _mm
+
+    class _Range(ctypes.Structure):
+        _fields_ = [("off", ctypes.c_uint64), ("len", ctypes.c_uint64)]
+
+    class _Stat(ctypes.Structure):
+        _fields_ = [(n, ctypes.c_uint64) for n in
+                    ("nr_cache", "nr_dirty", "nr_writeback", "nr_evicted", "nr_recently_evicted")]
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.syscall.restype = ctypes.c_long
+    rng, st = _Range(0, 0), _Stat()          # len 0 = to end of file
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        if libc.syscall(ctypes.c_long(_SYS_CACHESTAT), ctypes.c_uint(fd), ctypes.byref(rng),
+                        ctypes.byref(st), ctypes.c_uint(0)) != 0:
+            return None
+    finally:
+        os.close(fd)
+    return st.nr_cache * _mm.PAGESIZE
+
+
+def _measure_between_oracles(path, size):
+    """(kernel_before, mem_observe, kernel_after). Nobody else touches this fresh file, so its residency can
+    only FALL (reclaim) unless the probe itself faults pages in. A correct probe therefore reads
+    before >= probe >= after, and after <= before."""
+    before = _kernel_cached_bytes(path)
+    got = mem_observe._resident_bytes(path, size)
+    after = _kernel_cached_bytes(path)
+    return before, got, after
+
+
+# ⛔ 2026-11-07: POSIX_FADV_DONTNEED is ADVICE. On runner image ubuntu26/20261101.64 (never on .186) the
+# kernel kept every page after fsync + DONTNEED and the old test read (8388608, 8388608, 8388608), failing
+# the master gate 4 times (42353089775/1, 42355528677/1, 42403103754, 42404906058). Whether eviction
+# happened is now asked of the KERNEL (cachestat), not assumed: the probe is checked against the kernel's
+# count in both states, and the "dropped" half is skipped, with the kernel's numbers, only when the kernel
+# provably declined to drop. A probe that reports pages the kernel does not hold (mincore's
+# "everything resident" fallback, a fault-in) still FAILS.
 @linux_only
 def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(droppable_dir):
     f = droppable_dir / "hot.bin"
     f.write_bytes(b"x" * (8 << 20))
     f.read_bytes()
     size = f.stat().st_size
-    hot = mem_observe._resident_bytes(str(f), size)
-    assert hot is not None and 0 < hot <= size
-    _drop(str(f))
-    cold1 = mem_observe._resident_bytes(str(f), size)
-    cold2 = mem_observe._resident_bytes(str(f), size)
-    # measuring must not fault the file in: a second measurement of a dropped file is still (near) empty
-    assert cold1 < size // 4 and cold2 < size // 4, (hot, cold1, cold2)
+    path = str(f)
+    if _kernel_cached_bytes(path) is None:
+        pytest.skip("cachestat(2) unavailable (Linux < 6.5): no kernel oracle to tell eviction from a probe bug")
+
+    k0, hot, k1 = _measure_between_oracles(path, size)
+    assert hot is not None and 0 < hot <= size, (k0, hot, k1)
+    assert k0 >= hot >= k1, ("hot: probe disagrees with the kernel's page-cache count", k0, hot, k1)
+
+    _drop(path)
+    dropped = _kernel_cached_bytes(path)
+    if dropped >= size // 4:
+        pytest.skip(f"kernel kept {dropped} of {size} bytes cached after fsync + POSIX_FADV_DONTNEED "
+                    f"(cachestat); the cold half is untestable on this host. Hot half passed: {(k0, hot, k1)}")
+
+    c0, cold1, c1 = _measure_between_oracles(path, size)
+    _, cold2, c2 = _measure_between_oracles(path, size)
+    detail = {"hot": (k0, hot, k1), "dropped": dropped, "cold1": (c0, cold1, c1), "cold2": cold2, "kernel_end": c2}
+    # the probe reports what the kernel holds, not more (mincore's all-resident fallback would read `size`)
+    assert c0 >= cold1 >= c1, ("cold: probe disagrees with the kernel's page-cache count", detail)
+    # measuring must not fault the file in: the kernel's own count did not rise across two measurements
+    assert c2 <= c0 <= dropped, ("measuring faulted pages in", detail)
+    assert cold1 < size // 4 and cold2 < size // 4, detail
 
 
 @linux_only

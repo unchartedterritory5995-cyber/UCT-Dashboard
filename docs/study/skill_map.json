@@ -62,7 +62,7 @@
           "units": [
             {
               "id": "F2b.01",
-              "title": "Tap the spot: base lows and buy points",
+              "title": "Levels and lines: tap the spot, pick the support",
               "skills": [
                 "read.levels"
               ],
@@ -71,7 +71,7 @@
                 "F2b"
               ],
               "supply": "good",
-              "est_questions": 400
+              "est_questions": 700
             }
           ]
         },
