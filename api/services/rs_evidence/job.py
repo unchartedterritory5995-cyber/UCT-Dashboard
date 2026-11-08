@@ -30,7 +30,10 @@ HOW A RUN WORKS
        `bars_sanitize.unadjusted_splits`, for the boundaries still unadjusted in
        the held bars; a row whose forward window holds one is stored as
        SKIPPED and counted, never measured (`measure` header). An unknown list
-       is counted in ``split_unchecked`` and the ticker is measured as held.
+       is counted in ``split_unchecked`` and the ticker is measured as held;
+       the artifact carries that count (``split_guard.unchecked``) and, per
+       signal, how many of those names stand behind the signal's numbers
+       (``split_guard.unchecked_by_signal``), so the card can say so (unit VA3).
     4. The artifact is rebuilt from EVERYTHING in the store and published
        through the injected ``put_bytes`` when asked and when it clears the
        row floor.
@@ -102,6 +105,10 @@ FORWARD_RETURN_METHOD = (
     "session after the signal (t+1, the first price a member who sees the dot after the close can act "
     "on) to the close h sessions after the signal; h counts the stock's own bars; BO and B are the "
     "benchmark's open and close at the stock's bar times")
+SPLIT_UNCHECKED_RULE = (
+    "unchecked counts the names whose declared split list was unknown on the run that built this "
+    "artifact, so the split guard could not judge them and they are measured as held; "
+    "unchecked_by_signal counts, per signal, how many of those names hold counted rows of it")
 SPLIT_GUARD_RULE = (
     f"a row whose forward window (t+1 to t+{max(HORIZONS)}) holds an unadjusted split, found by the repo's split "
     "detector from the ticker's declared split list, is not counted in any statistic; skipped counts "
@@ -252,9 +259,10 @@ def collect(universe: Sequence[str], bars_reader: Callable, *, asof_ymd: int, de
     """The ticker loop (module header step 3). ``sink(ticker, rows)`` receives
     each ticker's rows as they are measured. ``splits_reader(ticker)`` gives the
     declared split list the split guard judges with (``None``: unknown, counted
-    in ``split_unchecked``; no reader: nothing is judged)."""
+    in ``split_unchecked``, the names in ``split_unchecked_names``; no reader:
+    nothing is judged)."""
     stats = {"tickers": 0, "no_bars": 0, "rows": 0, "events": 0,
-             "split_tickers": 0, "split_skipped": 0, "split_unchecked": 0}
+             "split_tickers": 0, "split_skipped": 0, "split_unchecked": 0, "split_unchecked_names": []}
     total = len(universe)
     for i, ticker in enumerate(universe, 1):
         bars = rows_to_bars(bars_reader(ticker, int(depth), int(asof_ymd)))
@@ -272,6 +280,7 @@ def collect(universe: Sequence[str], bars_reader: Callable, *, asof_ymd: int, de
                 declared = None
             if declared is None:
                 stats["split_unchecked"] += 1
+                stats["split_unchecked_names"].append(str(ticker).upper())
             splits = split_indexes(bars, split_boundary_times(bars, declared))
             stats["split_tickers"] += 1 if splits else 0
         rows = rows_for_ticker(ticker, bars, bench_opens, bench_closes, columns, horizons, wanted, splits)
@@ -292,8 +301,15 @@ def collect(universe: Sequence[str], bars_reader: Callable, *, asof_ymd: int, de
 def build_artifact(summary: dict, *, asof_ymd: Optional[int], benchmark: str, window_from: Optional[int],
                    window_to: Optional[int], sessions: int, sessions_open: int, universe: int,
                    universe_requested: int, delisted_fn: Optional[Callable] = None,
-                   signals: Dict[str, dict] = SIGNALS, horizons: Sequence[int] = HORIZONS) -> dict:
-    """The ``rs/evidence.json`` document (shape in the package docstring)."""
+                   signals: Dict[str, dict] = SIGNALS, horizons: Sequence[int] = HORIZONS,
+                   split_unchecked: Optional[int] = None,
+                   split_unchecked_by_signal: Optional[Dict[str, int]] = None) -> dict:
+    """The ``rs/evidence.json`` document (shape in the package docstring).
+
+    ``split_unchecked`` is how many names the run's split guard could not judge
+    (their declared split list was unknown); ``split_unchecked_by_signal`` how
+    many of them hold counted rows of each signal. ``None`` (the default): not
+    known, carried as null, and the card says nothing it cannot back."""
     w_from, w_to = ymd_to_iso(window_from), ymd_to_iso(window_to)
     delisted = None
     if w_from and w_to:
@@ -309,13 +325,18 @@ def build_artifact(summary: dict, *, asof_ymd: Optional[int], benchmark: str, wi
         stats = summary["per_signal"].get(name) or {
             "n_signals": 0, "dates": 0, "tickers": 0,
             "horizons": {str(h): {"n": 0, "incomplete": 0, "incomplete_share": None, "hit_rate": None,
-                                  "median_excess": None, "mean_excess": None} for h in horizons},
+                                  "median_excess": None, "mean_excess": None, "dates": 0} for h in horizons},
         }
         per_signal[name] = {"column": spec["column"], "definition": spec["definition"], **stats}
     skipped = dict(summary.get("split_skipped") or {})
+    by_sig = split_unchecked_by_signal if isinstance(split_unchecked_by_signal, dict) else None
     split_guard = {
         "skipped": {name: int(skipped.get(name, 0)) for name in list(signals) + [BASELINE_KEY]},
         "rule": SPLIT_GUARD_RULE,
+        "unchecked": int(split_unchecked) if split_unchecked is not None else None,
+        "unchecked_by_signal": ({name: int(by_sig.get(name, 0)) for name in list(signals) + [BASELINE_KEY]}
+                                if by_sig is not None else None),
+        "unchecked_rule": SPLIT_UNCHECKED_RULE,
     }
     return {
         "version": ARTIFACT_VERSION,
@@ -416,7 +437,7 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         "sessions_held": 0, "sessions_requested": 0, "sessions_measured": 0, "sessions_skipped": 0,
         "pairs_measured": 0, "pairs_done": 0, "pairs_open": 0, "pairs_skipped": 0,
         "rows_written": 0, "events": 0, "split_tickers": 0, "split_skipped": 0, "split_unchecked": 0,
-        "split_lists": None, "elapsed_s": 0.0, "artifact": None, "publish": None,
+        "split_unchecked_by_signal": None, "split_lists": None, "elapsed_s": 0.0, "artifact": None, "publish": None,
     }
 
     # 1. the calendar
@@ -458,6 +479,7 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
         # 3. the ticker loop
         mem_rows: List[Row] = []
         pair_rows: Dict[Tuple[int, str], int] = {}
+        unchecked_names: Optional[set] = None       # None: the ticker loop did not run
         if not dry_run:
             S.discard_stage(conn)                   # rows of a run that died are never published
         if wanted:
@@ -485,6 +507,7 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
             receipt["events"] = stats["events"]
             for k in ("split_tickers", "split_skipped", "split_unchecked"):
                 receipt[k] = stats[k]
+            unchecked_names = set(stats["split_unchecked_names"])
             lists = getattr(split_reader, "stats", None)
             receipt["split_lists"] = dict(lists) if isinstance(lists, dict) else None
             # ⭐ AN UNKNOWN SPLIT LIST KEEPS THE SESSION OPEN while the provider can
@@ -524,10 +547,27 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
             w = S.window(conn)
             sessions_n, open_n, universe_n, lo, hi = (w["sessions"], w["sessions_open"], w["universe"],
                                                       w["from"], w["to"])
+        # The unchecked-split disclosure (unit VA3): this run's unknown lists, and
+        # per signal how many of those names hold counted rows of it. Every real
+        # run measures every name (the newest session is always still open), so
+        # a run whose ticker loop did not run judged nothing and says null.
+        by_signal: Optional[Dict[str, int]] = None
+        unchecked_n: Optional[int] = None
+        if unchecked_names is not None:
+            if dry_run:
+                by_signal = {}
+                for signal, _t in {(r[1], r[2]) for r in mem_rows
+                                   if r[3] is not None and r[2] in unchecked_names}:
+                    by_signal[signal] = by_signal.get(signal, 0) + 1
+            else:
+                by_signal = S.tickers_by_signal(conn, unchecked_names)
+            unchecked_n = len(unchecked_names)
+        receipt["split_unchecked_by_signal"] = by_signal
         artifact = build_artifact(summary, asof_ymd=asof_ymd, benchmark=bench, window_from=lo, window_to=hi,
                                   sessions=sessions_n, sessions_open=open_n, universe=universe_n,
                                   universe_requested=requested_universe, delisted_fn=delisted_fn,
-                                  signals=sig, horizons=hs)
+                                  signals=sig, horizons=hs, split_unchecked=unchecked_n,
+                                  split_unchecked_by_signal=by_signal)
         receipt["artifact"] = {
             "rows": artifact["rows"], "sessions": artifact["sessions"], "sessions_open": artifact["sessions_open"],
             "universe": artifact["universe"], "window": artifact["window"],
@@ -540,6 +580,7 @@ def run(*, db: str, dry_run: bool = False, publish_to: Optional[str] = None, ses
             "baseline": {h: {"n": x["n"], "hit_rate": x["hit_rate"], "median_excess": x["median_excess"]}
                          for h, x in artifact["baseline"].items()},
             "split_skipped": artifact["split_guard"]["skipped"],
+            "split_unchecked": artifact["split_guard"]["unchecked"],
         }
         receipt["ok"] = True
 

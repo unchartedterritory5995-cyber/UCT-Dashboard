@@ -168,7 +168,8 @@ def test_the_rs_rank_weighting_is_read_from_the_formula(monkeypatch):
 
 def _rs_columns():
     from api.services.screener import rs_columns, snapshot_builder
-    return [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS]
+    return [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS,
+            *rs_columns.PHASE3_COLUMNS]
 
 
 def test_every_rs_column_publishes_a_method_with_a_stated_limit():
@@ -177,7 +178,7 @@ def test_every_rs_column_publishes_a_method_with_a_stated_limit():
     doc = M.all_methods()
     published = {m["column"]: m for m in doc["methods"]}
     cols = _rs_columns()
-    assert len(cols) == 17, cols
+    assert len(cols) == 20, cols        # 17 -> 20 on 2026-11-07: the Phase 3 three (unit 3-11)
     for col in cols:
         m = published.get(col)
         assert m is not None, f"{col} ships without a method"
@@ -267,7 +268,8 @@ def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
     ev = _evidence()
     assert ev["measured"]["display_floor_n"] == ep.DISPLAY_FLOOR_N == 100
     assert ev["measured"]["horizon_bars"] == ep.DEFAULT_HORIZON == 63
-    assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-bar window" in ev["measured"]["rule"]
+    # Pin moved 2026-11-07 (unit VA3): "session", the sentence's own word, and the span rule.
+    assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-session window" in ev["measured"]["rule"]
     # 2026-11-07 (N6): the hit rate is stated with its base, in the pull's own phrase.
     assert ep.outcome_phrase("the benchmark", 63) in ev["measured"]["rule"]
     assert ep.outcome_phrase("<benchmark>", 63) in ev["measured"]["form"]
@@ -284,7 +286,7 @@ def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
     monkeypatch.setattr(ep, "SURVIVORSHIP_NOTE", "universe as held, delistings restored")
     ev = _evidence()
     assert ev["measured"]["display_floor_n"] == 250 and "at least 250 events" in ev["measured"]["rule"]
-    assert ev["measured"]["horizon_bars"] == 126 and "complete 126-bar window" in ev["measured"]["rule"]
+    assert ev["measured"]["horizon_bars"] == 126 and "complete 126-session window" in ev["measured"]["rule"]
     assert "126 sessions later" in ev["measured"]["form"] and "63" not in ev["measured"]["form"]
     assert ev["honesty"] == "Nothing measured." and ev["measured"]["rule"].endswith("Nothing measured.")
     assert "universe as held, delistings restored" in ev["measured"]["rule"]
@@ -329,3 +331,43 @@ def test_the_evidence_subsection_rides_the_published_document():
     assert doc["rs_columns"]["evidence"]["honesty"]
     # and the RS section's own honesty line still stands beside it
     assert "not when to buy" in doc["rs_columns"]["honesty"]
+
+
+# ── 2026-11-07, Phase 3 unit 3-11: the rotation quadrant, the Clenow score, VARS
+
+def test_the_phase3_methods_print_whose_formula_and_say_they_are_empty_until_filled():
+    from api.services.screener import rs_columns
+    for col in rs_columns.PHASE3_COLUMNS:
+        m = M.for_column(col)
+        assert m is not None and m["family"] == M.RS_FAMILY, col
+        assert "Empty until the nightly build fills it" in m["how"], col
+        text = f" {m['how']} {m['caveat']} {m['one_line']} ".lower()
+        for word in ("buy", "sell"):
+            assert f" {word} " not in text, (col, word)
+    rrg = M.for_column("rrg_quadrant")
+    assert "RRG-style, UCT's formula" in rrg["how"]
+    assert "RS = 100 x C / B" in rrg["how"]
+    assert "RS-Ratio = 100 x RS / SMA(RS, 10)" in rrg["how"]
+    assert "RS-Momentum = 100 x RS-Ratio / SMA(RS-Ratio, 5)" in rrg["how"]
+    assert "split at 100" in rrg["how"] and "WEEKLY" in rrg["how"]
+    assert rrg["scale"] == "Leading | Weakening | Lagging | Improving"
+    clen = M.for_column("clenow_score")
+    assert "Clenow-style, 90 trading days" in clen["how"] and "FRACTION" in clen["how"]
+    vars_ = M.for_column("vars_state")
+    assert "VARS-style" in vars_["how"] and "DAILY" in vars_["how"]
+    assert vars_["scale"] == "Strong, rising | Strong, fading | Weak, improving | Weak, falling"
+    notes = " ".join(M.all_methods()["rs_columns"]["notes"])
+    assert "RRG-style, UCT's formula" in notes and "Clenow-style, 90 trading days" in notes
+    assert "VARS-style" in notes and "empty until the nightly build fills them" in notes
+
+
+def test_the_phase3_methods_are_read_from_the_writer(monkeypatch):
+    """Proven derived by MOVING the writer's constants."""
+    from api.services.screener import rs_columns
+    monkeypatch.setattr(rs_columns, "RRG_RATIO_LEN", 12)
+    monkeypatch.setattr(rs_columns, "CLENOW_WINDOW", 120)
+    monkeypatch.setattr(rs_columns, "PHASE3_MIN_BARS",
+                        {**rs_columns.PHASE3_MIN_BARS, "rrg_quadrant": 16})
+    assert "SMA(RS, 12)" in M.for_column("rrg_quadrant")["how"]
+    assert "Blank until 16 joined weeks" in M.for_column("rrg_quadrant")["how"]
+    assert "Clenow-style, 120 trading days" in M.for_column("clenow_score")["how"]

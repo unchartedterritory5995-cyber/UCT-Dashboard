@@ -157,7 +157,18 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               artifact showing the column filled). The
     //                               Python pin moved with it: (139, 100) ->
     //                               (149, 107).
-    expect(Object.keys(excluded).length).toBe(107)
+    //   excluded 107 + 3 = 110       the three PHASE 3 RS columns (2026-11-07,
+    //                               UCT RS Phase 3 unit 3-11): `rrg_quadrant`,
+    //                               `clenow_score`, `vars_state` -- written by
+    //                               `rs_columns.collect_one` only while
+    //                               RS_V3_ENABLED is armed, OFF in production,
+    //                               so every nightly row is NULL there (R8).
+    //                               `clenow_score` is re-admitted once the flag
+    //                               is armed and the artifact shows it filled;
+    //                               the two TEXT names stay excluded for
+    //                               `rs_line_trend`'s reason. The Python pin
+    //                               moved with it: (149, 107) -> (149, 110).
+    expect(Object.keys(excluded).length).toBe(110)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

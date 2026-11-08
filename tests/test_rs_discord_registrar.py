@@ -353,11 +353,12 @@ def test_rs_evidence_for_reports_the_displayable_signals_with_the_benchmark_outc
     assert all(e["outcome"] == ep_outcome("SPY", 63) for e in out)
     assert ep_outcome("SPY", 63) == "beat SPY from the next session's open to the close 63 sessions later"
     line = rp.evidence_line(out)
-    assert line.startswith("Evidence: 4,700 RS new highs from 2025-11-05 to 2026-11-04; 55.2% beat SPY "
-                           "from the next session's open to the close 63 sessions later. Universe as held, "
-                           "survivorship not yet corrected. 1,284 RS new highs before price from 2025-11-05 "
-                           "to 2026-11-04; 58.3% beat SPY from the next session's open to the close 63 "
-                           "sessions later.")
+    # 2026-11-07: each hit rate carries the card's likely range (`likely_range_phrase`)
+    assert line.startswith("Evidence: 4,700 RS new highs from 2025-11-05 to 2026-11-04; 55.2% (likely "
+                           "between 49.0% and 61.2%) beat SPY from the next session's open to the close 63 "
+                           "sessions later. Universe as held, survivorship not yet corrected. 1,284 RS new "
+                           "highs before price from 2025-11-05 to 2026-11-04; 58.3% (likely between 52.0% "
+                           "and 64.4%) beat SPY from the next session's open to the close 63 sessions later.")
     assert line != rp.HONESTY_LINE
     # and the longest post the caps allow still clears Discord's limit with the evidence on
     post = rp.build_post(FIXTURE, session=SESSION, evidence=out)

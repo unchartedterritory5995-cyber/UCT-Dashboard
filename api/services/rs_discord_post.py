@@ -381,8 +381,17 @@ def _rated_lines(rows: list, cap: int) -> list[str]:
 
 def _one_evidence(ev) -> str | None:
     """One measured sentence, or None when any number is missing or unusable.
-    Contract: {signal?, n, hit_rate_pct, horizon_bars, start, end,
-    outcome?, survivorship_corrected?}."""
+    Contract: {signal?, n, hit_rate_pct, horizon_bars, start, end, outcome?,
+    hit_rate_low_pct?, hit_rate_high_pct?, split_unchecked?, survivorship?,
+    survivorship_corrected?} (`rs_evidence_pull.evidence_for`'s field names).
+
+    ⭐ ONE AUTHORITY FOR THE WORDS (2026-11-07): the likely range, the
+    unchecked-split note and the survivorship caveat are the chart card's own
+    pieces (`rs_evidence_pull.likely_range_phrase`, `split_unchecked_phrase`,
+    `survivorship_sentence`), so the post never states a hit rate the card
+    states with a range, or leaves out a disclosure the card carries. Each
+    prints only when the dict carries it."""
+    from api.services import rs_evidence_pull as ep
     if not isinstance(ev, dict):
         return None
     try:
@@ -397,9 +406,13 @@ def _one_evidence(ev) -> str | None:
         return None
     signal = str(ev.get("signal") or "").strip() or "RS new highs"
     outcome = str(ev.get("outcome") or "").strip() or f"closed higher {horizon} bars later"
-    text = f"{n:,} {signal} from {start.isoformat()} to {end.isoformat()}; {hit:.1f}% {outcome}."
+    band = ep.likely_range_phrase(ev.get("hit_rate_low_pct"), ev.get("hit_rate_high_pct"))
+    text = f"{n:,} {signal} from {start.isoformat()} to {end.isoformat()}; {hit:.1f}%{band} {outcome}."
+    splits = ep.split_unchecked_phrase(ev.get("split_unchecked"))
+    if splits:
+        text += f" {splits}"
     if ev.get("survivorship_corrected") is False:
-        text += " Universe as held, survivorship not yet corrected."
+        text += f" {ep.survivorship_sentence(ev.get('survivorship'))}"
     return text
 
 

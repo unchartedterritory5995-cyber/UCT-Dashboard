@@ -34,12 +34,19 @@ THE ARTIFACT ``rs/evidence.json`` (what unit 2b-03 pulls and the card reads)::
           "column": "rsNH", "definition": "...",
           "n_signals": int, "dates": int, "tickers": int,
           "horizons": {"21": {"n", "incomplete", "incomplete_share", "hit_rate",
-                              "median_excess", "mean_excess"}, "63": {...}, "126": {...}}
+                              "median_excess", "mean_excess", "dates"}, "63": {...}, "126": {...}}
+                                            horizon "dates": distinct sessions with a COMPLETE
+                                            window at that horizon (unit VA3; absent before it)
         }, ...
       },
       "baseline": {"21": {same keys}, "63": {...}, "126": {...}},
-      "split_guard": {"skipped": {"<name>": int, ..., "all_bars": int}, "rule": "..."},
-                                            rows left out: an unadjusted split in the window
+      "split_guard": {"skipped": {"<name>": int, ..., "all_bars": int}, "rule": "...",
+                      "unchecked": int | null,
+                      "unchecked_by_signal": {"<name>": int, ..., "all_bars": int} | null,
+                      "unchecked_rule": "..."},
+                                            skipped: rows left out (an unadjusted split in the window);
+                                            unchecked: names whose split list was unknown, measured
+                                            as held (unit VA3; absent before it)
       "method": {"forward_return", "hit", "baseline", "point_in_time", "inputs",
                  "warmup_bars", "display_floor_n", "publish_floor_rows"}
     }

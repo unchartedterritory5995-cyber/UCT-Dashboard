@@ -301,10 +301,12 @@ def test_sleep_until_chunks_and_returns_only_once_the_instant_has_passed():
 
 
 # ── the ledger ─────────────────────────────────────────────────────────────────
-def test_the_ledger_declares_the_gate_dark_on_the_worker_with_the_facts_an_operator_needs():
+def test_the_ledger_declares_the_gate_on_the_worker_with_the_facts_an_operator_needs():
+    """Shipped dark (2b-02); the owner armed it on the worker 2026-11-07 and the
+    ledger records that live state (Phase 3 unit 3-05)."""
     data = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
     e = data["flags"]["RS_EVIDENCE_ENABLED"]
-    assert e["status"] == "dark" and e["where"] == ["worker"]
+    assert e["status"] == "armed" and e["since"] == "2026-11-07" and e["where"] == ["worker"]
     note = e["note"]
     for must in ("python -m api.services.rs_evidence", "--db <DATA_DIR>/rs_evidence.db", "--publish --dest rs/evidence.json",
                  "21:30 ET", "2 h timeout", "--dry-run --sessions 5", "no_bars", "NOT scheduled",

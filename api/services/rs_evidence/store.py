@@ -238,6 +238,31 @@ def values(conn: sqlite3.Connection, signal: str, horizon: int) -> List[MaybeNum
                                        (str(signal),))]
 
 
+def complete_dates(conn: sqlite3.Connection, signal: str, horizon: int) -> int:
+    """Distinct sessions holding a COUNTED row of ``signal`` whose window at
+    ``horizon`` is complete (``ex_<h>`` not NULL): the sessions that horizon's
+    statistic stands on (``measure.summarise``'s per-horizon ``dates``)."""
+    col = f"ex_{int(horizon)}"
+    return int(conn.execute(f"SELECT COUNT(DISTINCT session) FROM {ROWS_TABLE} WHERE signal = ? AND skip = 0 "
+                            f"AND {col} IS NOT NULL", (str(signal),)).fetchone()[0] or 0)
+
+
+def tickers_by_signal(conn: sqlite3.Connection, tickers: Iterable[str]) -> Dict[str, int]:
+    """``{signal: distinct tickers}`` among ``tickers`` over the COUNTED rows,
+    the baseline included: how many of a set of names (the run's unknown split
+    lists) stand behind each signal's numbers."""
+    names = sorted({str(t).upper() for t in tickers or ()})
+    out: Dict[str, int] = {}
+    for k in range(0, len(names), 500):                  # SQLite's parameter cap, with room
+        chunk = names[k:k + 500]
+        marks = ",".join("?" * len(chunk))
+        for signal, n in conn.execute(
+                f"SELECT signal, COUNT(DISTINCT ticker) FROM {ROWS_TABLE} WHERE skip = 0 AND ticker IN ({marks}) "
+                f"GROUP BY signal", chunk):
+            out[str(signal)] = out.get(str(signal), 0) + int(n)   # chunks hold disjoint tickers
+    return out
+
+
 def summary(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> dict:
     """The same shape as ``measure.summarise``, from the store."""
     hs = [int(h) for h in horizons]
@@ -252,7 +277,8 @@ def summary(conn: sqlite3.Connection, horizons: Sequence[int] = HORIZONS) -> dic
             f"WHERE signal = ? AND skip = 0", (name,)).fetchone()
         per_signal[name] = {
             "n_signals": int(n_signals), "dates": int(dates), "tickers": int(tickers),
-            "horizons": {str(h): summarise_values(values(conn, name, h)) for h in hs},
+            "horizons": {str(h): {**summarise_values(values(conn, name, h)),
+                                  "dates": complete_dates(conn, name, h)} for h in hs},
         }
     baseline = {str(h): summarise_values(values(conn, BASELINE_KEY, h)) for h in hs}
     rows = conn.execute(f"SELECT COUNT(*) FROM {ROWS_TABLE} WHERE signal = ? AND skip = 0",

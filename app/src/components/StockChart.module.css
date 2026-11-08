@@ -1635,6 +1635,16 @@
 }
 .legMenuRowMuted .legMenuRowLabel,
 .legMenuRowMuted .legMenuRowVal { color: var(--text-muted); font-weight: 500; }
+/* ⭐ VA2 — the RS rating's band (the site's cuts: 80 and above, 60 to 79, 40 to
+   59, below 40; `readoutSchema.RATING_BANDS`), while the member's Rating colours
+   switch is on. Theme tokens only, so the light popover keeps its contrast. The
+   60 to 79 band keeps the row's own ink: two greens side by side read as one.
+   Two classes per rule: `.legCardNumVal` is declared further down and would
+   otherwise win on order. */
+.legMenuRowVal.legBandLead, .legCardNumVal.legBandLead { color: var(--gain); }
+.legMenuRowVal.legBandStrong, .legCardNumVal.legBandStrong { color: var(--text-bright); }
+.legMenuRowVal.legBandNeutral, .legCardNumVal.legBandNeutral { color: var(--warn); }
+.legMenuRowVal.legBandLag, .legCardNumVal.legBandLag { color: var(--loss); }
 /* The row's `note`: a muted second line in the VALUE column (grid row 2), one
    step smaller, so a fallback reason or a benchmark gap reads as a qualifier of
    the value above it, never as a row of its own. */
@@ -1668,6 +1678,33 @@
 .legMenuRowBtn:hover,
 .legMenuRowBtn:focus-visible { background: var(--bg-hover); outline: none; }
 .legMenuRowChev { display: inline-flex; align-self: center; justify-self: end; color: var(--text-muted); flex: none; }
+/* ⭐ UCT RS 3-09 — A READOUT ROW'S ACTION ("Pick a date on the chart", "Use the
+   default anchor", "Open the rotation map"): its own button directly under the
+   row, its text starting in the row's VALUE column so it reads as that row's.
+   The bright ink, never gold (gold is the card's one look-here mark). The
+   padding-left is the label column plus the gap: 88 + 8 in the menu, 104 + 8 in
+   a card's numbers block (`.legRowActionCard`), and the phone's wider columns. */
+.legRowAction {
+  appearance: none;
+  background: none;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: calc(100% + 8px);
+  min-height: 28px;
+  margin: 0 -4px 2px;
+  padding: 4px 4px 4px 100px;
+  border-radius: 4px;
+  font: 600 12px/16px 'Instrument Sans', sans-serif;
+  color: var(--text-bright);
+  text-align: left;
+  cursor: pointer;
+}
+.legRowAction:hover,
+.legRowAction:focus-visible { background: var(--bg-hover); outline: none; }
+.legRowActionCard { padding-left: 116px; }
 
 /* ─── THE ABOUT CARD — one readout row, explained in three lines ───────────
    Rendered through `ContextPopover`'s `children` branch, so it REPLACES the
@@ -1839,6 +1876,10 @@
 
 /* ⭐ A8 — the pane label's last known value, muted, with its date. */
 .paneValueStale { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
+/* ⭐ UCT RS 3-14 — a pane that drew nothing prints the server's note (`No XYZQ bars
+   yet; they usually load within a minute`). It wraps inside the band rather than
+   running past a 390 px phone's edge. */
+.paneValueNote { white-space: normal; max-width: min(320px, calc(100vw - 180px)); }
 
 /* TOUCH (≤1024px): every row that is a button meets the 44 px floor. */
 @media (max-width: 1024px) {
@@ -1846,6 +1887,7 @@
   .legPresetRow { min-height: var(--tap-min); }
   .legMenuRowBtn { min-height: var(--tap-min); }
   .legCardNumBtn { min-height: var(--tap-min); }
+  .legRowAction { min-height: var(--tap-min); }
 }
 
 /* PHONE (≤640px): one size per list, 14 px; the wider grid; three lines. */
@@ -1861,6 +1903,8 @@
     min-height: 32px;
   }
   .legMenuRowBtn { min-height: var(--tap-min); }
+  .legRowAction { font-size: 14px; line-height: 20px; padding-left: 124px; }
+  .legRowActionCard { padding-left: 132px; }
   .legMenuRowVal { -webkit-line-clamp: 3; line-clamp: 3; }
   .legCardNum,
   .legCardNumBtn {

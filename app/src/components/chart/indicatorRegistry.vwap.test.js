@@ -134,7 +134,12 @@ describe('the VWAP row is DERIVED from the definition, not written here', () => 
       .toEqual({ key: 'n', label: 'N', type: 'number', min: 1, max: 4, step: 1 })
     // A type with no control renders NOTHING rather than rendering wrong — a
     // control that writes nowhere is the defect this whole task is retiring.
-    expect(fieldFromInput({ key: 's', label: 'S', type: 'string' })).toBe(null)
+    expect(fieldFromInput({ key: 'x', label: 'X', type: 'no-such-type' })).toBe(null)
+    // ⭐ UCT RS Phase 3 (unit 3-02): `string` came off that list when it acquired a
+    // real control, the text box, carrying only the text keys the input declares.
+    expect(fieldFromInput({ key: 's', label: 'S', type: 'string' })).toEqual({ key: 's', label: 'S', type: 'text' })
+    expect(fieldFromInput({ key: 's', label: 'S', type: 'string', pattern: '^[A-Z]+$', maxLength: 10, case: 'upper' }))
+      .toEqual({ key: 's', label: 'S', type: 'text', pattern: '^[A-Z]+$', maxLength: 10, case: 'upper' })
     // ⭐⭐ `source` CAME OFF THAT LIST WHEN IT ACQUIRED A REAL CONTROL (P2.1).
     // While no shipped definition declared one, `null` was the honest answer;
     // `dataSeries` declares one and is member-facing, so "renders nothing" would

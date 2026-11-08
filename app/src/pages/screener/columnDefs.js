@@ -602,4 +602,15 @@ export const COLUMN_DEFS = {
     desc: 'Percentile rank, 1-99, of the plain 126-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
   rs_rating_12m: { label: 'Rank 12M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 252-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+  // ── UCT Relative Strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
+  // Written by the same `bars_rs` step only while RS_V3_ENABLED is armed
+  // (`rs_columns.PHASE3_COLUMNS`); `filters.meta()` leaves out their controls and
+  // seats until then. The two text columns print the writer's own names as they
+  // are; `clenow_score` is a FRACTION, printed to 2 places, never as a percent.
+  rrg_quadrant: { label: 'Rotation', fmt: v => v || '—',
+    desc: 'Where the stock sits on a rotation graph against SPY, read on weekly bars built from its daily closes: Leading (stronger than SPY and still gaining ground), Weakening (stronger than SPY but losing pace), Lagging (weaker than SPY and still losing ground) or Improving (weaker than SPY but gaining pace). RRG-style, UCT\'s own formula, the same one the Terminal\'s rotation graph draws, so it will not always match StockCharts; blank until 14 weeks of history exist.' },
+  clenow_score: { label: 'Clenow', fmt: num(2), heat: heatSign,
+    desc: 'A Clenow-style trend score over the last 90 daily closes: how fast price has been rising, as a yearly rate, multiplied by how steadily it rose (R², from 0 for a jumpy path to 1 for a straight line). 0.50 is about a 50%-a-year pace after that steadiness discount, a negative score is a falling trend, and a smooth climb scores higher than a jumpy one of the same size. It describes the last 90 sessions, not the next ones; blank until 90 sessions exist.' },
+  vars_state: { label: 'VARS', fmt: v => v || '—',
+    desc: 'Volatility-adjusted relative strength against SPY on daily bars (VARS-style): each day\'s move is counted in units of the stock\'s own typical daily range (its 20-session ATR), SPY\'s move the same way, and the difference is added up over 60 sessions. Strong means the stock has out-moved SPY on that measure and Weak means it has trailed; the second word says whether the reading is above its own 50-session average (rising, improving) or not (fading, falling). Blank until about 130 sessions exist.' },
 }
