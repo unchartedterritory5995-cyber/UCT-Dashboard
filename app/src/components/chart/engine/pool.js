@@ -64,7 +64,7 @@ import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
 import { LINE_WIDTH_HARD_MAX } from './defSchema'
-import { inputsAsRead } from './legacyInputs'
+import { inputsAsServed, hasServerGate } from './legacyInputs'
 
 /** The four LWC series constructors any v1 plot can need. */
 /**
@@ -1024,11 +1024,15 @@ function dataPlots(def) {
  * module imports `engine/readout`, and the pool sits under both). A rail in
  * `pool.plotActiveWhen.test.js` holds the two equal on every comparator.
  */
-export function plotActiveFor(plot, def, stored) {
+export function plotActiveFor(plot, def, stored, declared) {
   const aw = plot && plot.activeWhen
   if (!aw || typeof aw !== 'object' || typeof aw.key !== 'string') return true
   // ⭐ 3-08b: a stored legacy input reads as its successor (`legacyInputs`).
-  const inputs = inputsAsRead(def, stored)
+  // ⭐ 3-14: and, given what the live server row `declared`, a stored value that
+  // row drops reads as not stored (`inputsAsServed`): a v4 `view: 'rotation'`
+  // under a v3 server draws the RS line, so the 100 guide stays off. `declared`
+  // omitted (undefined) is the 3-08b answer, unchanged.
+  const inputs = inputsAsServed(def, stored, declared)
   let v = inputs && Object.prototype.hasOwnProperty.call(inputs, aw.key) ? inputs[aw.key] : undefined
   if (v === undefined) {
     const spec = ((def && def.inputs) || []).find(i => i && i.key === aw.key)
@@ -1098,6 +1102,10 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // default a passthrough row starts at and NARROWS what the resolver will honour.
   const sourceCapability = opts && typeof opts.sourceCapability === 'function'
     ? opts.sourceCapability : null
+  // ⭐ UCT RS 3-14 — `(defId) => declaration|null`, `serverCompute.serverDeclares`.
+  // Asked only for a definition that marks something `requiresServer`, so every
+  // other definition's guides are planned exactly as before. Absent ⇒ not known.
+  const serverDeclares = opts && typeof opts.serverDeclares === 'function' ? opts.serverDeclares : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -1112,8 +1120,12 @@ export function planBindings(instances, registry, prevBindings, opts) {
     // Every plot is resolved against THIS instance's inputs before anything
     // reads it, so nothing downstream can accidentally use a definition default
     // where the user set a value.
+    let declared
+    if (serverDeclares && hasServerGate(def)) {
+      try { declared = serverDeclares(def.id) } catch { declared = null }
+    }
     const guides = guidePlots(def)
-      .filter(p => plotActiveFor(p, def, inst.inputs))
+      .filter(p => plotActiveFor(p, def, inst.inputs, declared))
       .map(p => resolvePlotForInstance(p, inst.inputs))
     const guideSig = guideSignature(guides)
     let first = true
