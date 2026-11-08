@@ -78,7 +78,20 @@ ADDRESS_REVS: dict[str, int] = {
     # (Phase 2a unit 2a-14, rev 3). No alert address is bound to `rsLine` yet (RS
     # alerts are a Phase 2b partition), so there are no bindings to migrate; the
     # entry keeps the two lanes' vocabulary equal, which is the rail's whole point.
-    "rsLine": 3,
+    #
+    # rev 4, 2026-11-07 (Phase 3 unit 3-05, decision D19; the v4 row behind
+    # RS_V3_ENABLED). ⛔ BUILTIN BUMPS ARE A VOCABULARY MIRROR: no runtime
+    # migrates rs_line bindings. `migrate_bindings_to_rev` is called only for
+    # MEMBER-AUTHORED definitions (`user_definitions.save`); nothing reads this
+    # entry for a builtin at runtime, and a binding with no `indicator_alert_rev`
+    # row is never suppressed (`consume_if_suppressed`). RS alerts compute from
+    # `relative_strength.compute_phase1_columns` / `compute_mansfield_columns`
+    # (`alert_rs_series.build_rs_series`), never from the wire, and Phase 3 left
+    # both byte-identical (the 3-03 no-move rail), so no migration is owed. A
+    # future change to EITHER function owes one: an operator script must call
+    # `migrate_bindings_to_rev("rs_line", N, notify=...)` in the deploy that
+    # ships it, because nothing does that automatically.
+    "rsLine": 4,
 }
 
 # ⭐ AN ALERT BASE THAT IS NOT THE DEFINITION ID (found by unit 2b-05, fixed at
