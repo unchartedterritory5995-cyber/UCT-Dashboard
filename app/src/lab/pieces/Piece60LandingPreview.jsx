@@ -22,8 +22,10 @@ const byId = { a: { skill_id: 'a', mastery: 90, reps: 10 }, c: { skill_id: 'c', 
 
 export default function Piece60LandingPreview() {
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-      <StudyLanding curricula={curricula} byId={byId} badges={[{ badge_id: 'first_set', earned_at: '2026-11-03' }]} onOpenChallenge={() => {}} />
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: '24px 18px' }}>
+      <StudyLanding curricula={curricula} byId={byId} badges={[{ badge_id: 'first_set', earned_at: '2026-11-03' }, { badge_id: 'streak_3', earned_at: '2026-11-05' }, { badge_id: 'boss_cleared', earned_at: '2026-11-06' }]}
+        profile={{ xp: 3240, streak: 4, streak_best: 9 }} today={{ session_id: 's', items: Array.from({ length: 10 }, (_, i) => ({ id: `i${i}` })), answered_item_ids: ['i0', 'i1', 'i2'] }}
+        onStartToday={() => {}} onOpenChallenge={() => {}} />
     </div>
   )
 }
