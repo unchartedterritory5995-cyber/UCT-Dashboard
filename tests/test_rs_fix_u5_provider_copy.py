@@ -14,6 +14,7 @@ import sqlite3
 import pytest
 
 from api.routers import signature as sig
+from api.services.signature import rs_provider as rsp
 from api.services import rs_evidence_pull as ep
 from api.services.signature import registry_defs as rd
 from tests.test_rs_columns_provider import (  # noqa: F401 - fixtures are used by name
@@ -38,8 +39,8 @@ def _counting_fetcher(store):
 @pytest.fixture
 def fresh_gen(monkeypatch):
     """A cold data-generation memo for one test."""
-    monkeypatch.setitem(sig._RS_GEN_MEMO, "at", None)
-    monkeypatch.setitem(sig._RS_GEN_MEMO, "value", None)
+    monkeypatch.setitem(rsp._RS_GEN_MEMO, "at", None)
+    monkeypatch.setitem(rsp._RS_GEN_MEMO, "value", None)
 
 
 # ── #6: the hit rate reads against the baseline; the floor is effective N ─────
@@ -113,7 +114,7 @@ def _green_on_red_bars():
 
 def test_8_the_green_on_red_reason_names_the_red_days_it_counted():
     stock, bench = _green_on_red_bars()
-    g = sig._rs_checks(stock, bench, "SPY", -0.5)["greenOnRed"]
+    g = rsp._rs_checks(stock, bench, "SPY", -0.5)["greenOnRed"]
     assert g["count"] == 3 and g["redDays"] == 4 and g["of"] == 20
     assert g["reason"] == "up on 3 of 4 red days in the last 20 sessions", g["reason"]
     assert "of the last 20 red days" not in g["reason"]
@@ -125,7 +126,7 @@ def test_13_the_anchor_is_not_a_fail_when_the_benchmark_low_is_today():
     n = 260
     bench = _bars([400.0 + i for i in range(n - 1)] + [300.0])       # today is the 20-session low
     stock = _bars([100.0 + 0.5 * i for i in range(n)])
-    out = sig._rs_checks(stock, bench, "SPY", -0.5)
+    out = rsp._rs_checks(stock, bench, "SPY", -0.5)
     a = out["anchor"]
     assert a["pass"] is None and a["barsAgo"] == 0
     assert a["reason"] == "SPY's 20-session low is today"
@@ -136,10 +137,10 @@ def test_13_the_anchor_is_not_a_fail_when_the_benchmark_low_is_today():
 # ── #16: the v2 cache key carries the rating session and the evidence asof ────
 
 def _key_for(monkeypatch, rating, asof):
-    monkeypatch.setitem(sig._RS_GEN_MEMO, "at", None)
-    monkeypatch.setitem(sig._RS_GEN_MEMO, "value", None)
-    monkeypatch.setattr(sig, "_rs_newest_rating_session", lambda: rating)
-    monkeypatch.setattr(sig, "_rs_evidence_asof", lambda: asof)
+    monkeypatch.setitem(rsp._RS_GEN_MEMO, "at", None)
+    monkeypatch.setitem(rsp._RS_GEN_MEMO, "value", None)
+    monkeypatch.setattr(rsp, "_rs_newest_rating_session", lambda: rating)
+    monkeypatch.setattr(rsp, "_rs_evidence_asof", lambda: asof)
     seen = {}
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.update(key=k))
@@ -151,7 +152,7 @@ def test_16_a_new_rating_session_or_artifact_is_a_new_key(v2_row, monkeypatch):
     n = 30
     store = {"NVDA": _bars([100.0 + i for i in range(n)]), "SPY": _bars([400.0] * n)}
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _counting_fetcher(store))
-    monkeypatch.setattr(sig, "_et_session_day", lambda: "2026-11-06")
+    monkeypatch.setattr(rsp, "_et_session_day", lambda: "2026-11-06")
     before = _key_for(monkeypatch, "20261104", "2026-11-04")
     after_rating = _key_for(monkeypatch, "20261105", "2026-11-04")
     after_pull = _key_for(monkeypatch, "20261105", "2026-11-05")
@@ -165,11 +166,11 @@ def test_16_the_flag_off_key_is_unchanged_and_reads_nothing(monkeypatch):
     n = 30
     store = {"NVDA": _bars([100.0 + i for i in range(n)]), "SPY": _bars([400.0] * n)}
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _counting_fetcher(store))
-    monkeypatch.setattr(sig, "_et_session_day", lambda: "2026-11-06")
+    monkeypatch.setattr(rsp, "_et_session_day", lambda: "2026-11-06")
 
     def boom(*a, **k):
         raise AssertionError("a v1 compute must not read the data generation")
-    monkeypatch.setattr(sig, "_rs_data_generation", boom)
+    monkeypatch.setattr(rsp, "_rs_data_generation", boom)
     seen = {}
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.update(key=k))
@@ -180,12 +181,12 @@ def test_16_the_flag_off_key_is_unchanged_and_reads_nothing(monkeypatch):
 
 def test_16_the_generation_is_memoised_briefly(monkeypatch, fresh_gen):
     reads = []
-    monkeypatch.setattr(sig, "_rs_newest_rating_session", lambda: reads.append(1) or "20261105")
-    monkeypatch.setattr(sig, "_rs_evidence_asof", lambda: "2026-11-05")
-    assert sig._rs_data_generation(now=1000.0) == "r20261105|e2026-11-05"
-    monkeypatch.setattr(sig, "_rs_newest_rating_session", lambda: reads.append(1) or "20261106")
-    assert sig._rs_data_generation(now=1000.0 + sig._RS_GEN_TTL_S - 1) == "r20261105|e2026-11-05"
-    assert sig._rs_data_generation(now=1000.0 + sig._RS_GEN_TTL_S + 1) == "r20261106|e2026-11-05"
+    monkeypatch.setattr(rsp, "_rs_newest_rating_session", lambda: reads.append(1) or "20261105")
+    monkeypatch.setattr(rsp, "_rs_evidence_asof", lambda: "2026-11-05")
+    assert rsp._rs_data_generation(now=1000.0) == "r20261105|e2026-11-05"
+    monkeypatch.setattr(rsp, "_rs_newest_rating_session", lambda: reads.append(1) or "20261106")
+    assert rsp._rs_data_generation(now=1000.0 + rsp._RS_GEN_TTL_S - 1) == "r20261105|e2026-11-05"
+    assert rsp._rs_data_generation(now=1000.0 + rsp._RS_GEN_TTL_S + 1) == "r20261106|e2026-11-05"
     assert len(reads) == 2
 
 
@@ -193,7 +194,7 @@ def test_16_the_rating_session_read_is_read_only(monkeypatch, tmp_path):
     from api.services.screener import rs_history
     db = tmp_path / "screener.db"
     monkeypatch.setenv("SCREENER_DB_PATH", str(db))
-    assert sig._rs_newest_rating_session() is None, "no table is None"
+    assert rsp._rs_newest_rating_session() is None, "no table is None"
     with sqlite3.connect(db) as conn:
         names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert rs_history.TABLE not in names, "the read never creates the table on a dark pod"
@@ -201,13 +202,13 @@ def test_16_the_rating_session_read_is_read_only(monkeypatch, tmp_path):
         rs_history.ensure_schema(conn)
         conn.executemany(f"INSERT INTO {rs_history.TABLE} (session, ticker, ibd) VALUES (?, ?, ?)",
                          [("20261104", "NVDA", 90), ("20261105", "NVDA", 91), ("20261105", "AAPL", 50)])
-    assert sig._rs_newest_rating_session() == "20261105"
+    assert rsp._rs_newest_rating_session() == "20261105"
 
 
 def test_16_the_evidence_asof_comes_from_the_local_artifact(tmp_path):
-    assert sig._rs_evidence_asof() is None
+    assert rsp._rs_evidence_asof() is None
     write_artifact(tmp_path, fixture_artifact())
-    assert sig._rs_evidence_asof() == "2026-11-04"
+    assert rsp._rs_evidence_asof() == "2026-11-04"
 
 
 # ── #19: the regime does not depend on the RS lookback ────────────────────────
@@ -218,16 +219,16 @@ def test_19_the_regime_is_identical_at_every_lookback(v2_row, monkeypatch):
     _no_cache(monkeypatch)
     regimes = [sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY", "lookback": lb})["payload"]["regime"]
                for lb in (20, 252, 500)]
-    assert regimes[0]["volSamples"] == sig._RS_VOL_DIST_MAX
+    assert regimes[0]["volSamples"] == rsp._RS_VOL_DIST_MAX
     assert regimes[0] == regimes[1] == regimes[2]
 
 
 # ── #21: the threshold comment no longer cites a starter that does not exist ──
 
 def test_21_the_green_on_red_threshold_cites_no_6_of_20_starter():
-    src = pathlib.Path(sig.__file__).read_text(encoding="utf-8")
+    src = pathlib.Path(rsp.__file__).read_text(encoding="utf-8")
     assert "(6 of 20)" not in src
-    assert sig._RS_GREEN_ON_RED_PASS == 6
+    assert rsp._RS_GREEN_ON_RED_PASS == 6
 
 
 # ── #22: below the floor, say what was measured ───────────────────────────────

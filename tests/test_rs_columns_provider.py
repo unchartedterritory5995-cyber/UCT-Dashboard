@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 
 from api.middleware.auth_middleware import get_current_user_with_plan
 from api.routers import signature as sig
+from api.services.signature import rs_provider as rsp
 from api.services import relative_strength as rsmod
 from api.services import rs_benchmarks as rb
 from api.services import rs_evidence_pull as ep
@@ -359,9 +360,9 @@ def test_provider_serves_the_cached_envelope_when_present(v2_row, monkeypatch):
 
 
 def test_bar_count_rule():
-    assert sig._rs_bars_count("D", 252) == 852
-    assert sig._rs_bars_count("W", 52) == 252
-    assert sig._rs_bars_count("5", 252) == 400
+    assert rsp._rs_bars_count("D", 252) == 852
+    assert rsp._rs_bars_count("W", 52) == 252
+    assert rsp._rs_bars_count("5", 252) == 400
 
 
 # ── the route, v2 row installed ───────────────────────────────────────────
@@ -419,7 +420,7 @@ def test_cache_key_carries_the_ET_session_day_and_ttl_runs_to_the_next_close(v2_
     n = 30
     store = {"NVDA": _bars([100.0 + i for i in range(n)]), "SPY": _bars([400.0] * n)}
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
-    monkeypatch.setattr(sig, "_et_session_day", lambda: "2026-11-06")
+    monkeypatch.setattr(rsp, "_et_session_day", lambda: "2026-11-06")
     seen = {}
     monkeypatch.setattr(sig.cache, "get", lambda k: None)
     monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.update({"key": k, "ttl": ttl}))
@@ -429,7 +430,7 @@ def test_cache_key_carries_the_ET_session_day_and_ttl_runs_to_the_next_close(v2_
     assert "rs2" not in seen["key"], "the rev leads the key: a bump is a cold cache by itself"
     assert '"showMansfield": false' in seen["key"] and '"mansfieldLength": 200' in seen["key"]
     assert 60 <= seen["ttl"] <= 3 * 24 * 3600
-    assert 60 <= sig._seconds_to_next_et_close() <= 3 * 24 * 3600
+    assert 60 <= rsp._seconds_to_next_et_close() <= 3 * 24 * 3600
 
 
 def test_an_etf_gets_the_market_as_its_sector_benchmark_with_a_reason(monkeypatch):
@@ -773,11 +774,11 @@ def test_intraday_blanks_the_mansfield_crosses_and_dot_but_keeps_the_line(v2_row
 
 
 def test_mansfield_length_is_clamped_like_every_other_number(v2_row):
-    assert sig._rs_mansfield_length(None) == 200
-    assert sig._rs_mansfield_length("abc") == 200
-    assert sig._rs_mansfield_length(99999) == rsmod.MANSFIELD_LENGTH_RANGE[1]
-    assert sig._rs_mansfield_length(0) == rsmod.MANSFIELD_LENGTH_RANGE[0]
-    assert sig._rs_mansfield_length(51.6) == 52
+    assert rsp._rs_mansfield_length(None) == 200
+    assert rsp._rs_mansfield_length("abc") == 200
+    assert rsp._rs_mansfield_length(99999) == rsmod.MANSFIELD_LENGTH_RANGE[1]
+    assert rsp._rs_mansfield_length(0) == rsmod.MANSFIELD_LENGTH_RANGE[0]
+    assert rsp._rs_mansfield_length(51.6) == 52
     assert rd.resolve_inputs("rsLine", {"mansfieldLength": 99999})["mansfieldLength"] == 500
 
 
@@ -786,7 +787,7 @@ def test_the_cross_dot_builder_sits_at_zero_on_crosses_up_unlike_the_rs_dot_buil
     on a cross UP only, wherever the line has a value."""
     mrs = [None, -2.0, -0.5, 0.0, 0.7, None, 1.1]
     up = [None, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0]
-    assert sig._rs_zero_cross_dot(mrs, up) == [None, 0.0, None, 0.0, 0.0, None, None]
+    assert rsp._rs_zero_cross_dot(mrs, up) == [None, 0.0, None, 0.0, 0.0, None, None]
     assert rsmod.dot_column(mrs, up) == [None, None, None, None, 0.7, None, None], "the RS builder refuses ≤ 0 (a ratio)"
 
 
@@ -795,7 +796,7 @@ def test_the_cross_dot_builder_sits_at_zero_on_crosses_up_unlike_the_rs_dot_buil
 def test_rating_reads_the_history_row_and_names_its_source(monkeypatch):
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {
         "NVDA": {"ibd": 94, "fast": 91, "m1": 90, "asof": "2026-11-05", "d5": 2, "d20": -7}})
-    assert sig._rs_rating("nvda") == {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": -7, "source": "row",
+    assert rsp._rs_rating("nvda") == {"ibd": 94, "fast": 91, "asof": "2026-11-05", "d5": 2, "d20": -7, "source": "row",
                                       "summary": "94 · fast 91"}
 
 
@@ -803,16 +804,16 @@ def test_rating_is_null_never_raises_and_says_dark_or_missing(monkeypatch):
     blank = {"ibd": None, "fast": None, "asof": None, "d5": None, "d20": None, "summary": None}
     monkeypatch.delenv("RS_HISTORY_ENABLED", raising=False)
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {})
-    assert sig._rs_rating("NVDA") == {**blank, "source": "dark"}
+    assert rsp._rs_rating("NVDA") == {**blank, "source": "dark"}
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
-    assert sig._rs_rating("NVDA") == {**blank, "source": "missing"}
+    assert rsp._rs_rating("NVDA") == {**blank, "source": "missing"}
     monkeypatch.setattr(rs_history, "read_fields", lambda tickers, **kw: {"NVDA": {}})
-    assert sig._rs_rating("NVDA") == {**blank, "source": "missing"}, "an empty row is a missing rating, never a fabricated one"
+    assert rsp._rs_rating("NVDA") == {**blank, "source": "missing"}, "an empty row is a missing rating, never a fabricated one"
 
     def boom(tickers, **kw):
         raise RuntimeError("table gone")
     monkeypatch.setattr(rs_history, "read_fields", boom)
-    assert sig._rs_rating("NVDA")["source"] == "missing"
+    assert rsp._rs_rating("NVDA")["source"] == "missing"
 
 
 # ── regime, sensitivity, checks, theme on a long daily series ──────────────
@@ -831,7 +832,7 @@ def test_payload_blocks_answer_on_a_long_daily_series_and_reuse_the_benchmark_ba
     assert isinstance(r["above200"], bool) and r["trend2y"] in (-1, 0, 1) and r["volTercile"] in ("low", "mid", "high")
     # Pin moved 2026-11-07 (RS review #19): the regime reads its benchmark at
     # the fixed 883-bar depth, whatever the lookback.
-    assert r["bars"] == sig._RS_REGIME_BARS == 883 and r["volSamples"] == 756
+    assert r["bars"] == rsp._RS_REGIME_BARS == 883 and r["volSamples"] == 756
     # sensitivity: three legs, SPY's from the benchmark bars already in hand (fetched ONCE)
     s = p["sensitivity"]
     assert s["window"] == 20 and s["reasons"] == {}
@@ -902,8 +903,8 @@ def test_an_etf_says_so_in_theme_and_has_no_sector_leg(v2_row, monkeypatch):
 
 
 def test_theme_and_sensitivity_name_an_unmapped_sector(v2_row, monkeypatch):
-    assert sig._rs_theme({}) is None
-    assert sig._rs_theme({"sector": "Cryptocurrency", "industry": None}) == {
+    assert rsp._rs_theme({}) is None
+    assert rsp._rs_theme({"sector": "Cryptocurrency", "industry": None}) == {
         "sector": "Cryptocurrency", "industry": None, "etf": None, "label": "Cryptocurrency", "note": None}
     store = _long_daily()
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(store))
@@ -934,22 +935,22 @@ def test_same_symbol_and_no_benchmark_bars_blank_the_v3_blocks_with_the_state_as
 def test_regime_rules_on_hand_built_series():
     import math
     up = [100.0 * (1.0 + 0.001) ** i for i in range(900)]        # steady climb: above its 200-day, +2y
-    r = sig._rs_regime(up)
+    r = rsp._rs_regime(up)
     assert r["above200"] is True and r["trend2y"] == 1 and r["label"] == "persistence"
     down = [100.0 * (1.0 - 0.001) ** i for i in range(900)]
-    r = sig._rs_regime(down)
+    r = rsp._rs_regime(down)
     assert r["above200"] is False and r["trend2y"] == -1
     assert r["label"] in ("rebound risk", "mixed")             # the tercile decides between the two
     # a down trend whose volatility just exploded is the panic state
     calm = [100.0 * (1.0 - 0.0005) ** i for i in range(880)]
     wild = [calm[-1] * (1.0 + (0.08 if i % 2 == 0 else -0.09)) ** (i + 1) for i in range(130)]
-    r = sig._rs_regime(calm + wild)
+    r = rsp._rs_regime(calm + wild)
     assert r["trend2y"] == -1 and r["volTercile"] == "high" and r["label"] == "rebound risk"   # words (VA1)
     # too short: null with the reasons, never a guess
-    r = sig._rs_regime(up[:150])
+    r = rsp._rs_regime(up[:150])
     assert r["label"] is None and "200-day" in r["reason"] and "two-year" in r["reason"]
     assert r["bars"] == 150
-    assert sig._rs_regime([])["label"] is None
+    assert rsp._rs_regime([])["label"] is None
 
 
 def test_checks_rules_on_hand_built_bars():
@@ -962,7 +963,7 @@ def test_checks_rules_on_hand_built_bars():
         c *= 1 + 2 * bchg if bchg > 0 else 1 + 0.002        # up on the benchmark's red days
         stock.append({"t": 1000 + i, "o": c * 0.99, "h": c * 1.005, "l": c * 0.985, "c": c, "v": 1})
         bench.append({"t": 1000 + i, "o": b, "h": b, "l": b, "c": b, "v": 1})
-    out = sig._rs_checks(stock, bench, "SPY", -0.5)
+    out = rsp._rs_checks(stock, bench, "SPY", -0.5)
     assert out["ma"]["pass"] is True and out["ma"]["stock200"] > out["ma"]["bench200"]
     assert "SPY" in out["ma"]["reason"] and "%" in out["ma"]["reason"]
     assert out["anchor"]["pass"] is True and out["anchor"]["anchorTime"] >= 1000 + 240
@@ -972,14 +973,14 @@ def test_checks_rules_on_hand_built_bars():
     assert isinstance(out["pullbackEma8"], float)
     # a flat stock on the same benchmark fails the first two and the pivot (close mid-range)
     flat = [{"t": 1000 + i, "o": 50.0, "h": 51.0, "l": 49.0, "c": 50.0, "v": 1} for i in range(260)]
-    out = sig._rs_checks(flat, bench, "SPY", -0.5)
+    out = rsp._rs_checks(flat, bench, "SPY", -0.5)
     assert out["ma"]["stock200"] == pytest.approx(0.0) and out["ma"]["pass"] is (0.0 > out["ma"]["bench200"])
     assert out["anchor"]["stock"] == pytest.approx(0.0) and out["anchor"]["pass"] is False, "the benchmark rose off its own low"
     assert out["pivotSpeed"]["count"] == 0 and out["pivotSpeed"]["pass"] is False, "a mid-range close is not the top third"
     assert out["greenOnRed"]["count"] == 0 and out["greenOnRed"]["pass"] is False
     assert out["summary"] == f"{1 if out['ma']['pass'] else 0} of 4 pass"
     # too short for the averages: null with the bar counts in the reason
-    out = sig._rs_checks(stock[:100], bench[:100], "SPY", -0.5)
+    out = rsp._rs_checks(stock[:100], bench[:100], "SPY", -0.5)
     assert out["ma"]["pass"] is None and "have 100 and 100" in out["ma"]["reason"]
     # Pin moved 2026-11-07 (RS review #13): bar 99 is a benchmark red day and its
     # 20-session low, so the anchor is undecided ("low is today") and leaves the
@@ -997,16 +998,16 @@ def test_sensitivity_legs_reuse_the_resolved_benchmark_and_agree_on_three_rising
         calls.append(sym)
         return flat
     bench = {"resolved": "SPY", "bars": flat}
-    out = sig._rs_sensitivity("NVDA", bars, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
+    out = rsp._rs_sensitivity("NVDA", bars, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
     assert calls == ["RSP", "XLK"], "SPY came from the benchmark already in hand"
     # Pins moved 2026-11-06 (visual round VA1): the Agreement row's grouped copy.
     assert out["agree"] is True and out["summary"] == "SPY, RSP and XLK all rising"
     assert out["spy"]["sign"] == out["rsp"]["sign"] == out["sector"]["sign"] == 1
     # a flat leg disagrees (a flat slope is neither sign)
-    out = sig._rs_sensitivity("NVDA", flat, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
+    out = rsp._rs_sensitivity("NVDA", flat, bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
     assert out["agree"] is False and out["summary"] == "SPY, RSP and XLK all flat"
     # a short series: null legs with the reason
-    out = sig._rs_sensitivity("NVDA", bars[:5], bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
+    out = rsp._rs_sensitivity("NVDA", bars[:5], bench, "D", 40, {"sector": "Technology", "industry": "x"}, fetch)
     assert out["spy"] is None and "needs 20 bars" in out["reasons"]["spy"]
 
 
@@ -1019,7 +1020,7 @@ def test_the_v1_lane_never_touches_a_phase2a_helper(monkeypatch):
     def boom(*a, **k):
         raise AssertionError("a Phase 2a helper ran on the v1 lane")
     for name in ("_rs_rating", "_rs_regime", "_rs_sensitivity", "_rs_checks", "_rs_theme"):
-        monkeypatch.setattr(sig, name, boom)
+        monkeypatch.setattr(rsp, name, boom)
     monkeypatch.setattr(rb, "_groups_for", boom)
     env = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})
     assert set(env["columns"]) == {"rsLine"} and "payload" not in env
@@ -1308,25 +1309,25 @@ def test_benchmark_note_names_the_missing_benchmark_bar_on_a_daily_chart():
     times = [20261103, 20261104, 20261105]
     bench = {"requested": "SPY", "resolved": "SPY", "fallback": None}
     # the newest bar has no ratio: the benchmark has no bar for that day yet
-    assert sig._rs_benchmark_note(bench, _leg(1), times, intraday=False) == "No SPY bar for Nov 5 yet"
+    assert rsp._rs_benchmark_note(bench, _leg(1), times, intraday=False) == "No SPY bar for Nov 5 yet"
     # no finite value anywhere in the window says the same
-    assert sig._rs_benchmark_note(bench, _leg(None), times, intraday=False) == "No SPY bar for Nov 5 yet"
+    assert rsp._rs_benchmark_note(bench, _leg(None), times, intraday=False) == "No SPY bar for Nov 5 yet"
     # control: the newest bar has a value, so there is no note at all
-    assert sig._rs_benchmark_note(bench, _leg(2), times, intraday=False) is None
+    assert rsp._rs_benchmark_note(bench, _leg(2), times, intraday=False) is None
 
 
 def test_benchmark_note_stays_silent_where_a_date_would_mislead():
     times = [20261103, 20261104, 20261105]
     bench = {"requested": "SPY", "resolved": "SPY", "fallback": None}
-    assert sig._rs_benchmark_note(bench, _leg(1), times, intraday=True) is None
-    assert sig._rs_benchmark_note(bench, _leg(None), times, intraday=False, same_symbol=True) is None
-    assert sig._rs_benchmark_note(bench, _leg(None), [], intraday=False) is None
+    assert rsp._rs_benchmark_note(bench, _leg(1), times, intraday=True) is None
+    assert rsp._rs_benchmark_note(bench, _leg(None), times, intraday=False, same_symbol=True) is None
+    assert rsp._rs_benchmark_note(bench, _leg(None), [], intraday=False) is None
 
 
 def test_benchmark_note_turns_every_fallback_reason_into_a_sentence():
     def note(requested, reason, resolved="SPY"):
         b = {"requested": requested, "resolved": resolved, "fallback": reason}
-        return sig._rs_benchmark_note(b, _leg(2), [1, 2, 3], intraday=False)
+        return rsp._rs_benchmark_note(b, _leg(2), [1, 2, 3], intraday=False)
 
     assert note("SECTOR", "symbol is an ETF") == "Sector ETF not available for an ETF; using SPY"
     assert note("SECTOR", "no sector") == "Sector ETF not available: no sector on file; using SPY"
@@ -1351,4 +1352,4 @@ def test_every_reason_the_resolver_can_return_has_a_sentence_shape():
     reasons |= set(re.findall(r'"([a-z ]+)" if [a-z]+ else', src))
     assert reasons, "control: the scan found the resolver's reasons"
     for r in reasons:
-        assert r in sig._RS_FALLBACK_SENTENCE, r
+        assert r in rsp._RS_FALLBACK_SENTENCE, r
