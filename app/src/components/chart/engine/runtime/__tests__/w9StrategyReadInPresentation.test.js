@@ -1,87 +1,159 @@
-// W9-OQ-N2 (2026-11-07): a `strategy.*` read in an output's PRESENTATION, with the broker DARK.
+// W9-OQ-N2 (2026-11-07): a `strategy.*` STATE value reaching what a member sees, with the broker DARK.
 // The W9-OQ-N1 review (`reviews/W9-OQ-N1.md`) left one case open: `plot(close, color =
-// strategy.position_size > 0 ? ...)`. The runtime lane's colour channel already withheld that row
-// naming the read (RT6 `colour.refused`), but the host lane let the colour fall soft to
-// `colorDynamic` and the member door drew the row in ONE colour, the platform default, with no
-// disclosure on the pane: a broker value nobody computes, served as "flat" on every bar.
-// The host lane now refuses that row `pine:strategy-call` by name; a fill whose colour reads the
-// broker is not drawn. Pinned here with the forms that were already refused, on v5 and v6.
+// strategy.position_size > 0 ? ...)`. The host lane let that colour fall soft to `colorDynamic` and the
+// member door drew the row in ONE default colour with no disclosure: a broker value nobody computes,
+// served as "flat" on every bar. The STRAT-COLOR review then found the same silence through a positional
+// fill colour, `var` / `:=` state, `switch`, arrays, tuples and drawing colours.
+//
+// The fix is TAINT (`ast/strategyTaint.js`), not a route-by-route patch: any value derived from a broker
+// state read that reaches a member-visible sink (every argument of plot*, fill, bgcolor, barcolor, hline,
+// alertcondition / alert, line / label / box / table / polyline / linefill) refuses `pine:strategy-call`
+// by name. A row refuses itself, a paint is withheld by name, a band / drawing / alert / hline refuses
+// the script. The runtime lane already refused or withheld each of these.
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../../ast/pine.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { strategyTaintSinks, isStrategyStateWord } from '../../ast/strategyTaint.js'
 
 const head = (v) => `//@version=${v}\nstrategy("t", overlay = true)\n`
 const host = (src) => translatePine(src, { strict: true })
 const rt = (src, plotColours = false) => buildRuntimeIr(src, { bars: [], inputs: {}, plotColours })
-const PLOT_COLOUR = 'plot(close, color = strategy.position_size > 0 ? color.green : color.red)\n'
+const SC = 'strategy.position_size > 0 ? color.green : color.red'
+const PLOTS = 'p1 = plot(close, "a")\np2 = plot(open, "b")\n'
 
-describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker read in a colour is refused by name', (v) => {
+/** every refusal the host translation carries, row or script */
+const refusalsOf = (t) => [
+  ...(t.refusals || []),
+  ...(t.outputs || []).map((o) => o.refusal).filter(Boolean),
+]
+/** the host lane names the broker read: a refused row / script, a withheld paint, or a dropped band */
+const namesRead = (t, word = 'strategy.position_size') =>
+  refusalsOf(t).some((r) => r.guard === 'pine:strategy-call' && r.message.includes(`\`${word}\``))
+  || ((t.presentation && t.presentation.paints) || []).some((p) => p.withheld
+    && p.withheld.code === 'pine:strategy-call' && p.withheld.reason.includes(`\`${word}\``))
+
+describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a member-visible sink refuses by name', (v) => {
   const H = head(v)
 
-  it('host: `plot(close, color = strategy.position_size > 0 ? ...)` refuses pine:strategy-call', () => {
-    const t = host(H + PLOT_COLOUR)
-    expect(t.ok).toBe(false)
-    expect(t.outputs[0].refusal.guard).toBe('pine:strategy-call')
-    expect(t.outputs[0].refusal.message).toContain('`strategy.position_size`')
+  // ── the routes, each one on the host lane ────────────────────────────────────────────
+  const ROUTES = {
+    'named plot colour': `plot(close, color = ${SC})\n`,
+    'positional plot colour': `plot(close, "t", ${SC})\n`,
+    'a variable': `c = ${SC}\nplot(close, color = c)\n`,
+    'var + := state': `var color c = na\nc := ${SC}\nplot(close, color = c)\n`,
+    'var bool state': 'var bool inpos = false\ninpos := strategy.position_size > 0\nplot(close, color = inpos ? color.green : color.red)\n',
+    ':= inside a tainted if': 'var color c = color.red\nif strategy.position_size > 0\n    c := color.green\nplot(close, color = c)\n',
+    'the else branch of a tainted if': 'var color c = color.red\nif strategy.position_size > 0\n    c := color.red\nelse\n    c := color.green\nplot(close, color = c)\n',
+    'switch arm': 'c = switch\n    strategy.position_size > 0 => color.green\n    => color.red\nplot(close, color = c)\n',
+    'if-expression': 'c = if strategy.position_size > 0\n    color.green\nelse\n    color.red\nplot(close, color = c)\n',
+    'array': 'a = array.from(strategy.position_size)\nplot(close, color = array.get(a, 0) > 0 ? color.green : color.red)\n',
+    'array push': 'a = array.new_float(0)\narray.push(a, strategy.position_size)\nplot(close, color = array.get(a, 0) > 0 ? color.green : color.red)\n',
+    'method push': 'a = array.new_float(0)\na.push(strategy.position_size)\nplot(close, color = a.get(0) > 0 ? color.green : color.red)\n',
+    'map put': 'm = map.new<string, float>()\nmap.put(m, "k", strategy.position_size)\nplot(close, color = map.get(m, "k") > 0 ? color.green : color.red)\n',
+    'tuple': '[a, b] = [strategy.position_size, close]\nplot(close, color = a > 0 ? color.green : color.red)\n',
+    'function body': `f() => ${SC}\nplot(close, color = f())\n`,
+    'function argument': 'f(x) => x > 0 ? color.green : color.red\nplot(close, color = f(strategy.position_size))\n',
+    'color.new transparency': 'plot(close, color = color.new(color.red, strategy.opentrades > 0 ? 0 : 90))\n',
+    'color.from_gradient': 'plot(close, color = color.from_gradient(strategy.position_size, -1, 1, color.red, color.green))\n',
+    'request.security': `x = request.security(syminfo.tickerid, "D", strategy.position_size)\nplot(close, color = x > 0 ? color.green : color.red)\n`,
+    'plotchar colour': `plotchar(close > open, "c", "x", color = ${SC})\nplot(close)\n`,
+    'plotcandle colour': `plotcandle(open, high, low, close, color = ${SC})\n`,
+    'named fill colour': `${PLOTS}fill(p1, p2, color = ${SC})\n`,
+    'positional fill colour': `${PLOTS}fill(p1, p2, ${SC})\n`,
+    'gradient fill colour': `${PLOTS}fill(p1, p2, close, open, strategy.position_size > 0 ? color.green : color.red, color.blue)\n`,
+    'bgcolor': `bgcolor(${SC})\nplot(close)\n`,
+    'label colour': `label.new(bar_index, high, "x", color = ${SC})\nplot(close)\n`,
+    'line colour': `line.new(bar_index, high, bar_index + 1, high, color = ${SC})\nplot(close)\n`,
+    'box bgcolor': `box.new(bar_index, high, bar_index + 1, low, bgcolor = ${SC})\nplot(close)\n`,
+    'label.set_color': `var lbl = label.new(bar_index, high, "x")\nlabel.set_color(lbl, ${SC})\nplot(close)\n`,
+    'method set_color': `var lbl = label.new(bar_index, high, "x")\nlbl.set_color(${SC})\nplot(close)\n`,
+    'table.cell bgcolor': `var t = table.new(position.top_right, 1, 1)\ntable.cell(t, 0, 0, "x", bgcolor = ${SC})\nplot(close)\n`,
+    'drawing in a tainted if': 'if strategy.position_size > 0\n    label.new(bar_index, high, "in")\nplot(close)\n',
+    'alert in a tainted if': 'if strategy.position_size > 0\n    alert("in")\nplot(close)\n',
+    'alertcondition': 'alertcondition(strategy.position_size > 0, "in")\nplot(close)\n',
+    'a drawing in a function fed a tainted argument': 'f(c) =>\n    label.new(bar_index, high, "x", color = c)\nf(strategy.position_size > 0 ? color.green : color.red)\nplot(close)\n',
+  }
+  for (const [route, body] of Object.entries(ROUTES)) {
+    it(`host refuses by name: ${route}`, () => {
+      const t = host(H + body)
+      const word = /strategy\.opentrades/.test(body) ? 'strategy.opentrades' : 'strategy.position_size'
+      expect(namesRead(t, word), JSON.stringify(refusalsOf(t).map((r) => r.guard))).toBe(true)
+    })
+  }
+
+  it('host: a band a broker value reaches refuses the script; a static band is still drawn', () => {
+    expect(host(`${H}${PLOTS}fill(p1, p2, ${SC})\n`).ok).toBe(false)
+    const ctl = host(`${H}${PLOTS}fill(p1, p2, color.red)\n`)
+    expect(ctl.ok).toBe(true)
+    expect(ctl.presentation.fills.length).toBe(1)
   })
 
-  it('host: the read behind a variable, a function, or inside `color.new` refuses too', () => {
-    for (const b of [
-      'c = strategy.position_size > 0 ? color.green : color.red\nplot(close, color = c)\n',
-      'f() => strategy.position_size > 0 ? color.green : color.red\nplot(close, color = f())\n',
-      'plot(close, color = color.new(color.red, strategy.opentrades > 0 ? 0 : 90))\n',
-      'plotchar(close > open, "c", "x", color = strategy.position_size > 0 ? color.green : color.red)\nplot(close)\n',
-    ]) {
-      const t = host(H + b)
-      expect(t.outputs.find((o) => o.refusal)?.refusal.guard, b).toBe('pine:strategy-call')
-    }
+  it('host: a paint is withheld by name, not drawn', () => {
+    const t = host(`${H}bgcolor(${SC})\nplot(close)\n`)
+    expect(t.presentation.paints[0].withheld.code).toBe('pine:strategy-call')
+    expect(t.presentation.paints[0].withheld.reason).toContain('`strategy.position_size`')
   })
 
   it('host: only the reading row is refused; its sibling plot is translated', () => {
-    const t = host(`${H}plot(close, "a", color = strategy.position_size > 0 ? color.green : color.red)\nplot(open, "b")\n`)
+    const t = host(`${H}plot(close, "a", color = ${SC})\nplot(open, "b")\n`)
     expect(t.outputs[0].refusal.guard).toBe('pine:strategy-call')
     expect(t.outputs[1].refusal).toBeNull()
     expect(t.outputs[1].formula).toBe('open')
   })
 
-  it('host: a fill whose colour reads the broker is not drawn', () => {
-    const t = host(`${H}p1 = plot(close, "a")\np2 = plot(open, "b")\n`
-      + 'fill(p1, p2, color = strategy.position_size > 0 ? color.green : color.red)\n')
-    expect(t.ok).toBe(true)
-    expect(t.presentation.fills).toEqual([])
-    const ctl = host(`${H}p1 = plot(close, "a")\np2 = plot(open, "b")\nfill(p1, p2, color = color.red)\n`)
-    expect(ctl.presentation.fills.length).toBe(1)
+  // ── what must NOT refuse ─────────────────────────────────────────────────────────────
+  it('control: colours that read no broker value are still carried', () => {
+    for (const body of [
+      'plot(close, color = close > open ? color.green : color.red)\n',
+      'strategyColor = close > open ? color.green : color.red\nplot(close, color = strategyColor)\n',
+      '// strategy.position_size\nplot(close, color = close > open ? color.green : color.red, title = "strategy.position_size")\n',
+    ]) {
+      const t = host(H + body)
+      expect(t.ok, body).toBe(true)
+      expect(refusalsOf(t).some((r) => r.guard === 'pine:strategy-call'), body).toBe(false)
+    }
   })
 
-  it('control: a colour that reads no broker value is still carried', () => {
-    const t = host(`${H}plot(close, color = close > open ? color.green : color.red)\n`)
+  it('control: an order in a tainted `if` reaches no sink and is skipped as before', () => {
+    const t = host(`${H}if strategy.position_size == 0 and close > open\n    strategy.entry("L", strategy.long)\nplot(close)\n`)
     expect(t.ok).toBe(true)
-    expect(t.outputs[0].presentation.colorCondition.formula).toBe('close > open')
   })
 
-  it('control: a constant selector that folds the read away keeps the colour (no over-refusal)', () => {
-    const t = host(`${H}useS = input.bool(false)\n`
-      + 'plot(close, color = useS ? (strategy.position_size > 0 ? color.green : color.red) : color.blue)\n')
-    expect(t.ok).toBe(true)
-    expect(t.outputs[0].refusal).toBeNull()
-    expect(t.outputs[0].presentation.colorDynamic).toBeUndefined()
-  })
-
-  it('already refused (pinned): a value read, a plotshape series, a label text, a paint', () => {
+  it('already refused (pinned): a value read, a plotshape series, a label text', () => {
     expect(host(`${H}plot(strategy.equity)\n`).outputs[0].refusal.guard).toBe('pine:strategy-call')
     expect(host(`${H}plotshape(strategy.position_size > 0)\nplot(close)\n`).outputs[0].refusal.guard).toBe('pine:strategy-call')
-    const lbl = host(`${H}label.new(bar_index, high, str.tostring(strategy.opentrades))\nplot(close)\n`)
-    expect(lbl.objectDiagnostics.createDropWhy.join(' ')).toContain('pine:strategy-call')
-    const bg = host(`${H}bgcolor(strategy.position_size > 0 ? color.green : na)\nplot(close)\n`)
-    expect(bg.presentation.paints[0].withheld.code).toBe('paint:colour')
+    expect(namesRead(host(`${H}label.new(bar_index, high, str.tostring(strategy.opentrades))\nplot(close)\n`), 'strategy.opentrades')).toBe(true)
   })
 
+  // ── the lanes agree ──────────────────────────────────────────────────────────────────
   it('runtime: the plot colour is refused naming the read; value reads and paints refuse the build', () => {
-    const built = rt(H + PLOT_COLOUR, true)
+    const built = rt(`${H}plot(close, color = ${SC})\n`, true)
     expect(built.ok).toBe(true)
     expect(built.ir.outputs[0].colour.refused).toContain('`strategy.position_size`')
     expect(rt(`${H}plot(strategy.equity)\n`).refusal.guard).toBe('pine:strategy-call')
-    expect(rt(`${H}bgcolor(strategy.position_size > 0 ? color.green : na)\nplot(close)\n`).refusal.guard)
-      .toBe('pine:strategy-call')
+    expect(rt(`${H}bgcolor(${SC})\nplot(close)\n`).refusal.guard).toBe('pine:strategy-call')
+    for (const body of [ROUTES['var + := state'], ROUTES['switch arm'], ROUTES.array, ROUTES['positional fill colour']]) {
+      const r = rt(H + body, true)
+      const withheld = r.ok && r.ir.outputs.some((o) => o.colour && o.colour.refused)
+      expect(r.ok === false || withheld, body).toBe(true)
+    }
+  })
+})
+
+describe('strategyTaint: the source words', () => {
+  it('state reads are sources; constants and order calls are not', () => {
+    for (const w of ['strategy.position_size', 'strategy.equity', 'strategy.netprofit', 'strategy.opentrades',
+      'strategy.opentrades.entry_price', 'strategy.closedtrades.profit', 'strategy.position_avg_price']) {
+      expect(isStrategyStateWord(w), w).toBe(true)
+    }
+    for (const w of ['strategy.long', 'strategy.short', 'strategy.fixed', 'strategy.cash', 'strategy.percent_of_equity',
+      'strategy.direction.long', 'strategy.oca.cancel', 'strategy.commission.percent', 'strategy.entry', 'strategy.exit',
+      'strategy.close_all', 'strategy.risk.max_drawdown', 'strategyColor', 'close']) {
+      expect(isStrategyStateWord(w), w).toBe(false)
+    }
+  })
+
+  it('a program with no broker read has no tainted sink (and costs no walk)', () => {
+    expect(strategyTaintSinks([]).size).toBe(0)
   })
 })

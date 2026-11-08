@@ -179,6 +179,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
+import { strategyTaintSinks } from './strategyTaint.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -891,6 +892,13 @@ import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
+
+/** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row; every other tainted sink
+ *  (a `fill` band, a drawing, `alert()`, `hline`) has no row of its own and refuses the script. */
+const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
+  'plotarrow', 'alertcondition', 'bgcolor', 'barcolor'])
+/** ⛔ W9-OQ-N2 — the current translation's taint verdict at a line, set per `translatePineResult`. */
+let strategyTaintAtLine = () => null
 
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
@@ -24481,6 +24489,7 @@ export function translatePine(source, opts = {}) {
   const outerLowerSink = LOWER_TF_SINK
   const outerLibrarySink = LIBRARY_LINK_SINK
   const outerDeclWords = DECL_WORDS_SINK
+  const outerTaintAt = strategyTaintAtLine
   LIBRARY_LINK_SINK = null
   DECL_WORDS_SINK = null
   const sink = new Map()
@@ -24500,6 +24509,7 @@ export function translatePine(source, opts = {}) {
     LOWER_TF_SINK = outerLowerSink
     LIBRARY_LINK_SINK = outerLibrarySink
     DECL_WORDS_SINK = outerDeclWords
+    strategyTaintAtLine = outerTaintAt
   }
   if (!t || typeof t !== 'object') return t
   // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
@@ -24921,6 +24931,28 @@ function translatePineResult(source, opts = {}) {
   // before the walk starts; its declaration is passed over where it stands
   // (`hoistBlockVars`). FIRST, because a same-spelled sibling is renamed on the
   // tokens every later reader sees.
+  // ⛔⛔ W9-OQ-N2 (2026-11-07) - WHERE A BROKER VALUE REACHES WHAT A MEMBER SEES (`strategyTaint.js`).
+  // Read on the original statements, before any renaming. Host lane only: the screener lane
+  // refuses a `strategy()` script whole (`pine:declaration-strategy`). A row and a paint read
+  // their verdict where they are built (`strategyTaintAtLine`); a band, a drawing, `alert()` or
+  // `hline` a broker value reaches has no row to refuse, so it refuses the script by name.
+  let strategyTaint = new Map()
+  if (isHostLane(opts)) {
+    // ⛔ A trace that fails is not a clean trace: the script refuses by name rather than serve.
+    try { strategyTaint = strategyTaintSinks(stmts) } catch {
+      hardRefusals.push(refusalValue('pine:strategy-call',
+        `${REFUSALS['pine:strategy-call']} — where its \`strategy.*\` values reach could not be traced`, null))
+    }
+  }
+  strategyTaintAtLine = (line, name) => {
+    for (const v of strategyTaint.values()) if (v.tok.line === line && v.name === name) return v
+    return null
+  }
+  for (const v of strategyTaint.values()) {
+    if (STRATEGY_TAINT_ROW_SINKS.has(v.name)) continue
+    hardRefusals.push(refusalValue('pine:strategy-call',
+      `${REFUSALS['pine:strategy-call']} — \`${v.word}\` (reaches \`${v.name}\`)`, locate(v.tok)))
+  }
   const hoistedVars = hoistBlockVars(stmts)
   ctx.hoisted = hoistedVars.skip
   // ⭐ O1 (step 67) — a counted loop that only searches for the FIRST index whose
@@ -25892,6 +25924,9 @@ function translatePineResult(source, opts = {}) {
         let pargs = null
         try { pargs = parseArguments(new Cursor(toks.slice(2))) } catch { pargs = null }
         const paintRec = { kind: word, args: pargs, env: new Map(env), tok: first }
+        // ⛔ W9-OQ-N2 — the broker value this paint's arguments reach, if any.
+        const paintTaint = strategyTaintAtLine(first.line, word)
+        if (paintTaint) paintRec.strategyWord = paintTaint.word
         paints.push(paintRec)
         // ⭐ the sentence waits for `resolvePaints` (drawn / withheld / hidden / `na`)
         const paintHow = { lane: 'host', site: 'top', paint: null }
@@ -26559,21 +26594,17 @@ function translatePineResult(source, opts = {}) {
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
       if (resolver.condRefusal) throw resolver.condRefusal
-      // ⛔⛔ W9-OQ-N2 (2026-11-07) - A COLOUR THAT READS THE BROKER REFUSES THE ROW BY NAME.
-      // A colour this door cannot carry falls soft to `colorDynamic`, and the member door
-      // then draws the row in ONE colour (the platform default) with no disclosure on the
-      // pane. For a colour that reads `strategy.*` that one colour stands in for a value
-      // no lane computes with the broker dark (`plot(close, color = strategy.position_size
-      // > 0 ? color.green : color.red)` drew every bar gold, as if flat). The runtime lane
-      // already withholds that row naming the read (RT6 `colour.refused`); this lane now
-      // refuses it with the guard every other `strategy.*` read refuses with. ⛔ Only an
-      // UNCARRIED colour: one this door carried (a constant selector folding the read
-      // away) never read the broker.
-      if (row.presentation && row.presentation.colorDynamic) {
-        const read = colourStrategyRead(args, out.kind, env)
-        if (read) {
+      // ⛔⛔ W9-OQ-N2 (2026-11-07) - AN OUTPUT A BROKER VALUE REACHES REFUSES BY NAME.
+      // With the broker dark, a `strategy.*` STATE value reaching ANY argument of this call
+      // (its colour above all, which falls soft to one default colour when uncarried) is a
+      // value no lane computes. `strategyTaintSinks` follows it through names, `var` / `:=`,
+      // ternaries, `switch` / `if` blocks, functions, methods and collections; a row it reaches
+      // is refused `pine:strategy-call`, as a direct read already is.
+      {
+        const sinkTaint = strategyTaintAtLine(out.tok.line, out.kind)
+        if (sinkTaint) {
           throw new PineRefusal('pine:strategy-call',
-            `${REFUSALS['pine:strategy-call']} — \`${read.word}\``, locate(read.tok || out.tok))
+            `${REFUSALS['pine:strategy-call']} — \`${sinkTaint.word}\``, locate(sinkTaint.tok))
         }
       }
       // ⛔⛔ F2 (review) — A GATE ONLY THE COLOUR NOTED IS THE COLOUR'S (H1's rule,
@@ -29234,6 +29265,10 @@ function resolvePaint(p, ctx) {
   const at = locate(p.tok)
   const rec = { kind: p.kind, line: at ? at.line : null }
   const withhold = (code, why) => ({ ...rec, withheld: { code, reason: why } })
+  // ⛔ W9-OQ-N2 — a paint a broker value reaches is withheld BY NAME, before anything is read.
+  if (p.strategyWord) {
+    return withhold('pine:strategy-call', `${REFUSALS['pine:strategy-call']} — \`${p.strategyWord}\``)
+  }
   if (!Array.isArray(p.args)) return withhold('paint:arguments', `\`${p.kind}(…)\`'s arguments could not be read`)
   const legacy = isLegacyPineVersion(ctx.version)
   const sig = (legacy ? PAINT_SIGNATURES.legacy : PAINT_SIGNATURES.modern)[p.kind]
@@ -29395,11 +29430,6 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         version: ctx && ctx.version,
       }) || {}
     } catch { pres = {} }
-    // ⛔ W9-OQ-N2 — a band whose uncarried colour reads `strategy.*` is NOT drawn: in one
-    // colour it would stand in for a broker value no lane computes. Left uncarried, so its
-    // chart-only note says the band is not drawn (`how.band`), as for a refused edge.
-    const fillCarried = typeof pres.color === 'string' || !!pres.colorCondition || !!pres.colorIndex
-    if ((pres.colorDynamic || !fillCarried) && colourStrategyRead(f.args || [], 'fill', f.env || (ctx && ctx.env))) continue
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null
@@ -29588,67 +29618,6 @@ function displacedPresentation(pres, shift) {
     }
   }
   return pres
-}
-
-/** ⛔ W9-OQ-N2 — the first `strategy.*` word an output's `color` argument reads, or
- *  null: the argument is found as `outputPresentation` finds it (named, or at its
- *  place in the call's signature), and every name in it is followed through the
- *  script's own bindings (`c = strategy.position_size > 0 ? …` then `color = c`),
- *  a function's body (`f() => …` then `color = f()`) and a `bound` arm. Syntactic
- *  on purpose: it runs only for a colour no rule carried, so it cannot widen what
- *  is served; it only decides whether an uncarried colour is a broker read. */
-function colourStrategyRead(args, kind, env) {
-  const list = Array.isArray(args) ? args : []
-  const named = list.find((a) => a && a.name === 'color')
-  let c = named
-  if (!c) {
-    const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '') ? POSITIONAL_PRESENTATION[kind] : null
-    const at = signature ? signature.indexOf('color') : -1
-    c = at > 0 ? list.filter((a) => a && !a.name)[at] : undefined
-  }
-  if (!c) return null
-  const seen = new Set()
-  const followBinding = (b, outer, depth) => {
-    if (!b || typeof b !== 'object' || depth > 32 || seen.has(b)) return null
-    seen.add(b)
-    if (b.kind === 'expr' && b.node) return walk(b.node, b.env || outer, depth + 1)
-    if (b.kind === 'fn' && b.value) return followBinding(b.value, outer, depth + 1)
-    if (b.kind === 'tuple' && Array.isArray(b.parts)) {
-      for (const p of b.parts) {
-        const w = p && p.node ? walk(p.node, p.env || outer, depth + 1) : null
-        if (w) return w
-      }
-    }
-    return null
-  }
-  const walk = (node, scope, depth) => {
-    if (!node || typeof node !== 'object' || depth > 32 || seen.has(node)) return null
-    seen.add(node)
-    if (Array.isArray(node)) {
-      for (const x of node) {
-        const w = walk(x, scope, depth + 1)
-        if (w) return w
-      }
-      return null
-    }
-    if ((node.type === 'name' || node.type === 'call') && typeof node.name === 'string') {
-      if (node.name.startsWith('strategy.')) return { word: node.name, tok: node.tok || null }
-      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
-      const w = followBinding(b, scope, depth)
-      if (w) return w
-    }
-    if (node.type === 'bound') {
-      const w = followBinding(node.binding, scope, depth)
-      if (w) return w
-    }
-    for (const [k, v] of Object.entries(node)) {
-      if (k === 'tok' || k === 'endTok' || k === 'binding' || k === 'env' || !v || typeof v !== 'object') continue
-      const w = walk(v, scope, depth + 1)
-      if (w) return w
-    }
-    return null
-  }
-  return walk(c.value !== undefined ? c.value : c, env, 0)
 }
 
 function outputPresentation(args, ctx) {
