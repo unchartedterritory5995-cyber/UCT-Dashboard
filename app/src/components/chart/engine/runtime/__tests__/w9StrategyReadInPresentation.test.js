@@ -125,6 +125,14 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     expect(JSON.stringify(d.definition.meta.disclosures)).not.toMatch(/drawings are not|can't be shown/)
   })
 
+  it('the METHOD-form delete of a broker-labelled handle is not withheld either (`lbl.delete()`)', () => {
+    const t = host(`${H}plot(close)\nvar label lbl = na\nlbl.delete()\n`
+      + 'lbl := label.new(bar_index, 50, "Position Size: " + str.tostring(strategy.position_size))\n')
+    expect(drawingWithheld(t)).toBe(true)
+    expect(t.objectDiagnostics.dropReasons['strategy:create']).toBe(1)
+    expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBeUndefined()
+  })
+
   it('a delete RUN under a tainted condition is withheld by name (the broker decides it)', () => {
     const t = host(`${H}plot(close)\nvar label lbl = label.new(bar_index, high, "x")\nif strategy.position_size > 0\n    label.delete(lbl)\n`)
     expect(t.objectDiagnostics.dropReasons['strategy:delete']).toBe(1)

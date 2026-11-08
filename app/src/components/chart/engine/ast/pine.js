@@ -23414,7 +23414,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     rtMarkDropped = diagnostics.droppedProps || 0
     // ⛔⛔ W9-OQ-N2 — A DRAWING STEP A BROKER VALUE REACHES (`strategyTaint.js`) is withheld BY
     // NAME through the same lost-op bookkeeping a refused guard takes: its object, handle,
-    // removals and setters are accounted for, `dropReasons['pine:strategy-call']` counts it and
+    // removals and setters are accounted for, `dropReasons['strategy:<kind>']` counts it and
     // `guardRefusals` names the read. Only that step: the script's other drawings and plots stand.
     const brokerTaint = op.k !== 'loop' && Number.isInteger(op.line) ? strategyTaintDrawingAtLine(op.line) : null
     const brokerRefusal = brokerTaint
