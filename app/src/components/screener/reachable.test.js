@@ -748,6 +748,16 @@ const AWAITING_A_DECISION = {
     + 'public glossary page (RsGlossary.test.jsx pins that its import walk never reaches teaching.js) '
     + 'and nativeRegistry.js (rsLine meta.tour; importing teaching.js there is an import cycle). '
     + 'Do NOT mount it to green this rail.',
+  // ── W9-T13a STRATEGY REPORT METRICS — BUILT DARK, NOT MOUNTED (2026-11-08) ──
+  // `runtime/brokerReport.js` computes the strategy report from the run's record
+  // (W9 design rule 3: the one place report metrics are computed). Its only consumer
+  // is W9-T13b, the report panel, which is not built; W9 is DARK until the owner arms a
+  // stage (rulings D6, D8). Rails: w9T13aBrokerReport.test.js, w9T13aReportParity.test.js.
+  // ⏳ The decision owed by the expiry: T13b mounts it (the entry goes in that commit), or
+  // the coordinator parks W9 again with a new date.
+  'app/src/components/chart/engine/runtime/brokerReport.js':
+    'W9-T13a report metrics, built dark; its consumer is W9-T13b (the report panel, not built). '
+    + 'Do NOT mount it to green this rail: mounting is T13b and arming is the owner (D6).',
   }
 
 /**
@@ -793,6 +803,7 @@ const PARKING_EXPIRES = {
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
   'RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07)': '2026-12-31',
+  'W9-T13a STRATEGY REPORT METRICS — BUILT DARK, NOT MOUNTED (2026-11-08)': '2026-12-31',
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.

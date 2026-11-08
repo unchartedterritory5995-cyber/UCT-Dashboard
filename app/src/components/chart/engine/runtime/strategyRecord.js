@@ -71,6 +71,8 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     entryId: t.id,
     dir: dirOf(t.dir),
     qty: t.qty,
+    // W9-T13a: every fill of the trade is on the tick grid (the broker's own flag, never re-derived)
+    exact: t.exact === true,
     entryTime: t.entry ? t.entry.time : null,
     entryPrice: t.entry ? t.entry.price : null,
     entryRule: t.entry ? t.entry.rule : null,
@@ -109,6 +111,12 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
       process_orders_on_close: null,
       bar_detalization: null,
       currency: null,
+    },
+    // W9-T13a: the symbol's tick and point value as the run settled them (the broker's `#symbol`),
+    // null when unknown. The report's currency values are price x size x pointvalue (B-VAL).
+    symbol: {
+      mintick: rec.symbol && Number.isFinite(rec.symbol.mintick) && rec.symbol.mintick > 0 ? rec.symbol.mintick : null,
+      pointvalue: rec.symbol && Number.isFinite(rec.symbol.pointvalue) && rec.symbol.pointvalue > 0 ? rec.symbol.pointvalue : null,
     },
     orders: null,
     trades,
@@ -153,6 +161,10 @@ export function strategyRecordShapeErrors(rec) {
     'window.bars <= window.historyWindowBars')
   need(isNullOr(w.asOfBar, isTime), 'window.asOfBar')
   need(!!rec.settings && typeof rec.settings === 'object', 'settings')
+  const posOrNull = (v) => v === null || (Number.isFinite(v) && v > 0)
+  need(!!rec.symbol && typeof rec.symbol === 'object', 'symbol')
+  need(!!rec.symbol && posOrNull(rec.symbol.mintick), 'symbol.mintick')
+  need(!!rec.symbol && posOrNull(rec.symbol.pointvalue), 'symbol.pointvalue')
   need(Array.isArray(rec.trades), 'trades')
   for (const [i, t] of (Array.isArray(rec.trades) ? rec.trades : []).entries()) {
     need(t.n === i + 1, `trades[${i}].n`)
@@ -162,6 +174,7 @@ export function strategyRecordShapeErrors(rec) {
     need(isTime(t.entryTime), `trades[${i}].entryTime`)
     need(typeof t.entryRule === 'string', `trades[${i}].entryRule`)
     need(typeof t.open === 'boolean', `trades[${i}].open`)
+    need(typeof t.exact === 'boolean', `trades[${i}].exact`)
     need(t.open ? t.exitTime === null : isTime(t.exitTime), `trades[${i}].exitTime`)
     need(t.open || typeof t.exitRule === 'string', `trades[${i}].exitRule`)
   }

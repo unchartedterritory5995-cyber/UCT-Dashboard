@@ -653,8 +653,10 @@ export function makeBroker(cfg, data) {
 
   /** What the run did — for rails and diagnostics. */
   const timeOf = (bar) => (times && Number.isInteger(bar) && bar >= 0 && bar < times.length ? times[bar] : null)
+  // `exact`: every fill of the trade is on the tick grid (an off-grid fill is the open Q-S1l, and
+  // the report refuses what depends on one exactly as `value` does). W9-T13a reads it.
   const tradeRecord = (t) => ({
-    id: t.entryId, dir: t.dir, qty: t.qty,
+    id: t.entryId, dir: t.dir, qty: t.qty, exact: t.exact === true,
     entry: { time: timeOf(t.bar), price: t.price, rule: t.entryRule },
     ...(t.exitBar === undefined ? {} : { exit: { time: timeOf(t.exitBar), price: t.exitPrice, rule: t.exitRule } }),
   })
@@ -667,6 +669,9 @@ export function makeBroker(cfg, data) {
     record: {
       schema: 'uct.strategy-record/v0',
       trades: [...closed.map(tradeRecord), ...open.map(tradeRecord)],
+      // W9-T13a: the symbol's tick and point value as THIS run settled them (`#symbol`), null
+      // when the run never learned one. The report's currency values are price x size x pointvalue.
+      symbol: { mintick: finite(mintick) ? mintick : null, pointvalue: finite(pointvalue) ? pointvalue : null },
       rulesUsed: Array.from(okRules).sort(),
     },
   })
