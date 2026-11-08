@@ -20,7 +20,7 @@
 // a served create would stay on screen where TradingView moves or removes it.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { translatePine } from './pine'
-import { assessObjectLoss } from './objectLoss'
+import { assessObjectLoss, objectLossNote } from './objectLoss'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 
 const LF = String.fromCharCode(10)
@@ -76,6 +76,18 @@ describe('⭐ SERVED / CONTROLS', () => {
     const t = host(['var a = array.new_box()', L0, `a.unshift(${BOX})`])
     expect(fams(t)).toEqual(['box', 'line'])
     expect(t.objectDiagnostics.unsupported).toEqual([])
+  })
+
+  it('U1: `array.insert(declared, 0, box.new(…))` is never claimed as a field create', () => {
+    const t = host(['var a = array.new_box()', L0, `array.insert(a, 0, ${BOX})`])
+    expect(t.objectDiagnostics.unsupported).not.toContain('box.new')
+    expect(t.objectDiagnostics.fieldCreateFamilies).toBeUndefined()
+  })
+
+  it('the note names a family whose every create went into a field', () => {
+    const loss = assessObjectLoss(host([...U, L0, `k._box.unshift(${BOX})`]))
+    expect(loss.hiddenFamilies).toEqual(['box'])
+    expect(objectLossNote(loss).note).toContain('No box is shown:')
   })
 
   it('a numeric list is not a drawing', () => {

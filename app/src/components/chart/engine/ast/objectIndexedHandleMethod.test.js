@@ -27,7 +27,7 @@
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
 import { evaluateObjects } from '../objectRuntime'
-import { assessObjectLoss } from './objectLoss'
+import { assessObjectLoss, classifyReaderName, LOSS } from './objectLoss'
 import { onValueReceiver } from './objectFnInline'
 
 const LF = String.fromCharCode(10)
@@ -219,19 +219,42 @@ describe('⛔ REVIEW r1 (IDX-DELETE) — the guards a mutant could remove', () =
 
   describe('C: a user `method delete(T)` beside a drawing receiver is refused by name', () => {
     const T = ['type T', '    int x = 0', 'method delete(T this) =>', '    this.x := 1', '    this.x']
-    it('`l[1].delete()`', () => {
+    it("`l[1].delete()` (r2: named with the receiver's family)", () => {
       const t = host([...T, LINE, 'l[1].delete()'])
-      expect(t.objectDiagnostics.unsupported).toContain('object.delete')
+      expect(t.objectDiagnostics.unsupported).toContain('line.delete')
       expect(assessObjectLoss(t).verdict).toBe('removes')
     })
     it('plain `l.delete()` (silent on master too)', () => {
       const t = host([...T, LINE, 'l.delete()'])
-      expect(t.objectDiagnostics.unsupported).toContain('object.delete')
+      expect(t.objectDiagnostics.unsupported).toContain('line.delete')
       expect(assessObjectLoss(t).verdict).toBe('removes')
     })
     it('⭐ control: the user method on its OWN receiver is not refused', () => {
       const t = host([...T, LINE, 'var u = T.new()', 'u.delete()'])
       expect(t.objectDiagnostics.unsupported).not.toContain('object.delete')
+      expect(t.objectDiagnostics.unsupported).not.toContain('line.delete')
+    })
+    it('r2: a shadowed `t.clear()` is `table.clear`, rated a removal', () => {
+      const t = host(['type U', '    int x = 0', 'method clear(U this) =>', '    this.x := 0', '    this.x',
+        'var t = table.new(position.top_right, 2, 2)', 'table.cell(t, 0, 0, "a")', 't.clear()'])
+      expect(t.objectDiagnostics.unsupported).toContain('table.clear')
+      expect(classifyReaderName('table.clear').cls).toBe(LOSS.REMOVES)
+    })
+  })
+
+  describe('r2: a PLAIN FUNCTION of the same name never shadows dot syntax — served', () => {
+    it('`delete(int x) => x + 1` beside `l.delete()` and `l[1].delete()`', () => {
+      for (const stmt of ['l.delete()', 'l[1].delete()']) {
+        const t = host(['delete(int x) => x + 1', LINE, stmt])
+        expect(t.objects.ops.some((o) => o.k === 'delete'), stmt).toBe(true)
+        expect(t.objectDiagnostics.unsupported, stmt).toEqual([])
+      }
+    })
+    it('`cell(table x, int c) => x.cell(c, 0, "a")` beside `t.cell(…)`', () => {
+      const t = host(['cell(table x, int c) => x.cell(c, 0, "a")', 'var t = table.new(position.top_right, 2, 2)',
+        't.cell(1, 0, "b")'])
+      expect(t.objects.ops.some((o) => o.k === 'cell')).toBe(true)
+      expect(t.objectDiagnostics.unsupported).toEqual([])
     })
   })
 })

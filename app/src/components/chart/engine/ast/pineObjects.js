@@ -382,12 +382,17 @@ export function collectObjectOps(stmts, h) {
    *  previous instances of. Collected over the WHOLE tree before the walk, since
    *  Pine lets a definition sit below its first use inside another function. */
   const defined = new Set()
+  // ⭐ r2 (IDX-DELETE r1 review): the names defined with the `method` KEYWORD —
+  // the only definitions dot syntax can reach. A plain function `cell(t, …) =>`
+  // never shadows `t.cell(…)`, so the shadow checks read THIS set.
+  const definedMethods = new Set()
   const scanDefs = (list) => {
     for (const s2 of list || []) {
       const ts = s2.header || []
       if (ts.length > 1) {
         if (ts[0].kind === 'ident' && ts[0].value === 'method' && ts[1].kind === 'ident') {
           defined.add(String(ts[1].value))
+          definedMethods.add(String(ts[1].value))
         } else if (ts[0].kind === 'ident' && h.isPunct(ts[1], '(')
             && h.findTop(ts, (x) => h.isPunct(x, '=>')) > 0) {
           const bare = splitMethodName(String(ts[0].value))
@@ -399,6 +404,7 @@ export function collectObjectOps(stmts, h) {
   }
   scanDefs(stmts)
   const isDefined = (name) => defined.has(name)
+  const isDefinedMethod = (name) => definedMethods.has(name)
 
   // ── ⭐⭐ USER FUNCTIONS THAT DRAW — inlined at each call site ──────────────
   // See `objectFnInline.js` for the measurement and the Pine semantics. A
@@ -408,7 +414,7 @@ export function collectObjectOps(stmts, h) {
   const objColls = objectCollections(stmts, h)
   // ⭐ the family each named collection holds, top-level and `type` fields alike
   const collFams = collectionFamilies(stmts, h)
-  const drawing = drawingFunctions(fnDefs, objColls)
+  const drawing = drawingFunctions(fnDefs, objColls, collFams)
   const drawFns = new Set([...drawing].filter((n) => !fnDefs.get(n).isMethod))
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
   const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
@@ -2440,7 +2446,7 @@ export function collectObjectOps(stmts, h) {
    *  readers answer (`poppedFrom`, `emitMethodForm`'s `array.first`). */
   function refuseChainedElement(node, recv) {
     const method = String(node.name || '')
-    if (!(method === 'delete' || method.startsWith('set_')) || isDefined(method)) return false
+    if (!(method === 'delete' || method.startsWith('set_'))) return false
     const name = String((recv && recv.name) || '')
     let coll = null
     let m = null
@@ -2452,10 +2458,16 @@ export function collectObjectOps(stmts, h) {
       const sp = splitMethodName(name)
       if (sp) { m = sp.method; coll = sp.recv }
     }
-    if (!coll || !ELEMENT_METHODS.includes(m) || isDefined(m)) return false
+    if (!coll || !ELEMENT_METHODS.includes(m) || isDefinedMethod(m)) return false
     const d = decls.get(coll)
     if (d && d.kind === 'coll') return false
     const fam = familyOfCollection(coll, collFams)
+    // ⛔ r2 (CHAINED-REMOVAL review, M6): a user `method delete(T)` is what Pine
+    // calls when the ELEMENT is the user's type (`TWA.pop().delete()` on an
+    // `array<TimeWindow>`), so an element of no drawing family is the user's.
+    // On a list the declaration names as drawings, Pine dispatches on the element
+    // type: the built-in — refused by name below, never dropped in silence.
+    if (!fam && isDefinedMethod(method)) return false
     diagnostics.unsupported.push(`${fam || 'object'}.${method}`)
     // ⭐ A NAMED family's removal is carried to the converter, which withholds
     // that family's objects (`removalWithheldFamilies` in `pine.js`).
@@ -2515,8 +2527,9 @@ export function collectObjectOps(stmts, h) {
   function emitOnValueReceiver(node, toks, guards, inLoop, st, scope) {
     const method = String(node.name || '')
     if (!method) return false
-    if (isDefined(method)) {
-      return valueReceiverFamily(node.recv) ? shadowedDrawingMethod(method) : false
+    if (isDefinedMethod(method)) {
+      const sf = valueReceiverFamily(node.recv)
+      return sf ? shadowedDrawingMethod(method, sf) : false
     }
     const fam = valueReceiverFamily(node.recv)
     if (!fam) {
@@ -2541,9 +2554,11 @@ export function collectObjectOps(stmts, h) {
    *  that reaches, `classifyReaderName`), never dropped. ⚰️ Before this both forms
    *  fell through every branch with no op and no count (IDX-DELETE review, C).
    *  @returns {boolean} true when it owned (and refused) the statement. */
-  function shadowedDrawingMethod(method) {
+  function shadowedDrawingMethod(method, family) {
     if (!/^(delete|copy|clear|cell|merge_cells)$|^set_|^cell_set_/.test(method)) return false
-    diagnostics.unsupported.push(`object.${method}`)
+    // ⭐ r2: named with the receiver's family (`table.clear`, `line.delete`), so
+    // `classifyReaderName` rates it as what it is (a table clear removes cells).
+    diagnostics.unsupported.push(`${family || 'object'}.${method}`)
     return true
   }
 
@@ -2561,9 +2576,9 @@ export function collectObjectOps(stmts, h) {
     // is checked BEFORE the declaration lookup so that a shadowing definition
     // takes the statement back even when the receiver is a perfectly good
     // collection, which is exactly the case the corpus writes.
-    if (isDefined(method)) {
+    if (isDefinedMethod(method)) {
       const sd = decls.get(recv)
-      return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method)
+      return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method, sd.family)
     }
     const d = decls.get(recv)
     if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method)) && refuseFieldCreates(toks, recv)

@@ -19592,6 +19592,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     lostCreate(fam)
     dropped('content:lost')
   }
+  if (collected.diagnostics && collected.diagnostics.fieldCreates && collected.diagnostics.fieldCreates.length) {
+    diagnostics.fieldCreateFamilies = [...new Set(collected.diagnostics.fieldCreates)].sort()
+  }
   if (refusedCalls.length) {
     diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
       + (rc.detail ? ` (${rc.detail})` : ''))

@@ -438,7 +438,7 @@ export function chainedElementOf(toks, i, fams) {
 /** The subset of `defs` whose body WRITES a drawing — directly, through an
  *  object collection, or by calling another function that does. A fixpoint,
  *  because a helper may be defined below its first caller. */
-export function drawingFunctions(defs, objColls) {
+export function drawingFunctions(defs, objColls, fams = null) {
   const direct = (def) => {
     const toks = allTokens(def.body)
     for (let i = 0; i < toks.length; i += 1) {
@@ -455,7 +455,11 @@ export function drawingFunctions(defs, objColls) {
       // token, the same silence before this.
       if (tk.member && (onValueReceiver(toks, i) || chainedElementOf(toks, i, null))) {
         const um = defs.get(v)
-        if (writesObject(v) && !(um && um.isMethod)) return true
+        // ⭐ r2 (M6): a same-named user METHOD is the script's own — unless the
+        // element's list is one the declaration names as DRAWINGS, where Pine
+        // dispatches on the element type and the built-in runs.
+        const el = fams ? chainedElementOf(toks, i, fams) : null
+        if (writesObject(v) && (!(um && um.isMethod) || (el && el.family))) return true
         continue
       }
       const ns = nsOf(v)
@@ -570,7 +574,10 @@ export function bodyEffects(def, defs, objColls, fams = null) {
       // `k._box.pop().delete()` is a lost BOX removal, which reaches only a chart
       // that draws boxes. A `.clear()` there is counted only on a table element
       // (an unnamed `.clear()` may be a numeric array's: ruling, 2026-11-08).
-      const el = tk.member && !(defs.get(v) && defs.get(v).isMethod) ? chainedElementOf(toks, i, fams) : null
+      const elRaw = tk.member ? chainedElementOf(toks, i, fams) : null
+      // ⭐ r2 (M6): a user METHOD of that name is read as one, except on a list of
+      // a drawing family (Pine dispatches on the element type).
+      const el = elRaw && (elRaw.family || !(defs.get(v) && defs.get(v).isMethod)) ? elRaw : null
       if (el) {
         if (v === 'delete') { add('delete'); families.push(el.family); if (el.family) chained.push(el.family) } else if (v === 'clear' && el.family === 'table') {
           add('clear'); families.push('table')

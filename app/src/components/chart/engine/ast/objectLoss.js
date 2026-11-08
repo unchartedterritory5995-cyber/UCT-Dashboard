@@ -365,6 +365,12 @@ export function assessObjectLoss(t) {
       removes.push({ what: f.cls === LOSS.LIST ? 'list' : f.what, key: f.key, why: f.why })
     }
   }
+  // ⭐ r2 — A FAMILY WITHHELD WHOLE: one the script keeps in a list this chart
+  // cannot follow (`removalWithheldFamilies`, `fieldCreateFamilies`) and of which
+  // NOTHING is drawn. The note names it, rather than leaving the member to infer
+  // it from a list of call names.
+  const hiddenFamilies = uniq([...(d.removalWithheldFamilies || []), ...(d.fieldCreateFamilies || [])])
+    .filter((f) => !carried.families.has(f)).sort()
   const lossy = dropped > 0 || readerNames.length > 0
   return {
     verdict: removes.length ? 'removes' : lossy ? 'partial' : 'clean',
@@ -372,6 +378,7 @@ export function assessObjectLoss(t) {
     attempted,
     removes,
     readerNames,
+    ...(hiddenFamilies.length ? { hiddenFamilies } : {}),
   }
 }
 
@@ -478,5 +485,15 @@ export function objectLossNote(loss, opts = {}) {
       ? `It also uses ${names}, which this chart doesn't draw yet.`
       : `This script uses ${names}, which this chart doesn't draw yet, so what it draws is incomplete.`)
   }
+  if (loss.hiddenFamilies && loss.hiddenFamilies.length) parts.push(hiddenFamiliesSentence(loss.hiddenFamilies))
   return { name: DRAWING_NOTE_NAME, note: parts.join(' ') }
+}
+
+/** ⭐ r2 — the member's sentence for a family withheld whole: `No box or line is
+ *  shown: …`. One clause, the families in the reader's words. */
+export function hiddenFamiliesSentence(families) {
+  const fs = (families || []).map((f) => (f === 'linefill' ? 'fill between lines' : f === 'table' ? 'table' : f))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
+  return `No ${list} is shown: the script keeps them in a list this chart can't follow yet, `
+    + "so which of them TradingView would still show can't be known."
 }

@@ -24,7 +24,7 @@
 //      the script's other drawings keep serving. Never the whole script.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { translatePine } from './pine'
-import { assessObjectLoss } from './objectLoss'
+import { assessObjectLoss, objectLossNote, hiddenFamiliesSentence } from './objectLoss'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { collectionFamilies, chainedElementOf } from './objectFnInline'
 
@@ -108,6 +108,40 @@ describe('⛔ (b) A USER TYPE\'S FIELD — refused by name, its family withheld,
       JSON.stringify(t.objectDiagnostics.dropReasons)).toBe(true)
     expect(t.objectDiagnostics.removalWithheldFamilies).toEqual(['box'])
     expect(assessObjectLoss(t).verdict).toBe('partial')
+  })
+})
+
+describe('r2 — a user `method delete(T)` and the member note', () => {
+  const M = ['type T', '    int x = 0', 'method delete(T this) =>', '    this.x := 1', '    this.x']
+  it('M6: on a field the declaration names as drawings, the built-in is refused by name, not dropped', () => {
+    const top = host([...M, ...U, 'if k._box.size() > 3', '    k._box.pop().delete()', 'plot(close)'])
+    expect(top.objectDiagnostics.unsupported).toContain('box.delete')
+    const fn = host([...M, ...U, 'del(kz q) =>', '    if q._box.size() > 3', '        q._box.pop().delete()', 'del(k)', 'plot(close)'])
+    expect(fn.objectDiagnostics.unsupported).toContain('box.delete')
+  })
+  it('M6: a REFUSED helper doing the same still withholds the family', () => {
+    const t = host([...M, ...U, 'var l0 = line.new(bar_index - 5, low, bar_index, low)',
+      'del(kz q) =>', '    if q._box.size() > 3', '        q._box.pop().delete()', '    1', 'plot(close + del(k))'])
+    expect(Object.keys(t.objectDiagnostics.dropReasons).some((k) => k.startsWith('fn:'))).toBe(true)
+    expect(t.objectDiagnostics.removalWithheldFamilies).toEqual(['box'])
+  })
+  it("⭐ control: on a field of the USER's type the user's method is what runs — not refused", () => {
+    const t = host([...M, 'type W', '    array<T> _ts', 'var w = W.new(array.new<T>())',
+      'if w._ts.size() > 3', '    w._ts.pop().delete()', 'plot(close)'])
+    expect(t.objectDiagnostics.unsupported).toEqual([])
+  })
+  it('the note names a family withheld whole', () => {
+    const lines = [...U, 'var l0 = line.new(bar_index - 5, low, bar_index, low)',
+      'del(kz q) =>', '    if q._box.size() > 3', '        q._box.pop().delete()', 'del(k)']
+    const loss = assessObjectLoss(host(lines))
+    expect(loss.hiddenFamilies).toEqual(['box'])
+    expect(objectLossNote(loss).note).toContain('No box is shown: the script keeps them in a list '
+      + "this chart can't follow yet, so which of them TradingView would still show can't be known.")
+    expect(hiddenFamiliesSentence(['box', 'label', 'line'])).toMatch(/^No box, label or line is shown: /)
+  })
+  it('⭐ a family still drawn is not called hidden', () => {
+    const loss = assessObjectLoss(host([...U, 'var b0 = box.new(bar_index - 5, low, bar_index, high)', 'plot(close)']))
+    expect(loss.hiddenFamilies).toBeUndefined()
   })
 })
 
