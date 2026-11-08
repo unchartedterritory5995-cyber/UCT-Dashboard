@@ -119,7 +119,8 @@
 /** 35 = PT-GAPS: six host-lane engine gaps (L3, L4, L6, G-c, G-d, G-h) fixed per existing captures; G-f and G-i queued as Q-PT6/Q-PT7 */
 /** 36 = HONESTY-SWEEP: the 2026-11-07 honesty sweep (probes vw-hs1..hs7; see docs/pine/evidence/2026-11-07-honesty-sweep) */
 /** 37 = STRAT-COLOR: a `strategy.*` read reaching a plot's presentation (colour) or a drawing step is withheld by name (`pine:strategy-call`); the broker is not simulated */
-export const SCRIPT_ENGINE_VERSION = 37
+/** 38 = DELETE STACK (IDX-DELETE, CHAINED-REMOVAL, UDT-FIELD-CREATES, SILENT-CREATE-GAPS): object removals and creates the chart cannot follow are withheld and named (see the four lanes' EVIDENCE) */
+export const SCRIPT_ENGINE_VERSION = 38
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
