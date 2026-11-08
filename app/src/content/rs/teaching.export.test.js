@@ -105,7 +105,7 @@ describe('glossary', () => {
 
   it('the RS Rating carries the v4 §18 line, not the 3 to 5 point MarketSurge figure', () => {
     const rating = GLOSSARY.find((t) => t.key === 'rsRating')
-    expect(rating.definition).toContain('our measured difference is shown in the readout')
+    expect(rating.definition).toContain('has not been measured yet')
     expect(ALL_TEXT.join('\n')).not.toMatch(/3\s*[–-]\s*5 points|±/)
   })
 })

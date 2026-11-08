@@ -82,7 +82,7 @@
         "relative strength rating",
         "IBD-style rating"
       ],
-      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style, and our measured difference is shown in the readout.",
+      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style; how closely it matches the MarketSurge rating has not been measured yet.",
       "key": "rsRating",
       "term": "RS Rating"
     },
