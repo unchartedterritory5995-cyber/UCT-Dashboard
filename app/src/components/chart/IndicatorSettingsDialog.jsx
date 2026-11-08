@@ -38,12 +38,16 @@
 // all 46 cases. The gate is `IndicatorSettingsDialog.test.jsx` — in particular
 // the byte-equality rollback, which carries a positive control proving the edit
 // was observable BEFORE it proves Cancel undid it.
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useId } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useId, useSyncExternalStore } from 'react'
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { effectiveColourFor } from './engine/pool'
 import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs,
-         sectionize, initialCollapsed, INLINE_MAX } from './indicatorRegistry'
+         sectionize, initialCollapsed, INLINE_MAX,
+         visiblePresets, textInputCommit, textInputDraft } from './indicatorRegistry'
+// ⭐ UCT RS Phase 3, unit 3-02 — what the LIVE server row declares, so a
+// `requiresServer` control, option or preset stays hidden until it can answer.
+import { serverDeclares, subscribeServerDefinitions } from './engine/serverCompute'
 import { findInstance, setInstanceInput, setInstanceHidden,
          setInstanceDisplayTarget, applyPresetInputs, setInstanceDotSize,
          presetsOf, detectPreset, CUSTOM_PRESET, dotPlotsOf, DOT_SIZE_OPTIONS,
@@ -152,9 +156,20 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     return typeof registry.getDefinition === 'function' ? registry.getDefinition(instance.defId) : null
   }, [instance, registry])
 
+  // ⭐ 3-02 — the server gate. Only a `server` definition can carry a gate
+  // (`defSchema.validateServerGates`), so only one asks: opening RSI's settings
+  // never spends the page's one definitions GET. The snapshot is memoised and
+  // frozen per definition, so it is reference-stable between landings.
+  const gateId = def && def.compute && def.compute.kind === 'server' ? def.id : null
+  const declared = useSyncExternalStore(
+    subscribeServerDefinitions,
+    () => (gateId ? serverDeclares(gateId) : null),
+    () => null,
+  )
+
   const model = useMemo(
-    () => (def && instance ? fieldsForInstance(def, instance) : { values: {}, all: [], inputs: [], style: [] }),
-    [def, instance],
+    () => (def && instance ? fieldsForInstance(def, instance, { declared }) : { values: {}, all: [], inputs: [], style: [] }),
+    [def, instance, declared],
   )
 
   // The values the FORM is showing: the stored ones with the user's uncommitted
@@ -168,6 +183,11 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
       if (f.type === 'number') {
         const n = Number(raw)
         out[f.key] = Number.isFinite(n) ? n : model.values[f.key]
+      } else if (f.type === 'text') {
+        // ⭐ 3-02 — a text draft governs only once it is a value the input accepts:
+        // a half-typed ticker must not flip the preset to Custom or wake a row.
+        const c = textInputCommit(f, raw)
+        out[f.key] = c.ok ? c.value : model.values[f.key]
       } else {
         out[f.key] = raw
       }
@@ -277,6 +297,29 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     flushNow()
   }, [draft, flushNow])
 
+  // ⭐ UCT RS Phase 3, unit 3-02 — a TEXT box commits on Enter or blur, and only a
+  // value the input accepts (`textInputCommit`: trimmed, upper-cased when the
+  // input says so, then the engine's own `validateInputValue`). A miss writes
+  // NOTHING: the typed text stays in the box so it can be fixed, the box is
+  // `aria-invalid`, and a muted line under it says what reads (the input's own
+  // `hint`). The note is an OBJECT, so every place that clears notes (a preset, a
+  // reset, a new instance, a close) clears the miss with them.
+  const commitText = useCallback((field) => {
+    const raw = draft[field.key]
+    if (raw === undefined) return
+    const c = textInputCommit(field, raw)
+    if (!c.ok) {
+      setNotes((s) => ({ ...s, [field.key]: { miss: c.hint } }))
+      return
+    }
+    setDraft((d) => { const { [field.key]: _drop, ...rest } = d; return rest })
+    setNotes((s) => ({ ...s, [field.key]: null }))
+    const stored = model.values[field.key]
+    if (c.value === (stored === undefined ? '' : stored)) return
+    pendingRef.current.set(field.key, c.value)
+    flushNow()
+  }, [draft, flushNow, model])
+
   // ── the instance-level writes (Visibility) ────────────────────────────────
   const writeSettings = useCallback((next) => {
     if (!next || next === settingsRef.current) return
@@ -326,7 +369,12 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   // `pickedPresetId` remembers the preset the member last chose or the form last
   // matched, so "Reset to preset" has a target after a tweak flips the select to
   // Custom. It is dialog-local UI state, reset per open and per instance.
-  const presets = useMemo(() => presetsOf(def), [def])
+  // ⭐ 3-02 — through `visiblePresets`: a `requiresServer` preset, or one that
+  // sets a hidden gated input or option, is not listed until the server declares it.
+  const presets = useMemo(() => {
+    const shownPresets = new Set(visiblePresets(def, declared))
+    return presetsOf(def).filter((p) => shownPresets.has(p))
+  }, [def, declared])
   // ⭐ 2a-12 — the instance rides along, so a preset that also declares a dot size,
   // a visibility or a display target is "current" only while the instance carries
   // them; a Dot size change away from the preset's word reads as Custom.
@@ -484,7 +532,11 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     const labelId = `${id}-lbl`
     const tipId = field.tooltip ? `${id}-tip` : null
     const value = Object.prototype.hasOwnProperty.call(draft, field.key) ? draft[field.key] : model.values[field.key]
-    const note = notes[field.key]
+    const rawNote = notes[field.key]
+    // ⭐ 3-02 — a text box's miss is `{miss}`; every other note is a sentence.
+    const miss = rawNote && typeof rawNote === 'object' ? rawNote.miss : null
+    const note = rawNote && typeof rawNote === 'object' ? null : rawNote
+    const missId = miss ? `${id}-miss` : null
     const aria = {
       id,
       'aria-labelledby': labelId,
@@ -540,7 +592,12 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
                 flushNow()
               }}
             >
-              {(field.options || []).map(([v, l]) => <option key={String(v)} value={v}>{l}</option>)}
+              {/* ⭐ 3-02 — a third element `{disabled: true}` is a STORED gated value the
+                  live server does not declare: shown, so the select tells the truth,
+                  and not choosable (`fieldsForInstance`). */}
+              {(field.options || []).map(([v, l, extra]) => (
+                <option key={String(v)} value={v} disabled={!!(extra && extra.disabled)}>{l}</option>
+              ))}
             </select>
           )}
           {field.type === 'datetime' && (
@@ -572,6 +629,27 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
               }}
               onBlur={() => commitSession(field)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitSession(field) } }}
+            />
+          )}
+          {field.type === 'text' && (
+            // ⭐ UCT RS Phase 3, unit 3-02 — the generic text box (a `string` input).
+            <input
+              type="text" className={styles.text} {...aria}
+              aria-describedby={[tipId, missId].filter(Boolean).join(' ') || undefined}
+              aria-invalid={miss ? 'true' : undefined}
+              placeholder={field.placeholder}
+              maxLength={Number.isInteger(field.maxLength) ? field.maxLength : undefined}
+              autoCapitalize={field.case === 'upper' ? 'characters' : undefined}
+              autoComplete="off" autoCorrect="off" spellCheck={false}
+              value={value ?? ''}
+              onChange={(e) => {
+                const text = textInputDraft(field, e.target.value)
+                setDraft((d) => ({ ...d, [field.key]: text }))
+                // a miss clears the moment the text reads right, never sooner
+                if (miss && textInputCommit(field, text).ok) setNotes((s) => ({ ...s, [field.key]: null }))
+              }}
+              onBlur={() => commitText(field)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitText(field) } }}
             />
           )}
           {field.type === 'toggle' && (
@@ -606,6 +684,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
         </span>
         {field.tooltip && <span className={styles.tip} id={tipId}>{field.tooltip}</span>}
         {note && <span className={styles.note} role="status">{note}</span>}
+        {miss && <span className={styles.textMiss} id={missId} role="status">{miss}</span>}
         {inPack ? null : null}
       </div>
     )

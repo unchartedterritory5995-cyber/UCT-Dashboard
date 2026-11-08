@@ -104,7 +104,7 @@ import {
 // the twin this phase retires, in the file whose header is about retiring them.
 import { legacyInstanceId } from './engine/instances'
 // ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
-import { enumOptionRequiresServer } from './engine/defSchema'
+import { enumOptionRequiresServer, validateInputValue } from './engine/defSchema'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
 // because a predicate — or a field table — copied into two files is precisely
@@ -221,8 +221,9 @@ function optionPair(option) {
  *
  * This function is the whole of what a per-indicator `*_FIELDS` array used to
  * be, written once instead of once per indicator. Returns `null` for an input
- * type the tab has no control for (`string`) — those render nothing rather than
- * rendering wrong.
+ * type the tab has no control for — those render nothing rather than rendering
+ * wrong. ⭐ UCT RS Phase 3, unit 3-02: `string` came off that list when the
+ * settings dialog and the phone sheet gained a text box (`type: 'text'`).
  *
  * ⭐⭐ `source` USED TO BE ON THAT LIST, AND IT CAME OFF WHEN IT ACQUIRED A REAL
  * CONTROL. While no shipped definition declared one the honest answer was `null`;
@@ -265,10 +266,60 @@ export function fieldFromInput(input) {
       return { ...base, type: 'datetime' }
     case 'session':
       return { ...base, type: 'session' }
+    // ⭐ UCT RS Phase 3, unit 3-02 — a text box. It carries the input's declared
+    // `pattern`, `maxLength`, `case`, `placeholder` and `hint` (only those it
+    // declares), which is everything the control needs to refuse a value before
+    // `setInstanceInput` would (`textInputCommit`).
+    case 'string': {
+      const out = { ...base, type: 'text' }
+      for (const k of TEXT_FIELD_KEYS) if (input[k] !== undefined) out[k] = input[k]
+      return out
+    }
     default:
       return null
   }
 }
+
+const TEXT_FIELD_KEYS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+
+/** ⭐ 3-02 — the line a text box shows under itself when a typed value is refused:
+ *  the input's own declared `hint`, else a generic sentence. */
+export const TEXT_INPUT_FALLBACK_HINT = 'Not a valid value'
+
+/**
+ * ⭐ UCT RS Phase 3, unit 3-02 — what a text box would commit for `raw`.
+ *
+ * Trims, upper-cases when the field says `case: 'upper'`, then asks the ONE
+ * answer to "may this input take this value" for a string
+ * (`defSchema.validateInputValue`, the check `setInstanceInput` runs), so the
+ * box never offers a write the engine would refuse. Empty is always legal and
+ * means "not set".
+ *
+ * @returns {{ok: boolean, value: string, hint: string|null}} `hint` is the
+ *   sentence to show on a miss, null on a hit.
+ */
+export function textInputCommit(field, raw) {
+  let value = typeof raw === 'string' ? raw.trim() : (raw == null ? '' : String(raw).trim())
+  if (field && field.case === 'upper') value = value.toUpperCase()
+  const errors = []
+  const spec = { type: 'string' }
+  for (const k of ['pattern', 'maxLength']) if (field && field[k] !== undefined) spec[k] = field[k]
+  validateInputValue(spec, value, 'text', errors)
+  if (!errors.length) return { ok: true, value, hint: null }
+  const hint = field && typeof field.hint === 'string' && field.hint ? field.hint : TEXT_INPUT_FALLBACK_HINT
+  return { ok: false, value, hint }
+}
+
+/** ⭐ 3-02 — the text a box shows as the member types: upper-cased when told to,
+ *  never trimmed (trimming under the cursor eats a space before it is followed). */
+export function textInputDraft(field, raw) {
+  const text = typeof raw === 'string' ? raw : (raw == null ? '' : String(raw))
+  return field && field.case === 'upper' ? text.toUpperCase() : text
+}
+
+/** The label suffix a stored, server-gated option carries while the live row does
+ *  not declare it (`fieldsForInstance`). */
+export const UNAVAILABLE_OPTION_SUFFIX = ' (not available)'
 
 /** ⭐ PHASE 3 WS-D — a time input's value (UNIX ms) as the `datetime-local` text the dialog
  *  shows, IN UTC (`YYYY-MM-DDTHH:MM`), or '' for a value that is not one. The dialog labels the
@@ -548,6 +599,26 @@ export function fieldsForInstance(def, instance, opts = {}) {
       activeWhen: d.activeWhen || null,
     }
   })
+
+  // ⭐ UCT RS Phase 3, unit 3-02 — A STORED GATED VALUE IS SHOWN, HONESTLY. An
+  // instance saved while the server declared a gated option (`CUSTOM`) keeps it
+  // after the server stops declaring it; a select whose value is missing from its
+  // list renders as whatever option comes first, which is a lie about what the
+  // chart is computing. So that ONE option comes back, DISABLED, labelled
+  // "<label> (not available)": the member sees the truth and can choose a live
+  // option, and cannot choose the dark one again. Only a value the definition
+  // itself declares is restored — anything else would fail validation upstream.
+  for (let i = 0; i < all.length; i++) {
+    const f = all[i]
+    if (f.type !== 'select' || !Object.prototype.hasOwnProperty.call(values, f.key)) continue
+    const v = values[f.key]
+    if ((f.options || []).some(([ov]) => ov === v)) continue
+    const d = byKey.get(f.key)
+    const hit = d && Array.isArray(d.options) ? d.options.find((o) => optionValueOf(o) === v) : undefined
+    if (hit === undefined) continue
+    const [, label] = optionPair(hit)
+    all[i] = { ...f, options: [...(f.options || []), [v, `${label}${UNAVAILABLE_OPTION_SUFFIX}`, { disabled: true }]] }
+  }
 
   const styleKeys = styleInputKeys(def)
   return {

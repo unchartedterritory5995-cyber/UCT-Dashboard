@@ -473,10 +473,17 @@ export function scalarsFor(def, inputs, ctx) {
 // ⚠️ ONE GET PER PAGE LOAD, SHAPED LIKE SWR. `serverDeclares` is a synchronous
 // read (the last answer, possibly null) that starts the one request the first
 // time anybody asks; the answer lands for every definition at once and is
-// announced through `subscribeServerDefinitions`, whose subscribers re-read. It
-// is not re-asked, on success or on failure: the route answers the same rows
-// until the next deploy, and a deploy is a page load. The answers are memoised
-// per definition, so a `useSyncExternalStore` snapshot is reference-stable.
+// announced through `subscribeServerDefinitions`, whose subscribers re-read. A
+// success is never re-asked: the route answers the same rows until the next
+// deploy, and a deploy is a page load. The answers are memoised per definition,
+// so a `useSyncExternalStore` snapshot is reference-stable.
+//
+// ⭐ 3-02: ONE RETRY, AND ONLY ONE. A failure (a throw, a 402, a malformed body)
+// is answered "nothing declared" at once, and the request is asked exactly once
+// more `DEFINITIONS_RETRY_MS` later: a pod restarting under a page load would
+// otherwise keep every gated control dark until the member reloads. A second
+// failure stays "nothing declared" for the rest of the page load. Two GETs at
+// most, ever.
 //
 // ⛔ AND NO TEST PAYS FOR IT BY ACCIDENT. Under vitest (`MODE === 'test'`) the
 // default request is disarmed: a suite that counts `fetch` calls must not meet
@@ -488,9 +495,14 @@ const _DEFINITIONS_TEST_MODE = (() => {
 })()
 
 let _defsRows = null          // Map defId -> declaration, once landed
-let _defsPromise = null       // the one request, once asked
+let _defsPromise = null       // the one request (or its one retry), once asked
 let _defsTestFetcher = null   // armed by a test
+let _defsRetryTimer = null    // the one retry, while scheduled
+let _defsGeneration = 0       // bumped by clear/prime, so a stale answer lands nowhere
 const _defsSubscribers = new Set()
+
+/** ⭐ 3-02 — how long after a failed definitions fetch the ONE retry is asked. */
+export const DEFINITIONS_RETRY_MS = 30_000
 
 /** An option entry's VALUE, in the three shapes a definition (or a row) may use. */
 function _optionValue(option) {
@@ -547,17 +559,30 @@ function _notifyDefinitions() {
   }
 }
 
-/** Notified once, when the definitions land (or fail). @returns {() => void} */
+/** Notified when the definitions land (or fail), and once more after the one retry (3-02). @returns {() => void} */
 export function subscribeServerDefinitions(fn) {
   if (typeof fn !== 'function') return () => {}
   _defsSubscribers.add(fn)
   return () => { _defsSubscribers.delete(fn) }
 }
 
+/** One attempt: the body parsed to declarations, or a throw for anything that is not one. */
+function _askDefinitions(get) {
+  return Promise.resolve()
+    .then(() => get(SERVER_DEFINITIONS_PATH))
+    .then((body) => {
+      const rows = _declarationsFromBody(body)
+      if (!rows) throw new Error('malformed definitions body')
+      return rows
+    })
+}
+
 /**
  * The one request. Memoised for the page load: the second call returns the
- * first call's promise, landed or not, and a failure is remembered as "nothing
- * declared" rather than re-asked.
+ * first call's promise, landed or not. A failure resolves `null` ("nothing
+ * declared") at once and schedules exactly ONE retry `DEFINITIONS_RETRY_MS`
+ * later (see the header); while that retry is in flight this returns ITS
+ * promise, and a second failure is remembered as "nothing declared".
  *
  * @param {(url: string) => Promise<any>} [fetcher] injected for tests.
  * @returns {Promise<Map<string, object>|null>}
@@ -568,18 +593,34 @@ export function fetchServerDefinitions(fetcher) {
     : (typeof _defsTestFetcher === 'function' ? _defsTestFetcher
       : (_DEFINITIONS_TEST_MODE ? null : _defaultFetch))
   if (!get) return Promise.resolve(null)
-  _defsPromise = Promise.resolve()
-    .then(() => get(SERVER_DEFINITIONS_PATH))
-    .then((body) => {
-      _defsRows = _declarationsFromBody(body)
-      return _defsRows
+  const gen = _defsGeneration
+  const land = (rows) => {
+    if (gen !== _defsGeneration) return rows
+    _defsRows = rows
+    _notifyDefinitions()
+    return rows
+  }
+  const retry = () => {
+    _defsRetryTimer = null
+    if (gen !== _defsGeneration) return
+    _defsPromise = _askDefinitions(get).then(land, () => land(null))
+  }
+  _defsPromise = _askDefinitions(get)
+    .then(land, () => {
+      const out = land(null)
+      if (gen === _defsGeneration && _defsRetryTimer === null) {
+        _defsRetryTimer = setTimeout(retry, DEFINITIONS_RETRY_MS)
+      }
+      return out
     })
-    .catch(() => {
-      _defsRows = null
-      return null
-    })
-    .finally(() => { _notifyDefinitions() })
   return _defsPromise
+}
+
+/** Cancel a scheduled retry and orphan anything in flight. */
+function _resetDefinitionsRequest() {
+  if (_defsRetryTimer !== null) clearTimeout(_defsRetryTimer)
+  _defsRetryTimer = null
+  _defsGeneration += 1
 }
 
 /**
@@ -599,6 +640,7 @@ export function serverDeclares(defId, fetcher) {
 
 /** Seed the answer from a body somebody already holds (and the test seam). */
 export function primeServerDefinitions(body) {
+  _resetDefinitionsRequest()
   _defsRows = _declarationsFromBody(body)
   _defsPromise = Promise.resolve(_defsRows)
   _notifyDefinitions()
@@ -607,6 +649,7 @@ export function primeServerDefinitions(body) {
 
 /** Test seam: forget the answer and the request, as a new page load would. */
 export function clearServerDefinitions() {
+  _resetDefinitionsRequest()
   _defsRows = null
   _defsPromise = null
 }

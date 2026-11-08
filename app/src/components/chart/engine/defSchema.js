@@ -1870,7 +1870,21 @@ export function validateInputValue(input, value, path, errors) {
       if (typeof d !== 'boolean') errors.push(`${path}: type "bool" requires true or false, got ${fmt(d)}`)
       break
     case 'string':
-      if (typeof d !== 'string') errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
+      if (typeof d !== 'string') {
+        errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
+        break
+      }
+      // ⭐ UCT RS Phase 3, unit 3-02 — a declared `maxLength` and `pattern` bind
+      // every NON-EMPTY value. Empty is always legal: it means "not set".
+      if (d === '') break
+      if (Number.isInteger(input.maxLength) && d.length > input.maxLength) {
+        errors.push(`${path}: ${fmt(d)} is longer than the declared maxLength ${input.maxLength}`)
+      }
+      if (input.pattern !== undefined) {
+        const re = stringPatternRegExp(input.pattern)
+        if (!re) errors.push(`${path}: the declared pattern ${fmt(input.pattern)} is not an anchored regex, so no value can be checked against it`)
+        else if (!re.test(d)) errors.push(`${path}: ${fmt(d)} does not match the declared pattern ${input.pattern}`)
+      }
       break
     // ⭐ PHASE 3 WS-D (runtime documents only — `RUNTIME_INPUT_TYPES`)
     case 'time':
@@ -2009,6 +2023,70 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
     if (input[k] !== undefined && typeof input[k] !== 'string') {
       errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
     }
+  }
+
+  validateTextModifiers(input, path, errors)
+}
+
+// ─── the text control's modifiers (UCT RS Phase 3, unit 3-02) ───────────────
+//
+// ⭐ A `string` input may declare how its text box behaves:
+//   - `pattern`: an ANCHORED regex source (`^…$`), checked on every non-empty value
+//     (`validateInputValue`) — the server row carries the same source (3-05), so
+//     both lanes refuse the same text;
+//   - `maxLength`: a whole number 1-64, on every non-empty value;
+//   - `case: 'upper'`: the control upper-cases what the member types (a value
+//     rule only through `pattern`; the schema does not rewrite a stored value);
+//   - `placeholder`: the box's empty-state text, up to 64 characters;
+//   - `hint`: the muted line shown under the box when a typed value is refused,
+//     up to 120 characters (the control says "Not a valid value" without one).
+// ⛔ Only a `string` input takes them: on a number or an enum they would be read
+// by nothing, which is a typo, so they are refused by name.
+export const TEXT_INPUT_MAX_LENGTH = 64
+const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+const _patternCache = new Map()
+
+/** A declared `pattern` → its RegExp, or null for one that is not an anchored,
+ *  compilable source. Memoised: the control asks on every keystroke. */
+export function stringPatternRegExp(source) {
+  if (typeof source !== 'string') return null
+  if (_patternCache.has(source)) return _patternCache.get(source)
+  let re = null
+  const anchored = source.length >= 2 && source.startsWith('^') && source.endsWith('$') && !source.endsWith(String.raw`\$`)
+  if (anchored) {
+    try { re = new RegExp(source) } catch { re = null }
+  }
+  _patternCache.set(source, re)
+  return re
+}
+
+function validateTextModifiers(input, path, errors) {
+  const declared = TEXT_MODIFIERS.filter((k) => input[k] !== undefined)
+  if (!declared.length) return
+  if (input.type !== 'string') {
+    for (const k of declared) {
+      errors.push(`${path}.${k}: only a "string" input takes ${k}, and this one is ${fmt(input.type)} — nothing would read it`)
+    }
+    return
+  }
+  if (input.pattern !== undefined) {
+    if (typeof input.pattern !== 'string' || !input.pattern) {
+      errors.push(`${path}.pattern: expected a regex source string, got ${fmt(input.pattern)}`)
+    } else if (!stringPatternRegExp(input.pattern)) {
+      errors.push(`${path}.pattern: ${fmt(input.pattern)} must be an anchored regex (starting "^", ending "$") that compiles`)
+    }
+  }
+  if (input.maxLength !== undefined
+      && (!Number.isInteger(input.maxLength) || input.maxLength < 1 || input.maxLength > TEXT_INPUT_MAX_LENGTH)) {
+    errors.push(`${path}.maxLength: expected a whole number from 1 to ${TEXT_INPUT_MAX_LENGTH}, got ${fmt(input.maxLength)}`)
+  }
+  if (input.case !== undefined && input.case !== 'upper') {
+    errors.push(`${path}.case: the one case a text box applies is "upper", got ${fmt(input.case)}`)
+  }
+  for (const [k, max] of [['placeholder', 64], ['hint', 120]]) {
+    if (input[k] === undefined) continue
+    if (typeof input[k] !== 'string') errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
+    else if (input[k].length > max) errors.push(`${path}.${k}: at most ${max} characters, got ${input[k].length}`)
   }
 }
 
