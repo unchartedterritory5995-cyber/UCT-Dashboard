@@ -173,3 +173,14 @@
 @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(.95); } 50% { opacity: .9; transform: scale(1.05); } }
 @media (max-width: 640px) { .coin { width: 150px; height: 150px; } .coinFace img { width: 42px; height: 42px; } .coinFace b { font-size: 30px; } .hardEnd .tBar span { min-width: 0; flex: 1 1 40%; } }
 @media (prefers-reduced-motion: reduce) { .coin, .coinStage::after { animation: none; } }
+
+/* a mode's own line under the verdict (Blitz: your best; Boss: the chart that took the heart) */
+.tNote { max-width: 56ch; text-align: center; font-size: 15px; line-height: 1.5; color: var(--soft); }
+.tNote b { color: var(--gb, #f0d78c); }
+
+/* the shine sweeps INSIDE the coin (2026-11-08: on the struck coin, whose overflow shows the rim, the moving shine
+   used to slide out as a grey bar beside it); the frame stays still and clips, the band inside it moves */
+.coin .coinShine { transform: none; animation: none; background: none; overflow: hidden; border-radius: 50%; }
+.coin .coinShine::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .5) 48%, transparent 60%);
+  transform: translateX(-120%); animation: shine 3.2s ease-in-out 1s infinite; }
+@media (prefers-reduced-motion: reduce) { .coin .coinShine::after { animation: none; opacity: 0; } }

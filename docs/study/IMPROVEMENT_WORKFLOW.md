@@ -4,7 +4,7 @@ The owner, 2026-11-08: *"We have so much work to do to enhance games, questions,
 production, everything!"* and *"lets keep going and develop the further plans to build a workflow for improving all of
 the things i have in my objective."*
 
-This is that workflow. The standard every screen is held to is `docs/study/OWNER_PRINCIPLES.md` (20 rules from his
+This is that workflow. The standard every screen is held to is `docs/study/OWNER_PRINCIPLES.md` (21 rules from his
 notes). The loop below is how each round gets built, checked, ranked and shipped. The tracks after it are what the rounds
 work through.
 

@@ -80,6 +80,12 @@ Spot the Kicker), and the kit in `app/src/pages/study/ui/`.
     low quality visual"*.
 18. **Calm motion.** No bouncing text, no throbbing gold round the chart, no flashing; smooth, purposeful moves. Pick
     one presentation; no awkward switch between two (*"pick one or the other"*).
+21. **One design, every mode** (added 2026-11-08). The lesson player, Blitz, Boss, Spot the Setup and Hard mode wear the
+    same design, the one built with him in Hard mode: the start arena, the status line, the chart as the hero with the
+    designed pointer, the question header, the answer tiles, the verdict line and stamp, the lesson card, the one Check
+    and Next bar, and the coin end screen. A new mode starts from these pieces. *"This is a different design than the ones
+    we have worked on together!!!"* · *"Need all the design templates and graphics to be uniform throughout each
+    section!"*
 
 ## D. It works
 

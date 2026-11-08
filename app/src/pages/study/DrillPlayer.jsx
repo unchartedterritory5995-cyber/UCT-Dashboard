@@ -40,17 +40,21 @@ import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
 import { studyOpenMarkers } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
-import { itemHasChart, questionOf } from './drills/types'
+import { brandWords, itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
 import EndCard from './EndCard'
 import ScreenFeedback from './ScreenFeedback'
 import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
-import StudyMark from '../../components/study/StudyMark'
 import { spot, rayAt, arrowAt } from '../../lab/pointers'
-import { StartButton } from '../../lab/StartCard'
-import JourneyStrip from './JourneyStrip'
-import RevealTakeover from './RevealTakeover'
+import { HudCombo } from './ui/HudLooks'
+import StudyButton from './ui/StudyButton'
+import sa from './ui/answerLooks.module.css'
+import s2 from './ui/study.module.css'
+import { CORRECT_WORD, WRONG_WORD } from './RevealTakeover'
+import { answerWord } from './revealCardHelpers'
+import Prompt from './ui/Prompt'
+import UiStamp from './ui/Stamp'
 import { barStats } from './drillLook'
 import { memberSettingsOverride } from './studyChartLook'
 import { setupName } from './challenges/challengeBank'
@@ -308,7 +312,9 @@ export default function DrillPlayer({
 
   useEffect(() => { if (s.finished) onFinished?.(s.summary) }, [s.finished]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const combo = s.combo
+  const scoredReveal = !s.finished && s.status === 'ready' && !!item && phase === 'reveal' && !!result && !unscored
+  const answerKey = scoredReveal ? (() => { const w = brandWords(answerWord(reveal) || ''); return w ? w.charAt(0).toUpperCase() + w.slice(1) : '' })() : ''
+  const hudResults = useMemo(() => s.items.slice(0, s.index).map((it) => s.results[it.id]?.correct !== false), [s.items, s.index, s.results])
   const label = !unscored && (phase === 'answer' || phase === 'checking') ? 'Check' : 'Continue'
   const framing = item && needsChart && mod.framingOf ? mod.framingOf(item) : ''
   // round 17: the bar count is gone from the framing (the chart facts carry the window); the rest of the sentence stays
@@ -347,16 +353,24 @@ export default function DrillPlayer({
   } else if (item) {
     body = (
       <>
-        <div className={`${d5.ask} ${styles.ask}`}>
-          <StudyMark mood={phase === 'reveal' && result ? (result.correct ? 'happy' : 'oops') : 'live'} size={112} />
-          <div className={`${d5.bubble} ${styles.bubble}`}><h2 className={styles.question} id="study-question">{questionOf(item)}</h2></div>
-        </div>
-        {needsChart ? (
-          <div className={styles.qLine}>
-            {skillChip(item.skill_id) && <span className={d5.qSetup}>{skillChip(item.skill_id)}</span>}
-            {framingShort && <span className={styles.framingSm}>{framingShort}</span>}
+        {/* Hard mode's question header (the owner, 2026-11-08: one design for every mode): the eyebrow names the setup,
+            the question is the headline, the framing is the detail under it */}
+        {scoredReveal ? (
+          <div className={`${s2.kit} ${styles.askHead}`}>
+            <Prompt mood={result.correct ? 'happy' : 'oops'} tone={result.correct ? 'ok' : 'bad'} size={phone ? 40 : 48}
+              title={result.correct ? CORRECT_WORD : WRONG_WORD}
+              sub={answerKey ? <>{result.correct ? 'You said' : 'The answer:'} <b>{answerKey}</b></> : null}
+              seal={<UiStamp ok={!!result.correct} inline />} />
           </div>
-        ) : (framing && <p className={styles.framing}>{framing}</p>)}
+        ) : (
+        <div className={`${sa.area} ${styles.askHead}`}>
+          <div className={sa.lHead}>
+            <span className={sa.lEyebrow}>{skillChip(item.skill_id) || 'Lesson'}</span>
+            <h2 className={sa.lQ} id="study-question">{questionOf(item)}</h2>
+            {(needsChart ? framingShort : framing) ? <p className={sa.lDetail}>{needsChart ? framingShort : framing}</p> : null}
+          </div>
+        </div>
+        )}
         <div className={`${styles.chartRow} ${needsChart && stats.length > 0 ? styles.chartRowFacts : ''}`}>
         <div
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
@@ -429,6 +443,10 @@ export default function DrillPlayer({
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />
         </div>
+        {phase === 'reveal' && result && (
+          <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}
+            attemptId={result.attempt_id ?? null} reviewer={reviewer} hideVerdict={!unscored} className={styles.revealIn} />
+        )}
         {phase === 'failed' && (
           <p className={styles.failed} role="status" data-testid="post-failed">
             {loadFailedSentence([{ what: 'your answer', error: postError }])} It is saved on this device and will be sent when the connection is back.
@@ -452,12 +470,10 @@ export default function DrillPlayer({
         <button type="button" className={styles.close} onClick={requestClose} aria-label="Close">
           <UIcon name="x" size={18} gold={false} />
         </button>
-        <JourneyStrip index={s.index} total={s.items.length || SET_SIZE} results={s.results} items={s.items} />
-        {combo >= 2 && !s.finished ? (
-          <span className={styles.combo} data-testid="combo-chip" aria-label={`Combo ${combo}`}>x{combo}</span>
-        ) : (
-          <span className={styles.comboGhost} aria-hidden="true" />
-        )}
+        <div className={`${s2.kit} ${styles.hudSlot}`}>
+          <HudCombo label="Lesson" unit="Question" scoreWord="right" stepTestId="progress-strip" live={!s.finished}
+            step={s.index} total={s.items.length || SET_SIZE} results={hudResults} />
+        </div>
         {reviewer && (
           <ScreenFeedback compact screen={drillScreen({ finished: s.finished, phase })}
             context={item && !s.finished
@@ -468,27 +484,15 @@ export default function DrillPlayer({
 
       <div className={styles.scroll}><div className={`${d5.lesson} ${styles.lessonIn}`}>{body}</div></div>
 
-      {!s.finished && s.status === 'ready' && item && phase === 'reveal' && result && !unscored && (
-        <RevealTakeover correct={!!result.correct} reveal={reveal} item={item} profile={profile}
-          attemptId={result.attempt_id ?? null} reviewer={reviewer} onContinue={primary} label={label} />
-      )}
-      {!s.finished && s.status === 'ready' && item && !(phase === 'reveal' && result && !unscored) && (
+      {scoredReveal ? <span key={`f-${s.index}`} className={`${s2.flash} ${result.correct ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
+      {!s.finished && s.status === 'ready' && item && (
         <div className={styles.bottom}>
-          {phase === 'reveal' && result && (
-            <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}
-              attemptId={result.attempt_id ?? null} reviewer={reviewer} />
-          )}
           <StickyActionBar className={styles.bar}>
-            <StartButton
-              icon={label === 'Check' ? 'check' : 'play'}
-              label={label}
-              onClick={primary}
-              hotkey={false}
-              disabled={phase === 'checking' || (phase === 'answer' && !answerable)}
-              ariaLabel={label}
-              testId="primary-action"
-              className={styles.primaryBtn}
-            />
+            <div className={`${s2.kit} ${sa.area} ${styles.footIn} ${scoredReveal ? (result.correct ? styles.footOk : styles.footBad) : ''}`}>
+              <StudyButton kind={phase === 'reveal' && result && !unscored ? (result.correct ? 'good' : 'bad') : 'primary'} size="xl" arrow wide
+                onClick={primary} disabled={phase === 'checking' || (phase === 'answer' && !answerable)} busy={phase === 'checking'}
+                ariaLabel={label} testId="primary-action">{label}</StudyButton>
+            </div>
           </StickyActionBar>
         </div>
       )}

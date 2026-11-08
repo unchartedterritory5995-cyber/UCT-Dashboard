@@ -101,11 +101,12 @@ async function answerChoice(label) {
 }
 
 describe('DrillPlayer', () => {
-  it('shows the ten-segment progress strip as "Question N of 10" and advances it', async () => {
+  it('shows the status line as "Question N of 10" and advances it', async () => {
     const fetcher = makeFetcher(tenSet())
     render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
     expect(await screen.findByText('Question 1 of 10')).toBeInTheDocument()
-    expect(screen.getByTestId('progress-strip').querySelectorAll('li')).toHaveLength(10)
+    // Hard mode's status line (2026-11-08): ten stops on the track, the step named in words
+    expect(screen.getByRole('group', { name: 'Lesson, question 1 of 10, 0 right' })).toBeInTheDocument()
 
     await answerChoice('VCP')
     fireEvent.click(screen.getByTestId('primary-action'))

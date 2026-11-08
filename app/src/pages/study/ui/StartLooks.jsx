@@ -10,7 +10,7 @@
 //                   face-down charts on the right, "Deal the charts"
 //
 // The chart in A is a drawing, not a stock: fixed shapes, no prices, no ticker.
-import { useEffect } from 'react'
+import { Fragment, useEffect } from 'react'
 import { Medal } from './Medal'
 import UIcon from '../../../components/ui/UIcon'
 import st from './startLooks.module.css'
@@ -46,25 +46,32 @@ function ChartArt() {
 }
 
 /** A · Arena. In the product (round 22): `label` says what the button can do while the bank loads, Enter starts, and the
- *  test ids are the ones Hard mode's intro always carried. */
-export function StartArena({ total = 8, ready = true, onStart, label = null, testId = null, startTestId = null, hotkey = false }) {
+ *  test ids are the ones Hard mode's intro always carried. Since 2026-11-08 every mode opens on it (the owner: "Need all
+ *  the design templates and graphics to be uniform throughout each section!"): the plate, the title, the caption under
+ *  the drawing, the stakes, one lead line and the reward are the mode's own; the defaults are Hard mode's. */
+export function StartArena({ total = 8, ready = true, onStart, label = null, testId = null, startTestId = null, hotkey = false,
+  plate = 'Hard', title = 'Hard mode', caption = 'What fired on the last candle?', stakes = null, lead = null, reward = undefined, children = null }) {
   useEffect(() => {
     if (!hotkey || !ready) return undefined
     const k = (e) => { if (e.key === 'Enter' && !e.repeat && !(e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName))) onStart?.() }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [hotkey, ready, onStart])
+  const lines = stakes || [`${total} charts`, 'no ticker', 'one try each']
+  const prize = reward === undefined ? <><Medal size={40} testId={null} /><span><b>{total} for {total}</b> lights the Legendary medal</span></> : reward
   return (
     <div className={`${st.start} ${st.arena}`} data-testid={testId || undefined}>
       <div className={st.aCard}>
-        <span className={st.aPlate}>Hard</span>
+        <span className={st.aPlate}>{plate}</span>
         <ChartArt />
-        <span className={st.aCaption}>What fired on the last candle?</span>
+        <span className={st.aCaption}>{caption}</span>
       </div>
-      <div className={st.aTitle}>Hard mode</div>
-      <div className={st.aStakes}><b>{total} charts</b><i /> no ticker<i /> one try each</div>
-      <div className={st.aReward}><Medal size={40} testId={null} /><span><b>{total} for {total}</b> lights the Legendary medal</span></div>
+      <div className={st.aTitle}>{title}</div>
+      <div className={st.aStakes}>{lines.map((x, i) => (i === 0 ? <b key={i}>{x}</b> : <Fragment key={i}><i />{x}</Fragment>))}</div>
+      {lead ? <p className={st.aLead}>{lead}</p> : null}
+      {prize ? <div className={st.aReward}>{prize}</div> : null}
       <button type="button" className={st.go} disabled={!ready} onClick={onStart} data-testid={startTestId || undefined}>{label || (ready ? 'Start' : 'Loading the charts')}<UIcon name="chevronRight" size={20} gold={false} /></button>
+      {children ? <div className={st.aMore}>{children}</div> : null}
     </div>
   )
 }

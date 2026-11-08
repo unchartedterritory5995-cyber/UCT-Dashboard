@@ -114,8 +114,8 @@ export function EndReport({ right, total, xp = 0, log = [], onAgain, onBack, onP
           <div key={i} role="listitem" className={`${e.rCard} ${r.ok ? e.ok : e.miss}`} style={{ '--i': i }}>
             <span className={e.rCardTop}><small>{i + 1}</small>{r.ok ? <UIcon name="check" size={13} gold={false} /> : <UIcon name="x" size={13} gold={false} />}</span>
             <b>{r.name}</b>
-            <em>{r.ticker || '—'}</em>
-            {!r.ok && r.said ? <i>you said {r.said}</i> : null}
+            {r.ticker ? <em>{r.ticker}</em> : null}
+            {!r.ok && r.said ? <i>you said {r.said}{r.was ? `, it was ${r.was}` : ''}</i> : null}
           </div>
         ))}
       </div>
@@ -173,7 +173,7 @@ export function EndStatement({ right, total, xp = 0, log = [], results = [], onA
  *  the best parts of each"): Trophy's coin struck in the run's tier with the next tier named; one slim stats bar;
  *  Report card's setups scored and the weakest real setup named; the run as cards with what was said on a miss. The
  *  test ids are the ones Hard mode's end always carried. Enter runs it again. */
-export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain, onBack, unit = 'named without a ticker', showSetups = true, againLabel = 'Run it again', testIdPrefix = 'hard' }) {
+export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain, onBack, unit = 'named without a ticker', showSetups = true, againLabel = 'Run it again', testIdPrefix = 'hard', doneWord = 'named', xpLabel = 'XP', medal = true, title = null, children = null }) {
   const tier = tierOf(right, total)
   const shown = useCountUp(xp, true, 28)
   const acc = total ? Math.round((right / total) * 100) : 0
@@ -186,19 +186,20 @@ export function EndHard({ right, total, xp = 0, log = [], results = [], onAgain,
         {tier.key === 'legend'
           ? <Medal lit ignite size={150} />
           : (
-            <div className={e.coin} data-testid={`${testIdPrefix}-score`} aria-label={`${right} of ${total} named`}>
+            <div className={e.coin} data-testid={`${testIdPrefix}-score`} aria-label={`${right} of ${total} ${doneWord}`}>
               <div className={e.coinFace}><img src={brandMark} alt="" /><b>{right}<small>/{total}</small></b></div>
               <i className={e.coinShine} aria-hidden="true" />
             </div>
           )}
         <span className={e.ribbon}>{tier.key === 'legend' ? `${total} for ${total}` : tier.name}</span>
       </div>
-      <div className={e.tTitle}>{verdictWord(right, total)}</div>
+      <div className={e.tTitle}>{title || verdictWord(right, total)}</div>
       <div className={e.tSub}>{right} of {total} {unit}{tier.next ? <> · <b>{tier.next.more} more</b> for {tier.next.name}</> : null}</div>
-      {tier.key === 'legend' ? null : <span className={e.legendHint}><Medal size={22} /> {total} for {total} lights the Legendary medal</span>}
+      {children ? <div className={e.tNote}>{children}</div> : null}
+      {tier.key === 'legend' || !medal ? null : <span className={e.legendHint}><Medal size={22} /> {total} for {total} lights the Legendary medal</span>}
       <div className={e.tBar}>
-        <span data-testid={`${testIdPrefix}-xp`}><UIcon name="star" size={16} gold={false} /><b>+{shown}</b> XP</span>
-        <span data-testid={`${testIdPrefix}-right`}><UIcon name="check" size={16} gold={false} /><b>{right}/{total}</b> named</span>
+        <span data-testid={`${testIdPrefix}-xp`}><UIcon name="star" size={16} gold={false} /><b>+{shown}</b> {xpLabel}</span>
+        <span data-testid={`${testIdPrefix}-right`}><UIcon name="check" size={16} gold={false} /><b>{right}/{total}</b> {doneWord}</span>
         <span data-testid={`${testIdPrefix}-streak`}><UIcon name="flame" size={16} gold={false} /><b>{bestStreak(results)}</b> best streak</span>
         <span><b>{acc}%</b> accuracy</span>
       </div>

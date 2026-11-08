@@ -126,3 +126,10 @@
   .combo .flame { height: 30px; padding: 0 8px; font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) { .cRider, .cPip.done, .cPip.miss, .cRider.live::before { animation: none; } .cRider { transition: none; } }
+
+/* HudClock: the track is the clock */
+.clock .jFill { transition: width 1s linear; }
+.clock .cRider { transition: left 1s linear; }
+.clock.low .jFill { background: linear-gradient(180deg, #ffb3a8 0%, #ef6a5a 40%, #c43d31 75%, #8a231b 100%); box-shadow: 0 0 18px rgba(239, 106, 90, .5), inset 0 -2px 0 rgba(90, 20, 12, .55); }
+.clock.low .cScore em { color: #ff8a7a; }
+@media (prefers-reduced-motion: reduce) { .clock .jFill, .clock .cRider { transition: none; } }

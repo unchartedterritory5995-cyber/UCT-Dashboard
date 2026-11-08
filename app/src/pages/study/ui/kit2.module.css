@@ -110,3 +110,5 @@
   .pbtn::before, .tile::before, .tile.wrong, .tile.deal { animation: none !important; }
   .pbtn, .tile { transition: none; }
 }
+/* a long answer (three lines on a phone) gets room above and below instead of touching the tile's edge */
+.tile.tile { padding-top: 12px; padding-bottom: 12px; }

@@ -36,15 +36,18 @@ function Mark({ st, n }) {
 /** A · Lesson app. In the product (round 22): `head` replaces the question once the answer is checked (the verdict line,
  *  which the owner ranked Good, stays as it was), `hotkey` makes Enter press Check and then Next, and the test ids are the
  *  ones Hard mode always carried. */
-export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = null, step = 0, total = 8, busy = false, onPick, onCheck, onNext, head = null, nextLabel = 'Next', hotkey = false, eyebrow = null, cardsTestId = null, checkTestId = null, nextTestId = null }) {
+// One design for every mode (the owner, 2026-11-08: "This is a different design than the ones we have worked on
+// together!!!"): Hard mode's answer area is every mode's. `question` and `detail` default to Hard's; `instant` (Blitz)
+// answers on the tap and has no Check bar.
+export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = null, step = 0, total = 8, busy = false, onPick, onCheck, onNext, head = null, nextLabel = 'Next', hotkey = false, eyebrow = null, cardsTestId = null, checkTestId = null, nextTestId = null, question = Q, detail = DETAIL, instant = false }) {
   const ctx = { pick, state, answer }
   return (
     <div className={`${a.area} ${a.lesson}`}>
       {state !== 'ask' && head ? head : (
         <div className={a.lHead}>
           <span className={a.lEyebrow}>{eyebrow || <>Chart {step + 1} of {total} · Daily · ticker hidden</>}</span>
-          <h2 className={a.lQ}>{Q}</h2>
-          <p className={a.lDetail}>{DETAIL}</p>
+          <h2 className={a.lQ}>{question}</h2>
+          {detail ? <p className={a.lDetail}>{detail}</p> : null}
         </div>
       )}
       <div className={a.lGrid} role="group" aria-label="Your answer" data-testid={cardsTestId || undefined} data-tiles="">
@@ -52,11 +55,11 @@ export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = 
           <Tile key={c} n={i + 1} i={i} label={c} state={tileState(i, c, ctx)} disabled={state !== 'ask'} onClick={() => onPick?.(i)} />
         ))}
       </div>
-      <div className={`${a.lFoot} ${state === 'ok' ? a.footOk : state === 'bad' ? a.footBad : ''}`}>
+      {instant ? null : <div className={`${a.lFoot} ${state === 'ok' ? a.footOk : state === 'bad' ? a.footBad : ''}`}>
         {state === 'ask'
           ? <StudyButton kind="primary" size="xl" arrow wide hotkey={hotkey ? 'Enter' : null} busy={busy} disabled={pick == null} onClick={onCheck} testId={checkTestId}>{busy ? 'Checking' : 'Check'}</StudyButton>
           : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide hotkey={hotkey ? 'Enter' : null} onClick={onNext} testId={nextTestId}>{nextLabel}</StudyButton>}
-      </div>
+      </div>}
     </div>
   )
 }

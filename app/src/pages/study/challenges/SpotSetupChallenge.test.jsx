@@ -59,7 +59,7 @@ describe('SpotSetupChallenge', () => {
     const cards = await screen.findByTestId('spot-cards')
     const buttons = cards.querySelectorAll('button')
     expect(buttons).toHaveLength(3)
-    expect(screen.getByText(/Spot the Kicker\./)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Spot the Kicker/ })).toBeInTheDocument()
     expect(screen.getByTestId('stock-chart').getAttribute('data-highlight').split('|')).toHaveLength(3)
     fireEvent.click(buttons[2])                                  // C = the last bar = the real one
     fireEvent.click(screen.getByTestId('spot-check'))

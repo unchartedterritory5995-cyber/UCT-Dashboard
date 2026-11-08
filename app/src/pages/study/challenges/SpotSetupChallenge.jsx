@@ -9,16 +9,20 @@
 // bank item is a Yes/No "does the setup fire on the last candle" question; the answer posted is Yes when the member
 // picked the real candle and No otherwise, so the attempt is scored on the server like any other.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import StudyMark from '../../../components/study/StudyMark'
-import StartCard, { StartButton } from '../../../lab/StartCard'
+import { StartArena } from '../ui/StartLooks'
 import { Stamp } from '../../../lab/bits'
 import { useRunOn } from '../../../lab/fx'
-import { boxAt, rayAt } from '../../../lab/pointers'
+import { rayAt } from '../../../lab/pointers'
+import { POINTER, calloutLook } from '../ui/callout'
 import StudyButton from '../ui/StudyButton'
 import { HudCombo } from '../ui/HudLooks'
 import { EndHard } from '../ui/EndLooks'
 import s2 from '../ui/study.module.css'
-import { brandWords } from '../drills/types'
+import Prompt from '../ui/Prompt'
+import UiStamp from '../ui/Stamp'
+import LessonCard from '../ui/LessonCard'
+import sa from '../ui/answerLooks.module.css'
+import { reviewTrade } from './hardMode'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -61,6 +65,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   const [state, setState] = useState('ask')
   const [fwd, setFwd] = useState(null)
   const [lesson, setLesson] = useState('')
+  const [plan, setPlan] = useState(null)
   const shownAt = useRef(0)
   useEffect(() => { shownAt.current = performance.now() }, [])
   const vis = item.bars
@@ -78,26 +83,20 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   const highlight = useMemo(() => (state === 'ask' ? cands.map((c) => vis[c.i].t) : null), [cands, vis, state])
   const extra = useMemo(() => (highlight ? { highlightBarTime: highlight, highlightColor: GOLD } : null), [highlight])
   const word = name.toUpperCase()
-  const annotations = useMemo(() => {
-    if (!n || !all) return null
-    const a = []
-    cands.forEach((c, k) => {
+  // the candidates carry Hard mode's pointer (rule 4, one designed pointer everywhere): a pill in open space, never over
+  // a candle, a leader and a ring round the candle; gold while you choose, green for the setup and red for the rest after
+  const callouts = useMemo(() => {
+    if (!n || !all) return []
+    return cands.map((c, k) => {
       const letter = String.fromCharCode(65 + k)
       const sel = pick === c.i
-      const real = c.kind === 'real'
-      const b = all[c.i], first = Math.max(0, n - view), left = c.i - 4 >= first + 3, at = left ? all[c.i - 4] : all[Math.min(all.length - 1, c.i + 2)]
-      const color = state === 'ask' ? (sel ? '#fff1c2' : GOLD) : real ? '#2faf68' : '#df4646'
-      // neighbours alternate above and below the candle so two chips never sit on each other
-      const chipPrice = (b.o + b.c) / 2 + (b.h - b.l) * (k % 2 ? -0.9 : 0.9)
-      a.push({ id: `L${k}`, type: 'text', points: [{ time: at.t, price: chipPrice }], text: ` ${state === 'ask' ? letter : real ? word : 'NOT IT'} `, color: sel || state !== 'ask' ? '#111' : color, fontSize: sel ? 14 : 12, bgEnabled: true, bgColor: sel || state !== 'ask' ? color : 'rgba(11,11,11,.88)', borderEnabled: true, borderColor: color, locked: true })
-      if (sel || state !== 'ask') {
-        if (c.i + 1 < all.length) a.push(...boxAt(all, c.i, { id: `x${k}`, color }))
-        else a.push({ id: `v${k}`, type: 'vertical', points: [{ time: b.t, price: b.c }], color, lineWidth: 2, lineStyle: 'dashed', locked: true })
-      }
+      const tone = state === 'ask' ? POINTER.ask : c.kind === 'real' ? POINTER.ok : POINTER.bad
+      const text = state === 'ask' ? (sel ? `${letter} · your pick` : letter) : c.kind === 'real' ? word : 'not it'
+      return { index: c.i, text, ...tone, ...(sel && state === 'ask' ? { color: '#f6e2a0', textColor: '#fff6d6' } : null) }
     })
-    if (state !== 'ask') a.push(...rayAt(vis[n - 1], 'l', { id: 'l', label: '' }))
-    return a
-  }, [cands, all, vis, n, state, pick, view, word])
+  }, [cands, all, n, state, pick, word])
+  const look = useMemo(() => calloutLook(phone), [phone])
+  const annotations = useMemo(() => (state !== 'ask' && n ? rayAt(vis[n - 1], 'l', { id: 'l', label: '' }) : null), [state, vis, n])
   const ok = pick === n - 1
   const check = async () => {
     if (pick == null || state !== 'ask') return
@@ -106,7 +105,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     let right = ok
     try {
       const a = await scoreAttempt(item, { choice: ok ? yes : no, picked_bar: vis[pick]?.t ?? null, picked_kind: picked?.kind || null }, performance.now() - shownAt.current, fetcher)
-      right = !!a.correct; setFwd(a.forward); setLesson(a.reveal?.lesson || '')
+      right = !!a.correct; setFwd(a.forward); setLesson(a.reveal?.lesson || ''); setPlan(a.reveal?.trade || null)
     } catch { /* the verdict stays the local one; the attempt is not recorded */ }
     setState(right ? 'ok' : 'bad'); revealFeedback(right, prefs)
   }
@@ -116,19 +115,21 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     if (near && near.dd <= (phone ? 5 : 4)) { setPick(near.c.i); tapFeedback(prefs) }
   }
   const real = cands.find((c) => c.kind === 'real')
+  const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, vis[n - 1], fwd) : null), [plan, state, vis, n, fwd])
+  // Hard mode's design (the owner, 2026-11-08: one design for every mode): the status line, the chart as the hero, the
+  // question header, the cards, the verdict line, one Check bar, the coach's card
   return (
-    <div className={state === 'bad' ? d5.shakeHard : ''} data-testid="spot-round">
+    <div className={`${s2.kit} ${s2.screen} ${state === 'bad' ? d5.shakeHard : ''}`} data-testid="spot-round">
+      {state !== 'ask' ? <span className={`${s2.flash} ${ok ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       <HudCombo label="Spot the Setup" step={idx} total={total} results={state === 'ask' ? results : [...results, ok]} live={state === 'ask'} stepTestId="spot-step" />
-      <div className={d5.ask}><StudyMark mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : ok ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>
-        {state === 'ask'
-          ? <><b>Spot the {name}.</b> {cands.length} gold candles look alike; only one is the real {name}. Tap it.</>
-          : ok ? `That is the ${name}. The cards measure the others against it.` : `Not that one. The ${name} is the green one; the cards say why the others are not.`}
-      </div></div>
-      <div className={lab.chartBox}>
+      <div className={`${lab.chartBox} ${s2.heroChart}`}>
         {state === 'ask' && pick == null ? <span className={lab.tapHint}>spot the {name}</span> : null}
-        {state !== 'ask' ? <Stamp ok={ok} /> : null}
-        <ChallengeChart id={item.id} bars={all} view={view} height={phone ? 340 : 440} annotations={annotations} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher} />
+        <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? view : Math.min(all.length, view + (all.length - n))} height={phone ? 340 : 480} annotations={annotations} callouts={callouts} calloutLook={look} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher} />
       </div>
+      {state === 'ask'
+        ? <div className={sa.area}><div className={sa.lHead}><span className={sa.lEyebrow}>Spot the Setup · chart {idx + 1} of {total}</span><h2 className={sa.lQ}>Spot the {name}</h2><p className={sa.lDetail}>{cands.length} gold candles look alike; only one is the real {name}. Tap it on the chart or pick its card.</p></div></div>
+        : <Prompt mood={ok ? 'happy' : 'oops'} tone={ok ? 'ok' : 'bad'} size={phone ? 40 : 48} title={ok ? `That is the ${name}.` : `Not that one.`}
+            sub={ok ? 'The cards measure the others against it.' : <>The {name} is the green one; the cards say why the others are not.</>} seal={<UiStamp ok={ok} inline />} />}
       <div className={`${d5.candRow} ${d5.cascade}`} style={phone ? undefined : { gridTemplateColumns: `repeat(${Math.max(1, cands.length)}, 1fr)` }} data-testid="spot-cards">{cands.map((c, k) => {
         const open = state !== 'ask'
         const rs = open && kicker ? rules(vis, c.i) : null
@@ -144,11 +145,11 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
           </button>
         )
       })}</div>
-      {state !== 'ask' && lesson ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{brandWords(lesson)}</p></details> : null}
-      <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
+      <div className={sa.area}><div className={`${sa.lFoot} ${state === 'ok' ? sa.footOk : state === 'bad' ? sa.footBad : ''}`}>
         {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="spot-check">Check</StudyButton>
           : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
       </div></div>
+      {state !== 'ask' && (lesson || trade) ? <LessonCard text={lesson} setup={name} fired={true} trade={trade} showReads={false} testId="spot-lesson" /> : null}
     </div>
   )
 }
@@ -184,9 +185,12 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
   if (error) return <ChallengeError what="the Spot the Setup charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
   if (phase === 'start') {
     return (
-      <StartCard eyebrow="Challenge" title="Spot the Setup" art={<StudyMark mood="think" size={116} />}
-        lead="One chart, a few gold candles that look alike. Only one is the real setup named at the top. Tap it, then read how the others measure up against it."
-        button={<StartButton icon="eye" label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'} sub={pool == null ? 'a second or two' : total ? `${total} charts · ${setups.length} setup${setups.length === 1 ? '' : 's'}` : 'come back after a new import'} disabled={!total} onClick={() => total && setPhase('play')} />} />
+      <div className={s2.kit}>
+        <StartArena plate="Spot" title="Spot the Setup" caption="Which candle is the real one?" testId="spot-intro" startTestId="spot-start" hotkey
+          total={total || ROUNDS} stakes={[`${total || ROUNDS} charts`, `${setups.length || 'every'} setup${setups.length === 1 ? '' : 's'}`, 'look-alikes measured']}
+          ready={!!total} onStart={() => total && setPhase('play')} label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'}
+          lead="One chart, a few gold candles that look alike. Only one is the real setup named at the top. Tap it, then read how the others measure up against it." />
+      </div>
     )
   }
   if (phase === 'done') {

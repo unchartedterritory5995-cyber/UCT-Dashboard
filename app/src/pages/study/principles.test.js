@@ -43,6 +43,9 @@ describe("the owner's principles, on every Study screen", () => {
     expect(code(path.join(HERE, 'challenges', 'challengeBank.js'))).toMatch(/q: brandWords\(/)
     expect(code(path.join(HERE, 'ui', 'LessonCard.jsx'))).toMatch(/splitLesson\(brandWords\(text\)\)/)
     expect(hits(/<p>\{(lesson|why)\}<\/p>/)).toEqual([])
+    // the lesson player's drills print the bank's own words too: the quoted definition and the scenario's story
+    expect(code(path.join(HERE, 'drills', 'RecallDrill.jsx'))).toMatch(/\{brandWords\(text\)\}/)
+    expect(code(path.join(HERE, 'drills', 'ScenarioDrill.jsx'))).toMatch(/\{brandWords\(story\)\}/)
   })
 
   it('rule 17: every Start, Check, Next and answer is the shared button or tile, never a hand-rolled one', () => {

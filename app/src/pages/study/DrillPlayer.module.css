@@ -292,3 +292,28 @@
 .row_down .gaugeBar { background: linear-gradient(90deg, #9a2e2e, #ffb3b3); box-shadow: 0 0 12px rgba(223, 70, 70, .45); }
 .primaryBtn.primaryBtn { max-width: 600px; padding: 16px 22px 16px 16px; }
 @media (max-width: 640px) { .question { font-size: 21px; } .factVal { font-size: 17px; } }
+
+/* ONE DESIGN FOR EVERY MODE (2026-11-08): the lesson player wears Hard mode's status line, question header and Check bar */
+.top.top { flex: 0 0 auto; height: auto; min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+.hudSlot { flex: 1 1 auto; min-width: 0; }
+.askHead { margin: 4px 0 12px; }
+.footIn { display: flex; justify-content: center; width: 100%; max-width: 640px; margin: 0 auto; padding: 4px 0; }
+.footIn > * { flex: 1 1 auto; }
+.footIn { border-radius: 18px; transition: background .3s, padding .3s; }
+.footIn.footOk, .footIn.footBad { padding: 10px 12px; }
+.footIn.footOk { background: linear-gradient(180deg, rgba(47, 175, 104, .16), rgba(47, 175, 104, .05)); }
+.footIn.footBad { background: linear-gradient(180deg, rgba(223, 70, 70, .16), rgba(223, 70, 70, .05)); }
+.revealIn { margin-top: 16px; }
+/* one column on desktop: the header, the answers and the lesson card line up on the same 720px */
+@media (min-width: 1025px) {
+  .askHead.askHead, .revealIn.revealIn { max-width: 720px; margin-left: auto; margin-right: auto; }
+}
+/* a phone's top bar also holds the close button: the badge steps aside so ten stops have room on the track */
+@media (max-width: 640px) {
+  .hudSlot [class*="badge"] { display: none; }
+  .top.top { gap: 6px; padding-left: 4px; padding-right: 8px; }
+}
+@media (max-width: 640px) {
+  .hudSlot [class*="flame"] { display: none; }
+  .hudSlot [class*="cPip"] { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; }
+}

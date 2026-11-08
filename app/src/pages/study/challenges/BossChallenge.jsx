@@ -3,19 +3,22 @@
 // follow-through runs on from the item's own forward bars. The XP shown at the end is what the attempts earned,
 // never a number invented here; a boss bonus is a server decision for later.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import UIcon from '../../../components/ui/UIcon'
-import StudyMark from '../../../components/study/StudyMark'
-import StartCard, { StartButton } from '../../../lab/StartCard'
-import { BossBar, Chest, Confetti, Heart, Medal, Stamp } from '../../../lab/bits'
-import { useCountUp, useRunOn } from '../../../lab/fx'
+import { StartArena } from '../ui/StartLooks'
+import { EndHard } from '../ui/EndLooks'
+import { Medal } from '../ui/Medal'
+import { Confetti } from '../../../lab/bits'
+import { useRunOn } from '../../../lab/fx'
 import { rayAt } from '../../../lab/pointers'
 import { calloutLook, hardCallouts } from '../ui/callout'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
-import Tile from '../ui/Tile'
-import StudyButton from '../ui/StudyButton'
-import { brandWords } from '../drills/types'
+import { HudCombo } from '../ui/HudLooks'
+import { AnswerLessonApp } from '../ui/AnswerLooks'
+import Prompt from '../ui/Prompt'
+import UiStamp from '../ui/Stamp'
+import LessonCard from '../ui/LessonCard'
+import { reviewTrade } from './hardMode'
+import s2 from '../ui/study.module.css'
 import d5 from '../../../lab/duo.module.css'
-import lab from '../../../lab/lab.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
 import { BOSS_TOTAL, fetchSpotPool, scoreAttempt } from './challengeBank'
@@ -28,7 +31,9 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   const [state, setState] = useState('ask')
   const [fwd, setFwd] = useState(null)
   const [why, setWhy] = useState('')
+  const [plan, setPlan] = useState(null)
   const [xp, setXp] = useState(0)
+  const [sym, setSym] = useState('')
   const shownAt = useRef(0)
   useEffect(() => { shownAt.current = performance.now() }, [])
   const bars = item.bars
@@ -45,51 +50,42 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
     let ok = false
     try {
       const a = await scoreAttempt(item, { choice }, performance.now() - shownAt.current, fetcher)
-      ok = !!a.correct; setFwd(a.forward); setWhy(a.reveal?.lesson || ''); setXp(Number(a.progress?.xp_gained || 0))
+      ok = !!a.correct; setFwd(a.forward); setWhy(a.reveal?.lesson || ''); setPlan(a.reveal?.trade || null); setXp(Number(a.progress?.xp_gained || 0)); setSym(a.reveal?.sym || a.reveal?.ticker || '')
     } catch { ok = false }
     setState(ok ? 'ok' : 'bad'); revealFeedback(ok, prefs)
   }
   useEffect(() => {
     const k = (e) => {
-      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return
-      if (state !== 'ask') { if (e.key === 'Enter') onDone(state === 'ok', item, xp); return }
+      if (state !== 'ask' || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return
       const i = +e.key - 1; if (i >= 0 && i < item.choices.length) setPick(i)
-      if (e.key === 'Enter' && pick != null) check()
     }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
-  })
-  const gone = idx + (state === 'ok' ? 1 : 0)
+  }, [state, item.choices.length])
+  // one heart: every chart before this one was named, so the status line's marks are gold up to here
+  const results = [...Array(idx).fill(true), ...(state === 'ask' ? [] : [state === 'ok'])]
+  const picked = pick == null ? null : item.choices[pick]
+  const answer = state === 'ask' ? null : state === 'ok' ? picked : (item.choices.find((c) => c !== picked) ?? null)
+  const signal = bars[n - 1]
+  const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, signal, fwd) : null), [plan, state, signal, fwd])
   return (
-    <div className={`${d5.slideIn} ${state === 'bad' ? d5.shakeHard : ''}`} data-testid="boss-question">
+    <div className={`${s2.kit} ${s2.screen}`} data-testid="boss-question">
+      {state !== 'ask' ? <span className={`${s2.flash} ${state === 'ok' ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       {state === 'bad' ? <div className={d5.vignetteRed} /> : null}
-      <div className={d5.bossTop}><span className={d5.bossLabel}>Boss · {idx + 1} of {total}</span><BossBar total={total} gone={gone} /><Heart size={30} bpm={56 + idx * 9} cracked={state === 'bad'} /></div>
-      <div className={d5.ask}><StudyMark mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? 'One heart. Read the last candle.' : state === 'ok' ? 'Still standing. Watch it run.' : 'That was the heart.'}</div></div>
-      <div className={d5.qLine}><span className={d5.qSetup}>{item.name}</span><span className={d5.qText}>{item.q}</span></div>
-      <div className={lab.chartBox}>{state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}<ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={phone ? 320 : 380} annotations={ann} callouts={callouts} calloutLook={look} fetcher={fetcher} /></div>
-      <div className={`${d5.cards} ${d5.cascade}`}>{item.choices.map((c, k) => { const st = state === 'ask' ? (pick === k ? 'sel' : 'idle') : pick === k ? (state === 'ok' ? 'right' : 'wrong') : 'quiet'; return <Tile key={c} n={k + 1} i={k} label={c} state={st} disabled={state !== 'ask'} onClick={() => { setPick(k); tapFeedback(prefs) }} /> })}</div>
-      {state !== 'ask' && why ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{brandWords(why)}</p></details> : null}
-      <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
-        {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="boss-check">Check</StudyButton>
-          : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(state === 'ok', item, xp)} testId="boss-next">{state === 'ok' ? (idx + 1 < total ? 'Next' : 'Claim the trophy') : 'See what to review'}</StudyButton>}
-      </div></div>
+      <HudCombo label="Boss" step={idx} total={total} results={results} live={state === 'ask'} stepTestId="boss-step" />
+      <div className={`${s2.heroChart} ${state === 'bad' ? s2.shake : ''}`}>
+        <ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={phone ? 340 : 480} annotations={ann} callouts={callouts} calloutLook={look} fetcher={fetcher} />
+      </div>
+      <AnswerLessonApp choices={item.choices} pick={pick} state={state} answer={answer} step={idx} total={total} hotkey
+        eyebrow={<>Boss · chart {idx + 1} of {total} · one heart</>}
+        question={item.q}
+        detail={<>The ringed candle is the last bar on this chart. Say <b>Yes</b> if the {item.name} fires on it, <b>No</b> if it does not. One miss ends the run.</>}
+        onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
+        onNext={() => onDone(state === 'ok', item, xp, picked, sym)} nextLabel={state === 'ok' ? (idx + 1 < total ? 'Next' : 'Claim the trophy') : 'See what to review'}
+        head={<Prompt mood={state === 'ok' ? 'happy' : 'oops'} tone={state} size={phone ? 40 : 48} title={state === 'ok' ? 'Still standing.' : 'That was the heart.'}
+          sub={<>{item.name} · the answer was <b>{answer}</b>{xp > 0 ? ` · +${xp} XP` : ''}</>} seal={<UiStamp ok={state === 'ok'} inline />} />}
+        cardsTestId="boss-cards" checkTestId="boss-check" nextTestId="boss-next" />
+      {state !== 'ask' && (why || trade) ? <LessonCard text={why} setup={item.name} fired={null} trade={trade} showReads={false} testId="boss-lesson" /> : null}
     </div>
-  )
-}
-
-function Win({ xp, onBack, onAgain }) {
-  const [open, setOpen] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setOpen(true), 900); return () => clearTimeout(t) }, [])
-  const shown = useCountUp(xp, true, 28)
-  return (
-    <>
-      <Confetti />
-      <StartCard eyebrow="Boss" title="Boss cleared" art={<div className={d5.winRow}><Medal size={130} won label="★" /><Chest size={120} open={open} /></div>}
-        lead="Ten for ten with one heart. That is a trader."
-        button={<StartButton icon="play" label="Back to Study" sub="your trail is waiting" onClick={onBack} />}
-        below={<StudyButton kind="ghost" onClick={onAgain}>Face the boss again</StudyButton>}>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>XP earned</small><b data-testid="boss-xp">+{shown}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="save" size={20} /></span><small>Chest</small><b>{open ? 'Open' : 'Opening'}</b></div></div></div>
-      </StartCard>
-    </>
   )
 }
 
@@ -103,6 +99,8 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
   const [missed, setMissed] = useState(null)
   const [run, setRun] = useState(0)
   const [xp, setXp] = useState(0)
+  const [results, setResults] = useState([])
+  const [log, setLog] = useState([])
   useEffect(() => {
     let on = true
     fetchSpotPool(undefined, 4, fetcher).then((p) => { if (on) setPool(p) }).catch((e) => { if (on) { setError(e); setPool([]) } })
@@ -110,34 +108,36 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
   }, [reload, fetcher])
   const total = Math.min(BOSS_TOTAL, pool?.length || 0)
   const items = useMemo(() => (pool ? pool.slice(0, BOSS_TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
-  const start = () => { setPhase('play'); setI(0); setMissed(null); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(BOSS_TOTAL), ...p.slice(0, BOSS_TOTAL)]) }
+  const start = () => { setPhase('play'); setI(0); setMissed(null); setXp(0); setResults([]); setLog([]); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(BOSS_TOTAL), ...p.slice(0, BOSS_TOTAL)]) }
 
   if (error) return <ChallengeError what="the boss charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
+  const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }
+  // one design for every mode (the owner, 2026-11-08): Hard mode's start and end screens, the Boss's own words on them
   if (phase === 'intro') {
     return (
-      <>
-        <div className={`${d5.vignetteRed} ${d5.soft}`} />
-        <StartCard tone="red" eyebrow="Challenge" title="Boss" art={<div className={d5.winRow}><Medal size={110} label="★" /><div className={d5.heartBig}><Heart size={64} bpm={64} /></div></div>}
-          lead={`${total || 'Ten'} charts from the bank. One heart. Miss once and it ends. Pass and the trophy and a chest are yours.${pool ? '' : ' Loading the bank.'}`}
-          button={<StartButton tone="red" icon="medal" label={pool == null ? 'Loading the bank' : pool.length ? 'Face the boss' : 'No charts yet'} sub={pool == null ? 'a second or two' : pool.length ? `${total} charts · one heart` : 'come back after a new import'} disabled={!pool?.length} onClick={() => pool?.length && start()} />}>
-          <div className={d5.gems}><div className={`${d5.gem} ${d5.dim}`}><div className={d5.gemIn}><span className={d5.gemIcon} style={{ color: '#ff6b6b' }}><Heart size={20} bpm={64} /></span><small>Hearts</small><b>1</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>On a pass</small><b>Trophy</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="save" size={20} /></span><small>Plus</small><b>a chest</b></div></div></div>
-        </StartCard>
-      </>
+      <div className={s2.kit}>
+        <StartArena plate="Boss" title="Boss" caption="Does it fire on the last candle?" testId="boss-intro" startTestId="boss-start" hotkey
+          total={total || BOSS_TOTAL} stakes={[`${total || BOSS_TOTAL} charts`, 'one heart', 'one miss ends it']} ready={!!pool?.length} onStart={() => pool?.length && start()}
+          label={pool == null ? 'Loading the bank' : pool.length ? 'Face the boss' : 'No charts yet'}
+          lead="Charts from the UCT bank, each with a setup named. Say whether it fires on the last candle. Clear them all with one heart and the trophy is yours."
+          reward={<><Medal size={40} testId={null} /><span><b>{total || BOSS_TOTAL} for {total || BOSS_TOTAL}</b> wins the trophy</span></>} />
+      </div>
     )
   }
-  if (phase === 'win') return <Win xp={xp} onBack={onClose} onAgain={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }} />
-  if (phase === 'fail') {
+  if (phase === 'win' || phase === 'fail') {
+    const won = phase === 'win'
     return (
-      <>
-        <div className={`${d5.vignetteRed} ${d5.soft}`} />
-        <StartCard tone="red" eyebrow={`Fell on chart ${i + 1} of ${total}`} title="Not yet" art={<div className={d5.heartBig}><Heart size={84} broken /></div>}
-          lead={`The one you missed was a ${missed?.name || 'setup'} chart. A boss needs every rule cold.`}
-          button={<StartButton tone="red" icon="medal" label="Try the boss again" sub="new charts · one heart" onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }} />}
-          below={<StudyButton kind="ghost" onClick={onClose}>Back to Study</StudyButton>} />
-      </>
+      <div className={s2.kit}>
+        {won ? <Confetti /> : null}
+        <EndHard right={won ? total : i} total={total} xp={xp} results={results} log={log}
+          title={won ? 'Boss cleared' : 'Not yet'} unit="read with one heart" doneWord="read" medal={false}
+          againLabel={won ? 'Face the boss again' : 'Try the boss again'} testIdPrefix="boss" onAgain={again} onBack={onClose}>
+          {won ? <>Every chart read with one heart. <b>That is a trader.</b></> : <>The heart went on chart {i + 1}, a <b>{missed?.name || 'setup'}</b> chart. A boss needs every rule cold.</>}
+        </EndHard>
+      </div>
     )
   }
   const item = items[i]
   if (!item) return <p className={d5.startLead}>No charts in the bank yet.</p>
-  return <Q key={`${run}-${i}`} idx={i} item={item} total={total} prefs={prefs} fetcher={fetcher} onDone={(ok, it, gained) => { setXp((v) => v + (gained || 0)); if (!ok) { setMissed(it); setPhase('fail'); return } if (i + 1 >= total) { setPhase('win'); endFeedback(prefs) } else setI(i + 1) }} />
+  return <Q key={`${run}-${i}`} idx={i} item={item} total={total} prefs={prefs} fetcher={fetcher} onDone={(ok, it, gained, said, ticker) => { setXp((v) => v + (gained || 0)); setResults((r) => [...r, !!ok]); setLog((l) => [...l, { name: it.name, ticker: ticker || '', ok, said: said ?? '', was: ok ? '' : (it.choices.find((c) => c !== said) ?? '') }]); if (!ok) { setMissed(it); setPhase('fail'); return } if (i + 1 >= total) { setPhase('win'); endFeedback(prefs) } else setI(i + 1) }} />
 }

@@ -100,11 +100,11 @@ export function HudRoute({ step = 0, total = 8, results = [], live = false }) {
  *  them would be ideal, incorporating all the best parts of each"). Today's mode tag; Journey's thick glossy bar with our
  *  mark riding it and the streak flame; Scoreboard's mark per chart, lit gold or red, and its big gold score; Route's
  *  waypoints along the track, a check or a cross on each. */
-export function HudCombo({ step = 0, total = 8, results = [], live = false, stepTestId = 'hard-step', label = 'Hard mode' }) {
+export function HudCombo({ step = 0, total = 8, results = [], live = false, stepTestId = 'hard-step', label = 'Hard mode', unit = 'chart', scoreWord = 'named' }) {
   const { named, streak, answered, at } = tally(step, total, results)
   const seg = (i) => ((i + 0.5) / Math.max(1, total)) * 100
   return (
-    <div className={`${h.hud} ${h.combo}`} role="group" aria-label={`${label}, chart ${at + 1} of ${total}, ${named} named`}>
+    <div className={`${h.hud} ${h.combo}`} role="group" aria-label={`${label}, ${unit.toLowerCase()} ${at + 1} of ${total}, ${named} ${scoreWord}`}>
       <span className={`${h.badge} ${live ? h.live : ''}`}><Star /><span className={h.badgeText}>{label}</span></span>
       <div className={h.cTrack} aria-hidden="true">
         {answered > 0 ? <div className={h.jFill} style={{ width: `${Math.min(100, (answered / Math.max(1, total)) * 100)}%` }}><i className={h.jGloss} /></div> : null}
@@ -121,8 +121,25 @@ export function HudCombo({ step = 0, total = 8, results = [], live = false, step
         <span className={`${h.cRider} ${live ? h.live : ''}`} style={{ left: `${seg(at)}%` }}><img src={brandMark} alt="" /></span>
       </div>
       <span className={`${h.flame} ${streak >= 2 ? h.hot : ''}`} title="in a row"><UIcon name="flame" size={18} gold={false} /><b>{streak}</b></span>
-      <span className={h.cScore}><b>{named}</b><small>named</small><em data-testid={stepTestId || undefined}>chart {at + 1} of {total}</em></span>
+      <span className={h.cScore}><b>{named}</b><small>{scoreWord}</small><em data-testid={stepTestId || undefined}>{unit} {at + 1} of {total}</em></span>
     </div>
   )
 }
 
+
+/** The same status line for a timed run (Blitz, 2026-11-08: one design for every mode). The gold track is the clock: it
+ *  drains as the seconds go and turns red in the last ten; the flame is the combo, the score is the points. */
+export function HudClock({ left = 60, secs = 60, score = 0, combo = 0, mult = 1, label = 'Blitz', live = true }) {
+  const pct = Math.max(0, Math.min(100, (left / Math.max(1, secs)) * 100))
+  return (
+    <div className={`${h.hud} ${h.combo} ${h.clock} ${left <= 10 ? h.low : ''}`} role="group" aria-label={`${label}, ${left} seconds left, ${score} points`}>
+      <span className={`${h.badge} ${live ? h.live : ''}`}><Star /><span className={h.badgeText}>{label}</span></span>
+      <div className={h.cTrack} aria-hidden="true">
+        <div className={h.jFill} style={{ width: `${pct}%` }}><i className={h.jGloss} /></div>
+        <span className={`${h.cRider} ${live ? h.live : ''}`} style={{ left: `${Math.max(4, pct)}%` }}><img src={brandMark} alt="" /></span>
+      </div>
+      <span className={`${h.flame} ${combo >= 2 ? h.hot : ''}`} title="in a row"><UIcon name="flame" size={18} gold={false} /><b>x{mult}</b></span>
+      <span className={h.cScore}><b data-testid="blitz-score">{score}</b><small>points</small><em data-testid="blitz-clock">{left}s left</em></span>
+    </div>
+  )
+}
