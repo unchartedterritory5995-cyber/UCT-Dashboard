@@ -5411,7 +5411,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     walk(f.result, 0)
     return ok
   }
-  const argumentHasEffect = (node, depth = 0) => {
+  // `bareIsValue` (W9 9.7, the dark-broker order site only): a BARE builtin call
+  // (`crossover(...)`, v1-v4's spelling of `ta.crossover`) is a value call there.
+  // Pine's bare builtins that change state are output calls, which no argument
+  // holds; every collection and drawing call is namespaced or a method, and those
+  // keep answering true. ⛔ `alert()` keeps the stricter default (unknown is true).
+  const argumentHasEffect = (node, depth = 0, bareIsValue = false) => {
     if (!node || typeof node !== 'object') return false
     if (depth > 64) return true
     if (node.type === 'call') {
@@ -5419,17 +5424,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (methodCallOf(node) || deferredFnRefusals.has(name)) return true
       if (isUserFn(name) || definedNames.has(name)) {
         if (!fnByName.has(name) || !fnIsEffectFree(fnByName.get(name))) return true
-      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)) return true
+      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)
+          && !(bareIsValue && /^[A-Za-z_]\w*$/.test(name))) return true
     }
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
-        && argumentHasEffect(node.n.expr, depth + 1)) return true
+        && argumentHasEffect(node.n.expr, depth + 1, bareIsValue)) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'of', 'recv']) {
-      if (argumentHasEffect(node[k], depth + 1)) return true
+      if (argumentHasEffect(node[k], depth + 1, bareIsValue)) return true
     }
     for (const k of ['args', 'elements']) {
       if (!Array.isArray(node[k])) continue
       for (const a of node[k]) {
-        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1, bareIsValue)) return true
       }
     }
     return false
@@ -11732,6 +11738,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw brokerRefusal(e, first)
           }
           out.push(exprStmt(brokerCall(word, placed.map((n) => (n === null ? null : lowerExpr(n, scope))), 'void'), 0))
+          continue
+        }
+        // ⛔⛔ W9 open question 9.7 (2026-11-07) — WITH THE BROKER DARK THE ORDER IS
+        // DROPPED, ITS ARGUMENTS ARE NOT. Pine evaluates them, so an argument whose
+        // evaluation changes something (`qty = f()` where `f` pushes to an array the
+        // script plots) is evaluated exactly where the order stands — inside its `if`
+        // arm, so only on the bars the arm runs — into a slot nothing reads: the
+        // `alert()` rule above, one predicate (`argumentHasEffect`). ⚰️ Skipping the
+        // whole call served `array.size(a)` as 0 on every bar where TradingView
+        // counts up. An argument of names, literals and value builtins is dropped,
+        // which is the same program, so a served strategy's outputs do not move.
+        const order = parseWholeExpression(toks)
+        for (const a of (order && order.args) || []) {
+          const v = a && a.value !== undefined ? a.value : a
+          if (!argumentHasEffect(v, 0, true)) continue
+          const tmp = `order argument ${out.length}@${first.line}:${first.column}`
+          const slot = scope.declare(tmp, newSlot(tmp, false))
+          setSlotTy(slot, initialiserTy(v, scope))
+          out.push(declare(slot, lowerExpr(v, scope)))
         }
         continue
       }
