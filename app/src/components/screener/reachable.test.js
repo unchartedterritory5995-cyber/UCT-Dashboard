@@ -728,6 +728,26 @@ const AWAITING_A_DECISION = {
   // reached from App.jsx like any rendered module; the block, its expiry and
   // `panelSet.test.js`'s "nothing imports it" rail went in that commit, as the
   // block's own text said.)
+  // ── RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07) ──────
+  // UCT RS Phase 4. `content/rs/teaching.js` is the module the export tool runs; no
+  // screen imports it, ON PURPOSE, and the unit that checked (4-04) recorded why
+  // rather than wiring it somewhere it does not belong. Same shape as
+  // `cotFactsEntry.js` / `flowFactsEntry.js` above: a walk from App.jsx cannot see
+  // a build-script entry. ⏳ The decision owed by the expiry: either a Phase 4
+  // surface (4-05's chip menu) imports its readout CARDS, which makes it reachable
+  // and this entry goes in that commit, or this rail learns build-tool entries as
+  // roots the way `configEntryPoints()` reads the Vite ones (this file and the two
+  // facts entries together), and the block goes then.
+  'app/src/content/rs/teaching.js':
+    'NOT dead — the ENTRY POINT of the RS teaching export: tools/export_rs_teaching.mjs '
+    + 'bundles it with esbuild and writes api/data/rs_teaching.json (Compass explain_rs in '
+    + 'api/services/rs_read_tools.py reads that JSON, never app/src), and '
+    + 'content/rs/teaching.export.test.js diffs the export against the committed file. It reads '
+    + 'the readout cards off the registered rsLine definition, so importing it pulls in the chart '
+    + 'engine. That is why the app reads the words from content/rs/teachingData.js instead: the '
+    + 'public glossary page (RsGlossary.test.jsx pins that its import walk never reaches teaching.js) '
+    + 'and nativeRegistry.js (rsLine meta.tour; importing teaching.js there is an import cycle). '
+    + 'Do NOT mount it to green this rail.',
   }
 
 /**
@@ -772,6 +792,7 @@ const PARKING_EXPIRES = {
   'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
+  'RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07)': '2026-12-31',
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.

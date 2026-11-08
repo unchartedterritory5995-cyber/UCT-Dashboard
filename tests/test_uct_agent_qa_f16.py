@@ -127,7 +127,11 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # snapshot_builder.py and snapshot_db.py), 30300b263e and fa88a026c5 (3-11, their filters and
 # methodology entries). The pin is that work's last Screener commit; master changed no Screener
 # file since the Phase 3 branch split from it.
-SCREENER_PIN = "fa88a026c5be087452bd02b4bd24b92f4351ef2b"
+# Re-pinned 2026-11-08 (UCT RS Phase 4, integration unit 4-11): unit 4-01 changes snapshot_db.py on
+# purpose, dark behind RS_LISTS_ENABLED: status() gains the read-only `rs_lists` receipt
+# (deb8078927, `_rs_lists_last_run`, which reads rs_lists.last_run() and never raises). The pin is
+# that work's last Screener commit; no other Screener file changed since the Phase 3 pin.
+SCREENER_PIN = "deb8078927724e3007236dea3f041c6350014a26"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -176,7 +180,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/methodology.py" in r.stdout.split()  # a file the pinned commit changed (3-11's RRG method line)
+    assert "api/services/screener/snapshot_db.py" in r.stdout.split()  # the file the pinned commit changed (4-01, the rs_lists receipt)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
