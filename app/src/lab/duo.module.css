@@ -629,3 +629,5 @@
 .tutStep { padding: 16px; border-radius: 18px; border: 1px solid #2c2e34; background: radial-gradient(120% 140% at 0% 0%, #1f2024 0%, #141518 60%); box-shadow: 0 10px 24px rgba(0, 0, 0, .35); }
 .tutNum { width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(180deg, #fff1bf, #dcbb5e 60%, #b8922f); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 3px 0 #6e5216; }
 @media (max-width: 640px) { .heroWord { font-size: 40px; } .startCard { padding: 26px 18px 22px; } .gem { min-width: 0; flex: 1; } .tutSteps { grid-template-columns: 1fr; } }
+/* the shared button inside a start card's footer keeps its own look (the old link rule underlined it) */
+.startBelow button[data-study-btn="1"] { text-decoration: none; padding: 0 24px; font-size: 14px; }

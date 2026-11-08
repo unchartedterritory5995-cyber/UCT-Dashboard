@@ -12,6 +12,7 @@ import brandMark from '../../../components/intro/assets/compass-mark.png'
 import { readCandle, readText, readTone } from './candleRead'
 import { sentencesOf, splitLesson, stepsOf } from './lesson'
 import Emph from './emphasize'
+import { brandWords } from '../drills/types'
 import { Takeaway, TradeBlock } from './TradeReview'
 import s from './study.module.css'
 
@@ -19,10 +20,10 @@ const an = (n) => `${/^[AEIOU]/i.test(String(n || '')) ? 'an' : 'a'} ${n}`
 const low = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t)
 
 export default function LessonCard({ text, ticker = null, setup = null, fired = null, bars = null, signal = null, setupRule = null, tf = 'Daily', testId = 'hard-lesson', plain = false, trade = null, showReads = true }) {
-  const L = splitLesson(text)
+  const L = splitLesson(brandWords(text))   // rule 11: UCT, never "the firm" (the bank's words are otherwise unchanged)
   const name = setup || L.setup
   // the rule: this lesson's own, or the setup's definition from the bank when this lesson is a template
-  const R = L.ruleLead ? L : (setupRule?.text ? splitLesson(`${setupRule.name || name}: ${setupRule.text}`) : null)
+  const R = L.ruleLead ? L : (setupRule?.text ? splitLesson(brandWords(`${setupRule.name || name}: ${setupRule.text}`)) : null)
   const ruleName = (R && R !== L ? (setupRule?.name || name) : (L.setup || name)) || name
   const steps = R ? stepsOf(R.ruleLead) : []
   const rest = R ? R.ruleRest : ''

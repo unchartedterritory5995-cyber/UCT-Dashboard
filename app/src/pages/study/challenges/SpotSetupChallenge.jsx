@@ -18,6 +18,7 @@ import StudyButton from '../ui/StudyButton'
 import { HudCombo } from '../ui/HudLooks'
 import { EndHard } from '../ui/EndLooks'
 import s2 from '../ui/study.module.css'
+import { brandWords } from '../drills/types'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -142,7 +143,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
           </button>
         )
       })}</div>
-      {state !== 'ask' && lesson ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{lesson}</p></details> : null}
+      {state !== 'ask' && lesson ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{brandWords(lesson)}</p></details> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="spot-check">Check</StudyButton>
           : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(ok, name)} testId="spot-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}

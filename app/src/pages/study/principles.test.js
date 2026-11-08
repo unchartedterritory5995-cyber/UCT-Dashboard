@@ -37,6 +37,14 @@ describe("the owner's principles, on every Study screen", () => {
     expect(hits(/the firm/i)).toEqual([])
   })
 
+  it("rule 11: the bank's own text reaches the screen through the UCT filter (brandWords)", () => {
+    // the bank still says "the firm" in places; every door it comes through on a Study screen filters it: the
+    // challenges' questions where they load (challengeBank), the coach card's lesson, the lessons Boss and Spot print
+    expect(code(path.join(HERE, 'challenges', 'challengeBank.js'))).toMatch(/q: brandWords\(/)
+    expect(code(path.join(HERE, 'ui', 'LessonCard.jsx'))).toMatch(/splitLesson\(brandWords\(text\)\)/)
+    expect(hits(/<p>\{(lesson|why)\}<\/p>/)).toEqual([])
+  })
+
   it('rule 17: every Start, Check, Next and answer is the shared button or tile, never a hand-rolled one', () => {
     expect(hits(/className=\{`?\$?\{?d5\.(btn|startBtn|card|linkBtn)\b/)).toEqual([])
   })

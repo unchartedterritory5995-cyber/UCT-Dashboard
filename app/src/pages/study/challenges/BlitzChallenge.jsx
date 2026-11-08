@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import StudyMark from '../../../components/study/StudyMark'
 import StartCard, { StartButton } from '../../../lab/StartCard'
-import { spot } from '../../../lab/pointers'
+import { calloutLook, hardCallouts } from '../ui/callout'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 import Tile from '../ui/Tile'
 import StudyButton from '../ui/StudyButton'
 import d5 from '../../../lab/duo.module.css'
@@ -26,8 +27,12 @@ function Question({ qn, onAnswer, fetcher }) {
   const ann = useMemo(() => {
     if (!n) return null
     if (qn.kind === 'recall' && qn.highlight > 1) return [{ id: 'hl', type: 'rect', points: [{ time: it.bars[Math.max(0, n - qn.highlight)].t, price: Math.max(...it.bars.slice(-qn.highlight).map((b) => b.h)) * 1.004 }, { time: it.bars[n - 1].t, price: Math.min(...it.bars.slice(-qn.highlight).map((b) => b.l)) * 0.996 }], color: '#dcbb5e', lineWidth: 1.5, locked: true }]
-    return spot(it.bars, n - 1, { label: qn.kind === 'fact' && /yesterday/.test(qn.q) ? 'this candle · yesterday is to its left' : 'this candle', id: 'b', halo: false })
+    return null   // the pointer is the callout below (Hard mode's: open space, never over a candle)
   }, [it, n, qn])
+  const phone = useIsPhone()
+  // the owner's rule 4: one designed pointer everywhere (Hard mode's callout); a recall question keeps its highlight box
+  const callouts = useMemo(() => (!n || (qn.kind === 'recall' && qn.highlight > 1) ? [] : hardCallouts({ index: n - 1, label: qn.kind === 'fact' && /yesterday/.test(qn.q) ? 'This candle · yesterday is to its left' : 'This candle' })), [n, qn])
+  const look = useMemo(() => calloutLook(phone), [phone])
   useEffect(() => {
     const k = (e) => { if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return; const i = +e.key - 1; if (i >= 0 && i < qn.choices.length) onAnswer(qn.choices[i]) }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
@@ -35,7 +40,7 @@ function Question({ qn, onAnswer, fetcher }) {
   return (
     <>
       <div className={d5.qLine}><span className={d5.qSetup}>{qn.tag}</span><span className={d5.qText}>{qn.q}</span></div>
-      <ChallengeChart id={it.id} bars={it.bars} view={qn.kind === 'recall' ? Math.min(60, n) : Math.min(80, n)} height={300} annotations={ann} fetcher={fetcher} />
+      <ChallengeChart id={it.id} bars={it.bars} view={qn.kind === 'recall' ? Math.min(60, n) : Math.min(80, n)} height={phone ? 300 : 340} annotations={ann} callouts={callouts} calloutLook={look} fetcher={fetcher} />
       <div className={`${d5.cards} ${d5.cascade} ${qn.choices.length > 2 ? '' : d5.two}`} data-testid="blitz-choices">
         {qn.choices.map((c, i) => <Tile key={c} n={i + 1} i={i} label={c} onClick={() => onAnswer(c)} />)}
       </div>

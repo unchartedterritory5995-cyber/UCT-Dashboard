@@ -8,6 +8,7 @@
 // per-member list of charts seen), so a pool never "drains" with play: it is thin when a setup has few approved
 // charts and empty only when it has none, and the empty copy says so (2026-11-05; it read "no unseen charts left").
 import { ATTEMPTS_URL, SESSIONS_URL, normalizeBars, studyFetch } from '../useStudySession'
+import { brandWords } from '../drills/types'   // the owner's rule 11: our name is UCT, never "the firm"
 
 export const SETUP_SKILLS = {
   'setup.family3.kicker': 'Kicker',
@@ -63,7 +64,7 @@ export async function fetchSpotPool(skillIds = Object.keys(SETUP_SKILLS), size =
   for (const set of await skillSets(skillIds, size, fetcher, hard ? { hard: true } : null)) {
     for (const it of set.items || []) {
       if (it.type !== 'spot' || !it.bars?.bars?.length) continue
-      pool.push({ id: it.id, skill: it.skill_id, name: setupName(it.skill_id), q: it.prompt_json?.q || it.prompt_json?.question || '', choices: it.prompt_json?.choices || ['Yes', 'No'], bars: normalizeBars(it.bars), sessionId: set.session_id, difficulty: it.difficulty })
+      pool.push({ id: it.id, skill: it.skill_id, name: setupName(it.skill_id), q: brandWords(it.prompt_json?.q || it.prompt_json?.question || ''), choices: it.prompt_json?.choices || ['Yes', 'No'], bars: normalizeBars(it.bars), sessionId: set.session_id, difficulty: it.difficulty })
     }
   }
   return shuffle(pool, seed)
@@ -76,7 +77,7 @@ export async function fetchRecallPool(skillIds = ['vocab.candle', 'vocab.chart']
   for (const set of await skillSets(skillIds, size, fetcher)) {
     for (const it of set.items || []) {
       if (it.type !== 'recall' || !it.bars?.bars?.length || !Array.isArray(it.prompt_json?.choices)) continue
-      pool.push({ id: it.id, skill: it.skill_id, name: it.skill_id === 'vocab.candle' ? 'Candle name' : 'Chart word', q: it.prompt_json?.q || it.prompt_json?.question || '', choices: it.prompt_json.choices, bars: normalizeBars(it.bars), sessionId: set.session_id, highlight: it.prompt_json?.chart?.highlight_last_bars || 0 })
+      pool.push({ id: it.id, skill: it.skill_id, name: it.skill_id === 'vocab.candle' ? 'Candle name' : 'Chart word', q: brandWords(it.prompt_json?.q || it.prompt_json?.question || ''), choices: it.prompt_json.choices, bars: normalizeBars(it.bars), sessionId: set.session_id, highlight: it.prompt_json?.chart?.highlight_last_bars || 0 })
     }
   }
   return shuffle(pool, seed)

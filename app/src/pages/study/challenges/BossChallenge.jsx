@@ -8,9 +8,12 @@ import StudyMark from '../../../components/study/StudyMark'
 import StartCard, { StartButton } from '../../../lab/StartCard'
 import { BossBar, Chest, Confetti, Heart, Medal, Stamp } from '../../../lab/bits'
 import { useCountUp, useRunOn } from '../../../lab/fx'
-import { spot, rayAt } from '../../../lab/pointers'
+import { rayAt } from '../../../lab/pointers'
+import { calloutLook, hardCallouts } from '../ui/callout'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 import Tile from '../ui/Tile'
 import StudyButton from '../ui/StudyButton'
+import { brandWords } from '../drills/types'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import ChallengeError from './ChallengeError'
@@ -20,6 +23,7 @@ import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../stud
 import { studyFetch } from '../useStudySession'
 
 function Q({ idx, item, total, onDone, prefs, fetcher }) {
+  const phone = useIsPhone()
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')
   const [fwd, setFwd] = useState(null)
@@ -30,7 +34,11 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   const bars = item.bars
   const n = bars.length
   const all = useRunOn(bars, fwd, state !== 'ask', 160)
-  const ann = useMemo(() => (!n || !all ? null : state === 'ask' ? spot(all, n - 1, { label: 'this candle', id: `b${idx}` }) : [...spot(all, n - 1, { label: state === 'ok' ? 'you were right' : 'the answer', id: `b${idx}`, color: state === 'ok' ? '#2faf68' : '#df4646' }), ...rayAt(bars[n - 1], 'l', { id: `b${idx}l`, label: '' })]), [all, bars, n, state, idx])
+  // the pointer is the one Hard mode uses (the owner's rule 4: a designed arrow and label in open space, never over a
+  // candle); after the verdict the close stays marked with a ray
+  const ann = useMemo(() => (!n || !all || state === 'ask' ? null : rayAt(bars[n - 1], 'l', { id: `b${idx}l`, label: '' })), [all, bars, n, state, idx])
+  const callouts = useMemo(() => (n ? hardCallouts({ index: n - 1, label: state === 'ask' ? 'This candle' : state === 'ok' ? 'You were right' : 'The answer', tone: state }) : []), [n, state])
+  const look = useMemo(() => calloutLook(phone), [phone])
   const check = async () => {
     if (pick == null || state !== 'ask') return
     const choice = item.choices[pick]
@@ -57,9 +65,9 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
       <div className={d5.bossTop}><span className={d5.bossLabel}>Boss · {idx + 1} of {total}</span><BossBar total={total} gone={gone} /><Heart size={30} bpm={56 + idx * 9} cracked={state === 'bad'} /></div>
       <div className={d5.ask}><StudyMark mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? 'One heart. Read the last candle.' : state === 'ok' ? 'Still standing. Watch it run.' : 'That was the heart.'}</div></div>
       <div className={d5.qLine}><span className={d5.qSetup}>{item.name}</span><span className={d5.qText}>{item.q}</span></div>
-      <div className={lab.chartBox}>{state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}<ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={320} annotations={ann} fetcher={fetcher} /></div>
+      <div className={lab.chartBox}>{state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}<ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={phone ? 320 : 380} annotations={ann} callouts={callouts} calloutLook={look} fetcher={fetcher} /></div>
       <div className={`${d5.cards} ${d5.cascade}`}>{item.choices.map((c, k) => { const st = state === 'ask' ? (pick === k ? 'sel' : 'idle') : pick === k ? (state === 'ok' ? 'right' : 'wrong') : 'quiet'; return <Tile key={c} n={k + 1} i={k} label={c} state={st} disabled={state !== 'ask'} onClick={() => { setPick(k); tapFeedback(prefs) }} /> })}</div>
-      {state !== 'ask' && why ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{why}</p></details> : null}
+      {state !== 'ask' && why ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{brandWords(why)}</p></details> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="boss-check">Check</StudyButton>
           : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(state === 'ok', item, xp)} testId="boss-next">{state === 'ok' ? (idx + 1 < total ? 'Next' : 'Claim the trophy') : 'See what to review'}</StudyButton>}
