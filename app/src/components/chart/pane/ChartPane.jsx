@@ -808,7 +808,13 @@ function ChartPane({
     })
   }, [onSymbolChange])
 
-  const handleChartClick = useCallback(() => {
+  const handleChartClick = useCallback((e) => {
+    // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
+    // bubbles a click inside a portalled popover (the chip menu, its cards, the
+    // RS tour, a sheet) through its React parent, so it reached this handler and
+    // threw keyboard focus out of the popover onto the chart region. Only a click
+    // whose target is inside the region's own DOM focuses the chart.
+    if (e && e.currentTarget && e.target && !e.currentTarget.contains(e.target)) return
     // Don't steal focus from a child input (e.g., the open search dropdown).
     const ae = document.activeElement
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return

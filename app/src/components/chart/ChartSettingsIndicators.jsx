@@ -2253,6 +2253,12 @@ export default function ChartSettingsIndicators({
     // The reason has to reach a screen reader, not just a pointer — the rule this
     // tab already followed, kept verbatim.
     const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
+    // ⭐ a11y gate §12.2 (2026-11-08) — the visible label NAMES its control. The
+    // select and the number box had no accessible name, so a screen reader read
+    // "combo box, S&P 500 (SPY)" with no "Benchmark" (and "Reading", "Line width"…).
+    // `aria-labelledby` points at the label span, so the name and the words on
+    // screen are one value. The other controls already carry `aria-label`.
+    const labelId = `ins-lbl-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`
     const inert = dis
       ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
       : off ? { disabled: true, 'aria-disabled': 'true' } : {}
@@ -2271,7 +2277,7 @@ export default function ChartSettingsIndicators({
             from `fieldsFromDefinition`, which carries no `tooltip` (only
             `fieldsForInstance` adds it), so the definition's own declaration is the
             fallback; absent both, no `title` at all. */}
-        <span className={`${styles.insFieldLabel} ${dis || off ? styles.indLabelOff : ''}`} title={tooltipOf(row, f)}>{f.label}</span>
+        <span id={labelId} className={`${styles.insFieldLabel} ${dis || off ? styles.indLabelOff : ''}`} title={tooltipOf(row, f)}>{f.label}</span>
         {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
         <span className={styles.insFieldCtl}>
           {f.type === 'color' && !off && colorSwatch(indTarget(row.id, f.key), f.label, val)}
@@ -2292,7 +2298,7 @@ export default function ChartSettingsIndicators({
           )}
           {f.type === 'number' && (
             <input
-              type="number" className={styles.indNum} {...inert}
+              type="number" className={styles.indNum} {...inert} aria-labelledby={labelId}
               min={f.min} max={f.max} step={f.step} value={val ?? ''}
               onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
             />
@@ -2361,7 +2367,7 @@ export default function ChartSettingsIndicators({
           )}
           {f.type === 'select' && !seg && (
             <select
-              className={styles.indSelect} {...inert} value={val ?? ''}
+              className={styles.indSelect} {...inert} value={val ?? ''} aria-labelledby={labelId}
               onChange={(e) => {
                 const raw = e.target.value
                 const opt = f.options.find(([v]) => String(v) === raw)

@@ -440,7 +440,10 @@
   padding: 0 6px;
   border-radius: var(--radius-pill, 999px);
   border: 1px solid currentColor;
-  font-size: 10px;
+  /* 11 px, the type floor (spec 12.2 "no text under 11 px"): the quadrant word is
+     the table's one non-colour reading of where a name sits, so it is never the
+     smallest text on the panel. */
+  font-size: 11px;
 }
 /* The Terminal table's quadrant inks; Weakening takes the non-gold amber, as on the graph. */
 .pLeading { color: var(--success-ink); }

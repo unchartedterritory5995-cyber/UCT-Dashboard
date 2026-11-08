@@ -202,11 +202,18 @@ function Host({ initial, apiRef, settingsRef, extra }) {
       alwaysShowLegend height={400} toolbarApiRef={apiRef} {...extra} />
   )
 }
-async function mount(instances = [], extra = {}) {
+/** `thief`: wrap the chart the way `ChartPane` does — a focusable region whose
+ *  onClick focuses itself (click to focus for type-to-search). React bubbles the
+ *  chip popover's portal clicks through it, which is what threw keyboard focus
+ *  out of the popover (§12.2 keyboard check, 2026-11-08). */
+async function mount(instances = [], extra = {}, { thief = false } = {}) {
   const apiRef = { current: null }
   const settingsRef = { current: null }
   const initial = mergeChartSettings({ indicatorInstances: instances })
-  const out = render(<MemoryRouter><Host initial={initial} apiRef={apiRef} settingsRef={settingsRef} extra={extra} /></MemoryRouter>)
+  const host = <Host initial={initial} apiRef={apiRef} settingsRef={settingsRef} extra={extra} />
+  const out = render(<MemoryRouter>{thief
+    ? <div tabIndex={0} role="region" aria-label="chart" data-focus-thief="" onClick={(e) => e.currentTarget.focus()}>{host}</div>
+    : host}</MemoryRouter>)
   const keys = [prime(TOUR_ID, TOUR_PAYLOAD), prime(PICK_ID, PICK_PAYLOAD)]
   await act(async () => { for (const k of keys) notifyColumnsLanded(k) })
   await vi.waitFor(() => expect(apiRef.current).not.toBeNull())
@@ -538,5 +545,109 @@ describe('2 · the glossary link and Ask Compass', () => {
     expect(menu.querySelector('[data-compass-assist]')).toBeNull()
     const row = menu.querySelector('[data-legend-ask]')
     expect(row === null || row.childElementCount === 0).toBe(true)
+  })
+})
+
+describe('3 · keyboard focus stays in the popover (spec §12.2 keyboard check)', () => {
+  const thief = () => document.querySelector('[data-focus-thief]')
+  // Enter or Space on a button fires its click; focus the button first, as Tab does.
+  const press = async (el) => { el.focus(); await click(el) }
+
+  it('a tour step keeps focus on Next (Back on Back), and the last card hands it to Done', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    await chipOf(container, liveOf, TOUR_ID)
+    await waitTour()
+    await press(tourEl().querySelector('[data-tour-next]'))
+    expect(count()).toBe('2 of 3')
+    expect(document.activeElement, 'Next keeps focus, not the chart region').toBe(tourEl().querySelector('[data-tour-next]'))
+    expect(document.activeElement).not.toBe(thief())
+    await press(tourEl().querySelector('[data-tour-next]'))
+    expect(count()).toBe('3 of 3')
+    expect(document.activeElement, 'the last card: Done').toBe(tourEl().querySelector('[data-tour-done]'))
+    await press(tourEl().querySelector('[data-tour-back]'))
+    expect(count()).toBe('2 of 3')
+    expect(document.activeElement, 'Back stays on Back while there is one').toBe(tourEl().querySelector('[data-tour-back]'))
+    await press(tourEl().querySelector('[data-tour-back]'))
+    expect(count()).toBe('1 of 3')
+    expect(document.activeElement, 'card 1 has no Back: Next').toBe(tourEl().querySelector('[data-tour-next]'))
+  })
+
+  // The chip's focusable control: the `[data-instance-id]` node, or the row button around it.
+  const chipButton = (el) => (el.matches('[role="button"][tabindex]') ? el : el.closest('[role="button"][tabindex]'))
+
+  it('the tour opens with focus on Next, its primary action, not on Skip tour', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    await chipOf(container, liveOf, TOUR_ID)
+    await waitTour()
+    await vi.waitFor(() => expect(document.activeElement, 'focus on Next').toBe(tourEl().querySelector('[data-tour-next]')))
+    expect(document.activeElement).not.toBe(tourEl().querySelector('[data-tour-skip]'))
+  })
+
+  it('Done hands focus back to the RS chip that hosts the menu, not the chart region', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    const chip = chipButton(await chipOf(container, liveOf, TOUR_ID))
+    expect(chip, 'the chip is a focusable button').toBeTruthy()
+    await waitTour()
+    await press(tourEl().querySelector('[data-tour-next]'))
+    await press(tourEl().querySelector('[data-tour-next]'))
+    await press(tourEl().querySelector('[data-tour-done]'))
+    expect(tourEl()).toBeNull()
+    await vi.waitFor(() => expect(document.activeElement, 'focus on the chip').toBe(chipButton(container.querySelector(`[data-instance-id="${liveOf(TOUR_ID)[0].instanceId}"]`))))
+    expect(document.activeElement).not.toBe(thief())
+  })
+
+  it('Skip tour hands focus back to the RS chip too', async () => {
+    const { container, apiRef, liveOf } = await mount([], {}, { thief: true })
+    await addFromLibrary(apiRef, TOUR_ID)
+    await chipOf(container, liveOf, TOUR_ID)
+    await waitTour()
+    await press(tourEl().querySelector('[data-tour-skip]'))
+    expect(tourEl()).toBeNull()
+    await vi.waitFor(() => expect(document.activeElement, 'focus on the chip').toBe(chipButton(container.querySelector(`[data-instance-id="${liveOf(TOUR_ID)[0].instanceId}"]`))))
+    expect(document.activeElement).not.toBe(thief())
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
+  it('a readout row opens its card with focus on the back row, and back returns focus to that row', async () => {
+    const { container } = await mount([{ instanceId: 'tf-1', defId: TOUR_ID, inputs: {}, hidden: false }], {}, { thief: true })
+    const menu = await openMenu(container, 'tf-1')
+    await press(menu.querySelector('button[data-readout-row="checks"]'))
+    let back
+    await vi.waitFor(() => {
+      back = document.querySelector('[data-legend-card="checks"] [data-legend-back]')
+      expect(back).not.toBeNull()
+    })
+    expect(document.activeElement, 'the card opens on its back row').toBe(back)
+    await press(back)
+    let row
+    await vi.waitFor(() => {
+      row = menuEl() && menuEl().querySelector('button[data-readout-row="checks"]')
+      expect(row).toBeTruthy()
+    })
+    expect(document.activeElement, 'back to the menu: focus on the row that opened the card').toBe(row)
+    expect(document.activeElement).not.toBe(thief())
+  })
+
+  it('no RS legend control suppresses the focus ring (no `outline: none` focus rule)', () => {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const css = readFileSync(resolve(here, 'StockChart.module.css'), 'utf8').replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '')
+    const controls = ['legMenuRowBtn', 'legRowAction', 'legCardBack', 'legCardNumBtn', 'legCardLearn', 'legCardLesson',
+      'legPresetRow', 'legAboutGlossary', 'legTourSkip', 'legTourBack', 'legTourNext']
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1], body: m[2] }))
+    for (const c of controls) {
+      const focus = rules.filter((r) => new RegExp('[.]' + c + ':focus-visible(?![A-Za-z-])').test(r.sel))
+      expect(focus.length, `${c} has a :focus-visible rule`).toBeGreaterThan(0)
+      expect(focus.some((r) => /outline:\s*none/.test(r.body)), `${c}: no outline: none`).toBe(false)
+    }
+    // they leave the app's ring alone: tokens.css draws it on every :focus-visible
+    const tokens = readFileSync(resolve(here, '../styles/tokens.css'), 'utf8').replace(/\r\n/g, '\n')
+    expect(tokens).toMatch(/\n:focus-visible \{\s*outline: 2px solid var\(--ut-gold\);/)
+    for (const c of ['legMenuRowBtn', 'legRowAction', 'legCardBack', 'legCardNumBtn', 'legPresetRow']) {
+      const inside = rules.filter((r) => new RegExp('[.]' + c + ':focus-visible(?![A-Za-z-])').test(r.sel) && /outline-offset:\s*-2px/.test(r.body))
+      expect(inside.length, `${c}: the ring sits inside (the popover scrolls and clips an outset ring)`).toBeGreaterThan(0)
+    }
   })
 })

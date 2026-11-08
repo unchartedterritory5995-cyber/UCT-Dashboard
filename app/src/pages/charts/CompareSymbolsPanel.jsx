@@ -14,6 +14,7 @@ import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import shell from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
 import Input from '../../components/ui/Input'
+import useFocusTrap from '../../components/mobile/useFocusTrap'
 import { COMPARE_OPEN_EVENT, GROUP_TYPES, fetchGroupList, fetchGroupMembers } from './compareGroups'
 
 const CompareRotation = lazy(() => import('./CompareRotation'))
@@ -30,6 +31,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   const [tab, setTab] = useState(() => (initialIntent?.tab === 'rotation' ? 'rotation' : 'overlay'))
   const [intent, setIntent] = useState(() => intentOf(initialIntent))
   const tabRefs = useRef({})
+  const cardRef = useRef(null)
   const [symbols, setSymbols] = useState([])
   const [ready, setReady] = useState(false)
   const [entry, setEntry] = useState('')
@@ -66,6 +68,33 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     const t = setInterval(() => { if (resolve() || ++tries > 20) clearInterval(t) }, 150)
     return () => clearInterval(t)
   }, [chartApiById, activeChartRef])
+
+  // ⭐ a11y gate §12.2 (2026-11-08) — A MODAL THAT HOLDS FOCUS. It opened with focus on
+  // <body> (or the Tools button behind it), and Tab walked the page under the backdrop.
+  // Now: focus moves to the selected tab on open, Tab and Shift+Tab wrap inside the card
+  // (`useFocusTrap`, the one trap `Sheet` and the chip popover use), and on close focus
+  // goes back to what held it when the panel opened, while that is still on the page.
+  useFocusTrap(true, cardRef)
+  useEffect(() => {
+    const card = cardRef.current
+    const was = typeof document !== 'undefined' ? document.activeElement : null
+    const opener = was && was !== document.body && !(card && card.contains(was)) ? was : null
+    let raf = 0
+    let tries = 0
+    const take = () => {
+      const el = cardRef.current
+      if (!el || el.contains(document.activeElement)) return
+      const first = el.querySelector('[role="tab"][aria-selected="true"]') || el.querySelector('[role="tab"]')
+        || el.querySelector('button[aria-label="Close"]')
+      ;(first || el).focus?.({ preventScroll: true })
+      if (!el.contains(document.activeElement) && tries < 12) { tries += 1; raf = requestAnimationFrame(take) }
+    }
+    take()
+    return () => {
+      cancelAnimationFrame(raf)
+      if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true })
+    }
+  }, [])
 
   // Escape closes.
   useEffect(() => {
@@ -196,7 +225,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
 
   return (
     <div className={shell.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={`${c.card}${tab === 'rotation' ? ' ' + c.cardWide : ''}`} role="dialog" aria-label="Compare Symbols" data-guide="compare.panel">
+      <div ref={cardRef} tabIndex={-1} className={`${c.card}${tab === 'rotation' ? ' ' + c.cardWide : ''}`} role="dialog" aria-modal="true" aria-label="Compare Symbols" data-guide="compare.panel">
         <div className={c.head}>
           <span className={c.headTitle}>Compare Symbols</span>
           {!nothing && tab === 'overlay' && <button type="button" className={c.clear} data-guide="compare.clear" onClick={clearAll} title="Remove all comparisons">Clear all</button>}

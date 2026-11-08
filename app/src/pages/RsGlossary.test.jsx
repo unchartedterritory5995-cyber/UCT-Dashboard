@@ -225,3 +225,16 @@ describe('RsGlossary route and bundle', () => {
     expect(rel.filter((f) => f.startsWith('components/chart/'))).toEqual([])
   })
 })
+
+describe('RsGlossary type floor (spec §12.2: no text under 11 px)', () => {
+  const css = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'RsGlossary.module.css'), 'utf8')
+    .replace(/[/][*][^]*?[*][/]/g, '')
+  it('no rule takes --text-xs (10 px on desktop) and no literal size is under 11 px', () => {
+    expect(css).not.toMatch(/--text-xs/)
+    const px = [...css.matchAll(/font-size:[ ]*([0-9.]+)px/g)].map((m) => Number(m[1]))
+    expect(px.filter((n) => n < 11)).toEqual([])
+  })
+  it('a superscript (the 252 under the root) keeps the 11 px floor', () => {
+    expect(css).toMatch(/[.]formula sup, [.]body sup [{][^}]*font-size: max[(]0[.]75em, 11px[)]/)
+  })
+})

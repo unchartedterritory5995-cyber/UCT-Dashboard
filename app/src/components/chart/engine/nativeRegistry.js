@@ -3880,8 +3880,8 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
 // price and large blue for red day. Red stays reserved for losses and errors
 // (plan §3): an RS high on a red day is strength. The new-low dot is neutral.
 // ⭐ v4, PER READING (the server blanks every other family, so each view draws
-// its own plots alone): Rotation — RS-Ratio in info blue, RS-Momentum and the 100
-// guide in the neutral, NO gold (map 3-08 risk note). Quality — the score in info
+// its own plots alone): Rotation — RS-Ratio in info blue, RS-Momentum (dashed) and
+// the 100 guide in the neutral, NO gold (map 3-08 risk note). Quality — the score in info
 // blue, the gap-session dot and nothing else in the neutral, no gold. VARS — the
 // line in info blue, its dashed average and the zero guide in the neutral, no
 // gold. One hue and the neutral each; the gold stays the ratio view's one mark.
@@ -4296,7 +4296,11 @@ const RS_LINE_RAW = {
     // column, so the inspector offers no Plot style for it there (`isPlotHidden`).
     { key: 'rsRatio', label: 'RS-Ratio', style: 'line', color: RS_INFO, width: '$lineWidth',
       precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
-    { key: 'rsMomentum', label: 'Momentum', style: 'line', color: RS_NEUTRAL, width: '$lineWidth',
+    // ⭐ a11y gate §12.2 (owner decision, 2026-11-08): RS-Momentum draws DASHED,
+    // the same `largeDashed` the RS line's average uses. Both lines are thin and
+    // the info blue vs the neutral collapses under colour blindness, so the dash
+    // is what tells them apart. Colours unchanged.
+    { key: 'rsMomentum', label: 'Momentum', style: 'line', color: RS_NEUTRAL, width: '$lineWidth', lineStyle: 'largeDashed',
       precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
     { key: 'rotationCentre', label: '100', style: 'hlines', levels: [100], color: RS_NEUTRAL, width: 1,
       lineStyle: 'solid', role: 'context', activeWhen: RS_ROTATION_VIEW },
