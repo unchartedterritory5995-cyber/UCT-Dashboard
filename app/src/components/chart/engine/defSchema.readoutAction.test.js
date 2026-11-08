@@ -31,7 +31,9 @@ const RS = engineRegistry.getDefinition('rsLine')
 
 const VIEW = Object.freeze({
   key: 'view', type: 'enum', label: 'Reading', default: 'ratio', group: 'Simple',
-  options: [['ratio', 'RS line'], ['mansfield', 'Mansfield'], ['rotation', 'Rotation'], ['quality', 'Quality'], ['vars', 'VARS']],
+  // + 'rating' (rev 5): the registered `legendFallback` and `ratingGuides` gate on it
+  options: [['ratio', 'RS line'], ['mansfield', 'Mansfield'], ['rotation', 'Rotation'], ['quality', 'Quality'], ['vars', 'VARS'],
+    ['rating', 'RS Rating']],
 })
 const ANCHOR = Object.freeze({ key: 'anchorDate', type: 'string', label: 'Anchor date', default: '', group: 'Checks' })
 

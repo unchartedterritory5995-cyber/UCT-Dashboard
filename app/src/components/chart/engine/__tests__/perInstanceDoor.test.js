@@ -497,7 +497,12 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // `defVersion` (the definition's own `version`). The first `int` input is still
       // `maLength` (the new inputs are declared after it), so the input step did not move.
       // No door moved. (Prior value: 8ed703821a52dc3b1c7bc9c404cffdb6b0eee41685fa31238dcaafcb40727735)
-      .toBe('f53b16f12b19922f82c8159640a351296031b5d9e81a0b993cbd686b3180d0d4')
+      // 2026-11-08: re-pinned for rsLine rev 5 (Deepvue round 2, the RS Rating Reading),
+      // MEASURED the same way: every rsLine instance's `defVersion` mapped 5 → 4 (nothing
+      // else touched) digests to the prior value f53b16f1… byte for byte. The elements that
+      // differ are rsLine's own and only in `defVersion`; the first `int` input is still
+      // `maLength`. No door moved. (Prior value: f53b16f12b19922f82c8159640a351296031b5d9e81a0b993cbd686b3180d0d4)
+      .toBe('c922cb55165e84ffece9fb0ec6f4618c4b5645062de946c825a588a3eef41832')
   })
 
   // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
@@ -559,7 +564,10 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // above: rsLine's `defVersion` mapped 4 → 3 reproduces the prior value 6145e093…
     // byte for byte; the same 15 rsLine elements, `defVersion` only. The element-by-element
     // case above still holds. (Prior value: 6145e093a600d556527856f1bf3db6c97d9e9a100ad2cf3dee606a309af2a8ee)
+    // 2026-11-08: re-pinned for rsLine rev 5 (Deepvue round 2), same measurement: `defVersion`
+    // mapped 5 → 4 on the 15 rsLine elements reproduces the prior value 07ee0bff… byte for
+    // byte. (Prior value: 07ee0bff1d2a3c05259dfe63c94fac2685a90b188475cb769ffd18e7a3b901ec)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('07ee0bff1d2a3c05259dfe63c94fac2685a90b188475cb769ffd18e7a3b901ec')
+      .toBe('dff12cc182d3d17c16617670e436bdc1aa8ef7258f460d64cde42972c39544d0')
   })
 })
