@@ -52,7 +52,8 @@
    "docs/pine/capture-queue-2026-11-06-w34-i4.md",
    "docs/pine/capture-queue-2026-11-06-w34-i6c.md",
    "docs/pine/capture-queue-2026-11-06-w6-t6.md",
-   "docs/pine/capture-queue-2026-11-06-w6.md"
+   "docs/pine/capture-queue-2026-11-06-w6.md",
+   "docs/pine/capture-queue-2026-11-07-i6a-n4.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
@@ -76,19 +77,19 @@
   }
  },
  "counts": {
-  "targets": 287,
+  "targets": 298,
   "byStatus": {
    "CAPTURED": 78,
-   "NEEDS_CHART": 54,
+   "NEEDS_CHART": 59,
    "NEEDS_LIVE": 9,
-   "QUEUED": 146
+   "QUEUED": 152
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
-    "NEEDS_CHART": 52,
+    "NEEDS_CHART": 57,
     "NEEDS_LIVE": 9,
-    "QUEUED": 116
+    "QUEUED": 122
    },
    "W1": {
     "QUEUED": 5
@@ -109,9 +110,9 @@
   "byPriorityBand": {
    "0": {
     "CAPTURED": 61,
-    "NEEDS_CHART": 53,
+    "NEEDS_CHART": 58,
     "NEEDS_LIVE": 9,
-    "QUEUED": 132
+    "QUEUED": 138
    },
    "1-2": {
     "CAPTURED": 17,
@@ -122,7 +123,7 @@
   "byDocWave": {
    "2026-09-27": {
     "CAPTURED": 1,
-    "NEEDS_CHART": 6
+    "NEEDS_CHART": 11
    },
    "2026-09-28": {
     "CAPTURED": 3,
@@ -168,6 +169,9 @@
    },
    "h5-values": {
     "QUEUED": 2
+   },
+   "i6a-n4": {
+    "QUEUED": 6
    },
    "l1-libraries": {
     "CAPTURED": 1
@@ -3917,6 +3921,216 @@
    "oldestDoc": "2026-09-27",
    "rows": [
     "capture-queue-2026-09-27#5"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-input-time-confirm@NYSE:RDDT@D",
+   "status": "NEEDS_CHART",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-input-time-confirm.pine",
+   "sourceKind": "probe",
+   "sha256": "0f7ced62cd442909603cf91d54afb99842c9c35a08089eebc38cf522f84508c0",
+   "bytes": 892,
+   "stem": "vw-input-time-confirm",
+   "captureStem": "vw-input-time-confirm",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": true,
+   "chartSource": "default",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "2026-09-27"
+   ],
+   "oldestDoc": "2026-09-27",
+   "rows": [
+    "capture-queue-2026-09-27#Q-D5 (new)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-input-time-default@NYSE:RDDT@D",
+   "status": "NEEDS_CHART",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-input-time-default.pine",
+   "sourceKind": "probe",
+   "sha256": "b0f976e291f7ae7d4d748fd983da95d7c17d359b62e4d1e3bfcb4f0f3e827a4f",
+   "bytes": 1064,
+   "stem": "vw-input-time-default",
+   "captureStem": "vw-input-time-default",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": true,
+   "chartSource": "default",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "2026-09-27"
+   ],
+   "oldestDoc": "2026-09-27",
+   "rows": [
+    "capture-queue-2026-09-27#Q-D1 (queued 10-31)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-input-time-forms@NYSE:RDDT@D",
+   "status": "NEEDS_CHART",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-input-time-forms.pine",
+   "sourceKind": "probe",
+   "sha256": "69250193c13e7bb3ef823fc3f8d8b755e35093ac9fa59ae65eb9bc6dc32b5c53",
+   "bytes": 1879,
+   "stem": "vw-input-time-forms",
+   "captureStem": "vw-input-time-forms",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": true,
+   "chartSource": "default",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "2026-09-27"
+   ],
+   "oldestDoc": "2026-09-27",
+   "rows": [
+    "capture-queue-2026-09-27#Q-D4 (new)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-input-time-member@NYSE:RDDT@D",
+   "status": "NEEDS_CHART",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-input-time-member.pine",
+   "sourceKind": "probe",
+   "sha256": "ed108b0933245b93144793781ea574d8878a2327d732d3ad30d9fc518cc4b933",
+   "bytes": 985,
+   "stem": "vw-input-time-member",
+   "captureStem": "vw-input-time-member",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": true,
+   "chartSource": "default",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "2026-09-27"
+   ],
+   "oldestDoc": "2026-09-27",
+   "rows": [
+    "capture-queue-2026-09-27#Q-D3 (queued 10-31)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-input-time-zones@NYSE:RDDT@D",
+   "status": "NEEDS_CHART",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-input-time-zones.pine",
+   "sourceKind": "probe",
+   "sha256": "f60d8986c4638f96c67e5aca6b923c5cda209d6605239ccfa45b5497de50229a",
+   "bytes": 1165,
+   "stem": "vw-input-time-zones",
+   "captureStem": "vw-input-time-zones",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": true,
+   "chartSource": "default",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "2026-09-27"
+   ],
+   "oldestDoc": "2026-09-27",
+   "rows": [
+    "capture-queue-2026-09-27#Q-D2 (queued 10-31)"
    ],
    "origins": [
     "queue-doc"
@@ -13757,6 +13971,266 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "i6a-n4-control-8@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-control-8.pine",
+   "sourceKind": "probe",
+   "sha256": "b6728f7b96462bcabe4aa244bfaf77c2d41b2d6b77d956572232ce66b82f7de2",
+   "bytes": 816,
+   "stem": "i6a-n4-control-8",
+   "captureStem": "i6a-n4-control-8",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-0"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-if-6@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-if-6.pine",
+   "sourceKind": "probe",
+   "sha256": "87c2242f539117a9f6c74720a622716ff15c4227a273c5e96a888d4027a7b074",
+   "bytes": 869,
+   "stem": "i6a-n4-if-6",
+   "captureStem": "i6a-n4-if-6",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1c"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-if-tab2@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-if-tab2.pine",
+   "sourceKind": "probe",
+   "sha256": "32b658bc35a82f7ae88620d4a278ab2050ed50124ef9c0dbf2bac8580f80dfab",
+   "bytes": 733,
+   "stem": "i6a-n4-if-tab2",
+   "captureStem": "i6a-n4-if-tab2",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1d"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-switch-12@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-switch-12.pine",
+   "sourceKind": "probe",
+   "sha256": "9b3753890508505b3e949fce5b5f7fc66c461694948f2cd69701ec3febd272c7",
+   "bytes": 908,
+   "stem": "i6a-n4-switch-12",
+   "captureStem": "i6a-n4-switch-12",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-switch-6@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-switch-6.pine",
+   "sourceKind": "probe",
+   "sha256": "d3c93db4250c44597c24ca282e0d70d83e4342c04d500a1f182071619cebde17",
+   "bytes": 741,
+   "stem": "i6a-n4-switch-6",
+   "captureStem": "i6a-n4-switch-6",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-switch-9@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-switch-9.pine",
+   "sourceKind": "probe",
+   "sha256": "402d3e8a5dd452114d7343a8599d692e6b43da2368d96b27789a0d6e9ded2c89",
+   "bytes": 971,
+   "stem": "i6a-n4-switch-9",
+   "captureStem": "i6a-n4-switch-9",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1a"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -13798,42 +14272,42 @@
   {
    "key": "capture-queue-2026-09-27#barstate.isnew",
    "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 123,
+   "line": 125,
    "docWave": "2026-09-27",
    "disposition": "ruling",
    "reason": "blocked by a RULING, not by a missing capture: closedTable.json::_barstate.refused.isnew, \"requires per-tick evaluation\" (owner ruling, lane RULING-0927)",
-   "dispositionLine": 316,
-   "text": "`barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | `closedTable.json::_barstate.refused.isnew` — \"requires per-tick evaluation\" | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`)"
+   "dispositionLine": 328,
+   "text": "`barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | ✅ **RULED 2026-11-07 (RULING-0927): STAYS REFUSED, reason rewritten.** History is 1 (barstate-full tail). On the NEWEST bar the vendor's `isnew` equals its own `ishistory`: 0 on six rows of `barstate-daily-timeline.json` (16:17–20:55 ET), 1 on three (23:57–07:38 "
   },
   {
    "key": "capture-queue-2026-09-27#input.time",
    "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 124,
+   "line": 126,
    "docWave": "2026-09-27",
    "disposition": "ruling",
    "reason": "blocked by a RULING, not by a missing capture: pine:input-kind, \"under the threshold\", item (c); T16 already confirms the default value (lane RULING-0927)",
-   "dispositionLine": 317,
-   "text": "`input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — \"under the threshold\", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1)"
+   "dispositionLine": 329,
+   "text": "`input.time` | T16 witnesses ONE form, `timestamp(\"D MMM YYYY hh:mm +0000\")`, no `confirm` | ✅ **RULED 2026-11-07 (RULING-0927, narrowed in r1): SERVED for that form only, on every lane.** T16 (`vw-time-tf-spy-1d-2026-09-27.json`) = 19130 on all 8472 bars = the timestamp in ms. The one reader every lane calls (`runtimeInputs.js::timeInputDefaultOf`, gate `WITNESSED_TIME_DEFAULT`) serves it, direct"
   },
   {
    "key": "capture-queue-2026-09-27#ta.nvi / ta.pvi",
    "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 125,
+   "line": 127,
    "docWave": "2026-09-27",
    "disposition": "ruling",
    "reason": "blocked by a RULING, not by a missing capture: _functions_excluded.nvi / .pvi, fetch-dependent level; the ruling stands until the owner reopens it (lane RULING-0927)",
-   "dispositionLine": 318,
-   "text": "`ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2"
+   "dispositionLine": 330,
+   "text": "`ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | ✅ **RULED (Phase 1, 2026-10-30; pinned by RULING-0927):** pane serves the level as `exp(cum(ln(1+chg)))`, `window_dependent` and badged; a screen refuses by name. Matches `vw-nvi-pvi-spy-1d-full-2026-09-27.json` to <1e-9 relative when the fetch starts at the symbol's first bar; a 5,000-bar fetch reads 9.07x/2.87x low (measured above). Rails `pine"
   },
   {
    "key": "capture-queue-2026-09-27#time(<session>) on daily bars",
    "doc": "docs/pine/capture-queue-2026-09-27.md",
-   "line": 126,
+   "line": 128,
    "docWave": "2026-09-27",
    "disposition": "ruling",
    "reason": "blocked by a RULING, not by a missing capture: the refusal \"This engine screens daily bars\" (lane RULING-0927)",
-   "dispositionLine": 319,
-   "text": "`time(<session>)` on daily bars | 5m only | the refusal text: \"This engine screens daily bars\" | sole last wall of 1"
+   "dispositionLine": 331,
+   "text": "`time(<session>)` on daily bars | 1D + 60m captured 09-27/28 | ✅ **RULED (C8/Q-T1, BUILT 09-28; pinned by RULING-0927):** pane serves it (bar's OPEN time, half-open window); a screen refuses by name (its stored daily bars carry a date, not an opening instant). Rails `sessionClockDailyBars.test.js`, `pineVocabularyWave.test.js`, `ast/ruling0927.test.js` | served"
   },
   {
    "key": "capture-queue-2026-09-30-time-anchors#time-anchor:weekend-bars",
@@ -15360,7 +15834,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-09-27.md",
    "wave": "2026-09-27",
-   "rows": 11,
+   "rows": 16,
    "contextTables": 2
   },
   {
@@ -15655,6 +16129,12 @@
    "doc": "docs/pine/capture-queue-2026-11-06-w6.md",
    "wave": "w6",
    "rows": 7,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-07-i6a-n4.md",
+   "wave": "i6a-n4",
+   "rows": 6,
    "contextTables": 0
   }
  ]

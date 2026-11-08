@@ -225,6 +225,115 @@ def search_tweets(query: str, since_unix: Optional[int] = None,
     return out
 
 
+# --- Combined-roster incremental search (2026-11-07) -------------------------
+#
+# WHY THIS EXISTS. `get_user_last_tweets` sends sinceId/since_id, but
+# /twitter/user/last_tweets IGNORES both: measured live 2026-11-07, a call with
+# since_id = the newest id still returned all 20 tweets, so every poll of every
+# account bills 20 tweets (300 credits) whether or not anything is new. That was
+# ~88% of the account's spend. advanced_search DOES honor `since_id:` (same test:
+# 0 tweets), bills only tweets returned, and takes many `from:` terms in one
+# query, so one call covers the whole roster.
+#
+# PARITY with the timeline endpoint, measured the same day over 13 accounts:
+#   - search includes REPLIES, the timeline does not -> `-filter:replies`
+#   - search omits native RETWEETS unless asked       -> `include:nativeretweets`
+#   - search returned every timeline tweet once both were applied, plus the
+#     tweets a busy account posted beyond the timeline's 20-tweet window.
+
+# X's search rejects very long queries; stay well under it and split the roster.
+_SEARCH_QUERY_MAX_CHARS = int(os.environ.get("TWEET_SEARCH_QUERY_MAX_CHARS", "450"))
+_SEARCH_SUFFIX = " -filter:replies include:nativeretweets"
+
+
+def _raise_for_status(r) -> None:
+    if r.status_code == 401:
+        raise TwitterApiAuthError(f"auth failed: {r.text[:200]}")
+    if r.status_code == 402:
+        raise TwitterApiPaymentRequired(f"out of credits: {r.text[:200]}")
+    if r.status_code == 429:
+        raise TwitterApiRateLimited(f"rate limited: {r.text[:200]}")
+    if r.status_code != 200:
+        raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+
+
+def build_roster_queries(handles: Iterable[str], since_id: Optional[str] = None,
+                         since_unix: Optional[int] = None) -> list[str]:
+    """Group handles into as few `(from:a OR from:b ...)` queries as fit the
+    length cap. Exactly one of since_id / since_unix bounds the window."""
+    if since_id:
+        bound = f" since_id:{since_id}"
+    elif since_unix:
+        bound = f" since_time:{int(since_unix)}"
+    else:
+        raise ValueError("a roster search needs since_id or since_unix")
+    fixed = len("()") + len(_SEARCH_SUFFIX) + len(bound)
+    queries: list[str] = []
+    group: list[str] = []
+    for h in [str(h).strip().lstrip("@") for h in handles if h and str(h).strip()]:
+        candidate = group + [h]
+        body = " OR ".join(f"from:{x}" for x in candidate)
+        if group and len(body) + fixed > _SEARCH_QUERY_MAX_CHARS:
+            queries.append("(" + " OR ".join(f"from:{x}" for x in group) + ")" + _SEARCH_SUFFIX + bound)
+            group = [h]
+        else:
+            group = candidate
+    if group:
+        queries.append("(" + " OR ".join(f"from:{x}" for x in group) + ")" + _SEARCH_SUFFIX + bound)
+    return queries
+
+
+def search_roster_since(handles: Iterable[str], since_id: Optional[str] = None,
+                        since_unix: Optional[int] = None,
+                        max_pages: int = 10) -> tuple[list[dict], bool]:
+    """Every tweet by any of `handles` newer than since_id (or since_unix),
+    newest-first, normalized like get_user_last_tweets.
+
+    Returns (tweets, complete). complete=False means a query still had more
+    pages after `max_pages` -- the OLDEST tweets of that burst were not fetched,
+    and the caller must log it. Raises the same TwitterApi* errors as every
+    other call here; on any error nothing is returned, so a caller that only
+    advances its cursor on success can never skip a window.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    complete = True
+    for query in build_roster_queries(handles, since_id=since_id, since_unix=since_unix):
+        cursor = None
+        pages = 0
+        while True:
+            params = {"query": query, "queryType": "Latest"}
+            if cursor:
+                params["cursor"] = cursor
+            try:
+                r = requests.get(
+                    f"{BASE_URL}/twitter/tweet/advanced_search",
+                    params=params,
+                    headers={"x-api-key": _api_key()},
+                    timeout=TIMEOUT,
+                )
+            except requests.RequestException as e:
+                raise TwitterApiTransientError(f"network error: {e}") from e
+            _raise_for_status(r)
+            body = r.json()
+            pages += 1
+            for raw in _extract_tweets(body):
+                if not isinstance(raw, dict):
+                    continue
+                t = _normalize_tweet(raw, fallback_handle="")
+                if t["id"] and t["id"] != "None" and t["id"] not in seen:
+                    seen.add(t["id"])
+                    out.append(t)
+            cursor = body.get("next_cursor") if isinstance(body, dict) else None
+            if not (isinstance(body, dict) and body.get("has_next_page") and cursor):
+                break
+            if pages >= max_pages:
+                complete = False
+                break
+    out.sort(key=lambda t: (len(t["id"]), t["id"]), reverse=True)
+    return out, complete
+
+
 # PACKET-S CP4 (2026-09-22, RG-21 §1d): X's Developer Agreement requires
 # removing a tweet within 24h of it being deleted, made protected, or its
 # account suspended on X — the existing 7-day age sweep (tweet_cleanup.py)

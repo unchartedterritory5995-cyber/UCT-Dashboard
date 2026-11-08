@@ -103,6 +103,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
+import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
@@ -310,6 +311,9 @@ export const REFUSALS = Object.freeze({
     'a name that is reassigned later cannot be folded into one expression',
   'pine:block':
     'a Pine block spans several statements and this engine stores a single expression',
+  // ⭐ I6a-N4 — see `refuseOffBlockIndent`.
+  'pine:indent':
+    'a Pine local block is indented by four spaces or a tab, and this line sits at another indent',
   // ⚰️ "the four node shapes" — THERE ARE EIGHT, and the count was stale rather
   // than wrong-in-principle: `tf`, `sym` and `tf_live` all landed after it was
   // typed. A member reading it was told the engine is half the size it is. The
@@ -3500,6 +3504,79 @@ export function blockStatements(toks, indents, indent) {
     })
   }
   return out
+}
+
+/** ⭐⭐ I6a-N4 — AN OPENER WHOSE EVERY LINE BENEATH IS A WRAP HAS NO BLOCK, AND IS REFUSED
+ *  BY NAME ON BOTH LANES (the host translator and the runtime front end call this right
+ *  after `blockStatements`, so they agree by construction).
+ *
+ *  The Pine Script User Manual, "Script structure": "A local block must be indented by a
+ *  tab or four spaces." and, under "Line wrapping": "each wrapped line after the first can
+ *  use any indentation length _except_ multiples of four, because Pine uses four-space or
+ *  tab indentations to define local code blocks." "Conditional structures" says of `if`
+ *  and `switch`: "The local blocks in conditional structures must be indented by four
+ *  spaces or a tab."
+ *
+ *  `blockStatements` takes ANY deeper line under an opener as its block. So
+ *  `0 => switch k` / `         0 => close` / `         => low` (inner arms at indent 9 or
+ *  6), `if c` / `      x := 1` and `for …` / `      s += 1` were SERVED, although by the
+ *  manual every one of those lines is a wrap of the opener's line and the opener has no
+ *  local block at all. ⛔ What TradingView then reports (a compile error, as the manual's
+ *  syntax implies) is not stated in so many words; that is capture row I6A-N4-1
+ *  (`docs/pine/capture-queue-2026-11-07-i6a-n4.md`), not a guess here.
+ *
+ *  ⛔ NARROW ON PURPOSE — measured on 877 corpus scripts, published scripts TradingView
+ *  compiles write all of these, and each stays exactly as it was:
+ *  - a WRAPPED CONDITION above a real block (`if a` / `      and b` / `        x := 1`):
+ *    some line beneath IS at a multiple of four, so the opener has a block;
+ *  - a function or arm whose value wraps (`f(x) =>` / `      a ? b :` / `      c`, and
+ *    `c => a` / `     + b`): the opener is a `=>` and the wraps are its inline value
+ *    (W34-I6a's `wrappedArmOf` joins the arm form);
+ *  - a deeper line at a multiple of four (indent 12 under a line at 4): unchanged.
+ *  Checked: a header whose LAST top-level opener is an opener WORD (`if`, `else`, `for`,
+ *  `while`, `switch`, including `c => switch k`), with a body whose line starts outside
+ *  brackets are ALL at an indent that is not a multiple of four. */
+function openerWordOwnsBody(header) {
+  let depth = 0
+  let word = null
+  for (const tok of header || []) {
+    if (tok.kind === 'punct' && (tok.value === '(' || tok.value === '[')) { depth += 1; continue }
+    if (tok.kind === 'punct' && (tok.value === ')' || tok.value === ']')) { depth = Math.max(0, depth - 1); continue }
+    if (depth > 0) continue
+    if (tok.kind === 'ident' && BLOCK_OPENERS.has(tok.value)) word = tok.value
+    else if (isPunct(tok, '=>')) word = null
+  }
+  return word
+}
+export function refuseOffBlockIndent(stmts, indents) {
+  for (const st of stmts || []) {
+    const word = st.body && st.body.length ? openerWordOwnsBody(st.header) : null
+    if (word) {
+      let depth = 0
+      let prevLine = st.header[st.header.length - 1].line
+      let first = null
+      let blockLine = false
+      for (const tok of st.body) {
+        if (tok.line !== prevLine && depth === 0) {
+          if ((indents[tok.line - 1] || 0) % 4 === 0) { blockLine = true; break }
+          if (!first) first = tok
+        }
+        prevLine = tok.line
+        if (tok.kind === 'punct') {
+          if (tok.value === '(' || tok.value === '[') depth += 1
+          else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+        }
+      }
+      if (!blockLine && first) {
+        const ind = indents[first.line - 1] || 0
+        throw new PineRefusal('pine:indent', `${REFUSALS['pine:indent']} — \`${word}\` has no local block: `
+          + `every line beneath it starts at an indent that is not a multiple of four (the first at ${ind}), and `
+          + 'Pine reads such a line as a wrap of the line above, not as a block (User Manual, "Script structure" -> '
+          + '"Line wrapping")', locate(first))
+      }
+    }
+    if (st.sub && st.sub.length) refuseOffBlockIndent(st.sub, indents)
+  }
 }
 
 export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
@@ -14602,20 +14679,53 @@ export class Resolver {
         + 'only as a `textop` operand, and a session feeding a time-in-range '
         + 'comparison is not one. 70 uses across 23 files, and nothing routes '
         + 'them: this is a grammar limit, not a threshold',
-      // ⛔ R20 — the item (c) routing carries D2's limit, as `seriesDependentMessage`
-      // does. Without it a member is told their expression default will be handled
-      // and not told it cannot reach a pane while D2 stands.
-      // ⛔ R21 — two facts, both measured: no IR path today, AND no IR result on a
-      // pane while D2 stands. The D2 half alone reads as "it will be carried, just
-      // not drawn here", which the IR measurement contradicts.
-      time:
-        '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
-        + 'are expressions are item (c)\'s — and the IR lane has no path for them '
-        + 'yet, nor does any IR result reach a pane while ruling D2 stands. '
-        + '6 reach a column, under the threshold',
+      // ⚰️ `time` WAS HERE (R16/R20/R21's retirement sentence). RULING-0927 (2026-11-07)
+      // serves `input.time` at its default above, so this sentence could no longer be reached.
       string:
         'in a timeframe position this folds exactly as `input.timeframe` does and '
         + 'adds no separate mechanism — 14 uses across 3 files',
+    }
+    // ⭐⭐ RULING-0927 (2026-11-07) — `input.time` FOLDS TO ITS DEFAULT, IN MILLISECONDS,
+    // FOR THE ONE CAPTURED FORM ONLY. Capture `vw-time-tf-spy-1d-2026-09-27.json` T16:
+    // `input.time(timestamp("18 May 2022 00:00 +0000"))` / 86 400 000 reads 19130 on every
+    // bar — the timestamp itself, in ms. The default is read by the RUNTIME lane's own
+    // reader (`runtimeInputs.js::timeInputDefaultOf`), which since r1 serves only that
+    // form (`WITNESSED_TIME_DEFAULT`, no `confirm = true`) and refuses every other by
+    // name, so the two lanes agree on what is served and with which sentence.
+    // ⭐ r1 (N5): asked BEFORE `knobReads`, so a v4 `input(…, type = input.time)` is never
+    // recorded as a knob this lane does not offer.
+    // ⛔ ONLY THE DEFAULT IS SERVED HERE. No knob is minted (`time` is not in
+    // `PARAM_MANIFEST_ELIGIBLE_KINDS`), so a member value can only arrive by hand;
+    // it is refused by name rather than read in a unit no capture has pinned.
+    if (isTimeInputCall(node)) {
+      const timeKey = typeof node.boundName === 'string' ? node.boundName : null
+      if (timeKey && this.inputValues
+          && Object.prototype.hasOwnProperty.call(this.inputValues, timeKey)) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${timeKey}\` is an \`input.time\`: this lane `
+          + 'serves its default only; a member\'s date is a setting of the runtime lane', locate(node.tok))
+      }
+      const lookup = (n) => {
+        const b = this.env && this.env.get(n)
+        return b && b.kind === 'expr' ? b.node : null
+      }
+      const got = timeInputDefaultOf(node, lookup)
+      if (got.skip) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${name}\` — ${got.skip}`, locate(node.tok))
+      }
+      const folded = cNum(got.ms)
+      this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+        call: name,
+        title: title && title.type === 'string' ? title.value : null,
+        folded: printFormula(folded),
+        name: typeof node.boundName === 'string' ? node.boundName : null,
+        min: null,
+        max: null,
+        line: node.tok.line,
+        column: node.tok.column,
+      })
+      return folded
     }
     // ⭐ 2026-09-28 — see `knobReads`. Recorded before any refusal below, so a
     // question that reaches a knob says so even when the knob cannot resolve.
@@ -24919,6 +25029,8 @@ function translatePineResult(source, opts = {}) {
   let stmts
   try {
     stmts = blockStatements(tokens, indents, 0)
+    // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME (both lanes).
+    refuseOffBlockIndent(stmts, indents)
   } catch (err) {
     const r = fromError(err)
     return { ...blank, version, refusal: r, refusals: [r] }

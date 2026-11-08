@@ -114,7 +114,9 @@
 /** 30 = W6-T10: `enum` declarations and `input.enum` are served on the runtime lane; the object door is unchanged */
 /** 31 = W6-T6-N1b: two indirect for-in shapes that served without a capture now refuse by name (Q-W6T6-H); runtime lane only, the object door is unchanged */
 /** 32 = W6-T10-N: v5 enum names footprint/volume_row and capitalised enum names serve per the manual's case-sensitivity; runtime lane only, the object door is unchanged */
-export const SCRIPT_ENGINE_VERSION = 32
+/** 33 = RULING-0927: input.time serves only its T16 default form on the host lane (other forms refuse by name); barstate.isnew stays refused with a sharper reason */
+/** 34 = I6a-N4: a block body at a non-multiple-of-4 indent refuses pine:indent with the manual's reason, on both lanes and the door */
+export const SCRIPT_ENGINE_VERSION = 34
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
