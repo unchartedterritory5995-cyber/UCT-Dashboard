@@ -375,6 +375,13 @@ export function assessObjectLoss(t) {
       removes.push({ what: f.cls === LOSS.LIST ? 'list' : f.what, key: f.key, why: f.why })
     }
   }
+  // ⭐ W9 D8 ("show the refusal") — how many of the dropped steps were withheld because a
+  // `strategy.*` value reaches them (`strategy:<kind>`), so the note can say WHY instead of
+  // "aren't supported yet". Never more than `dropped`: one unit, the pass's own counts.
+  const strategyDropped = Math.min(dropped, Object.keys(reasons)
+    .filter((k) => k.startsWith('strategy:') && reasons[k] > 0)
+    .reduce((n, k) => n + reasons[k], 0))
+  const strategyRemoves = removes.some((r) => r.key.startsWith('strategy:'))
   // ⭐ r2 — A FAMILY WITHHELD WHOLE: one the script keeps in a list this chart
   // cannot follow (`removalWithheldFamilies`, `fieldCreateFamilies`) and of which
   // NOTHING is drawn. The note names it, rather than leaving the member to infer
@@ -388,6 +395,8 @@ export function assessObjectLoss(t) {
     attempted,
     removes,
     readerNames,
+    ...(strategyDropped > 0 ? { strategyDropped } : {}),
+    ...(strategyRemoves ? { strategyRemoves } : {}),
     ...(hiddenFamilies.length ? { hiddenFamilies } : {}),
   }
 }
@@ -418,16 +427,33 @@ function whatPhrase(loss) {
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }
 
+/** ⭐ W9 D8 — the member's words for what a `strategy.*` value is. Plain English, no
+ *  guard name. ⛔ STRAT-NOTE r1 (B1, coordinator ruling): NOT "the strategy's results" — the
+ *  taint source (`strategyTaint.js::isStrategyStateWord`) also covers settings and helpers that
+ *  are not results (`strategy.initial_capital`, `strategy.convert_to_account/_symbol`,
+ *  `strategy.default_entry_qty`), so the words name where the value comes from instead. */
+export const STRATEGY_VALUES_WORDS = "values from the strategy's backtest (such as its position, trades, equity or settings)"
+/** …and why none of them has a value here: the backtest is not run on this chart. */
+const STRATEGY_NOT_RUN = "which this chart doesn't run yet"
+
+/** ⭐ W9 D8 — said after a removal sentence when a removal it lost is one a strategy value
+ *  decides (`strategy:delete` / `strategy:clear`), so the member reads the reason. */
+export const STRATEGY_REMOVAL_SENTENCE = "Some of what it removes is decided by values from the strategy's "
+  + `backtest, ${STRATEGY_NOT_RUN}.`
+
+const withStrategyRemoval = (sentence, loss) => (loss && loss.strategyRemoves
+  ? `${sentence} ${STRATEGY_REMOVAL_SENTENCE}` : sentence)
+
 /** ⛔ THE GUARD A REFUSAL FOR A LOST REMOVAL CARRIES. */
 export const OBJECT_REMOVAL_GUARD = 'pine:object-removal-lost'
 
 /** The refusal a script gets when its drawing is ALL it has and that drawing
  *  lost a removal. */
 export function objectRemovalRefusal(loss) {
-  return 'This script\'s drawing can\'t be shown yet. It removes drawings as it runs, '
+  return withStrategyRemoval('This script\'s drawing can\'t be shown yet. It removes drawings as it runs, '
     + `and this chart can't follow part of that (${whatPhrase(loss)}), so drawing the rest `
     + 'would leave lines, labels, boxes or table cells on screen that TradingView would '
-    + 'have removed.'
+    + 'have removed.', loss)
 }
 
 /** The name every drawing disclosure is listed under. */
@@ -472,22 +498,33 @@ export function objectLossNote(loss, opts = {}) {
   if (opts.withheld) {
     return {
       name: DRAWING_NOTE_NAME,
-      note: 'This script\'s plots are shown, but its drawings are not. It removes drawings '
+      note: withStrategyRemoval('This script\'s plots are shown, but its drawings are not. It removes drawings '
         + `as it runs, and this chart can't follow part of that (${whatPhrase(loss)}), so `
         + 'showing them would leave lines, labels, boxes or table cells on screen that '
-        + 'TradingView would have removed.',
+        + 'TradingView would have removed.', loss),
     }
   }
   const parts = []
   if (loss.dropped > 0) {
     // ⛔ THE OWNER'S SENTENCE, WITH BOTH COUNTS IN ONE UNIT: `droppedOps` of
     // `attemptedOps`, and what M is, said in the same note.
-    parts.push(`${loss.dropped} of ${loss.attempted} drawing elements in this script aren't `
-      + 'supported yet, so what it draws is incomplete. (The '
+    // ⭐ W9 D8 — when EVERY lost step was withheld because a strategy value reaches it, the
+    // sentence gives that reason in place of "aren't supported yet"; when only some were, the
+    // count sentence stands and one clause says how many of those are withheld for that reason.
+    const s = Number.isInteger(loss.strategyDropped) ? Math.min(loss.strategyDropped, loss.dropped) : 0
+    const why = s === loss.dropped
+      ? `${s === 1 ? 'reads' : 'read'} ${STRATEGY_VALUES_WORDS}, ${STRATEGY_NOT_RUN}`
+      : "aren't supported yet"
+    parts.push(`${loss.dropped} of ${loss.attempted} drawing elements in this script ${why}, `
+      + 'so what it draws is incomplete. (The '
       + `${loss.attempted} are every drawing step this chart tried to carry: each line, label, `
       + 'box or table created, changed or written to, each change to a list of them, '
       + 'each loop, and each call to a drawing function of the script\'s own that could '
       + 'not be followed.)')
+    if (s > 0 && s < loss.dropped) {
+      parts.push(`${s} of those ${s === 1 ? 'is withheld because it reads' : 'are withheld because they read'} `
+        + `${STRATEGY_VALUES_WORDS}, ${STRATEGY_NOT_RUN}.`)
+    }
   }
   if (loss.readerNames.length) {
     const names = loss.readerNames.map((n) => `\`${n}\``).join(', ')
