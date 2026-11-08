@@ -140,6 +140,9 @@ export function makeBroker(cfg, data) {
   // ⭐⭐ W9-T1 — `pinned(rule)`, asked when the run REACHES a rule. One-argument calls only: the
   // test-only pin set arrives as `data.isPinned` (a predicate), never as `pinned`'s second argument.
   const isPinned = typeof data.isPinned === 'function' ? data.isPinned : (id) => pinned(id)
+  // ⭐ W9-T4 r1 — the symbol's minimum contract (`syminfo.mincontract`), as the run context states it;
+  // undefined when the caller does not know it (today: every product caller)
+  const minContract = data.minContract
   const okRules = new Set()
   const rule = (id) => {
     if (okRules.has(id)) return
@@ -571,8 +574,11 @@ export function makeBroker(cfg, data) {
    *   - cash:    units = value / (close × pointvalue);
    *   - percent: units = equity × value / 100 / (close × pointvalue), `equity` = `strategy.equity` at
    *     that close (the v6 constant's text: "a percentage (0-100) of equity");
-   *   - rounded DOWN to whole units (`syminfo.mincontract`: "For most other types of asset, it is often
-   *     1"; this run is not told the symbol's minimum contract, so a whole unit is the step).
+   *   - rounded DOWN to whole units, served ONLY for a symbol whose minimum contract the run context
+   *     states is 1 (`syminfo.mincontract`: "The smallest amount of the current symbol that can be traded
+   *     ... For cryptocurrencies, it is often less than 1 token. For most other types of asset, it is
+   *     often 1."). A fractional symbol, or one whose minimum contract the run was not told, refuses.
+   *     No product caller states it yet, so on the member door this refuses even once B-QTY is pinned.
    * Every case the hypothesis does not reach refuses by name (Q-S1a): a price (limit / stop) order,
    * whose sizing price could be its level or the signal close; a percent order placed while trades are
    * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
@@ -598,6 +604,13 @@ export function makeBroker(cfg, data) {
     if (type !== 'market') {
       throw new BrokerRefusal(`the ${type} entry \`${id}\` takes a ${unit} default size, and whether its level or `
         + 'the signal bar\'s close sizes it is not stated', 'Q-S1a')
+    }
+    if (minContract !== 1) {
+      throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size, which this broker rounds down to `
+        + `whole units, and this symbol's minimum contract is ${finite(minContract)
+          ? `${minContract} (a fractional symbol, such as a cryptocurrency, trades in parts of a unit)`
+          : 'not known to this run (a fractional symbol, such as a cryptocurrency, trades in parts of a unit)'}`,
+      'Q-S1a')
     }
     needSymbol()
     const px = C[bar]

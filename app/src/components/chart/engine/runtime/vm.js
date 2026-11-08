@@ -351,7 +351,11 @@ export function execute(program, ctx, limits, opts) {
     if (ctx.bars > win) {
       throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
     }
-    broker = makeBroker(program.broker, { series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned })
+    // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`, when the CALLER knows it. No product
+    // caller sets it yet (no witnessed source), so a cash / percent-of-equity size refuses by name (Q-S1a).
+    broker = makeBroker(program.broker, {
+      series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned, minContract: ctx.minContract,
+    })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
   // it has not run yet, so nothing it computes exists there.

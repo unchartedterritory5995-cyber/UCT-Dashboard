@@ -43,7 +43,7 @@ export const STRATEGY_RECORD_UNSERVED = Object.freeze({
   'settings.slippage': 'W9-T5',
   'settings.process_orders_on_close': 'W9-T6',
   'settings.bar_detalization': 'W9-T9',
-  'settings.currency': 'W9-T4',
+  'settings.currency': 'W9-D2 (deferred)',
 })
 
 const timeAt = (barTimes, i) => (Array.isArray(barTimes) && Number.isInteger(i) && i >= 0 && i < barTimes.length
@@ -102,9 +102,10 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     settings: {
       version: Number.isInteger(cfg.version) ? cfg.version : null,
       initial_capital: Number.isFinite(cfg.initialCapital) ? cfg.initialCapital : null,
-      // W9-T4: the declared-or-defaulted `default_qty_*` (fixed, cash or percent_of_equity); a
-      // declaration from before W9-T4 carries only the fixed `defaultQty`
-      default_qty: defaultQtyOf(cfg),
+      // W9-T4: the declared-or-defaulted `default_qty_*` (fixed, cash or percent_of_equity), stated ONLY
+      // when the run actually sized an order by it (it asked B-QTY); otherwise null, so the record never
+      // shows a sizing rule the run did not rest on (W9-T4 r1 review P2)
+      default_qty: Array.isArray(rec.rulesUsed) && rec.rulesUsed.includes('B-QTY') ? defaultQtyOf(cfg) : null,
       pyramiding: Number.isInteger(cfg.pyramiding) ? cfg.pyramiding : null,
       margin_long: Number.isFinite(cfg.marginLong) ? cfg.marginLong : null,
       margin_short: Number.isFinite(cfg.marginShort) ? cfg.marginShort : null,
