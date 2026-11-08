@@ -38,17 +38,14 @@
  * ⚠️ THE PANE LABEL. The engine prints `UCT Relative Strength · SPY` (meta.name +
  * the benchmark input; no rating, since the primed wire carries no payload): it
  * reads the definition and the benchmark, never the chart's symbol, so it never
- * names the stock. No instance field renames an `rsLine` pane (`display.name`
- * names only a source-labelled definition), so the two leader lines are told
- * apart by the drill's own key (`rsPairKey`), Line A above Line B.
- * ⛔ KNOWN, AND AN ENGINE CHANGE TO FIX: on a leader chart the engine's sibling
- * disambiguator (`readout.disambiguateSiblings`) names the one input the two
- * lines differ in, so the pane label reads `UCT Relative Strength · SPY
- * (mansfieldLength 200)` / `(mansfieldLength 201)` and the chip `UCT RS(SPY)
- * (mansfieldLength 200)`. The cache key has no component but the instance's
- * inputs (the chart's sym and tf are shared), and every input difference is
- * printed, so no instance-side choice can separate the two entries silently.
- * `studyRsOverlay.test.js` pins the label as rendered until that lands.
+ * names the stock. On a leader chart the two lines collide, and the engine's
+ * sibling disambiguator (`readout.disambiguateSiblings`, Phase 3 unit 3-09b)
+ * suffixes each with its instance `display.name` when every colliding sibling
+ * carries a distinct one: `UCT Relative Strength · SPY · Line A` / `· Line B`
+ * (chip `UCT RS(SPY) · Line A`). Without the names it would print the one input
+ * the lines differ in (`(mansfieldLength 200)`), which is why every leader line
+ * carries its label. The drill's own key (`rsPairKey`) says Line A is the upper.
+ * `studyRsOverlay.test.js` pins the labels as rendered.
  *
  * Pure apart from the cache write in `primeRsColumns`. No React, no fetch.
  */
@@ -201,9 +198,8 @@ export function primeRsColumns(item, sym, tf, opts = {}) {
  */
 export function rsInstances(primed) {
   if (!Array.isArray(primed) || !primed.length) return null
-  // A leader line carries its name as the instance's display name (`Line A`): inert for rsLine today (the engine
-  // prints `display.name` only for a source-labelled definition), and what the readout change in the 4-09 report
-  // would print in place of the sibling suffix.
+  // A leader line carries its name as the instance's display name (`Line A`): the sibling disambiguator prints it
+  // as the " · Line A" suffix in place of the slot input (3-09b).
   const out = primed.map((p) => ({ instanceId: p.instanceId, defId: RS_DEF_ID, inputs: { ...p.inputs },
     ...(p.label ? { display: { name: p.label } } : {}) }))
   if (primed.some((p) => p.instanceId === RS_REVEAL_INSTANCE_ID)) out.push({ instanceId: RS_INSTANCE_ID, deleted: true })

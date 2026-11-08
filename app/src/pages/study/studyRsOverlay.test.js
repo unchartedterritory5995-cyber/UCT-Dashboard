@@ -216,15 +216,17 @@ describe('the labels as rendered', () => {
       }
     }
   })
-  it('KNOWN (needs the readout.js change in the 4-09 report): the leader panes print the slot input', () => {
+  it('the leader panes are named by the instance display name (Line A, Line B), never the slot input', () => {
     const it0 = served(pair)
     const insts = rsInstances(primeRsColumns(it0, it0.id, 'D'))
+    expect(insts.map((i) => i.display?.name)).toEqual(['Line A', 'Line B'])
     const labels = renderedLabels(insts)
-    // what a member sees today on a hover; flip this test when the engine names siblings by display.name
+    // 3-09b: when every colliding sibling carries a distinct display.name, the disambiguator suffixes " · <name>"
     expect(labels).toEqual([
-      { chip: 'UCT RS(SPY) (mansfieldLength 200)', pane: 'UCT Relative Strength · SPY (mansfieldLength 200)', short: 'UCT RS · SPY (mansfieldLength 200)' },
-      { chip: 'UCT RS(SPY) (mansfieldLength 201)', pane: 'UCT Relative Strength · SPY (mansfieldLength 201)', short: 'UCT RS · SPY (mansfieldLength 201)' },
+      { chip: 'UCT RS(SPY) · Line A', pane: 'UCT Relative Strength · SPY · Line A', short: 'UCT RS · SPY · Line A' },
+      { chip: 'UCT RS(SPY) · Line B', pane: 'UCT Relative Strength · SPY · Line B', short: 'UCT RS · SPY · Line B' },
     ])
+    for (const l of labels) expect(JSON.stringify(l)).not.toContain('mansfieldLength')
     const names = Object.values(pair.reveal_json.example.names)
     for (const l of labels) for (const n of names) expect(JSON.stringify(l)).not.toContain(n)
   })
