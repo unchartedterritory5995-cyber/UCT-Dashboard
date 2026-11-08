@@ -112,15 +112,15 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N037, N043 | Boss graphics improved | Done | Boss on Hard mode's design, 2026-11-08 |
 | N050, N051, N055, N056, N059, N060 | Bugs: Boss stuck, taps that do nothing, Face the Boss dead, no charts in the sandbox | Done | fixed in their rounds; every mode played start to end by the capture rig on 2026-11-08 |
 | N063, N106 | Trap becomes Spot the Kicker, then Spot the Setup | Done | `challenges/SpotSetupChallenge.jsx` |
-| N039, N045, N052, N057 | Draw-it: the drawing tool lands where it is put; show the entry as a line and explain; easier stop placement; no throbbing gold | Not yet | still a lab prototype (`lab/pieces/Piece56DrawItV3.jsx`), not in the product |
+| N039, N045, N052, N057 | Draw-it: the drawing tool lands where it is put; show the entry as a line and explain; easier stop placement; no throbbing gold | Built 2026-11-08, waiting on his rank | `challenges/DrawItChallenge.jsx` + `POST /api/study/draw/score`: tap the entry then the stop (dashed lines, a chip to move either), scored against the setup's own plan; the review draws the plan beside yours with the chart key; no glow on the chart |
 | N017 | The loop more fun, exciting and interactive | Partly | the shared kit; the reward system is not built |
 
 ## 12. Study home, the course path and rewards
 
 | Notes | What he asked | Status | Where |
 |---|---|---|---|
-| N021, N022, N027, N030, N035 | The home and the course path like Duolingo, our brand, 3x the production, progressing sensibly (foundations and setups mixed) | Not yet | the next round (`IMPROVEMENT_WORKFLOW.md` round 24) |
-| N035 | A much better reward system and scoring | Not yet | rule 14 |
+| N021, N022, N027, N030, N035 | The home and the course path like Duolingo, our brand, 3x the production, progressing sensibly | Built 2026-11-08, waiting on his rank | `StudyLanding.jsx`: the player hero (level in 3D gold, tier, XP to go, streak and XP crests, today's one button), the Method's stations as coins on a winding gold road with the logo on the current one, Foundations as a coin grid, the games as plated cards, the trophy shelf; `SkillTrail` (a station's page): lessons as coins zigzagging down the page |
+| N035 | A much better reward system and scoring | Built 2026-11-08, waiting on his rank | levels with tiers on the home, the daily goal ring, the week, trophies actually granted by the server (award_badge had never been called), the trophy shelf with locked goals, the level bar and "Level up" on every end screen, new-trophy coins on the lesson's end |
 
 ## 12b. The look as a whole
 
@@ -152,9 +152,9 @@ for this section.
    the key (N003); Blitz drawing a fresh, deeper pool every run and naming only verified setups (N042).
 2. Done 2026-11-08 on his "Yes and Yes": the ticker on the lesson card (N029) and the full-screen answer (N071).
 4. Spot the Setup: the candidates gently brought in, so the choosable candles read at a glance (N040).
-5. The Study home and the course path, Duolingo-like, on the shared design (N021, N022, N027, N030, N035).
+5. Done 2026-11-08: the Study home and the course path (N021, N022, N027, N030), the station page.
 6. Done 2026-11-08: a short tutorial at the start of each game (N036).
-7. The reward system: XP, streaks, tiers that mean something across runs (N035).
-8. Draw-it in the product, on the shared design (N039, N045, N052, N057).
+7. Done 2026-11-08: the reward system (N035).
+8. Done 2026-11-08: Draw it in the product (N039, N045, N052, N057).
 9. Simpler lesson words, as drafts for his review (N087, N096, N116, N118).
 10. The replay within the day, once intraday bars are stored with each chart (N025).
