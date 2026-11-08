@@ -44,7 +44,9 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     'var bool state': 'var bool inpos = false\ninpos := strategy.position_size > 0\nplot(close, color = inpos ? color.green : color.red)\n',
     ':= inside a tainted if': 'var color c = color.red\nif strategy.position_size > 0\n    c := color.green\nplot(close, color = c)\n',
     'the else branch of a tainted if': 'var color c = color.red\nif strategy.position_size > 0\n    c := color.red\nelse\n    c := color.green\nplot(close, color = c)\n',
-    'switch arm': 'c = switch\n    strategy.position_size > 0 => color.green\n    => color.red\nplot(close, color = c)\n',
+    'only the else branch assigns': 'var color c = color.red\nvar int n = 0\nif strategy.position_size > 0\n    n := 1\nelse\n    c := color.green\nplot(close, color = c)\n',
+    'a statement switch arm assigns': 'var color c = color.red\nswitch\n    strategy.position_size > 0 => c := color.green\n    => c := color.red\nplot(close, color = c)\n',
+    'switch arm':'c = switch\n    strategy.position_size > 0 => color.green\n    => color.red\nplot(close, color = c)\n',
     'if-expression': 'c = if strategy.position_size > 0\n    color.green\nelse\n    color.red\nplot(close, color = c)\n',
     'array': 'a = array.from(strategy.position_size)\nplot(close, color = array.get(a, 0) > 0 ? color.green : color.red)\n',
     'array push': 'a = array.new_float(0)\narray.push(a, strategy.position_size)\nplot(close, color = array.get(a, 0) > 0 ? color.green : color.red)\n',
@@ -123,6 +125,13 @@ describe.each(['5', '6'])('W9-OQ-N2 v%s strategy() — a broker value reaching a
     expect(host(`${H}plot(strategy.equity)\n`).outputs[0].refusal.guard).toBe('pine:strategy-call')
     expect(host(`${H}plotshape(strategy.position_size > 0)\nplot(close)\n`).outputs[0].refusal.guard).toBe('pine:strategy-call')
     expect(namesRead(host(`${H}label.new(bar_index, high, str.tostring(strategy.opentrades))\nplot(close)\n`), 'strategy.opentrades')).toBe(true)
+  })
+
+  it('the screener lane is untouched: a strategy() script refuses there by its declaration', () => {
+    const t = translatePine(`${H}label.new(bar_index, high, "x", color = ${SC})\nplot(close, color = ${SC})\n`)
+    expect(t.ok).toBe(false)
+    expect(refusalsOf(t).some((r) => r.guard === 'pine:declaration-strategy')).toBe(true)
+    expect(refusalsOf(t).some((r) => / \(reaches `/.test(r.message))).toBe(false)
   })
 
   // ── the lanes agree ──────────────────────────────────────────────────────────────────
