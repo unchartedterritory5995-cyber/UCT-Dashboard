@@ -477,3 +477,20 @@
 /* kit v2 · the trade review on its own (the drills' answer card) */
 .tradeReview { display: grid; gap: 12px; margin: 14px 0 6px; }
 .tradeReview .coachBlock { padding-top: 12px; }
+
+/* THE VERDICT BAND (2026-11-08, the owner on the verdict line: "Decent, Can be a bit cooler"): the verdict lands on a band
+   in its own colour with a lit edge, the title glows, and one light crosses the band as it lands (calm: once, rule 18) */
+.prompt.promptOk, .prompt.promptBad { position: relative; overflow: hidden; padding: 14px 18px 14px 16px; border-radius: 18px; animation: bandIn .45s var(--k-ease) both; }
+.prompt.promptOk { background: linear-gradient(100deg, rgba(47, 175, 104, .24), rgba(47, 175, 104, .07) 55%, rgba(47, 175, 104, .02)); border: 1px solid rgba(47, 175, 104, .42);
+  box-shadow: inset 4px 0 0 #2faf68, 0 0 44px rgba(47, 175, 104, .16); }
+.prompt.promptBad { background: linear-gradient(100deg, rgba(223, 70, 70, .24), rgba(223, 70, 70, .07) 55%, rgba(223, 70, 70, .02)); border: 1px solid rgba(223, 70, 70, .42);
+  box-shadow: inset 4px 0 0 #df4646, 0 0 44px rgba(223, 70, 70, .16); }
+.prompt.promptOk::after, .prompt.promptBad::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .16) 46%, transparent 60%); transform: translateX(-110%); animation: bandSweep 1.1s ease .25s 1 forwards; }
+.promptOk .promptTitle { font-size: 31px; text-shadow: 0 0 22px rgba(47, 175, 104, .55); }
+.promptBad .promptTitle { font-size: 31px; text-shadow: 0 0 22px rgba(223, 70, 70, .5); }
+.promptOk .promptSub, .promptBad .promptSub { color: var(--k-ink-soft); }
+@keyframes bandIn { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes bandSweep { to { transform: translateX(110%); } }
+@media (max-width: 640px) { .promptOk .promptTitle, .promptBad .promptTitle { font-size: 23px; } .prompt.promptOk, .prompt.promptBad { padding: 12px 12px 12px 12px; } }
+@media (prefers-reduced-motion: reduce) { .prompt.promptOk::after, .prompt.promptBad::after { animation: none; display: none; } .prompt.promptOk, .prompt.promptBad { animation: none; } }

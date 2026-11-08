@@ -317,3 +317,4 @@
   .hudSlot [class*="flame"] { display: none; }
   .hudSlot [class*="cPip"] { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; }
 }
+.askHead { width: 100%; align-self: stretch; }

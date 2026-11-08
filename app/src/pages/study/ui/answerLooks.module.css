@@ -121,3 +121,14 @@
 @media (prefers-reduced-motion: reduce) {
   .lTile, .qTile, .tRow, .qLock { animation: none; }
 }
+
+/* THE QUESTION HEADER (2026-11-08, batch 24: "I think this text can be a bit better ... have a graphic designer ... take a
+   look"): the eyebrow becomes a lit tag, the question a display headline that wraps in balanced lines, the detail a
+   quieter line with its key words in gold */
+.lHead .lEyebrow { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; padding: 5px 12px 5px 10px; border-radius: 999px;
+  border: 1px solid rgba(220, 187, 94, .34); background: linear-gradient(180deg, rgba(220, 187, 94, .12), rgba(220, 187, 94, .04)); font-size: 11px; }
+.lHead .lEyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gb); box-shadow: 0 0 8px var(--g); }
+.lHead .lQ { margin-top: 4px; font-size: 34px; line-height: 1.1; letter-spacing: -.022em; text-wrap: balance; text-shadow: 0 2px 14px rgba(0, 0, 0, .6); }
+.lHead .lDetail { font-size: 16.5px; line-height: 1.55; color: #bdb7aa; text-wrap: pretty; }
+.lHead .lDetail b { color: var(--gb); font-weight: 800; }
+@media (max-width: 640px) { .lHead .lQ { font-size: 25px; } .lHead .lDetail { font-size: 15px; } }

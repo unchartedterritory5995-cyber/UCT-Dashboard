@@ -17,6 +17,8 @@ import Prompt from '../ui/Prompt'
 import UiStamp from '../ui/Stamp'
 import LessonCard from '../ui/LessonCard'
 import { reviewTrade } from './hardMode'
+import { tradeAnnotations } from './tradeMarks'
+import ChartKey from '../ui/ChartKey'
 import s2 from '../ui/study.module.css'
 import d5 from '../../../lab/duo.module.css'
 import ChallengeError from './ChallengeError'
@@ -67,14 +69,17 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
   const answer = state === 'ask' ? null : state === 'ok' ? picked : (item.choices.find((c) => c !== picked) ?? null)
   const signal = bars[n - 1]
   const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, signal, fwd) : null), [plan, state, signal, fwd])
+  // the trade on the chart and its key, as in Hard mode (the levels, BOUGHT, the targets, STOPPED OUT)
+  const marks = useMemo(() => (trade ? tradeAnnotations(trade, signal, all, n) : null), [trade, signal, all, n])
   return (
     <div className={`${s2.kit} ${s2.screen}`} data-testid="boss-question">
       {state !== 'ask' ? <span className={`${s2.flash} ${state === 'ok' ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       {state === 'bad' ? <div className={d5.vignetteRed} /> : null}
       <HudCombo label="Boss" step={idx} total={total} results={results} live={state === 'ask'} stepTestId="boss-step" />
       <div className={`${s2.heroChart} ${state === 'bad' ? s2.shake : ''}`}>
-        <ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={phone ? 340 : 480} annotations={ann} callouts={callouts} calloutLook={look} fetcher={fetcher} />
+        <ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={phone ? 340 : 480} annotations={marks || ann} callouts={callouts} calloutLook={look} fetcher={fetcher} />
       </div>
+      {trade ? <ChartKey trade={trade} testId="boss-key" /> : null}
       <AnswerLessonApp choices={item.choices} pick={pick} state={state} answer={answer} step={idx} total={total} hotkey
         eyebrow={<>Boss · chart {idx + 1} of {total} · one heart</>}
         question={item.q}
@@ -117,7 +122,7 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
     return (
       <div className={s2.kit}>
         <StartArena plate="Boss" title="Boss" caption="Does it fire on the last candle?" testId="boss-intro" startTestId="boss-start" hotkey
-          total={total || BOSS_TOTAL} stakes={[`${total || BOSS_TOTAL} charts`, 'one heart', 'one miss ends it']} ready={!!pool?.length} onStart={() => pool?.length && start()}
+          total={total || BOSS_TOTAL} stakes={[{ v: total || BOSS_TOTAL, l: 'charts' }, { v: 1, l: 'heart' }, { v: 1, l: 'miss ends it' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
           label={pool == null ? 'Loading the bank' : pool.length ? 'Face the boss' : 'No charts yet'}
           lead="Charts from the UCT bank, each with a setup named. Say whether it fires on the last candle. Clear them all with one heart and the trophy is yours."
           reward={<><Medal size={40} testId={null} /><span><b>{total || BOSS_TOTAL} for {total || BOSS_TOTAL}</b> wins the trophy</span></>} />

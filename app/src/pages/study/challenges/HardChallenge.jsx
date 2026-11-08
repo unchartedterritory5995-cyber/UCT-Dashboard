@@ -37,6 +37,8 @@ import { StartArena } from '../ui/StartLooks'
 import Prompt from '../ui/Prompt'
 import Stamp from '../ui/Stamp'
 import StudyChart from '../ui/StudyChart'
+import ChartKey from '../ui/ChartKey'
+import { tradeAnnotations } from './tradeMarks'
 import LessonCard from '../ui/LessonCard'
 import { Confetti } from '../ui/Stage'
 import { calloutLook, hardCallouts } from '../ui/callout'
@@ -47,43 +49,6 @@ import s from '../ui/study.module.css'
 // dashed rays from the signal candle for ENTRY, STOP, 2R and 3R, each with its price, and the action items on the bars
 // where they happened: BOUGHT (or SHORTED), 2R HIT, 3R HIT, STOPPED OUT. Without a plan, the line a close must not
 // break. Chips sit a few sessions apart so two never overlap.
-function tradeAnnotations(trade, signal, all, n) {
-  if (!trade || !signal || !all?.length) return null
-  const t0 = signal.t
-  // the level chips sit at the right of the chart, each a few sessions left of the one before, so they never land on the
-  // signal candle's markers (round 23: a SHORTED marker covered the STOP chip)
-  // at the far right, alternating two places, so neighbours (ENTRY / STOP, 2R / 3R) never share a spot and the hit marks
-  // on the bars stay clear of them
-  const chipAt = (k) => all[Math.max(n + 1, all.length - 3 - (k % 2) * 8)]?.t ?? all[all.length - 1]?.t ?? t0
-  const plan = trade.kind === 'plan'
-  const GOLD = '#dcbb5e', RED = '#df4646', GREEN = '#2faf68'
-  const lines = plan
-    ? [['ENTRY', trade.entry, GOLD], ['STOP', trade.stop, RED], ['2R', trade.t1, GREEN], ['3R', trade.t2, GREEN]]
-    : [[trade.short ? 'MUST STAY UNDER' : 'MUST HOLD', trade.line, RED]]
-  const out = []
-  for (const [k, [label, price, color]] of lines.entries()) {
-    if (!Number.isFinite(price)) continue
-    out.push({ id: `hard-${label}`, type: 'hray', points: [{ time: t0, price }], color, lineWidth: label === 'ENTRY' || label === 'STOP' ? 2 : 1.5, lineStyle: 'dashed', showPriceLabel: true })
-    out.push({ id: `hard-${label}-chip`, type: 'text', points: [{ time: chipAt(k), price }], text: `${label} ${price.toFixed(2)}`, color: '#0b0b0f', fontSize: 12, bgEnabled: true, bgColor: color, borderEnabled: false })
-  }
-  // the action items, on the bars where they happened
-  const at = (s2) => (s2 == null ? null : all[n - 1 + s2] || null)
-  const mark = (id, bar, text, color, below) => {
-    if (!bar) return
-    out.push({ id, type: 'text', points: [{ time: bar.t, price: below ? bar.l * 0.982 : bar.h * 1.018 }], text, color: '#0b0b0f', fontSize: 11, bgEnabled: true, bgColor: color, borderEnabled: false })
-  }
-  if (plan) {
-    const long = trade.long
-    mark('hard-act-in', at(0), long ? `▲ BOUGHT ${trade.entry.toFixed(2)}` : `▼ SHORTED ${trade.entry.toFixed(2)}`, GOLD, long)
-    if (trade.t1At != null && trade.t1At !== 0) mark('hard-act-t1', at(trade.t1At), '✓ 2R', GREEN, !long)
-    if (trade.t2At != null && trade.t2At !== 0) mark('hard-act-t2', at(trade.t2At), '✓ 3R', GREEN, !long)
-    if (trade.stoppedSession) mark('hard-act-stop', at(trade.stoppedSession), '✕ STOPPED OUT', RED, long)
-  } else if (trade.broke) {
-    mark('hard-act-broke', at(trade.broke), trade.short ? '✕ CLOSED OVER THE LINE' : '✕ CLOSED UNDER THE LINE', RED, !trade.short)
-  }
-  return out.length ? out : null
-}
-
 // The chart's gold label at the move's best point: with a plan, the advance from the entry at the trade's own best bar,
 // so the chart and the lesson say the same number; otherwise the culmination measured from the signal close.
 function peakOf(trade, culm, n, k) {
@@ -194,6 +159,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
         <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}
           callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} annotations={tradeLines} />
       </div>
+      {state !== 'ask' && trade ? <ChartKey trade={trade} testId="hard-key" /> : null}
       <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey
         onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
         onNext={() => onDone(state === 'ok', xp, ticker, fired === false ? NOTHING : item.name, picked)} nextLabel={last ? 'See the run' : 'Next'}

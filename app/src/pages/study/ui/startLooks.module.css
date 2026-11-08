@@ -98,3 +98,40 @@
   .go, .aCard, .artCandle, .artRing, .lHero, .bCard { animation: none !important; opacity: 1; }
   .artAvg { animation: none; stroke-dashoffset: 0; }
 }
+
+/* -- A . Arena, rebuilt on the owner's batch-24 ranks (2026-11-08): the art Weak, the title Weak, the stakes Weak, the
+   Start button Cut ("that graphic can still be dramatically improved") -- */
+.ma9 { stroke: #2faf68 !important; } .ma20 { stroke: #e0609a !important; } .ma50 { stroke: #4f86e8 !important; }
+.ma9, .ma20, .ma50 { stroke-width: 1.8 !important; opacity: .9; }
+.artVol { fill: #3a3d44; }
+.artUp .artVol { fill: rgba(47, 175, 104, .45); } .artDn .artVol { fill: rgba(223, 70, 70, .45); }
+.artLast .artVol { fill: #e3b51c; filter: none; }
+.artPill { opacity: 0; animation: pillIn .5s cubic-bezier(.2, .9, .2, 1.1) forwards; animation-delay: calc(.6s + var(--i) * 70ms); }
+.artPill rect { fill: rgba(9, 9, 11, .96); stroke: #dcbb5e; stroke-width: 1.75; filter: drop-shadow(0 0 10px rgba(220, 187, 94, .45)); }
+.artPill text { fill: #f6e2a0; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; text-anchor: middle; font-family: var(--font-sans, 'Instrument Sans', system-ui, sans-serif); }
+.artLeader { fill: none; stroke: #dcbb5e; stroke-width: 2; }
+@keyframes pillIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.aEyebrow { display: inline-flex; align-items: center; gap: 12px; margin-top: 6px; font-size: 11.5px; font-weight: 900; letter-spacing: .3em; text-transform: uppercase; color: var(--g); }
+.aEyebrow i { width: 44px; height: 1px; background: linear-gradient(90deg, transparent, var(--g)); }
+.aEyebrow i:last-child { background: linear-gradient(90deg, var(--g), transparent); }
+.aTitle.aTitle { position: relative; margin-top: -6px; font-size: 72px; letter-spacing: -.015em;
+  background: linear-gradient(100deg, #b8922f 0%, #e9cd77 22%, #fff6d6 34%, #e9cd77 46%, #b8922f 70%, #e9cd77 100%); background-size: 260% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #5a4410) drop-shadow(0 10px 26px rgba(220, 187, 94, .32)); animation: titleSheen 1.8s cubic-bezier(.4, 0, .2, 1) .5s 1 both; }
+@keyframes titleSheen { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.aChips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.aChip { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 124px; padding: 12px 16px 10px; border-radius: 16px; border: 1px solid #2c2e34;
+  background: linear-gradient(180deg, #1c1d21, #121316); box-shadow: inset 0 3px 0 var(--g), 0 12px 28px rgba(0, 0, 0, .45);
+  opacity: 0; animation: chipIn .4s cubic-bezier(.2, .9, .2, 1.1) forwards; animation-delay: calc(.9s + var(--i) * 90ms); }
+.aChip:nth-child(2) { box-shadow: inset 0 3px 0 #2faf68, 0 12px 28px rgba(0, 0, 0, .45); }
+.aChip:nth-child(3) { box-shadow: inset 0 3px 0 #ff9a2e, 0 12px 28px rgba(0, 0, 0, .45); }
+.aChip b { font-size: 26px; line-height: 1.05; font-weight: 900; color: var(--ink); font-variant-numeric: tabular-nums; }
+.aChip small { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #a39e94; }
+@keyframes chipIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.aGo { width: min(440px, 100%); margin-top: 4px; }
+@media (max-width: 640px) {
+  .aTitle.aTitle { font-size: 46px; }
+  .aChip { min-width: 0; flex: 1 1 28%; padding: 10px 8px 8px; } .aChip b { font-size: 20px; } .aChip small { font-size: 9.5px; letter-spacing: .06em; white-space: nowrap; }
+  .aGo { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .aTitle.aTitle, .aChip, .artPill { animation: none !important; opacity: 1; background-position: 50% 0; } }

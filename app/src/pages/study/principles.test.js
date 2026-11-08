@@ -70,5 +70,7 @@ describe("the owner's principles, on every Study screen", () => {
 
   it('rule 17: the lab Start button every older screen presses is the shared button', () => {
     expect(code(path.join(LAB, 'StartCard.jsx'))).toMatch(/<StudyButton\b/)
+    // and every mode's start screen (the arena; the owner cut its own button in batch 24)
+    expect(code(path.join(HERE, 'ui', 'StartLooks.jsx'))).toMatch(/st\.aGo[\s\S]{0,80}<StudyButton\b/)
   })
 })

@@ -23,6 +23,8 @@ import UiStamp from '../ui/Stamp'
 import LessonCard from '../ui/LessonCard'
 import sa from '../ui/answerLooks.module.css'
 import { reviewTrade } from './hardMode'
+import { tradeAnnotations } from './tradeMarks'
+import ChartKey from '../ui/ChartKey'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -96,7 +98,6 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
     })
   }, [cands, all, n, state, pick, word])
   const look = useMemo(() => calloutLook(phone), [phone])
-  const annotations = useMemo(() => (state !== 'ask' && n ? rayAt(vis[n - 1], 'l', { id: 'l', label: '' }) : null), [state, vis, n])
   const ok = pick === n - 1
   const check = async () => {
     if (pick == null || state !== 'ask') return
@@ -116,6 +117,11 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
   }
   const real = cands.find((c) => c.kind === 'real')
   const trade = useMemo(() => (plan && state !== 'ask' ? reviewTrade(plan, vis[n - 1], fwd) : null), [plan, state, vis, n, fwd])
+  // the trade on the chart and its key, as in Hard mode; a setup with no trade keeps the line at its close
+  const annotations = useMemo(() => {
+    if (state === 'ask' || !n) return null
+    return (trade && tradeAnnotations(trade, vis[n - 1], all, n)) || rayAt(vis[n - 1], 'l', { id: 'l', label: '' })
+  }, [state, trade, vis, all, n])
   // Hard mode's design (the owner, 2026-11-08: one design for every mode): the status line, the chart as the hero, the
   // question header, the cards, the verdict line, one Check bar, the coach's card
   return (
@@ -126,6 +132,7 @@ function Round({ idx, item, total, prefs, fetcher, onDone, results = [] }) {
         {state === 'ask' && pick == null ? <span className={lab.tapHint}>spot the {name}</span> : null}
         <ChallengeChart id={item.id} bars={all} view={state === 'ask' ? view : Math.min(all.length, view + (all.length - n))} height={phone ? 340 : 480} annotations={annotations} callouts={callouts} calloutLook={look} extra={extra} onBarTap={state === 'ask' ? tapBar : null} fetcher={fetcher} />
       </div>
+      {trade ? <ChartKey trade={trade} testId="spot-key" /> : null}
       {state === 'ask'
         ? <div className={sa.area}><div className={sa.lHead}><span className={sa.lEyebrow}>Spot the Setup · chart {idx + 1} of {total}</span><h2 className={sa.lQ}>Spot the {name}</h2><p className={sa.lDetail}>{cands.length} gold candles look alike; only one is the real {name}. Tap it on the chart or pick its card.</p></div></div>
         : <Prompt mood={ok ? 'happy' : 'oops'} tone={ok ? 'ok' : 'bad'} size={phone ? 40 : 48} title={ok ? `That is the ${name}.` : `Not that one.`}
@@ -187,7 +194,7 @@ export default function SpotSetupChallenge({ profile = null, fetcher = studyFetc
     return (
       <div className={s2.kit}>
         <StartArena plate="Spot" title="Spot the Setup" caption="Which candle is the real one?" testId="spot-intro" startTestId="spot-start" hotkey
-          total={total || ROUNDS} stakes={[`${total || ROUNDS} charts`, `${setups.length || 'every'} setup${setups.length === 1 ? '' : 's'}`, 'look-alikes measured']}
+          total={total || ROUNDS} stakes={[{ v: total || ROUNDS, l: 'charts' }, { v: setups.length || 'All', l: setups.length === 1 ? 'setup' : 'setups' }, { v: 3, l: 'candles each' }]}
           ready={!!total} onStart={() => total && setPhase('play')} label={pool == null ? 'Loading the bank' : total ? 'Start' : 'No charts yet'}
           lead="One chart, a few gold candles that look alike. Only one is the real setup named at the top. Tap it, then read how the others measure up against it." />
       </div>
