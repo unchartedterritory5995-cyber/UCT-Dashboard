@@ -387,3 +387,26 @@ describe('⭐ a drawing held as a map value counts as held in a collection (the 
     expect(fin.withheld.label).toBeUndefined()
   })
 })
+
+// ⭐ Rail gaps (review W6-T8 r1 note, and r0 "a put_all across key types (no rail seen)").
+describe('W6-T8 rail gaps — stops that must stay stops', () => {
+  // REF `bool`: "\"Bool\" variables can have values true or false." A v6 bool `get` of a missing key
+  // STOPS even as a statement (stricter than the coordinator's "statement gets answer na"): pinned so
+  // a later builder does not "fix" it to na.
+  const BM = 'm = map.new<string, bool>()\nm.put("t", close > open)\n'
+  it('a v6 bool-valued `get` of a missing key STOPS as a statement too (method and name form)', () => {
+    expect(() => runPine(`${BM}m.get("zz")\nplot(m.size())`)).toThrow(/`map\.get` answers `na` for a missing key.*W6-K1/)
+    expect(() => runPine(`${BM}map.get(m, "zz")\nplot(m.size())`)).toThrow(/`map\.get` answers `na` for a missing key.*W6-K1/)
+  })
+  it('CONTROL: the same statement on a present key is served', () => {
+    expect(runPine(`${BM}m.get("t")\nplot(m.size())`)[0]).toEqual(per(() => 1))
+  })
+  // REF map.put_all: "Puts all key-value pairs from the `id2` map into the `id` map" and states no
+  // key conversion; a map's keys are "all ... of the `keyType`" (REF map.new). Mixed key types stop.
+  it('`map.put_all` across key types stops by name; the same key type is served', () => {
+    expect(() => runPine('m = map.new<string, float>()\nm2 = map.new<int, float>()\nm2.put(1, close)\nmap.put_all(m, m2)\nplot(m.size())'))
+      .toThrow(/`map\.put_all`: a `map<int, …>` into a `map<string, …>`/)
+    expect(runPine('m = map.new<string, float>()\nm2 = map.new<string, float>()\nm2.put("a", close)\nmap.put_all(m, m2)\nplot(m.size())')[0])
+      .toEqual(per(() => 1))
+  })
+})

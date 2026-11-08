@@ -297,3 +297,25 @@ describe('W34-I6b item 4 — named constants typed string by the v6 reference', 
     expect(r.message).toMatch(V6_SENTENCE)
   })
 })
+
+// ⭐ Rail gap (review W34-I6b N1): item 4 reached through a DECLARATION, `var s = size.small` then
+// `s := switch …` with no default. The typing runs through `declaredTypeOfName` / `nameIsNumeric`,
+// not the arm itself, so it needs its own door rail. Door: master's answer (Q-A3, refused). Pane: the
+// same block is served, unmatched `na` (a `size.*` is a `const string` in the v6 reference).
+const B4V = (v) => `${head(v)}mode = input.string("Z", "m", options=["A", "B", "Z"])
+var s = size.small
+s := switch mode
+    "A" => size.small
+    "B" => size.large
+plot(na(s) ? 1 : 0)
+`
+describe('W34-I6b N1 — the `var s = size.*` / `s := switch` path', () => {
+  it('the OBJECT DOOR keeps master: refused by name (Q-A3)', () => {
+    const r = refusalOf(B4V(6), { objectDoor: true, objectTrees: [] })
+    expect(r.guard).toBe('runtime:object-door')
+    expect(r.message).toMatch(/can match no arm.*Q-A3/)
+  })
+  it('the same source OFF the door is served, unmatched na (the door rail\'s pair)', () => {
+    expect(run(B4V(6), { objectTrees: [] })).toEqual(Array(N).fill(1))
+  })
+})
