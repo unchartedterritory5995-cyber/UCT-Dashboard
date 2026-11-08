@@ -505,6 +505,17 @@ def _rs_plural(n: int, word: str) -> str:
     return f"{n} {word}" if n == 1 else f"{n} {word}s"
 
 
+#: U+00A0. A v4 summary keeps each number with its label or unit on one line
+#: (``R² 0.09`` broke between the two in the readout row, 3-14); the readout
+#: wraps at the ordinary spaces between the phrases instead.
+_RS_NBSP = " "
+
+
+def _rs_count(n: int, word: str) -> str:
+    """`_rs_plural` with the number held to its unit: ``6 weeks`` (v4 summaries)."""
+    return _rs_plural(n, word).replace(" ", _RS_NBSP, 1)
+
+
 def _rs_ago(n: int) -> str:
     """``today`` / ``1 bar ago`` / ``n bars ago`` (the readout's barsAgo rule)."""
     n = int(n)
@@ -1412,7 +1423,7 @@ def _rs_stale_tail(summary: str, idx: int, n: int, times) -> tuple[str, str | No
     asof = _rs_bar_ymd(times[idx]) if 0 <= idx < len(times) else None
     stale = idx < n - 1
     if stale and _rs_short_date(asof):
-        summary += f" · as of {_rs_short_date(asof)}"
+        summary += f" · as of {_rs_short_date(asof).replace(' ', _RS_NBSP)}"
     return summary, asof, stale
 
 
@@ -1432,7 +1443,7 @@ def _rs_rotation(rr: dict, times, ratio_len: int, mom_len: int, unit: str, joine
     idx = next((i for i in range(len(q) - 1, -1, -1) if q[i] is not None), None)
     if idx is None:
         need = ratio_len + mom_len - 1
-        return _rs_rotation_unavailable(f"needs {_rs_plural(need, unit)} of both (has {joined()})")
+        return _rs_rotation_unavailable(f"needs {_rs_count(need, unit)} of both (has {joined()})")
     code = q[idx]
     run = 0
     for i in range(idx, -1, -1):
@@ -1442,7 +1453,7 @@ def _rs_rotation(rr: dict, times, ratio_len: int, mom_len: int, unit: str, joine
             break
         run += 1
     name = rsmod.RRG_QUADRANT_NAMES[int(code) - 1]
-    summary, asof, stale = _rs_stale_tail(f"{name}, {_rs_plural(run, unit)}", idx, len(q), times)
+    summary, asof, stale = _rs_stale_tail(f"{name}, {_rs_count(run, unit)}", idx, len(q), times)
     return {"quadrant": name, "ratio": round(float(rr["rsRatio"][idx]), 2),
             "momentum": round(float(rr["rsMomentum"][idx]), 2), "inQuadrantBars": run,
             "asOf": asof, "stale": stale, "summary": summary, "reason": None}
@@ -1468,20 +1479,21 @@ def _rs_quality(bars, window: int, gap_pct: float) -> dict:
     from api.services import relative_strength as rsmod
     valid = [i for i, b in enumerate(bars) if _rs_num(b.get("c")) and b["c"] > 0]
     if len(valid) < window:
-        return _rs_quality_unavailable(f"needs {_rs_plural(window, 'session')} (has {len(valid)})",
+        return _rs_quality_unavailable(f"needs {_rs_count(window, 'session')} (has {len(valid)})",
                                        window, gap_pct)
     seg = [bars[i] for i in valid[-window:]]
     got = rsmod.clenow_columns(seg, window, gap_pct)
     score, annual, r2, gap = (got[k][-1] for k in ("clenowScore", "clenowAnnual", "clenowR2", "clenowGap"))
     if not (_rs_num(score) and _rs_num(annual) and _rs_num(r2)):
-        return _rs_quality_unavailable(f"the price was flat over the last {_rs_plural(window, 'session')}",
+        return _rs_quality_unavailable(f"the price was flat over the last {_rs_count(window, 'session')}",
                                        window, gap_pct)
     annual_pct = float(annual) * 100.0
     yearly = f"{round(annual_pct):,}"
     yearly = "0" if yearly == "-0" else yearly
     gap_b = gap == 1.0
-    summary = (f"Score {_rs_fixed(float(score), 2)}, {yearly}% a year, R² {_rs_fixed(float(r2), 2)}, "
-               f"{'has a gap' if gap_b else 'no gap'} over {_rs_gap_text(gap_pct)}%")
+    nb = _RS_NBSP
+    summary = (f"Score{nb}{_rs_fixed(float(score), 2)}, {yearly}% a year, R²{nb}{_rs_fixed(float(r2), 2)}, "
+               f"{'has a gap' if gap_b else 'no gap'} over{nb}{_rs_gap_text(gap_pct)}%")
     return {"score": round(float(score), 4), "annualPct": round(annual_pct, 1), "r2": round(float(r2), 4),
             "gap": gap_b, "window": int(window), "gapPct": float(gap_pct),
             "asOf": _rs_bar_ymd(bars[valid[-1]].get("t")), "summary": summary, "reason": None}
@@ -1504,7 +1516,7 @@ def _rs_vars(vc: dict, times, lookback: int, atr_length: int, ma_length: int, un
     idx = next((i for i in range(len(v_col) - 1, -1, -1) if _rs_num(v_col[i])), None)
     if idx is None:
         need = atr_length + lookback
-        return _rs_vars_unavailable(f"needs {_rs_plural(need, unit)} of both (has {joined()})",
+        return _rs_vars_unavailable(f"needs {_rs_count(need, unit)} of both (has {joined()})",
                                     lookback, atr_length, ma_length)
     v = float(v_col[idx])
     m = m_col[idx] if idx < len(m_col) and _rs_num(m_col[idx]) else None
@@ -1518,7 +1530,7 @@ def _rs_vars(vc: dict, times, lookback: int, atr_length: int, ma_length: int, un
         text = f"0.0, level with {bench_name}"
     else:
         have = sum(1 for x in v_col[:idx + 1] if _rs_num(x))
-        text = f"{_rs_signed(v)} against {bench_name}; {avg} needs {ma_length} readings (has {have})"
+        text = f"{_rs_signed(v)} against {bench_name}; {avg} needs {ma_length}{_RS_NBSP}readings (has {have})"
     summary, asof, stale = _rs_stale_tail(text, idx, len(v_col), times)
     return {"value": round(v, 4), "ma": round(float(m), 4) if m is not None else None,
             "state": int(code) if code else None, "stateWord": word, "lookback": int(lookback),

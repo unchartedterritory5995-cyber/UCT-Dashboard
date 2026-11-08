@@ -40,7 +40,9 @@ V4_COLUMNS = (tuple(rsmod.PHASE1_COLUMNS) + tuple(rd.RS_PHASE2A_WIRE_COLUMNS)
               + tuple(rd.RS_PHASE3_WIRE_COLUMNS))
 EVENT_COLUMNS = ("rsNH", "rsNHpartial", "pxNH", "rsNHbeforePx", "rsNHred", "rsNL", "gor", "rog",
                  "mansfieldCrossUp", "mansfieldCrossDown")
-ONE_BARS = re.compile(r"\b1 (bars|sessions|weeks|months|red days)\b")
+ONE_BARS = re.compile(r"\b1[ \u00a0](bars|sessions|weeks|months|red days)\b")
+#: U+00A0 (3-14): a v4 summary holds each number to its label or unit.
+NB = "\u00a0"
 TODAY = _dt.date(2026, 11, 7)
 
 
@@ -302,7 +304,7 @@ def test_rotation_columns_and_block_on_the_shared_rrg_fixture(v4_row, monkeypatc
     name = case["quadrantNames"][q[last] - 1]
     assert rot["quadrant"] == name and rot["inQuadrantBars"] == run
     assert rot["ratio"] == round(exp["rsRatio"][last], 2) and rot["momentum"] == round(exp["rsMomentum"][last], 2)
-    assert rot["summary"] == f"{name}, {run} week{'s' if run != 1 else ''}"
+    assert rot["summary"] == f"{name}, {run}{NB}week{'s' if run != 1 else ''}"
     assert rot["reason"] is None and rot["stale"] is False
 
 
@@ -314,18 +316,18 @@ def test_rotation_block_pure_cases():
     out = rsp._rs_rotation(rr, [20261102, 20261103, 20261104, 20261105, 20261106, 20261109], 10, 5,
                            "session", lambda: 0)
     assert out["quadrant"] == names[0] and out["inQuadrantBars"] == 3, "a gap bar is skipped, not a break"
-    assert out["summary"] == "Leading, 3 sessions"
+    assert out["summary"] == f"Leading, 3{NB}sessions"
     # read before the newest bar (a benchmark gap): it says when
     rr2 = {k: v[:-1] + [None] for k, v in rr.items()}
     out = rsp._rs_rotation(rr2, [20261102, 20261103, 20261104, 20261105, 20261106, 20261109], 10, 5,
                            "week", lambda: 0)
-    assert out["summary"] == "Leading, 2 weeks · as of Nov 6" and out["stale"] is True
+    assert out["summary"] == f"Leading, 2{NB}weeks · as of Nov{NB}6" and out["stale"] is True
     one = rsp._rs_rotation({"rsRatio": [99.0], "rsMomentum": [101.0], "quadrant": [4]}, [20261109], 10, 5,
                            "week", lambda: 0)
-    assert one["summary"] == "Improving, 1 week"
+    assert one["summary"] == f"Improving, 1{NB}week"
     none = rsp._rs_rotation({"rsRatio": [None] * 3, "rsMomentum": [None] * 3, "quadrant": [None] * 3},
                             [1, 2, 3], 10, 5, "week", lambda: 3)
-    assert none["quadrant"] is None and none["reason"] == "needs 14 weeks of both (has 3)"
+    assert none["quadrant"] is None and none["reason"] == f"needs 14{NB}weeks of both (has 3)"
     assert none["summary"] == none["reason"]
 
 
@@ -371,10 +373,12 @@ def test_quality_column_dot_and_block_on_the_shared_clenow_fixture(v4_row, monke
     assert q["annualPct"] == round(exp["clenowAnnual"][-1] * 100.0, 1)
     assert q["r2"] == round(exp["clenowR2"][-1], 4)
     assert q["gap"] is False and q["window"] == 20 and q["gapPct"] == 15.0
-    assert q["summary"] == "Score 0.00, 3% a year, R² 0.00, no gap over 15%"
+    # ⭐ 3-14: the readout wrapped between "R²" and "0.09" (a plain space); each
+    # number is held to its label now.
+    assert q["summary"] == f"Score{NB}0.00, 3% a year, R²{NB}0.00, no gap over{NB}15%"
     # bar 78's window still holds the bar-60 gap
     at78 = rsp._rs_quality(case["bars"][:79], 20, 15.0)
-    assert at78["gap"] is True and at78["summary"].endswith("has a gap over 15%")
+    assert at78["gap"] is True and at78["summary"].endswith(f"has a gap over{NB}15%")
     assert at78["score"] == round(exp["clenowScore"][78], 4)
 
 
@@ -389,14 +393,14 @@ def test_quality_block_equals_the_full_column_on_every_view(v4_row, monkeypatch)
 def test_quality_summary_patterns_and_reasons():
     rising = _bars([100.0 * (1.003 ** i) for i in range(120)])
     q = rsp._rs_quality(rising, 90, 15.0)
-    assert re.fullmatch(r"Score \d+\.\d\d, [\d,]+% a year, R² 1\.00, no gap over 15%", q["summary"]), q
+    assert re.fullmatch(r"Score\u00a0\d+\.\d\d, [\d,]+% a year, R²\u00a01\.00, no gap over\u00a015%", q["summary"]), q
     assert q["r2"] == 1.0 and q["annualPct"] > 100
-    assert rsp._rs_quality(rising[:40], 90, 15.0)["reason"] == "needs 90 sessions (has 40)"
+    assert rsp._rs_quality(rising[:40], 90, 15.0)["reason"] == f"needs 90{NB}sessions (has 40)"
     flat = rsp._rs_quality(_bars([50.0] * 95), 90, 12.5)
-    assert flat["reason"] == "the price was flat over the last 90 sessions" and flat["gapPct"] == 12.5
+    assert flat["reason"] == f"the price was flat over the last 90{NB}sessions" and flat["gapPct"] == 12.5
     falling = rsp._rs_quality(_bars([100.0 * (0.995 ** i) for i in range(95)]), 90, 12.5)
-    assert falling["summary"].startswith("Score -") and "% a year" in falling["summary"]
-    assert falling["summary"].endswith("no gap over 12.5%")
+    assert falling["summary"].startswith(f"Score{NB}-") and "% a year" in falling["summary"]
+    assert falling["summary"].endswith(f"no gap over{NB}12.5%")
     assert rsp._rs_fixed(-0.0004, 2) == "0.00" and rsp._rs_signed(-0.04) == "0.0"
 
 
@@ -425,7 +429,7 @@ def test_vars_column_and_block_on_the_shared_vars_fixture(v4_row, monkeypatch):
                                                          "Weak, improving", "Weak, falling")[code - 1]
         assert v["summary"].startswith(f"{v['stateWord']}: +2.6 against SPY, ")
     else:
-        assert v["summary"].startswith("+2.6 against SPY; its 50-session average needs 50 readings")
+        assert v["summary"].startswith(f"+2.6 against SPY; its 50-session average needs 50{NB}readings")
 
 
 def test_vars_summary_patterns():
@@ -439,10 +443,10 @@ def test_vars_summary_patterns():
     assert rsp._rs_vars(vc, [1], 60, 20, 50, "session", "SPY", lambda: 0)["summary"] == "0.0, level with SPY"
     vc = {"vars": [None, 1.0, 1.26], "varsMa": [None, None, None], "varsState": [None, None, None]}
     assert rsp._rs_vars(vc, [1, 2, 3], 60, 20, 50, "session", "SPY", lambda: 0)["summary"] == \
-        "+1.3 against SPY; its 50-session average needs 50 readings (has 2)"
+        f"+1.3 against SPY; its 50-session average needs 50{NB}readings (has 2)"
     none = rsp._rs_vars({"vars": [None], "varsMa": [None], "varsState": [None]}, [1], 60, 20, 50,
                         "session", "SPY", lambda: 1)
-    assert none["reason"] == "needs 80 sessions of both (has 1)" and none["value"] is None
+    assert none["reason"] == f"needs 80{NB}sessions of both (has 1)" and none["value"] is None
 
 
 # ── the three blocks on a young listing and on the no-ratio states ───────────
@@ -709,7 +713,7 @@ def test_phase3_copy_is_plain_words_with_the_plural_rule(tf, inputs, v4_row, mon
         for path, text in _strings(p[block], block):
             assert not ONE_BARS.search(text), (path, text)
             assert not re.search(r"\b(buy|sell)\b", text, re.I), (path, text)
-            assert text.isascii() or set(text) - set(map(chr, range(128))) <= {"²", "·"}, (path, text)
+            assert text.isascii() or set(text) - set(map(chr, range(128))) <= {"²", "·", NB}, (path, text)
             assert not text.endswith("."), (path, text)
     for path, text in _strings(p["checks"]["anchor"], "anchor"):
         assert not ONE_BARS.search(text), (path, text)

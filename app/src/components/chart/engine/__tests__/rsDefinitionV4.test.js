@@ -409,3 +409,14 @@ describe('3-14 · the empty-pane label prints the benchmark note', () => {
   })
 })
 
+
+// ⭐ UCT RS 3-14 — the inspector's label column: 'Momentum (bars)' wrapped to two
+// lines (sandbox capture v3on_desktop_dark_inspector_method), while 'Momentum
+// style' (the same column, the Plot style row) fits on one.
+describe('3-14 · the Rotation momentum length label fits its column', () => {
+  it('reads "Momentum bars", no longer than the style row that fits', () => {
+    const label = RS.inputs.find((i) => i.key === 'rrgMomentumLength').label
+    expect(label).toBe('Momentum bars')
+    expect(label.length).toBeLessThanOrEqual('Momentum style'.length)
+  })
+})
