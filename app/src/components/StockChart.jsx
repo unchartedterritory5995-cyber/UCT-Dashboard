@@ -884,6 +884,13 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard, rowA
  * caller's `onFinish`). Same popover as the menu and the cards (296 px on an RS
  * chip, the readout sheet on the phone); a card is capped at 60 + 240 characters
  * by `defSchema`, so it always fits without scrolling.
+ *
+ * ⛔ ONE HEIGHT FOR EVERY CARD (4-11 check: the phone sheet grew 237 → 258 px from
+ * one card to the next, over the RS pane it describes). Every card is laid out in
+ * ONE grid cell, the live one on top and the rest as invisible sizers, so the card
+ * area is always the TALLEST card's height at whatever width and font the sheet
+ * has: measured by layout, never a typed pixel guess. The sizers carry no
+ * `data-tour-*` hook, are hidden from assistive tech and take no pointer.
  */
 function LegendTourPage({ cards, step, name, onStep, onFinish }) {
   const total = cards.length
@@ -896,9 +903,17 @@ function LegendTourPage({ cards, step, name, onStep, onFinish }) {
         <span className={styles.legTourName}>{name}</span>
         <span className={styles.legTourCount} data-tour-count="">{`${at + 1} of ${total}`}</span>
       </div>
-      <div className={styles.legTourCard} data-tour-card={at} aria-live="polite">
-        <div className={styles.legTourTitle} data-tour-title="">{card.title}</div>
-        <div className={styles.legTourBody} data-tour-body="">{card.body}</div>
+      <div className={styles.legTourCards} data-tour-cards="">
+        <div className={styles.legTourCard} data-tour-card={at} aria-live="polite">
+          <div className={styles.legTourTitle} data-tour-title="">{card.title}</div>
+          <div className={styles.legTourBody} data-tour-body="">{card.body}</div>
+        </div>
+        {cards.map((c, i) => (
+          <div key={i} className={`${styles.legTourCard} ${styles.legTourSizer}`} aria-hidden="true" data-tour-sizer={i}>
+            <div className={styles.legTourTitle}>{c.title}</div>
+            <div className={styles.legTourBody}>{c.body}</div>
+          </div>
+        ))}
       </div>
       <div className={styles.legTourDots} aria-hidden="true">
         {cards.map((_, i) => (

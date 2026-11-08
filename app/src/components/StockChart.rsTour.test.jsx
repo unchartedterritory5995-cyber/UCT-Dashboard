@@ -22,6 +22,9 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 
 let clickHandlers = []
 vi.mock('lightweight-charts', () => {
@@ -388,6 +391,51 @@ describe('1 · the first-add tour', () => {
     } finally {
       window.matchMedia = realMatchMedia
     }
+  })
+
+  it('every card is laid out in one cell (the live card over invisible sizers), so the sheet never changes height', async () => {
+    const realMatchMedia = window.matchMedia
+    window.matchMedia = touchMedia
+    try {
+      const { apiRef } = await mount([], { onLegendStudyTap: () => {} })
+      await addFromLibrary(apiRef, TOUR_ID)
+      const tour = await waitTour()
+      const stack = tour.querySelector('[data-tour-cards]')
+      expect(stack).not.toBeNull()
+      const sizers = [...stack.querySelectorAll('[data-tour-sizer]')]
+      expect(sizers.map((n) => n.querySelector('div').textContent)).toEqual(TOUR.map((c) => c.title))
+      for (const n of sizers) {
+        expect(n.getAttribute('aria-hidden')).toBe('true')
+        expect(n.querySelector('[data-tour-title], [data-tour-body], button')).toBeNull()
+      }
+      // one live card, and it is the stack's first child on every step
+      for (const step of [0, 1, 2]) {
+        expect(tour.querySelectorAll('[data-tour-title]')).toHaveLength(1)
+        expect(stack.firstElementChild.getAttribute('data-tour-card')).toBe(String(step))
+        expect(cardTitle()).toBe(TOUR[step].title)
+        expect(stack.querySelectorAll('[data-tour-sizer]')).toHaveLength(TOUR.length)
+        if (step < 2) await click(tourEl().querySelector('[data-tour-next]'))
+      }
+    } finally {
+      window.matchMedia = realMatchMedia
+    }
+    // the CSS that makes it one height: one grid cell for every card, the sizers invisible and inert
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'StockChart.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = (sel) => {
+      // a top-level rule whose WHOLE selector list is `sel`: split on braces, compare the trimmed selector
+      const parts = css.split('}')
+      for (const p of parts) {
+        const at = p.indexOf('{')
+        if (at < 0) continue
+        if (p.slice(0, at).trim() === sel) return p.slice(at + 1).replace(/\s+/g, ' ').trim()
+      }
+      return null
+    }
+    expect(rule('.legTourCards')).toMatch(/display: grid/)
+    expect(rule('.legTourCards > .legTourCard')).toMatch(/grid-area: 1 \/ 1/)
+    expect(rule('.legTourSizer')).toMatch(/visibility: hidden/)
+    expect(rule('.legTourSizer')).toMatch(/pointer-events: none/)
   })
 
   it('the Chart Settings door: the toolbar API indicatorFirstAdd opens the same tour, under the same rules (4-11)', async () => {

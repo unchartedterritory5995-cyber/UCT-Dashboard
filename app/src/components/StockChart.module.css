@@ -1974,7 +1974,12 @@
 }
 .legTourName { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .legTourCount { flex: none; font-variant-numeric: tabular-nums; }
+/* ONE HEIGHT FOR EVERY CARD (4-11: the phone sheet jumped 237 -> 258 px between cards): every card sits
+   in the same grid cell, the live one over invisible sizers, so the area is always the tallest card's. */
+.legTourCards { display: grid; }
+.legTourCards > .legTourCard { grid-area: 1 / 1; }
 .legTourCard { display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 6px; }
+.legTourSizer { visibility: hidden; pointer-events: none; }
 .legTourTitle { font: 600 13px/18px 'Instrument Sans', sans-serif; color: var(--text-bright); }
 .legTourBody { font: 400 12px/18px 'Instrument Sans', sans-serif; color: var(--text); }
 .legTourDots { display: flex; gap: 5px; padding: 4px 10px 2px; }
