@@ -5,6 +5,12 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"ACV": {
+"industry": "Asset Management",
+"name": "Virtus Diversified Income & Convertible Fund",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "ADI": {
 "industry": "Semiconductors",
 "name": "Analog Devices, Inc.",
@@ -29,6 +35,12 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"AEM": {
+"industry": "Gold",
+"name": "Agnico Eagle Mines Limited",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
+},
 "AEP": {
 "industry": "Utilities - Regulated Electric",
 "name": "American Electric Power Company, Inc.",
@@ -41,6 +53,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"AG": {
+"industry": "Silver",
+"name": "First Majestic Silver Corp.",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
+},
 "AGCO": {
 "industry": "Farm & Heavy Construction Machinery",
 "name": "AGCO Corporation",
@@ -52,6 +70,12 @@
 "name": "Agios Pharmaceuticals, Inc.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"AGNC": {
+"industry": "REIT - Mortgage",
+"name": "AGNC Investment Corp.",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
 },
 "AI": {
 "industry": "Software - Infrastructure",
@@ -70,6 +94,24 @@
 "name": "Applied Industrial Technologies, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"AIZ": {
+"industry": "Insurance - Property & Casualty",
+"name": "Assurant, Inc.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
+"AKAM": {
+"industry": "Software - Infrastructure",
+"name": "Akamai Technologies, Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
+"AL": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
 },
 "ALGM": {
 "industry": "Semiconductors",
@@ -119,11 +161,23 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"ALV": {
+"industry": "Auto Parts",
+"name": "Autoliv, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "AME": {
 "industry": "Specialty Industrial Machinery",
 "name": "AMETEK, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"AMED": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
 },
 "AMPX": {
 "industry": "Electrical Equipment & Parts",
@@ -154,6 +208,12 @@
 "name": "Abercrombie & Fitch Co.",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"AOL": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
 },
 "AON": {
 "industry": "Insurance Brokers",
@@ -190,6 +250,18 @@
 "name": "AppLovin Corporation",
 "quote_type": "EQUITY",
 "sector": "Communication Services"
+},
+"ARCP": {
+"industry": null,
+"name": "Aristotle Core Plus Income ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"ARCT": {
+"industry": "Biotechnology",
+"name": "Arcturus Therapeutics Holdings Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
 },
 "ARKF": {
 "industry": null,
@@ -239,6 +311,18 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"AT": {
+"industry": null,
+"name": "Defiance Robotics Actuators ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"ATHR": {
+"industry": "Software - Application",
+"name": "Aether Holdings, Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
 "ATI": {
 "industry": "Metal Fabrication",
 "name": "ATI Inc.",
@@ -257,6 +341,12 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"AUOTY": {
+"industry": "Electronic Components",
+"name": "AUO Corporation",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
 "AVAV": {
 "industry": "Aerospace & Defense",
 "name": "AeroVironment, Inc.",
@@ -274,6 +364,12 @@
 "name": "Avery Dennison Corporation",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"AWAY": {
+"industry": null,
+"name": "Amplify Travel Tech ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "AWI": {
 "industry": "Building Products & Equipment",
@@ -323,6 +419,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"BAI": {
+"industry": null,
+"name": "iShares A.I. Innovation and Tech Active ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "BAP": {
 "industry": "Banks - Regional",
 "name": "Credicorp Ltd.",
@@ -347,11 +449,23 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"BBVA": {
+"industry": "Banks - Diversified",
+"name": "Banco Bilbao Vizcaya Argentaria, S.A.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "BCC": {
 "industry": "Lumber & Wood Production",
 "name": "Boise Cascade Company",
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
+},
+"BCE": {
+"industry": "Telecom Services",
+"name": "BCE Inc.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
 },
 "BDC": {
 "industry": "Communication Equipment",
@@ -370,6 +484,18 @@
 "name": "Becton, Dickinson and Company",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"BEC": {
+"industry": null,
+"name": "Corgi BE 2x Daily ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"BEZ": {
+"industry": null,
+"name": "Tradr 2X Short Be Daily ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "BFAM": {
 "industry": "Personal Services",
@@ -395,6 +521,12 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"BHC": {
+"industry": "Drug Manufacturers - Specialty & Generic",
+"name": "Bausch Health Companies Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "BHE": {
 "industry": "Electronic Components",
 "name": "Benchmark Electronics, Inc.",
@@ -406,6 +538,18 @@
 "name": "Biohaven Ltd.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"BID": {
+"industry": "Shell Companies",
+"name": "Tribeca Strategic Acquisition Corp.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
+"BIV": {
+"industry": null,
+"name": "Vanguard Intermediate-Term Bond Index Fund ETF Shares",
+"quote_type": "ETF",
+"sector": null
 },
 "BJRI": {
 "industry": "Restaurants",
@@ -443,17 +587,41 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"BLD": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
+},
 "BLDP": {
 "industry": "Electrical Equipment & Parts",
 "name": "Ballard Power Systems Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"BLL": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
+},
 "BMI": {
 "industry": "Scientific & Technical Instruments",
 "name": "Badger Meter, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"BMR": {
+"industry": "Software - Application",
+"name": "Beamr Imaging Ltd.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
+"BNDX": {
+"industry": null,
+"name": "Vanguard Total International Bond Index Fund ETF Shares",
+"quote_type": "ETF",
+"sector": null
 },
 "BNY": {
 "industry": "Banks - Diversified",
@@ -467,17 +635,53 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
+"BOT": {
+"industry": "Asset Management",
+"name": "Robostrategy, Inc.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
+"BOW": {
+"industry": "Insurance - Property & Casualty",
+"name": "Bowhead Specialty Holdings Inc.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "BOX": {
 "industry": "Software - Infrastructure",
 "name": "Box, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"BP": {
+"industry": "Oil & Gas Integrated",
+"name": "BP p.l.c.",
+"quote_type": "EQUITY",
+"sector": "Energy"
+},
+"BPOP": {
+"industry": "Banks - Regional",
+"name": "Popular, Inc.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
+"BRY": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
+},
 "BSBR": {
 "industry": "Banks - Regional",
 "name": "Banco Santander (Brasil) S.A.",
 "quote_type": "EQUITY",
 "sector": "Financial Services"
+},
+"BSV": {
+"industry": null,
+"name": "Vanguard Short-Term Bond Index Fund ETF Shares",
+"quote_type": "ETF",
+"sector": null
 },
 "BSX": {
 "industry": "Medical Devices",
@@ -490,6 +694,24 @@
 "name": "Bitdeer Technologies Group",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"BTI": {
+"industry": "Tobacco",
+"name": "British American Tobacco p.l.c.",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
+},
+"BUD": {
+"industry": "Beverages - Brewers",
+"name": "Anheuser-Busch InBev SA/NV",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
+},
+"BUFF": {
+"industry": null,
+"name": "Innovator Laddered Allocation Power Buffer ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "BURL": {
 "industry": "Apparel Retail",
@@ -521,6 +743,12 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
+"BZUN": {
+"industry": "Internet Retail",
+"name": "Baozun Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "CACC": {
 "industry": "Credit Services",
 "name": "Credit Acceptance Corporation",
@@ -533,11 +761,35 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"CAJPY": {
+"industry": "Computer Hardware",
+"name": "Canon Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
+"CAKE": {
+"industry": "Restaurants",
+"name": "The Cheesecake Factory Incorporated",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "CALM": {
 "industry": "Farm Products",
 "name": "Cal-Maine Foods, Inc.",
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
+},
+"CALY": {
+"industry": "Leisure",
+"name": "Callaway Golf Company",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"CAM": {
+"industry": null,
+"name": "AB California Intermediate Municipal ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "CARR": {
 "industry": "Building Products & Equipment",
@@ -556,6 +808,18 @@
 "name": "Casey's General Stores, Inc.",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"CATY": {
+"industry": "Banks - Regional",
+"name": "Cathay General Bancorp",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
+"CBD": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
 },
 "CBOE": {
 "industry": "Financial Data & Stock Exchanges",
@@ -629,6 +893,12 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"CFLT": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
+},
 "CFR": {
 "industry": "Banks - Regional",
 "name": "Cullen/Frost Bankers, Inc.",
@@ -640,6 +910,12 @@
 "name": "Cognex Corporation",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"CHA": {
+"industry": "Restaurants",
+"name": "Chagee Holdings Limited",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
 },
 "CHD": {
 "industry": "Household & Personal Products",
@@ -671,11 +947,23 @@
 "quote_type": "EQUITY",
 "sector": "Energy"
 },
+"CHRS": {
+"industry": "Biotechnology",
+"name": "Coherus Oncology, Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "CHRW": {
 "industry": "Integrated Freight & Logistics",
 "name": "C.H. Robinson Worldwide, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"CHT": {
+"industry": "Telecom Services",
+"name": "Chunghwa Telecom Co., Ltd.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
 },
 "CHWY": {
 "industry": "Internet Retail",
@@ -683,10 +971,22 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
+"CIB": {
+"industry": "Banks - Regional",
+"name": "Grupo Cibest S.A.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "CIBR": {
 "industry": null,
 "name": "First Trust NASDAQ Cybersecurity ETF",
 "quote_type": "ETF",
+"sector": null
+},
+"CIVI": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
 "sector": null
 },
 "CL": {
@@ -694,6 +994,12 @@
 "name": "Colgate-Palmolive Company",
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
+},
+"CLB": {
+"industry": "Oil & Gas Equipment & Services",
+"name": "Core Laboratories Inc.",
+"quote_type": "EQUITY",
+"sector": "Energy"
 },
 "CLDX": {
 "industry": "Biotechnology",
@@ -767,6 +1073,12 @@
 "quote_type": "EQUITY",
 "sector": "Energy"
 },
+"CNX": {
+"industry": "Oil & Gas E&P",
+"name": "CNX Resources Corporation",
+"quote_type": "EQUITY",
+"sector": "Energy"
+},
 "COTY": {
 "industry": "Household & Personal Products",
 "name": "Coty Inc.",
@@ -785,11 +1097,23 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"CPAY": {
+"industry": "Software - Infrastructure",
+"name": "Corpay, Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
 "CPB": {
 "industry": "Packaged Foods",
 "name": "The Campbell's Company",
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
+},
+"CPN": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
 },
 "CRML": {
 "industry": "Other Industrial Metals & Mining",
@@ -839,6 +1163,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"CTRA": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
+},
 "CTRE": {
 "industry": "REIT - Healthcare Facilities",
 "name": "CareTrust REIT, Inc.",
@@ -863,6 +1193,12 @@
 "quote_type": "EQUITY",
 "sector": "Real Estate"
 },
+"CUZ": {
+"industry": "REIT - Office",
+"name": "Cousins Properties Incorporated",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
+},
 "CVCO": {
 "industry": "Residential Construction",
 "name": "Cavco Industries, Inc.",
@@ -875,11 +1211,23 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"CWAN": {
+"industry": "Software - Application",
+"name": "Clearwater Analytics Holdings, Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
 "CXW": {
 "industry": "Security & Protection Services",
 "name": "CoreCivic, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"CYBR": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
 },
 "CYH": {
 "industry": "Medical Care Facilities",
@@ -929,6 +1277,18 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"DBC": {
+"industry": null,
+"name": "Invesco DB Commodity Index Tracking Fund",
+"quote_type": "ETF",
+"sector": null
+},
+"DBEF": {
+"industry": null,
+"name": "Xtrackers MSCI EAFE Hedged Equity ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "DBI": {
 "industry": "Footwear & Accessories",
 "name": "Designer Brands Inc.",
@@ -940,6 +1300,24 @@
 "name": "Donaldson Company, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"DCX": {
+"industry": "Auto Manufacturers",
+"name": "Digital Currency X Technology Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"DD": {
+"industry": "Specialty Chemicals",
+"name": "DuPont de Nemours, Inc.",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
+},
+"DGRO": {
+"industry": null,
+"name": "iShares Core Dividend Growth ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "DGX": {
 "industry": "Diagnostics & Research",
@@ -1019,11 +1397,41 @@
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
 },
+"DOX": {
+"industry": "Software - Infrastructure",
+"name": "Amdocs Limited",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
+"DPZ": {
+"industry": "Restaurants",
+"name": "Domino's Pizza, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "DRI": {
 "industry": "Restaurants",
 "name": "Darden Restaurants, Inc.",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"DRS": {
+"industry": "Aerospace & Defense",
+"name": "Leonardo DRS, Inc.",
+"quote_type": "EQUITY",
+"sector": "Industrials"
+},
+"DTE": {
+"industry": "Utilities - Regulated Electric",
+"name": "DTE Energy Company",
+"quote_type": "EQUITY",
+"sector": "Utilities"
+},
+"DTG": {
+"industry": null,
+"name": "DTE Energy Company 2021 Series ",
+"quote_type": "EQUITY",
+"sector": null
 },
 "DTM": {
 "industry": "Oil & Gas Midstream",
@@ -1048,6 +1456,12 @@
 "name": "DexCom, Inc.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"DXJ": {
+"industry": null,
+"name": "WisdomTree Japan Hedged Equity Fund",
+"quote_type": "ETF",
+"sector": null
 },
 "DY": {
 "industry": "Engineering & Construction",
@@ -1085,6 +1499,12 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"EFV": {
+"industry": null,
+"name": "iShares MSCI EAFE Value ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "EFX": {
 "industry": "Consulting Services",
 "name": "Equifax Inc.",
@@ -1121,6 +1541,12 @@
 "quote_type": "EQUITY",
 "sector": "Utilities"
 },
+"EL": {
+"industry": "Household & Personal Products",
+"name": "The Estée Lauder Companies Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
+},
 "ELS": {
 "industry": "REIT - Residential",
 "name": "Equity LifeStyle Properties, Inc.",
@@ -1150,6 +1576,12 @@
 "name": "Eastman Chemical Company",
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
+},
+"EMXC": {
+"industry": null,
+"name": "iShares MSCI Emerging Markets ex China ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "ENPH": {
 "industry": "Solar",
@@ -1193,6 +1625,12 @@
 "quote_type": "EQUITY",
 "sector": "Energy"
 },
+"EPI": {
+"industry": null,
+"name": "WisdomTree India Earnings Fund",
+"quote_type": "ETF",
+"sector": null
+},
 "EPR": {
 "industry": "REIT - Specialty",
 "name": "EPR Properties",
@@ -1205,11 +1643,23 @@
 "quote_type": "EQUITY",
 "sector": "Real Estate"
 },
+"EPU": {
+"industry": null,
+"name": "iShares MSCI Peru ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "EQIX": {
 "industry": "REIT - Specialty",
 "name": "Equinix, Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"ERJ": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
 },
 "ES": {
 "industry": "Utilities - Regulated Electric",
@@ -1228,6 +1678,18 @@
 "name": "Essex Property Trust, Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"ET": {
+"industry": "Oil & Gas Midstream",
+"name": "Energy Transfer LP",
+"quote_type": "EQUITY",
+"sector": "Energy"
+},
+"ETR": {
+"industry": "Utilities - Regulated Electric",
+"name": "Entergy Corporation",
+"quote_type": "EQUITY",
+"sector": "Utilities"
 },
 "ETSY": {
 "industry": "Internet Retail",
@@ -1265,11 +1727,47 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"EWH": {
+"industry": null,
+"name": "iShares MSCI Hong Kong ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"EWP": {
+"industry": null,
+"name": "iShares MSCI Spain ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"EWS": {
+"industry": null,
+"name": "iShares MSCI Singapore ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"EWU": {
+"industry": null,
+"name": "iShares MSCI United Kingdom ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"EXAS": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
+},
 "EXLS": {
 "industry": "Information Technology Services",
 "name": "ExlService Holdings, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"EXP": {
+"industry": "Building Materials",
+"name": "Eagle Materials Inc.",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
 },
 "EXPE": {
 "industry": "Travel Services",
@@ -1301,6 +1799,12 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"EZU": {
+"industry": null,
+"name": "iShares MSCI Eurozone ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "FAST": {
 "industry": "Industrial Distribution",
 "name": "Fastenal Company",
@@ -1313,6 +1817,18 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"FB": {
+"industry": null,
+"name": "ProShares S&P 500 Dynamic Daily Buffer ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"FBND": {
+"industry": null,
+"name": "Fidelity Total Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "FCEL": {
 "industry": "Electrical Equipment & Parts",
 "name": "FuelCell Energy, Inc.",
@@ -1322,6 +1838,12 @@
 "FCG": {
 "industry": null,
 "name": "First Trust Natural Gas ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"FDN": {
+"industry": null,
+"name": "First Trust Dow Jones Internet Index Fund",
 "quote_type": "ETF",
 "sector": null
 },
@@ -1340,6 +1862,12 @@
 "FFIN": {
 "industry": "Banks - Regional",
 "name": "First Financial Bankshares, Inc.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
+"FHI": {
+"industry": "Asset Management",
+"name": "Federated Hermes, Inc.",
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
@@ -1366,6 +1894,12 @@
 "name": "Floor & Decor Holdings, Inc.",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"FNDX": {
+"industry": null,
+"name": "Schwab Fundamental U.S. Large Company ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "FNV": {
 "industry": "Gold",
@@ -1397,6 +1931,12 @@
 "quote_type": "EQUITY",
 "sector": "Real Estate"
 },
+"FRO": {
+"industry": "Oil & Gas Midstream",
+"name": "Frontline plc",
+"quote_type": "EQUITY",
+"sector": "Energy"
+},
 "FRT": {
 "industry": "REIT - Retail",
 "name": "Federal Realty Investment Trust",
@@ -1421,11 +1961,53 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"FWONK": {
+"industry": "Entertainment",
+"name": "Formula One Group",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
+"FXF": {
+"industry": null,
+"name": "Invesco CurrencyShares Swiss Franc Trust",
+"quote_type": "ETF",
+"sector": null
+},
+"FXY": {
+"industry": null,
+"name": "Invesco CurrencyShares Japanese Yen Trust",
+"quote_type": "ETF",
+"sector": null
+},
 "G": {
 "industry": "Information Technology Services",
 "name": "Genpact Limited",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"GAP": {
+"industry": "Apparel Retail",
+"name": "The Gap, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"GATX": {
+"industry": "Rental & Leasing Services",
+"name": "GATX Corporation",
+"quote_type": "EQUITY",
+"sector": "Industrials"
+},
+"GBIL": {
+"industry": null,
+"name": "Goldman Sachs Access Treasury 0-1 Year ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"GBTC": {
+"industry": null,
+"name": "Grayscale Bitcoin Trust ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "GBX": {
 "industry": "Railroads",
@@ -1463,6 +2045,12 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"GEF": {
+"industry": "Packaging & Containers",
+"name": "Greif, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "GEHC": {
 "industry": "Medical Devices",
 "name": "GE HealthCare Technologies Inc.",
@@ -1474,6 +2062,12 @@
 "name": "Gen Digital Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"GENZ": {
+"industry": null,
+"name": "VanEck Digital Native Economy ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "GEO": {
 "industry": "Security & Protection Services",
@@ -1565,6 +2159,12 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"GOVT": {
+"industry": null,
+"name": "iShares U.S. Treasury Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "GPC": {
 "industry": "Auto Parts",
 "name": "Genuine Parts Company",
@@ -1607,6 +2207,12 @@
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
 },
+"GTLS": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
+},
 "GVA": {
 "industry": "Engineering & Construction",
 "name": "Granite Construction Incorporated",
@@ -1618,6 +2224,18 @@
 "name": "Guidewire Software, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"HAIN": {
+"industry": "Packaged Foods",
+"name": "The Hain Celestial Group, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
+},
+"HAWK": {
+"industry": "Aerospace & Defense",
+"name": "HawkEye 360, Inc.",
+"quote_type": "EQUITY",
+"sector": "Industrials"
 },
 "HBM": {
 "industry": "Copper",
@@ -1696,6 +2314,12 @@
 "name": "Home BancShares, Inc.",
 "quote_type": "EQUITY",
 "sector": "Financial Services"
+},
+"HOS": {
+"industry": "Marine Shipping",
+"name": "Hornbeck Offshore Services, Inc",
+"quote_type": "EQUITY",
+"sector": "Industrials"
 },
 "HQY": {
 "industry": "Health Information Services",
@@ -1781,11 +2405,29 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"HYLN": {
+"industry": "Electrical Equipment & Parts",
+"name": "Hyliion Holdings Corp.",
+"quote_type": "EQUITY",
+"sector": "Industrials"
+},
+"HYS": {
+"industry": null,
+"name": "PIMCO 0-5 Year High Yield Corporate Bond Exchange-Traded ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "IART": {
 "industry": "Medical Devices",
 "name": "Integra LifeSciences Holdings Corporation",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"IAUM": {
+"industry": null,
+"name": "iShares Gold Trust Micro",
+"quote_type": "ETF",
+"sector": null
 },
 "IBM": {
 "industry": "Information Technology Services",
@@ -1811,6 +2453,12 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"ICF": {
+"industry": null,
+"name": "iShares Select U.S. REIT ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "ICLN": {
 "industry": null,
 "name": "iShares Global Clean Energy ETF",
@@ -1823,11 +2471,35 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"IDCC": {
+"industry": "Software - Application",
+"name": "InterDigital, Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
+"IDR": {
+"industry": "Gold",
+"name": "Idaho Strategic Resources, Inc.",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
+},
 "IDYA": {
 "industry": "Biotechnology",
 "name": "IDEAYA Biosciences, Inc.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"IEI": {
+"industry": null,
+"name": "iShares 3-7 Year Treasury Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IEO": {
+"industry": null,
+"name": "iShares U.S. Oil & Gas Exploration & Production ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "IESC": {
 "industry": "Engineering & Construction",
@@ -1853,11 +2525,29 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"IGIB": {
+"industry": null,
+"name": "iShares 5-10 Year Investment Grade Corporate Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IGSB": {
+"industry": null,
+"name": "iShares 1-5 Year Investment Grade Corporate Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "IHI": {
 "industry": null,
 "name": "iShares U.S. Medical Devices ETF",
 "quote_type": "ETF",
 "sector": null
+},
+"IHS": {
+"industry": "Real Estate Services",
+"name": "IHS Holding Limited",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
 },
 "IIPR": {
 "industry": "REIT - Industrial",
@@ -1877,11 +2567,29 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"INFO": {
+"industry": null,
+"name": "Harbor PanAgora Dynamic Large Cap Core ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"ING": {
+"industry": "Banks - Diversified",
+"name": "ING Groep N.V.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "INGN": {
 "industry": "Medical Devices",
 "name": "Inogen, Inc.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"INGR": {
+"industry": "Packaged Foods",
+"name": "Ingredion Incorporated",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
 },
 "INSG": {
 "industry": "Communication Equipment",
@@ -1918,6 +2626,12 @@
 "name": "Intrepid Potash, Inc.",
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
+},
+"IQ": {
+"industry": "Entertainment",
+"name": "iQIYI, Inc.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
 },
 "IQV": {
 "industry": "Diagnostics & Research",
@@ -1961,11 +2675,29 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"IUSB": {
+"industry": null,
+"name": "iShares Core Universal USD Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IVE": {
+"industry": null,
+"name": "iShares S&P 500 Value ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "IVR": {
 "industry": "REIT - Mortgage",
 "name": "Invesco Mortgage Capital Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"IVW": {
+"industry": null,
+"name": "iShares S&P 500 Growth ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "IVZ": {
 "industry": "Asset Management",
@@ -1973,11 +2705,77 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"IWB": {
+"industry": null,
+"name": "iShares Russell 1000 ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IWN": {
+"industry": null,
+"name": "iShares Russell 2000 Value ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IWO": {
+"industry": null,
+"name": "iShares Russell 2000 Growth ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IWR": {
+"industry": null,
+"name": "iShares Russell Mid-Cap ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IWS": {
+"industry": null,
+"name": "iShares Russell Mid-Cap Value ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IWV": {
+"industry": null,
+"name": "iShares Russell 3000 ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IYE": {
+"industry": null,
+"name": "iShares U.S. Energy ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IYH": {
+"industry": null,
+"name": "iShares U.S. Healthcare ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IYM": {
+"industry": null,
+"name": "iShares U.S. Basic Materials ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"IYW": {
+"industry": null,
+"name": "iShares U.S. Technology ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "J": {
 "industry": "Engineering & Construction",
 "name": "Jacobs Solutions Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"JACK": {
+"industry": "Restaurants",
+"name": "Jack in the Box Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
 },
 "JBGS": {
 "industry": "REIT - Diversified",
@@ -2015,11 +2813,29 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
+"JNPR": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
+},
 "JOYY": {
 "industry": "Internet Content & Information",
 "name": "JOYY Inc.",
 "quote_type": "EQUITY",
 "sector": "Communication Services"
+},
+"JWN": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
+},
+"K": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
 },
 "KALU": {
 "industry": "Aluminum",
@@ -2075,6 +2891,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"KG": {
+"industry": "Insurance - Reinsurance",
+"name": "Kestrel Group Ltd",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "KGC": {
 "industry": "Gold",
 "name": "Kinross Gold Corporation",
@@ -2117,6 +2939,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"KOLD": {
+"industry": null,
+"name": "ProShares UltraShort Bloomberg Natural Gas",
+"quote_type": "ETF",
+"sector": null
+},
 "KOPN": {
 "industry": "Aerospace & Defense",
 "name": "Kopin Corporation",
@@ -2147,6 +2975,18 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"KSS": {
+"industry": "Department Stores",
+"name": "Kohl's Corporation",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"KT": {
+"industry": "Telecom Services",
+"name": "KT Corporation",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
 "KTB": {
 "industry": "Apparel Manufacturing",
 "name": "Kontoor Brands, Inc.",
@@ -2164,6 +3004,12 @@
 "name": "Direxion Daily S&P Biotech Bull 3X Shares",
 "quote_type": "ETF",
 "sector": null
+},
+"LAMR": {
+"industry": "REIT - Specialty",
+"name": "Lamar Advertising Company",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
 },
 "LAR": {
 "industry": "Other Industrial Metals & Mining",
@@ -2200,6 +3046,12 @@
 "name": "Leidos Holdings, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"LECO": {
+"industry": "Tools & Accessories",
+"name": "Lincoln Electric Holdings, Inc.",
+"quote_type": "EQUITY",
+"sector": "Industrials"
 },
 "LEN": {
 "industry": "Residential Construction",
@@ -2242,6 +3094,12 @@
 "name": "LKQ Corporation",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"LOGI": {
+"industry": "Computer Hardware",
+"name": "Logitech International S.A.",
+"quote_type": "EQUITY",
+"sector": "Technology"
 },
 "LULU": {
 "industry": "Apparel Retail",
@@ -2339,6 +3197,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"MBB": {
+"industry": null,
+"name": "iShares MBS ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "MC": {
 "industry": "Capital Markets",
 "name": "Moelis & Company",
@@ -2362,6 +3226,12 @@
 "name": "Pediatrix Medical Group, Inc.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"MEDI": {
+"industry": null,
+"name": "Harbor Health Care ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "MEOH": {
 "industry": "Chemicals",
@@ -2387,9 +3257,21 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"MGA": {
+"industry": "Auto Parts",
+"name": "Magna International Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "MHK": {
 "industry": "Furnishings, Fixtures & Appliances",
 "name": "Mohawk Industries, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"MI": {
+"industry": "Internet Retail",
+"name": "NFT Limited",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
@@ -2465,6 +3347,18 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"MOH": {
+"industry": "Healthcare Plans",
+"name": "Molina Healthcare, Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
+"MOMO": {
+"industry": "Internet Content & Information",
+"name": "Hello Group Inc.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
 "MORN": {
 "industry": "Financial Data & Stock Exchanges",
 "name": "Morningstar, Inc.",
@@ -2488,6 +3382,18 @@
 "name": "Medical Properties Trust, Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"MPW": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
+},
+"MRBK": {
+"industry": "Banks - Regional",
+"name": "Meridian Corporation",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
 },
 "MRCY": {
 "industry": "Aerospace & Defense",
@@ -2561,6 +3467,12 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"NCT": {
+"industry": "Marine Shipping",
+"name": "Intercont (Cayman) Limited",
+"quote_type": "EQUITY",
+"sector": "Industrials"
+},
 "NDAQ": {
 "industry": "Financial Data & Stock Exchanges",
 "name": "Nasdaq, Inc.",
@@ -2603,6 +3515,12 @@
 "quote_type": "EQUITY",
 "sector": "Energy"
 },
+"NFX": {
+"industry": null,
+"name": "Corgi NFLX 2x Daily ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "NGVT": {
 "industry": "Specialty Chemicals",
 "name": "Ingevity Corporation",
@@ -2614,6 +3532,12 @@
 "name": "NiSource Inc.",
 "quote_type": "EQUITY",
 "sector": "Utilities"
+},
+"NICE": {
+"industry": "Software - Application",
+"name": "NICE Ltd.",
+"quote_type": "EQUITY",
+"sector": "Technology"
 },
 "NLR": {
 "industry": null,
@@ -2638,6 +3562,12 @@
 "name": "NNN REIT, Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"NNOX": {
+"industry": "Medical Devices",
+"name": "Nano-X Imaging Ltd.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
 },
 "NOC": {
 "industry": "Aerospace & Defense",
@@ -2699,6 +3629,12 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"NTES": {
+"industry": "Electronic Gaming & Multimedia",
+"name": "NetEase, Inc.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
 "NUS": {
 "industry": "Household & Personal Products",
 "name": "Nu Skin Enterprises, Inc.",
@@ -2747,17 +3683,41 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"NXH": {
+"industry": "Internet Retail",
+"name": "Neighborhood Intelligence, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"NXL": {
+"industry": "Medical Devices",
+"name": "Nexalin Technology, Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "NXT": {
 "industry": "Solar",
 "name": "Nextpower Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"NYCB": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
+},
 "ODD": {
 "industry": "Household & Personal Products",
 "name": "Oddity Tech Ltd.",
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
+},
+"OEF": {
+"industry": null,
+"name": "iShares S&P 100 ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "OGE": {
 "industry": "Utilities - Regulated Electric",
@@ -2831,6 +3791,12 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
+"OSTK": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
+},
 "OSUR": {
 "industry": "Medical Instruments & Supplies",
 "name": "OraSure Technologies, Inc.",
@@ -2903,11 +3869,41 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"PBYI": {
+"industry": "Biotechnology",
+"name": "Puma Biotechnology, Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "PCAR": {
 "industry": "Farm & Heavy Construction Machinery",
 "name": "PACCAR Inc",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"PCG": {
+"industry": "Utilities - Regulated Electric",
+"name": "PG&E Corporation",
+"quote_type": "EQUITY",
+"sector": "Utilities"
+},
+"PCL": {
+"industry": null,
+"name": "PGIM Corporate Bond 10+ Year ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"PCLN": {
+"industry": null,
+"name": "Pictet Cleaner Planet ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"PCS": {
+"industry": null,
+"name": "PGIM Corporate Bond 0-5 Year ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "PCTY": {
 "industry": "Software - Application",
@@ -2921,6 +3917,12 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"PCY": {
+"industry": null,
+"name": "Invesco Emerging Markets Sovereign Debt ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "PD": {
 "industry": "Software - Application",
 "name": "PagerDuty, Inc.",
@@ -2932,6 +3934,18 @@
 "name": "Pebblebrook Hotel Trust",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"PEG": {
+"industry": "Utilities - Regulated Electric",
+"name": "Public Service Enterprise Group Incorporated",
+"quote_type": "EQUITY",
+"sector": "Utilities"
+},
+"PEN": {
+"industry": "Medical Devices",
+"name": "Penumbra, Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
 },
 "PENG": {
 "industry": "Information Technology Services",
@@ -2999,11 +4013,23 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"PLCE": {
+"industry": "Apparel Manufacturing",
+"name": "The Children's Place, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "PLD": {
 "industry": "REIT - Industrial",
 "name": "Prologis, Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"PLL": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
 },
 "PLMR": {
 "industry": "Insurance - Property & Casualty",
@@ -3095,6 +4121,12 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"PRGO": {
+"industry": "Drug Manufacturers - Specialty & Generic",
+"name": "Perrigo Company plc",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "PRTA": {
 "industry": "Biotechnology",
 "name": "Prothena Corporation plc",
@@ -3116,6 +4148,12 @@
 "PSLV": {
 "industry": null,
 "name": "Sprott Physical Silver Trust",
+"quote_type": "EQUITY",
+"sector": null
+},
+"PSTG": {
+"industry": null,
+"name": null,
 "quote_type": "EQUITY",
 "sector": null
 },
@@ -3167,11 +4205,23 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"QID": {
+"industry": null,
+"name": "ProShares UltraShort QQQ",
+"quote_type": "ETF",
+"sector": null
+},
 "QLYS": {
 "industry": "Software - Infrastructure",
 "name": "Qualys, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"QUAL": {
+"industry": null,
+"name": "iShares MSCI USA Quality Factor ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "RBA": {
 "industry": "Specialty Business Services",
@@ -3194,6 +4244,12 @@
 "RBLX": {
 "industry": "Electronic Gaming & Multimedia",
 "name": "Roblox Corporation",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
+"RCI": {
+"industry": "Telecom Services",
+"name": "Rogers Communications Inc.",
 "quote_type": "EQUITY",
 "sector": "Communication Services"
 },
@@ -3281,6 +4337,12 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"RHHBY": {
+"industry": "Drug Manufacturers - General",
+"name": "Roche Holding AG",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "RIO": {
 "industry": "Other Industrial Metals & Mining",
 "name": "Rio Tinto Group",
@@ -3304,6 +4366,12 @@
 "name": "RenaissanceRe Holdings Ltd.",
 "quote_type": "EQUITY",
 "sector": "Financial Services"
+},
+"ROC": {
+"industry": null,
+"name": "Rank One Computing Corporation",
+"quote_type": "EQUITY",
+"sector": null
 },
 "ROG": {
 "industry": "Electronic Components",
@@ -3413,11 +4481,59 @@
 "quote_type": "EQUITY",
 "sector": "Communication Services"
 },
+"SBH": {
+"industry": "Specialty Retail",
+"name": "Sally Beauty Holdings, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
+"SBRA": {
+"industry": "REIT - Healthcare Facilities",
+"name": "Sabra Health Care REIT, Inc.",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
+},
+"SCHF": {
+"industry": null,
+"name": "Schwab International Equity ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"SCHO": {
+"industry": null,
+"name": "Schwab Short-Term U.S. Treasury ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"SCHP": {
+"industry": null,
+"name": "Schwab U.S. TIPS ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"SCHX": {
+"industry": null,
+"name": "Schwab U.S. Large-Cap ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "SDRL": {
 "industry": "Oil & Gas Drilling",
 "name": "Seadrill Limited",
 "quote_type": "EQUITY",
 "sector": "Energy"
+},
+"SEAS": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
+},
+"SEE": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
 },
 "SF": {
 "industry": "Capital Markets",
@@ -3449,11 +4565,23 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
 },
+"SHEL": {
+"industry": "Oil & Gas Integrated",
+"name": "Shell plc",
+"quote_type": "EQUITY",
+"sector": "Energy"
+},
 "SHO": {
 "industry": "REIT - Hotel & Motel",
 "name": "Sunstone Hotel Investors, Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"SI": {
+"industry": null,
+"name": "Shoulder Innovations, Inc.",
+"quote_type": "EQUITY",
+"sector": null
 },
 "SIRI": {
 "industry": "Entertainment",
@@ -3473,6 +4601,18 @@
 "quote_type": "EQUITY",
 "sector": "Technology"
 },
+"SIX": {
+"industry": null,
+"name": "Global X Magnificent Six ETF",
+"quote_type": "EQUITY",
+"sector": null
+},
+"SJNK": {
+"industry": null,
+"name": "State Street SPDR Bloomberg Short Term High Yield Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "SKM": {
 "industry": "Telecom Services",
 "name": "SK Telecom Co., Ltd.",
@@ -3484,6 +4624,18 @@
 "name": "Tanger Inc.",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"SKX": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
+},
+"SKYD": {
+"industry": "Entertainment",
+"name": "Skydance Corporation",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
 },
 "SLAB": {
 "industry": "Semiconductors",
@@ -3557,6 +4709,12 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"SOXL": {
+"industry": null,
+"name": "Direxion Daily Semiconductor Bull 3X Shares",
+"quote_type": "ETF",
+"sector": null
+},
 "SPB": {
 "industry": "Household & Personal Products",
 "name": "Spectrum Brands Holdings, Inc.",
@@ -3581,10 +4739,28 @@
 "quote_type": "EQUITY",
 "sector": "Communication Services"
 },
+"SPLS": {
+"industry": null,
+"name": "PIMCO US Stocks PLUS Active Bond Exchange Traded Fund",
+"quote_type": "ETF",
+"sector": null
+},
+"SPXS": {
+"industry": null,
+"name": "Direxion Daily S&P 500 Bear 3X Shares",
+"quote_type": "ETF",
+"sector": null
+},
 "SQ": {
 "industry": null,
 "name": null,
 "quote_type": "NONE",
+"sector": null
+},
+"SRCL": {
+"industry": null,
+"name": null,
+"quote_type": null,
 "sector": null
 },
 "SRE": {
@@ -3592,6 +4768,12 @@
 "name": "Sempra",
 "quote_type": "EQUITY",
 "sector": "Utilities"
+},
+"SRLN": {
+"industry": null,
+"name": "State Street Blackstone Senior Loan ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "SSB": {
 "industry": "Banks - Regional",
@@ -3616,6 +4798,12 @@
 "name": "SS&C Technologies Holdings, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"SSO": {
+"industry": null,
+"name": "ProShares Ultra S&P500",
+"quote_type": "ETF",
+"sector": null
 },
 "SSP": {
 "industry": "Broadcasting",
@@ -3653,11 +4841,23 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"STK": {
+"industry": "Asset Management",
+"name": "Columbia Seligman Premium Technology Growth Fund",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "STLD": {
 "industry": "Steel",
 "name": "Steel Dynamics, Inc.",
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
+},
+"STM": {
+"industry": "Semiconductors",
+"name": "STMicroelectronics N.V.",
+"quote_type": "EQUITY",
+"sector": "Technology"
 },
 "STNE": {
 "industry": "Software - Infrastructure",
@@ -3671,11 +4871,23 @@
 "quote_type": "EQUITY",
 "sector": "Energy"
 },
+"STRA": {
+"industry": "Education & Training Services",
+"name": "Strategic Education, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
+},
 "STRL": {
 "industry": "Engineering & Construction",
 "name": "Sterling Infrastructure, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"STT": {
+"industry": "Asset Management",
+"name": "State Street Corporation",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
 },
 "STWD": {
 "industry": "REIT - Mortgage",
@@ -3695,11 +4907,35 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"SUI": {
+"industry": "REIT - Residential",
+"name": "Sun Communities, Inc.",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
+},
+"SUNE": {
+"industry": "Solar",
+"name": "SUNation Energy Inc.",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
 "SVC": {
 "industry": "REIT - Hotel & Motel",
 "name": "Service Properties Trust",
 "quote_type": "EQUITY",
 "sector": "Real Estate"
+},
+"SVIX": {
+"industry": null,
+"name": "-1x Short VIX Futures ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"SVM": {
+"industry": "Silver",
+"name": "Silvercorp Metals Inc.",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
 },
 "SWX": {
 "industry": "Utilities - Regulated Gas",
@@ -3712,6 +4948,12 @@
 "name": "Sensient Technologies Corporation",
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
+},
+"SY": {
+"industry": "Health Information Services",
+"name": "So-Young International Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
 },
 "SYF": {
 "industry": "Credit Services",
@@ -3742,6 +4984,12 @@
 "name": "Spyre Therapeutics, Inc.",
 "quote_type": "EQUITY",
 "sector": "Healthcare"
+},
+"SYY": {
+"industry": "Food Distribution",
+"name": "Sysco Corporation",
+"quote_type": "EQUITY",
+"sector": "Consumer Defensive"
 },
 "T": {
 "industry": "Telecom Services",
@@ -3815,11 +5063,53 @@
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
 },
+"TECL": {
+"industry": null,
+"name": "Direxion Daily Technology Bull 3X Shares",
+"quote_type": "ETF",
+"sector": null
+},
+"TEF": {
+"industry": null,
+"name": null,
+"quote_type": "EQUITY",
+"sector": null
+},
+"TEK": {
+"industry": null,
+"name": "iShares Technology Opportunities Active ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"TEL": {
+"industry": "Electronic Components",
+"name": "TE Connectivity plc",
+"quote_type": "EQUITY",
+"sector": "Technology"
+},
+"TELFY": {
+"industry": "Telecom Services",
+"name": "Telefónica, S.A.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
+"TEN": {
+"industry": "Oil & Gas Midstream",
+"name": "Tsakos Energy Navigation Limited",
+"quote_type": "EQUITY",
+"sector": "Energy"
+},
 "TENB": {
 "industry": "Software - Infrastructure",
 "name": "Tenable Holdings, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"TEO": {
+"industry": "Telecom Services",
+"name": "Telecom Argentina S.A.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
 },
 "TFC": {
 "industry": "Banks - Regional",
@@ -3832,6 +5122,12 @@
 "name": "TFI International Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"TFLO": {
+"industry": null,
+"name": "iShares Treasury Floating Rate Bond ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "TFX": {
 "industry": "Medical Instruments & Supplies",
@@ -3857,11 +5153,23 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"TII": {
+"industry": "Other Industrial Metals & Mining",
+"name": "Titan Mining Corporation",
+"quote_type": "EQUITY",
+"sector": "Basic Materials"
+},
 "TIMB": {
 "industry": "Telecom Services",
 "name": "TIM S.A.",
 "quote_type": "EQUITY",
 "sector": "Communication Services"
+},
+"TIP": {
+"industry": null,
+"name": "iShares TIPS Bond ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "TITN": {
 "industry": "Industrial Distribution",
@@ -3923,6 +5231,12 @@
 "quote_type": "EQUITY",
 "sector": "Communication Services"
 },
+"TMV": {
+"industry": null,
+"name": "Direxion Daily 20+ Year Treasury Bear 3X Shares",
+"quote_type": "ETF",
+"sector": null
+},
 "TNDM": {
 "industry": "Medical Devices",
 "name": "Tandem Diabetes Care, Inc.",
@@ -3934,6 +5248,12 @@
 "name": "TriNet Group, Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
+},
+"TNL": {
+"industry": "Travel Services",
+"name": "Travel + Leisure Co.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
 },
 "TQQQ": {
 "industry": null,
@@ -3971,6 +5291,12 @@
 "quote_type": "EQUITY",
 "sector": "Real Estate"
 },
+"TROW": {
+"industry": "Asset Management",
+"name": "T. Rowe Price Group, Inc.",
+"quote_type": "EQUITY",
+"sector": "Financial Services"
+},
 "TROX": {
 "industry": "Chemicals",
 "name": "Tronox Holdings plc",
@@ -4000,6 +5326,24 @@
 "name": "Tractor Supply Company",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"TSL": {
+"industry": null,
+"name": "GraniteShares 1.25x Long Tsla Daily ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"UB": {
+"industry": null,
+"name": "Corgi FTSE U.S. Treasury Bond ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"UCO": {
+"industry": null,
+"name": "ProShares Ultra Bloomberg Crude Oil",
+"quote_type": "ETF",
+"sector": null
 },
 "UCTT": {
 "industry": "Semiconductor Equipment & Materials",
@@ -4061,6 +5405,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"ULTI": {
+"industry": null,
+"name": "REX IncomeMax Option Strategy ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "UMC": {
 "industry": "Semiconductors",
 "name": "United Microelectronics Corporation",
@@ -4072,6 +5422,12 @@
 "name": "United Natural Foods, Inc.",
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
+},
+"UNG": {
+"industry": null,
+"name": "United States Natural Gas Fund, LP",
+"quote_type": "ETF",
+"sector": null
 },
 "UPBD": {
 "industry": "Software - Application",
@@ -4097,9 +5453,21 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"USG": {
+"industry": null,
+"name": "USCF Gold Strategy Plus Income Fund",
+"quote_type": "ETF",
+"sector": null
+},
 "USO": {
 "industry": null,
 "name": "United States Oil Fund, LP",
+"quote_type": "ETF",
+"sector": null
+},
+"UST": {
+"industry": null,
+"name": "ProShares Ultra 7-10 Year Treasury",
 "quote_type": "ETF",
 "sector": null
 },
@@ -4115,6 +5483,12 @@
 "quote_type": "EQUITY",
 "sector": "Consumer Defensive"
 },
+"UWM": {
+"industry": null,
+"name": "ProShares Ultra Russell2000",
+"quote_type": "ETF",
+"sector": null
+},
 "VAL": {
 "industry": "Oil & Gas Drilling",
 "name": "Valaris Limited",
@@ -4126,6 +5500,12 @@
 "name": "Vale S.A.",
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
+},
+"VB": {
+"industry": null,
+"name": "Vanguard Morningstar Small-Cap ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "VC": {
 "industry": "Auto Parts",
@@ -4139,6 +5519,12 @@
 "quote_type": "EQUITY",
 "sector": "Healthcare"
 },
+"VHT": {
+"industry": null,
+"name": "Vanguard Health Care Index Fund ETF Shares",
+"quote_type": "ETF",
+"sector": null
+},
 "VICI": {
 "industry": "REIT - Diversified",
 "name": "VICI Properties Inc.",
@@ -4150,6 +5536,12 @@
 "name": "Vicor Corporation",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"VIG": {
+"industry": null,
+"name": "Vanguard Dividend Appreciation Index Fund ETF Shares",
+"quote_type": "ETF",
+"sector": null
 },
 "VIK": {
 "industry": "Travel Services",
@@ -4187,6 +5579,12 @@
 "quote_type": "EQUITY",
 "sector": "Communication Services"
 },
+"VIXY": {
+"industry": null,
+"name": "ProShares VIX Short-Term Futures ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "VLTO": {
 "industry": "Pollution & Treatment Controls",
 "name": "Veralto Corporation",
@@ -4211,11 +5609,23 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"VMRK": {
+"industry": "REIT - Residential",
+"name": "AvalonBay Communities, Inc.",
+"quote_type": "EQUITY",
+"sector": "Real Estate"
+},
 "VNOM": {
 "industry": "Oil & Gas Midstream",
 "name": "Viper Energy, Inc.",
 "quote_type": "EQUITY",
 "sector": "Energy"
+},
+"VO": {
+"industry": null,
+"name": "Vanguard Morningstar Mid-Cap ETF",
+"quote_type": "ETF",
+"sector": null
 },
 "VOYA": {
 "industry": "Financial Conglomerates",
@@ -4301,6 +5711,18 @@
 "quote_type": "EQUITY",
 "sector": "Basic Materials"
 },
+"WEBX": {
+"industry": null,
+"name": "Corgi Chinese Internet 2x Daily ETF",
+"quote_type": "ETF",
+"sector": null
+},
+"WEC": {
+"industry": "Utilities - Regulated Electric",
+"name": "WEC Energy Group, Inc.",
+"quote_type": "EQUITY",
+"sector": "Utilities"
+},
 "WELL": {
 "industry": "REIT - Healthcare Facilities",
 "name": "Welltower Inc.",
@@ -4312,6 +5734,18 @@
 "name": "The Wendy's Company",
 "quote_type": "EQUITY",
 "sector": "Consumer Cyclical"
+},
+"WERN": {
+"industry": "Trucking",
+"name": "Werner Enterprises, Inc.",
+"quote_type": "EQUITY",
+"sector": "Industrials"
+},
+"WES": {
+"industry": "Oil & Gas Midstream",
+"name": "Western Midstream Partners, LP",
+"quote_type": "EQUITY",
+"sector": "Energy"
 },
 "WEX": {
 "industry": "Software - Infrastructure",
@@ -4385,6 +5819,12 @@
 "quote_type": "EQUITY",
 "sector": "Communication Services"
 },
+"WR": {
+"industry": null,
+"name": "Corgi U.S. War Machine ETF",
+"quote_type": "ETF",
+"sector": null
+},
 "WRB": {
 "industry": "Insurance - Property & Casualty",
 "name": "W. R. Berkley Corporation",
@@ -4403,6 +5843,12 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"WST": {
+"industry": "Medical Instruments & Supplies",
+"name": "West Pharmaceutical Services, Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "WTI": {
 "industry": "Oil & Gas E&P",
 "name": "W&T Offshore, Inc.",
@@ -4415,11 +5861,29 @@
 "quote_type": "EQUITY",
 "sector": "Financial Services"
 },
+"WTRG": {
+"industry": "Utilities - Regulated Water",
+"name": "Essential Utilities, Inc.",
+"quote_type": "EQUITY",
+"sector": "Utilities"
+},
 "WTW": {
 "industry": "Insurance Brokers",
 "name": "Willis Towers Watson Public Limited Company",
 "quote_type": "EQUITY",
 "sector": "Financial Services"
+},
+"WWE": {
+"industry": null,
+"name": null,
+"quote_type": null,
+"sector": null
+},
+"X": {
+"industry": null,
+"name": null,
+"quote_type": "NONE",
+"sector": null
 },
 "XEL": {
 "industry": "Utilities - Regulated Electric",
@@ -4445,17 +5909,41 @@
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"XRAY": {
+"industry": "Medical Instruments & Supplies",
+"name": "DENTSPLY SIRONA Inc.",
+"quote_type": "EQUITY",
+"sector": "Healthcare"
+},
 "XYL": {
 "industry": "Specialty Industrial Machinery",
 "name": "Xylem Inc.",
 "quote_type": "EQUITY",
 "sector": "Industrials"
 },
+"YELP": {
+"industry": "Internet Content & Information",
+"name": "Yelp Inc.",
+"quote_type": "EQUITY",
+"sector": "Communication Services"
+},
+"YETI": {
+"industry": "Leisure",
+"name": "YETI Holdings, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
+},
 "YOU": {
 "industry": "Software - Application",
 "name": "Clear Secure, Inc.",
 "quote_type": "EQUITY",
 "sector": "Technology"
+},
+"YUMC": {
+"industry": "Restaurants",
+"name": "Yum China Holdings, Inc.",
+"quote_type": "EQUITY",
+"sector": "Consumer Cyclical"
 },
 "ZBH": {
 "industry": "Medical Devices",

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import base64
 import gzip
+import re
 import json
 import sqlite3
 import zlib
@@ -27,7 +28,9 @@ def main(argv=None) -> int:
     if "uct_tests_datadir_" not in a.bars_db.replace("\\", "/"):
         raise SystemExit("refusing: --bars-db must be a local Temp sandbox (uct_tests_datadir_*)")
     txt = open(a.dump, encoding="utf-8", errors="ignore").read()
-    import re
+    # the pod's progress lines travel on stderr, and ssh can drop one INSIDE a batch line (seen 2026-11-08: "  200/1251
+    # tickers, 50 hits, 162s" in the middle of a blob); they have one exact shape, so they come out before decoding
+    txt = re.sub(r"  \d+/\d+ tickers, \d+ hits, \d+s\n", "", txt)
     hits = []
     for blob in re.findall(r"BEGIN_HITS[^\n]*\n(.*?)END_HITS", txt, flags=re.S):   # every batch printed
         hits += json.loads(zlib.decompress(base64.b64decode("".join(blob.split()))).decode())
