@@ -111,6 +111,11 @@ export const DROP_KEYS = Object.freeze({
     "a delete whose condition reads a drawing's state this chart cannot carry — the object Pine deletes stays"),
   // ⭐ C18 — a drawing whose values the runtime lane answers, one of whose
   // properties could not be read: dropped whole (`pine.js::rtHeldProp`).
+  // ⛔ HONESTY-SWEEP item 1 (2026-11-07) — a drawing (or a setter, or a cell) whose `style` /
+  // `size` / `position` can be `na`: what TradingView draws for that is not captured (Q-HS1),
+  // so it is withheld (`pine.js`, `ENUM_NA_SENTENCE`). A missing object, never an extra one.
+  'enum:na': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position can be `na` — withheld, never drawn with a default style'),
   'runtime:prop': C(LOSS.PARTIAL,
     'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),

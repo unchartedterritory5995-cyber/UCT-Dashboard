@@ -52,17 +52,15 @@ describe('⭐ map.new — REF: "Creates a new map object: a collection that cons
     expect(s).toEqual(per(() => 0))
     expect(t).toEqual(per((_, i) => i + 1))
   })
-  it('REF: "`keyType` can be a primitive type or enum. For example: int, float, bool, string, color." — each primitive is held', () => {
-    const [i, f, b, s, c] = runPine('mi = map.new<int, float>()\nmi.put(3, close)\nplot(mi.get(3))\n'
+  it('REF: "`keyType` can be a primitive type or enum. For example: int, float, bool, string, color." — each primitive is held (a colour key stops: HONESTY-SWEEP item 4, `honestySweep.test.js`)', () => {
+    const [i, f, b, s] = runPine('mi = map.new<int, float>()\nmi.put(3, close)\nplot(mi.get(3))\n'
       + 'mf = map.new<float, float>()\nmf.put(1.5, open)\nplot(mf.get(1.5))\n'
       + 'mb = map.new<bool, float>()\nmb.put(true, high)\nplot(mb.get(true))\n'
-      + 'ms = map.new<string, float>()\nms.put("k", low)\nplot(ms.get("k"))\n'
-      + 'mc = map.new<color, float>()\nmc.put(color.red, close)\nplot(mc.get(color.red))')
+      + 'ms = map.new<string, float>()\nms.put("k", low)\nplot(ms.get("k"))')
     expect(i).toEqual(per((b0) => b0.c))
     expect(f).toEqual(per((b0) => b0.o))
     expect(b).toEqual(per((b0) => b0.h))
     expect(s).toEqual(per((b0) => b0.l))
-    expect(c).toEqual(per((b0) => b0.c))
   })
   it('⛔ a key type this run does not hold (an enum waits for W6-T10) stops by name', () => {
     const budget = new Budget()

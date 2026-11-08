@@ -28,6 +28,8 @@
 //     `rows` reads after it);
 //   · (review N1) a zero-length row or column added (`add_row` on a k×0 matrix, `add_col` on
 //     a 0×k one) and an empty-range `submatrix` (a 0×k or k×0 result);
+//   · (HONESTY-SWEEP item 3, 2026-11-07) their twins: a zero-length `row` read out of a k×0
+//     matrix, a zero-length `col` out of a 0×k one, and a `fill` of an empty area;
 //   · `remove_row` / `remove_col` with the index omitted (the entry's default,
 //     `matrix.rows()`, is past the last row);
 //   · `min` / `max` / `avg` over an `na` cell or an empty matrix; `avg` of a
@@ -164,7 +166,11 @@ export function buildMatrixFns({ CollectionError, isUnfilled }) {
       fn: (a, budget) => {
         const m = a[0]
         budget.peak('ARRAY_ELEMENTS', m.cols)
-        return m.cells[indexArg(a[1], m.rows, 'matrix.row', 'row')].slice()
+        const r = indexArg(a[1], m.rows, 'matrix.row', 'row')
+        // ⛔ HONESTY-SWEEP item 3 — a ZERO-LENGTH row read out of a k×0 matrix, the read twin
+        // of review N1's zero-length `add_row` (W6-M1 row D05).
+        if (m.cols === 0) throw unpinned(`matrix.row of a zero-length row out of a matrix of ${m.rows}×${m.cols}`)
+        return m.cells[r].slice()
       },
     },
     'matrix.col': {
@@ -172,6 +178,8 @@ export function buildMatrixFns({ CollectionError, isUnfilled }) {
       fn: (a, budget) => {
         const m = a[0]
         const c = indexArg(a[1], m.cols, 'matrix.col', 'column')
+        // ⛔ HONESTY-SWEEP item 3 — a ZERO-LENGTH column out of a 0×k matrix (W6-M1 row D06).
+        if (m.rows === 0) throw unpinned(`matrix.col of a zero-length column out of a matrix of ${m.rows}×${m.cols}`)
         budget.peak('ARRAY_ELEMENTS', m.rows)
         return m.cells.map((row) => row[c])
       },
@@ -282,6 +290,11 @@ export function buildMatrixFns({ CollectionError, isUnfilled }) {
         const m = a[0]
         const [r0, r1] = rangeArg(a, 2, m.rows, 'matrix.fill', 'row')
         const [c0, c1] = rangeArg(a, 4, m.cols, 'matrix.fill', 'column')
+        // ⛔ HONESTY-SWEEP item 3 — an EMPTY area (a range `from == to`, or a 0×k / k×0 matrix
+        // filled whole), the twin of review N1's empty-range `submatrix` (W6-M1 row D07).
+        if (r0 === r1 || c0 === c1) {
+          throw unpinned(`matrix.fill of an empty area (rows [${r0}, ${r1}), columns [${c0}, ${c1}))`)
+        }
         budget.charge('ARRAY_OPERATIONS', Math.max(1, (r1 - r0) * (c1 - c0)))
         for (let r = r0; r < r1; r += 1) for (let c = c0; c < c1; c += 1) m.cells[r][c] = a[1]
       },
