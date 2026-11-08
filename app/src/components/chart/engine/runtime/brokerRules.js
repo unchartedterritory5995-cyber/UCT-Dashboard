@@ -46,6 +46,21 @@ export const BROKER_RULES = Object.freeze({
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
 
+/** ⭐ W9-T13a r3 — ONE AUTHORITY over "this figure is net of commission". A trade's profit is net of
+ *  its commission, and the commission is 0 only because the broker refuses any other declared
+ *  `commission_value` at build and an undeclared one is the version's default (B-DEFAULTS, "M
+ *  Commission: If not specified, the strategy applies no commission"). Neither the declaration the
+ *  broker holds nor the record says which, so every figure that reads a profit (its sign included)
+ *  rests on COMMISSION_RULE. `broker.js` (the strategy.* values) and `brokerReport.js` (the report)
+ *  both ask it from here. */
+export const COMMISSION_RULE = 'B-DEFAULTS'
+/** The broker's values that read a profit net of commission. */
+export const COMMISSION_NET_VALUES = Object.freeze([
+  'strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades',
+  'strategy.netprofit', 'strategy.netprofit_percent', 'strategy.grossprofit', 'strategy.grossloss',
+  'strategy.openprofit', 'strategy.equity', 'strategy.closedtrades.profit',
+])
+
 /** The capture row that pins `ruleId`; throws for a rule this table does not name. */
 export function ruleCapture(ruleId) {
   if (!Object.prototype.hasOwnProperty.call(BROKER_RULES, ruleId)) {

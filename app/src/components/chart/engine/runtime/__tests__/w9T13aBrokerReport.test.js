@@ -22,8 +22,8 @@ import {
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
 } from '../brokerReport.js'
 import { strategyRecordOf, strategyRecordShapeErrors } from '../strategyRecord.js'
-import { UNPINNED_GUARD, BROKER_RULE_IDS } from '../brokerRules.js'
-import { BROKER_UNSETTLED_GUARD, makeBroker } from '../broker.js'
+import { UNPINNED_GUARD, BROKER_RULE_IDS, COMMISSION_RULE, COMMISSION_NET_VALUES } from '../brokerRules.js'
+import { BROKER_UNSETTLED_GUARD, BROKER_OPS, makeBroker } from '../broker.js'
 import { pinned } from '../brokerPins.js'
 
 const ALL = () => true
@@ -187,19 +187,40 @@ describe('W9-T13a pin before serve (D1)', () => {
     }
   })
 
-  it('review N1, the broker too: strategy.wintrades / losstrades / eventrades ask B-DEFAULTS; closedtrades does not', () => {
+  // r3: every broker value net of commission asks COMMISSION_RULE (B-DEFAULTS); the list is TYPED here,
+  // not read from COMMISSION_NET_VALUES, so dropping a figure from the shared list goes red
+  const NET_FIGURES = ['strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades', 'strategy.netprofit',
+    'strategy.netprofit_percent', 'strategy.grossprofit', 'strategy.grossloss', 'strategy.openprofit',
+    'strategy.equity', 'strategy.closedtrades.profit']
+  const NOT_NET = ['strategy.closedtrades', 'strategy.opentrades', 'strategy.position_size', 'strategy.initial_capital']
+  const brokerWith = (isPinned) => {
     const b = makeBroker({ pyramiding: 1, defaultQty: 1, initialCapital: 100000, marginLong: 0, marginShort: 0, defaulted: {} },
-      { series: [[1], [1], [1], [1]], barTimes: [T0], isPinned: except('B-DEFAULTS') })
-    for (const fn of ['strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades']) {
-      let err = null
-      try { b.call(fn, [], 0) } catch (e) { err = e }
-      expect(err && err.guard).toBe(UNPINNED_GUARD)
-      expect(err.rule).toBe('B-DEFAULTS')
+      { series: [[1], [1], [1], [1]], barTimes: [T0], isPinned })
+    b.call('#symbol', [0.01, 1], 0)
+    return b
+  }
+  const callOf = (b, fn) => { try { return { v: b.call(fn, fn.endsWith('.profit') ? [0] : [], 0) } } catch (e) { return { e } } }
+
+  for (const fn of NET_FIGURES) {
+    it(`r3 broker: ${fn} is net of commission, so it asks B-DEFAULTS (refused unpinned without it)`, () => {
+      const { e } = callOf(brokerWith(except('B-DEFAULTS')), fn)
+      expect(e && e.guard).toBe(UNPINNED_GUARD)
+      expect(e.rule).toBe('B-DEFAULTS')
+    })
+  }
+  it('r3 broker: the values that read no profit do not ask B-DEFAULTS; with it pinned the net figures serve', () => {
+    const b = brokerWith(except('B-DEFAULTS'))
+    for (const fn of NOT_NET) expect(callOf(b, fn).e).toBeUndefined()
+    const all = brokerWith(ALL)
+    for (const fn of NET_FIGURES.filter((f) => !f.endsWith('.profit'))) expect(callOf(all, fn).e).toBeUndefined()
+  })
+  it('r3 ONE AUTHORITY: the shared list names real broker values, and every non-count report metric is one of them', () => {
+    for (const fn of COMMISSION_NET_VALUES) expect(Object.keys(BROKER_OPS)).toContain(fn)
+    expect([...COMMISSION_NET_VALUES].sort()).toEqual([...NET_FIGURES].sort())
+    expect(COMMISSION_RULE).toBe('B-DEFAULTS')
+    for (const m of Object.values(SERVED_METRICS)) {
+      if (m.kind !== 'count' && m.pine) expect(COMMISSION_NET_VALUES).toContain(m.pine)
     }
-    expect(b.call('strategy.closedtrades', [], 0)).toBe(0)
-    const all = makeBroker({ pyramiding: 1, defaultQty: 1, initialCapital: 100000, defaulted: {} },
-      { series: [[1], [1], [1], [1]], barTimes: [T0], isPinned: ALL })
-    expect(all.call('strategy.wintrades', [], 0)).toBe(0)
   })
 
   it('a fill rule the run used is unpinned: every metric and the whole list refuse (never a partial list)', () => {

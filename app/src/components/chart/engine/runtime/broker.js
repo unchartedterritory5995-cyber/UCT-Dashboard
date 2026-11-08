@@ -26,7 +26,7 @@
 // bar at all (`vm.js`), so no realtime tick ever reaches this file.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, COMMISSION_NET_VALUES } from './brokerRules.js'
 
 export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 export const BROKER_START_GUARD = 'runtime:strategy-start'
@@ -575,6 +575,8 @@ export function makeBroker(cfg, data) {
   }
   const value = (fn, a, bar) => {
     rule('B-VAL')
+    // [B-DEFAULTS] every figure net of commission rests on the commission being 0 (`brokerRules.js`)
+    if (COMMISSION_NET_VALUES.includes(fn)) rule(COMMISSION_RULE)
     switch (fn) {
       case 'strategy.position_size': return sum(open, (t) => t.dir * t.qty)
       case 'strategy.position_avg_price': {
@@ -584,11 +586,9 @@ export function makeBroker(cfg, data) {
       }
       case 'strategy.opentrades': return open.length
       case 'strategy.closedtrades': return closed.length
-      // [B-DEFAULTS] a trade's sign is the sign of its profit NET of commission, and the commission is
-      // 0 only by the declaration default when the script does not state it (W9-T13a review N1)
-      case 'strategy.wintrades': rule('B-DEFAULTS'); return closed.filter((t) => signOf(t, '`strategy.wintrades`') > 0).length
-      case 'strategy.losstrades': rule('B-DEFAULTS'); return closed.filter((t) => signOf(t, '`strategy.losstrades`') < 0).length
-      case 'strategy.eventrades': rule('B-DEFAULTS'); return closed.filter((t) => signOf(t, '`strategy.eventrades`') === 0).length
+      case 'strategy.wintrades': return closed.filter((t) => signOf(t, '`strategy.wintrades`') > 0).length
+      case 'strategy.losstrades': return closed.filter((t) => signOf(t, '`strategy.losstrades`') < 0).length
+      case 'strategy.eventrades': return closed.filter((t) => signOf(t, '`strategy.eventrades`') === 0).length
       case 'strategy.netprofit': exactClosed('`strategy.netprofit`'); needSymbol(); return netPts() * pointvalue
       case 'strategy.netprofit_percent':
         exactClosed('`strategy.netprofit_percent`'); needSymbol(); return (netPts() * pointvalue) / capital() * 100

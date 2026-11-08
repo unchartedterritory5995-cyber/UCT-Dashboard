@@ -32,7 +32,7 @@
 // is a row, and a row whose profit cannot be served carries that profit's refusal.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE } from './brokerRules.js'
 import { BROKER_UNSETTLED_GUARD } from './broker.js'
 import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf } from './strategyRecord.js'
 
@@ -166,7 +166,7 @@ export function strategyReportOf(rec, opts = {}) {
   const sum = (arr, f) => arr.reduce((s, t) => s + f(t), 0)
   // B-DEFAULTS: a closed trade's profit is net of commission, which is 0 only by the default when the
   // script does not declare it, so every value that reads a profit (its SIGN included) rests on it
-  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : ['B-DEFAULTS'])]
+  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : [COMMISSION_RULE])]
 
   // the sign of a closed trade's profit, off the tick grid only when it is further than one
   // tick-quantity from zero (the broker's `signOf`); null + refusal when it cannot be told
