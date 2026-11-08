@@ -7346,7 +7346,6 @@ export class Resolver {
      *  guard recorded in `blockRuns` for the bind to check; one with no guard
      *  to carry is kept in `condRefusal` and refuses the row. */
     this.condGate = false
-    this.condGateNotesOnly = false
     this.blockRuns = []
     this.condRefusal = null
     /** ⭐⭐ C45 — the script's functions that read their own history
@@ -7773,10 +7772,11 @@ export class Resolver {
     //     (`condRefusal`), never served;
     //   · every other resolver — the screener lane's among them, where nothing
     //     binds a chart — reads as it always has.
-    // ⛔ G-h — a paint's / a fill's colour notes the gates (`condGateNotesOnly`) but reads
-    // a one-run binding the every-bar way, as it always did: its gate then says where
-    // the block runs, and the bind withholds the colour there.
-    if (!this.refuseCondCalls && this.condGate && !this.condGateNotesOnly && this.mintOnly === 0 && bound && bound.oneExecution) {
+    // ⭐ G-h (r1) — a paint's / a fill's colour reads a one-run binding the way a plot
+    // does (`holderColourGates` turns `condGate` on): ⚰️ r0 read it the every-bar way
+    // (`condGateNotesOnly`), and `if barstate.islast` / `s := ta.sma(close, 3)` painted
+    // the every-bar mean on the last bar with no gate, where the plot reads Pine's `na`.
+    if (!this.refuseCondCalls && this.condGate && this.mintOnly === 0 && bound && bound.oneExecution) {
       this.mintOnlyRead(() => this.resolveBinding(bound, tok, name))
       const minted = this.paramMint
       this.paramMint = null
@@ -15367,6 +15367,11 @@ export function chartOnlySentence(word, how = {}) {
     return `${code} draws a horizontal level; ${how.site === 'bound' ? 'assigned to a name it' : 'its price is not a fixed number this door can read, so it'} is not carried, and ${SCREEN_READS} either`
   }
   if (word === 'fill') {
+    // ⭐ G-h (r1) — a band withheld because its colour reads a block this chart cannot
+    // gate: the gate's own sentence (`resolveFillHandles`), not the edges'
+    if (host && how.site === 'top' && typeof how.withheld === 'string' && how.withheld) {
+      return `${code} is not drawn: its colour is withheld — ${how.withheld}`
+    }
     if (how.site === 'top' && how.band) {
       return host
         ? `${code} is carried as the band between its two plots; it is not a column, so ${SCREEN_READS}`
@@ -27087,10 +27092,15 @@ function translatePineResult(source, opts = {}) {
     for (const p of chartOnlyPending) {
       if (p.paint) p.how.paint = paintRecs ? paintRecs[paints.indexOf(p.paint)] || null : null
       if (p.fillRec) p.how.band = carriedFills.has(p.fillRec)
+      // ⭐ G-h (r1) — a band G-h withheld says why, by its gate's own sentence
+      if (p.fillRec && withheldFills.has(p.fillRec)) p.how.withheld = withheldFills.get(p.fillRec)
       p.note.message = chartOnlySentence(p.word, p.how)
     }
   }
   const carriedFills = new Set()
+  /** ⭐ G-h (r1) — the fills whose colour read a block mark with no guard to carry:
+   *  fill → the refusal's sentence (`resolveFillHandles`). */
+  const withheldFills = new Map()
   sayChartOnly()
   // A paint that DRAWS: carried and not hidden by the author (`display.none`).
   const paintDraws = !!(paintRecs && paintRecs.some((p) => !p.withheld && !p.hidden && !p.na))
@@ -27270,7 +27280,7 @@ function translatePineResult(source, opts = {}) {
 
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
-  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, version, hostLane: isHostLane(opts) })
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
   sayChartOnly()
 
   const result = {
@@ -29363,9 +29373,7 @@ function holderColourGates(resolver, read) {
   const heldRefusal = resolver.condRefusal
   resolver.condRefusal = null
   const prev = resolver.condGate
-  const prevNotes = resolver.condGateNotesOnly
   resolver.condGate = true
-  resolver.condGateNotesOnly = true
   let value
   let runs
   let refusal = null
@@ -29373,7 +29381,6 @@ function holderColourGates(resolver, read) {
     value = read()
   } finally {
     resolver.condGate = prev
-    resolver.condGateNotesOnly = prevNotes
     runs = resolver.blockRuns.splice(before)
     refusal = resolver.condRefusal
     resolver.condRefusal = heldRefusal
@@ -29458,7 +29465,14 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     // its rules (a colour with no rule was folded to one value on every bar: nothing to
     // gate). A block mark with no guard to carry (`condRefusal`) is not carried at all:
     // a withheld fill colour draws nothing, so the band is withheld whole.
-    if (fillGates && fillGates.refusal) continue
+    if (fillGates && fillGates.refusal) {
+      // ⛔ r1 — by name: the member is told the band is withheld and why, never that
+      // its edges are not plots (`chartOnlySentence`'s `how.withheld`)
+      if (ctx && ctx.withheld) {
+        ctx.withheld.set(f, String((fillGates.refusal && fillGates.refusal.message) || fillGates.refusal))
+      }
+      continue
+    }
     if (fillGates && fillGates.gates.length) hangColourGates(pres, fillGates.gates)
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)

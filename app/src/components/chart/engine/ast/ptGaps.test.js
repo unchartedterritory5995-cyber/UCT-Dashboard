@@ -76,6 +76,21 @@ describe('L3 — a nested arm runs where every enclosing stamped arm is taken', 
     expect(printFormula(armRunGates([viaAccum], TABLE)[1].guard)).toBe('close > 2')
   })
 
+  it('⛔ r1 — nor into a MULTI-STATE recurrence (`accumK`): the nested guard is its own test there', () => {
+    const name = Object.keys(TABLE.functions).find((k) => TABLE.functions[k] && TABLE.functions[k].multiState)
+    expect(name).toBeTruthy()
+    const ms = TABLE.functions[name].multiState
+    const inner = stampArmRuns(op('?:', b, call('sma', series('close'), num(3)), series('close')), [{ ...RUN, why: 'inner' }])
+    const args = []
+    args[ms.output] = num(0)
+    args[ms.warmup] = num(250)
+    ms.seeds.forEach((i) => { args[i] = num(0) })
+    ms.updates.forEach((i, k) => { args[i] = k === 0 ? op('+', series(ms.binds[k]), inner) : series(ms.binds[k]) })
+    const outer = stampArmRuns(op('?:', a, call(name, ...args), series('open')), [{ ...RUN, why: 'outer' }])
+    const gates = armRunGates([outer], TABLE)
+    expect(gates.map((g) => [g.why, printFormula(g.guard)])).toEqual([['outer', 'close > 5'], ['inner', 'close > 2']])
+  })
+
   it('one inner node under two different enclosing arms carries both gates', () => {
     const inner = stampArmRuns(op('?:', b, call('sma', series('close'), num(3)), series('close')), [{ ...RUN, why: 'inner' }])
     const x = stampArmRuns(op('?:', a, inner, num(0)), [{ ...RUN, why: 'x' }])
@@ -216,6 +231,43 @@ describe('G-h — a paint\'s and a fill\'s colour honour C48\'s block gates', ()
     expect(colours.some((c) => c.gates.some((g) => /close > open/.test(printFormula(g.guard))))).toBe(true)
   })
 
+  // a guard that reads the very `var` its block fills: no standalone guard can be carried
+  const selfRef = (...body) => ['//@version=6', 'indicator("gh", overlay = true)', 'var float s = na',
+    'if na(s) or s > s[1]', '    s := ta.sma(close, 3)', ...body].join('\n')
+
+  it('⛔ r1 — a paint whose block gate has no guard to carry is WITHHELD by name (`pine:block`), never drawn', () => {
+    const t = translatePine(selfRef('plot(close, "C")', 'bgcolor(close > s ? color.red : color.green)'), { strict: true, paramManifest: true })
+    const paint = t.presentation.paints[0]
+    expect(paint.withheld && paint.withheld.code).toBe('pine:block')
+    expect(paint.withheld.reason).toMatch(/`ta\.sma` inside a block/)
+    expect(paint.colorCondition).toBeUndefined()
+  })
+
+  it('⛔ r1 — a fill whose block gate has no guard to carry is not drawn, and the member is told WHY, by name', () => {
+    const t = translatePine(selfRef('p1 = plot(close, "C")', 'p2 = plot(open, "O")', 'fill(p1, p2, color = close > s ? color.red : color.green)'),
+      { strict: true, paramManifest: true })
+    expect(t.presentation.fills || []).toEqual([])
+    const msgs = []
+    JSON.stringify(t, (k, v) => { if (typeof v === 'string' && v.startsWith('`fill`')) msgs.push(v); return v })
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0]).toMatch(/^`fill` is not drawn: its colour is withheld — .*`ta\.sma` inside a block/)
+    expect(msgs[0]).not.toMatch(/edges/)
+    // 🔴 CONTROL — the same fill over a block that reads no call is drawn, and said so
+    const ok = translatePine(['//@version=6', 'indicator("gh", overlay = true)', 'p1 = plot(close, "C")', 'p2 = plot(open, "O")',
+      'fill(p1, p2, color = close > open ? color.red : color.green)'].join('\n'), { strict: true, paramManifest: true })
+    expect(ok.presentation.fills).toHaveLength(1)
+  })
+
+  it('⭐ r1 — a paint reads a ONE-RUN block the way a plot does (C42): the one-run value, not the every-bar call', () => {
+    const t = translatePine(['//@version=6', 'indicator("gh", overlay = true)', 'float s = na', 'if barstate.islast',
+      '    s := ta.sma(close, 3)', 'plot(close > s ? 1 : 0, "P")', 'bgcolor(close > s ? color.red : color.green)'].join('\n'),
+    { strict: true, paramManifest: true })
+    const plotRule = t.outputs.find((o) => o.title === 'P').formula
+    const paintRule = t.presentation.paints[0].colorCondition.formula
+    expect(paintRule).not.toMatch(/sma/)
+    expect(plotRule).toBe(`${paintRule} ? 1 : 0`)
+  })
+
   it('🔴 CONTROL — a paint whose colour reads no block carries nothing; the screener lane is untouched', () => {
     const t = translatePine(src('plot(close, "C")', 'bgcolor(close > open ? color.red : color.green)'), { strict: true, paramManifest: true })
     expect(colourBlockRunsOf(t, TABLE)).toEqual([])
@@ -247,6 +299,11 @@ describe('G-d — a withheld colour is said on the plot it colours', () => {
     expect(r.value).toBe(12.5)
     expect(r.colourWithheld).toBe(true)
     expect(r.reason).toMatch(/GATE SENTENCE/)
+    // ⭐ r1 — and on a bar with no value (UNKNOWN) the sentence is said too
+    const unknown = resolveInfoValue(cs, { instanceId: 'i1', plotKey: 'p0' },
+      { ...env, bindings: [{ instanceId: 'i1', plotKey: 'p0', frame: {}, lastValue: NaN }] })
+    expect(unknown.state).toBe(INFO_VALUE_STATES.UNKNOWN)
+    expect(unknown.reason).toMatch(/unknown.*GATE SENTENCE/)
     // 🔴 CONTROL — no refusal on the column, no sentence
     const quiet = resolveInfoValue(cs, { instanceId: 'i1', plotKey: 'p0' }, { ...env, columnErrorsOf: () => ({}) })
     expect(quiet.reason).toBeUndefined()
