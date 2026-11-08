@@ -32,6 +32,10 @@ import UIcon from '../../components/ui/UIcon'
 import { pauseOtherAudio } from '../../components/video/audioExclusivity'
 import LoadFailed, { loadFailedSentence } from '../journal-2-0/components/LoadFailed'
 import useStudySession from './useStudySession'
+import useChartSurfaceSettings from '../../components/chart/pane/useChartSurfaceSettings'
+import { paneLookProps } from '../../components/chart/pane/paneLook'
+import usePreferences from '../../hooks/usePreferences'
+import { useIsPhone } from '../../hooks/useBreakpoint'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
 import { studyOpenMarkers } from './studyOverlays'
@@ -167,6 +171,12 @@ export default function DrillPlayer({
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
   const sessionChart = useSessionChartSettings(studyOverride, chartItemId || null)
+  // Rule 1 of the owner's principles (docs/study/OWNER_PRINCIPLES.md): every Study chart is the member's own Charts-tab
+  // widget, with our logo and their legend, the look the challenges' widget charts already wear (ChallengeChart)
+  const surface = useChartSurfaceSettings()
+  const phone = useIsPhone()
+  const { prefs: chartPrefs } = usePreferences(true)
+  const lookProps = useMemo(() => paneLookProps({ cs: surface.cs, theme: surface.theme, prefs: chartPrefs }), [surface.cs, surface.theme, chartPrefs])
   const entryDate = chartBars?.[0]?.t ?? null
   const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null
 
@@ -357,6 +367,7 @@ export default function DrillPlayer({
         >
           {chartMounted && (
             <StockChart
+              {...lookProps}
               sym={chartItemId}
               tf={chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'}
               height={CHART_HEIGHT}
@@ -364,13 +375,13 @@ export default function DrillPlayer({
               barsOverride={shownBars}
               frozen
               hideWatermark
-              showBrandMark={false}
+              showBrandMark
               liveUpdates={false}
               backgroundWarm={false}
               disablePatterns
               hideJournalOverlay
               hideCompare
-              hideLegend
+              hideLegend={phone}
               showDrawingTools={false}
               entryDate={entryDate}
               exitDate={exitDate}

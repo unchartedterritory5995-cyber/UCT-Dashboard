@@ -9,6 +9,8 @@ import StartCard, { StartButton } from '../../../lab/StartCard'
 import { BossBar, Chest, Confetti, Heart, Medal, Stamp } from '../../../lab/bits'
 import { useCountUp, useRunOn } from '../../../lab/fx'
 import { spot, rayAt } from '../../../lab/pointers'
+import Tile from '../ui/Tile'
+import StudyButton from '../ui/StudyButton'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import ChallengeError from './ChallengeError'
@@ -56,7 +58,7 @@ function Q({ idx, item, total, onDone, prefs, fetcher }) {
       <div className={d5.ask}><StudyMark mood={state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'} size={60} /><div className={d5.bubble}>{state === 'ask' ? 'One heart. Read the last candle.' : state === 'ok' ? 'Still standing. Watch it run.' : 'That was the heart.'}</div></div>
       <div className={d5.qLine}><span className={d5.qSetup}>{item.name}</span><span className={d5.qText}>{item.q}</span></div>
       <div className={lab.chartBox}>{state !== 'ask' ? <Stamp ok={state === 'ok'} /> : null}<ChallengeChart id={item.id} bars={all} view={Math.min(90, all?.length || 0)} height={320} annotations={ann} fetcher={fetcher} /></div>
-      <div className={`${d5.cards} ${d5.cascade}`}>{item.choices.map((c, k) => { let cls = d5.card; if (state === 'ask' && pick === k) cls += ` ${d5.sel}`; if (state !== 'ask' && pick === k) cls += state === 'ok' ? ` ${d5.right}` : ` ${d5.wrong}`; return <button key={c} type="button" className={cls} style={{ '--i': k }} disabled={state !== 'ask'} onClick={() => { setPick(k); tapFeedback(prefs) }}><span className={d5.key}>{k + 1}</span>{c}</button> })}</div>
+      <div className={`${d5.cards} ${d5.cascade}`}>{item.choices.map((c, k) => { const st = state === 'ask' ? (pick === k ? 'sel' : 'idle') : pick === k ? (state === 'ok' ? 'right' : 'wrong') : 'quiet'; return <Tile key={c} n={k + 1} i={k} label={c} state={st} disabled={state !== 'ask'} onClick={() => { setPick(k); tapFeedback(prefs) }} /> })}</div>
       {state !== 'ask' && why ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{why}</p></details> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
         {state === 'ask' ? <button type="button" className={`${d5.btn} ${pick != null ? d5.live : ''}`} disabled={pick == null} onClick={check} data-testid="boss-check">Check</button>
@@ -76,7 +78,7 @@ function Win({ xp, onBack, onAgain }) {
       <StartCard eyebrow="Boss" title="Boss cleared" art={<div className={d5.winRow}><Medal size={130} won label="★" /><Chest size={120} open={open} /></div>}
         lead="Ten for ten with one heart. That is a trader."
         button={<StartButton icon="play" label="Back to Study" sub="your trail is waiting" onClick={onBack} />}
-        below={<button type="button" className={d5.linkBtn} onClick={onAgain}>Face the boss again</button>}>
+        below={<StudyButton kind="ghost" onClick={onAgain}>Face the boss again</StudyButton>}>
         <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>XP earned</small><b data-testid="boss-xp">+{shown}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="save" size={20} /></span><small>Chest</small><b>{open ? 'Open' : 'Opening'}</b></div></div></div>
       </StartCard>
     </>
@@ -123,7 +125,7 @@ export default function BossChallenge({ profile = null, fetcher = studyFetch, on
         <StartCard tone="red" eyebrow={`Fell on chart ${i + 1} of ${total}`} title="Not yet" art={<div className={d5.heartBig}><Heart size={84} broken /></div>}
           lead={`The one you missed was a ${missed?.name || 'setup'} chart. A boss needs every rule cold.`}
           button={<StartButton tone="red" icon="medal" label="Try the boss again" sub="new charts · one heart" onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }} />}
-          below={<button type="button" className={d5.linkBtn} onClick={onClose}>Back to Study</button>} />
+          below={<StudyButton kind="ghost" onClick={onClose}>Back to Study</StudyButton>} />
       </>
     )
   }

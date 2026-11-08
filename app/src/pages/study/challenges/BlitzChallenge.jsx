@@ -8,6 +8,8 @@ import UIcon from '../../../components/ui/UIcon'
 import StudyMark from '../../../components/study/StudyMark'
 import StartCard, { StartButton } from '../../../lab/StartCard'
 import { spot } from '../../../lab/pointers'
+import Tile from '../ui/Tile'
+import StudyButton from '../ui/StudyButton'
 import d5 from '../../../lab/duo.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
@@ -35,7 +37,7 @@ function Question({ qn, onAnswer, fetcher }) {
       <div className={d5.qLine}><span className={d5.qSetup}>{qn.tag}</span><span className={d5.qText}>{qn.q}</span></div>
       <ChallengeChart id={it.id} bars={it.bars} view={qn.kind === 'recall' ? Math.min(60, n) : Math.min(80, n)} height={300} annotations={ann} fetcher={fetcher} />
       <div className={`${d5.cards} ${d5.cascade} ${qn.choices.length > 2 ? '' : d5.two}`} data-testid="blitz-choices">
-        {qn.choices.map((c, i) => <button key={c} type="button" className={d5.card} style={{ '--i': i }} onClick={() => onAnswer(c)}><span className={d5.key}>{i + 1}</span>{c}</button>)}
+        {qn.choices.map((c, i) => <Tile key={c} n={i + 1} i={i} label={c} onClick={() => onAnswer(c)} />)}
       </div>
     </>
   )
@@ -110,7 +112,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
   if (phase === 'start') {
     return (
       <StartCard eyebrow="Challenge" title="Blitz" art={<StudyMark mood="fire" size={116} />}
-        lead="Sixty seconds. No hearts. Real charts from the firm's bank and a quick question on each: name the setup, does it fire, which candle name fits, green or red, over yesterday's high. The multiplier climbs with your combo and resets on a miss."
+        lead="Sixty seconds. No hearts. Real charts from the UCT bank and a quick question on each: name the setup, does it fire, which candle name fits, green or red, over yesterday's high. The multiplier climbs with your combo and resets on a miss."
         button={<StartButton icon="timer" label={pool?.length ? 'Start the clock' : pool == null ? 'Loading the bank' : 'Nothing to play yet'} sub={`60 seconds · no hearts · ${bankLine}`} onClick={() => pool?.length && start()} />}
         below={<>
           <details className={d5.whyCard}><summary>How it works</summary>
@@ -131,7 +133,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
       <StartCard eyebrow="Blitz · time" title={`${score} points`} art={<StudyMark mood={score >= 200 ? 'fire' : 'happy'} size={116} />}
         lead={score > 0 && score >= bestEver ? 'A new best.' : `Your best stands at ${bestEver}.`}
         button={<StartButton icon="timer" label="Again" sub="another sixty seconds" onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('start') }} />}
-        below={<button type="button" className={d5.linkBtn} onClick={onClose}>Back to Study</button>}>
+        below={<StudyButton kind="ghost" onClick={onClose}>Back to Study</StudyButton>}>
         <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>Right</small><b data-testid="blitz-right">{right}/{answered}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="bolt" size={20} /></span><small>Best combo</small><b>{best}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="sparkle" size={20} /></span><small>Top multiplier</small><b>x{blitzMult(best)}</b></div></div></div>
         {log.length ? <div className={d5.runLog}>{log.map((r, k) => <div key={k} className={r.ok ? d5.runOk : d5.runBad}><b>{r.ok ? '✓' : '✕'}</b><span>{r.tag} · {r.q}</span><small>{r.ok ? `you said ${r.choice}` : `you said ${r.choice}${r.answer ? `, it was ${r.answer}` : ''}`}{r.ticker ? ` · ${r.ticker}` : ''}</small></div>)}</div> : null}
       </StartCard>

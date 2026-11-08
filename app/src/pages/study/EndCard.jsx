@@ -13,6 +13,7 @@ import UIcon from '../../components/ui/UIcon'
 import StudyMark from '../../components/study/StudyMark'
 import StartCard, { StartButton } from '../../lab/StartCard'
 import { Chest, Confetti, Medal } from '../../lab/bits'
+import StudyButton from './ui/StudyButton'
 import d5 from '../../lab/duo.module.css'
 import { endFeedback, feedbackPrefs } from './studyFeedback'
 import styles from './EndCard.module.css'
@@ -86,7 +87,7 @@ export default function EndCard({ correct = 0, total = 10, xp = 0, bonuses = [],
         )}
         title={null}
         button={<StartButton icon="play" label="Done" sub={perfect ? 'ten for ten' : 'back to your trail'} onClick={onDone} hotkey={false} ariaLabel="Done" />}
-        below={onKeepPractising ? <button type="button" className={d5.linkBtn} onClick={onKeepPractising}>Keep practising</button> : null}
+        below={onKeepPractising ? <StudyButton kind="ghost" onClick={onKeepPractising}>Keep practising</StudyButton> : null}
       >
         <p className={`${d5.heroWord} ${styles.score}`} data-testid="end-score" data-final={`${correct} of ${total}`}>{shownCorrect} of {total}</p>
         <div className={d5.gems}>

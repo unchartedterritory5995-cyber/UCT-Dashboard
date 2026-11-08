@@ -154,7 +154,8 @@ describe('DrillPlayer', () => {
     expect(screen.getByText('frozen:true')).toBeInTheDocument()
     expect(screen.getByText('liveUpdates:false')).toBeInTheDocument()
     expect(screen.getByText('hideWatermark:true')).toBeInTheDocument()
-    expect(screen.getByText('showBrandMark:false')).toBeInTheDocument()
+    // rule 1 of the owner's principles (docs/study/OWNER_PRINCIPLES.md): the member's own widget, with our logo
+    expect(screen.getByText('showBrandMark:true')).toBeInTheDocument()
     expect(screen.getByText('drawingTools:false')).toBeInTheDocument()
     expect(screen.getByText('feeds:false/false')).toBeInTheDocument()
     expect(chart).toHaveAttribute('data-first', '2025-01-02')

@@ -12,8 +12,9 @@
 // Inputs: choices (labels), pick (index or null), state ask | ok | bad, answer (the right label, known after Check),
 // step/total, busy, onPick(i), onCheck(), onNext(). No market fact is written here: the detail line only says where to
 // look on the chart.
-import { useEffect } from 'react'
 import UIcon from '../../../components/ui/UIcon'
+import StudyButton from './StudyButton'
+import Tile from './Tile'
 import a from './answerLooks.module.css'
 
 const Q = 'What fired on the last candle?'
@@ -37,18 +38,6 @@ function Mark({ st, n }) {
  *  ones Hard mode always carried. */
 export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = null, step = 0, total = 8, busy = false, onPick, onCheck, onNext, head = null, nextLabel = 'Next', hotkey = false, eyebrow = null, cardsTestId = null, checkTestId = null, nextTestId = null }) {
   const ctx = { pick, state, answer }
-  useEffect(() => {
-    if (!hotkey) return undefined
-    const k = (e) => {
-      if (e.key !== 'Enter' || e.repeat || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return
-      // a focused button outside the tiles keeps its own Enter; on a tile (focused by the click that picked it) Enter checks
-      if (e.target?.tagName === 'BUTTON' && !e.target.closest('[data-tiles]')) return
-      e.preventDefault()
-      if (state === 'ask') { if (pick != null && !busy) onCheck?.() } else onNext?.()
-    }
-    window.addEventListener('keydown', k)
-    return () => window.removeEventListener('keydown', k)
-  }, [hotkey, state, pick, busy, onCheck, onNext])
   return (
     <div className={`${a.area} ${a.lesson}`}>
       {state !== 'ask' && head ? head : (
@@ -59,20 +48,14 @@ export function AnswerLessonApp({ choices, pick = null, state = 'ask', answer = 
         </div>
       )}
       <div className={a.lGrid} role="group" aria-label="Your answer" data-testid={cardsTestId || undefined} data-tiles="">
-        {choices.map((c, i) => {
-          const st = tileState(i, c, ctx)
-          return (
-            <button key={c} type="button" className={`${a.lTile} ${a[st] || ''}`} style={{ '--i': i }} disabled={state !== 'ask'} onClick={() => onPick?.(i)} data-state={st} aria-pressed={st === 'sel' || undefined}>
-              <span className={a.lKey}><Mark st={st} n={i + 1} /></span>
-              <span className={a.lLabel}>{c}</span>
-            </button>
-          )
-        })}
+        {choices.map((c, i) => (
+          <Tile key={c} n={i + 1} i={i} label={c} state={tileState(i, c, ctx)} disabled={state !== 'ask'} onClick={() => onPick?.(i)} />
+        ))}
       </div>
       <div className={`${a.lFoot} ${state === 'ok' ? a.footOk : state === 'bad' ? a.footBad : ''}`}>
         {state === 'ask'
-          ? <button type="button" className={`${a.lCheck} ${pick != null ? a.ready : ''} ${busy ? a.busy : ''}`} disabled={pick == null || busy} onClick={onCheck} data-testid={checkTestId || undefined} aria-busy={busy || undefined}>{busy ? 'Checking' : 'Check'}</button>
-          : <button type="button" className={`${a.lCheck} ${a.ready} ${state === 'ok' ? a.good : a.bad}`} onClick={onNext} data-testid={nextTestId || undefined}>{nextLabel}</button>}
+          ? <StudyButton kind="primary" size="xl" arrow wide hotkey={hotkey ? 'Enter' : null} busy={busy} disabled={pick == null} onClick={onCheck} testId={checkTestId}>{busy ? 'Checking' : 'Check'}</StudyButton>
+          : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide hotkey={hotkey ? 'Enter' : null} onClick={onNext} testId={nextTestId}>{nextLabel}</StudyButton>}
       </div>
     </div>
   )

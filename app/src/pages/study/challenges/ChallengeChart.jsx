@@ -21,7 +21,7 @@ import { studySettingsOverride, widgetSettingsOverride } from '../studyChartLook
 import { tapDayKey } from '../chartTapTime'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 
-export default function ChallengeChart({ id, bars, view = null, height = 320, annotations = null, markers = null, extra = null, onBarTap = null, chartOpts = null, look = 'house', watermark = null, fetcher }) {
+export default function ChallengeChart({ id, bars, view = null, height = 320, annotations = null, markers = null, extra = null, onBarTap = null, chartOpts = null, look = 'widget', watermark = null, fetcher }) {
   const widget = look === 'widget'
   const houseSettings = useHouseChart(fetcher)
   // a bare chart (`overlays: false`, Hard mode) must switch off the member's OWN averages too: the chart merges
@@ -78,7 +78,7 @@ export default function ChallengeChart({ id, bars, view = null, height = 320, an
         showDrawingTools={false}
         hotkeysActive={false}
         dailyDefaultBars={shown}
-        rightPadBars={phone ? 7 : 4}
+        rightPadBars={phone ? 3 : 2}   // the owner: "a slight gap at the right ... like 1-2 candles space at max"
         settingsOverride={sessionChart.settingsOverride}
         onSettingsPersist={sessionChart.onSettingsPersist}
         annotations={annotations}

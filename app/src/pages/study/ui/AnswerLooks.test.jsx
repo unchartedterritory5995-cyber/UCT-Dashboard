@@ -34,7 +34,7 @@ describe('the answer area, three versions', () => {
   })
   it('the lesson app keeps Check dark until an answer is picked', () => {
     const { getByText } = render(<AnswerLessonApp choices={CH} />)
-    expect(getByText('Check').disabled).toBe(true)
+    expect(getByText('Check').closest('button').disabled).toBe(true)
   })
 })
 

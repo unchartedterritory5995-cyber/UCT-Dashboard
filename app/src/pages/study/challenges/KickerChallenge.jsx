@@ -11,6 +11,7 @@ import StartCard, { StartButton } from '../../../lab/StartCard'
 import { Stamp } from '../../../lab/bits'
 import { useRunOn } from '../../../lab/fx'
 import { boxAt, rayAt } from '../../../lab/pointers'
+import StudyButton from '../ui/StudyButton'
 import d5 from '../../../lab/duo.module.css'
 import lab from '../../../lab/lab.module.css'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -105,8 +106,8 @@ function Round({ idx, item, total, prefs, fetcher, onDone }) {
       })}</div>
       {state !== 'ask' && lesson ? <details className={d5.whyCard} open><summary>The lesson</summary><p>{lesson}</p></details> : null}
       <div className={`${d5.footer} ${state === 'ok' ? d5.good : state === 'bad' ? d5.badF : ''}`}><div className={d5.footIn}>
-        {state === 'ask' ? <button type="button" className={`${d5.btn} ${pick != null ? d5.live : ''}`} disabled={pick == null} onClick={check} data-testid="kicker-check">Check</button>
-          : <button type="button" className={`${d5.btn} ${ok ? d5.live : d5.red}`} onClick={() => onDone(ok)} data-testid="kicker-next">{idx + 1 < total ? 'Next' : 'Finish'}</button>}
+        {state === 'ask' ? <StudyButton kind="primary" size="xl" arrow wide hotkey="Enter" disabled={pick == null} onClick={check} testId="kicker-check">Check</StudyButton>
+          : <StudyButton kind={ok ? 'good' : 'bad'} size="xl" arrow wide hotkey="Enter" onClick={() => onDone(ok)} testId="kicker-next">{idx + 1 < total ? 'Next' : 'Finish'}</StudyButton>}
       </div></div>
     </div>
   )
@@ -141,7 +142,7 @@ export default function KickerChallenge({ profile = null, fetcher = studyFetch, 
       <StartCard eyebrow="Spot the Kicker" title={`${right} of ${total}`} art={<StudyMark mood={right === total ? 'fire' : 'happy'} size={116} />}
         lead={right === total ? 'Every Kicker found. The rules are yours.' : 'The rule cards on the misses are the lesson. Run it again.'}
         button={<StartButton icon="play" label="Back to Study" sub="your trail is waiting" onClick={onClose} />}
-        below={<button type="button" className={d5.linkBtn} onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setI(0); setRight(0); setPhase('start') }}>Again</button>} />
+        below={<StudyButton kind="ghost" onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setI(0); setRight(0); setPhase('start') }}>Again</StudyButton>} />
     )
   }
   const item = pool?.[i]
