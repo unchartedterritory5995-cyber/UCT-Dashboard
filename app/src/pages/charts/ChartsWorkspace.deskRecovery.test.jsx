@@ -447,6 +447,17 @@ describe('two members on one machine', () => {
     expect(restoreButton()).toBeNull()
   })
 
+  test('the same, where Web Locks is missing and no lock stands between A\'s flush and B', async () => {
+    delete navigator.locks
+    await renderWS()
+    popOut()
+    const id = popId()
+    mockPrefs = { charts_workspace_layout: board(widget('b1')) }
+    act(() => { publishPrefsUser('B') })
+    await flush()
+    expect(recordKeys()).toEqual([recordKey('A', id)])
+  })
+
   test('no member known: no record and no offer', async () => {
     __resetPrefsSessionForTests()
     seedOrphan('A', 'pl-1', [widget('r1')])
