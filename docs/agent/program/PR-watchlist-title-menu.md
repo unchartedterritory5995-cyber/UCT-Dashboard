@@ -78,6 +78,17 @@ Tag lists, prebuilt lists, scans and a host's own title (`pickTitleSlot`) get no
     environment (local hash `1aa5e8aa…` against the pinned `88504f4a…`).
   - This PR changes the widget's flag-off markup by design (the ⋯ button and the title anchor), so that golden has to
     be re-recorded by its owner or on the Lead's call. This PR does not touch it.
+  - **What CI says (checked 2026-11-09, `gh run list`):** CI has no verdict on this test.
+    - The master deploy gate runs only `AGENT_VITEST_PATHS` (`src/agent` and named files). That list does not include
+      `src/pages/Watchlists*`.
+    - `full-suite-report.yml` is report-only, and every run listed (10-28 to 11-09) was cancelled.
+  - The test has no record command. Its golden was taken by hand against a pre-change `Watchlists.jsx` (55b12fe1d), per
+    its own header. So it is **not re-recorded here**, and its hash is never edited by hand.
+  - The flag-off render changes by design: the ⋯ menu button and `data-guide="watchlist.title"` on the title.
+    - Local hash on master: `1aa5e8aa…`.
+    - Local hash with this PR: `1512207b…`.
+    - Pinned: `88504f4a…`.
+  - Re-baselining it, or giving it a record command, is for the test's owner or AUDIT to decide.
 
 ## Notebook bytes
 master `5a812ece93` 2,252,608 B → this head 2,252,608 B. **Delta 0**, verdict PASS.
