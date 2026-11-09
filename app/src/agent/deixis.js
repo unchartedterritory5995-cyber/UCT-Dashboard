@@ -50,7 +50,7 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph|neighbou?r)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
@@ -94,16 +94,17 @@ const POSS_NBS = new RegExp(`\\b(?:(?:both|all|each|either)\\s+(?:of\\s+)?)?${PO
 const POSS_FAR = new RegExp(`\\b(?:the\\s+(?:chart|one|cell)\\s+at\\s+)?(?:${POSS}\\s+(row|column)['’]s\\s+(?:far(?:thest)?|other|opposite)\\s+end|the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+of\\s+${POSS}\\s+(row|column))\\b`, 'gi')
 const POSS_DIAG = new RegExp(`\\b${POSS}\\s+(?:diagonal(?:ly\\s+opposite)?|opposite\\s+corner|far\\s+corner|(?:kitty|catty|cater)[-\\s]?corner)(?:\\s+(?:chart|one|cell|pane|panel|neighbou?r))?\\b`, 'gi')
 const POSS_REL = new RegExp(`\\b${POSS}\\s+(?:[a-z-]+\\s+)?(?:(?:left|right)(?=[-\\s]+(?:hand|side|neighbou?r|chart|one|cell))|sides?|neighbou?rs?|corner|diagonal|(?:far|other|opposite)\\s+end|row|column)\\b`, 'i')
-/** The words with a possessive anchor on a relation rewritten to the anchored phrase ("the neighbour on its left" → "the neighbour
- *  on the left of this one"). Idempotent; words with no such possessive come back unchanged. */
+/** The words with a possessive anchor on a relation rewritten to the phrase the readers resolve: a SIDE to the canonical "its" form
+ *  RELATIVE_BARE reads from the click ("this chart's right side" → "its right": no second "this one", so a two-target clause
+ *  "this one and the one to its left" keeps both), the rest to the anchored phrase. Idempotent; no possessive → unchanged. */
 export function possessiveAnchor(text) {
   const s = String(text || '')
   if (!/['’]s\b|\bits\b/i.test(s)) return s
   return s.replace(POSS_FAR, (m, r1, r2) => `the chart at the far end of the ${(r1 || r2).toLowerCase()} from this one`)
     .replace(POSS_DIAG, 'the chart diagonally opposite this one')
     .replace(POSS_NBS, 'both neighbours of this one')
-    .replace(POSS_SIDE_NB, (m, side) => `the chart to the ${side.toLowerCase()} of this one`)
-    .replace(POSS_SIDE, (m, pre, side) => `${pre} the ${side.toLowerCase()} of this one`)
+    .replace(POSS_SIDE_NB, (m, side) => `the one to its ${side.toLowerCase()}`)
+    .replace(POSS_SIDE, (m, pre, side) => `${pre} its ${side.toLowerCase()}`)
 }
 const FAR_LINE = /\bthe\s+(row|column)\s+from\s+this\s+one\b/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
