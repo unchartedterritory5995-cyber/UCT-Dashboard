@@ -133,6 +133,13 @@ export function prefetchGroupSectors(tickers) {
   if (syms.length) fetchFast(syms).catch(() => {})
 }
 
+// drillFetch announces every loaded drill list (hover, neighbours, open). The
+// literal is drillFetch's DRILL_ITEMS_EVENT, repeated rather than imported so the
+// Breadth page chunk does not pull this module in.
+if (typeof window !== 'undefined') {
+  window.addEventListener('uct:breadth-drill-items', (e) => prefetchGroupSectors(e?.detail))
+}
+
 export default function useGroupMeta(tickers) {
   // ⛔ KEYED ON CONTENT, NOT ON THE ARRAY'S IDENTITY. A caller that builds its
   // list inline (`useGroupMeta(items.map(i => i.t))`) hands this a new array on
