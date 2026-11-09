@@ -84,6 +84,13 @@ export function ringRect(el, { pad = RING.pad } = {}) {
   return { top: v.top - pad, left: v.left - pad, width: v.width + pad * 2, height: v.height + pad * 2, round: false }
 }
 
+/** The element the ring is drawn around for a found control. The CHART ITSELF (its plot, chart.plot) is ringed as its whole board
+ *  cell (header and toolbar included: the chart's boundary as the member sees it, pl-auto 2026-11-09); every other control is its own box. */
+export function ringElementOf(el) {
+  if (el?.getAttribute?.('data-guide') !== 'chart.plot') return el
+  return el.closest?.('[data-grid-cell-id]') || el.closest?.('[data-widget-id]') || el
+}
+
 export const sameRing = (a, b) => (!a && !b) || (!!a && !!b && a.round === b.round && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.left - b.left) < 0.5
   && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5)
 
@@ -120,9 +127,11 @@ export function trackRing(el, onRing, { holder = null } = {}) {
   const onUp = () => { dragging = false; kick() }
   let ro = null
   if (typeof ResizeObserver === 'function') {
-    ro = new ResizeObserver(kick)
+    ro = new ResizeObserver(() => { if (stopped) return; measure(); kick() })
     try { ro.observe(el) } catch { /* not observable */ }
-    if (holder && holder !== el) { try { ro.observe(holder) } catch { /* not observable */ } }
+    for (const box of new Set([holder, holder?.parentElement, el.offsetParent].filter(b => b && b !== el && b !== document.body))) {
+      try { ro.observe(box) } catch { /* not observable */ }
+    }
   }
   // a drag in progress keeps the loop alive (the drag's own frames move the control); only noted, never consumed
   const onMove = () => { if (dragging) kick() }
@@ -155,4 +164,13 @@ export function trackRing(el, onRing, { holder = null } = {}) {
     },
     get running() { return frame != null },
   }
+}
+
+/** A control the member DRAGS (a resize corner or edge, a divider, a grip): any size. Its step is done when the drag ENDS. */
+export function isDragControl(el) {
+  if (!el) return false
+  if (/(^|\.)resize(\.|$)/.test(el.getAttribute?.('data-guide') || '')) return true
+  let cur = ''
+  try { cur = el.style?.cursor || getComputedStyle(el).cursor || '' } catch { cur = '' }
+  return /resize|grab|move/.test(cur)
 }

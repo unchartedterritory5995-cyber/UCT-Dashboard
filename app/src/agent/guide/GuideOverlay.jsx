@@ -10,6 +10,9 @@
 //   • the target is re-found every POLL_MS while a walkthrough runs (a panel opening or closing, a step's result); the RING is
 //     placed by ringGeometry.trackRing: ResizeObserver, scroll and resize events, and a frame loop only while it moves or a drag
 //     is in progress — a transform, no positional transition, so it stays on a control being dragged (GUIDE-OVERLAY-GEOMETRY.md)
+//   • ⭐ the step's control GONE (its chart closed): the POLL_MS interval stops; a MutationObserver on the page (nodes added or
+//     removed) and one timer per deadline (LATE_MS, LOST_MS, PAUSE_MS) take over, and the interval resumes when it is back
+//   • ⭐ a control the member DRAGS (a resize corner or edge): its step is done when the drag ENDS, never while it is held
 //   • a step's `waitFor` already met is a step already done: it moves on at once (a menu already open, a tab already
 //     selected), including while the walkthrough is running
 //   • a control the member just clicked that then goes away (a menu item, a last click) is the step DONE, not a lost
@@ -42,7 +45,7 @@ import { createPortal } from 'react-dom'
 import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt, escapeOnBoard, SELECTED_DRAWING } from './guideStore'
 import { needsOwnPress, findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
 import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
-import { RING, trackRing } from './ringGeometry'
+import { RING, trackRing, ringElementOf, isDragControl } from './ringGeometry'
 import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
 import { layerOpenedSince } from '../../lib/topLayer'
 import styles from './GuideOverlay.module.css'
@@ -113,6 +116,8 @@ export default function GuideOverlay() {
     let armed = !st.back && !step.waitFor?.not
     // ⭐ its own control pressed (needsOwnPress): another chart's gear opening Chart Settings is not this chart's step
     let pressedOwn = false
+    let present = false   // the step's control was on screen at the last look
+    let dragWait = null   // a drag on the step's control in progress: the pointerup that finishes it
     const tick = () => {
       if (cancelled) return
       // ⭐ OWNER RULE (2026-11-07): the walkthrough's chart changed symbol from OUTSIDE the walkthrough (a linked watchlist row
@@ -139,11 +144,13 @@ export default function GuideOverlay() {
       if (Array.isArray(step.target)) unclip(step.target[0], st)
       const el = findTarget(step.target, st) || (unclip(step.target, st) ? findTarget(step.target, st) : null)
       if (el) {
+        present = true
         lostSince = null
         if (!shown) { shown = true; reveal(el) }
         if (step.pin) pinWidget(el.closest?.('[data-widget-id]')?.getAttribute('data-widget-id'))
         setTarget(prev => (prev.key === stepKey && prev.el === el ? prev : { key: stepKey, el }))
-        const r = rectOf(el)
+        // the chart itself is ringed as its whole cell (ringGeometry.ringElementOf): the card keeps off that, too
+        const r = rectOf(ringElementOf(el))
         const holder = holderRect(el)
         // the last entry of a list is the fallback; any earlier one is the control itself, in another form
         const alt = step.altText && Array.isArray(step.target) && !step.target.slice(0, -1).some(t => findTarget(t, st)) ? step.altText : null
@@ -152,6 +159,7 @@ export default function GuideOverlay() {
           ? prev : { key: stepKey, rect: r, holder, why, paused: false }))
         return
       }
+      present = false
       // the member's own click took it away (a menu item, the last click): that step is done, not lost
       if (clicked && Date.now() - clicked < CLICK_MS) { clicked = 0; if (step.endsOnClick) endGuide('done'); else nextStep(); return }
       setTarget(prev => (prev.el === null ? prev : { key: stepKey, el: null }))
@@ -179,22 +187,60 @@ export default function GuideOverlay() {
         // ring and card up over a thing already done. Not a field (a click there is only the start of typing), not a right-click.
         const field = e.target?.closest?.('input, textarea, select, [contenteditable="true"]')
         if (!step.waitFor && !step.endsOnClick && e.button === 0 && !field) {
-          setTimeout(() => {
+          const finish = () => {
             if (cancelled) return   // the step already moved on (its control went away with the click)
             if (st.index >= st.steps.length - 1) endGuide('done'); else nextStep()
-          }, POLL_MS * 2)
+          }
+          // ⭐ a drag (pl-auto 2026-11-09: the walkthrough ended itself 136–444 ms into a corner drag): done when it ENDS
+          if (isDragControl(el)) {
+            if (dragWait) return
+            dragWait = () => { stopDragWait(); setTimeout(finish, POLL_MS) }
+            window.addEventListener('pointerup', dragWait, true)
+            window.addEventListener('pointercancel', dragWait, true)
+            window.addEventListener('mouseup', dragWait, true)
+          } else {
+            setTimeout(finish, POLL_MS * 2)
+          }
         }
       }
       // the step's other way of being done: its control stays on screen, so the click itself is the finish
       const also = step.also ? findTarget(step.also, st) : null
       if (also && also.contains?.(e.target)) setTimeout(() => { if (!cancelled) endGuide('done') }, POLL_MS)
     }
+    function stopDragWait() {
+      if (!dragWait) return
+      window.removeEventListener('pointerup', dragWait, true)
+      window.removeEventListener('pointercancel', dragWait, true)
+      window.removeEventListener('mouseup', dragWait, true)
+      dragWait = null
+    }
+    let iv = null; let due = null; let mo = null; let moFrame = null
+    const watchOff = () => { mo?.disconnect(); mo = null; if (moFrame != null) { cancelAnimationFrame(moFrame); moFrame = null }; clearTimeout(due); due = null }
+    const run = () => {
+      if (cancelled) return
+      tick()
+      if (cancelled) return
+      if (present) {
+        watchOff()
+        if (iv == null) iv = setInterval(run, POLL_MS)
+        return
+      }
+      // gone: no interval. A node added or removed anywhere looks again (once per frame); each deadline gets one timer
+      if (iv != null) { clearInterval(iv); iv = null }
+      if (!mo && typeof MutationObserver === 'function') {
+        mo = new MutationObserver(() => { if (moFrame == null) moFrame = requestAnimationFrame(() => { moFrame = null; run() }) })
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'aria-expanded', 'open', 'class'] })
+      }
+      clearTimeout(due)
+      const gone = lostSince == null ? 0 : Date.now() - lostSince
+      const next = [step.late ? LATE_MS : null, LOST_MS, PAUSE_MS].filter(x => x != null && x > gone)[0]
+      due = next == null ? null : setTimeout(run, next - gone + 5)
+    }
     document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('mousedown', onDown, true)
-    const first = setTimeout(tick, 0)
-    const t = setInterval(tick, POLL_MS)
+    const first = setTimeout(run, 0)
     return () => {
-      cancelled = true; clearTimeout(first); clearInterval(t)
+      cancelled = true; clearTimeout(first); if (iv != null) clearInterval(iv); watchOff(); stopDragWait()
       restoreClipped()
       document.removeEventListener('pointerdown', onDown, true)
       document.removeEventListener('mousedown', onDown, true)
@@ -207,8 +253,9 @@ export default function GuideOverlay() {
   const ringOn = !!ringEl && !!rect
   useEffect(() => {
     if (!ringEl || !ringOn) return undefined
-    const holder = ringEl.closest?.('[data-widget-id]') || null
-    const tr = trackRing(ringEl, (r) => applyRing(ringRef.current, r), { holder })
+    const box = ringElementOf(ringEl)
+    const holder = box.closest?.('[data-widget-id]') || null
+    const tr = trackRing(box, (r) => applyRing(ringRef.current, r), { holder })
     return () => tr.stop()
   }, [ringEl, ringOn])
 
