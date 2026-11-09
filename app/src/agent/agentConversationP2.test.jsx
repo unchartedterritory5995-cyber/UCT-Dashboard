@@ -225,7 +225,7 @@ describe('M · several steps in one message', () => {
     // the reused chart has no SMA 50 (its defaults were removed), so "the 50" cannot be read on every chart
     const out = await say('Create four daily charts for SPY, QQQ, NVDA and TSLA, make the 50 purple and the 20 thicker, then add rsi to all of them')
     expect(chartIds(board)).toHaveLength(4)                              // step 1 landed, and stays
-    expect(out).toMatch(/Done 1 of 3 steps, then stopped at “make the 50 purple and the 20 thicker”: Chart \(SPY\) has nothing that matches “the 50”/)
+    expect(out).toMatch(/Done 1 of 3 steps \(.+\), then stopped at “make the 50 purple and the 20 thicker”: Chart \(SPY\) has nothing that matches “the 50”/)
     expect(out).toMatch(/Not done: “make the 50 purple and the 20 thicker”, “add rsi to all of them”\./)
     expect(out).not.toMatch(/All 3 steps done/)
     for (const id of chartIds(board)) expect(rsiOn(board, id)).toHaveLength(0)

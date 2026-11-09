@@ -105,7 +105,7 @@ describe('D1 · two EMAs and their colours, in one message', () => {
     const out = await say('throw the 9 and 20 ema on my chart. make the 50 green')
     await waitFor(() => expect(emas(board)).toHaveLength(2), { timeout: 8000 })
     expect(emas(board).every(([, c]) => c === '#f0b90b')).toBe(true)
-    expect(out).toMatch(/Done 1 of 2 steps, then stopped at “make the 50 green”/)
+    expect(out).toMatch(/Done 1 of 2 steps \(.+\), then stopped at “make the 50 green”/)
     expect(out).not.toMatch(/All 2 steps done/)
   }, 30000)
 

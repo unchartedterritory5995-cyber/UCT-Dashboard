@@ -1942,7 +1942,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // started on (a layout opened under it, or another board visit, is a changed premise: nothing after runs)
     const doneSteps = []
     const t0 = Date.now()
-    const board0 = epochOf(host), visit0 = visitOf(host)
+    let board0 = epochOf(host), visit0 = visitOf(host)
     const chartsOf = (ops) => {
       let charts = []
       try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
@@ -2039,6 +2039,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       done += 1
       doneSteps.push({ text: step.text, charts: chartsOf(r.ops) })
+      // a step that itself acts on the layouts ("open my … layout") moves the board ON PURPOSE: the run's starting point is
+      // re-read after it, so only a change from OUTSIDE the run is a changed premise
+      if (r.ops.some(o => getCapability(o?.action)?.target === 'layouts')) { board0 = epochOf(host); visit0 = visitOf(host) }
       prevIds = undoRef.current.map(e => e.id).filter(id => !idsBefore.includes(id))
       // review t4 M5: a grid that ADDED the charts beside others showing the same tickers ("Add 4 more") — the rest goes on the
       // NEW charts only (the charts that were already there are never the target)
