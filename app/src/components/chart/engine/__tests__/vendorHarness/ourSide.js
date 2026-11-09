@@ -46,6 +46,7 @@ import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -392,6 +393,42 @@ export function columnsInWindow(cols, pre) {
     Object.defineProperty(out, key, { value, enumerable: false, configurable: true })
   }
   return out
+}
+
+/** ⭐⭐ DIV-1 — does the PLOT / OBJECT lane replay over the proved prehistory, and why
+ *  not when it does not. ONE decision, pure, so every rule is railed on its own.
+ *
+ *  Replays only what a member's chart computes:
+ *   · a proved supplier (`warmBarsSupply` 'warm') — never invented history;
+ *   · a DAILY chart — an intraday chart first-paints a shallow window and deepens only
+ *     on a pan, so it never computes from the supplier's first bar;
+ *   · a script reading no other symbol's / lower timeframe's bars — their prehistory is
+ *     not supplied;
+ *   · ⭐ r1 (review N2) — at most the depth the product computes: the standalone daily
+ *     chart loads `fullBarsFor('D')` bars (the product's own constant, read here, never
+ *     restated), so a supplier whose prehistory + window exceeds it would grade a series
+ *     no member's chart computes. Then the replay is cold, and graded as before.
+ *  ⚠️ What a replayed MATCH speaks for (review N3): the STANDALONE daily chart. A grid
+ *  cell first-paints shallow (`backgroundWarm={false}`), and W / M stay cold here.
+ *  @returns {{replay: boolean, kind: 'replayed'|'cold'|'bar0', why: string}} */
+export function replayDecisionOf({ supplyKind, supplyBars = 0, supplyReason = '', file = null,
+  windowBars = 0, tf, readsOtherSymbol = false, readsLowerTf = false } = {}) {
+  if (supplyKind !== 'warm') return { replay: false, kind: supplyKind === 'bar0' ? 'bar0' : 'cold', why: supplyReason }
+  if (tf !== 'D') {
+    return { replay: false, kind: 'cold',
+      why: `a proved supplier exists (${file}) but a ${tf} chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar (not a daily chart), cold replay` }
+  }
+  if (readsOtherSymbol || readsLowerTf) {
+    return { replay: false, kind: 'cold',
+      why: `a proved supplier exists (${file}) but the script also reads ${readsOtherSymbol ? 'another symbol' : 'a lower timeframe'} whose prehistory is not supplied, cold replay` }
+  }
+  const depth = fullBarsFor('D')
+  if (supplyBars + windowBars > depth) {
+    return { replay: false, kind: 'cold',
+      why: `a proved supplier exists (${file}) but its ${supplyBars} bars of prehistory + the ${windowBars}-bar window exceed the ${depth} bars a member's daily chart computes (fullBarsFor('D')), cold replay` }
+  }
+  return { replay: true, kind: 'replayed',
+    why: `${supplyReason}; graded as the STANDALONE daily chart computes it (${supplyBars + windowBars} of at most ${depth} bars; a grid cell first-paints shallow, and W / M stay cold)` }
 }
 
 /** The id every harness run installs under. Satisfies `defSchema.ID_RE` (it is
@@ -914,21 +951,21 @@ function runOurSideOnTheParityClock(capture) {
     // (`barsBackfill.shouldBackfill`), so its computation does NOT start at the
     // supplier's first bar: replaying intraday would grade a series the chart does not
     // compute. (The paint lane's RC1 replay is its own rule and is unchanged.)
+    // ⭐ r1 (review N2) — and never deeper than the product's own daily depth
+    // (`replayDecisionOf`, which holds every rule above as one pure decision).
     const replaySupply = warmBarsSupply(capture)
-    const readsOtherBars = !!(supply.secondary || lower.lowerTf)
-    const dailyChart = tf === 'D'
-    const replay = replaySupply.kind === 'warm' && !readsOtherBars && dailyChart
+    const decision = replayDecisionOf({
+      supplyKind: replaySupply.kind, supplyBars: replaySupply.bars, supplyReason: replaySupply.reason,
+      file: replaySupply.file, windowBars: bars.length, tf,
+      readsOtherSymbol: !!supply.secondary, readsLowerTf: !!lower.lowerTf,
+    })
+    const replay = decision.replay
     const replayPre = replay ? replaySupply.bars : 0
     const calcBars = replay
       ? toProductBars({ ...capture, bars: { ...capture.bars, rows: replaySupply.rows.concat(capture.bars.rows) } })
       : bars
     const calcCtx = replay ? { ...ctx, historyFromListing: replaySupply.historyFromListing === true } : ctx
-    notes.push(`plots/objects: ${replay ? 'replayed' : replaySupply.kind === 'warm' ? 'cold' : replaySupply.kind}: `
-      + (replay ? replaySupply.reason
-        : replaySupply.kind !== 'warm' ? replaySupply.reason
-          : !dailyChart
-            ? `a proved supplier exists (${replaySupply.file}) but a ${tf} chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar, cold replay`
-            : `a proved supplier exists (${replaySupply.file}) but the script also reads ${supply.secondary ? 'another symbol' : 'a lower timeframe'} whose prehistory is not supplied, cold replay`))
+    notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
     const calcCols = registry.computeFor(def, calcBars, undefined, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
@@ -1119,13 +1156,10 @@ function runOurSideOnTheParityClock(capture) {
         historyFromListing: warm ? paintCtx.historyFromListing : ctx.historyFromListing,
         refused: paintSupply.refused, reason: paintSupply.reason } : null,
       // ⭐ DIV-1 — which bars the PLOT and OBJECT lanes were computed over.
-      historyReplay: { kind: replay ? 'replayed' : replaySupply.kind === 'warm' ? 'cold' : replaySupply.kind,
-        file: replay ? replaySupply.file : null, bars: replayPre,
-        historyFromListing: calcCtx.historyFromListing === true,
-        reason: replay ? replaySupply.reason
-          : replaySupply.kind !== 'warm' ? replaySupply.reason
-            : !dailyChart ? "not a daily chart: the chart does not compute from the supplier's first bar"
-              : 'the script reads bars whose prehistory is not supplied' },
+      historyReplay: { kind: decision.kind, file: replay ? replaySupply.file : null, bars: replayPre,
+        historyFromListing: calcCtx.historyFromListing === true, reason: decision.why,
+        // ⚠️ review N3 — what a replayed MATCH speaks for
+        speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
       drawnPaints,
     }

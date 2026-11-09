@@ -339,7 +339,7 @@
    "verdict": "MATCH",
    "reason": "all 4 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -1853,7 +1853,7 @@
    "verdictWithoutPaints": "DIVERGE",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -2356,7 +2356,7 @@
    "reason": "all 5 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -3525,7 +3525,7 @@
    "verdictWithoutPaints": "DIVERGE",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -4009,7 +4009,7 @@
    "reason": "1 of 6 compared items diverge",
    "verdictWithoutPaints": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -4393,7 +4393,7 @@
    "reason": "all 5 items agree",
    "verdictWithoutPaints": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -5038,7 +5038,7 @@
    "verdict": "DIVERGE",
    "reason": "1 of 7 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -5930,7 +5930,7 @@
    "reason": "all 8 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -6665,7 +6665,7 @@
    "reason": "all 7 items agree",
    "verdictWithoutPaints": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -8370,7 +8370,7 @@
    "verdict": "MATCH",
    "reason": "all 16 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -11008,7 +11008,7 @@
    "verdict": "MATCH",
    "reason": "all 14 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -11223,7 +11223,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "51 of 53 held boxes cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -13770,7 +13770,7 @@
    "verdict": "MATCH",
    "reason": "all 30 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -14180,7 +14180,7 @@
    "verdict": "MATCH",
    "reason": "all 5 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -14592,7 +14592,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "4 of 5 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -15896,7 +15896,7 @@
    "verdict": "MATCH",
    "reason": "all 14 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -16036,7 +16036,7 @@
    "verdict": "DIVERGE",
    "reason": "1 of 2 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -16245,7 +16245,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutPaints": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -17794,7 +17794,7 @@
    "verdictWithoutPaints": "DIVERGE",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -18019,7 +18019,7 @@
    "verdict": "MATCH",
    "reason": "all 3 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -18403,7 +18403,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -18633,7 +18633,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -19017,7 +19017,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -19878,7 +19878,7 @@
    "verdictWithoutPaints": "MATCH",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -20721,7 +20721,7 @@
    "verdict": "MATCH",
    "reason": "all 9 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -21102,7 +21102,7 @@
    "verdictWithoutPaints": "DIVERGE",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -22055,7 +22055,7 @@
    "reason": "all 8 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -22306,7 +22306,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -22741,7 +22741,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -23641,7 +23641,7 @@
    "reason": "all 8 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -23779,7 +23779,7 @@
    "verdict": "MATCH",
    "reason": "all 2 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -24208,7 +24208,7 @@
    "verdictWithoutPaints": "MATCH",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -24571,7 +24571,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -24793,7 +24793,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -26673,7 +26673,7 @@
    "reason": "all 19 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -27327,7 +27327,7 @@
    "verdict": "MATCH",
    "reason": "all 8 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -27515,7 +27515,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -28647,7 +28647,7 @@
    "reason": "all 12 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -28957,7 +28957,7 @@
    "verdict": "MATCH",
    "reason": "all 4 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -29193,7 +29193,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -29627,7 +29627,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -30195,7 +30195,7 @@
    "verdict": "MATCH",
    "reason": "all 7 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -31795,7 +31795,7 @@
    "verdict": "MATCH",
    "reason": "all 19 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -31983,7 +31983,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -32197,7 +32197,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -34763,7 +34763,7 @@
    "reason": "all 12 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -34964,7 +34964,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "504 of 504 held boxes cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -37541,7 +37541,7 @@
    "verdict": "DIVERGE",
    "reason": "1 of 29 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -38257,7 +38257,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "11 of 15 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -38781,7 +38781,7 @@
    "verdict": "MATCH",
    "reason": "all 6 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -39073,7 +39073,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -39899,7 +39899,7 @@
    "verdict": "MATCH",
    "reason": "all 10 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -40826,7 +40826,7 @@
    "verdict": "MATCH",
    "reason": "all 9 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -41260,7 +41260,7 @@
    "verdict": "DIVERGE",
    "reason": "1 of 8 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -41470,7 +41470,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -41684,7 +41684,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -42141,7 +42141,7 @@
    "reason": "all 4 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "1 of 4 held labels cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -42527,7 +42527,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "7 of 7 held labels cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -42742,7 +42742,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -43526,7 +43526,7 @@
    "verdict": "MATCH",
    "reason": "all 3 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -44401,7 +44401,7 @@
    "verdictWithoutPaints": "MATCH",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -46087,7 +46087,7 @@
    "reason": "all 8 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "1 of 1 held labels cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -46304,7 +46304,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -46519,7 +46519,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -48600,7 +48600,7 @@
    "verdict": "MATCH",
    "reason": "all 3 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -49456,7 +49456,7 @@
    "reason": "all 1 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -50543,7 +50543,7 @@
    "reason": "1 of 9 compared items diverge",
    "verdictWithoutPaints": "INCONCLUSIVE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -51238,7 +51238,7 @@
    "verdict": "DIVERGE",
    "reason": "4 of 7 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -51462,7 +51462,7 @@
    "verdict": "MATCH",
    "reason": "all 3 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -51813,7 +51813,7 @@
    "reason": "all 2 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "2 of 52 held lines cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -52108,7 +52108,7 @@
    "verdict": "MATCH",
    "reason": "all 3 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -52492,7 +52492,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -52842,7 +52842,7 @@
    "reason": "all 2 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -53068,7 +53068,7 @@
    "verdict": "DIVERGE",
    "reason": "1 of 3 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -53864,7 +53864,7 @@
    "verdictWithoutPaints": "MATCH",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -54766,7 +54766,7 @@
    "reason": "all 9 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -55058,7 +55058,7 @@
    "verdict": "MATCH",
    "reason": "all 3 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -55529,7 +55529,7 @@
    "reason": "all 4 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "51 of 51 held lines cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
   },
@@ -55750,7 +55750,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -55944,7 +55944,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -56104,7 +56104,7 @@
    "reason": "1 of 1 compared items diverge",
    "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -56542,7 +56542,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "5 of 14 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -60991,7 +60991,7 @@
    "verdict": "DIVERGE",
    "reason": "1 of 12 compared items diverge",
    "ourNotes": [
-    "plots/objects: replayed: 8177 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8177 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -62191,7 +62191,7 @@
    "reason": "1 of 3 compared items diverge",
    "verdictWithoutPaints": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -62307,7 +62307,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutPaints": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -65300,7 +65300,7 @@
    "reason": "13 of 22 items could not be compared",
    "verdictWithoutColour": "INCONCLUSIVE",
    "ourNotes": [
-    "plots/objects: replayed: 6676 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6676 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8476 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -66942,7 +66942,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "5 of 16 items could not be compared",
    "ourNotes": [
-    "plots/objects: cold: a proved supplier exists (vw-time-tf-spy-5-ext-2026-10-02.json) but a 5 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar, cold replay",
+    "plots/objects: cold: a proved supplier exists (vw-time-tf-spy-5-ext-2026-10-02.json) but a 5 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar (not a daily chart), cold replay",
     "`bar_index` withheld (bar-index:window) on 1 plot(s) — `bar_index` counts bars from the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so its count is lower by a number of bars it cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test against one exact bar — would not be TradingView's, so everything this indicator draws from such a value is withheld on this chart rather than drawn wrong. What only measures a distance between bars (`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing."
    ]
   },
@@ -67981,7 +67981,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "7 of 18 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -69284,7 +69284,7 @@
    "verdict": "MATCH",
    "reason": "all 17 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -71341,7 +71341,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "6 of 24 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -71737,7 +71737,7 @@
    "verdict": "MATCH",
    "reason": "all 5 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -72647,7 +72647,7 @@
    "reason": "18 of 20 items could not be compared",
    "verdictWithoutColour": "INCONCLUSIVE",
    "ourNotes": [
-    "plots/objects: replayed: 8176 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8176 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8476 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -73557,7 +73557,7 @@
    "reason": "18 of 20 items could not be compared",
    "verdictWithoutColour": "INCONCLUSIVE",
    "ourNotes": [
-    "plots/objects: replayed: 8176 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8176 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8476 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -73878,7 +73878,7 @@
    "reason": "all 6 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 8176 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8176 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8476 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -74715,7 +74715,7 @@
    "reason": "all 18 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 3675 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 3675 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -74999,7 +74999,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "3 of 7 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 8177 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8177 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -75493,7 +75493,7 @@
    "reason": "all 10 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -75789,7 +75789,7 @@
    "verdict": "MATCH",
    "reason": "all 5 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -76443,7 +76443,7 @@
    "verdict": "MATCH",
    "reason": "all 13 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -78480,7 +78480,7 @@
    "verdict": "MATCH",
    "reason": "all 7 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -78752,7 +78752,7 @@
    "reason": "all 2 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -80159,7 +80159,7 @@
    "verdict": "MATCH",
    "reason": "all 9 items agree",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -81212,7 +81212,7 @@
    "reason": "6 of 9 compared items diverge",
    "verdictWithoutPaints": "DIVERGE",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -81891,7 +81891,7 @@
    "reason": "all 3 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 3675 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 3675 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -82649,7 +82649,7 @@
    "reason": "8 of 13 items could not be compared",
    "verdictWithoutColour": "INCONCLUSIVE",
    "ourNotes": [
-    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -88154,7 +88154,7 @@
    "verdict": "DIVERGE",
    "reason": "9 of 19 compared items diverge",
    "ourNotes": [
-    "plots/objects: cold: a proved supplier exists (vw-bar-counters-spy-1-2026-10-02.json) but a 1 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar, cold replay",
+    "plots/objects: cold: a proved supplier exists (vw-bar-counters-spy-1-2026-10-02.json) but a 1 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar (not a daily chart), cold replay",
     "`bar_index` withheld (bar-index:window) on 1 plot(s) — `bar_index` counts bars from the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so its count is lower by a number of bars it cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test against one exact bar — would not be TradingView's, so everything this indicator draws from such a value is withheld on this chart rather than drawn wrong. What only measures a distance between bars (`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
     "time(<timeframe>) withheld (time-anchor:not-daily) on 7 plot(s) — `time(\"W\")`, `time(\"M\")`, `time(\"3M\")` and `time(\"12M\")` — the opening time of the bar's week, month, quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the timeframes measured against TradingView on AMEX:SPY (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`). This chart's timeframe is `1`, which none of them is, so everything this indicator draws from them is withheld on this chart rather than assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe.",
     "time(<timeframe>) withheld (time-own:chart-unwitnessed) on 2 plot(s) — `time(timeframe.period)` and `time(\"60\")` are read on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts — the charts TradingView was measured on (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`); an indicator saved before 2026-10-01 carries the older reading, which covers 1D and 60-minute charts only. This chart's timeframe is `1`, so everything this indicator draws from them is withheld on this chart rather than assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe."
@@ -89759,7 +89759,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "7 of 19 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 7572 bars of prehistory from vw-bool-cast-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 7572 bars of prehistory from vw-bool-cast-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8472 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -96554,7 +96554,7 @@
    "verdict": "DIVERGE",
    "reason": "9 of 19 compared items diverge",
    "ourNotes": [
-    "plots/objects: cold: a proved supplier exists (vw-bar-counters-spy-30-2026-10-02.json) but a 30 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar, cold replay",
+    "plots/objects: cold: a proved supplier exists (vw-bar-counters-spy-30-2026-10-02.json) but a 30 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar (not a daily chart), cold replay",
     "`bar_index` withheld (bar-index:window) on 1 plot(s) — `bar_index` counts bars from the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so its count is lower by a number of bars it cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test against one exact bar — would not be TradingView's, so everything this indicator draws from such a value is withheld on this chart rather than drawn wrong. What only measures a distance between bars (`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
     "time(<timeframe>) withheld (time-anchor:not-daily) on 7 plot(s) — `time(\"W\")`, `time(\"M\")`, `time(\"3M\")` and `time(\"12M\")` — the opening time of the bar's week, month, quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the timeframes measured against TradingView on AMEX:SPY (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`). This chart's timeframe is `30`, which none of them is, so everything this indicator draws from them is withheld on this chart rather than assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe.",
     "time(<timeframe>) withheld (time-own:chart-unwitnessed) on 2 plot(s) — `time(timeframe.period)` and `time(\"60\")` are read on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts — the charts TradingView was measured on (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`); an indicator saved before 2026-10-01 carries the older reading, which covers 1D and 60-minute charts only. This chart's timeframe is `30`, so everything this indicator draws from them is withheld on this chart rather than assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe."
@@ -99137,7 +99137,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "8 of 19 items could not be compared",
    "ourNotes": [
-    "plots/objects: cold: a proved supplier exists (vw-bool-cast-spy-60-2026-09-28.json) but a 60 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar, cold replay",
+    "plots/objects: cold: a proved supplier exists (vw-bool-cast-spy-60-2026-09-28.json) but a 60 chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar (not a daily chart), cold replay",
     "`bar_index` withheld (bar-index:window) on 1 plot(s) — `bar_index` counts bars from the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so its count is lower by a number of bars it cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test against one exact bar — would not be TradingView's, so everything this indicator draws from such a value is withheld on this chart rather than drawn wrong. What only measures a distance between bars (`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing."
    ]
   },
@@ -100193,7 +100193,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "9 of 17 items could not be compared",
    "ourNotes": [
-    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 8175 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8475 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
@@ -101188,7 +101188,7 @@
    "verdictWithoutPaints": "MATCH",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume",
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
    ]
   },
@@ -101492,7 +101492,7 @@
    "reason": "all 5 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
-    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
+    "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
   },
   {
