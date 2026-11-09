@@ -57,7 +57,7 @@ from api.services import watchlist_alert_service as wls            # noqa: E402
 # entire per-plot assertion checking nothing while staying green. `len(...) == 28`
 # survives `rsi` being renamed to `rsi2`; the list does not.
 BASELINE_INDICATOR_FUNCS = 28
-BASELINE_CATALOG_GROUPS = 17  # 2026-11-04: +`ma_cross`
+BASELINE_CATALOG_GROUPS = 18  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 #: Every address the GLOBAL space holds, in catalog order — the order the
 #: dropdown renders and the order `build_alert_grid` iterates.
@@ -70,6 +70,12 @@ BASELINE_ADDRESSES = [
     "sar.priceCrossedSar", "sar.trendFlipped", "close",
     # 2026-11-04 — the CROSS partition (global, NOT a user address).
     "ma_cross",
+    # 2026-11-07: +rs_line (UCT RS, unit 2b-05) — the 5th partition, appended last, catalog order.
+    "rs_line.value", "rs_line.ma", "rs_line.above", "rs_line.crossUp", "rs_line.crossDown",
+    "rs_line.newHigh", "rs_line.newHighBeforePrice", "rs_line.newHighRed", "rs_line.mansfield",
+    "rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown",
+    # 2026-11-07 (RS 2b-06): +rs_line.rating — the twelfth RS address, appended last.
+    "rs_line.rating",
 ]
 
 USER_A = "user-a"
@@ -77,6 +83,19 @@ USER_B = "user-b"
 DEF_ID = "u_0123456789ab"
 OTHER_DEF_ID = "u_ba9876543210"
 ADDRESS = f"{DEF_ID}.value"
+
+
+# 2026-11-07 (RS fix U1, review #2) -- PIN MOVED. The RS alert catalog and the
+# create door now follow `registry_defs.RS_V2_ENABLED` (and, for `rs_line.rating`,
+# `api.main.rs_history_enabled()`), dark by default; registration is unchanged.
+# The pins in this file describe the LIT shape (BASELINE_CATALOG_GROUPS counts the
+# `rs_line` group), so both flags are lit here, deterministically. The dark shape
+# is railed in tests/test_rs_fix_u1_alert_lane.py.
+@pytest.fixture(autouse=True)
+def _rs_alert_flags_lit(monkeypatch):
+    from api.services.signature import registry_defs as _rs_flag_defs
+    monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
 def _ast_sma(period: int = 20) -> dict:
@@ -333,7 +352,7 @@ def test_the_fourth_partition_is_NOT_in_ADDRESS_PARTITIONS(defs_db, real_bars):
     address into a global enumeration and change the shape of a 685,193-fire log.
     """
     assert all(p is not aus.USER_FUNCS for p in ev.ADDRESS_PARTITIONS)
-    assert len(ev.ADDRESS_PARTITIONS) == 4  # 2026-11-04: +1 `ma_cross` (CROSS partition)
+    assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
     save(USER_A, defn())
     aus.admit_user_definition(USER_A, DEF_ID, bars=real_bars)

@@ -101,11 +101,12 @@ async function answerChoice(label) {
 }
 
 describe('DrillPlayer', () => {
-  it('shows the ten-segment progress strip as "Question N of 10" and advances it', async () => {
+  it('shows the status line as "Question N of 10" and advances it', async () => {
     const fetcher = makeFetcher(tenSet())
     render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
     expect(await screen.findByText('Question 1 of 10')).toBeInTheDocument()
-    expect(screen.getByTestId('progress-strip').querySelectorAll('li')).toHaveLength(10)
+    // Hard mode's status line (2026-11-08): ten stops on the track, the step named in words
+    expect(screen.getByRole('group', { name: 'Lesson, question 1 of 10, 0 right' })).toBeInTheDocument()
 
     await answerChoice('VCP')
     fireEvent.click(screen.getByTestId('primary-action'))
@@ -126,6 +127,10 @@ describe('DrillPlayer', () => {
     expect(btn).not.toBeDisabled()
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
+    // the answer takes over the screen (rule 15), with the verdict; its button opens the lesson
+    expect(screen.getByTestId('drill-takeover')).toHaveTextContent('Correct')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    expect(screen.queryByTestId('drill-takeover')).not.toBeInTheDocument()
     expect(screen.getByText('Correct')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('primary-action'))
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Check'))
@@ -154,7 +159,8 @@ describe('DrillPlayer', () => {
     expect(screen.getByText('frozen:true')).toBeInTheDocument()
     expect(screen.getByText('liveUpdates:false')).toBeInTheDocument()
     expect(screen.getByText('hideWatermark:true')).toBeInTheDocument()
-    expect(screen.getByText('showBrandMark:false')).toBeInTheDocument()
+    // rule 1 of the owner's principles (docs/study/OWNER_PRINCIPLES.md): the member's own widget, with our logo
+    expect(screen.getByText('showBrandMark:true')).toBeInTheDocument()
     expect(screen.getByText('drawingTools:false')).toBeInTheDocument()
     expect(screen.getByText('feeds:false/false')).toBeInTheDocument()
     expect(chart).toHaveAttribute('data-first', '2025-01-02')
@@ -247,7 +253,11 @@ describe('DrillPlayer', () => {
     await waitFor(() => expect(screen.getByRole('radio', { name: 'The buy point' })).toHaveAttribute('aria-checked', 'true'))
     fireEvent.keyDown(document.body, { key: 'Enter' })
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
-    expect(screen.getByRole('status')).toHaveTextContent('Correct')
+    // Enter belongs to the takeover while it holds the screen: it opens the lesson, it never skips it
+    expect(screen.getByTestId('drill-takeover')).toHaveTextContent('Correct')
+    fireEvent.keyDown(window, { key: 'Enter' })
+    await waitFor(() => expect(screen.queryByTestId('drill-takeover')).not.toBeInTheDocument())
+    expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue')
   })
 })
 

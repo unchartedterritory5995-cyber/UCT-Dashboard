@@ -38,6 +38,7 @@ import { toRenderState } from '../../objectRenderState'
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback } from '../../ast/interpret'
+import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -795,6 +796,14 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/** ⭐⭐ THE PARITY CLOCK: one that never moves. A grade is a question about VALUES, so
+ *  the runtime pane's wall-clock stop (`RUNTIME_PANE_TIME_BUDGET_MS`) must not answer it:
+ *  on a busy box delta-rsi's cold run passed 1,000 ms and graded INCONCLUSIVE ("no
+ *  column") while its values MATCH. Installed for the length of one grade and restored in
+ *  the `finally`; the instruction budgets (`limits.js`) still stop a runaway, and the
+ *  member door's budget is railed on its own (`runtimeDoorBudget.rail.test.js`). */
+const PARITY_CLOCK = () => 0
+
 /**
  * Run the member door on the capture's bars.
  *
@@ -802,6 +811,15 @@ export function enterMemberDoor(source) {
  *            ctx: object, notes: string[]}}
  */
 export function runOurSide(capture) {
+  setRuntimeDoorClock(PARITY_CLOCK)
+  try {
+    return runOurSideOnTheParityClock(capture)
+  } finally {
+    setRuntimeDoorClock(null)
+  }
+}
+
+function runOurSideOnTheParityClock(capture) {
   const notes = []
   const source = capture && capture.source && capture.source.text
   const door = enterMemberDoor(source)
@@ -951,7 +969,13 @@ export function runOurSide(capture) {
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
           : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
+        // ⭐ HONESTY-SWEEP r3 — say WHY, when the door recorded it. A runtime run stopped by
+        // its wall-clock budget (`runtime:time-budget`, 1,000 ms) read here as a bare "no
+        // column", so a measure-pair could not tell a load-sensitive stop from a lane that
+        // dropped its columns (delta-rsi RDDT, MATCH -> INCONCLUSIVE, 2026-11-08).
+        const why = registry.columnErrors(cols)[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
+          + (why && why.guard ? ` (${why.guard})` : '')
       }
       plots.push({
         title: o ? o.title : null,

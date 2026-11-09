@@ -17,7 +17,16 @@ import styles from './BreadthDrillBoard.module.css'
 // two-widget modal has nothing to rearrange. Lifting renderGrid out into a shared
 // board is the follow-up.
 
-export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [], mobilePane = 'list' }) {
+// Optional Scan Deck slots — every one defaults to "absent", so a caller that
+// passes none gets the board exactly as it always was:
+//   hosted         widgets render WITHOUT their /charts header bar (WidgetHost's
+//                  `merged` mode). The scan window owns the identity, layout and
+//                  close, so the dot / + / tab strip / pop-out had nowhere to go.
+//   listTop        a node above the list widget (filters, composition, groups).
+//   wrapChartPane  (node) => node — frames the chart pane (toolbar above, facts
+//                  and triage below) without the board knowing what they are.
+export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [], mobilePane = 'list',
+  hosted = false, listTop = null, wrapChartPane = null }) {
   const { widgets, split } = board
   const wrapRef = useRef(null)
   const [dragging, setDragging] = useState(false)
@@ -111,6 +120,7 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
       onOptsChange={(opts) => patchOpts(w.id, opts)}
       onReplaceWidget={replaceWidget}
       onPopOut={onPopOut ? () => onPopOut(w.id) : undefined}
+      merged={hosted}
     />
   )
 
@@ -131,13 +141,14 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
     // read: useMediaQuery seeds at mount and only updates on a `change` event, so
     // in a fixed mobile viewport a render-time read can be stale on first paint.
     // Above 640px this attribute selects nothing.
-    <div className={styles.board} ref={wrapRef} data-pane={mobilePane}>
+    <div className={`${styles.board}${hosted ? ' ' + styles.boardHosted : ''}`} ref={wrapRef} data-pane={mobilePane}>
       {!listPopped && (
         <div
           className={`${styles.pane} ${styles.paneList}${soloed ? ' ' + styles.paneGrow : ''}`}
           style={soloed ? undefined : { width: split, flex: '0 0 auto' }}
         >
-          {listWidget && host(listWidget)}
+          {listTop}
+          {listWidget && (listTop ? <div className={styles.paneFill}>{host(listWidget)}</div> : host(listWidget))}
         </div>
       )}
       {!soloed && (
@@ -157,7 +168,7 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
       )}
       {!chartGone && (
         <div className={`${styles.pane} ${styles.paneGrow} ${styles.paneChart}`}>
-          {chartWidget && host(chartWidget)}
+          {chartWidget && (wrapChartPane ? wrapChartPane(host(chartWidget)) : host(chartWidget))}
         </div>
       )}
     </div>

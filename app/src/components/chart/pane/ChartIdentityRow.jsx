@@ -72,6 +72,9 @@ export default function ChartIdentityRow({
         // Dead ticker: a static badge in place of the (nonexistent) live day-change.
         <span
           className={styles.chartDayGain}
+          // Hook for an app-surface header (light /charts, popup, hub) to swap the inline
+          // gold below for its own surface's gold (ChartsWorkspace.module.css).
+          data-delisted=""
           style={{
             color: '#c9a84c',
             border: '1px solid rgba(201,168,76,0.45)',

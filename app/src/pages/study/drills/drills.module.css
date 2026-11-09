@@ -225,27 +225,39 @@
   border: 1px solid var(--border);
 }
 
-/* Tap-the-chart HUD chip (D10): bottom-centre of the chart box. */
+/* Tap-the-chart HUD chip (D10). It used to sit at the BOTTOM centre of the chart box, which is where the time axis
+   prints its dates: the pill covered them (real-screen review 2026-11-08, "Tap the RS new high" on the RS drafts).
+   It now sits at the TOP of the plot, centred between the box's left edge and the price scale, and wraps instead of
+   running under the scale on a phone. The top is also clear of the RS pane, which is what an RS tap item points at.
+   pointer-events stay off, so a tap through the pill still lands on the chart. The plate is a dark literal, so its ink
+   and rim are literals too (a self-contained pair that reads on any chart canvas): the --text-bright token here went
+   dark-on-dark on the light theme.
+   Kit v2 (real-screen check, 1440x900): the desktop chart now prints its OHLC legend from 35 px below the box top, so
+   the pill is a compact 26 px strip in the band above it (5 px + 26 px = 31 px) instead of covering the legend's
+   values. The phone hides that legend, so there the pill may wrap to a second line. */
 .hud {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 5px;
+  left: 12px;
+  right: 72px;
   z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  max-width: calc(100% - 32px);
-  padding: 8px 14px;
-  border: 1px solid var(--ut-gold-glow);
+  display: block;
+  width: max-content;
+  max-width: calc(100% - 12px - 72px);
+  margin: 0 auto;
+  padding: 3px 12px;
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-pill);
   background: rgba(26, 28, 23, 0.94);
-  color: var(--text-bright);
-  font-size: var(--text-base);
-  white-space: nowrap;
+  color: #f8f7f3;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  white-space: normal;
   pointer-events: none;
 }
-.hudDone { border-color: var(--ut-gold); }
+.hudDone { border-color: #dcbb5e; }
 
 .srOnly {
   position: absolute;

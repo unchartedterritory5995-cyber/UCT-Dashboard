@@ -1,0 +1,36 @@
+// HONESTY-SWEEP (2026-11-07) - probe Q-HS1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. Read the drawings from the chart model
+// (each line's style, the label's style, the table cell's text size), not from pixels.
+// Not compiled on TradingView yet: if a row does not compile, the error names the line; split it out.
+//
+//   L01  line.new(..., style = na): what style is drawn (or an error)
+//   L02  style = (bar_index % 2 == 0 ? line.style_dashed : na), on the last bar and on the bar before it
+//   L03  a helper `switch` of line.style_* with NO default arm, called with an input on an UNMATCHED option ("Z")
+//   L04  the same helper on a MATCHED option ("A"): dashed (confirms the matched arm)
+//   L05  a value `if` of line.style_* with no `else`, false on every bar
+//   B01  label.new(..., style = na): the label's style
+//   T01  table.cell(..., text_size = na): the cell's text size
+//   S01  line.set_style(l, na) on a line made dashed: its style after
+//@version=6
+indicator("vw-hs1-enum-na", overlay = true)
+pickZ = input.string("Z", "unmatched", options = ["A", "B", "Z"])
+pickA = input.string("A", "matched", options = ["A", "B", "Z"])
+st(m) =>
+    switch m
+        "A" => line.style_dashed
+        "B" => line.style_dotted
+s5 = if close > close * 2
+    line.style_dotted
+var tb = table.new(position.top_right, 1, 1)
+var l8 = line.new(bar_index, low, bar_index + 1, low, style = line.style_dashed)
+if barstate.islast
+    line.new(bar_index - 10, high, bar_index, high, style = na)
+    line.new(bar_index - 10, low, bar_index, low, style = bar_index % 2 == 0 ? line.style_dashed : na)
+    line.new(bar_index - 11, low * 0.99, bar_index - 1, low * 0.99, style = (bar_index - 1) % 2 == 0 ? line.style_dashed : na)
+    line.new(bar_index - 10, close, bar_index, close, style = st(pickZ))
+    line.new(bar_index - 10, open, bar_index, open, style = st(pickA))
+    line.new(bar_index - 10, hl2, bar_index, hl2, style = s5)
+    label.new(bar_index, high * 1.01, "B01", style = na)
+    table.cell(tb, 0, 0, "T01", text_size = na)
+    line.set_style(l8, na)
+plot(close, "close")

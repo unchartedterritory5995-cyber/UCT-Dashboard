@@ -141,6 +141,10 @@ KILL_LIST = {
     "DISCORD_MASSIVE_WEBHOOK_URL": "",
     "DISCORD_NOTABLE_WEBHOOK_URL": "",
     "DISCORD_RECAP_WEBHOOK_URL": "",
+    # UCT RS nightly leaders post (2026-11-07): the member channel and the admin door's test
+    # channel. A sandbox that inherited either could post to the live Discord room.
+    "DISCORD_RS_WEBHOOK_URL": "",
+    "DISCORD_RS_TEST_WEBHOOK_URL": "",
     "DISCORD_BOT_TOKEN": "",
     "ALPHA_GOLD_EOD_WEBHOOK_URL": "",
     "BUZZ_DIGEST_WEBHOOK": "",
