@@ -95,12 +95,16 @@ export function endForNewRequest() { if (state) endGuide('replaced') }
 /** ⭐ Escape heard on the board, whatever the board's own handlers did with it (they stop or prevent it even with nothing to
  *  cancel: pl-auto esc-on-board): ends the walkthrough unless a field, a layer, a menu, an armed drawing tool or a selected
  *  drawing had it. For a registry observer declared on Escape in the capture phase to call (observers get no event). */
+/** ⭐ A SELECTED DRAWING, on any pointer. The chart's toolbar renders "Delete selected" enabled exactly while StockChart's own
+ *  selection (`selectedId` → ChartToolbar `hasSelection`) holds one, on desktop and touch alike; the touch quick bar ("Drawing
+ *  actions") only shows on a coarse pointer, so on its own it missed a desktop selection (AUDIT #989 follow-up). */
+export const SELECTED_DRAWING = '[aria-label="Delete selected"]:not([disabled]),[aria-label="Drawing actions"]'
 /** Something on the board owns an Escape press: a field, a modal dialog, a menu, an armed drawing tool, a selected drawing. */
 export function boardOwnsEscape(doc = typeof document === 'undefined' ? null : document) {
   if (!doc) return true
   const ae = doc.activeElement
   const field = !!ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)
-  return field || !!doc.querySelector('[role="dialog"][aria-modal="true"],[role="menu"],[data-guide$="Menu"],[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],[aria-label="Drawing actions"]')
+  return field || !!doc.querySelector('[role="dialog"][aria-modal="true"],[role="menu"],[data-guide$="Menu"],[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],' + SELECTED_DRAWING)
 }
 export function escapeOnBoard(doc = typeof document === 'undefined' ? null : document) {
   if (!state || !doc || boardOwnsEscape(doc)) return false

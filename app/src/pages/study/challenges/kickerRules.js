@@ -1,4 +1,4 @@
-// SPOT THE KICKER: the owner's three rules, measured from the bars (the bank lesson for setup.family3.kicker, in his
+// THE KICKER'S RULES (Spot the Setup shows them on a Kicker chart): the owner's three rules, measured from the bars (the bank lesson for setup.family3.kicker, in his
 // words): a REAL red day before it (down 1% or more, a weak close), a GAP over the red day's CLOSE, and a strong
 // close ABOVE the red day's high in the upper half of its range. The look-alikes are found by the same rules, never
 // invented: a "baby red" (the red day was too small) and a "weak close" (gapped over the close but did not finish).

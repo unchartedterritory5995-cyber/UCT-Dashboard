@@ -1,0 +1,19 @@
+//@version=5
+strategy("vw-s1-q-s1d-close-reverse", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-S1d of
+// docs/pine/capture-queue-2026-10-05-s1.md (shape 1 of 3: an open long, then `strategy.close` and a qty-2 short entry on one bar). One behaviour, no licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: same-tick fill order: the CSV order and sizes, and strategy.position_size the next bar.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults, Strategy properties at the script's own defaults (Properties tab untouched);
+// export the Strategy Tester List of trades as CSV beside the capture (the doc's header).
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+if bar_index == 50
+    strategy.entry("L", strategy.long)
+if bar_index == 60
+    strategy.close("L")
+    strategy.entry("S", strategy.short, qty = 2)
+plot(strategy.position_size, "D01_position_size")
+plot(strategy.opentrades, "D02_opentrades")

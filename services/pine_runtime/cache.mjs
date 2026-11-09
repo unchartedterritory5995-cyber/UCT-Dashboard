@@ -49,6 +49,9 @@ export function canonicalCtx(ctx) {
   const inputs = ctx.runtimeInputs || {}
   const parts = [`forming=${ctx.newestBarIsForming === true}`, `listing=${ctx.historyFromListing === true}`]
   for (const k of Object.keys(inputs).sort()) parts.push(`${lp(k).toString('hex')}=${lp(inputText(inputs[k])).toString('hex')}`)
+  // W9-T11: a broker run's window decides its answer. Appended ONLY when the job states one, so
+  // every key a job without it had is unchanged; `window=` cannot collide with an input part (hex=hex).
+  if (ctx.historyWindowBars !== undefined) parts.push(`window=${num(ctx.historyWindowBars)}`)
   return parts.join('|')
 }
 

@@ -14,6 +14,7 @@ import { it } from 'vitest'
 import fs from 'node:fs'
 import process from 'node:process'
 import { translatePine } from './pine'
+import { memberInputTranslation } from '../../builder/builderInputs'
 
 const INPUT = process.env.W3_INPUT
 const OUT = process.env.W3_OUT
@@ -24,7 +25,8 @@ it.runIf(!!(INPUT && OUT))('w3 why', () => {
     const src = fs.readFileSync(r.path, 'utf8')
     let res
     try {
-      res = translatePine(src, {})
+      // W3W4-T0: the MEMBER DOOR's lane (memberPaneDefinition's options), not the screener's `{}`
+      res = memberInputTranslation(translatePine, src, { paramManifest: true, strict: true, colourInputs: true, guardInputs: true })
     } catch (e) {
       out.push({ key: r.key, threw: String(e && e.message).slice(0, 200) })
       continue

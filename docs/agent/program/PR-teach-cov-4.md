@@ -69,7 +69,15 @@ One fresh full runner pass (Vite restarted), each case run once:
   - **Program total: 281 of 499.**
   - The run file `runs/2026-11-09.cov4.results.json` and `CHARTS_TEACH_STATUS.md` are regenerated.
 - **Held-out cov-4b, final browser single run:** 7/9. H4b-06 needs MACD on the chart; H4b-09 is the chart tab dot.
-- **Owed:** a full suite on this head, since items (5)–(7) came after the earlier suite line.
+- **Full suite on the head with items (5)–(7) and the price-scale entry:** one locked run at `788ab98573` (`src/agent`, BelowNormal, LOCAL / SIMULATED). Result: `Test Files 1 failed | 275 passed | 5 skipped (281)`, `Tests 1 failed | 9429 passed | 14 skipped (9444)`.
+  - The 1 failure is `agentBreadthSelection` F1→F2→F3, a known wall-clock limit (350 ms against 300).
+  - That file is not touched by this branch, and it passed 20/20 on its own right after.
+
+## Price-scale reset entry (owner decision; pl-exec offers it)
+- **`788ab98573`:** a `chartView` row, `priceScaleReset`, titled "Resetting the price scale". It rings the chart and says "Double-click the price axis to reset it to auto."
+- **How pl-exec opens it:** `guide.show { feature: 'chartView', detail: 'reset the price scale' }`.
+- **Held-out:** 0/5 before (`5e23b4e398`, written first), 5/5 after.
+- **Unchanged:** no new feature id, so no golden change; no inventory row's routing changed.
 
 ## Plan vs actual
 The plan expected about +31 for items (1)–(4). The actual gain was **+8** VERIFIED: 270 → 278.

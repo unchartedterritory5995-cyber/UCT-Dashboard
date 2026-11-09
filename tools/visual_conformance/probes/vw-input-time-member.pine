@@ -1,0 +1,17 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_TIME_MEMBER", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-D3
+// (docs/pine/capture-queue-2026-10-31-wsd-input-kinds.md). NEVER COMPILED ON TRADINGVIEW.
+// Q-D1's shape, captured TWICE: once at the default, then after the time is changed in
+// TradingView's settings dialog. Record the date and time the dialog SHOWS for the default and the
+// value typed; T01 is the UNIX-ms instant the run received, D01 the first bar plotting 1. The
+// question: does the dialog show and take the time in the chart's (exchange) zone or in UTC?
+// CAPTURE: AMEX:SPY 1D. Capture 1 at defaults; capture 2 with t set in the dialog to a time of
+// the capturer's choosing (e.g. 21 Feb 2020 00:00): record it as typed and the dialog's zone label, if any.
+
+t = input.time(timestamp("20 Feb 2020"), "t")
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(t, "T01_t_ms")
+plot(time >= t ? 1 : 0, "D01_time_ge_t")

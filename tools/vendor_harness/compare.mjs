@@ -76,7 +76,11 @@ export function tolerancePolicy(capture) {
     absReason = 'pricescale unknown — double-noise floor 1e-12'
   }
   if (declared !== null) {
-    const half = 0.5 * 10 ** (-declared)
+    // ⛔ `0.5 / 10 ** d`, not `0.5 * 10 ** -d`: a NEGATIVE exponent is not correctly
+    // rounded on every engine (V8 in Node 20, CI's Node: `10 ** -4` = 0.00009999999999999999),
+    // while 10^d for a whole d >= 0 is exact and a division is correctly rounded, so this
+    // is the nearest double to half a unit in the d-th decimal on every engine (2026-11-08).
+    const half = 0.5 / 10 ** declared
     if (half > abs) {
       abs = half
       absReason = `half a unit in the ${declared}th decimal — the capture's declared readDecimals (legacy)`

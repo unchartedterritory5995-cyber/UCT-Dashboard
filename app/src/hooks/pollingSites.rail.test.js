@@ -346,6 +346,20 @@ const BARE_POLL_SITES = {
   //   • measured, not assumed: `useTickerIpo.test.jsx` "asks again while non-final
   //     and stops once final" proves both the re-ask and the stop.
   'app/src/hooks/useTickerIpo.js': 1,
+  // ⭐ A POST-CENSUS ROW (ea3f9d222d, 2026-10-29, "a cold Today answers 202 warming"),
+  // recorded 2026-11-08 after it sat red on master. The same SELF-TERMINATING shape
+  // as `EvidenceTab.jsx` and `useTickerIpo.js` above, not a steady-state tick: The
+  // Desk → Archive's Today view polls `/api/wisdom/archive/rhymes` every 15 s ONLY
+  // while there is no answer yet or the server says `{status: "warming"}`, and returns
+  // 0 the moment the hits land.
+  //   • `useMobileSWR` doubling it would delay the first answer a member is sitting
+  //     on "matching…" for, on a poll that lives through one cold compute after a
+  //     deploy — a cost on the phone, not a saving;
+  //   • the wrapper's `useMarketOpen` 60 s timer is unrelated to a background
+  //     compute, and the call site already sets `revalidateOnFocus: false` by hand;
+  //   • measured, not assumed: `TodayRhymes.test.jsx` "a 202 "warming" answer says
+  //     so and checks back until the hits land, then stops" proves both halves.
+  'app/src/pages/traderArchive/TodayRhymes.jsx': 1,
   // ⚠️ 1 → 2 ON 2026-09-20, and it is the SAME decision this row already recorded,
   // not a new one. The hook grew a second branch: a list longer than
   // `snapshot-batch`'s 100-ticker cap reads `/api/watchlists/bulk-meta` instead —

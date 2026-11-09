@@ -86,42 +86,8 @@
   font-family: var(--font-mono);
 }
 
-.quadText {
-  fill: var(--text-muted);
-  font-size: 11px;
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
-  /* No opacity: the quadrant names are TEXT, and 0.8 on --text-muted read 3.7:1 on the light
-     themes (terminal a11y audit 2026-10-06). The muted ink already ranks them below the data. */
-}
-
-.pointLabel {
-  fill: var(--text-bright);
-  font-size: var(--text-sm);
-  font-family: var(--font-mono);
-}
-
-.labelLeader {
-  stroke: var(--text-muted);
-  stroke-width: 1;
-  opacity: 0.6;
-}
-
-/* PHONE: the 560-unit RRG graph scales to ~62% on a 390px phone, so an 11-unit label drew at
-   ~7px. 18 units reads ~11px there; RrgPanel.placeLabels spaces labels for this size
-   (audit 2026-10-08, RRG #24). */
-@media (max-width: 640px) {
-  .pointLabel {
-    font-size: 18px;
-  }
-}
-
-.qLeading { stroke: var(--gain); fill: var(--gain); }
-.qWeakening { stroke: var(--warn); fill: var(--warn); }
-.qLagging { stroke: var(--loss); fill: var(--loss); }
-.qImproving { stroke: var(--info); fill: var(--info); }
-
-.tailLine { fill: none; stroke-width: 1.5; opacity: 0.7; }
+/* The RRG graph's own rules (quadrant names, point labels, tails, quadrant colours) moved with
+   the graph to components/rotation/RrgGraph.module.css (UCT RS Phase 3, unit 3-12). */
 
 .line { fill: none; stroke-width: 1.6; }
 .avgLine { fill: none; stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 4 3; }

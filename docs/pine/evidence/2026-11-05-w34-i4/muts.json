@@ -1,0 +1,68 @@
+[
+ [
+  "M0-noop-control",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  " *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18",
+  " *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference).  The C18"
+ ],
+ [
+  "M1-seed-0-at-the-history-authority",
+  "src/components/chart/engine/runtime/vm.js",
+  "if (b > committed) { stack[sp++] = NaN; break }",
+  "if (b > committed) { stack[sp++] = 0; break }"
+ ],
+ [
+  "M1b-seed-0-in-the-rewrite-initialiser",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "{ ...eqTok, kind: 'ident', value: 'na' }",
+  "{ ...eqTok, kind: 'number', value: 0, raw: '0' }"
+ ],
+ [
+  "M2-bare-read-admitted",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "isPunct(rhs[i - 1], '(') && isIdent(rhs[i - 2], 'nz') && !isPunct(rhs[i - 3], '.')\n        && ",
+  "true\n        && "
+ ],
+ [
+  "M3-version-gate-off",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "if (!Array.isArray(stmts) || (version != null && version > 2)) return stmts",
+  "if (!Array.isArray(stmts)) return stmts"
+ ],
+ [
+  "M4-object-door-rewritten",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "if (!atObjectDoor) stmts = v2SelfReferenceStatements(stmts, version)",
+  "stmts = v2SelfReferenceStatements(stmts, version)"
+ ],
+ [
+  "M5-declared-twice-admitted",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "&& declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)",
+  "&& !mut.mutated.has(nameTok.value)"
+ ],
+ [
+  "M6-reassigned-admitted",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "&& declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)",
+  "&& declared.get(nameTok.value) === 1"
+ ],
+ [
+  "M7-offset-0-admitted",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "Number.isInteger(k.value) && k.value >= 1",
+  "Number.isInteger(k.value) && k.value >= 0"
+ ],
+ [
+  "M8-no-self-read-required",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "  return reads > 0\n",
+  "  return reads >= 0\n"
+ ],
+ [
+  "M9-fill-form-readmitted",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')",
+  "isPunct(rhs[i + 3], ']') && (isPunct(rhs[i + 4], ')') || isPunct(rhs[i + 4], ','))"
+ ]
+]

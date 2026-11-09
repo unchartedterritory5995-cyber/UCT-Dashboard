@@ -2965,6 +2965,7 @@ _PREFERENCE_KEYS = {
     # the W14-D lane before any tour shipped; the 9/26 `notebook_daily_template`
     # class). The base tour keeps its own `notebook_tour` row above.
     "notebook_tours": _PREF_OPAQUE,
+    "indicator_tours_seen": _PREF_OPAQUE,  # first-run indicator tours seen, defId -> ISO date (UCT RS unit 4-03)
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,

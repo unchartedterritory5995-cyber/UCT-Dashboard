@@ -1491,9 +1491,9 @@ def _research(query: str, recency: str) -> dict:
 
 def _default_caller(**kwargs):
     from api.services.engine import _get_anthropic_client
-    from api.services import llm_timeouts
+    from api.services import call_deadline, llm_timeouts
     client = _get_anthropic_client().with_options(
-        max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
+        max_retries=0, timeout=call_deadline.cap(llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH)))
     return client.messages.create(**kwargs)
 
 
@@ -1501,13 +1501,15 @@ def _default_stream_caller(on_text: Callable[[str], None], **kwargs):
     """The same request as `_default_caller`, streamed: each text chunk of the envelope JSON goes to
     `on_text` as it arrives; returns the same final message (usage, stop reason, content)."""
     from api.services.engine import _get_anthropic_client
-    from api.services import llm_timeouts
+    from api.services import call_deadline, llm_timeouts
     client = _get_anthropic_client().with_options(
-        max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
+        max_retries=0, timeout=call_deadline.cap(llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH)))
     seen: dict | None = None
     try:
         with client.messages.stream(**kwargs) as stream:
             for event in stream:
+                if call_deadline.expired():                   # a timeout is per read: a trickle would never trip it
+                    raise call_deadline.Expired()
                 kind = getattr(event, "type", None)
                 if kind == "text":
                     on_text(event.text)

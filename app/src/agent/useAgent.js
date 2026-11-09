@@ -25,7 +25,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -42,6 +42,10 @@ import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expand
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnMarkMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
+import { FLOW_FIELDS } from './capabilities/scanHidden'
+import { namedBoardWidgets } from './routing'
+// the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
+export const FLOW_WIDGET_REFUSAL = "I can't set the Options Flow widget's filters for you yet. Use the filter chips on the widget itself (Calls / Puts, Sweeps / Blocks, Bull / Bear, the premium floor). Nothing was changed."
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
@@ -185,7 +189,11 @@ export function arrangesBoard(it) {
   if (p.grid || (p.add || []).length || (p.remove || []).length || (p.restore || []).length) return true
   return Object.values(p.set || {}).some(d => d && GEOM_KEYS.some(k => k in d))
 }
-const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
+// round 3: "says:<word>" — a change described by a word its own receipt says ("rsi", "weekly"), whole word, any case
+const escRe = (w) => String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const saysWord = (about) => (String(about || '').startsWith('says:') ? new RegExp(`\\b${escRe(about.slice(5))}\\b`, 'i') : null)
+const undoWordOf = (about) => (String(about || '').startsWith('says:') ? about.slice(5) : about)
+const undoMatches = (about, entry) => (saysWord(about) ? saysWord(about).test((entry.lines || []).join(' ')) : UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
   || (about === 'chart' && entry.items.some(touchesCharts))
   || (about === 'layout' && entry.items.some(arrangesBoard))
   : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
@@ -1639,7 +1647,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // ⛔ F14: "undo that indicator removal" when my newest change was not an indicator change → nothing
     // is undone; the member hears what the newest change WAS (Undo never reaches past it to an older one)
     if (about && !undoMatches(about, entry)) {
-      const text = `My last change wasn't ${/^[aeiou]/.test(about) ? 'an' : 'a'} ${about} change — it was: ${entry.lines.join(' · ').replace(/[.]+$/, '') || 'something else'}. Nothing was undone; say “undo” to take that back.`
+      // ⭐ round 3 (pl-exec): a DESCRIBED Undo takes back the most recent change of that kind in this session, not only the
+      // newest one; the changes after it stay, and the member is told so. Its read-back and every refusal are doUndoOne's own.
+      const older = undoId ? null : [...stack].reverse().find(e => e.id !== entry.id && undoMatches(about, e))
+      if (older) {
+        const ok = await doUndoOne(older.id, { member, voice })
+        const after = stack.length - 1 - stack.indexOf(older)
+        if (ok !== false && lastUndoRef.current !== 'refused') push({ role: 'outcome', text: `That was an earlier change: ${after === 1 ? 'the change after it stays as it is' : `the ${after} changes after it stay as they are`}.` })
+        return ok
+      }
+      const text = `My last change wasn't ${/^[aeiou]/.test(undoWordOf(about)) ? 'an' : 'a'} ${undoWordOf(about)} change — it was: ${entry.lines.join(' · ').replace(/[.]+$/, '') || 'something else'}. Nothing was undone; say “undo” to take that back.`
       push({ role: 'refusal', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-refused-mismatch' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
       return false
@@ -2303,6 +2320,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
+      // round 3 (pl-auto unseen3): "only show puts in the options flow" with an Options Flow WIDGET on the board is a request for that
+      // widget's own filter chips, not a screen. Which chips UCT Agent may set is an open owner decision (F-16), so nothing is widened:
+      // it is still not done here, but the refusal says so about the widget's control, never "use the Screener page".
+      if (fast?.kind === 'ops' && fast.ops.some(o => o?.action === 'screener.run' && (o.args?.filters || []).some(f => FLOW_FIELDS.has(f?.field)))
+        && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) {
+        const t = FLOW_WIDGET_REFUSAL
+        push({ role: 'refusal', text: t })
+        record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: ['widget.setOption'] }, telemetry: { path: 'fast', refused: true, voice } })
+        return
+      }
+      // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
+      // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
+      if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
+        && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
       if (fast?.kind === 'say') {
         push({ role: 'agent', text: fast.text })
         record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
@@ -2892,7 +2923,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Multi Chart: a plan aimed anywhere but "the one I just changed" is asked about, even when it aims at the clicked chart
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
-        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse })
       if (deictic?.aim) screened.ops = deictic.aim
       if (deictic?.refuse) {
         const said = `I didn't change anything: ${deictic.refuse}`

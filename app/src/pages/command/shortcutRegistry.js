@@ -343,18 +343,19 @@ export const SHORTCUTS = Object.freeze([
     id: 'agent.guideEscape',
     chord: { keys: ['Escape'], ctrl: false, alt: false, meta: false, shift: false },
     target: 'window', capture: false, inEditable: false, repeat: false,
-    why: 'Escape ends the Agent\'s step-by-step guide, bound only while a walkthrough is on screen. It is the LAST '
-      + 'to hear the key: window bubble, never in a text field, and it stands down when a layer owned the press or '
-      + 'anything handled it, so one press does one thing. The Agent panel keeps its keys to itself, so its message '
-      + 'box ends the guide from its own handler (AgentPanel.jsx).',
+    // Bound only while a walkthrough is on screen. It is the LAST to hear the key (window bubble, never in a text field) and
+    // stands down when a layer owned the press or anything handled it, so one press does one thing. The Agent panel keeps its
+    // keys to itself, so its message box ends the guide from its own handler (AgentPanel.jsx). Kept out of `why`: it ships.
+    why: 'Escape ends the Agent guide; last to hear it, and only when nothing else did.',
   }),
   decl({
     id: 'agent.guideEscapeBoard',
     chord: { keys: ['Escape'], ctrl: false, alt: false, meta: false, shift: false },
     target: 'window', capture: true, inEditable: false, repeat: false,
-    why: 'Escape on the board ends the Agent\'s guide even when a board handler then swallows the key (they stop or '
-      + 'prevent it with nothing to cancel). Heard first, it never prevents or stops anything: guideStore.escapeOnBoard() '
-      + 'ends the walkthrough only when no field, menu, dialog, armed drawing tool or selected drawing has the press.',
+    // Escape on the board ends the guide even when a board handler then swallows the key (they stop or prevent it with nothing
+    // to cancel). Heard first, it never prevents or stops anything: guideStore.escapeOnBoard() ends the walkthrough only when no
+    // field, menu, dialog, armed drawing tool or selected drawing has the press. Kept out of `why`: it ships.
+    why: 'Board Escape ends the Agent guide; heard first, never stopped.',
   }),
 
   // -- the Notebook (finish program, lane KEYS, 2026-10-07) --------------------

@@ -1,0 +1,47 @@
+[
+ {
+  "mutant": "control-comment",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "SURVIVED"
+ },
+ {
+  "mutant": "precondition off",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "only Q-S1-core rows checked (r1 scope)",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "expected = defaults always (declaration ignored)",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "non-literal declaration served as default",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "unknown source passes",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "a missing property passes",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "one checked setting dropped",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "comments not skipped",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "SURVIVED"
+ }
+]
