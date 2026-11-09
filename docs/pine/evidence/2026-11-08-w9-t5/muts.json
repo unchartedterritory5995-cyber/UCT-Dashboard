@@ -1,0 +1,230 @@
+[
+ {
+  "mutant": "M1 percent fee scale /1000",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3
+ },
+ {
+  "mutant": "M2 exit fee never charged",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 10
+ },
+ {
+  "mutant": "M3 entry fee never charged",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 10
+ },
+ {
+  "mutant": "M4 openprofit not net of the paid entry fee",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 4
+ },
+ {
+  "mutant": "M5 sign of the GROSS profit under a commission",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M6 grossprofit sums gross profits",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M7 per-order two-trade guard dropped",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M8 slippage in the favourable direction",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 11
+ },
+ {
+  "mutant": "M9 slippage asks no B-SLIPPAGE",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 4
+ },
+ {
+  "mutant": "M10 a close slips the entry side",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3
+ },
+ {
+  "mutant": "M11 a stop entry is slipped, not refused",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M12 stop-loss slippage refusal dropped",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M13 a limit is slipped",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M14 B-POC-COST never asked",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M15 extra-execution cost refusal dropped",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M16 T7 kind with a commission served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M17 cash / percent size under a cost served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M18 a defaulted type does not ask B-DEFAULTS",
+  "file": "src/components/chart/engine/runtime/brokerRules.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M19 a zero commission asks the type rule",
+  "file": "src/components/chart/engine/runtime/brokerRules.js",
+  "verdict": "killed",
+  "failed": 4
+ },
+ {
+  "mutant": "M20 values ask no commission rule",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 11
+ },
+ {
+  "mutant": "M21 report ignores the fees",
+  "file": "src/components/chart/engine/runtime/brokerReport.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M22 report commission paid served with a fee-paying open trade",
+  "file": "src/components/chart/engine/runtime/brokerReport.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M23 report rests on B-DEFAULTS only",
+  "file": "src/components/chart/engine/runtime/brokerReport.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M24 record drops the trade fee",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 3
+ },
+ {
+  "mutant": "M25 declaration does not read slippage",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 14
+ },
+ {
+  "mutant": "M26 declaration: type always defaulted",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M27 reversal closes at the unslipped price",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M28 equity gross of fees",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2
+ },
+ {
+  "mutant": "M29 netprofit gross of fees",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 5
+ },
+ {
+  "mutant": "M30 closedtrades.profit gross of fees",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 4
+ },
+ {
+  "mutant": "M31 margin check asks no commission rule",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M32 a limit entry under slippage served unslipped (B1)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3
+ },
+ {
+  "mutant": "M33 a take-profit under slippage served (B1)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M34 an off-grid market fill slipped, not refused (U5a)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 8
+ },
+ {
+  "mutant": "M36 the r1 grid test (1 / mintick a whole number) restored (r2)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3
+ },
+ {
+  "mutant": "M37 the slipped price not written at the tick decimals (r2)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M35 percent fee ignores pointvalue (U2)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ },
+ {
+  "mutant": "M38 tickDecimals ignores the exponent (r3)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
+ }
+]

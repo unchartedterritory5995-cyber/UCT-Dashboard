@@ -1,0 +1,76 @@
+// W9-T5 corpus census harness (evidence; NOT a committed test). Adapted from W9-T6's
+// docs/pine/evidence/2026-11-08-w9-t6/census.harness.js.txt with one more lane (S1 pins) and a
+// cost-normalised record digest, so base (no costs) and tip (costs, all zero by default) compare.
+// To run: copy to app/src/components/chart/engine/runtime/__tests__/zzW9T5Census.tmp.test.js, then
+//   W9T5_CENSUS_OUT=<out.json> W9T5_CENSUS_DIRS="<dir>;<dir>;..." npx vitest run <that file> --maxWorkers=1
+// and delete the copy. Diff two outputs row by row (`isStrategy` splits the classes).
+import { it } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { lowerIrProgram } from '../lowerIr.js'
+import { execute } from '../vm.js'
+import { BROKER_RULE_IDS } from '../brokerRules.js'
+
+const OUT = process.env.W9T5_CENSUS_OUT
+const DIRS = (process.env.W9T5_CENSUS_DIRS || '').split(';').filter(Boolean)
+const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' }
+const N = 260
+const bars = Array.from({ length: N }, (_, i) => {
+  const c = 100 + 10 * Math.sin(i / 9) + 4 * Math.sin(i / 3.7) + i * 0.05
+  const o = c + 1.3 * Math.sin(i * 1.7)
+  return { t: 1700000000 + i * 86400, o, h: Math.max(o, c) + 1 + Math.abs(Math.sin(i)), l: Math.min(o, c) - 1 - Math.abs(Math.cos(i)), c, v: 1000 + (i % 7) * 100 }
+})
+const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars.map((b) => b[k])))
+const ALL = () => true
+// S1's 22 rules: the first 22 ids of the table (T6, T7 and T5 append after them)
+const S1 = new Set(BROKER_RULE_IDS.slice(0, 22))
+const S1PINS = (id) => S1.has(id)
+const enc = (v) => (typeof v === 'number' ? (Number.isNaN(v) ? 'NaN' : v) : v === undefined ? 'undef' : String(v))
+const digestOf = (x) => crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16)
+// W9-T5 adds `commission` to each record trade and `commission` / `slippage` to the declaration config;
+// strip them so a zero-cost run compares with the pre-T5 base
+const normTrades = (rec) => (rec.trades || []).map(({ commission, ...t }) => t)
+const normBroker = (b) => {
+  if (!b) return null
+  const { commission, slippage, ...rest } = b
+  return rest
+}
+
+const lane = (src, strategyBroker, pins) => {
+  let built
+  try { built = buildRuntimeIr(src, { bars, inputs: {}, symbol: SYMBOL, strategyBroker }) } catch (e) { return { buildThrow: String(e && e.message) } }
+  if (!built.ok) return { refusal: built.refusal && { guard: built.refusal.guard, message: built.refusal.message } }
+  let program
+  try { program = lowerIrProgram(built.ir, { historyFromListing: true }) } catch (e) { return { lowerThrow: String(e && e.message) } }
+  const ctx = { bars: N, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t), historyWindowBars: 5000 }
+  try {
+    const res = execute(program, ctx, undefined, pins ? { brokerPinned: pins } : undefined)
+    return {
+      program: digestOf({ code: Array.from(program.code || []), consts: program.consts, broker: normBroker(program.broker || null) }),
+      outputs: digestOf((res.outputs || []).map((o) => Array.from(o, enc))),
+      trades: res.broker ? digestOf(normTrades(res.broker.record)) : null,
+      commissions: res.broker ? (res.broker.record.trades || []).map((t) => t.commission).filter((c) => c !== undefined && c !== 0).length : null,
+      rulesUsed: res.broker ? res.broker.record.rulesUsed : null,
+    }
+  } catch (e) { return { runThrow: { guard: e.guard || e.name, rule: e.rule || null, message: String(e.message).slice(0, 300) } } }
+}
+
+it('census', () => {
+  const rows = {}
+  for (const d of DIRS) {
+    for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.pine')).sort()) {
+      const src = fs.readFileSync(path.join(d, f), 'utf8')
+      const isStrategy = /^\s*strategy\s*\(/m.test(src)
+      rows[`${path.basename(d)}/${f}`] = {
+        isStrategy,
+        off: lane(src, false, null),
+        on: lane(src, true, null),
+        onAll: lane(src, true, ALL),
+        onS1: lane(src, true, S1PINS),
+      }
+    }
+  }
+  fs.writeFileSync(OUT, JSON.stringify(rows, null, 1))
+}, 3_600_000)
