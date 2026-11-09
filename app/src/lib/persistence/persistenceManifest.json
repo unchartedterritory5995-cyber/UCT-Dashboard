@@ -1896,6 +1896,18 @@
       ]
     },
     {
+      "key": "uct.desk.v1:*:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Popped-out chart boards, kept so a reload or crash does not lose them",
+      "pattern": true,
+      "files": [
+        "app/src/pages/charts/popout/deskStore.js"
+      ]
+    },
+    {
       "key": "uct.draw.recentTools",
       "store": "localStorage",
       "scope": "device-local",
