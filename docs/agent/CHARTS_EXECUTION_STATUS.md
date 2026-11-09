@@ -1,5 +1,7 @@
 # Charts execution status
 
+> exec-p1-gaps (pl-exec, 2026-11-09): C1-007, C1-025 †, C1-035, C1-036, C1-038, C1-051, C1-064, C1-070, C1-072, C1-076 and C1-080 raised to VERIFIED by agentP1Gaps.test.jsx and agentP1GapsSettings.test.jsx (held-out phrasings in agentP1GapsHeldOut.test.js, committed first). LOCAL / SIMULATED (BROWSER-MOCK-MODEL). The counts below are not recomputed.
+
 > Round 4-8 rows (2026-11-09) imported from agent/pl/exec-gen-1 into agent/pl/r8-integration: a row is raised here ONLY when every
 > test its evidence names exists on this branch (71 rows; the Multi Chart rows C3-042..C3-060 are not, and keep their state).
 > C3-140 is VERIFIED here (apply + rename / delete, r8-presets). All LOCAL native Windows Node v24, BROWSER-MOCK-MODEL / SIMULATED.
@@ -310,7 +312,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-004 | Symbol | Open a free-typed symbol with no result row | IMPLEMENTED / UNVERIFIED | c:symbol.switch | pass 7/7 | panel, partial |
 | C1-005 | Symbol | Flag current ticker (Shift+F) | VERIFIED | c:watchlist.setFlag; listControl: "flag NVDA" | pass 5/5 | panel, scripted model |
 | C1-006 | Timeframe | Pick preset timeframe on bar | VERIFIED | c:timeframe.weekly; c:timeframe.5m; c:compound.change-then-undo | pass 20/20 | production (E-01) and panel |
-| C1-007 | Timeframe | Pick from full timeframe menu | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-007 | Timeframe | Pick from full timeframe menu | VERIFIED | agentP1GapsSettings.test.jsx | pass 69/69 | panel, scripted model |
 | C1-008 | Timeframe | Add custom interval | VERIFIED | c:chart.addCustomTimeframe | pass 5/5 | panel, scripted model |
 | C1-009 | Timeframe | Delete custom interval | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-010 | Timeframe | Star a favourite timeframe | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
@@ -328,7 +330,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-022 | Scale | Arithmetic/log/percent from menu | VERIFIED | boardArrangement.outcome: C1-022 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
 | C1-024 | Scale | Invert scale (Alt+I) | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
+| C1-025 | Scale | Auto-scale | VERIFIED † | agentP1Gaps.test.jsx | pass 35/35 | panel, scripted model |
 | C1-026 | Scale | Drag price axis to compress | BLOCKED | none | n/a | none |
 | C1-027 | View | Reset view | VERIFIED † | c:chartSetup.resetView; agentChartViewControls: reaches the chart's reset and is read back | pass 5/5 | panel, scripted model |
 | C1-028 | View | Zoom in/out (+/-) | BLOCKED | none | n/a | no read-back of a zoom: the chart view controls the Agent reaches (range, reset, restore) have no zoom op, and a zoom it cannot read back is never claimed |
@@ -338,10 +340,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-032 | Go to date | Step one bar back/forward | MISSING | none | n/a | none |
 | C1-033 | Go to date | Open date box (Alt+G) | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
 | C1-034 | Compare | Add a symbol | VERIFIED | c:compare.amd | pass 5/5 | panel, scripted model |
-| C1-035 | Compare | Add a whole group | MISSING | none | n/a | none |
-| C1-036 | Compare | Remove one symbol | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
+| C1-035 | Compare | Add a whole group | VERIFIED | agentP1Gaps.test.jsx | pass 35/35 | panel, scripted model |
+| C1-036 | Compare | Remove one symbol | VERIFIED | agentP1Gaps.test.jsx | pass 35/35 | panel, scripted model |
 | C1-037 | Compare | Remove a group | MISSING | none | n/a | none |
-| C1-038 | Compare | Clear all comparisons | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
+| C1-038 | Compare | Clear all comparisons | VERIFIED | agentP1Gaps.test.jsx | pass 35/35 | panel, scripted model |
 | C1-039 | Compare | Same/new scale per symbol | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-040 | Compare | Same/new scale for a group | MISSING | none | n/a | none |
 | C1-041 | Compare | Group only (hide base) | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
@@ -354,7 +356,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-048 | Settings | Solid/gradient background | VERIFIED | c:chart.setSetting.gradient | pass 5/5 | panel, scripted model |
 | C1-049 | Settings | Solid background colour | VERIFIED | c:chart.setBackground | pass 5/5 | panel, scripted model |
 | C1-050 | Settings | Gradient colours | IMPLEMENTED / UNVERIFIED | agentChartSettingsW1B.test.jsx | pass 4/4 | panel, partial |
-| C1-051 | Settings | Crosshair mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-051 | Settings | Crosshair mode | VERIFIED | agentP1GapsSettings.test.jsx | pass 69/69 | panel, scripted model |
 | C1-052 | Settings | Crosshair colour/width/style | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-053 | Settings | Magnet crosshair | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-054 | Settings | Price labels / MA labels | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
@@ -367,23 +369,23 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-061 | Settings | Reset watermark to centre | MISSING | none | n/a | none |
 | C1-062 | Settings | Title shows ticker/company/both | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-063 | Settings | Day change beside title | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-064 | Settings | Legend mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-064 | Settings | Legend mode | VERIFIED | agentP1GapsSettings.test.jsx | pass 69/69 | panel, scripted model |
 | C1-065 | Settings | Legend bar-info fields | VERIFIED | agentExecFamilies: C1-065 | pass | panel, scripted model |
 | C1-066 | Settings | Info-row fields | VERIFIED | agentExecFamilies: C1-066 | pass | panel, scripted model |
 | C1-067 | Settings | Header colours | MISSING | none | n/a | none |
 | C1-068 | Settings | Swing labels on/off and sensitivity | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
 | C1-069 | Settings | Swing label background, tint, colours | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-070 | Settings | Event markers | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-070 | Settings | Event markers | VERIFIED | agentP1GapsSettings.test.jsx | pass 69/69 | panel, scripted model |
 | C1-071 | Settings | Earnings beat/miss and IPO colours | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-072 | Settings | Prev-day lines on/off | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-072 | Settings | Prev-day lines on/off | VERIFIED | agentP1GapsSettings.test.jsx | pass 69/69 | panel, scripted model |
 | C1-073 | Settings | Prev-day line style/width/colour | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
 | C1-074 | Settings | Dark-pool levels | VERIFIED | agentChartSettingsW1B: turn on dark pool | pass 1/1 | panel, scripted model |
 | C1-075 | Settings | Bar-close countdown (Shift+C) | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-076 | Settings | Restore defaults | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx; agentBatch6.test.jsx | pass 59/59 | runtime, no panel |
+| C1-076 | Settings | Restore defaults | VERIFIED | agentP1GapsSettings.test.jsx | pass 69/69 | panel, scripted model |
 | C1-077 | Settings | Save / delete a custom colour | MISSING | none | n/a | none |
 | C1-078 | Settings | Light/dark palette (Shift+T) | MISSING | none | n/a | none |
 | C1-079 | Themes | Apply a theme to one chart | VERIFIED | c:chart.applyTheme | pass 5/5 | panel, scripted model |
-| C1-080 | Themes | Apply a theme to all charts | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx | pass 22/22 | runtime, no panel |
+| C1-080 | Themes | Apply a theme to all charts | VERIFIED | agentP1Gaps.test.jsx | pass 35/35 | panel, scripted model |
 | C1-081 | Themes | Apply a theme to all widgets | MISSING | none | n/a | none |
 | C1-082 | Templates | Apply a template | VERIFIED | c:chart.applyTemplate | pass 4/4 | panel, scripted model |
 | C1-083 | Templates | Save a template | VERIFIED | c:chartSetup.saveTemplate | pass 5/5 | panel, scripted model |
