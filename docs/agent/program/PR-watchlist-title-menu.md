@@ -94,7 +94,12 @@ Tag lists, prebuilt lists, scans and a host's own title (`pickTitleSlot`) get no
 master `5a812ece93` 2,252,608 B → this head 2,252,608 B. **Delta 0**, verdict PASS.
 
 ## Locked full suite
-To be run on the head handed to AUDIT, on a quiet machine.
+One locked run at `8fd718fe29`, on a quiet machine. Paths: `src/agent`, `src/pages/command`, `src/pages/Watchlists*` and `src/pages/charts/widgets`; BelowNormal; SIMULATED.
+- Result: `Test Files 3 failed | 387 passed | 5 skipped (395)`, `Tests 4 failed | 10664 passed | 6 skipped (10674)`.
+- Three of the failures are the same three `src/pages/command` failures every recent suite here shows (keyListenerCensus ×2, shortcutRegistry DrillPlayer ×1).
+  - The census does not count JSX `onKeyDown`, and this PR adds no raw key listener.
+- The fourth is the `Watchlists.entitykeys` golden, explained above.
+- Every title-menu test passes.
 
 ## After this PR is in production
 The teaching for the 11 rows stacks on `agent/pl/teach-wl-widget`, ringing `watchlist.listMenu` and the menu's rows.
