@@ -15,7 +15,6 @@ import {
   DRILL_BOARD_PREF, LIST_WIDGET_ID, CHART_WIDGET_ID, MODE_SPLIT, SCAN_MODES,
   parseBoard, serializeBoard,
 } from './drillBoardPrefs'
-import WhatElseOpenPrompt from '../../../components/instruments/WhatElseOpenPrompt'
 import useScanDeck from './scan/useScanDeck'
 import { dayContext, stepDate } from './scan/scanDeckModel'
 import { ScanHeader } from './scan/ScanDeckParts'
@@ -23,6 +22,8 @@ import ScanGrid from './scan/ScanGrid'
 import { FilterButton, FilterChips } from './scan/ScanFilters'
 import { DRILL_POPOVER_ATTR } from './scan/scanFacets'
 import JoinedDateNav from './JoinedDateNav'
+import { resetDrillSort } from './drillListCols'
+import { followAppTheme } from './drillTheme'
 import styles from './BreadthDrillModal.module.css'
 
 const FOCUSABLE = [
@@ -72,7 +73,19 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // ── Board state, seeded from the stored pref ────────────────────────────────
   // Seeded ONCE per open. A later pref round-trip must not stomp the board the
   // user is currently dragging.
-  const [board, setBoard] = useState(() => parseBoard(prefs?.[DRILL_BOARD_PREF], scanSeedOpts()))
+  // The app theme (Slate, Graphite, Light…). The chart and the list wear it
+  // until the member changes their look themselves (see drillTheme.js).
+  const appTheme = prefs?.theme ?? null
+  const [board, setBoard] = useState(() => followAppTheme(
+    parseBoard(prefs?.[DRILL_BOARD_PREF], scanSeedOpts()), appTheme, scanSeedOpts().settings))
+  // Re-skin on an app-theme switch, and notice when the member takes over a
+  // widget's look (followAppTheme marks it and stops following). Adjusted while
+  // rendering, not in an effect: followAppTheme returns the same board once it
+  // is settled, so this settles in one extra pass.
+  const followed = followAppTheme(board, appTheme, scanSeedOpts().settings)
+  if (followed !== board) setBoard(followed)
+  // Once per open, before the list first reads its columns: % Chg, biggest first.
+  useState(() => { resetDrillSort(); return null })
   // MVP trial withdrawal block (2026-09-30-mvp-preregistration-ravi.md; NOW-gate clause 4):
   // while TERMINAL_NEXT_ENABLED is off, a user TAGGED into the terminal-next cohort sees the
   // drill WITHOUT its chart. Members are never tagged, so they see it exactly as before.
@@ -160,7 +173,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // uses (the list, the scan keys, the first-row seed). Read from here rather
   // than from the workspace value, which carries refs and must not be read
   // during render.
-  const [pickedSym, setSelectedSym] = useState(firstSym)
+  const [pickedSym, setSelectedSym] = useState(null)
   const workspace = useMemo(() => ({
     ...baseWorkspace,
     setGroupSym: (color, sym) => {
@@ -179,9 +192,23 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // ── The scan deck ───────────────────────────────────────────────────────────
   const deck = useScanDeck(drill)
   const order = useMemo(() => deck.shownRows.map(r => r.sym), [deck.shownRows])
-  // A filter, a group pick or a new list can leave the pick on a name that is no
-  // longer shown; the selection then falls to the first shown name.
-  const selectedSym = pickedSym && order.includes(pickedSym) ? pickedSym : (order[0] || null)
+  // The top of the list as it opens (sorted by % Chg, biggest gain first).
+  const topSym = useMemo(() => {
+    let best = null
+    for (const r of deck.shownRows) {
+      const p = Number.isFinite(r.pct) ? r.pct : -Infinity
+      if (!best || p > best.p) best = { sym: r.sym, p }
+    }
+    return best?.sym || null
+  }, [deck.shownRows])
+  // Every new list (another day, another metric) opens on its top stock, never
+  // on the name that happened to be picked in the last one.
+  const listKey = `${drill?.label || ''}|${drill?.date || ''}|${drill?.live ? 'live' : ''}`
+  const [pickListKey, setPickListKey] = useState(listKey)
+  if (pickListKey !== listKey) { setPickListKey(listKey); setSelectedSym(null) }
+  // A filter or a group pick can leave the pick on a name that is no longer
+  // shown; the selection then falls back to the top stock.
+  const selectedSym = pickedSym && order.includes(pickedSym) ? pickedSym : (topSym || order[0] || null)
   const selIdx = selectedSym ? order.indexOf(selectedSym) : -1
 
   // Keep the chart (colour group A) on the effective selection. Not via the
@@ -382,9 +409,6 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
         <div className={styles.panel}>
         {popNotice && <div className={styles.notice}>{popNotice}</div>}
-
-        {/* TERM-093 instrument: admins only, renders nothing while its flag is unset. */}
-        <WhatElseOpenPrompt occasion="wf_c13_breadth_drill" />
 
         <WorkspaceContext.Provider value={workspace}>
           <DrillSourceContext.Provider value={source}>
