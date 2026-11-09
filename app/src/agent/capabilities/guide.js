@@ -63,11 +63,17 @@ export function mineOnly(steps, host) {
   return steps.map(s => (s.mine === 'layout' ? { ...s, target: own.map(e => ({ within: 'workspace.layouts', attr: 'title', value: e.name })), text: `Right-click one of your own layouts on the bar, such as “${own[0].name}”.` } : s))
 }
 
+/** The walkthrough these words get from one feature: its steps and its title. */
+export function guideSteps(f, words = '') {
+  return { steps: stepsFor(f, words), title: titleFor(f, words) }
+}
+
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
   // a control behind a release switch that is off is said, never rung (guide/releases.js)
-  const released = releasedOnly(stepsFor(f, words))
+  const walk = guideSteps(f, words)
+  const released = releasedOnly(walk.steps)
   if (typeof released === 'string') return released
   const steps = mineOnly(released, host)
   if (typeof steps === 'string') return steps
@@ -95,7 +101,7 @@ export function showFeature(f, host, words = '') {
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
   }
   if (guideState()) endGuide('replaced')
-  startGuide({ ...f, title: titleFor(f, words) }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
+  startGuide({ ...f, title: walk.title }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
   const note = asked?.note ? `${asked.note} ` : ''
