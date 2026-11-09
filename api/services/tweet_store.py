@@ -133,6 +133,14 @@ def _init_db() -> None:
         except sqlite3.OperationalError as e:
             if "duplicate column name" not in str(e).lower():
                 raise
+        # Account kind: 'news' (headline wire) or 'commentary' (a trader's takes).
+        # Powers the Notebook tweet-import Headlines filter. DEFAULT reads every
+        # existing account as commentary.
+        try:
+            c.execute("ALTER TABLE twitter_accounts ADD COLUMN content_kind TEXT NOT NULL DEFAULT 'commentary'")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         # TERM-075 (FB-A8-01): the primary-vs-mentioned bit on the story-to-ticker
         # join. ADDITIVE — DEFAULT 1 reads every existing row as a subject, which
         # is exactly today's behaviour. Nothing is rewritten.
@@ -304,6 +312,19 @@ def set_account_official(handle: str, official: bool) -> None:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute("UPDATE twitter_accounts SET is_official=? WHERE handle=?",
                   (1 if official else 0, handle))
+        c.commit()
+
+
+CONTENT_KINDS = ("news", "commentary")
+
+
+def set_account_content_kind(handle: str, kind: str) -> None:
+    """Mark an account as 'news' or 'commentary'. Raises ValueError otherwise."""
+    if kind not in CONTENT_KINDS:
+        raise ValueError(f"content_kind must be one of {CONTENT_KINDS}, got {kind!r}")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE twitter_accounts SET content_kind=? WHERE handle=?",
+                  (kind, handle))
         c.commit()
 
 
