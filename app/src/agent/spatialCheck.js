@@ -155,6 +155,86 @@ export function spatialTargetSpan(text, charts = []) {
   }
   return null
 }
+// ── CLICK-LINE relations (#988, pl-auto unseen12 families): the click's own row / column, read as a relation FROM the click ──
+//   rest      "the rest of / the other charts in / everything else in this row | column" → that line minus the click (a set);
+//             "the other chart | one in this row" → the same, one chart (several → asked, never the click)
+//   sameOther "same column, other row" (comma / colon / but / and) → the click's column minus the click
+//   farEnd    "same row, far end (from this one)", "the other side of the (bottom) row from this one" → the far end of that line
+//   corner    "the top | bottom corner on the same side as this one" → that end of the click's column
+//   step      "one column right / two rows down from this chart" → that many cells that way
+//   appos     "… this one, the first chart in its row" → the click when that place IS the click (an appositive), else asked
+const CL_DEIXIS = "(?:this|that|its|my|the\\s+same|the\\s+(?:clicked|selected)(?:\\s+(?:one|chart))?['’]s|this\\s+(?:one|chart)['’]s)"
+const CL_REST = new RegExp(`\\b(?:(?:the\\s+)?rest\\s+of|(?:the\\s+)?other\\s+(chart|one|cell|pane|charts|ones|cells|panes)\\s+(?:in|of|on|along)|everything\\s+else\\s+(?:in|on|of|along)|(?:all\\s+)?the\\s+others\\s+(?:in|on|of|along))\\s+${CL_DEIXIS}\\s+(row|column)\\b`, 'i')
+const CL_SAME_OTHER = /\bsame\s+(row|column)\s*[,:;]?\s*(?:(?:but|and)\s+)?(?:the\s+|a\s+)?(?:other|another|different|opposite)\s+(row|column)\b/i
+const CL_FAR_END = /\b(?:same\s+(row|column)\s*[,:;]?\s*(?:at\s+)?(?:the\s+)?(?:far|other|opposite)\s+end|(?:the\s+)?(?:other|far|opposite)\s+(?:end|side)\s+of\s+(?:the|this|its|my)\s+(?:(top|bottom|middle|upper|lower|left|right|first|last|same)\s+)?(row|column)(?:\s+(?:from|to)\s+(?:this|it)(?:\s+(?:one|chart))?)?)\b/i
+const CL_CORNER = /\b(top|bottom|upper|lower)\s+corner\s+(?:on|in|along|at)\s+the\s+same\s+(?:side|column)\s+as\s+(?:this|it)\b/i
+const CL_STEP = /\b(one|1|two|2|three|3)\s+(row|column|cell|chart|spot|place)s?\s+(up|down|left|right)\s+(?:from|of)\s+(?:this|it)\b/i
+const CL_APPOS = /\bthis\s+(?:one|chart)\b[^,;.]{0,40}?,\s*the\s+(first|second|third|last|middle|left(?:most)?|right(?:most)?|top(?:most)?|bottom(?:most)?)\s+(?:chart|one)\s+(?:in|of|on)\s+(?:its|this)\s+(row|column)\b/i
+const N_WORD = { one: 1, two: 2, three: 3 }
+/** A click-line relation in the words (no geometry) → a match with `clickLine: { kind, … }`, or null. */
+export function clickLineMatch(text) {
+  const s0 = String(text || '')
+  // a click-line phrase in a clause that says those charts are fine / can stay / are left alone names no target: blanked out
+  const s = s0.split(/([,;.!?]|\b(?:but|and then|then)\b)/i).map(part => (INERT.test(part) ? part.replace(/\S/g, ' ') : part)).join('')
+  const tag = (m, clickLine) => (m ? Object.assign(m, { clickLine, input: s0 }) : null)
+  let m = CL_APPOS.exec(s)
+  if (m) return tag(m, { kind: 'appos', pos: m[1].toLowerCase(), axis: m[2].toLowerCase() })
+  m = CL_REST.exec(s)
+  if (m) return tag(m, { kind: 'rest', axis: m[2].toLowerCase(), one: !!m[1] && !/s$/i.test(m[1]) })
+  m = CL_SAME_OTHER.exec(s)
+  if (m && m[1].toLowerCase() !== m[2].toLowerCase()) return tag(m, { kind: 'sameOther', axis: m[1].toLowerCase() })
+  m = CL_FAR_END.exec(s)
+  if (m) return tag(m, { kind: 'farEnd', axis: (m[1] || m[3]).toLowerCase(), which: m[2] && m[2].toLowerCase() !== 'same' ? m[2].toLowerCase() : null })
+  m = CL_CORNER.exec(s)
+  if (m) return tag(m, { kind: 'corner', v: /^(?:top|upper)$/i.test(m[1]) ? 'top' : 'bottom' })
+  m = CL_STEP.exec(s)
+  if (m) return tag(m, { kind: 'step', n: N_WORD[m[1].toLowerCase()] || Number(m[1]), dir: m[3].toLowerCase() })
+  return null
+}
+/** The click's own line on `axis` (cells sharing its row / column span), in order along it. */
+function clickLine(charts, s, axis) {
+  const all = withCell(charts)
+  const yo = (c) => overlaps(c.cell.y, c.cell.y + c.cell.h, s.cell.y, s.cell.y + s.cell.h)
+  const xo = (c) => overlaps(c.cell.x, c.cell.x + c.cell.w, s.cell.x, s.cell.x + s.cell.w)
+  return axis === 'row' ? all.filter(yo).sort((a, b) => a.cell.x - b.cell.x) : all.filter(xo).sort((a, b) => a.cell.y - b.cell.y)
+}
+/** The charts a click-line relation names on this board, from the clicked chart `s` → { hits, plural, onClick }. */
+export function clickLineHits(m, charts, s) {
+  const k = m?.clickLine
+  if (!k || !s?.cell) return { hits: [], plural: false, onClick: false }
+  if (k.kind === 'rest') { const hits = clickLine(charts, s, k.axis).filter(c => c.ref !== s.ref); return { hits, plural: !k.one, onClick: false } }
+  if (k.kind === 'sameOther') return { hits: clickLine(charts, s, k.axis).filter(c => c.ref !== s.ref), plural: false, onClick: false }
+  if (k.kind === 'farEnd') {
+    const line = k.which ? pickLine(linesOf(charts, k.axis), k.which, k.axis) : clickLine(charts, s, k.axis)
+    if (!line || line.length < 2) return { hits: [], plural: false, onClick: false }
+    const pos = (c) => (k.axis === 'row' ? c.cell.x : c.cell.y)
+    const lo = pos(line[0]), hi = pos(line[line.length - 1])
+    const end = pos(s) <= lo ? line[line.length - 1] : pos(s) >= hi ? line[0] : null
+    return { hits: end && end.ref !== s.ref ? [end] : [], plural: false, onClick: false }
+  }
+  if (k.kind === 'corner') {
+    const col = clickLine(charts, s, 'column')
+    const c = k.v === 'top' ? col[0] : col[col.length - 1]
+    return { hits: c && c.ref !== s.ref ? [c] : [], plural: false, onClick: false }
+  }
+  if (k.kind === 'step') {
+    const side = k.dir === 'up' ? 'above' : k.dir === 'down' ? 'below' : k.dir
+    let at = s
+    for (let i = 0; i < k.n; i++) { const next = neighbours(charts, at, side); if (next.length !== 1) return { hits: [], plural: false, onClick: false }; at = next[0] }
+    return { hits: [at], plural: false, onClick: false }
+  }
+  if (k.kind === 'appos') {
+    const line = clickLine(charts, s, k.axis)
+    const p = k.pos.replace(/most$/, '')
+    const n = line.length
+    const idx = p === 'first' || p === (k.axis === 'row' ? 'left' : 'top') ? 0 : p === 'last' || p === (k.axis === 'row' ? 'right' : 'bottom') ? n - 1
+      : p === 'second' ? 1 : p === 'third' ? 2 : p === 'middle' && n % 2 === 1 && n >= 3 ? (n - 1) / 2 : -1
+    const hit = line[idx]
+    return hit && hit.ref === s.ref ? { hits: [s], plural: false, onClick: true } : { hits: [], plural: false, onClick: false }
+  }
+  return { hits: [], plural: false, onClick: false }
+}
+
 // a relation from the CLICK said plainly ("the chart above this one", "the one to the left of it"): its neighbours on that side
 const REL_CLICK = /\b(beside|next to|alongside|above|over|on top of|below|under(?:neath)?|beneath|(?:to the |on the )?left of|(?:to the |on the )?right of)\s+(?:this(?:\s+(?:one|chart))?|it|the (?:selected|clicked) (?:one|chart))\b/i
 
@@ -210,7 +290,7 @@ export function spatialConstraints(text, charts = [], sel = null) {
       const s = charts.find(c => c.ref === sel && c.cell)
       const m = s ? clauses.map(c => REL_CLICK.exec(c)).find(Boolean) : null
       const x = rel.match || {}
-      const plain = m && !rel.plural && !['walk', 'line', 'farLine', 'corner', 'sameBut', 'diagonal', 'step', 'farEnd', 'neighbours', 'unplaced'].some(k => x[k])
+      const plain = m && !rel.plural && !['walk', 'line', 'farLine', 'corner', 'sameBut', 'diagonal', 'step', 'farEnd', 'neighbours', 'unplaced', 'clickLine'].some(k => x[k])
         && !/\b(?:two|three|four|five|[2-9]|second|third|fourth|next[-\s]but[-\s]one|both|all|every|diagonal(?:ly)?|corner|across|opposite)\b/i.test(String(text || ''))
         && !/\b(?:up|down)\s+and\s+(?:to\s+the\s+)?(?:left|right)\b|\b(?:left|right)\s+and\s+(?:up|down)\b/i.test(String(text || ''))
       if (plain) add(SIDES(m[1]).flatMap(side => neighbours(charts, s, side)).map(x => x.ref), 'relation-click')

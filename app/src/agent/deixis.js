@@ -12,7 +12,7 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
-import { namedAnchorRelation, wholeLinesNamed } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -211,7 +211,13 @@ function walkMatch(s) {
 const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip)\b/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
-  const r = relationMatchIn(text)
+  const r0 = relationMatchIn(text)
+  // pl-auto unseen12 (#988): the click's own line said as a relation ("the rest of this row", "same column, other row", "same row, far
+  // end", "one column right from this chart", "this one, the first chart in its row") — read where the relation readers find
+  // nothing they can place, or only an unordered corner pair (spatialCheck.clickLineMatch / clickLineHits)
+  const cl0 = clickLineMatch(possessiveAnchor(text)) || clickLineMatch(text)
+  const cl = cl0 && !(cl0.clickLine.kind === 'step' && MOVE_VERB.test(String(text || ''))) ? cl0 : null   // a move of the click names its destination
+  const r = cl && (!r0 || r0.unplaced || (cl.clickLine.kind === 'corner' && r0.corner) || cl.clickLine.kind === 'appos') ? cl : r0
   if (!r) return null
   const x = CROSS_CLAUSE.exec(r[0])
   if (!x) return r
@@ -436,6 +442,11 @@ export function relativeChart(text, charts = [], sel = null) {
   const role = relationRole(text, m)
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
   if (!s) return { hits: [], match: m, ...role, excluded: [] }
+  if (m.clickLine) {
+    const h = clickLineHits(m, charts, s)
+    // an appositive that describes the click IS the click ("also" the target); every other click-line relation is anchored on it
+    return { hits: h.hits, match: m, ...role, alsoClick: h.onClick, negated: false, excluded: [], plural: h.plural }
+  }
   if (m.unplaced) return { hits: [], match: m, ...role, excluded: [] }       // a relation, but no cell UCT can place: asked
   if (m.walk || m.farLine || m.corner || m.line || m.sameBut) {
     let hits = []
@@ -1031,6 +1042,14 @@ function clauseReads(text, host, parse) {
     // "to the hourly", "on the weekly": the article a chart word left behind is no part of the change
     ops = read(core) || read(core.replace(/^(?:the|a|an)\s+/i, '')) || read(bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim())
     out.push({ part, negated, chart, ops, core })
+  }
+  // pl-auto unseen12 (#988): "step one row down from this chart AND MAKE IT weekly" — a back-reference ("it", "that one", "that
+  // chart", never "this") in a clause right after one that named a chart by a relation from the click, and said no change of its
+  // own, is THAT chart: the click is only the relation's anchor
+  for (let i = 1; i < out.length; i++) {
+    const r = out[i], prev = out[i - 1]
+    if (r.negated || prev.negated || !sel || r.chart !== sel || prev.ops?.length || !prev.chart || prev.chart === sel) continue
+    if (/\b(?:it|that\s+(?:one|chart))\b/i.test(r.part) && !/\bthis\b|\bhere\b/i.test(r.part) && relationMatch(prev.part)) r.chart = prev.chart
   }
   // ⭐ 2026-11-07 (pl-auto u4-clauses-04/06/08/10): ONE change said once for two charts — "the TSLA chart to the hourly and this one
   // too", "draw a line at 120 on this one and on the TSLA chart", "this one and the one to its left on the weekly". A clause that
