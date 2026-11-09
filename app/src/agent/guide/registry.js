@@ -78,7 +78,7 @@ const rowStep = (result) => [
 const SWATCH = { within: 'chartSettings', attr: 'data-color-swatch' }
 const FIELD_ROW = { within: 'chartSettings', attr: 'data-field' }
 // ⭐ cov-2: a drawing tool by its own name, which nothing else on Charts is called (components/chart/ChartToolbar.jsx TOOLS)
-export const TOOL_NAMED = /\b(pitch ?forks?|parallel channels?|anchored vwaps?|avwap|vertical lines?|horizontal rays?|extended lines?|position calculator|price move|bars (&|and) time|text notes?|cup curve|fibonacci( retracements?| extensions?)?)\b|\banchor\w*\b.*\bvwap\b|\bcount\w*\b.*\bbars\b.*\b(between|from|since)\b|\bhow many bars\b/
+export const TOOL_NAMED = /\b(pitch ?forks?|parallel channels?|anchored vwaps?|avwap|vertical lines?|horizontal rays?|extended lines?|position calculator|price move|bars (&|and) time|text notes?|cup curve|fibonacci( retracements?| extensions?)?|circles?|ellipses?)\b|\barrows?\b(?!\s*(keys?|buttons?))|\banchor\w*\b.*\bvwap\b|\bcount\w*\b.*\bbars\b.*\b(between|from|since)\b|\bhow many bars\b/
 // a tool named with a verb that places it on the chart ("put an arrow on the chart", "use the measure")
 const PLACED_TOOL = /\b(add|put|place|draw|use|mark|stick|drop)\b.*\b(arrows?|circles?|ellipses?|channels?|measure|ruler)\b/
 // ⭐ cov-1: what else says "change this indicator's settings or look", once the words name an indicator (readIndicator)

@@ -208,7 +208,21 @@ export function settingRows() {
   settingCache = rows.sort((a, b) => b.len - a.len)
   return settingCache
 }
-export const readSetting = (text) => settingRows().find(r => r.re.test(String(text || '').toLowerCase())) || null
+// ⭐ cov-4: a member's spelling (colour, grey) is the settings table's (color, gray)
+const usSpelling = (s) => String(s || '').toLowerCase().replace(/\bcolour/g, 'color').replace(/\bgrey\b/g, 'gray')
+// the label's own content words, each found in the request by its stem ("earnings beats" holds earnings + beat): the settings
+// table names a row in words, and a request that holds every one of them is about that row, in any order
+const SETTING_STOP = new Set(['the', 'a', 'an', 'in', 'on', 'of', 'to', 'and', 'or', 'its', 'legacy', 'off', 'not', 'yet', 'declared', 'honoured', 'shows'])
+const contentWords = (label) => String(label).toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^a-z0-9]+/).filter(w => w.length > 1 && !SETTING_STOP.has(w))
+const holdsWord = (q, w) => new RegExp(`(^|[^a-z0-9])${escapeRe(w.length > 4 ? w.replace(/s$/, '') : w)}`).test(q)
+export const readSetting = (text) => {
+  const q = usSpelling(text)
+  const exact = settingRows().find(r => r.re.test(q))
+  // a longer label every word of which the request holds beats a shorter one it holds outright ("IPO marker color" over "IPO marker")
+  const whole = settingRows().filter(r => { const ws = contentWords(r.label); return ws.length >= 2 && ws.every(w => holdsWord(q, w)) }).sort((a, b) => contentWords(b.label).length - contentWords(a.label).length)[0]
+  if (whole && (!exact || contentWords(whole.label).length > contentWords(exact.label).length)) return whole
+  return exact || null
+}
 
 export const SLOTS = {
   tool: { read: firstRow(DRAWING_TOOLS), rows: DRAWING_TOOLS },
