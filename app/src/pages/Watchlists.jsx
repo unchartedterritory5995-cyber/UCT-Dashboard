@@ -28,6 +28,7 @@
 //
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
@@ -1265,6 +1266,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const allTickers = useMemo(() => {
     const tickers = []
     if (scanMode) {
+      // ⛔ GROUPED, the scan's items are the GROUP rows ("SEMICONDUCTORS"), not
+      // stocks. Streaming those left every member row of a LIVE grouped drill
+      // with Price / % Chg / Vol all "—" (owner, 2026-11-09). Stream the members:
+      // all of them when the list is small, the visible window when it is large.
+      if (groupMode && scanGroups) {
+        const members = []
+        for (const m of Object.values(scanGroups)) if (Array.isArray(m)) members.push(...m)
+        if (members.length > 800) return scanVisibleSyms
+        return members
+      }
       const all = scanWl?.items || []
       // A whole-market scan (e.g. Custom-Period Sort, ~5,000 rows) streams ONLY the
       // visible window — streaming every row would open ~100 SSE connections. Small
@@ -1294,7 +1305,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     tickers.push(...visibleFromVirtualized)
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized])
+  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized, groupMode, scanGroups])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // The whole-list SORT VECTOR — one slow pass at 15 s, matching the server's own
@@ -1537,6 +1548,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
+    if (isHiddenDeskKey(e)) return
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return

@@ -1,5 +1,6 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { isHiddenDeskKey } from '../../pages/charts/deskKeyGate'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
@@ -2719,6 +2720,8 @@ export default function ChartDrawingOverlay({
     if (readOnly) return undefined
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      // A drawing on a popped desk does not answer keys typed on the page in the main window.
+      if (isHiddenDeskKey(e)) return
       // ⭐ THE THIRD KEY HANDLER THAT IS NOT SCOPED TO THE CHART.
       //
       // This listener is on `window`, so it fires wherever focus is. The

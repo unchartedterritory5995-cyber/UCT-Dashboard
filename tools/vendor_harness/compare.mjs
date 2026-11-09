@@ -485,10 +485,13 @@ function divergencePattern(compared, divergent, steady) {
  *  exactly as unknowable as a value inside the value's warm-up, and it is excused
  *  by the same rule: no further, and never on a capture from the listing.
  *  ⛔ ONLY THE COLOUR: the value is still compared from `warmupBars` on. */
-export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback }) {
+export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback, replayedBars = 0 }) {
   if (bar0) return warmupBars
   if (capture && capture.warmup && Number.isInteger(capture.warmup.bars)) return warmupBars
-  return Number.isInteger(colorLookback) && colorLookback > warmupBars ? colorLookback : warmupBars
+  // ⭐ DIV-1 — our side replayed `replayedBars` of proved prehistory first, so the
+  // colour rule's reach is covered for that many bars too (as the value's is).
+  const reach = Number.isInteger(colorLookback) ? Math.max(0, colorLookback - (replayedBars > 0 ? replayedBars : 0)) : null
+  return reach !== null && reach > warmupBars ? reach : warmupBars
 }
 
 /** One plot's verdict from its comparison, with the reason written out. */
@@ -720,8 +723,13 @@ export function compareCapture(capture, ours, opts = {}) {
       if (row) return notDrawn(row[v.column])
       return sparseNative ? null : undefined
     })
-    if (!o.column) {
+    // ⭐ 2026-11-09 — a plot our side WITHHELD BY NAME on every bar (`withheldBy`, a
+    // chart-clock code) is graded the way a missing column is: not compared, with the
+    // reason. ⚰️ Graded as its all-`na` column it read DIVERGE — the verdict a WRONG
+    // value gets — on 13 captures (triage lane WN, 2026-11-08).
+    if (!o.column || o.withheldBy) {
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
+        ...(o.withheldBy ? { withheld: o.withheldBy } : {}),
         reason: `our side produced no column for this plot${o.missingReason ? ` — ${o.missingReason}` : ''}` })
       continue
     }
@@ -732,9 +740,20 @@ export function compareCapture(capture, ours, opts = {}) {
     let warmupSource
     if (bar0) { warmupBars = 0; warmupSource = 'capture starts at bar 0 — no warm-up excuse' }
     else if (capture.warmup && Number.isInteger(capture.warmup.bars)) { warmupBars = capture.warmup.bars; warmupSource = `declared by the capture (${capture.warmup.source || 'unstated'})` }
+    // ⭐⭐ DIV-1 (2026-11-09) — OUR SIDE HAD THE HISTORY TRADINGVIEW HAD. `ourSide.js`
+    // computed this plot over [proved prehistory + window] (`warmBarsSupply`, the RC1
+    // supplier), so the window's first bars are no longer "computed from history
+    // neither side holds": the excuse shrinks by the bars replayed (to 0 whenever the
+    // replay reaches back past the plot's own lookback, i.e. every SPY 1D capture).
+    else if (o.historyReplayed && Number.isInteger(o.historyReplayed.bars) && o.historyReplayed.bars > 0) {
+      warmupBars = Number.isInteger(o.lookback) ? Math.max(0, o.lookback - o.historyReplayed.bars) : 0
+      warmupSource = `our side replayed ${o.historyReplayed.bars} bars of proved prehistory (${o.historyReplayed.file}) before the window`
+        + (Number.isInteger(o.lookback) ? ` against a maxLookback of ${o.lookback}` : '')
+    }
     else if (Number.isInteger(o.lookback)) { warmupBars = o.lookback; warmupSource = 'derived: our evaluator\'s maxLookback for this plot' }
     else { warmupBars = 0; warmupSource = 'lookback unknown — no warm-up region' }
-    const colorWarmupBars = colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback })
+    const colorWarmupBars = colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback,
+      replayedBars: o.historyReplayed && Number.isInteger(o.historyReplayed.bars) ? o.historyReplayed.bars : 0 })
     const oursCol = leadBy(drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column, treeShift)
     // ⭐ A plot TradingView does not display (style `display: 0`, i.e. the author's
     // `display = display.none`) has no colour anyone sees, so its colour is not

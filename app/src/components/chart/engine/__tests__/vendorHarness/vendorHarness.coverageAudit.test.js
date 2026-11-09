@@ -102,17 +102,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('atr-trailing-stop-by-ceyhun SPY: MATCH', () => {
     expect(grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY Slow Trail / BUY / SELL are na on ours where TradingView has a value, from bar 522 (scattered); the barcolor AGREES', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`, DIV-1), the series the member's daily chart
+  // computes (12,500-bar daily first paint, server deep history from the listing).
+  // Was "Slow Trail / BUY / SELL na on ours from bar 522": that was the cold window's seed
+  // (the RDDT plots, from the listing, always agreed). Replayed, every plot agrees; what
+  // still diverges is the one drawing, withheld by name as on RDDT.
+  it('control: SPY every plot and the barcolor agree once replayed from the listing; the one drawing is WITHHELD BY NAME as on RDDT (DIV-1)', () => {
     const { v } = grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02')
-    expect(first(item(v, 'Slow Trail'))).toMatchObject({ bar: 522, kind: 'na' })
-    expect(item(v, 'Slow Trail').stats.steady.divergent).toBe(949)
-    expect(first(item(v, 'BUY'))).toMatchObject({ bar: 554, kind: 'na' })
-    expect(first(item(v, 'SELL'))).toMatchObject({ bar: 531, kind: 'na' })
-    // ⭐ RC1 — was DIVERGE ("barcolor differs from bar 0"): the paint is now replayed over
-    // SPY's own proved history with the supplier's listing flag (`ourSide.warmBarsSupply`)
-    // and agrees on all 1800 bars. The PLOT lane above still replays the window cold and
-    // without the listing flag, so its na-from-bar-522 divergence is unchanged.
+    expect(v.plots.filter((p) => p.verdict !== 'MATCH').map((p) => p.title)).toEqual([])
     expect(v.paints.verdict).toBe('MATCH')
+    expect(v.objects.withheld).toBe('pine:object-ops-refused')
   }, T)
 
   // cpr-with-mas-super-trend-vwap (wave-16 H2/H3 attach) ------------------------
@@ -122,20 +122,22 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it('cpr-with-mas-super-trend-vwap RDDT: MATCH (F1)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it.fails('cpr-with-mas-super-trend-vwap SPY: MATCH', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`, DIV-1), the series the member's daily chart
+  // computes (12,500-bar daily first paint, server deep history from the listing).
+  // FLIPPED from `it.fails`: the EMA's converging prefix was the cold window's.
+  it('cpr-with-mas-super-trend-vwap SPY: MATCH (DIV-1)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY VWAP agrees on every bar now (F1); EMA a converging prefix; CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
+  it('control: SPY every item agrees from bar 0 — no value or colour warm-up is excused once replayed (DIV-1)', () => {
     const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02')
-    expect(item(v, 'VWAP').verdict).toBe('MATCH')
-    for (const t of ['CP', 'BC', 'TC', 'D-S1', 'D-R1']) {
+    for (const t of ['VWAP', 'EMA', 'CP', 'BC', 'TC', 'D-S1', 'D-R1']) {
       const p = item(v, t)
       expect(p.verdict, t).toBe('MATCH')
-      // the colour rule reads `DayPivot[1]`: its reach (2) exceeds the value's (1)
-      expect(p.colorWarmupBars, t).toBe(2)
-      expect(p.warmupBars, t).toBe(1)
+      expect(p.warmupBars, t).toBe(0)
+      // the colour rule's reach (2, `DayPivot[1]`) is covered by the replay too (F2's excuse is gone)
+      expect(p.colorWarmupBars, t).toBeUndefined()
     }
-    expect(item(v, 'EMA').stats.steady.pattern.kind).toBe('converging-prefix')
   }, T)
 
   // implied-volatility-suite: MATCH since F2 (above) ---------------------------
@@ -173,7 +175,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('optimized-keltner-channels-sltp-strategy RDDT: MATCH', () => {
     expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY Upper/Basis/Lower are converging prefixes (a window not from the listing)', () => {
+  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY MATCHES once replayed from the listing (DIV-1)', () => {
     const r = grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v
     const plots = items(r, 'Plot')
     expect(plots.length).toBe(2)
@@ -181,18 +183,23 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       expect(first(p)).toMatchObject({ bar: 0, kind: 'na' })
       expect(p.stats.steady.divergent).toBe(1)
     }
+    // ⭐ DIV-1 RE-PIN (2026-11-09): SPY Upper/Basis/Lower were converging prefixes (a window
+    // not from the listing). Replayed from SPY's listing (DIV-1), the SPY capture MATCHES.
     const s = grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v
-    for (const t of ['Upper', 'Basis', 'Lower']) expect(item(s, t).stats.steady.pattern.kind, t).toBe('converging-prefix')
+    expect(s.verdict, s.reason).toBe('MATCH')
   }, T)
 
   // pmax-explorer ---------------------------------------------------------------
   it.fails('pmax-explorer SPY: MATCH', () => {
     expect(grade('pmax-explorer-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY PMax is na on ours from bar 512 to the last (1139 bars, TradingView a value); the screener label is not drawn; RDDT PMax / MA agree', () => {
+  it('control: SPY PMax / MA agree once replayed from the listing (DIV-1); the screener label is not drawn; RDDT PMax / MA agree', () => {
     const s = grade('pmax-explorer-spy-1d-2026-10-02').v
-    expect(first(item(s, 'PMax'))).toMatchObject({ bar: 512, kind: 'na' })
-    expect(item(s, 'PMax').stats.steady.divergent).toBe(1139)
+    // ⭐ DIV-1 RE-PIN (2026-11-09): PMax was na on ours from bar 512 (1139 bars) — the cold
+    // window's seed (RDDT, from the listing, agreed). Replayed from SPY's listing (DIV-1)
+    // PMax and the MA agree; the screener label is still the one divergence.
+    expect(item(s, 'PMax').verdict).toBe('MATCH')
+    expect(item(s, 'Moving Avg Line').verdict).toBe('MATCH')
     // ⭐ F3 — the screener label lists 38 other symbols' PMax states
     // (`request.security` per symbol): withheld by name, never drawn.
     expect(s.objects.withheld).toBe('pine:object-ops-refused')
@@ -221,35 +228,50 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('support-and-resistance-multi-time-frame RDDT: MATCH', () => {
     expect(grade('support-and-resistance-multi-time-frame-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT (from the listing) Resistance Weekly na on 15 bars from 161, Support Weekly on 3 from 476; SPY Support Monthly na from bar 735 to the last', () => {
+  it('control: RDDT (from the listing) Resistance Weekly na on 15 bars from 161, Support Weekly on 3 from 476; SPY (replayed, DIV-1) only the weekly / monthly request diverges, scattered values', () => {
     const r = grade('support-and-resistance-multi-time-frame-rddt-1d-2026-10-02').v
     expect(first(item(r, 'Resistance Weekly'))).toMatchObject({ bar: 161, kind: 'na' })
     expect(item(r, 'Resistance Weekly').stats.steady.divergent).toBe(15)
     expect(first(item(r, 'Support Weekly'))).toMatchObject({ bar: 476, kind: 'na' })
     expect(item(r, 'Resistance Daily').verdict).toBe('MATCH')
+    // ⭐ DIV-1 RE-PIN (2026-11-09): SPY Support Monthly was na from bar 735 to the last
+    // (persistent) and the Daily rows na early — the cold window. Replayed from SPY's
+    // listing (DIV-1) the Daily rows agree, and what diverges is the weekly / monthly
+    // request alone, scattered VALUES (the HTF class RDDT shows from its listing): a
+    // better-explained DIVERGE, owned by the request lane.
     const s = grade('support-and-resistance-multi-time-frame-spy-1d-2026-10-02').v
-    expect(first(item(s, 'Support Monthly'))).toMatchObject({ bar: 735, kind: 'na' })
-    expect(item(s, 'Support Monthly').stats.steady.pattern.kind).toBe('persistent')
+    expect(item(s, 'Resistance Daily').verdict).toBe('MATCH')
+    expect(item(s, 'Support Daily').verdict).toBe('MATCH')
+    for (const t of ['Resistance Weekly', 'Support Weekly', 'Resistance Monthly', 'Support Monthly']) {
+      expect(item(s, t).verdict, t).toBe('DIVERGE')
+      expect(item(s, t).stats.steady.pattern.kind, t).toBe('scattered')
+      expect(first(item(s, t)).kind, t).toBe('value')
+    }
+    expect(item(s, 'Support Monthly').stats.steady.divergent).toBe(1)
   }, T)
 
   // support-and-resistance (SPY only — RDDT is a MATCH above) ---------------------
-  it.fails('support-and-resistance SPY: MATCH', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`, DIV-1), the series the member's daily chart
+  // computes (12,500-bar daily first paint, server deep history from the listing).
+  // FLIPPED from `it.fails`: the na on bars 20..51 were the first fixnan pivots of a cold window.
+  it('support-and-resistance SPY: MATCH (DIV-1)', () => {
     expect(grade('support-and-resistance-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY both untitled plots na on ours on bars 20..51 only (a window not from the listing: the first fixnan pivots)', () => {
-    const plots = items(grade('support-and-resistance-spy-1d-2026-10-02').v, 'Plot').filter((p) => p.verdict === 'DIVERGE')
-    expect(plots.length).toBe(2)
-    for (const p of plots) {
-      expect(first(p)).toMatchObject({ bar: 20, kind: 'na' })
-      expect(p.stats.steady.last.bar).toBeLessThanOrEqual(51)
-    }
+  it('control: SPY every plot agrees from bar 0 once replayed (DIV-1)', () => {
+    const { v } = grade('support-and-resistance-spy-1d-2026-10-02')
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE')).toEqual([])
   }, T)
 
   // swing-highlow-zigzag-chartprime ---------------------------------------------
-  it.fails('swing-highlow-zigzag-chartprime SPY: MATCH', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`, DIV-1), the series the member's daily chart
+  // computes (12,500-bar daily first paint, server deep history from the listing).
+  // FLIPPED from `it.fails`: the 40 zigzag lines we lacked were drawn before the cold window.
+  it('swing-highlow-zigzag-chartprime SPY: MATCH (DIV-1)', () => {
     expect(grade('swing-highlow-zigzag-chartprime-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY we hold 12 of TradingView\'s 52 zigzag lines — a WINDOW, not the engine', () => {
+  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY TradingView\'s 52 zigzag lines include 35 made before the window, and replayed from the listing we hold all 52 (DIV-1)', () => {
     const r = grade('swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02').v.objects
     expect(r.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 10, ours: 10 })
     expect(r.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
@@ -257,7 +279,8 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const s = v.objects
     expect(s.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
     expect(s.texts.find((t) => t.family === 'labels text').agree).toBe(true)
-    expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 12 })
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was `ours: 12` (a cold window). Replayed from the listing: 52.
+    expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 52 })
     // ⭐ F3 — the 40 lines we do not hold were drawn on bars BEFORE the loaded
     // window: TradingView ran the script over SPY's whole history (the capture is
     // 1800 bars from 2019-08, not from the listing), and the zigzag segments it
@@ -312,11 +335,16 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual(['Baseline'])
     expect(item(v, 'Bullish Rejection').verdict).toBe('MATCH')
   }, T)
-  // UIE Phase 2: off the listing the run is tried behind its warm-up curtain;
-  // trend-targets needs ~1,500 bars to forget its first bar, more than half of SPY's 1,800
-  it('trend-targets-algoalpha SPY (runtime pane): its warm-up does not fit the window (runtime:warmup-never-converges) — draws nothing', () => {
+
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`, DIV-1), the series the member's daily chart
+  // computes (12,500-bar daily first paint, server deep history from the listing).
+  // Was "its warm-up does not fit the window (runtime:warmup-never-converges), draws nothing"
+  // (it needs ~1,500 bars to forget its first bar). Replayed, the run starts at the listing.
+  it('trend-targets-algoalpha SPY (runtime pane): replayed from the listing, MATCH, objects and paint included (DIV-1)', () => {
     const v = grade('trend-targets-algoalpha-spy-1d-2026-10-02', 'runtime').v
-    expect(v.objects.reason).toMatch(/runtime:warmup-never-converges/)
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.objects.verdict).toBe('MATCH')
   }, T)
   // ⭐ WS-E (2026-10-31) — FLIPPED from `it.fails`: a leftward `offset` is carried
   // (`plots[].displace`), so wyckoff's eight offset plotshapes are drawn where
@@ -566,7 +594,9 @@ describe('CAP3 — Q-H4a vw-h4-loops (vendor witness)', () => {
     expect(s.verdict).toBe('MATCH')
     for (const p of s.plots) {
       expect(p.verdict, p.title).toBe('MATCH')
-      expect(p.warmupBars, p.title).toBeGreaterThan(0)
+      // ⭐ DIV-1 RE-PIN (2026-11-09): was `> 0` (the curtain, 273 bars). Replayed from SPY's
+      // listing (DIV-1) no warm-up is withheld or excused: every bar is compared.
+      expect(p.warmupBars, p.title).toBe(0)
       expect(p.stats.steady.compared, p.title).toBeGreaterThan(1500)
     }
     expect(grade('vw-h4-loops-rddt-1d-2026-10-03').v.reason).toMatch(/pine:block/)
@@ -590,11 +620,15 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
     expect(v.objects.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
     expect(v.paints.verdict).toBe('MATCH')
   }, T)
-  it('SPY (a window not from the listing): the paint agrees; the run draws nothing (TradingView 141 boxes) — INCONCLUSIVE, not a match', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`, DIV-1), the series the member's daily chart
+  // computes (12,500-bar daily first paint, server deep history from the listing).
+  // Was "the run draws nothing (TradingView 141 boxes), INCONCLUSIVE". Replayed, it draws.
+  it('SPY (runtime pane): replayed from the listing, MATCH — the 141 boxes, lines, labels and the paint agree (DIV-1)', () => {
     const v = grade('renko-candles-overlay-spy-1d-2026-10-03', 'runtime').v
-    expect(v.verdict).toBe('INCONCLUSIVE')
+    expect(v.verdict, v.reason).toBe('MATCH')
     expect(v.paints.verdict).toBe('MATCH')
-    expect(v.objects.reason).toMatch(/the run drew nothing/)
+    expect(v.objects.counts.find((c) => c.family === 'boxes')).toMatchObject({ vendor: 141, ours: 141 })
   }, T)
   it('the objects pane alone still refuses it by name (pine:collection)', () => {
     expect(grade('renko-candles-overlay-rddt-1d-2026-10-03').v.reason).toMatch(/pine:collection/)
@@ -613,6 +647,11 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
 // measure test that writes the file could not be run beside a live gate. Most SPY value divergences are converging prefixes: the
 // 1800-bar window does not start at SPY's listing, so a recursive series (EMA, RMA)
 // seeds differently (CAP2 records the same); the signature says which.
+// ⭐ DIV-1 (2026-11-09): the plot and object lanes now replay SPY's proved history from its
+// 1993 listing too (`ourSide.js`), and the signatures were REWRITTEN BY THEIR WRITER
+// (`cap3SpyGaps.measure.test.js`, CAP3_SPY_MEASURE=1): 26 rows DIVERGE -> MATCH, every other
+// changed row a DIVERGE with fewer items diverging (artemis, atr-sr, contraction-box,
+// ema-ribbon, vdubus, rt6), none worse.
 /** ⛔ Scripts whose DRAWN COUNTS read the wall clock (`timenow`): black-scholes computes
  *  days-to-expiry from now, so its table cells change with the hour the rail runs
  *  (measured: 8 cells at capture, 6 the next morning). A test that reads the clock is a
