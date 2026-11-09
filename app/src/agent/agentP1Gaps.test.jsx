@@ -3,6 +3,7 @@
 // BROWSER-MOCK-MODEL / SIMULATED (scripted plans).
 //   C1-025  auto-scale ONE chart's price axis (its own axis double-click): done only when the price scale reads back as auto again;
 //           Undo puts back the exact price scale it replaced (the dragged pin and LWC's own range)
+//   C1-035  a whole compare group (theme / sector / industry: the Compare panel's own lists) on one chart; Undo removes it exactly
 //   C1-036 / C1-038  take one comparison overlay off a chart / clear them all (Compare Symbols' own writers); Undo puts them back
 //   C1-080  one chart theme on EVERY chart of the board (the theme gallery's "all charts"); Undo restores each chart's own theme
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -11,7 +12,7 @@ import { registerBuiltins } from './builtins'
 import { setupPanel, ONE, FOUR, bareSettings } from './testing/panelHarness'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { CHART_THEMES, themeWithAppSurface } from '../components/chart/chartThemes'
-import { AUTOSCALE_HELD_OUT, COMPARE_REMOVE_HELD_OUT, THEME_ALL_HELD_OUT } from './agentP1GapsHeldOut.test.js'
+import { AUTOSCALE_HELD_OUT, COMPARE_REMOVE_HELD_OUT, THEME_ALL_HELD_OUT, GROUP_HELD_OUT } from './agentP1GapsHeldOut.test.js'
 import { CHART_VIEW } from './guide/actions'
 import * as guideStore from './guide/guideStore'
 
@@ -164,6 +165,102 @@ describe('C1-025: auto-scale one chart\'s price axis', () => {
     const out = await say('auto scale this chart')
     expect(out).not.toMatch(/^.*price scale back on auto/m)
   }, 60000)
+})
+
+// ── C1-035 ──
+// The Compare panel's own group lists and members (compareGroups.fetchGroupList / fetchGroupMembers), served here as the server does
+const GROUPS = {
+  industry: { Semiconductors: ['NVDA', 'AMD', 'AVGO', 'TSM'], Software: ['MSFT', 'ORCL', 'CRM', 'ADBE', 'NOW', 'INTU', 'PANW'] },
+  sector: { Energy: ['XOM', 'CVX', 'COP'], Technology: ['AAPL', 'MSFT'] },
+  theme: { 'AI Infrastructure': ['NVDA', 'AVGO', 'VRT', 'ANET'] },
+}
+function withGroups({ failMembers = false } = {}) {
+  const base = globalThis.fetch
+  const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
+  globalThis.fetch = vi.fn(async (url, init) => {
+    const u = String(url)
+    const list = /\/api\/compare\/groups\?type=(\w+)/.exec(u)
+    if (list) return json({ groups: Object.entries(GROUPS[list[1]] || {}).map(([name, s]) => ({ name, count: s.length })) })
+    const mem = /\/api\/compare\/group-members\?type=(\w+)&name=([^&]+)/.exec(u)
+    if (mem) {
+      if (failMembers) return json({ error: 'down' }, 503)
+      const name = decodeURIComponent(mem[2]), syms = GROUPS[mem[1]]?.[name]
+      return syms ? json({ name, symbols: syms, total: syms.length }) : json({ error: 'no such group' }, 404)
+    }
+    return base(url, init)
+  })
+}
+const compsAt = (b) => mergeChartSettings(b.state.widgets[0].opts?.settings || null).comparisonSymbols || []
+const groupOp = (type, name) => op('chart.compare', { add: [], remove: [], clear: false, group: { type, name } })
+describe('C1-035: a whole compare group (theme / sector / industry) on one chart', () => {
+  it.each(GROUP_HELD_OUT.map(c => [c.text, c]))('held-out "%s": every member but the chart\'s own symbol, tagged with the group; Undo restores exactly', async (t, c) => {
+    withGroups()
+    const { say, board } = p.mount(...ONE('NVDA'))
+    const before = JSON.stringify(board.state.widgets[0].opts?.settings || null)
+    p.st.envelopes.push(groupOp(c.type, c.name))
+    const out = await say(t)
+    const want = GROUPS[c.type][c.name].filter(s => s !== 'NVDA')
+    expect(compsAt(board).map(x => x.sym), out).toEqual(want)
+    expect(compsAt(board).every(x => x.group === c.name && x.enabled && x.scaleMode === 'new'), out).toBe(true)
+    expect(new Set(compsAt(board).map(x => String(x.color).toLowerCase())).size).toBe(want.length)
+    expect(out).toContain(c.name)
+    await say('undo')
+    expect(JSON.stringify(board.state.widgets[0].opts?.settings || null)).toBe(before)
+  }, 40000)
+  it('the group named in any case is the panel\'s own group ("semiconductors" -> Semiconductors)', async () => {
+    withGroups()
+    const { say, board } = p.mount(...ONE('NVDA'))
+    p.st.envelopes.push(groupOp('industry', 'semiconductors'))
+    await say('compare this against the semis')
+    expect(compsAt(board).map(x => x.group)).toEqual(['Semiconductors', 'Semiconductors', 'Semiconductors'])
+  }, 40000)
+  it('members already compared are kept once (their own entry untouched); only the rest are added', async () => {
+    withGroups()
+    const [widgets, groups] = ONE('NVDA')
+    widgets[0].opts = { settings: { ...bareSettings(), comparisonSymbols: [{ sym: 'AMD', enabled: true, color: '#f00', scaleMode: 'same' }] } }
+    const { say, board } = p.mount(widgets, groups)
+    p.st.envelopes.push(groupOp('industry', 'Semiconductors'))
+    await say('overlay the semiconductors industry')
+    expect(compsAt(board).map(x => x.sym)).toEqual(['AMD', 'AVGO', 'TSM'])
+    expect(compsAt(board)[0]).toMatchObject({ sym: 'AMD', color: '#f00', scaleMode: 'same' })
+  }, 40000)
+  it('NEGATIVE a group UCT does not have: refused with the real groups of that kind; nothing changes', async () => {
+    withGroups()
+    const { say, board } = p.mount(...ONE('NVDA'))
+    p.st.envelopes.push(groupOp('industry', 'Widgets'))
+    const out = await say('compare against the widgets industry')
+    expect(compsAt(board)).toEqual([])
+    expect(out).toMatch(/no industry .Widgets./i)
+    expect(out).toMatch(/Semiconductors/)
+  }, 40000)
+  it('NEGATIVE a group past the chart\'s ceiling: refused, nothing changes', async () => {
+    withGroups()
+    const { say, board } = p.mount(...ONE('NVDA'))
+    p.st.envelopes.push(groupOp('industry', 'Software'))
+    const out = await say('compare against the software industry')
+    expect(compsAt(board)).toEqual([])
+    expect(out).toMatch(/at most 5/)
+  }, 40000)
+  it('NEGATIVE the members could not be loaded: refused as that, nothing changes, nothing claimed', async () => {
+    withGroups({ failMembers: true })
+    const { say, board } = p.mount(...ONE('NVDA'))
+    p.st.envelopes.push(groupOp('sector', 'Energy'))
+    const out = await say('overlay the energy sector')
+    expect(compsAt(board)).toEqual([])
+    expect(out).toMatch(/couldn.t load|could not load/i)
+    expect(out).not.toMatch(/Compared|Added/)
+  }, 40000)
+  it('NO-OP every member already compared: nothing changed is said', async () => {
+    withGroups()
+    const [widgets, groups] = ONE('NVDA')
+    widgets[0].opts = { settings: { ...bareSettings(), comparisonSymbols: ['XOM', 'CVX', 'COP'].map((sym, i) => ({ sym, enabled: true, color: ['#f00', '#0f0', '#00f'][i], scaleMode: 'new' })) } }
+    const { say, board } = p.mount(widgets, groups)
+    const before = JSON.stringify(compsAt(board))
+    p.st.envelopes.push(groupOp('sector', 'Energy'))
+    const out = await say('add the energy sector to the compare')
+    expect(JSON.stringify(compsAt(board))).toBe(before)
+    expect(out).toMatch(/already/i)
+  }, 40000)
 })
 
 // ── C1-036 / C1-038 ──
