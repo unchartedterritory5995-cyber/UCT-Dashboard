@@ -50,5 +50,18 @@ for another subject:
 The Watchlists-page rows (C3-073, C3-092 to C3-096, C3-066, C3-091) wait on the page decision. See
 `PR-watchlists-page-host.md`: `/watchlists` redirects to Charts on master.
 
-## Results
-See the section added after the browser runs.
+## Results (BROWSER-MOCK-MODEL / LOCAL / SIMULATED)
+- **The baseline, cov-4-wl `6056e91cd4`:** one fresh full runner pass (Vite restarted, cases regenerated, identical to
+  the committed 304).
+  - **281 VERIFIED of 304.** It fails the same 23 cases as the cov-4 pass, so nothing was lost by the stack join.
+  - Run record: `runs/2026-11-09.cov5.results.json`.
+  - How the pass ran: one pass. The committed cases file changed during the run when this branch's commit landed,
+    and each child process re-reads the cases file by index. So I judged each record by the case its child actually
+    ran.
+  - That left 295 of the 304 covered, and 9 (C3-200 to C3-219) were re-run separately on the same server (5 pass).
+  - The 8 new cov-5 cases that ran inside the pass, plus C1-067 run alone, are counted below.
+- **This branch:** **9 of 9 new cases VERIFIED**, giving **290 VERIFIED of 313 cases**, or 290 of 499 rows.
+  - NO ASSIGNED WALKTHROUGH drops from 87 to 78. No other bucket moves.
+  - Expected +8, got +9.
+- `CHARTS_TEACH_STATUS.md` was regenerated from that run and `cov5-probe`.
+- No product or guide code changed, so no suite run or byte measurement is owed for this item.
