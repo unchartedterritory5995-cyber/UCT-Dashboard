@@ -11147,7 +11147,7 @@ def _csv_response(csv_path: str, filename: str):
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
 
 @app.get("/api/brand/massive-card-logo.png")
-async def _massive_card_logo():
+def _massive_card_logo():
     """Public author-icon for the Massive Discord cards (the UCT Logo).
 
     Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be
