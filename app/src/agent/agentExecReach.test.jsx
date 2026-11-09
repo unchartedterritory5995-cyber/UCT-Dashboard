@@ -11,7 +11,7 @@ import { WIDGET_HELD_OUT, LIST_HELD_OUT } from './agentExecHeldOut.test.js'
 import { WIDGET_TUNE, LIST_TUNE, WIDGET_TUNE2, JOURNAL_TUNE } from './agentExecTune.js'
 import { NAME_HELD_OUT, DOOR_HELD_OUT, JOURNAL_HELD_OUT } from './agentExecHeldOut2.test.js'
 import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from './agentExecHeldOut7.test.js'
-import { PRESET_HELD_OUT, SCAN_BACK_HELD_OUT, FOLLOW_HELD_OUT } from './agentScanFilterHeldOut.test.js'
+import { PRESET_HELD_OUT, SCAN_BACK_HELD_OUT, FOLLOW_HELD_OUT, SCAN_SEARCH_HELD_OUT } from './agentScanFilterHeldOut.test.js'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const w = (id, type, x, y, opts = {}) => ({ id, type, x, y, w: 2, h: 4, color: 'N', opts })
@@ -73,6 +73,9 @@ const PINNED = {
   // round 8 family 2, measured once after the change. The two C3-108 misses are this board's: its Scanner shows the picker (no
   // scan open), so 'back to the picker' is rightly not offered there (the row's `when`); over a Scanner showing a scan it is
   'scanfilter held-out8 v1': { model: '6/6', action: '4/6', list: '4/6' }, 'scanfilter held-out8 v2': { model: '6/6', action: '4/6', list: '4/6' },
+  // C3-109, measured once after the change: the first call does NOT carry the control (0/2, both routings) — "the scan list" /
+  // "the scanner picker" do not route the Scanner's controls; the model's need_groups reroute reaches them (the outcome test).
+  'scansearch held-out8 v1': { model: '2/2', action: '0/2', list: '0/2' }, 'scansearch held-out8 v2': { model: '2/2', action: '0/2', list: '0/2' },
 }
 describe('reach of the first model call', () => {
   beforeEach(() => {})
@@ -83,7 +86,8 @@ describe('reach of the first model call', () => {
     // round 7: C3-138, the News widget's search box (its rows carry their widget type)
     ['search held-out7', [...SEARCH_HELD_OUT, ...SEARCH_CLEAR_HELD_OUT].map(c => ({ ...c, type: 'tradeExchangeNews', key: 'search' })), widgetWant],
     // round 8 family 2: a News preset, a Scanner back to its picker, the Market Map following its list
-    ['scanfilter held-out8', [...PRESET_HELD_OUT.map(c => ({ ...c, type: 'tradeExchangeNews' })), ...SCAN_BACK_HELD_OUT.map(c => ({ ...c, type: 'scanner' })), ...FOLLOW_HELD_OUT.map(c => ({ ...c, type: 'scatter' }))], widgetWant]]
+    ['scanfilter held-out8', [...PRESET_HELD_OUT.map(c => ({ ...c, type: 'tradeExchangeNews' })), ...SCAN_BACK_HELD_OUT.map(c => ({ ...c, type: 'scanner' })), ...FOLLOW_HELD_OUT.map(c => ({ ...c, type: 'scatter' }))], widgetWant],
+    ['scansearch held-out8', SCAN_SEARCH_HELD_OUT.map(c => ({ ...c, type: 'scanner' })), widgetWant]]
   // EXEC_REACH_ONLY=tune while tuning: the held-out numbers are read once, at the end
   const only = globalThis.process?.env?.EXEC_REACH_ONLY || ''
   for (const [name, cases, want] of SETS.filter(([n]) => !only || n.includes(only))) {

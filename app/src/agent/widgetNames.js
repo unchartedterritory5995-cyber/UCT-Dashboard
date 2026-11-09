@@ -45,7 +45,11 @@ export const AGENT_CONTROLS = {
       write: (opts, v) => { const p = cleanPresets(opts?.presets).find(x => x.id === v); return p ? { ...(opts || {}), ...presetPatch(opts?.settings, p) } : opts },
       valueWhy: (opts, v) => { const p = cleanPresets(opts?.presets).find(x => x.id === v); return p && String(p.query || '').trim() ? `The preset “${p.name}” also searches for “${String(p.query).trim()}”. I can apply its filters only without that search, so I didn't apply it: use the widget's Presets menu to apply it with the search.` : null } }],
   // C3-108 (round 8): leave the scan a Scanner widget shows and go back to its picker, as its own back control does (exitScan)
-  scanner: [{ key: 'show', type: 'enum', options: ['picker'], title: 'view', labels: { picker: 'the scan picker' }, words: ['picker', 'back', 'close', 'leave', 'list'],
+  scanner: [
+    // C3-109 (round 8): the scan picker's own search box (a text door control), offered only while the picker shows
+    { key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS,
+      when: (opts) => (opts?.scanKey ? 'The Scanner widget is showing a scan; its search box is on its picker (go back to the picker first).' : null) },
+    { key: 'show', type: 'enum', options: ['picker'], title: 'view', labels: { picker: 'the scan picker' }, words: ['picker', 'back', 'close', 'leave', 'list'],
     value: (opts) => (opts?.scanKey ? (opts.scanName || opts.scanKey) : 'picker'),
     when: (opts) => (opts?.scanKey ? null : 'The Scanner widget is already showing its scan picker.'),
     write: (opts) => ({ ...(opts || {}), scanKey: null, scanName: null }) }],

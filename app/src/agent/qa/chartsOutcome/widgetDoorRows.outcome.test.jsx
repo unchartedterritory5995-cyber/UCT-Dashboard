@@ -288,7 +288,7 @@ describe('the Notebook widget: create a note through its own New control (C3-202
 
 // round 8 (family 2, held-out first: agentScanFilterHeldOut): a Scanner widget back to its picker (C3-108) and the Market Map's
 // Follow the linked list toggle (C3-194), through the widgets' own writers; read back from what the REAL widget draws.
-import { SCAN_BACK_HELD_OUT, FOLLOW_HELD_OUT } from '../../agentScanFilterHeldOut.test.js'
+import { SCAN_BACK_HELD_OUT, FOLLOW_HELD_OUT, SCAN_SEARCH_HELD_OUT } from '../../agentScanFilterHeldOut.test.js'
 describe('round 8: a Scanner back to its picker (C3-108), the Market Map following the linked list (C3-194)', () => {
   const SCAN = { scanKey: 'highest-volume-1y', scanName: 'Highest Volume In 1 Year' }
   it.each(SCAN_BACK_HELD_OUT.map(c => [c.text]))('C3-108 "%s": the picker shows again; Undo opens the scan back', async (text) => {
@@ -318,5 +318,28 @@ describe('round 8: a Scanner back to its picker (C3-108), the Market Map followi
     expect(out).toMatch(/followList is now (on|off)/)
     await m.say('undo')
     await waitFor(() => expect(toggle().getAttribute('aria-pressed')).toBe(String(!value)))
+  }, 60000)
+})
+
+// C3-109 (round 8): the Scanner picker's own search box, through its door (its own setter, as typing does). Read back: the box
+// and the scans the picker lists; Undo empties the box and every scan is listed again.
+describe('round 8: search the Scanner preset list (C3-109)', () => {
+  const names = () => [...within('sc').querySelectorAll('[class*="rowName"]')].map(e => e.textContent)
+  it.each([...SCAN_SEARCH_HELD_OUT.map(c => [c.text, c.value]), ['search the scanner for gainers', 'gainers']])('C3-109 "%s": the picker lists only what matches; Undo lists all again', async (text, value) => {
+    const m = board([wgt('sc', 'scanner', {})])
+    await waitFor(() => expect(names().length).toBe(6))
+    const out = await m.say(text, setOption('scanner', 'search', value))
+    await waitFor(() => expect(mountedWidgetDoor('sc').read().search).toBe(value))
+    const want = { gap: [], volume: ['Highest Volume In 1-Year', 'Highest Volume Ever'], gainers: ['Top Gainers (30-Day)', 'Top Gainers (60-Day)', 'Top Gainers (90-Day)'] }[value]
+    await waitFor(() => expect(names()).toEqual(want))
+    expect(out).toMatch(new RegExp(`search is now ${value}`))
+    await m.say('undo')
+    await waitFor(() => expect(names().length).toBe(6))
+  }, 60000)
+  it('C3-109 NEGATIVE a Scanner showing a scan: refused with the reason (its search is on its picker)', async () => {
+    const m = board([wgt('sc', 'scanner', { scanKey: 'highest-volume-1y', scanName: 'Highest Volume In 1 Year' })])
+    await waitFor(() => expect(mountedWidgetDoor('sc')?.about?.()).toMatch(/criteria/))
+    const out = await m.say('search the scanner for gainers', setOption('scanner', 'search', 'gainers'))
+    expect(out).toMatch(/search box is on its picker/)
   }, 60000)
 })
