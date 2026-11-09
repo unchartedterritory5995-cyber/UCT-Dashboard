@@ -146,6 +146,8 @@ from api.routers import notebook_entry_context as notebook_entry_context_router
 # excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
 # flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
+# Import a tweet (/api/j2/research-capture/tweets/*), dark behind NOTEBOOK_TWEET_IMPORT_ENABLED.
+from api.routers import notebook_tweet_capture as notebook_tweet_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
 # always on (its flag was retired 2026-11-04).
@@ -8165,6 +8167,13 @@ async def lifespan(app: FastAPI):
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
+            # returns at once while NOTEBOOK_TWEET_IMPORT_ENABLED is off (read per run).
+            from api.services.journal_two import tweet_capture_sync as _tw_capture_sync
+            _scheduler.add_job(_tw_capture_sync.run_sweep, trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
+                               id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+                               id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
         # -- The Desk -> Substack articles poller -------------------------------
@@ -10842,6 +10851,7 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
+app.include_router(notebook_tweet_capture_router.tweets_router)
 
 # Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.

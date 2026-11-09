@@ -104,6 +104,11 @@ def update_account(handle: str = Path(...),
         tweet_store.update_account_notes(handle, body["notes"])
     if "is_official" in body:
         tweet_store.set_account_official(handle, bool(body["is_official"]))
+    if "content_kind" in body:
+        try:
+            tweet_store.set_account_content_kind(handle, body["content_kind"])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     return tweet_store.list_accounts()
 
 
