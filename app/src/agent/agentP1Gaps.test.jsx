@@ -12,6 +12,8 @@ import { setupPanel, ONE, FOUR, bareSettings } from './testing/panelHarness'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { CHART_THEMES, themeWithAppSurface } from '../components/chart/chartThemes'
 import { AUTOSCALE_HELD_OUT, COMPARE_REMOVE_HELD_OUT, THEME_ALL_HELD_OUT } from './agentP1GapsHeldOut.test.js'
+import { CHART_VIEW } from './guide/actions'
+import * as guideStore from './guide/guideStore'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -100,6 +102,45 @@ describe('C1-025: auto-scale one chart\'s price axis', () => {
     expect(JSON.stringify(v.scale)).toBe(before)
     expect(out).toMatch(/log scale/i)
     expect(out).toMatch(/double-click the price axis/i)
+  }, 40000)
+  // ⭐ owner decision: the refusal OFFERS the on-screen walkthrough — guide chartView with the detail 'reset the price scale'
+  // (pl-teach's row priceScaleReset, "Resetting the price scale"); a yes starts it; the reset is never claimed. Tolerant until
+  // that row lands: then the walkthrough is on screen with its title; before it, the guide's own "can't see" answer.
+  const ROW_LANDED = CHART_VIEW.some(r => r.id === 'priceScaleReset')
+  const NEVER_CLAIMED = /\b(?:I(?:'ve| have)? (?:reset|put)|(?:is|was) (?:now )?(?:reset|back on auto)|Put this chart's price scale back on auto)\b/i
+  const refuseLog = async () => {
+    const m = p.mount(...ONE('NVDA'))
+    const v = withPriceScale(m.h, { scale: { ...DRAGGED, log: true } })
+    p.st.envelopes.push(op('chart.setScale', { scale: 'auto' }))
+    const out = await m.say('auto scale this chart')
+    return { ...m, v, out }
+  }
+  it('OFFER the refusal offers the walkthrough (chartView, "reset the price scale") and claims nothing', async () => {
+    const { out } = await refuseLog()
+    expect(out).toContain('Want me to show you? Double-click the price axis to reset it.')
+    expect(out).not.toMatch(NEVER_CLAIMED)
+    expect(guideStore.peekGuideOffer()).toMatchObject({ feature: 'chartView', detail: 'reset the price scale' })
+  }, 40000)
+  it.each([['yes'], ['yes please'], ['sure'], ['show me']])('OFFER "%s" starts the price-scale walkthrough; nothing is changed or claimed', async (yes) => {
+    const { say, v } = await refuseLog()
+    const before = JSON.stringify(v.scale)
+    const out = await say(yes)
+    expect(guideStore.peekGuideOffer(), 'the offer is spent').toBe(null)
+    if (ROW_LANDED) {
+      expect(guideStore.guideState()?.feature?.id, out).toBe('chartView')
+      expect(guideStore.guideState()?.feature?.title, out).toBe('Resetting the price scale')
+    } else expect(out).toMatch(/can.t see|don.t have a walkthrough/i)
+    expect(out).not.toMatch(NEVER_CLAIMED)
+    expect(v.calls).toEqual([])
+    expect(JSON.stringify(v.scale)).toBe(before)
+  }, 40000)
+  it.each([['no thanks'], ['what timeframe is this chart on?']])('OFFER "%s" drops it: a later "yes" starts nothing', async (next) => {
+    const { say } = await refuseLog()
+    await say(next)
+    expect(guideStore.peekGuideOffer()).toBe(null)
+    const out = await say('yes')
+    expect(guideStore.guideState()).toBe(null)
+    expect(out).not.toMatch(/highlighted it|follow the card/i)
   }, 40000)
   it('a LOG scale already auto-fitting with a pin (LWC auto on): Undo needs no range, so it runs and round-trips', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
