@@ -187,3 +187,22 @@ and A1 ("A is good").
   and its target is the 9-day average (Bracco's post). ("47, yes but that is parabolics. Shorts are the same just
   reversed for almost all our setupstuff.")
 - D48. Skip a short when the stock is hard to borrow or the borrow fee is high. ("48, yes.")
+
+**E. Fourth round (2026-11-09)**
+- E49. Risk by grade, "a little smaller" than the first suggestion (A+ 1.5% to 2%, A and B about 1%, B- 0.5% or less);
+  the exact numbers wait on his confirmation. ("49, yes but a little smaller honestly.")
+- E50. Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours. ("50, It
+  is discretionary and hard to define.")
+- E51. After the first third at 3R: another third at 5R, then trail the last third; adjustable. ("51, thats fine idk can
+  adjust it but thats fine.")
+- E52. Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.
+  ("52, yes.")
+- E53. No rule for new listings (IPOs). ("53 no")
+- E54. Leveraged ETFs are preferred; no extra rules. ("54, I lvoe leveraged ETFs no extra rules, they are preferred
+  actually.")
+- E55. No short-interest rule. ("55, forget that no.")
+- E56. The same stock: at most 3 tries in a week and 6 in a month. ("56 3 tries in a week, 6 in a onth.")
+- E57. Entries are market orders. ("57, No i market order everything.") The stop still sits with the broker (D41).
+- E58. No new buys outside regular trading hours. ("58, that is fine.")
+- E59. Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics. ("59 yes
+  and other statistics.")
