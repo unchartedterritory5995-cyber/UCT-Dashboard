@@ -17,12 +17,15 @@ import { FAKE_BUNDLE, buildRealBundle, decodeColumn, docOf, parsedJob, parsedReq
 
 const H = (body, decl = 'indicator("t7")') => `//@version=5\n${decl}\n${body}`
 
-/** The design's hostile corpus. `stop` is the guard measured on this engine; `says` names the limit. */
+/** The design's hostile corpus. `stop` is the guard measured on this engine; `says` names the limit IN
+ *  PLAIN WORDS (`limits.js::LIMIT_PLAIN`) and `limit` is its engine name, never in the sentence (LIMITS r1;
+ *  the service emits it as a field only in phase 2, `job.mjs::EMIT_REFUSAL_LIMIT`). */
+const TOKEN = /[A-Z][A-Z0-9]*_[A-Z0-9_]+/
 const CORPUS = [
-  { name: 'infinite while', source: H('x = 0\nwhile true\n    x += 1\nplot(x)'), stop: 'runtime:limit', says: /WHILE_ITERATIONS/ },
-  { name: 'for up to 1e12', source: H('x = 0.0\nfor i = 0 to 1e12\n    x += 1\nplot(x)'), stop: 'runtime:limit', says: /INSTRUCTIONS_PER_BAR/ },
-  { name: 'string doubling', source: H('s = "ab"\nfor i = 0 to 60\n    s := s + s\nplot(str.length(s))'), stop: 'runtime:limit', says: /MEMORY/ },
-  { name: 'array growth', source: H('var a = array.new_float()\nfor i = 0 to 999\n    array.push(a, i)\nplot(array.size(a))'), stop: 'runtime:limit', says: /ARRAY_ELEMENTS/ },
+  { name: 'infinite while', source: H('x = 0\nwhile true\n    x += 1\nplot(x)'), stop: 'runtime:limit', limit: 'WHILE_ITERATIONS', says: /the number of passes one `while` loop may make/ },
+  { name: 'for up to 1e12', source: H('x = 0.0\nfor i = 0 to 1e12\n    x += 1\nplot(x)'), stop: 'runtime:limit', limit: 'INSTRUCTIONS_PER_BAR', says: /the number of steps a script may take on one bar/ },
+  { name: 'string doubling', source: H('s = "ab"\nfor i = 0 to 60\n    s := s + s\nplot(str.length(s))'), stop: 'runtime:limit', limit: 'MEMORY', says: /the memory a script may use/ },
+  { name: 'array growth', source: H('var a = array.new_float()\nfor i = 0 to 999\n    array.push(a, i)\nplot(array.size(a))'), stop: 'runtime:limit', limit: 'ARRAY_ELEMENTS', says: /the number of elements a script's arrays may hold/ },
   // the design expects "refused at build"; this engine stops it as runtime:statement (see EVIDENCE)
   { name: 'deep UDF recursion', source: H('f(n) => n <= 0 ? 0 : f(n - 1) + 1\nplot(f(100))'), stop: 'runtime:statement', says: /./ },
   { name: 'request.security', source: H('x = request.security("NASDAQ:MSFT", "D", close)\nplot(x)'), stop: 'runtime:request', says: /another symbol or timeframe/ },
@@ -30,7 +33,7 @@ const CORPUS = [
 ]
 /** Too large for the door (doc > 128 KiB): refused there with zero jobs, and named by the pool itself. */
 const OVERSIZED = [
-  { name: '512 KiB + 1 source', source: H(`plot(close)\n//${'x'.repeat(512 * 1024)}`), stop: 'runtime:limit', says: /PROGRAM_SIZE/ },
+  { name: '512 KiB + 1 source', source: H(`plot(close)\n//${'x'.repeat(512 * 1024)}`), stop: 'runtime:limit', limit: 'PROGRAM_SIZE', says: /byte limit a script drawn bar by bar is read under/ },
   // the design expects an IR limit; this engine stops it as runtime:statement (see EVIDENCE)
   { name: '200k-node expression', source: H(`plot(${Array(200000).fill('1').join('+')})`), stop: 'runtime:statement', says: /./ },
 ]
@@ -83,6 +86,8 @@ test('hostile corpus: every case ends in a named stop, by the VM and never by th
       assert.equal(r.refusals[0].key, '*', c.name)
       assert.equal(r.refusals[0].guard, c.stop, `${c.name}: ${JSON.stringify(r.refusals)}`)
       assert.match(r.refusals[0].sentence, c.says, c.name)
+      assert.doesNotMatch(r.refusals[0].sentence, TOKEN, `${c.name}: no engine token reaches the sentence`)
+      assert.ok(!('limit' in r.refusals[0]), `${c.name}: phase 1 emits no limit field (job.mjs EMIT_REFUSAL_LIMIT)`)
     }
     for (const c of OVERSIZED) {
       const { status, json } = await post(http.port, wireRequest(door.identity, { doc: docOf(c.source), jobs: [{ name: c.name }] }))
@@ -91,6 +96,7 @@ test('hostile corpus: every case ends in a named stop, by the VM and never by th
       const [r] = await pool.run(parsedRequest({ doc: docOf(c.source), jobs: [parsedJob(c.name, { n: 300 })] }))
       assert.equal(r.refusals[0].guard, c.stop, `${c.name}: ${JSON.stringify(r.refusals)}`)
       assert.match(r.refusals[0].sentence, c.says, c.name)
+      assert.doesNotMatch(r.refusals[0].sentence, TOKEN, c.name)
     }
     assert.equal(pool.stats().kills, 0, 'no case needed the hard kill')
     assert.equal(pool.stats().crashes + pool.stats().ooms, 0)

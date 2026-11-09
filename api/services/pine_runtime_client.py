@@ -105,7 +105,10 @@ _RESULT_KEYS = frozenset({"job", "status", "columns", "refusals", "digest", "cac
 #: W5-T7b `WARMUP_FIELDS`: an ok result's run-wide warm-up, the bars [0, withheldBars) a run off the
 #: listing withheld. Required on ok, refused on withheld (T7b `RESULT_FIELDS`).
 _WARMUP_KEYS = frozenset({"withheldBars"})
-_REFUSAL_KEYS = frozenset({"key", "guard", "sentence", "bar"})
+_REFUSAL_KEYS = frozenset({"key", "guard", "sentence", "bar", "limit"})
+#: LIMITS r1: the engine limit a run-wide stop met (``CALL_COUNT``, ``WALL_TIME``), as a field;
+#: optional, and never in the sentence.
+_LIMIT_NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
 def _max_jobs() -> int:
@@ -126,6 +129,7 @@ class Refusal:
     guard: str
     sentence: str
     bar: Optional[int] = None
+    limit: Optional[str] = None   # LIMITS r1: the engine limit a stop met, when it names one
 
 
 @dataclass(frozen=True)
@@ -619,7 +623,10 @@ class PineRuntimeClient:
                 raise bad("carries a malformed refusal")
             if bar is not None and (isinstance(bar, bool) or not isinstance(bar, int) or bar < 0):
                 raise bad("carries a malformed refusal")
-            refusals.append(Refusal(key, guard, sentence, bar))
+            limit = x.get("limit")
+            if limit is not None and not (isinstance(limit, str) and _LIMIT_NAME.match(limit)):
+                raise bad("carries a malformed refusal")
+            refusals.append(Refusal(key, guard, sentence, bar, limit))
         wire_refusals = [{"key": x.key, "guard": x.guard, "bar": x.bar} for x in refusals]
         digest = r.get("digest")
         cache = r.get("cache") if isinstance(r.get("cache"), str) else None
