@@ -28,5 +28,5 @@ No.
 ## Verification (SIMULATED)
 - **Full suite before the restack** (at `e603936b25`): Test Files 266 passed | 5 skipped (271), Tests 9299 passed | 6 skipped (9305).
 - **AUDIT review (11-08):** ACCEPTED.
-- **Owed:** a full suite on this head once a lock slot is free.
+- **Post-restack full suite:** run on teach-ship-5 `9a689f56b7`, which contains ship-2 through ship-5 on master `25f049554f`. Path set: `src/agent` plus pl-exec's 9 paths; BelowNormal; LOCAL / SIMULATED. Result: `Test Files 299 passed | 5 skipped (304)`, `Tests 9830 passed | 6 skipped (9836)`. No failures.
 - **Still owner's call:** whether raw run files (`runs/*.results.json`) belong in the repo.
