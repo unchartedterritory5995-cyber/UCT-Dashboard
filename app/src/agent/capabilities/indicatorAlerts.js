@@ -22,7 +22,7 @@
 //   kind 'indicatorAlertLibrary'  one target — where new indicator alerts are made (and the list read)
 //   kind 'indicatorAlert'         one target per alert (ref = its real id)
 
-import { withoutGuardIds } from '../../components/chart/engine/ast/sentence'
+import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
 import { indicatorsOn } from './indicators'
 import { instancesForAddress, addressBase } from '../../components/chart/engine/alertSets'

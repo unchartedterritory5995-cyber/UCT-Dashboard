@@ -22,7 +22,7 @@ vi.mock('./StrategyReportsLoaded', async (importOriginal) => {
   LOADED.count += 1
   return importOriginal()
 })
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import {
   strategyReportOf, SERVED_METRICS, REFUSED_METRICS,
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,

@@ -21,7 +21,7 @@
 // `AttachedStrategyReports.jsx`.
 import { useId, useRef, useState } from 'react'
 import { SERVED_METRICS, REFUSED_METRICS } from '../engine/runtime/brokerReport.js'
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import styles from './StrategyReportPanel.module.css'
 
 /** TradingView's Overview tab headline figures, by report key (any refused one shows its sentence). */

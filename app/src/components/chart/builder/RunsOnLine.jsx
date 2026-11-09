@@ -9,7 +9,7 @@
 //   - a lane `{guard, sentence}` -> the server's sentence, verbatim, never listed;
 //   - anything else (not an object, a lane that is neither `true` nor a refusal
 //     with a sentence) -> FAILS CLOSED: that lane is never claimed to run.
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import styles from './BuilderSheet.module.css'
 
 export const SERVER_LANES = ['alerts', 'screener', 'scans']

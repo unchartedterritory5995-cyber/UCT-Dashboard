@@ -28,7 +28,7 @@
 // sheet does not lose it; when the sheet hosts the box (`onCommitState`), its
 // commit is the sheet footer's ONE primary button, not a second "Save changes".
 
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   newAuthoringState, openAuthoringState, applyTurn, undo, readback, isDirty, PATCH_CONTRACT,
