@@ -6645,7 +6645,7 @@
    "domain": "guide",
    "target": "guide",
    "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…), and control for any other named control (a widget's button, a list's or a drawing's menu row: detail = the member's words); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\") or for the chart they named (\"the NVDA chart\", \"the left chart\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…), and control for any other named control (a widget's button, a list's or a drawing's menu row: detail = the member's words); 8 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\") or for the chart they named (\"the NVDA chart\", \"the left chart\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
    "args": {
     "type": "object",
     "properties": {
@@ -6659,6 +6659,7 @@
        "indicatorManage",
        "layoutAction",
        "tabAction",
+       "watchlistPage",
        "watchlistAction",
        "alertAction",
        "widgetAction",
