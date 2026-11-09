@@ -235,7 +235,7 @@ describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', (
     __resetRuntimePanePermission()
     expect(served()).toBeUndefined()
     expect(registry.columnErrors(registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)).rtcolour1.message)
-      .toMatch(/switched off for you/)
+      .toMatch(/switched off for your account/)
     __permitRuntimePaneForTests()
     setRuntimeKillList([runtimeSourceHash(ST)])
     expect(served()).toBeUndefined()
@@ -270,7 +270,7 @@ describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', (
       })
       const cols = registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)
       expect(cols.rtcolour1).toBeUndefined()
-      expect(registry.columnErrors(cols).rtcolour1.message).toMatch(/cannot settle/)
+      expect(registry.columnErrors(cols).rtcolour1.message).toMatch(/can't be worked out exactly/)
     } finally {
       registerObjectRuntimeValues(real)
     }
@@ -294,7 +294,9 @@ describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', (
       })
       sync(false)
       const said = runtimeErrorNotices('div4r1').map(([, s]) => s).join(' | ')
-      expect(said).toMatch(/`barcolor` \(line 56\) is not drawn on this chart: runtime:not-from-listing/)
+      expect(said).toBe("The colours from `barcolor` (line 56) aren't shown on this chart: this chart's bars don't start "
+        + "at the stock's first trading day, and the colours are only worked out bar by bar from there, so the candles "
+        + 'keep their own colours.')
       sync(true)
       expect(runtimeErrorNotices('div4r1')).toEqual([])
       binder.teardown()
@@ -319,8 +321,9 @@ describe('⛔ DIV-4 r1 — a reached runtime.error, and a script below v4', () =
     expect(stop && stop.reached).toBe(true)
     expect(cols.rtcolour1).toBeUndefined()
     expect(registry.columnErrors(cols).rtcolour1.guard).toBe(registry.RUNTIME_COLOUR_GUARD)
-    // the member reads the script's own stop, not a run failure
-    expect(registry.columnErrors(cols).rtcolour1.message).toBe(stop.sentence)
+    // the member reads the script's own stop, not a run failure; the code rides apart
+    expect(registry.columnErrors(cols).rtcolour1.message).toMatch(/stops itself with its own error/)
+    expect(registry.columnErrors(cols).rtcolour1.code).toBe(registry.RUNTIME_ERROR_GUARD)
   })
   it('a v3 script is not lifted', () => {
     const v3 = [
@@ -343,5 +346,108 @@ describe('⛔ DIV-4 r1 — a reached runtime.error, and a script below v4', () =
     const d = memberPaneDefinition({ source: v3, id: 'u_00000000d4c2', name: 'v3' })
     expect(d.ok, d.reason).toBe(true)
     expect(d.definition.compute.runtimeColours).toBeUndefined()
+  })
+})
+
+// ─── r2 — what the member READS: a plain cause for every gate and every run refusal ────
+const TOKEN = /\b(runtime|pine|pane):/
+
+describe('⭐⭐ DIV-4 r2 — the strip names the cause in plain words, never a code', () => {
+  const stripOf = (def, cols) => {
+    const st = registry.runtimeColourStopOf(def, cols)
+    return st ? st.sentence : ''
+  }
+  const CAUSES = [
+    // [what is refused, how it is caused, the plain cause the member must read]
+    ['not from the listing', { ctx: { ...ST_CTX, historyFromListing: false } }, /first trading day/],
+    ['a moved setting', { inputs: 'moved' }, /changed from the script's default/],
+    ['the build flag off', { build: false }, /isn't part of this version of the app/],
+    ['the permission off', { permit: false }, /switched off for your account/],
+    ['the kill list', { kill: true }, /paused for running bar by bar/],
+    ['the allowlist', { allow: false }, /hasn't been checked against TradingView/],
+    ['the lane not loaded', { fn: null }, /still loading/],
+    ['a bar the probes disagree on', { fn: 'unknown' }, /can't be worked out exactly/],
+    ['a column of the wrong length', { fn: 'short' }, /can't be run bar by bar here/],
+  ]
+  // the run's own refusal classes (`runtimeObjectValues`' reasons), each to its plain cause
+  const RUN = [
+    ['runtime:empty', /can't be run bar by bar here/],
+    ['runtime:build', /can't be run bar by bar here/],
+    ['runtime:lower', /can't be run bar by bar here/],
+    ['runtime:object-kind', /can't be run bar by bar here/],
+    ['pine:function', /can't be run bar by bar here/],
+    ['runtime:TypeError', /can't be run bar by bar here/],
+    ['runtime:limit', /more work than a chart is allowed/],
+    ['runtime:time', /more work than a chart is allowed/],
+    ['runtime:request', /another symbol or timeframe/],
+    ['runtime:clock-zone', /time zone isn't known/],
+    ['runtime:runtime.error', /stops itself with its own error/],
+    ['runtime:not-from-listing', /first trading day/],
+    ['runtime:member-inputs', /changed from the script's default/],
+  ]
+  const run = (how) => {
+    const d = stDoor()
+    const real = registeredObjectRuntimeValues()
+    if (how.build === false) vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
+    if (how.permit === false) __resetRuntimePanePermission()
+    if (how.kill) setRuntimeKillList([runtimeSourceHash(ST)])
+    if (how.allow === false) __resetRuntimeAllowList()
+    if ('fn' in how) {
+      registerObjectRuntimeValues(how.fn === null ? null
+        : how.fn === 'unknown' ? (rt, bars, c) => {
+          const v = real(rt, bars, c)
+          return { ...v, unknown: v.unknown.map(() => { const m = new Uint8Array(bars.length); m[3] = 1; return m }) }
+        }
+          : how.fn === 'short' ? () => ({ served: true, reason: null, cols: [new Float64Array(2)], unknown: [null] })
+            : (() => ({ served: false, reason: how.fn, cols: [], unknown: [] })))
+    }
+    try {
+      const inputs = how.inputs === 'moved'
+        ? (() => { const i = d.definition.inputs.find((x) => typeof x.default === 'number'); return { [i.key]: i.default + 1 } })()
+        : undefined
+      const cols = registry.computeFor(d.definition, ST_BARS, inputs, how.ctx || ST_CTX)
+      return { cols, def: d.definition }
+    } finally {
+      registerObjectRuntimeValues(real)
+    }
+  }
+  for (const [what, how, cause] of CAUSES) {
+    it(`${what}: the member reads the cause, and no code`, () => {
+      const { cols, def } = run(how)
+      expect(cols.rtcolour1).toBeUndefined()
+      const e = registry.columnErrors(cols).rtcolour1
+      expect(e.message).toMatch(cause)
+      expect(e.message).not.toMatch(TOKEN)
+      expect(typeof e.code).toBe('string') // the code is kept, apart, for diagnostics
+      const strip = stripOf(def, cols)
+      expect(strip).toMatch(cause)
+      expect(strip).not.toMatch(TOKEN)
+    })
+  }
+  for (const [code, cause] of RUN) {
+    it(`the run refuses ${code}: the member reads the cause, and no code`, () => {
+      const { cols, def } = run({ fn: code })
+      const e = registry.columnErrors(cols).rtcolour1
+      expect(e.code).toBe(code)
+      expect(e.message).toMatch(cause)
+      const strip = stripOf(def, cols)
+      expect(strip).toMatch(cause)
+      expect(strip).not.toMatch(TOKEN)
+    })
+  }
+
+  it('⭐ the run is asked with ONE spec per document, so its own memo can answer the second paint', () => {
+    const d = stDoor()
+    const real = registeredObjectRuntimeValues()
+    const seen = []
+    try {
+      registerObjectRuntimeValues((rt, bars, c) => { seen.push(rt); return real(rt, bars, c) })
+      registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)
+      registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)
+    } finally {
+      registerObjectRuntimeValues(real)
+    }
+    expect(seen).toHaveLength(2)
+    expect(seen[1]).toBe(seen[0])
   })
 })
