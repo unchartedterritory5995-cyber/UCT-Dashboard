@@ -23,10 +23,10 @@
   {
    "id": "s2",
    "tier": 1,
-   "publisher": "SEC",
+   "publisher": "SEC, Investor.gov",
    "title": "Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
-   "url": "https://www.sec.gov/oiea/investor-alerts-and-bulletins/extended-hours-trading-investor-bulletin",
-   "accessed": "2026-11-08"
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42",
+   "accessed": "2026-11-09"
   },
   {
    "id": "s3",
@@ -188,6 +188,14 @@
    "url": "https://www.wallstreethorizon.com/earnings-calendar",
    "accessed": "2026-11-08",
    "why_reliable": "An established corporate-event data provider (part of TMX Group) describing its own date-status labels. Used only for what 'Unconfirmed' means on its calendar."
+  },
+  {
+   "id": "s22",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "The Crush Is Real (OIC, July 16, 2026)",
+   "url": "https://www.optionseducation.org/news/the-crush-is-real",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -327,7 +335,7 @@
    "id": "f23",
    "source": "s5",
    "quote": "The report must be filed for each of the first three fiscal quarters of the company's fiscal year.",
-   "claim": "A company files a quarterly report (10-Q) for each of its first three fiscal quarters; the fourth is covered by the annual 10-K."
+   "claim": "A company files a quarterly report (10-Q) for each of its first three fiscal quarters."
   },
   {
    "id": "f24",
@@ -435,7 +443,7 @@
    "id": "f41",
    "source": "s11",
    "quote": "When the market is pricing in a potentially outsized move, such as right before an earnings release or other company announcement, front-month IV might be higher.",
-   "claim": "Right before earnings, near-term option volatility is often raised because a big move is priced in."
+   "claim": "Right before earnings, near-term option volatility can be higher because a big move is priced in."
   },
   {
    "id": "f42",
@@ -610,6 +618,24 @@
    "source": "s21",
    "quote": "\"Unconfirmed\" indicates the date has either been a) gathered by our data collection process but is still considered tentative by the company or b) estimated by our data analysts based on historical trends.",
    "claim": "An unconfirmed calendar date may be tentative, or just an estimate from the company's past pattern."
+  },
+  {
+   "id": "f71",
+   "source": "s22",
+   "quote": "In the weeks leading up to an earnings announcement implied volatility (IV) typically increases steadily, inflating option prices in anticipation of the unknown impact of the announcement on the stock price.",
+   "claim": "In the weeks before an earnings report, option volatility usually rises, which makes options pricier."
+  },
+  {
+   "id": "f72",
+   "source": "s22",
+   "quote": "Once an event comes and goes, uncertainty is generally replaced with more certainty, and that is accompanied by a commensurate repricing of options.",
+   "claim": "Once the event passes, most of the uncertainty is gone and option prices reset to match."
+  },
+  {
+   "id": "f73",
+   "source": "s22",
+   "quote": "The moment that uncertainty is replaced with more certainty, options tend to reprice quickly",
+   "claim": "When the news is out, options tend to reprice fast."
   }
  ],
  "walkthroughs": [
@@ -618,8 +644,8 @@
    "title": "Four times a year",
    "steps": [
     "A quarter ends. Over the next few weeks, most public companies report. That's earnings season.",
-    "Most use calendar quarters, so it starts in early to mid January, April, July and October.",
-    "Hundreds of names report in a short window. It's a busy, volatile stretch for the market."
+    "Most use calendar quarters, so it usually starts in early to mid January, April, July and October.",
+    "Hundreds of names report in a short window. It can be a busy, volatile stretch for the market."
    ],
    "facts": [
     "f1",
@@ -651,12 +677,13 @@
    "key": "w3",
    "title": "The implied move",
    "steps": [
-    "Options price in a move for the report. That's the implied move, a plus or minus number.",
+    "Options price in a move for the report, a plus or minus number. That's the implied move, also called the expected move.",
     "It's a size, not a direction, and not a cap. The real move can be bigger or smaller.",
     "Put it in dollars on your position. A stop is a trigger, not a price. It can't catch that gap."
    ],
    "facts": [
     "f47",
+    "f48",
     "f36",
     "f38",
     "f39",
@@ -702,7 +729,7 @@
    "choices": [
     "Its next earnings date",
     "Its ex-dividend date",
-    "Its IPO date",
+    "Its last earnings date",
     "Its last stock split date"
    ],
    "answer": "Its next earnings date",
@@ -716,7 +743,7 @@
    ],
    "wrong": {
     "Its ex-dividend date": "That date is about the dividend. The earnings date is when results can move the stock a lot.",
-    "Its IPO date": "That's history. It tells you nothing about when the next news can hit.",
+    "Its last earnings date": "That one already passed. What matters for a hold is the next report inside it.",
     "Its last stock split date": "That's in the past. What matters for a hold is the next report inside it."
    }
   },
@@ -733,11 +760,12 @@
    ],
    "answer": "Before the open or after the close",
    "why": "Before the open or after the close. Most companies put results out while regular trading is shut.",
-   "lesson_line": "Most results land while the market is closed. The reaction shows up as a gap at the open.",
+   "lesson_line": "Most results land while regular trading is shut. The regular session takes the news at the next open.",
    "facts": [
     "f7",
     "f18",
-    "f31"
+    "f31",
+    "f28"
    ],
    "wrong": {
     "In the middle of the trading day": "Some news does hit mid-session, but earnings usually come out before the open or after the close.",
@@ -765,7 +793,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "implied move",
-   "q": "On an earnings calendar, what does the implied move show?",
+   "q": "Before a report, what does the implied move show?",
    "choices": [
     "The move options are pricing in",
     "Analysts' EPS growth estimate",
@@ -958,7 +986,7 @@
     "Nothing, your stop has it covered"
    ],
    "answer": "Get the date and time from the company",
-   "why": "Get the date and time from the company. Companies announce them ahead of time. Meta did on Jan. 4, 2022, for a report after the close on Feb. 2.",
+   "why": "Get the date and time from the company. A calendar date can be just an estimate. Meta's own release, on Jan. 4, 2022, set its report for after the close on Feb. 2.",
    "lesson_line": "A calendar date is a lead. The company's own release is the answer.",
    "facts": [
     "f24",
@@ -977,7 +1005,7 @@
    "skill": "fund.season",
    "rung": 6,
    "format": "numeric",
-   "q": "You hold 200 shares at $40 into earnings. The implied move is ±9%. What do you lose if it gaps down that much?",
+   "q": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much?",
    "answer": 720,
    "calc": {
     "fn": "arith",
@@ -990,7 +1018,7 @@
    },
    "prefix": "$",
    "why": "$720. That's 9% of your position. And the real gap can be bigger than the implied move.",
-   "lesson_line": "Put the implied move in dollars on your position. That's the risk you take by holding.",
+   "lesson_line": "Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
    "facts": [
     "f39",
     "f38",
@@ -1002,25 +1030,25 @@
    "skill": "fund.season",
    "rung": 6,
    "format": "numeric",
-   "q": "You buy at $40 with a stop at $34. Earnings gap it down and the stop fills at $32. What is your loss in R?",
-   "answer": 1.33,
+   "q": "You buy at $36 with a stop at $34. Earnings gap it down and the stop fills at $32. How many times your planned loss did you lose?",
+   "answer": 2,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(entry - fill) / (entry - stop)",
-     "entry": 40,
+     "entry": 36,
      "fill": 32,
      "stop": 34
     }
    },
-   "suffix": "R",
-   "why": "1.33R. You planned to risk the distance to $34. The gap filled you at $32 instead, so the loss ran past your plan.",
+   "suffix": "x",
+   "why": "Twice. You planned to risk $2 a share, from $36 down to $34. The gap filled you at $32, double the loss you planned.",
    "lesson_line": "A gap can turn your planned loss into a bigger one. Size for the gap, not just the stop.",
    "facts": [
     "f32",
     "f33",
     "f34",
-    "f39"
+    "f21"
    ]
   },
   {
@@ -1030,21 +1058,23 @@
    "format": "mcq",
    "q": "The morning after a report, the live implied move reads far smaller than last night. Why?",
    "choices": [
-    "The event passed, so IV collapsed",
+    "The report passed, so volatility fell",
     "The stock can't move much now",
     "Analysts cut their estimates"
    ],
-   "answer": "The event passed, so IV collapsed",
-   "why": "The event passed, so IV collapsed. Options carry extra volatility into a report, and it often drains out after the first reaction.",
+   "answer": "The report passed, so volatility fell",
+   "why": "The report passed, so volatility fell. Options build in extra volatility before a report, and it generally drains out quickly after.",
    "lesson_line": "Read the implied move before the report. After it, the number deflates.",
    "facts": [
-    "f41",
+    "f71",
+    "f72",
+    "f73",
     "f42",
-    "f49"
+    "f41"
    ],
    "wrong": {
     "The stock can't move much now": "It can still move. The options simply stopped pricing the report.",
-    "Analysts cut their estimates": "Estimates don't set option prices. The drop comes from volatility leaving the options."
+    "Analysts cut their estimates": "Estimates don't drive this. The drop comes from volatility leaving the options."
    }
   },
   {
@@ -1052,14 +1082,14 @@
    "skill": "fund.season",
    "rung": 7,
    "format": "tf",
-   "q": "A company that beat estimates four quarters running will probably rise on its next report.",
+   "q": "A stock that beat estimates four quarters running is safe to hold into its next report.",
    "answer": "False",
-   "why": "False. Beats are the norm: on FactSet's 5-year average, 78% of S&P 500 companies beat. And a beat can still drop on a weak outlook.",
-   "lesson_line": "A beat streak is a record, not a forecast. Most companies beat.",
+   "why": "False. A beat record is history, not a forecast. Most companies beat, 78% of the S&P 500 on FactSet's 5-year average. A beat can still drop on a weak outlook.",
+   "lesson_line": "A beat streak is a record, not a forecast. The report can still gap you either way.",
    "facts": [
     "f60",
-    "f12",
     "f13",
+    "f45",
     "f57"
    ]
   },
@@ -1176,23 +1206,25 @@
    "skill": "fund.season",
    "rung": 9,
    "format": "scenario",
-   "story": "Your stock ran hard for weeks into its report. The numbers come in solid, right on expectations.",
-   "q": "What can happen to the stock next?",
+   "story": "Your stock ran hard for weeks into its report. The numbers come in solid, right on expectations. It opens flat, then slips.",
+   "q": "What best explains the slip?",
    "choices": [
-    "It can stall or even fall",
-    "It has to gap up on good numbers",
-    "It can't move without a surprise"
+    "Few new buyers were left after the run",
+    "The implied move capped the upside",
+    "It missed the consensus estimate"
    ],
-   "answer": "It can stall or even fall",
-   "why": "It can stall or even fall. FINRA notes that a stock that rallied into its report and met expectations may lack new buyers to push it higher.",
+   "answer": "Few new buyers were left after the run",
+   "why": "Few new buyers were left after the run. FINRA notes a stock that rallied into its report and met expectations may lack new buyers to push it higher.",
    "lesson_line": "A big run into a report raises the bar. Meeting expectations may not be enough.",
    "facts": [
     "f14",
-    "f12"
+    "f12",
+    "f38",
+    "f9"
    ],
    "wrong": {
-    "It has to gap up on good numbers": "Good numbers don't force a gap up. After a big run, the buyers may already be in.",
-    "It can't move without a surprise": "It can still move, and it can go down when no new buyers show up."
+    "The implied move capped the upside": "The implied move is no cap. The real move can be bigger, smaller, or nothing at all.",
+    "It missed the consensus estimate": "It came in right on expectations, so it didn't miss. The run before the report is the problem."
    }
   },
   {
@@ -1231,5 +1263,162 @@
   "q20: Meta's ticker was FB in February 2022 (Meta's release says NASDAQ: FB); the story says so. The opening price on Feb. 3, 2022 was not found in a Tier 1 or Tier 2 page, so the question is conditional ('if it opens near that price') and the reveal states only the after-hours price (AP) and the day's close (CBS).",
   "finra.org rate-limited the plain client (HTTP 429) during research, then served the page; FINRA's syndication copy (syndication.finra.org/node/846) carries the same text if the main site refuses again."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f1-f3, f15 (FINRA, live 2026-11-09) and f44 (Cboe, Oct 19, 2026) confirmed in context. Changed 'it starts' to 'it usually starts' and 'It's a busy, volatile stretch' to 'It can be', matching FINRA's 'typically' and 'can be'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f7 (FINRA), f25 (Meta's own Jan 4, 2022 release), f17/f18 (SEC bulletin), f28/f31 (Schwab) confirmed live. The sec.gov URL now 301-redirects to Investor.gov; s2's URL updated to the page itself. 'Last regular-session exit' follows from f7 + f17.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Track audit 2026-11-09: step 1 now says the implied move is also called the expected move (Cboe f47: 'The market prices in an expected move'; f48: 'the options market is implying a move'), because F5.06 and F6 use 'expected move' for the same number. f47 (Cboe), f36/f38/f39 (Schwab MMM), f20 (Investor.gov stop bulletin), f34 (Schwab) confirmed live and in context. 'It can't catch that gap' is the owner's own line in VOICE.md.",
+   "fixed": true,
+   "by": "checker; track auditor"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1/f2 (FINRA) and f23 (Investor.gov 10-Q glossary) confirmed live. Answer is 30 characters, fits Word Match. Distractors are real mix-ups (quarter end vs after, annual vs quarterly, dividends vs results). f23's claim trimmed to what its quote says.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f56/f55 (StockCharts) + f44 (Cboe) agree; f15 (FINRA) on volatility. Replaced 'Its IPO date': for a recent IPO the lockup date can matter, so its wrong note overclaimed. New distractor 'Its last earnings date' is a real last-vs-next calendar mix-up.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Track audit 2026-11-09: kept over F5.06#q01 (same question, now cut). Lesson line changed from 'while the market is closed ... The reaction shows up as a gap at the open' to 'while regular trading is shut. The regular session takes the news at the next open', matching this unit's w2 and the F5.06 checker's ruling on the same item (the stock trades after hours first, f18; a gap is common, not certain, f31); added f28 (Schwab: a market order placed while markets are closed executes at the next open). f7 FINRA (Tier 1) confirmed live: 'before the market opens or after it closes'. Wrong notes fair; 'Some news does hit mid-session' is hedged. Cross-unit: F5.06#q01 asks the same (course_dups 0.63). Timing is this unit's topic in the plan, so q03 stays; F5.06#q01 is for the track auditor.",
+   "fixed": true,
+   "by": "checker; track auditor"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f3, f4, f5 (FINRA) confirmed live in context: retailers may end the quarter in January. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "cut",
+   "notes": "duplicate of F5.05#q01. Track audit 2026-11-09: Same 'what does the implied move show' definition, same format, same Word Match term. F5.05#q01 is kept: it cites a Tier 1 source (OIC) and its wrong choices hit the main misconception (direction). F5.04's w3 still introduces the implied move. The question stays in the file as the record. Checker's earlier note (pass): Key backed by three Tier 2 publishers: Cboe f47, Schwab f37, IBKR f50, all live. Dropped the premise 'On an earnings calendar' (no source says calendars show it). Answer 31 characters.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f9, f10, f13 (FINRA) confirmed live. Answer 37 characters. Each wrong note names the real confusion (reaction, growth, timing).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f17/f18 (SEC bulletin, live via Investor.gov), f28/f31 (Schwab) confirmed. Bank words are plausible; only 'open' fits.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f19 confirmed live on the SEC bulletin: extended-hours prices 'may not reflect' the next open. Meta case agrees (after hours $249.90, close $237.76 next day).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "JPMorgan's own notice (Sept 17, 2026) confirmed live: release about 7:00 a.m. ET, Tuesday Oct 13, 2026. Checked: Oct 12 is a Monday, Oct 14 a Wednesday. 7:00 before the 9:30 open (f17), so Oct 13's session is first.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "IBKR page live: $9.48 move on $209.58, 'about 4.5%'; MSFT report after the close Wed July 22, 2020; closed 202.54 on July 23, 'the day after earnings'. Recomputed 9.48 / 209.58 x 100 = 4.52, rounds to 4.5.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "duplicate of F5.05#q12. Track audit 2026-11-09: Both are true/false items keyed False on the same fact: the actual move can be bigger or smaller than the implied move. F5.05#q12 is kept: it carries a real case (AMD priced about 7%, moved about 10%) and the more dangerous misconception (the implied move as a ceiling). The question stays in the file as the record. Checker's earlier note (pass): f36/f38 (Schwab MMM) and f57 (StockCharts) confirmed live: no guarantee of size or direction. Two Tier 2 publishers agree. False is right.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "f7, f17, f18, f28, f31 confirmed. A (after Tue close) and B (before Wed open) both first trade at Wednesday's open; Tuesday's close is the last regular-session exit. Each wrong note is correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Nasdaq's key 'Time Not Supplied' confirmed live; WSH f70 and Meta f25 confirmed. The why said 'Companies announce them ahead of time', generalised from one example; now 'A calendar date can be just an estimate' (f70) plus Meta's own release.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "'200 shares at $40' read as an entry price; now 'a $40 stock'. Recomputed 200 x $40 x 9% = $720. The lesson line implied the implied move was the whole risk; now 'Plan for that loss, and know it can be bigger' (f38).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "cut",
+   "notes": "duplicate of F10.02#q16. Track audit 2026-11-09: Same arithmetic asked the same way in the orders track ('how many times your planned loss' after a gap fills a stop below it), and in this track F5.06#q18 already works Schwab's own $34 stop / $32 fill gap example (the same example this item used). Kept F10.02#q16 (its home topic) and F5.06#q18. The question stays in the file as the record. Checker's earlier note (pass): 'Loss in R' used R, first taught in F9.03; rewritten in plain words. Entry $40 meant a 15% stop; now $36 (stop $34, fill $32: Schwab's own gap example, f32/f33 live). Recomputed (36-32)/(36-34) = 2; calc and answer updated.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "The key ('volatility drops after the report') rested on Schwab alone (f42). Added OIC 'The Crush Is Real' (Tier 1, July 16, 2026), f71-f73, quotes confirmed live. 'IV' (taught in F6) became plain 'volatility'. Softened 'Estimates don't set option prices'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "'Will probably rise' was a probability claim that no cited source measures, so False was not sourced. Now 'is safe to hold into its next report': False per FINRA f13, Cboe f45, StockCharts f57. FactSet's 78% (5-year average) confirmed live on the Nov 6, 2026 update.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "cut",
+   "notes": "duplicate of F5.01#q22. Track audit 2026-11-09: Same fact as a true/false item: a beat does not promise a rally. F5.01#q22 is kept: it states it with a real, dated case (Amazon beat on EPS and revenue and fell more than 2% in extended trading). The whisper-number angle stays in F5.02#q07. The question stays in the file as the record. Checker's earlier note (pass): f10, f11, f13 (FINRA) confirmed live: a whisper number can become the real bar, and a beat with a dour outlook can drop. True is right.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q19": {
+   "status": "cut",
+   "notes": "Correct as written (FactSet Nov 6, 2026 PDF live: 5-year averages +0.9% beats, -3.1% misses; 3.1 / 0.9 = 3.44, rounds to 3.4), but it duplicates F5.02#q16 (passed): same FactSet numbers, same calc, near-identical wording (course_dups 0.64). F5.02 teaches beats and misses, so it keeps it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "AP (after hours $249.90, -22.6%) and CBS ($237.76, -26%, Thursday Feb 3, 2022) confirmed live. Consistent: $237.76 + $85.24 = $323.00 prior close, and 323.00 x (1 - 0.226) = 250.0. Schwab notes stops are not accepted in extended hours, so the stop fires at the open. Question is conditional on the open.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Recomputed $20,000 x 10% = $2,000; 4% = $800. Schwab f39/f34/f35, Cboe f46 and Investor.gov f20 confirmed live. The 'maybe more' hedge matches f38. Sound risk habit: measure holding risk by the gap, not the stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "cut",
+   "notes": "duplicate of F5.02#q21. Track audit 2026-11-09: Same FINRA fact tested the same way: a stock that ran hard into its report meets or beats and still slips. The lesson lines were near-identical. F5.02#q21 is kept: it is a real, dated case (Cisco, August 2026). The question stays in the file as the record. Checker's earlier note (pass): The key was the only hedged choice beside two absolutes, so it gave itself away. Now asks for the reason: key is FINRA f14 ('doesn't have enough new buyers'), live. Distractors: the implied move as a cap (f38), and a miss (the story says on expectations, f9).",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "CNBC (Feb 2, 2022: Snap down more than 18% after hours) and CBS (Feb 3: Snap down 23%) confirmed live; two Tier 2 publishers agree. Not leading: 'only my report counts' is a real beginner belief.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

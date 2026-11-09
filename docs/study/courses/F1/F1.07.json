@@ -273,7 +273,7 @@
    "id": "f5",
    "source": "s1",
    "quote": "An ETF’s market price is generally kept close to the ETF’s end-of-day NAV per share because of the arbitrage function inherent to the structure of the ETF.",
-   "claim": "Arbitrage keeps an ETF's market price close to the value of what it holds."
+   "claim": "Arbitrage generally keeps an ETF's market price close to the value of what it holds."
   },
   {
    "id": "f6",
@@ -351,7 +351,7 @@
    "id": "f18",
    "source": "s3",
    "quote": "For example, a 2x leveraged S&P 500 ETF seeks to deliver twice the investment return of the S&P 500 Index. This also means that this ETF will lose 2% for every 1% loss in the index.",
-   "claim": "A 2x fund loses 2% for every 1% the index loses: the multiple works on losses too."
+   "claim": "A 2x S&P 500 fund loses 2% for every 1% the index loses: the multiple works on losses too."
   },
   {
    "id": "f19",
@@ -363,7 +363,7 @@
    "id": "f20",
    "source": "s4",
    "quote": "some ETFs are less diverse than others. They may have fewer investments or may even track the performance of a single stock",
-   "claim": "Some ETFs are much less diversified than others."
+   "claim": "Some ETFs are less diversified than others; some even track a single stock."
   },
   {
    "id": "f21",
@@ -399,7 +399,7 @@
    "id": "f26",
    "source": "s8",
    "quote": "ETNs aren’t pooled vehicles and don’t buy or hold shares of stock or other underlying assets. They’re unsecured debt obligations that, similar to bonds, are typically issued by a bank or other financial institution.",
-   "claim": "An ETN is a bank's unsecured debt note with no basket behind it, not a fund."
+   "claim": "An ETN is unsecured debt, typically issued by a bank, with no basket behind it: it is not a fund."
   },
   {
    "id": "f27",
@@ -411,7 +411,7 @@
    "id": "f28",
    "source": "s8",
    "quote": "This geared exposure is usually for a specific period, like one day or one month, and such products are generally not designed to be held for periods that deviate from that.",
-   "claim": "Leveraged and inverse funds target a set period, usually one day, and are not built to be held for other periods."
+   "claim": "Leveraged and inverse funds target a set period, like one day or one month, and are not built to be held for other periods."
   },
   {
    "id": "f29",
@@ -507,7 +507,7 @@
    "id": "f44",
    "source": "s10",
    "quote": "inverse and leveraged ETFs that are reset daily typically are unsuitable for retail investors who plan to hold them for longer than one trading session, particularly in volatile markets.",
-   "claim": "Daily-reset leveraged and inverse ETFs are usually unsuitable to hold past one session, especially in volatile markets."
+   "claim": "FINRA (2009): daily-reset leveraged and inverse ETFs are typically unsuitable for retail investors who plan to hold them past one session, especially in volatile markets."
   },
   {
    "id": "f45",
@@ -585,7 +585,7 @@
    "id": "f57",
    "source": "s14",
    "quote": "It is not possible to invest directly in an index.",
-   "claim": "You cannot buy an index itself, only a fund that tracks it."
+   "claim": "You cannot invest in an index directly."
   },
   {
    "id": "f58",
@@ -633,7 +633,7 @@
    "id": "f65",
    "source": "s21",
    "quote": "The S&P 500® Index is designed to measure the performance of the large-cap segment of the US equity market. It is float-adjusted market capitalization weighted.",
-   "claim": "The S&P 500 measures large US companies and is weighted by market cap."
+   "claim": "The S&P 500 measures large US companies and is weighted by float-adjusted market cap."
   },
   {
    "id": "f66",
@@ -723,7 +723,7 @@
    "id": "f80",
    "source": "s8",
    "quote": "The vast majority of ETPs are designed to track the performance of a particular market index or benchmark and are similar to index mutual funds.",
-   "claim": "Most ETFs and other exchange-traded products are built to track an index."
+   "claim": "Many ETFs and other exchange-traded products are built to track an index, much like index mutual funds."
   }
  ],
  "walkthroughs": [
@@ -733,7 +733,7 @@
    "steps": [
     "An ETF is a fund. It pools money into a basket of stocks, bonds or other assets.",
     "Each share is a slice of that basket, and it trades on an exchange all day like a stock.",
-    "Most ETFs track an index. You can't buy the index itself, so you buy the fund that tracks it."
+    "Many ETFs track an index. You can't buy the index itself, so you buy a fund that tracks it."
    ],
    "facts": [
     "f1",
@@ -750,7 +750,7 @@
    "steps": [
     "GICS sorts each company into one of 11 sectors by its main business.",
     "Each sector has a Select Sector SPDR fund. XLK is tech, XLF financials, XLE energy.",
-    "Put all 11 together and you hold every company in the S&P 500."
+    "Together, the 11 sector indexes cover every company in the S&P 500."
    ],
    "facts": [
     "f47",
@@ -762,13 +762,15 @@
   },
   {
    "key": "w3",
-   "title": "What a 3x fund does",
+   "title": "What a 2x or 3x fund does",
    "steps": [
-    "A 3x fund aims for three times the index's move for one day. Then it resets.",
-    "Index down 10%, a 2x fund drops 20%. Index up 10% the next day, the fund gains 20%.",
+    "A 2x or 3x fund aims for two or three times the index's move for one day. Then it resets.",
+    "Take $100 in a 2x fund. The index drops 10%, so the fund drops 20%, to $80.",
+    "Next day the index rises 10%. The fund gains 20%, but only on $80, so it reaches $96.",
     "Over the two days the index lost 1%. The 2x fund lost 4%. Chop works against these funds."
    ],
    "facts": [
+    "f7",
     "f67",
     "f9",
     "f34",
@@ -797,6 +799,7 @@
    "lesson_line": "An ETF is a whole basket you can trade like one stock.",
    "facts": [
     "f1",
+    "f2",
     "f4",
     "f24",
     "f23",
@@ -804,7 +807,7 @@
     "f26"
    ],
    "wrong": {
-    "One company's shares": "That's a single stock. An ETF holds a basket, and each share is a slice of all of it.",
+    "One company's shares": "That's a single stock. An ETF is a fund, and each share is a slice of everything the fund owns.",
     "A fund you buy only at the close": "That's closer to a mutual fund, bought at its next calculated price. ETF shares trade all day at market prices.",
     "A bank's IOU tied to an index": "That's an ETN: debt issued by a bank, with no basket behind it. An ETF owns the assets."
    }
@@ -832,12 +835,12 @@
    "term": "market index",
    "q": "What is a market index?",
    "choices": [
-    "A basket that tracks part of a market",
+    "Tracks a specific basket of stocks",
     "A fund you buy shares of",
     "A list of the day's top movers"
    ],
-   "answer": "A basket that tracks part of a market",
-   "why": "A basket that tracks part of a market. The S&P 500 tracks large US companies, for one. The index keeps score; it isn't something you buy.",
+   "answer": "Tracks a specific basket of stocks",
+   "why": "Tracks a specific basket of stocks. The S&P 500 tracks large US companies, for one. The index keeps score; it isn't something you buy.",
    "lesson_line": "The index keeps score. A fund that tracks it is how you take part.",
    "facts": [
     "f21",
@@ -846,7 +849,7 @@
     "f76"
    ],
    "wrong": {
-    "A fund you buy shares of": "That's an index fund or ETF. You can't invest in an index directly, only in a fund that tracks it.",
+    "A fund you buy shares of": "That's an index fund or ETF. You can't invest in an index directly, so you buy a fund that tracks it.",
     "A list of the day's top movers": "That's a scanner list. An index tracks a specific basket of stocks, not whoever moved most today."
    }
   },
@@ -885,7 +888,7 @@
     "Hold the index's weakest stocks"
    ],
    "answer": "Move opposite the index for the day",
-   "why": "Move opposite the index for the day. If the Nasdaq 100 closes up 1.5%, an inverse fund aims to lose 1.5%. If it closes down 2%, the fund aims to gain 2%.",
+   "why": "Move opposite the index for the day. If the Nasdaq-100 closes up 1.5%, an inverse fund aims to lose 1.5%. If it closes down 2%, the fund aims to gain 2%.",
    "lesson_line": "Inverse means opposite, one day at a time.",
    "facts": [
     "f8",
@@ -1055,7 +1058,7 @@
    "skill": "basics.etfs",
    "rung": 5,
    "format": "scenario",
-   "story": "Chip stocks have led the market for two weeks. You want to know which sector fund they move.",
+   "story": "Chip stocks have led the market for two weeks. You want the sector fund they sit in.",
    "q": "Which sector SPDR holds the semiconductor companies?",
    "choices": [
     "XLK",
@@ -1183,7 +1186,7 @@
     "Higher-priced shares count more"
    ],
    "answer": "Big companies carry more weight",
-   "why": "Big companies carry more weight. The S&P 500 is weighted by market cap, so a few giants can outweigh hundreds of smaller names.",
+   "why": "Big companies carry more weight. The S&P 500 is weighted by float-adjusted market cap, so a few giants can outweigh hundreds of smaller names.",
    "lesson_line": "The index can hide a weak market. Check how many stocks are actually up.",
    "facts": [
     "f65",
@@ -1191,8 +1194,8 @@
     "f72"
    ],
    "wrong": {
-    "Each stock counts the same": "That's an equal-weight index, a separate product built to cut concentration. The S&P 500 weights by company size.",
-    "Higher-priced shares count more": "Share price isn't the weight. Company size is: total market value, not the price of one share."
+    "Each stock counts the same": "That's an equal-weight index, a separate index built to cut concentration. The S&P 500 weights by company size.",
+    "Higher-priced shares count more": "Share price isn't the weight. Company size is: the market value of its shares, not the price of one."
    }
   },
   {
@@ -1317,7 +1320,7 @@
      "c": 100
     }
    },
-   "why": "1.82%. It falls on the way up, then gains back less than it lost, because the bounce works on a smaller balance. On a calm 100, 101, 100 path it loses only 0.02%.",
+   "why": "1.82%. The fund drops on the way up. The index's fall back to 100 is a smaller percent, and the fund's gain on it works on a smaller balance. On a calm 100, 101, 100 path it loses only 0.02%.",
    "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
    "facts": [
     "f43",
@@ -1351,7 +1354,7 @@
    ],
    "wrong": {
     "Fees took most of it": "Fees are a real cost, but they don't explain this. A fund can hit 3x every day and still lose in chop, before any fee.",
-    "It trades below its true value": "Arbitrage keeps an ETF's price close to what it holds. The loss is real, not a pricing gap."
+    "It trades below its true value": "Arbitrage generally keeps an ETF's price close to what it holds, and this fund matched its daily target. The loss is real, not a pricing gap."
    }
   }
  ],
@@ -1362,7 +1365,166 @@
   "Fund names: State Street now names the funds 'State Street Technology Select Sector SPDR ETF' and so on; older pages say 'The Technology Select Sector SPDR Fund'. Tickers are unchanged, and questions use tickers only.",
   "Sector funds and volatility: State Street says sector ETFs 'may be more volatile' and 'generally' fluctuate more than the market. That is a tendency, not true of every sector at every time, so q11 keys on concentration (one sector against all 11), not on which fund swings more.",
   "Fidelity's leveraged ETF page says a long leveraged fund 'will underperform its expected goals in a falling market', while its own ten-day falling example shows the 2x fund down 89% against the index's 65% (less than twice). Not used.",
-  "Every chop and trend example (q10, q14, q15, q21, q22) assumes the fund hits its daily target exactly and ignores fees and financing, as the calc does; each one says 'before fees' or 'about'."
+  "Every chop and trend example (q10, q14, q15, q21, q22) assumes the fund hits its daily target exactly and ignores fees and financing, as the calc does; each one says 'before fees' or 'about'.",
+  "Index vs active ETFs (checker, 2026-11-09): FINRA's ETP page (f80) says 'the vast majority of ETPs' track an index. By count that is out of date: Bloomberg Intelligence data put active funds at about 51% of the nearly 4,300 US-listed ETFs in June 2025 (InvestmentNews, 2025-06-16, https://www.investmentnews.com/etfs/active-etfs-now-outnumber-passive-funds-in-industry-watershed-moment/260939). Active funds held only about a tenth of ETF assets, per the same article. w1 now says 'Many ETFs track an index' and f80's claim says 'many'; no question keys on 'most'.",
+  "GICS 2027 (checker, 2026-11-09): searched for the consultation result (due November 2026); none published yet. Read the consultation PDF (s12): no proposal adds, drops or renames a sector. Some companies would change sector (solar components from IT to a new Industrials sub-industry; financial software from IT to a new Financials sub-industry); chip designers stay in IT, banks in Financials, airlines in Industrials. Re-check q06, q09, q12, q13 when the result lands."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources read in context 2026-11-09: FINRA, State Street, ProShares, iShares, Invesco, FTSE Russell, Fidelity and the GICS PDF re-fetched fresh; MSCI via WebFetch; Investor.gov and nasdaq.com refuse WebFetch and curl, so read from the quote checker's own fetch (2026-11-08 23:22-23:50, HTTP 200, 80/80 found). f1, f2, f4 (SEC ETF bulletin), f3, f57 back steps 1-3. Step 3 said 'Most ETFs track an index' (f80, FINRA 'vast majority of ETPs'); by count active ETFs have outnumbered index ETFs since June 2025 (Bloomberg Intelligence, see conflicts), so it now says 'Many ETFs'. f80 and f57 claims softened to match their quotes.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f47 (MSCI), f51-f53 (State Street) confirmed. Step 3 said holding all 11 funds means holding every S&P 500 company; f55 says the 11 Select Sector INDEXES together comprise the S&P 500, so it now says that.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Title said 3x but the worked case is FINRA's 2x (f34-f36). Now titled 'What a 2x or 3x fund does', step 1 covers both (f7, f67, f9), and the 2x path is split into two steps with the $80 and $96 from f34, f35. Checked: 100 x 0.8 x 1.2 = 96; index 100 x 0.9 x 1.1 = 99. f69 backs the chop line.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Key: f1, f4 (SEC), f24 (FINRA). ETN (f26) and mutual fund (f23) distractors are real confusions. The single-stock note said 'An ETF holds a basket', but f20 (SEC) says some ETFs track one stock; it now says each share is a slice of everything the fund owns (f2, added). Answer 33 chars fits Word Match.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f19 (SEC: trade 'whenever the market is open'), f4, f25 (FINRA). True as written. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "duplicate of F1.02#q05. Track audit 2026-11-09: the same question word for word ('What is a market index?') with the same term, so Word Match would show two tiles for one word. F1.02's answer ('A basket of stocks standing for a market') is a noun phrase that fits the tile, and F1.02 is where a member first meets an index. w1 still teaches that you buy a fund, not the index.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f3 (SEC ETF bulletin), f22 (SEC glossary: 'approximately the same return ... before fees'). Only 'track' fits; beat, short, hedge and time are real mix-ups. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f8 (SEC), f30 (FINRA: the 1.5% and 2% in the why match), f38, f14. Answer 35 chars. Both wrong notes are right. No change. Track auditor, 2026-11-09: 'Nasdaq 100' in the why is now 'Nasdaq-100', the spelling every other F1 unit uses (f30 is FINRA's own wording, unchanged). The 1.5% and 2% still match f30.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f51 (State Street), f46 (MSCI lists 11), f49 (GICS 2026 consultation: 10 to 11 sectors, 23 to 25 groups). Read the consultation: no proposal adds or drops a sector; no result published as of 2026-11-09. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f7, f9, f10 (SEC), f67, f68 (ProShares TQQQ page). False is right, and 'most reset' keeps the hedge. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of F1.02#q08. Track audit 2026-11-09: the same pairing, IWM tracks the Russell 2000 small caps, is keyed in F1.02 q08 (and applied in F1.02 q09, where IWM's drop points to small caps). F1.02 is the SPY / QQQ / IWM unit, so the pairing lives there.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f59 (State Street XLF page lists banks), f62, f60, f56 for the wrong notes, all fresh. The GICS consultation leaves banks in Financials. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 3 x 3 = 9; calc agrees. f7 (SEC multiples of the daily move), f67 (TQQQ 3x daily), f18, and f31/f32 (FINRA: -3x on a 3% day is 9%). 'About' and 'before fees' are in the why. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f56 (XLK one sector), f66 (SPY all eleven sectors), f54, f58 (State Street: less diversified, may swing more). Keyed on concentration, not volatility, as the conflicts note says. Trader-sound. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f56 (XLK holds semiconductors and semiconductor equipment), f63 (XLC), f61 (XLI). The consultation keeps chip designers in IT. The story's 'which sector fund they move' was unclear; now 'You want the sector fund they sit in.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f61 (State Street XLI lists passenger airlines), f64 (XLY list has none), f60 (XLE). Fresh fetch. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 100 x 1.30 x 0.70 = 91; leveraged_path agrees. Index 100 x 1.1 x 0.9 = 99, so 'lost only 1%' holds (f36 gives the same 1% on FINRA's mirror path). Says 'before fees'. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 9,000 / 3 = 3,000. f7, f67, f18. The question limits it to one day, so the key holds; sizing a 3x fund down is sound risk practice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f69 (ProShares: small net moves and high volatility give returns worse than the daily target), f33 (FINRA), f79 (Fidelity flat +10/-10 grid), f9, f17. With the index flat, a daily 3x path ends below its start. False is right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "cut",
+   "notes": "duplicate of F1.02#q15. Track audit 2026-11-09: both teach that the S&P 500's size weighting lets a few giants move the index against most of its stocks (F1.02 q15's lesson line: 'A few giants can hide what most stocks are doing'). F1.02 q15 is a real, dated case (AP, July 11, 2024: the index fell 0.9% while three of every four of its stocks rose), so it stays. The why here now says 'float-adjusted market cap', the exact words of f65 (State Street), to match F1.02 f43 and F1.06 q21, which teach that a float-adjusted weight is not plain market cap.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f39 (FINRA RN 09-31: Dec 1 2008 to Apr 30 2009, oil and gas index +2%, 2x fund -6%), f12 (SEC, same case). Distractors 4% (2 x 2) and 2% are explained right. Inverse figure conflict noted, not used. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f38 (FINRA: an inverse ETP can lose even if the index is down), f8, f9, f44. 'Sure to' makes False the safe key. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f40 (FINRA RN 09-31: financials index about +8%, 3x fund -53%, Dec 2008 to Apr 2009), f67, f68, f16, f44, f15. The lesson line weighs trend against chop (f69). Trader-sound. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 1.03^5 = 1.1593, so 15.9%; index 1.01^5 = 1.0510, so 5.1%, and 3 x 5.10 = 15.3%. Calc agrees. f69 (ProShares: bigger moves and lower volatility beat the daily target), f77 (Fidelity), f7. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed: 100 to 110 is +10% (fund to 90); 110 to 100 is -9.09% (fund +9.09%, to 98.18); loss 1.82%, as f43 (FINRA) says. The why blamed only the smaller balance; half the loss is the index's way back being a smaller percent, so it now names both.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f37 (FINRA: not tracking error when the daily objective is met), f33, f69, f79, f15. The pricing note said arbitrage 'keeps' the price close; f5 (SEC) says 'generally' and FINRA (s8) warns prices can deviate, so it now says 'generally' and points to the story.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

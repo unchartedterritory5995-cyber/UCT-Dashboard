@@ -126,11 +126,11 @@
   {
    "id": "s15",
    "tier": 1,
-   "publisher": "State Street Global Advisors (SPY's sponsor)",
+   "publisher": "State Street Investment Management (formerly SSGA), SPY's trustee and marketing agent",
    "title": "SPY: State Street SPDR S&P 500 ETF Trust (fund page)",
    "url": "https://www.ssga.com/us/en/individual/etfs/spdr-sp-500-etf-trust-spy",
    "accessed": "2026-11-08",
-   "why_reliable": "The fund sponsor's own page for its own fund (objective, benchmark, listing). units_plan.json lists the sponsors' fact pages under Tier 1."
+   "why_reliable": "The fund's own official page (objective, benchmark, listing), published by State Street, the fund's trustee and marketing agent. The page names PDR as the sponsor. units_plan.json lists the funds' own fact pages under Tier 1."
   },
   {
    "id": "s16",
@@ -222,6 +222,14 @@
    "title": "S&P 500 retreats from record as investors sell high-flying Big Tech stocks, Nvidia drops 5%: Live updates (July 11, 2024)",
    "url": "https://www.cnbc.com/2024/07/10/stock-market-today-live-updates.html",
    "accessed": "2026-11-08"
+  },
+  {
+   "id": "s27",
+   "tier": 1,
+   "publisher": "Nasdaq (index provider)",
+   "title": "Nasdaq Composite Index Methodology",
+   "url": "https://indexes.nasdaqomx.com/docs/Methodology_COMP.pdf",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -379,7 +387,7 @@
    "id": "f26",
    "source": "s3",
    "quote": "This is largely because relatively little information is available about microcap companies compared with larger companies that list their securities on national exchanges.",
-   "claim": "Far less information is available on microcaps than on companies listed on national exchanges."
+   "claim": "Relatively little information is available on microcaps compared with larger companies listed on national exchanges."
   },
   {
    "id": "f27",
@@ -734,6 +742,30 @@
    "source": "s26",
    "quote": "The Nasdaq Composite pulled back 1.95%, after also hitting a new record earlier in the trading day.",
    "claim": "CNBC: the Nasdaq Composite fell 1.95% that day."
+  },
+  {
+   "id": "f87",
+   "source": "s27",
+   "quote": "The Nasdaq Composite Index includes all domestic and international common type stocks listed on the Nasdaq Stock Market.",
+   "claim": "Nasdaq: the Composite holds every common-type stock listed on Nasdaq, US and foreign."
+  },
+  {
+   "id": "f88",
+   "source": "s27",
+   "quote": "There is no industry or sector eligibility criterion.",
+   "claim": "Nasdaq: the Composite has no industry or sector rule, so a Nasdaq-listed bank is in it."
+  },
+  {
+   "id": "f89",
+   "source": "s26",
+   "quote": "Stocks in the AI darling were under pressure early in the session following a cooler-than-expected June inflation print",
+   "claim": "CNBC: that morning's June inflation report came in cooler than expected."
+  },
+  {
+   "id": "f90",
+   "source": "s26",
+   "quote": "Those moves added pressure to the S&P 500, even as a majority of the stocks in the benchmark traded in positive territory.",
+   "claim": "CNBC, at midday: drops in the megacaps pressured the S&P 500 even as most of its stocks traded higher."
   }
  ],
  "walkthroughs": [
@@ -760,7 +792,7 @@
    "key": "w2",
    "title": "Where it trades",
    "steps": [
-    "A company lists its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
+    "A company can list its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
     "To list, it has to meet that exchange's standards. Fall short later and it can be delisted.",
     "When you buy, your broker picks where the order goes: that exchange, another one, or a market maker."
    ],
@@ -770,7 +802,8 @@
     "f17",
     "f18",
     "f20",
-    "f21"
+    "f21",
+    "f19"
    ]
   },
   {
@@ -779,7 +812,7 @@
    "steps": [
     "SPY tracks the S&P 500: large US companies from all eleven sectors.",
     "QQQ tracks the Nasdaq-100, the largest non-financial Nasdaq names. IWM tracks the Russell 2000: small caps.",
-    "Check all three before any stock. A stock moves with the market, not just on its own news."
+    "Check all three before any stock. A stock's price also moves with the market, not just on its own news."
    ],
    "facts": [
     "f42",
@@ -802,7 +835,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "share",
-   "q": "What does one share of a company's stock give you?",
+   "q": "What does one share of a company's common stock give you?",
    "choices": [
     "Part ownership of the company",
     "A loan you make to the company",
@@ -818,12 +851,12 @@
     "f7",
     "f5",
     "f3",
-    "f8"
+    "f6"
    ],
    "wrong": {
     "A loan you make to the company": "That's a bond. A bond lends the company money. A share owns part of it.",
     "A promised dividend each year": "Nothing is promised. A company may pay dividends, but it doesn't have to.",
-    "A vote on every company decision": "Most stocks vote on certain decisions, like electing directors. Preferred shares usually don't vote at all."
+    "A vote on every company decision": "Most stocks get a vote on certain decisions, like electing directors. Not on every decision."
    }
   },
   {
@@ -915,10 +948,11 @@
     "f47",
     "f37",
     "f67",
-    "f41"
+    "f41",
+    "f65"
    ],
    "wrong": {
-    "A fund you buy through your broker": "That's an index fund. You can't invest in the index itself, only in a fund that tracks it.",
+    "A fund you buy through your broker": "That's an index fund. You can't invest in an index directly. You buy a fund that tracks it.",
     "The exchange where a stock is listed": "That's an exchange, like the NYSE or Nasdaq. An index measures a group of stocks, and one index can hold stocks from both.",
     "A company's total stock market value": "That's market cap: one share's price times all the shares outstanding."
    }
@@ -930,7 +964,7 @@
    "format": "tf",
    "q": "When you buy SPY, you are buying the S&P 500 index itself.",
    "answer": "False",
-   "why": "False. You can't invest directly in an index. A SPY share is ownership in a fund that tracks the S&P 500, before expenses.",
+   "why": "False. You can't invest directly in an index. A SPY share is ownership in a fund that aims to match the S&P 500, before expenses.",
    "lesson_line": "SPY is the fund. The S&P 500 is the scoreboard it follows.",
    "facts": [
     "f47",
@@ -961,7 +995,8 @@
     "f50",
     "f51",
     "f42",
-    "f59"
+    "f59",
+    "f87"
    ],
    "wrong": {
     "Nasdaq Composite": "Close, but a different index. The Composite measures all the common stocks listed on Nasdaq, not just 100 of the largest.",
@@ -1027,15 +1062,17 @@
    "skill": "basics.shares",
    "rung": 5,
    "format": "tf",
-   "q": "Your broker can fill your SPY order somewhere other than NYSE Arca, the exchange SPY lists on.",
+   "q": "Your SPY order can be filled somewhere other than NYSE Arca, the exchange SPY lists on.",
    "answer": "True",
-   "why": "True. Your broker decides where the order goes. For a listed security that can be its own exchange, another exchange, or a market maker.",
+   "why": "True. Your broker decides where the order goes: SPY's own exchange, another exchange, or a market maker. ETF shares trade on exchanges, just like stocks.",
    "lesson_line": "Where a stock lists and where your order fills are two different things.",
    "facts": [
     "f46",
     "f20",
     "f21",
-    "f22"
+    "f22",
+    "f40",
+    "f38"
    ]
   },
   {
@@ -1061,11 +1098,13 @@
     "f44",
     "f67",
     "f51",
-    "f68"
+    "f68",
+    "f87",
+    "f88"
    ],
    "wrong": {
-    "S&P 500": "The S&P 500 holds companies from all eleven sectors, listed on the NYSE or Nasdaq. A big bank fits.",
-    "Nasdaq Composite": "The Composite measures all the common stocks listed on Nasdaq. A Nasdaq-listed bank is in it.",
+    "S&P 500": "The S&P 500 holds companies from all eleven sectors, listed on the NYSE or Nasdaq. A big bank can qualify.",
+    "Nasdaq Composite": "The Composite takes every common stock listed on Nasdaq, with no sector rule. A Nasdaq-listed bank is in it.",
     "Dow Jones Industrial Average": "The Dow leaves out utilities and transportation. Banks aren't ruled out."
    }
   },
@@ -1098,7 +1137,7 @@
    "skill": "basics.shares",
    "rung": 7,
    "format": "scenario",
-   "story": "July 11, 2024. A cooler inflation report comes out. The S&P 500 falls 0.9% and the Nasdaq composite falls 2%. The Russell 2000 jumps 3.6%.",
+   "story": "July 11, 2024. A cooler inflation report comes out. The S&P 500 falls 0.9% and the Nasdaq Composite falls 2%. The Russell 2000 jumps 3.6%.",
    "q": "Where was money flowing that day?",
    "choices": [
     "Into small caps",
@@ -1107,7 +1146,7 @@
    ],
    "answer": "Into small caps",
    "why": "Into small caps. The small-cap Russell 2000 jumped while big tech fell. CNBC reported the inflation data sent investors into small caps.",
-   "lesson_line": "When small caps and big tech split hard, money is moving between groups. Read all three.",
+   "lesson_line": "When small caps and big tech split hard, look for money moving between groups. Read all three.",
    "facts": [
     "f75",
     "f81",
@@ -1116,7 +1155,8 @@
     "f61",
     "f82",
     "f83",
-    "f84"
+    "f84",
+    "f89"
    ],
    "wrong": {
     "Into big tech": "Big tech was being sold. Investors rotated out of the year's big tech winners, like Nvidia.",
@@ -1162,7 +1202,8 @@
     "f77",
     "f43",
     "f66",
-    "f73"
+    "f73",
+    "f90"
    ]
   },
   {
@@ -1171,14 +1212,14 @@
    "rung": 8,
    "format": "scenario",
    "story": "A stock you like just reported strong earnings. Its chart looks good. But SPY, QQQ and IWM have all fallen hard for two weeks.",
-   "q": "How should the weak market change your plan?",
+   "q": "What does the weak market mean for this trade?",
    "choices": [
     "It's a headwind. Go slow or wait.",
     "Strong earnings make it safe to buy",
-    "It doesn't. One stock moves on its own"
+    "Not much. One stock moves on its own"
    ],
    "answer": "It's a headwind. Go slow or wait.",
-   "why": "It's a headwind. A stock's price moves with the market, not just on its own news. IBD's rule of thumb is that 3 of 4 stocks move with the general market.",
+   "why": "It's a headwind. A stock's price also moves with the market, not just on its own news. IBD's rule of thumb is that 3 of 4 stocks move with the general market.",
    "lesson_line": "Check the market before the stock. Good news doesn't make a stock immune to a falling market.",
    "facts": [
     "f27",
@@ -1189,8 +1230,8 @@
     "f34"
    ],
    "wrong": {
-    "Strong earnings make it safe to buy": "Nothing makes it safe. A single stock's results also depend on what the whole market is doing.",
-    "It doesn't. One stock moves on its own": "Stocks don't trade alone. Market events move prices in ways the company can't control."
+    "Strong earnings make it safe to buy": "Nothing makes it safe. A single stock's price also depends on what the whole market is doing.",
+    "Not much. One stock moves on its own": "Stocks don't trade alone. Market events move prices in ways the company can't control."
    }
   },
   {
@@ -1206,7 +1247,7 @@
     "OTC stocks meet exchange standards"
    ],
    "answer": "Little public info, higher risk",
-   "why": "Little public info, higher risk. Low-priced microcaps trade mostly over the counter, with far less information out there than for exchange-listed companies. The area has a long history of fraud.",
+   "why": "Little public info, higher risk. Low-priced microcaps trade mostly over the counter, and relatively little information is out there on them. The microcap sector has a long history of fraud and price manipulation.",
    "lesson_line": "No exchange listing and little public information. I'd pass on that tip.",
    "facts": [
     "f23",
@@ -1230,12 +1271,12 @@
    "story": "The evening news says the Nasdaq fell 2% today. You check QQQ. It fell 1.6%.",
    "q": "Why don't the two numbers match?",
    "choices": [
-    "They track different indexes",
+    "QQQ follows a different index",
     "QQQ's fees ate the difference",
     "QQQ stopped trading early"
    ],
-   "answer": "They track different indexes",
-   "why": "They track different indexes. \"The Nasdaq\" in the news is often the Nasdaq Composite, almost every Nasdaq stock. QQQ tracks the Nasdaq-100.",
+   "answer": "QQQ follows a different index",
+   "why": "QQQ follows a different index. \"The Nasdaq\" in the news is often the Nasdaq Composite, every common stock listed on Nasdaq. QQQ tracks the Nasdaq-100.",
    "lesson_line": "Know which index a headline means. The Nasdaq Composite is not QQQ.",
    "facts": [
     "f70",
@@ -1245,7 +1286,8 @@
     "f49",
     "f54",
     "f52",
-    "f40"
+    "f40",
+    "f87"
    ],
    "wrong": {
     "QQQ's fees ate the difference": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day.",
@@ -1256,12 +1298,140 @@
  "conflicts": [
   "Russell 2000 reconstitution: FTSE Russell's Russell 2000 page says the index 'is completely reconstituted annually' and Fidelity says 'Each year', but FTSE Russell's Russell US Indexes page (f63) says the schedule 'will change from an annual to a semi-annual schedule'. No question asks how often the index is rebuilt.",
   "July 11, 2024 closes: AP has the S&P 500 at 5,584.52 (down 0.9%) and the Nasdaq composite down 2%; CNBC has 5,584.54 (down 0.88%) and the Nasdaq Composite down 1.95%. The two agree once rounded. Questions use AP's rounded moves (0.9%, 2%, 3.6%; CNBC also has the Russell 2000 'about 3.6%') and never a closing level.",
-  "Nasdaq Composite coverage: Invesco says it 'measures all' Nasdaq-listed common stocks; Fidelity says 'almost all' of them and 'more than 3,000 companies'. The count changes over time, so no question asks it. q11 relies only on a Nasdaq-listed common stock (a bank) being in the Composite, which both sources support.",
+  "Nasdaq Composite coverage: Invesco says it 'measures all' Nasdaq-listed common stocks; Fidelity says 'almost all' of them and 'more than 3,000 companies'. The count changes over time, so no question asks it. q11 relies only on a Nasdaq-listed common stock (a bank) being in the Composite, which both sources support. Checker, 2026-11-09: Nasdaq's own Composite methodology (s27, Tier 1) settles it: the index 'includes all domestic and international common type stocks listed on the Nasdaq Stock Market' and has 'no industry or sector eligibility criterion'. ETFs, preferreds and closed-end funds are not eligible, which is why Fidelity says 'almost all'. q07, q11 and q18 now cite f87.",
   "IBD's '3 of 4 stocks move in the same direction as the general market' is a rule of thumb, not a measured law. q16 states it as IBD's rule of thumb, and its key rests on FINRA's Tier 1 line that a stock's performance is also driven by the market as a whole. The same page's '75% chance of being right' line is not used. William O'Neil's own June 2003 AAII Journal article says the same thing ('three out of four of your stocks will plummet with the market averages'), but aaii.com served this client a bot-check page, so it is not cited.",
   "Dividends: Investor.gov's Stocks page says common stock 'entitles owners to vote at shareholder meetings and receive dividends', while FINRA says the company 'may pay dividends, but it doesn’t have to'. Read together: holders share in dividends when declared, and nothing obliges the company to declare one. q03 is keyed on FINRA's wording.",
-  "Sponsor pages as Tier 1: the SPY, QQQ and IWM objective and listing facts come from the fund sponsors' own pages (SSGA, Invesco, iShares), which units_plan.json lists as Tier 1. Each source carries a why_reliable. SEC EDGAR prospectuses were not used: EDGAR refuses a client that does not declare a contact address. A checker who wants EDGAR can confirm the same objectives in each fund's prospectus.",
+  "Sponsor pages as Tier 1: the SPY, QQQ and IWM objective and listing facts come from the fund sponsors' own pages (SSGA, Invesco, iShares), which units_plan.json lists as Tier 1. Each source carries a why_reliable. SEC EDGAR prospectuses were not used: EDGAR refuses a client that does not declare a contact address. A checker who wants EDGAR can confirm the same objectives in each fund's prospectus. Checker, 2026-11-09: State Street is SPY's trustee and marketing agent, not its sponsor (the page lists the sponsor as PDR), and SSGA is now State Street Investment Management. s15's publisher and why_reliable were corrected; the facts taken from the page are unchanged.",
   "S&P Dow Jones Indices' own S&P 500 page refused the plain client (HTTP 403). The S&P 500 is described from SPY's sponsor page (which quotes the index's own description) and Fidelity, never from memory.",
-  "S&P 500 size: Fidelity says it holds 503 stocks as of February 2026 because some companies have more than one share class, and that members are picked by a committee. No question says it is simply 'the 500 largest companies'."
+  "S&P 500 size: Fidelity says it holds 503 stocks as of February 2026 because some companies have more than one share class, and that members are picked by a committee. No question says it is simply 'the 500 largest companies'.",
+  "Q after a ticker: Investor.gov's glossary (f13) says a Q after a ticker means bankruptcy. Nasdaq's 2005 notice (nasdaqtrader.com, nva2005-021, read 2026-11-09) says Nasdaq stopped using the C, E and Q fifth characters on its own listed symbols as of February 1, 2006, so a Q is now seen mainly on over-the-counter symbols. FINRA's OTC fifth-character page (otce.finra.org) loads its text by script, so this checker could not read it and it is not cited. q12 asks only what an added Q means, never that every bankrupt stock carries one."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Fresh fetch 2026-11-09: f1, f2 (Investor.gov), f4 (FINRA), f11, f12 (Investor.gov Ticker), f46 (SPY page listing table), f49 (Invesco), f59 (iShares) are on the pages and read the same in context. Each step matches its fact. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f14, f16 (SEC exchange list, last reviewed Jan. 7, 2026), f17, f18, f20, f21 confirmed in context. Step 1 said a company lists on an exchange as if all do; many stocks trade OTC (q17), so it now says 'can list'. Added f19 for 'that exchange's standards'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f42-f44 (State Street SPY page), f49, f54 (Nasdaq-100 methodology, 2026), f59, f61 confirmed. Step 3's 'A stock moves with the market' was flat; FINRA (f27) and SEC (f29) say the market ALSO moves a stock, so it now says 'A stock's price also moves with the market'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1, f2, f7 confirmed. FINRA's 'may pay dividends, but it doesn't have to' (f5) is in its Common Stock section, and the next paragraph says preferred stock 'usually guarantees a fixed dividend', so the dividend note was wrong for preferred, and the vote note itself brought preferred in. Stem now says common stock; vote note now rests on f3 only (dropped f8). Key unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f11, f12 (Investor.gov Ticker) confirmed. Only 'ticker' fits; index, exchange, sector and float are real mix-ups, not silly ones. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f5, f6 (FINRA, Common Stock section) confirmed word for word. True is right and is not a duplicate of q01 (cut vs promised). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f42 (SPY page: 'before expenses, correspond generally to the price and yield performance of the S&P 500') and f43 confirmed. Wrong notes match f54, f61, f36. 'S&P 500' fits Word Match. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f35, f36 (Investor.gov Market Index), f41, f47 confirmed. The index-fund note said you can invest 'only in a fund that tracks it'; Fidelity (f65) says you 'can buy' a fund, and futures and options exist, so it now says 'You buy a fund that tracks it'. Added f65. Key unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f47, f48 (SPY page: shares are ownership in a unit investment trust), f42, f65 confirmed. False is right. The why said the fund 'tracks the S&P 500, before expenses'; now 'aims to match the S&P 500, before expenses', as f42 words it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f49 (Invesco) and f54 (Nasdaq-100 methodology) confirmed. The Composite note's 'all the common stocks' was Invesco against Fidelity's 'almost all'; Nasdaq's own Composite methodology (new s27, f87, Tier 1) says it 'includes all ... common type stocks', so the note is right. Cited f87. Text unchanged.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f59 (iShares) and f61 (FTSE Russell) confirmed. The lesson line's 'can swing harder and trade thinner' matches f60's 'may be more volatile and less liquid'. Only 'small' fits. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Made-up numbers; the key needs only f59, f61 (IWM is the Russell 2000, small caps). IWM is the only one down, so small caps are under pressure, and a trader reads it the same way. Wrong notes use only the story's numbers. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Stem said 'Your broker can fill your SPY order'; the broker routes and a venue fills (f21, f22), so it now says 'Your SPY order can be filled'. f20 is written for listed stocks and SPY is an ETF, so added f40 and f38 (ETF shares trade on national exchanges) and the why says so. f46 confirms the NYSE Arca listing on today's page.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f54, f57 (Nasdaq-100 methodology, 2026: no company in the ICB Financial Industry; banks are ICB Financials) confirmed. 'A big bank fits' overstated S&P 500 entry (a committee and other criteria, f67's context), now 'can qualify'. The Composite note now rests on Nasdaq's own methodology (f87, f88: no industry or sector criterion). Dow note matches f68.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "f13 (Investor.gov Ticker) confirmed. Nasdaq dropped the Q fifth character on its own listed symbols on Feb 1, 2006 (nasdaqtrader notice nva2005-021, read with WebFetch); the Q is still seen on OTC symbols. The question asks only what an added Q means, so the key holds. Logged in conflicts. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "AP (f79-f81) and CNBC (f82-f84) agree on the moves and on money going into small caps. Added CNBC's 'cooler-than-expected June inflation print' (f89) to back the story's 'cooler'. The lesson line said a hard split always means money is moving; now 'look for money moving between groups'. 'composite' capitalised to match the unit.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Recomputed by hand: 3.6 - (-0.9) = 4.5 percentage points; the arith calc agrees. 3.6% (AP f81, CNBC f84) and 0.9% (AP f79; CNBC 0.88%, f85) confirmed. 'Percentage points' is the right unit. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "AP (f76): three out of every four S&P 500 stocks climbed; f77: Nvidia, Tesla and the rest dragged the index down 0.9%. CNBC's midday line (new f90) agrees, a second publisher. False is right and teaches breadth versus a cap-weighted index. Text unchanged.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "The stem 'How should the weak market change your plan?' assumed the answer and ruled out 'It doesn't' before reading. Now 'What does the weak market mean for this trade?', third choice 'Not much. One stock moves on its own'. Key rests on f27, f28 (FINRA), f29 (SEC) and IBD f34. 'results' in a wrong note is now 'price'; 'moves with the market' is now 'also moves'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f23-f26 (FINRA Penny Stock Risk), f9, f10 (Investor.gov) confirmed. The why said 'far less information'; FINRA says 'relatively little information', so the why and f26's claim now say that, and 'the area' is now 'the microcap sector'. The lesson line is a sound risk call.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f70, f78 ('the Nasdaq' means the Composite), f49, f52 (QQQ expense ratio 0.18% on today's page) confirmed; 0.18% a year cannot explain 0.4 points in a day. The key 'They track different indexes' was loose (the news number is an index and tracks nothing), now 'QQQ follows a different index'. The why now uses Nasdaq's own definition (f87).",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

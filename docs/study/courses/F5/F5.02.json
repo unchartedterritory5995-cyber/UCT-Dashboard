@@ -197,6 +197,15 @@
    "title": "Intel stock has worst day since 1970s, wiping about $12 billion off government's stake (Oct 30, 2026)",
    "url": "https://www.cnbc.com/2026/10/30/amazon-intel-earnings-big-tech-ai-spending-concerns.html",
    "accessed": "2026-11-08"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "LSEG (Lipper Alpha Insight)",
+   "title": "This Week in Earnings 26Q3, November 6, 2026 (Tajinder Dhillon, Senior Research Analyst)",
+   "url": "https://lipperalpha.refinitiv.com/2026/11/this-week-in-earnings-26q3-november-6-2026/",
+   "accessed": "2026-11-09",
+   "why_reliable": "LSEG owns I/B/E/S, the consensus-estimate database CNBC quotes in this unit's Intel, Cisco and Qualcomm stories. This is its weekly, dated, signed S&P 500 earnings report, and a publisher independent of FactSet."
   }
  ],
  "facts": [
@@ -679,6 +688,24 @@
    "source": "s23",
    "quote": "Intel shares fell 29% on Friday, posting the stock's worst day since the 1970s.",
    "claim": "Intel had its worst day since the 1970s after the October 2026 guide."
+  },
+  {
+   "id": "f81",
+   "source": "s24",
+   "quote": "83.2 % reported above analyst expectations. This compares to a long-term average of 67%.",
+   "claim": "On LSEG's data, 67% of S&P 500 companies beat over the long term; 83.2% had beaten so far in Q3 2026."
+  },
+  {
+   "id": "f82",
+   "source": "s19",
+   "quote": "Nvidia shares climbed on Thursday after earnings sailed past estimates.",
+   "claim": "Nvidia's August 2026 earnings sailed past estimates."
+  },
+  {
+   "id": "f83",
+   "source": "s19",
+   "quote": "the company is constrained on the amount of product it can supply.",
+   "claim": "Nvidia was still limited in how much product it could supply."
   }
  ],
  "walkthroughs": [
@@ -717,21 +744,19 @@
   },
   {
    "key": "w3",
-   "title": "Intel, January 2026",
+   "title": "Intel, October 2026",
    "steps": [
-    "Intel reports adjusted EPS of 15 cents. Analysts expected 8 cents. A clean beat.",
-    "Then the guide: breakeven EPS next quarter, against 5 cents expected.",
-    "The stock was up 147% in a year going in. It falls as much as 13% after hours.",
-    "Next day it drops 17%. The beat was about the past. The guide was the news."
+    "Intel's third-quarter earnings beat expectations.",
+    "Then the guide: 25 cents a share for the fourth quarter. Analysts expected 43 cents.",
+    "That weak forecast overshadows the beat. The stock has its worst day since the 1970s.",
+    "The beat was about the past. The guide was the news."
    ],
    "facts": [
-    "f62",
-    "f63",
-    "f14",
-    "f65",
-    "f64",
-    "f66",
-    "f36"
+    "f79",
+    "f78",
+    "f80",
+    "f38",
+    "f37"
    ]
   }
  ],
@@ -840,7 +865,9 @@
    "lesson_line": "No law makes a company guide. But if it tells one analyst, it has to tell everyone.",
    "facts": [
     "f23",
-    "f42"
+    "f42",
+    "f10",
+    "f12"
    ]
   },
   {
@@ -905,8 +932,7 @@
    "choices": [
     "With the quarterly report",
     "In a private call with analysts",
-    "Only in the annual filing",
-    "On the first trading day of the year"
+    "Only in the annual filing"
    ],
    "answer": "With the quarterly report",
    "why": "With the quarterly report. It comes in the release or on the earnings call right after it.",
@@ -914,12 +940,12 @@
    "facts": [
     "f24",
     "f7",
-    "f10"
+    "f10",
+    "f38"
    ],
    "wrong": {
     "In a private call with analysts": "Not allowed. Under Regulation FD, telling one analyst means telling everyone.",
-    "Only in the annual filing": "It usually comes out each quarter, right after the earnings report.",
-    "On the first trading day of the year": "There's no set day like that. It follows each earnings report."
+    "Only in the annual filing": "It usually comes out each quarter, right after the earnings report."
    }
   },
   {
@@ -952,10 +978,11 @@
    "format": "tf",
    "q": "In a typical quarter, most S&P 500 companies beat the analysts' EPS consensus.",
    "answer": "True",
-   "why": "True. FactSet's 5-year average is 78% beating, and Schwab puts it near 75%. Companies often guide low and estimates drift down, so a beat is normal.",
+   "why": "True. FactSet's 5-year average is 78% beating, and LSEG's long-term average is 67%. Companies often guide low and estimates drift down, so a beat is normal.",
    "lesson_line": "A beat is expected. I want to know how big it was and what the guide says.",
    "facts": [
     "f49",
+    "f81",
     "f44",
     "f43",
     "f58",
@@ -994,7 +1021,7 @@
     },
     "round": 1
    },
-   "why": "4.3%. Actual minus estimate, divided by the $1.17 estimate. A solid beat.",
+   "why": "4.3%. Actual minus estimate, divided by the $1.17 estimate. That's a beat.",
    "lesson_line": "Work the surprise in percent. It lets you compare reports from companies of any size.",
    "facts": [
     "f71",
@@ -1018,7 +1045,7 @@
      "high": 2.35
     }
    },
-   "why": "$2.25. Add the two ends and halve it. Analysts expected $2.27, so the midpoint sat just under. The stock slid 7% in extended trading.",
+   "why": "$2.25. Add the two ends and halve it. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the forecast lighter than expected, and the stock slid 7% in extended trading.",
    "lesson_line": "When the guide is a range, compare its midpoint to the consensus.",
    "facts": [
     "f76",
@@ -1034,11 +1061,11 @@
    "rung": 6,
    "format": "scenario",
    "story": "A company raises its full-year EPS guide from $3.00 to $3.20. The consensus going in was $3.40.",
-   "q": "Measured against what the market expected, how does this guide read?",
+   "q": "How does the market read this guide?",
    "choices": [
     "Negative: it's below the consensus",
     "Positive: it's a raise",
-    "Neutral: guidance doesn't count"
+    "Neutral: only reported results count"
    ],
    "answer": "Negative: it's below the consensus",
    "why": "Negative. A guide is judged against the consensus. FactSet counts guidance as negative when it lands below the mean estimate, raise or not.",
@@ -1051,7 +1078,7 @@
    ],
    "wrong": {
     "Positive: it's a raise": "It's higher than the old guide, but the market was already at $3.40. The bar is the consensus.",
-    "Neutral: guidance doesn't count": "Guidance can be the top factor in the near-term price. It counts."
+    "Neutral: only reported results count": "Guidance can be the top factor in the near-term price. It counts."
    }
   },
   {
@@ -1154,7 +1181,7 @@
      "benefit": 1.85
     }
    },
-   "why": "$5.14. Still above $4.71, but most of the headline beat came from the benefit, not the business.",
+   "why": "$5.14. Still above $4.71. Unless analysts had counted on that benefit, most of the headline beat came from it, not the business.",
    "lesson_line": "Check what's inside a beat. A tax break or a one-off gain can make it look bigger.",
    "facts": [
     "f56",
@@ -1167,25 +1194,27 @@
    "skill": "fund.estimates",
    "rung": 8,
    "format": "scenario",
-   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it beats again.",
+   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 its earnings sail past estimates.",
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
    "choices": [
     "Its forecast reassured investors",
     "It finally beat estimates",
-    "Its beat was the biggest yet"
+    "Its supply limits had cleared"
    ],
    "answer": "Its forecast reassured investors",
-   "why": "Its forecast reassured investors. Nvidia had beaten before and still dropped. CNBC credits the revenue guidance for the rise this time.",
-   "lesson_line": "Four beats, four drops. Then a strong guide and a nearly 9% day. Watch the guide.",
+   "why": "Its forecast reassured investors. Nvidia had met or beaten estimates before and still dropped. CNBC credits the revenue guidance for the rise this time.",
+   "lesson_line": "Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
    "facts": [
     "f68",
     "f69",
+    "f82",
+    "f83",
     "f4",
     "f38"
    ],
    "wrong": {
     "It finally beat estimates": "It had met or beaten in each of the four quarters before, and fell anyway.",
-    "Its beat was the biggest yet": "The report credits the revenue guidance, not the size of the beat."
+    "Its supply limits had cleared": "CNBC says the opposite. Nvidia is still limited in how much it can supply."
    }
   },
   {
@@ -1293,7 +1322,161 @@
   "Whisper number: Investopedia's guidance page (s7) describes the old whisper number as company forecasts given to selected analysts, while FINRA, Schwab and Investopedia's own whisper page describe it as the street's unofficial expectation. Questions use the FINRA / whisper-page meaning only.",
   "Elevance (q18): FactSet says the $6.99 non-GAAP actual 'included a net non-operating benefit of $1.85'. It does not say whether the $4.71 estimate had any of it in. q18 asks only for the arithmetic and says 'most of the headline beat came from the benefit', which holds on FactSet's numbers ($1.85 of a $2.28 gap).",
   "Things that change: Regulation FD is current (eCFR up to date as of 11/05/2026). The SEC proposed optional semiannual reporting on May 5, 2026 (Release 33-11414); I found no final rule, so no question says companies must report every quarter.",
-  "Earnings call timing and BMO / AMC (f7, f8) belong to F5.04; they are recorded here only as background for q08."
+  "Earnings call timing and BMO / AMC (f7, f8) belong to F5.04; they are recorded here only as background for q08.",
+  "Beat rate, independent check (checker, 2026-11-09): LSEG I/B/E/S (s24, Nov 6, 2026) puts the long-term average at 67% of S&P 500 companies beating, lower than FactSet's 5-year (78%) and 10-year (77%) averages; the LSEG page does not state the period its average covers. Both say most companies beat, which is all q10 keys; q10 now cites FactSet and LSEG rather than leaning on Schwab, whose figure is FactSet's.",
+  "Qualcomm, Nov 4 2026 (q13): the EPS guide midpoint ($2.25) sat under the $2.27 consensus, but the revenue guide ($10.4 billion to $11.2 billion) sat above the $10.48 billion consensus. CNBC calls the earnings forecast light; q13 asks only about the EPS midpoint and attributes 'lighter than expected' to CNBC.",
+  "Nvidia (q19): CNBC says the stock fell after each of the previous four reports 'despite meeting or beating estimates', so the unit says 'met or beat', never 'four beats'. CNBC also credits the beat itself ('earnings sailed past estimates') next to the guidance; the question asks only what was different this time, which CNBC gives as the revenue guidance."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "FINRA f1, f2, f9 (Investor Insights, July 23, 2024), Investopedia f29 and Zacks f60 read in context on the live pages. Each step matches its fact. 'As a percent of the estimate' holds for the positive estimates used in this unit (Zacks divides by the absolute value).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Schwab f37, f38, f39 (Mar 26, 2026), Investopedia f21 and FactSet f54 (Nov 6, 2026) read in context. 'Can move it more than the beat' keeps Schwab's hedge ('can often be the top factor').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Track audit 2026-11-09: rewritten. It told the January 2026 Intel case that q17 then asks, with q17's answer ('The guide was the news'); the checkers of F5.01 and F5.06 removed that kind of preview, so for one course the walk-through now uses the October 2026 Intel guide: f79 ('That weak forecast overshadowed better-than-expected third-quarter earnings'), f78 (25 cents vs 43 cents, LSEG), f80 ('worst day since the 1970s'), CNBC Oct 30, 2026, re-checked live; Schwab f38/f37 for the closing line. The size of that day's drop is left out (CNBC printed 25% and 29%, see conflicts). q22 uses the same case but asks arithmetic the walk-through does not do. Earlier checker note on the January version: CNBC Jan 22, 2026 (15c vs 8c, breakeven vs 5c, up 147% in a year, as much as 13% after hours) and Jan 23 (down 17% Friday on the guidance and a supply warning) confirmed; Intel's own 8-K shows non-GAAP $0.15 and a $0.00 Q1 non-GAAP guide. For the owner: q17 tests this same case, so this walk-through previews its answer.",
+   "fixed": true,
+   "by": "track auditor"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "FINRA (Tier 1) 'the average for all the analysts', Investopedia f29/f30 and Fidelity's I/B/E/S 'mean' confirmed. Mean vs median is in conflicts; the question never turns on it. Each distractor is a real confusion (guidance, a past result, one analyst).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "duplicate of F5.04#q06. Track audit 2026-11-09: Both ask the plain definition of a beat (actual above the consensus). F5.04#q06 is the stronger item: a vocabulary tile whose wrong choices are the real confusions (the reaction, growth, timing). The w1 walk-throughs of F5.01 and F5.02 still teach the definition. The question stays in the file as the record. Checker's earlier note (pass): FINRA f2 confirmed: beat or miss is set against the consensus, equal is in line. True as stated, no hidden condition.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Investopedia f21, FactSet f55 and Schwab f37 confirmed. Each wrong choice is a different real thing (consensus, results, a rating) and its note names it; f26 backs 'guidance can move ratings'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Schwab f45 ('significantly higher or lower than expected, it's called an earnings surprise') and Investopedia f18 confirmed; the sentence follows Schwab. Every bank word is a unit term and only 'surprise' fits.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Investopedia f23 and Schwab f42 confirmed: guidance is not legally required. Schwab calls Regulation FD a '2000 law'; it is an SEC rule, so the lesson's second sentence now also cites the SEC's adopting release (f10) and the current rule text (f12, eCFR up to date as of 11/05/2026).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Schwab f37/f38 and FINRA f3 (Tier 1: a beat with a dour outlook can drop the share price) confirmed. The key and why say 'can', matching the sources. Wrong notes checked against f22 (not a guarantee) and f24 (released with the report).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "FINRA f5/f6 (Tier 1) and Investopedia's whisper page f32/f33 confirmed in context. Uses only the street's-unofficial-expectation meaning; the older meaning on s7 is in conflicts.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Investopedia f24 ('typically released immediately after ... latest quarterly earnings report'), FINRA f7 (guidance on the earnings call) and Schwab f38 ('usually appears near the bottom of a company's earnings release') confirmed. Changed: dropped the choice 'On the first trading day of the year', which no member would pick; added f38.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "(0.84 - 0.80) / 0.80 x 100 = 5.0%, matches calc pct_change. Zacks formula f60 confirmed; the estimate is positive, so the absolute value changes nothing.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "FactSet f49 (5-year 78%, 10-year 77%) and Schwab f44 (about 75%) confirmed, but Schwab's figure is FactSet data. Added an independent publisher: LSEG I/B/E/S, Nov 6, 2026, 'long-term average of 67%' (f81, confirmed with the plain client and WebFetch). All say most companies beat. The why now cites LSEG in place of Schwab.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Investopedia f22/f28 and Intel's own 8-K f15 ('Actual results may differ materially') confirmed. False as stated; f27 shows guidance gets revised.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "CNBC Aug 12, 2026: $1.22 adjusted vs $1.17 (LSEG) confirmed. 0.05 / 1.17 = 4.27% -> 4.3, matches calc. Removed 'A solid beat', a judgment no fact supports.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "CNBC Nov 4, 2026 confirmed: EPS guide $2.15 to $2.35 vs $2.27, forecast 'lighter than expected', slid 7% after hours. (2.15 + 2.35) / 2 = 2.25. FactSet f54 confirms the midpoint method. The why now says 'EPS midpoint' and credits 'lighter' to CNBC, because Qualcomm's revenue guide midpoint sat above consensus (conflicts).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "FactSet f54 (negative when the guide or its midpoint is below the mean estimate the day before) and Investopedia f26 confirmed: $3.20 vs $3.40 reads negative, raise or not. Changed: the question no longer says 'measured against what the market expected', which pointed at the answer; the weak 'Neutral: guidance doesn't count' is now 'Neutral: only reported results count', a belief members really hold.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "SEC Release 33-7881 f10/f11 (private earnings guidance to an analyst likely violates Reg FD, said outright or hinted) and current Rule 243.100 f12 (eCFR up to date as of 11/05/2026: at the same time if intentional, promptly if not) confirmed. A broker's analyst is covered under 243.100(b)(1).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "FactSet Nov 6, 2026 confirmed: 5-year averages +0.9% for beats and -3.1% for misses, two days before to two days after the report. 3.1 / 0.9 = 3.44 -> 3.4, matches calc. The lesson says 'on average'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Track audit 2026-11-09: w3 no longer previews this case (it now walks the October 2026 guide), so this item tests the idea on a fresh case. CNBC Jan 22/23 and Schwab confirmed: beat on EPS (15c vs 8c) and revenue ($13.7B vs $13.4B); breakeven guide vs 5c; the 17% drop tied to the guidance and a supply warning. The sources contradict each wrong choice. Same case as w3 (flagged there).",
+   "fixed": false,
+   "by": "checker; track auditor"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "FactSet f56/f57 confirmed ($6.99 vs $4.71; the actual included a $1.85 net non-operating benefit). 6.99 - 1.85 = 5.14, matches calc. FactSet does not say whether the estimate counted the benefit, so the why now opens with 'Unless analysts had counted on that benefit'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "CNBC Aug 27, 2026 confirmed: up nearly 9% on revenue guidance; fell after each of the previous four reports 'despite meeting or beating estimates'. Changed: 'four beats' and 'had beaten' now say met or beat; 'beats again' is now 'its earnings sail past estimates' (new f82); 'Its beat was the biggest yet' could not be shown false, so it became 'Its supply limits had cleared', which CNBC contradicts (new f83).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "duplicate of F5.01#q17. Track audit 2026-11-09: Same fact tested the same way: a scenario where the GAAP number tempts the wrong call and the key is to compare the adjusted EPS with the adjusted estimate. F5.01 teaches GAAP versus adjusted (its w3 sets the case up), so F5.01#q17 is kept; F5.08#q19 keeps the harder twist (charges that make the call unclear). The question stays in the file as the record. Checker's earlier note (pass): Intel 8-K: GAAP $(0.12), non-GAAP $0.15; CNBC: 15c adjusted vs 8c (LSEG). Fidelity f48 (same accounting basis) and FactSet f59 (GAAP and non-GAAP) confirmed. The key holds as stated.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "CNBC Aug 12, 2026 confirmed: $1.22 vs $1.17; revenue guide $18-18.2B vs $16.8B; earnings guide also above; up more than 60% this year (CNBC's corrected wording); shares fell after hours, no other cause given. The key is the read FINRA f4 describes, and the lesson says 'may not be enough'. Both wrong choices are contradicted by the story's own numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "CNBC Oct 30, 2026 confirmed: guide 25c vs 43c (LSEG) after a Q3 beat; worst day since the 1970s (29%). (0.43 - 0.25) / 0.43 = 41.9% -> 42, matches calc. Distractors are real slips (the raw 18 cents; dividing by the guide = 72%). The lesson is backed by SEC f17 and Investopedia f34/f35.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

@@ -1,0 +1,1323 @@
+{
+ "unit": "F6.05",
+ "track": "F6",
+ "title": "Theta",
+ "teaches": "Theta is the estimated drop in an option's price per day with everything else unchanged; it is quoted per share, works against the buyer and for the seller, is biggest at the money, and speeds up as expiry gets close.",
+ "skills": [
+  {
+   "id": "options.theta",
+   "title": "Theta: time decay"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Theta",
+   "url": "https://www.optionseducation.org/advancedconcepts/theta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Volatility & the Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/volatility-the-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Leverage & Risk",
+   "url": "https://www.optionseducation.org/optionsoverview/leverage-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Time Erosion vs. Delta Effect (LEAPS)",
+   "url": "https://www.optionseducation.org/optionsoverview/leaps-time-erosion-versus-delta-effect",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Basics",
+   "url": "https://www.optionseducation.org/optionsoverview/options-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Understanding Options Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/understanding-options-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (T)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=T",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC), the same copy F6.03 cites."
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Cboe Exchange, Inc. (rule filing with the SEC)",
+   "title": "Form 19b-4, SR-CBOE-2019-126: proposed rule change to adopt an Index Combo order (filed 2019-12-19), the Greeks section",
+   "url": "https://cdn.cboe.com/resources/regulation/rule_filings/approved/2019/SR-CBOE-2019-126.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "An exchange's own rule filing with the SEC, served from cdn.cboe.com. Its theta paragraph (page 5 of 46) cites Sheldon Natenberg, Option Volatility & Pricing (2nd ed., 2015), one of the contract's named Tier 2 books."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Options Theta - The Greeks",
+   "url": "https://www.cmegroup.com/education/courses/option-greeks/theta.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Theta Explained: How Time Decay Affects Options (James Chen, CMT; updated 2026-08-25)",
+   "url": "https://www.investopedia.com/terms/t/theta.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Get to Know the Options Greeks (2025-05-28)",
+   "url": "https://www.schwab.com/learn/story/get-to-know-option-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Options Greeks (incl. the 'Meet the Options Greeks' video transcript)",
+   "url": "https://www.schwab.com/options/options-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Theta Decay in Options Trading: 3 Strategies (2026-01-16)",
+   "url": "https://www.schwab.com/learn/story/theta-decay-options-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Greek symbols in trading (Fidelity Viewpoints)",
+   "url": "https://www.fidelity.com/viewpoints/active-investor/know-the-Greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Interactive Brokers (Traders' Academy)",
+   "title": "Introduction to Options: The Greeks (lesson 4 of 5)",
+   "url": "https://www.interactivebrokers.com/campus/trading-lessons/introduction-to-options-the-greeks/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Cboe Options Institute (Russell Rhoads, CFA)",
+   "title": "The Option Greeks (Options Institute webinar slides, 2012)",
+   "url": "https://www.interactivebrokers.com/webinars/CBOE_Using_Greeks.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Slides by Russell Rhoads, CFA, then an instructor at Cboe's Options Institute; every slide carries the Chicago Board Options Exchange header and the deck carries the 2012 CBOE copyright and disclaimer. Hosted in Interactive Brokers' webinar archive. Time decay has not changed since 2012; only the multi-day table (slide 24) and one bullet line (slide 23) are cited."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Theta is represented in an actual dollar or premium amount. Theta represents, in theory, how much an option’s premium may decay per day with all other pricing factors remaining the same.",
+   "claim": "Theta is a dollar amount: in theory, how much the premium may drop per day if nothing else changes."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "the amount of decay indicated by Theta tends to be gradual at first and accelerates as expiration approaches.",
+   "claim": "Time decay starts slow and speeds up as expiry gets close."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Pricing models take into account weekends, so options will tend to decay seven days over the course of five trading days.",
+   "claim": "Weekends count: options tend to decay seven days' worth over five trading days."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "there is no industry-wide method for decaying options so different models show the impact of time decay differently.",
+   "claim": "There is no single industry method; different models apply time decay differently."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "If stock was trading for $50 and a $50 strike call as trading at $3 with a Theta of .05, an investor would anticipate that option to lose about $.05 per day, all things being equal.",
+   "claim": "Stock at 50, the 50 call at 3 with theta .05: expect it to lose about 5 cents a day, all else equal."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "If a day passed without a change in the option price, then one of the other variables must have changed. In most cases, it would likely have been an increase in implied volatility.",
+   "claim": "If a day passes and the option price doesn't change, another input moved, most likely a rise in implied volatility."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "If the option decreased more than $.05 an investor might deduce that implied volatility on that strike or product might have dropped as well.",
+   "claim": "If the option falls by more than its theta, implied volatility may have dropped too."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "options with the least remaining time until expiration will tend to decay the most. The at-the-money call is the most vulnerable to a lack of movement in the underlying.",
+   "claim": "Options closest to expiry tend to decay the most, and the at-the-money call is hurt most when the stock doesn't move."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "Note how quickly time premium begins to decay around 30 days prior to expiration.",
+   "claim": "In OIC's example, decay picks up around 30 days before expiry."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "In general, the higher the implied volatility levels, the higher the Theta amount.",
+   "claim": "Higher implied volatility generally means a bigger theta."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "This does not mean that investors can sell options in high implied volatility stocks and expect to earn time decay right away.",
+   "claim": "Selling options on high-implied-volatility stocks does not mean you will collect time decay right away."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Many times, options trade at elevated implied volatility levels because of the actual historical volatility or because of an earnings announcement, product announcement, etc.",
+   "claim": "Implied volatility is often high for a reason, such as a jumpy stock or an earnings announcement."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "At-the-money options will have the most exposure to time decay. And, as the chart shows, options that are either deep-in-the-money or far out-of-the-money will have very little decay as they have less time premium.",
+   "claim": "At-the-money options decay the most; deep in-the-money and far out-of-the-money options decay very little."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "Upon expiration, an option has no time value and is worth its intrinsic value only.",
+   "claim": "At expiry an option has no time value left and is worth only its intrinsic value."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Generally, as expiration approaches, the levels of an option's time value decrease or erode for both puts and calls. This effect is most noticeable with at-the-money options.",
+   "claim": "Time value erodes toward expiry for calls and puts alike, most of all at the money."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "Higher volatility estimates indicate greater expected fluctuations (in either direction) in underlying price levels.",
+   "claim": "High implied volatility means the market expects bigger moves, either way."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "An option's premium (intrinsic value plus time value) generally increases as the option becomes further in-the-money.",
+   "claim": "The deeper in the money, the more the option costs."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "Theta indicates an absolute change in the option value for a one day reduction in time until expiration.",
+   "claim": "Theta is the change in the option's value for one day less to expiry."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "NOTE: Theta values are not constant and accelerate as expiration approaches",
+   "claim": "Theta is not constant; it accelerates as expiry approaches."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "For a call option, a Delta of .50 means a half-point rise in premium for every dollar that the stock goes up.",
+   "claim": "Delta is how much the call's premium moves for each dollar the stock moves."
+  },
+  {
+   "id": "f21",
+   "source": "s3",
+   "quote": "Gamma is the sensitivity of Delta to a one-unit change in the underlying.",
+   "claim": "Gamma is how much delta changes when the stock moves a dollar."
+  },
+  {
+   "id": "f22",
+   "source": "s3",
+   "quote": "Vega indicates an absolute change in option value for a 1% change in volatility.",
+   "claim": "Vega is how much the option's value changes for a one-point (1%) change in volatility."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "Even if all other factors affecting an option's price remain the same, the time value portion of an option's premium will decrease (or decay) with the passage of time.",
+   "claim": "With everything else unchanged, the time value part of the premium decays as time passes."
+  },
+  {
+   "id": "f24",
+   "source": "s4",
+   "quote": "Time decay increases rapidly in the last several weeks of an option's life.",
+   "claim": "Time decay speeds up fast in an option's last several weeks."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "Time premium erosion works in favor of short-term option sellers. Conversely, the option buyer must overcome the erosion of time premium to profit from a long option position.",
+   "claim": "Time decay helps the seller; the buyer has to overcome it to make money."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "Buyers of LEAPS® options have less time premium erosion to fight than buyers of shorter-dated options.",
+   "claim": "Long-dated options lose less to time decay than shorter-dated ones."
+  },
+  {
+   "id": "f27",
+   "source": "s6",
+   "quote": "Equity option contracts usually represent 100 shares of the underlying stock.",
+   "claim": "One stock option contract usually covers 100 shares."
+  },
+  {
+   "id": "f28",
+   "source": "s6",
+   "quote": "An option's price is called the premium and is priced at a per share basis.",
+   "claim": "Option premiums are quoted per share."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "the writer collects the premium and has theoretically unlimited loss potential for a call option and substantial loss potential for a put option.",
+   "claim": "An option seller keeps the premium but can lose a lot: unlimited on a call, substantial on a put."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "Greeks are not a guarantee of exact option premium changes, but rather a theoretical guidepost",
+   "claim": "The Greeks are theoretical guides, not exact predictions."
+  },
+  {
+   "id": "f31",
+   "source": "s8",
+   "quote": "The premium of an out-of-the-money option consists entirely of time value.",
+   "claim": "An out-of-the-money option's price is all time value."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "An option holder who neither sells her option in the secondary market nor exercises it prior to its expiration will necessarily lose her entire investment in the option.",
+   "claim": "An option you neither sell nor exercise before expiry costs you everything you paid."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "an option holder must not only be right about the direction of an anticipated price change in the underlying interest, but she must also be right about when the price change will occur.",
+   "claim": "An option buyer has to be right on direction and on timing."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "This contrasts with an investor who purchases the underlying interest directly and may continue to hold her investment, notwithstanding its failure to change in price as anticipated, in the hope of waiting out an adverse price move",
+   "claim": "A shareholder can keep holding through a stall; an option holder runs out of time."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
+   "claim": "Selling the option collects whatever time value is left."
+  },
+  {
+   "id": "f36",
+   "source": "s9",
+   "quote": "An option normally has very little time value if it is substantially in the money.",
+   "claim": "A deep in-the-money option usually carries very little time value."
+  },
+  {
+   "id": "f37",
+   "source": "s10",
+   "quote": "The theta (Θ), or time decay, is the rate at which an option loses value as time passes, assuming that all other market conditions remain unchanged. It is usually expressed as value lost per one day’s passage of time.",
+   "claim": "Theta is the rate an option loses value as time passes, all else unchanged, usually shown as value lost per day."
+  },
+  {
+   "id": "f38",
+   "source": "s10",
+   "quote": "As time passes, the time-value portion gradually disappears until, at expiration, the option is worth exactly its intrinsic value.",
+   "claim": "Time passing removes the time value only; at expiry the option is worth exactly its intrinsic value."
+  },
+  {
+   "id": "f39",
+   "source": "s10",
+   "quote": "If an option’s theoretical value today is 4.00, one day later, it will be worth 3.95. Two days later, it will be worth 3.90.",
+   "claim": "With theta 0.05, a 4.00 option is worth 3.95 a day later and 3.90 two days later, all else unchanged."
+  },
+  {
+   "id": "f40",
+   "source": "s11",
+   "quote": "Theta is usually expressed as a negative number.",
+   "claim": "Theta is usually shown as a negative number."
+  },
+  {
+   "id": "f41",
+   "source": "s11",
+   "quote": "Theta is highest for at-the-money (ATM) options and lower the further out-the-money or in-the-money the option is.",
+   "claim": "Theta is highest at the money and lower the further in or out of the money."
+  },
+  {
+   "id": "f42",
+   "source": "s11",
+   "quote": "The absolute value of theta of an option that is at- or near-the-money rises as the option approaches expiration.",
+   "claim": "For an at-the-money option, theta grows as expiry approaches."
+  },
+  {
+   "id": "f43",
+   "source": "s11",
+   "quote": "Theta for an option that is deep in- or out- the-money falls as the option approaches expiration.",
+   "claim": "For a deep in- or out-of-the-money option, theta shrinks as expiry approaches."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "In the prior example, theta was a constant value of .02 for all three days. In reality, the theta loss increases as the option approaches expiration.",
+   "claim": "Holding theta constant is a simplification; in reality the daily loss grows toward expiry."
+  },
+  {
+   "id": "f45",
+   "source": "s12",
+   "quote": "Theta is generally negative for long positions and positive for short positions, implying time decay benefits sellers while disadvantaging buyers.",
+   "claim": "Long options have negative theta and short options positive theta: decay helps sellers and hurts buyers."
+  },
+  {
+   "id": "f46",
+   "source": "s12",
+   "quote": "For instance, a theta of -0.05 indicates that the option’s price will decrease by five cents per day.",
+   "claim": "A theta of -0.05 means the option loses about five cents a day."
+  },
+  {
+   "id": "f47",
+   "source": "s12",
+   "quote": "Suppose the theta for this option is -0.05. If everything else (stock price, volatility, interest rates, etc.) stays the same, the option will lose five cents per day in value just because time is passing.",
+   "claim": "With theta -0.05 and nothing else changing, the option loses five cents a day just from time passing."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "This option costs $2 per share, or $200 for a standard options contract that covers 100 shares.",
+   "claim": "Option prices are per share; a standard contract covers 100 shares."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "Options models usually take into consideration weekends, so decay will occur over seven days, not the five trading days.",
+   "claim": "Models count weekends: decay happens over seven days, not five."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "In a volatile market, the option price can swing dramatically, overshadowing the slow erosion of time decay.",
+   "claim": "A big price swing can outweigh a day's time decay."
+  },
+  {
+   "id": "f51",
+   "source": "s12",
+   "quote": "Generally speaking, when market volatility is high, option prices go up, which can also cause theta to increase.",
+   "claim": "High volatility raises option prices and can raise theta."
+  },
+  {
+   "id": "f52",
+   "source": "s13",
+   "quote": "For long calls and puts, theta is always negative, which indicates that the option loses value as time passes.",
+   "claim": "Long calls and puts have negative theta: they lose value as time passes."
+  },
+  {
+   "id": "f53",
+   "source": "s13",
+   "quote": "an option with a theta of –0.02 would theoretically lose $0.02 of value every day (including weekends).",
+   "claim": "A theta of -0.02 means about 2 cents lost every day, weekends included."
+  },
+  {
+   "id": "f54",
+   "source": "s13",
+   "quote": "it tends to increase closer to expiration, which means options lose value faster as expiration approaches.",
+   "claim": "Theta tends to grow near expiry, so options lose value faster."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "Theta is highest for at-the-money options and lowest for in-the-money or out-of-the-money options.",
+   "claim": "Theta is highest at the money and lowest in or out of the money."
+  },
+  {
+   "id": "f56",
+   "source": "s14",
+   "quote": "Changes in implied volatility will impact changes in theta.",
+   "claim": "When implied volatility changes, theta changes too."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "Today, price moves from $45 to $46, and the premium increases $0.35 to $1.65. Because a day has passed, the premium decreases $0.02 due to theta.",
+   "claim": "In Schwab's example, a $1 stock move adds the delta amount, and the day's theta comes off it."
+  },
+  {
+   "id": "f58",
+   "source": "s15",
+   "quote": "Although theta is the theoretical daily time decay, in practice, the time decay of an option generally follows a non-linear, accelerating curve, giving it a hockey stick shape when graphed.",
+   "claim": "Time decay follows an accelerating curve, a hockey stick when graphed."
+  },
+  {
+   "id": "f59",
+   "source": "s15",
+   "quote": "short options have positive theta",
+   "claim": "Short options have positive theta."
+  },
+  {
+   "id": "f60",
+   "source": "s15",
+   "quote": "The value of shorter-term options also decays faster than longer-term contracts' value (again, all else equal), and the rate of their value decay speeds up as they get closer to expiration.",
+   "claim": "Shorter-dated options decay faster than longer-dated ones, and faster still near expiry."
+  },
+  {
+   "id": "f61",
+   "source": "s15",
+   "quote": "The value of ATM options decays the fastest over time (all else equal) because these options have the most uncertainty about whether they will close OTM or ITM and therefore the most extrinsic value.",
+   "claim": "At-the-money options decay fastest because they hold the most time value."
+  },
+  {
+   "id": "f62",
+   "source": "s16",
+   "quote": "It is typically negative for purchased calls and puts, and positive for sold calls and puts.",
+   "claim": "Theta is typically negative for bought options and positive for sold ones."
+  },
+  {
+   "id": "f63",
+   "source": "s17",
+   "quote": "Theta only impacts the extrinsic value of an option. That’s because intrinsic value does not erode, it only moves with a change in the underlying asset price.",
+   "claim": "Theta only eats time (extrinsic) value; intrinsic value moves with the stock, it doesn't decay."
+  },
+  {
+   "id": "f64",
+   "source": "s18",
+   "quote": "Days To Expiration 45 Call 7 Day Theta 35 1.71 -0.18 28 1.53 -0.21 21 1.32 -0.26 14 1.08 -0.32 7 0.76 -0.76 0 0.00 0.00",
+   "claim": "Cboe's table: a 45 call is 1.71 with 35 days left and loses 0.18 the next week; with 7 days left it is 0.76 and loses all 0.76 in its last week."
+  },
+  {
+   "id": "f65",
+   "source": "s18",
+   "quote": "The longer time to expiration, the slower the day to day loss of time value",
+   "claim": "The more time left, the slower the daily loss of time value."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The price of a day",
+   "steps": [
+    "Theta estimates how much an option's price drops in one day if nothing else changes.",
+    "It's quoted per share. A theta of -0.05 means about five cents a share a day.",
+    "One contract covers 100 shares, so that's about five dollars a contract each day.",
+    "Buyers pay it. Sellers collect it."
+   ],
+   "facts": [
+    "f1",
+    "f18",
+    "f46",
+    "f40",
+    "f27",
+    "f45"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The clock speeds up",
+   "steps": [
+    "Decay is slow early in an option's life and fast near the end.",
+    "At the money takes the biggest hit. Deep in or far out of the money decays little.",
+    "In Cboe's example, a 45 call loses 0.18 in the week from 35 to 28 days left.",
+    "Its last week costs 0.76, everything it had left."
+   ],
+   "facts": [
+    "f2",
+    "f13",
+    "f64"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What theta leaves out",
+   "steps": [
+    "Theta assumes nothing else moves. Real days rarely work that way.",
+    "If a quiet day passes and your option holds its price, something else changed. Most often, implied volatility rose.",
+    "Weekends count too. Models spread seven days of decay over five trading days."
+   ],
+   "facts": [
+    "f1",
+    "f6",
+    "f3"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.theta",
+   "rung": 1,
+   "format": "mcq",
+   "q": "On an option chain, what does theta measure?",
+   "choices": [
+    "Value lost per day as time passes",
+    "Price change per $1 stock move",
+    "Delta change per $1 stock move",
+    "Price change per point of volatility"
+   ],
+   "answer": "Value lost per day as time passes",
+   "term": "Theta",
+   "why": "Value lost per day as time passes. Theta estimates how much the premium drops in one day if nothing else changes.",
+   "lesson_line": "Theta is the price of one day, assuming nothing else moves.",
+   "facts": [
+    "f1",
+    "f37",
+    "f20",
+    "f21",
+    "f22"
+   ],
+   "wrong": {
+    "Price change per $1 stock move": "That's delta: how much the premium moves for each dollar the stock moves.",
+    "Delta change per $1 stock move": "That's gamma: how fast delta itself changes as the stock moves.",
+    "Price change per point of volatility": "That's vega: how much the premium changes when implied volatility moves."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.theta",
+   "rung": 1,
+   "format": "tf",
+   "q": "When you buy a call, time decay works in your favor.",
+   "answer": "False",
+   "why": "False. Time decay works for the seller. As the buyer, you have to overcome it to make money.",
+   "lesson_line": "Buy an option and the clock works against you every day.",
+   "facts": [
+    "f25",
+    "f52",
+    "f62",
+    "f45"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.theta",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Like the premium, an option's theta is quoted per ___.",
+   "bank": [
+    "share",
+    "contract",
+    "position",
+    "account"
+   ],
+   "answer": "share",
+   "why": "Share. Premiums are priced per share, and theta is a premium amount. One contract covers 100 shares, so multiply by 100.",
+   "lesson_line": "Theta times 100 is the daily decay on one contract.",
+   "facts": [
+    "f28",
+    "f1",
+    "f27",
+    "f48"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "options.theta",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Same stock, same expiry. Which strike usually has the biggest theta?",
+   "choices": [
+    "At the money",
+    "Deep in the money",
+    "Far out of the money",
+    "Equal at every strike"
+   ],
+   "answer": "At the money",
+   "why": "At the money. That's where the most time value sits, so that's where decay bites hardest.",
+   "lesson_line": "Time decay hits hardest at the money.",
+   "facts": [
+    "f13",
+    "f41",
+    "f55",
+    "f61"
+   ],
+   "wrong": {
+    "Deep in the money": "Its price is mostly intrinsic value, which doesn't decay. Little time value means little theta.",
+    "Far out of the money": "It's all time value, but only a little of it, so the daily decay is small.",
+    "Equal at every strike": "Theta changes with the strike. It peaks at the money and falls off on both sides."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "options.theta",
+   "rung": 2,
+   "format": "tf",
+   "q": "Weekends count toward time decay, even though the market is closed.",
+   "answer": "True",
+   "why": "True. Pricing models count weekends, so options tend to decay seven days over five trading days. Each model spreads it its own way.",
+   "lesson_line": "The clock runs on calendar days, not just trading days.",
+   "facts": [
+    "f3",
+    "f49",
+    "f53",
+    "f4"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "options.theta",
+   "rung": 3,
+   "format": "mcq",
+   "q": "An at-the-money option has 90 days left. Nothing else changes. When does time decay hit it hardest?",
+   "choices": [
+    "In its last few weeks",
+    "In its first few weeks",
+    "Evenly, the same every day"
+   ],
+   "answer": "In its last few weeks",
+   "why": "In its last few weeks. Decay is gradual at first and speeds up as expiry gets close.",
+   "lesson_line": "The early weeks are cheap to hold. The last few are expensive.",
+   "facts": [
+    "f24",
+    "f2",
+    "f58",
+    "f65"
+   ],
+   "wrong": {
+    "In its first few weeks": "With lots of time left, the day-to-day loss is slow. The early weeks cost the least.",
+    "Evenly, the same every day": "Decay isn't a straight line. It curves down hard near expiry, like a hockey stick."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "options.theta",
+   "rung": 3,
+   "format": "tf",
+   "q": "Time decay eats into the intrinsic value of an in-the-money option.",
+   "answer": "False",
+   "why": "False. Decay only takes time value. Intrinsic value doesn't erode; it moves with the stock price.",
+   "lesson_line": "Theta eats time value only. The in-the-money part moves with the stock.",
+   "facts": [
+    "f63",
+    "f23",
+    "f38"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "options.theta",
+   "rung": 3,
+   "format": "tf",
+   "q": "Theta tells you exactly how much your option will lose by tomorrow.",
+   "answer": "False",
+   "why": "False. Theta is a theoretical estimate that assumes nothing else changes. Different models even apply decay differently.",
+   "lesson_line": "Read theta as a guide, not a promise.",
+   "facts": [
+    "f30",
+    "f1",
+    "f4"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "options.theta",
+   "rung": 4,
+   "format": "numeric",
+   "q": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth?",
+   "answer": 2.48,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "value - days * theta",
+     "value": 2.6,
+     "days": 3,
+     "theta": 0.04
+    }
+   },
+   "why": "About $2.48. Three days at 0.04 each come off the 2.60. Far from expiry, days times theta makes a fair quick estimate.",
+   "lesson_line": "Days times theta gives a quick estimate. Near expiry, expect the real decay to run bigger.",
+   "facts": [
+    "f37",
+    "f39",
+    "f65",
+    "f44"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "options.theta",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You own 4 calls on a stock you expect to break out. Each shows theta -0.15. The stock and its implied volatility sit still all day.",
+   "q": "About what does the quiet day cost your position?",
+   "choices": [
+    "$60",
+    "$15",
+    "$0.60",
+    "Nothing, the stock didn't move"
+   ],
+   "answer": "$60",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "contracts * theta * shares",
+     "contracts": 4,
+     "theta": 0.15,
+     "shares": 100
+    }
+   },
+   "why": "$60. Theta is per share, so 0.15 times 100 shares is $15 a contract, and you hold 4.",
+   "lesson_line": "Theta times 100 times your contracts: that's what a quiet day costs.",
+   "facts": [
+    "f1",
+    "f27",
+    "f28",
+    "f47"
+   ],
+   "wrong": {
+    "$15": "That's one contract. You own 4.",
+    "$0.60": "That's 4 times 0.15, per share. Each contract covers 100 shares.",
+    "Nothing, the stock didn't move": "Decay runs whether the stock moves or not. A flat day is exactly when you feel it."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "options.theta",
+   "rung": 5,
+   "format": "scenario",
+   "story": "The stock is at 50. You own the 50 call at 3.00, theta -0.05. A day later the stock is still 50, and the call is still 3.00.",
+   "q": "What most likely changed?",
+   "choices": [
+    "Implied volatility rose",
+    "Implied volatility fell",
+    "Decay skipped a quiet day",
+    "Nothing; theta is just a model"
+   ],
+   "answer": "Implied volatility rose",
+   "why": "Implied volatility rose. When a day passes and the option doesn't drop, another input moved, and most often it's implied volatility rising.",
+   "lesson_line": "When theta doesn't show up, look at implied volatility.",
+   "facts": [
+    "f5",
+    "f6",
+    "f7"
+   ],
+   "wrong": {
+    "Implied volatility fell": "A drop in implied volatility would push the call down by more than the day's 0.05, not hold it flat.",
+    "Decay skipped a quiet day": "Decay doesn't take days off. Quiet days are when an at-the-money call feels it most.",
+    "Nothing; theta is just a model": "Theta is an estimate, but a day's decay doesn't just vanish. If the price held, another input moved to offset it."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.theta",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share?",
+   "answer": 0.95,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "start - end",
+     "start": 1.71,
+     "end": 0.76
+    }
+   },
+   "why": "$0.95 over four weeks. Then the last week alone takes the other 0.76, down to 0.00 at expiry.",
+   "lesson_line": "The last week costs nearly as much as the four weeks before it.",
+   "facts": [
+    "f64",
+    "f2",
+    "f8"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "options.theta",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Same stock, both at the money. A 1-week call costs 0.90, a 3-month call 3.40. Which loses more per day if the stock sits still?",
+   "choices": [
+    "The 1-week call",
+    "The 3-month call",
+    "They lose the same each day"
+   ],
+   "answer": "The 1-week call",
+   "why": "The 1-week call. With the stock still, it has to lose all 0.90 within a week, while the 3-month call spreads its 3.40 over months. Decay runs fastest at the end.",
+   "lesson_line": "Cheap and short-dated isn't cheap to hold. It decays fastest.",
+   "facts": [
+    "f8",
+    "f60",
+    "f26",
+    "f65",
+    "f14"
+   ],
+   "wrong": {
+    "The 3-month call": "It holds more time value in total, but with months left its day-to-day loss is slow.",
+    "They lose the same each day": "Time left changes the rate. Shorter-dated options decay faster, all else equal."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "options.theta",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You own a call with delta 0.40 and theta -0.05. Overnight the stock rises $1. Implied volatility doesn't change.",
+   "q": "Using delta and theta, roughly what does the call gain, per share?",
+   "choices": [
+    "$0.35",
+    "$0.40",
+    "$0.45",
+    "$1.00"
+   ],
+   "answer": "$0.35",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "delta * move - theta",
+     "delta": 0.4,
+     "move": 1,
+     "theta": 0.05
+    }
+   },
+   "why": "About $0.35. Delta adds about 0.40 for the $1 move, and a day of decay takes 0.05 back. It's a rough estimate, not a quote.",
+   "lesson_line": "Theta is the cost of waiting. A real move can outrun it; a stall can't.",
+   "facts": [
+    "f20",
+    "f1",
+    "f57",
+    "f50"
+   ],
+   "wrong": {
+    "$0.40": "That's the delta part only. A day also passed, and theta takes its 0.05.",
+    "$0.45": "That adds the decay instead of taking it away. For the holder, theta is a loss.",
+    "$1.00": "A call with delta 0.40 moves about 0.40 per dollar of stock, not dollar for dollar."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "options.theta",
+   "rung": 6,
+   "format": "mcq",
+   "q": "Two stocks at 100, same-expiry at-the-money calls. One's implied volatility is 80%, the other's 25%. Which call has the bigger theta?",
+   "choices": [
+    "The 80% volatility call",
+    "The 25% volatility call",
+    "Same theta, only time matters"
+   ],
+   "answer": "The 80% volatility call",
+   "why": "The 80% one. Higher implied volatility means more time value in the price, and more time value means more to lose each day.",
+   "lesson_line": "Pricier options decay in bigger dollars. Higher volatility, higher theta.",
+   "facts": [
+    "f10",
+    "f51",
+    "f56"
+   ],
+   "wrong": {
+    "The 25% volatility call": "Low implied volatility means a cheaper option, with less time value to decay.",
+    "Same theta, only time matters": "Time isn't the only input. Implied volatility sets how much time value there is to lose."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "options.theta",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You buy an at-the-money call with three weeks left, expecting a breakout. The stock chops sideways for two weeks and ends where you bought.",
+   "q": "Where is your call most likely now?",
+   "choices": [
+    "Down a lot, to time decay",
+    "About flat, like the stock",
+    "Down only a little"
+   ],
+   "answer": "Down a lot, to time decay",
+   "why": "Down a lot. An at-the-money call is the most exposed to a stock that doesn't move, and inside its last month the decay is already fast.",
+   "lesson_line": "With a call, a stall isn't free. Two weeks of chop gets paid for in premium.",
+   "facts": [
+    "f8",
+    "f9",
+    "f24",
+    "f15",
+    "f33"
+   ],
+   "wrong": {
+    "About flat, like the stock": "The stock can stall for free. The call can't: its time value melts every day.",
+    "Down only a little": "Decay speeds up in an option's final weeks. Two weeks of it takes a big bite out of an at-the-money call."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.theta",
+   "rung": 7,
+   "format": "tf",
+   "q": "If a stock stalls for weeks, a shareholder can wait it out, but a call holder pays for the wait.",
+   "answer": "True",
+   "why": "True. Shares can sit through a stall. A call has an expiry, so you must be right on timing as well as direction.",
+   "lesson_line": "Shares give you time. Options charge you for it.",
+   "facts": [
+    "f34",
+    "f33",
+    "f25"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "options.theta",
+   "rung": 7,
+   "format": "mcq",
+   "q": "You expect a slow grind higher. Same expiry: an at-the-money call or a deep in-the-money call. Which loses less to daily decay?",
+   "choices": [
+    "The deep in-the-money call",
+    "The at-the-money call",
+    "Same expiry, same decay"
+   ],
+   "answer": "The deep in-the-money call",
+   "why": "The deep in-the-money call. Its price is mostly intrinsic value, which doesn't decay. The trade-off: it costs more up front.",
+   "lesson_line": "Less time value, less decay. Deep in the money costs more cash up front.",
+   "facts": [
+    "f13",
+    "f36",
+    "f63",
+    "f17"
+   ],
+   "wrong": {
+    "The at-the-money call": "At the money carries the most time value, so it decays the most.",
+    "Same expiry, same decay": "Expiry isn't the only input. The strike decides how much time value there is to lose."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "options.theta",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your at-the-money call has 12 days left and theta -0.10. You plan to hold it 10 more days, with the stock sitting still.",
+   "q": "Is 10 days times 0.10 a fair estimate of the decay?",
+   "choices": [
+    "Too low, decay speeds up",
+    "About right, theta holds steady",
+    "Too high, decay slows near expiry"
+   ],
+   "answer": "Too low, decay speeds up",
+   "why": "Too low. Theta isn't fixed. For an at-the-money option it grows as expiry gets close, so the real decay runs past the simple sum.",
+   "lesson_line": "Theta is today's rate. Near expiry, tomorrow's rate is higher.",
+   "facts": [
+    "f42",
+    "f44",
+    "f19",
+    "f54",
+    "f43"
+   ],
+   "wrong": {
+    "About right, theta holds steady": "Theta changes every day. The simple sum works far from expiry, not across an option's last two weeks.",
+    "Too high, decay slows near expiry": "That's backwards at the money. It's deep in- or out-of-the-money options whose theta shrinks near expiry."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "options.theta",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A friend sells puts on a stock with sky-high implied volatility. \"Theta is huge, it pays me every day,\" he says. Earnings are next week.",
+   "q": "What is he missing?",
+   "choices": [
+    "The puts are priced for a big move",
+    "Nothing, big theta is easy money",
+    "Short puts have negative theta",
+    "High volatility shrinks theta"
+   ],
+   "answer": "The puts are priced for a big move",
+   "why": "The puts are priced for a big move. Implied volatility often runs high into earnings, and selling rich options doesn't mean you'll earn the decay right away. A put seller can lose a lot.",
+   "lesson_line": "Big theta is pay for big risk. Ask why the option is expensive.",
+   "facts": [
+    "f11",
+    "f12",
+    "f16",
+    "f29",
+    "f10",
+    "f59"
+   ],
+   "wrong": {
+    "Nothing, big theta is easy money": "A put seller carries substantial loss potential. One gap through the strike can wipe out a lot of decay.",
+    "Short puts have negative theta": "Short options have positive theta. He's right that decay pays him; he's wrong that it's safe.",
+    "High volatility shrinks theta": "It's the other way: higher implied volatility generally means a bigger theta."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "options.theta",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You own 10 at-the-money calls with 5 days left. Theta is -0.20. The chart looks like it needs two more weeks to set up.",
+   "q": "What's your move?",
+   "choices": [
+    "Sell them while time value is left",
+    "Hold, theta is only an estimate",
+    "Hold, decay pauses on quiet days",
+    "Buy more, they're cheaper now"
+   ],
+   "answer": "Sell them while time value is left",
+   "why": "Sell them. The setup needs more time than the calls have. Held to expiry with the stock stuck at the strike, they expire worthless.",
+   "lesson_line": "When the setup needs more time than the option has, the option is the wrong tool.",
+   "facts": [
+    "f33",
+    "f35",
+    "f14",
+    "f8",
+    "f32"
+   ],
+   "wrong": {
+    "Hold, theta is only an estimate": "Its size can be off, but time only runs one way. In the last days, decay runs fastest.",
+    "Hold, decay pauses on quiet days": "Decay never pauses. Quiet days are exactly when an at-the-money call bleeds.",
+    "Buy more, they're cheaper now": "They're cheaper because time is running out. Adding more doubles down on a timing problem."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "options.theta",
+   "rung": 9,
+   "format": "numeric",
+   "q": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take?",
+   "answer": 20,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "theta / premium * 100",
+     "theta": 0.02,
+     "premium": 0.1
+    }
+   },
+   "why": "20%. Two cents looks tiny, but against a 0.10 premium it's a fifth of the option in a day. It's all time value, gone at expiry if the call stays out of the money.",
+   "lesson_line": "Judge theta against the premium. A few cents on a cheap option can be a big bite.",
+   "facts": [
+    "f1",
+    "f31",
+    "f14"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Sign convention: OIC's worked example writes theta as '.05' (positive) while saying theta becomes 'increasingly negative'; CME says theta is 'usually expressed as a negative number', and Investopedia, Schwab and Fidelity show long-option theta as negative. The unit writes a held option's theta as negative (as broker chains show) and keys only the amount lost per day.",
+  "Where the speed-up starts: OIC's theta example notes decay picking up 'around 30 days prior to expiration', OIC's Leverage & Risk page says 'the last several weeks', the 2012 Cboe Options Institute slides say 'at about 45 days', and OIC's LEAPS page says 'especially in the last 90 days' for long-dated options. No question keys a day count; the unit says 'the last few weeks'.",
+  "Implied volatility and theta: an IBKR Campus post republished from PyQuant News ('Understanding Theta and Time Decay in Options') says options on highly volatile assets 'tend to have lower Theta values'. OIC (Tier 1) says 'the higher the implied volatility levels, the higher the Theta amount', and Investopedia and Schwab agree. q15 and q20 follow OIC; the PyQuant post is not cited (its own worked example is also inconsistent).",
+  "The 2012 Cboe slides' multi-day table (f64) does not add up on one row: 1.32 minus the 0.26 week of decay gives 1.06, but the 14-day row shows 1.08. The unit uses only the 35-day, 7-day and expiry rows (w2, q12), which are consistent (1.71 - 0.18 = 1.53; 0.76 - 0.76 = 0.00).",
+  "Far-from-the-money options near expiry: CME says theta for deep in- or out-of-the-money options 'falls as the option approaches expiration', while Schwab says an out-of-the-money option decays slowly 'until it nears expiration'. The unit keys the speed-up only for at-the-money options (q06, q16, q19) and uses CME's line only to explain why 'decay slows near expiry' is wrong at the money.",
+  "Investopedia's separate 'Time Decay' page (not cited) treats moneyness as profitability and says out-of-the-money decay 'increases at a faster rate'; its wording conflicts with the OCC disclosure document and CME, so nothing in the unit rests on it.",
+  "CME Group's theta page is written for options on futures; every key it supports also cites a Tier 1 OIC or Cboe fact.",
+  "Days-times-theta: the Cboe rule filing (f39) and CME (f44) both show the simple linear sum, and CME adds that 'in reality, the theta loss increases'. q09 uses the simple sum only far from expiry (60 days left, 3 days held); q19 teaches that it runs short near expiry for an at-the-money option."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "All 18 sources fetched 2026-11-09 by the quote checker's client (65/65 found, 0 missing) and read in context; OIC Theta also opened with WebFetch (CME's page timed out there, its text read from the plain fetch). f1, f18 (OIC) give the per-day, all-else-equal meaning; f46 (Investopedia) the -0.05 = five cents reading; f27 (OIC, 'usually' 100 shares) the five dollars a contract; f45/f25 buyers pay, sellers collect.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f2 and f13 (OIC) read in context. Cboe 2012 slide 24 table checked: 1.71 - 0.18 = 1.53 and 0.76 - 0.76 = 0.00; the step does not claim the 45 call is at the money (the slide gives no stock price).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f6 is OIC's own follow-on to its stock-at-50 example ('In most cases ... an increase in implied volatility'); f3 weekends sentence in context, hedged on the page by f4 (no industry-wide method).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "All 18 sources fetched 2026-11-09 by the quote checker's client (65/65 found, 0 missing) and read in context; OIC Theta also opened with WebFetch (CME's page timed out there, its text read from the plain fetch). Key = OIC f1 + Cboe filing f37. Distractors match delta (f20), gamma (f21), vega (f22) definitions on OIC's Volatility & the Greeks page. Answer 33 chars, fits a Word Match tile. Track audit 2026-11-09: the vega distractor read 'per 1% volatility move', which can be misread as a relative 1%; it now says 'per point of volatility', matching F6.06 ('one-point change in IV') and F6.07. f22's claim says 'one-point (1%)'. OIC's Volatility & the Greeks page re-read live: a 1% change means IV up 1.0 point.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "False per OIC f25 (buyer must overcome erosion), Schwab f52 (long calls and puts theta negative), Fidelity f62.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "OIC f28 (premium per share) + f1 (theta is a premium amount) + f5 ($3 call, theta .05 = $.05 a day). Theta on a chain is per share; 'contract' is the real misreading. 100-share multiplier hedged 'usually' on OIC.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "OIC f13 (ATM most exposure; deep ITM / far OTM very little), CME f41, Schwab f55, f61 agree. 'Usually' kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "OIC f3 and Investopedia f49 say models count weekends (seven days over five); Schwab f53 'including weekends'. Why keeps OIC's hedge f4 (models differ).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "cut",
+   "notes": "duplicate of F6.03#q19. Track audit 2026-11-09: Same fact and misconception (time value does not melt evenly; decay speeds up near expiry). F6.03 is a finished example unit and is not edited; F6.05 still teaches the speed-up in w2, q12 and q19. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "OIC f24 ('last several weeks') and f2; Schwab f58 hockey stick; Cboe f65. No day count keyed (sources differ: 30/45 days).",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "False: OIC f23 (time value portion decays), Cboe filing f38 (worth exactly intrinsic at expiry), IBKR f63 (intrinsic does not erode).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "OIC f30 'not a guarantee ... theoretical guidepost', f1 'in theory', f4 models differ. 'Exactly' is the misconception taught.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Recomputed 2.60 - 3 x 0.04 = 2.48 (calc matches). Linear sum per Cboe filing f39; why/lesson keep CME f44 (real decay grows near expiry). 60 days out, 3 days held: fair as an estimate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Recomputed 4 x 0.15 x 100 = $60; $15 one contract, $0.60 per share both real slips. Fixed: 'its volatility' -> 'its implied volatility' (theta's all-else-equal is implied volatility, f6).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Straight from OIC's own example f5-f7 read in context: unchanged price after a day means another input moved, 'in most cases' IV rose; a drop in IV would push it down more (f7). Key says 'most likely', matching the hedge.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Cboe slide 24 values confirmed (35d 1.71, 7d 0.76, 0d 0.00); 1.71 - 0.76 = 0.95 (calc matches); 35 -> 7 days = four weeks. Avoids the table's inconsistent 14-day row (noted in conflicts). 0.76 vs 0.95 = 80%: 'nearly as much' fair.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "OIC f8 (least time left decays most), Schwab f60, OIC f26. Sanity check: ATM 1-week 0.90 must reach 0 in 7 days with the stock at the strike (f14); a 3.40 3-month ATM call's theta is about 3.40/(2 x 91) = 0.02 a day.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Recomputed 0.40 x 1 - 0.05 = 0.35 (calc matches), mirrors Schwab f57 (delta part, then the day's theta). Fixed: the key ignores gamma (with gamma 0.10 the true gain is about 0.40), so the question now says 'Using delta and theta'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "OIC f10 'the higher the implied volatility levels, the higher the Theta amount', Investopedia f51 and Schwab f56 agree; consistent with Black-Scholes (ATM theta scales with volatility). The one dissenting blog is in conflicts, not cited.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "OIC f8 (ATM call most vulnerable to no movement), f9, f24. Sanity: an ATM call from 21 to 7 days loses about 42% (Cboe table 1.32 -> 0.76). Fixed: 'Down only a few cents' -> 'Down only a little' (cents depend on the option's price).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Disclosure document f33/f34 read in context (Chapter X, risks of option holders): shareholder can wait out a stall, option holder must be right on timing; OIC f25.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "OIC f13 and the disclosure document f36 ('very little time value if it is substantially in the money'); trade-off per OIC f17 (deeper ITM costs more). Standard stock-replacement reasoning a trader would agree with.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "CME f42 (ATM theta rises toward expiry), f44, OIC f19, Schwab f54. Sanity: ATM 12-day theta 0.10 implies about 2.40; at 2 days left about 0.98, a 1.42 loss > 1.00, so 'too low' holds. Fixed: wrong-choice note dropped 'only' (overclaim).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "OIC f11/f12 in context (high IV is often there for earnings; no time decay right away), OIC f16 (high IV = bigger expected moves), OIC f29 (put writer substantial loss). Short-theta sign per Schwab f59, Fidelity f62.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "cut",
+   "notes": "duplicate of F6.11#q25. Track audit 2026-11-09: Same judgment (the move needs more time than the option has, so sell while time value is left) asked the same way. F6.11's version rests on OIC's long call page, the source of that advice. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Disclosure document f32/f33/f35 and OIC f14: an ATM call left to expiry with the stock at the strike is worth 0; selling realises remaining time value. Fixed: 'The base' -> 'The chart' (no untaught chart jargon in the options track).",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Recomputed 0.02 / 0.10 x 100 = 20 (calc matches); 'a fifth' = 20%. OIC glossary f31 (OTM premium all time value), f14. Theta is given, so CME/Schwab's split on far-OTM decay near expiry does not touch the key.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

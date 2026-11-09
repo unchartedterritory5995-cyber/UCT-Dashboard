@@ -2,7 +2,7 @@
  "unit": "F1.05",
  "track": "F1",
  "title": "Market hours and extended hours",
- "teaches": "When US stocks trade: the 9:30 a.m. to 4:00 p.m. ET regular session, pre-market and after hours, why news gaps a stock at the open, and why extended-hours prints are thin and don't set the official close or the day's high.",
+ "teaches": "When US stocks trade: the 9:30 a.m. to 4:00 p.m. ET regular session, pre-market and after hours, why news gaps a stock at the open, and why extended-hours prints are thin and don't set the official close or the consolidated high.",
  "skills": [
   {
    "id": "basics.hours",
@@ -164,6 +164,14 @@
    "title": "Gap Trading Strategies",
    "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies",
    "accessed": "2026-11-08"
+  },
+  {
+   "id": "s20",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 242.600)",
+   "title": "Rule 600 of Regulation NMS, definitions: (b)(105) Trade-through (eCFR up to date as of 11/05/2026)",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/subject-group-ECFR3dd95cf4d3f6730/section-242.600",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -201,7 +209,7 @@
    "id": "f6",
    "source": "s1",
    "quote": "Companies may announce important news or financial information outside of regular trading hours.",
-   "claim": "Companies often release important news and financial results outside regular trading hours."
+   "claim": "Companies may release important news and financial results outside regular trading hours."
   },
   {
    "id": "f7",
@@ -255,7 +263,7 @@
    "id": "f15",
    "source": "s2",
    "quote": "Trading beyond these time periods, such as during the overnight hours from 8 p.m. to 4 a.m. ET, has also more recently been made available to retail investors for certain stocks.",
-   "claim": "Some brokers now offer overnight trading, 8 p.m. to 4 a.m. ET, in certain stocks."
+   "claim": "Overnight trading, 8 p.m. to 4 a.m. ET, is now open to retail investors in certain stocks."
   },
   {
    "id": "f16",
@@ -604,6 +612,18 @@
    "source": "s19",
    "quote": "A gap is a change in price levels between the close and open of two consecutive days.",
    "claim": "A gap is measured from one day's close to the next day's open."
+  },
+  {
+   "id": "f74",
+   "source": "s20",
+   "quote": "Trade-through means the purchase or sale of an NMS stock during regular trading hours, either as principal or agent, at a price that is lower than a protected bid or higher than a protected offer.",
+   "claim": "The SEC's trade-through rule, which stops a trade at a worse price than another venue's protected quote, covers regular trading hours only."
+  },
+  {
+   "id": "f75",
+   "source": "s17",
+   "quote": "In the regular session, stock quotes are consolidated and represent the best available prices across all trading venues.",
+   "claim": "In regular hours, consolidated quotes combine the best prices from every trading venue."
   }
  ],
  "walkthroughs": [
@@ -612,7 +632,7 @@
    "title": "Three sessions, one clock",
    "steps": [
     "The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. That's where most of the trading happens.",
-    "Before it is pre-market. After it is after hours. Together they're called extended hours.",
+    "Before it is pre-market. After it is after hours. Some stocks now trade overnight too. All of it is extended hours.",
     "At Nasdaq, pre-market starts at 4:00 a.m. and after hours runs to 8:00 p.m.",
     "Your broker sets its own window. Fidelity and Schwab start pre-market at 7:00 a.m."
    ],
@@ -621,6 +641,7 @@
     "f17",
     "f12",
     "f13",
+    "f15",
     "f16",
     "f27",
     "f57",
@@ -632,8 +653,9 @@
    "title": "Thin prints and official prints",
    "steps": [
     "Outside regular hours, far fewer people trade. Spreads widen and one order can swing the price.",
-    "Those trades carry a T flag. They count in volume, but they don't set the day's high, low or last.",
-    "The official open and close come from the auctions. The close is the 4 p.m. price, whatever trades later."
+    "Those trades carry a T flag. They add to the day's volume.",
+    "But the consolidated record, which combines every venue, leaves them out of the day's high, low and last.",
+    "The official open and close normally come from the auctions. The close is the 4 p.m. price, whatever trades later."
    ],
    "facts": [
     "f17",
@@ -641,6 +663,7 @@
     "f69",
     "f50",
     "f51",
+    "f75",
     "f45",
     "f48",
     "f34",
@@ -652,9 +675,10 @@
    "key": "w3",
    "title": "Why gaps show up at the open",
    "steps": [
-    "Earnings and big news usually come out while the regular session is closed.",
-    "The stock reprices on thin trading after hours and pre-market. The open lands far from yesterday's close. That jump is the gap.",
-    "Many brokers take only limit orders out there. A stop sleeps until the regular session. If hit, it becomes a market order."
+    "Earnings and other big company news usually come out while the regular session is closed.",
+    "The stock reprices on thin after-hours and pre-market trading. The open can land far from yesterday's close. That jump is the gap.",
+    "Many brokers take only limit orders outside regular hours. At those brokers, a stop waits for the open.",
+    "Once hit, a stop becomes a market order. It fills at the going price, which can be far from your stop."
    ],
    "facts": [
     "f20",
@@ -664,7 +688,8 @@
     "f9",
     "f66",
     "f52",
-    "f56"
+    "f56",
+    "f53"
    ]
   }
  ],
@@ -687,12 +712,13 @@
    "facts": [
     "f1",
     "f11",
+    "f27",
     "f31",
     "f16"
    ],
    "wrong": {
     "9:30 a.m. to 4:00 p.m. your time": "The clock is Eastern Time wherever you live. Convert it to your own time zone.",
-    "4:00 a.m. to 8:00 p.m. ET": "That's Nasdaq's whole day, extended hours included. The regular session sits in the middle of it.",
+    "4:00 a.m. to 8:00 p.m. ET": "That's Nasdaq's pre-market start to its after-hours end. The regular session is only the middle of it.",
     "9:00 a.m. to 5:00 p.m. ET": "Those are office hours. The regular session opens at 9:30 a.m. and closes at 4:00 p.m."
    }
   },
@@ -846,12 +872,13 @@
    ],
    "answer": "After hours",
    "why": "After hours. The regular session ends at 4:00 p.m. ET, and Nasdaq's after-hours session runs to 8:00 p.m.",
-   "lesson_line": "Read the time stamp first. After 4:00 p.m. you're looking at a thin, after-hours print.",
+   "lesson_line": "Read the time stamp first. From 4:00 to 8:00 p.m. ET, you're looking at thinner after-hours trading.",
    "facts": [
     "f27",
     "f1",
     "f13",
-    "f15"
+    "f15",
+    "f17"
    ],
    "wrong": {
     "Regular session": "The regular session ends at 4:00 p.m. ET. This bar comes after the close.",
@@ -888,15 +915,15 @@
    "rung": 4,
    "format": "scenario",
    "story": "A stock closes at $60 on Tuesday. At 4:05 p.m. it reports earnings far above forecasts. On Wednesday it opens at $66.",
-   "q": "What put the gap on Wednesday's daily bar?",
+   "q": "What caused the gap at Wednesday's open?",
    "choices": [
-    "News that hit while the market was shut",
+    "News that came out after the close",
     "The after-hours price became the close",
     "The exchange reset the price overnight"
    ],
-   "answer": "News that hit while the market was shut",
-   "why": "News that hit while the market was shut. Buying built up overnight, so the stock opened well above Tuesday's close. That jump is the gap.",
-   "lesson_line": "A gap is news the regular session never got to trade. Expect them around earnings.",
+   "answer": "News that came out after the close",
+   "why": "News that came out after the close. Buying built up overnight, so the stock opened well above Tuesday's close. That jump is the gap.",
+   "lesson_line": "A gap is often news the regular session never got to trade. Expect them around earnings.",
    "facts": [
     "f72",
     "f71",
@@ -915,7 +942,7 @@
    "skill": "basics.hours",
    "rung": 5,
    "format": "mcq",
-   "q": "A stock closes at $80.00 at 4:00 p.m. At 6:30 p.m. it trades at $83.00. What is the day's official close?",
+   "q": "A stock trades at $80.00 at 4:00 p.m. At 6:30 p.m. it trades at $83.00. What is the day's official close?",
    "choices": [
     "$80.00",
     "$83.00",
@@ -998,7 +1025,8 @@
     "f22",
     "f23",
     "f5",
-    "f59"
+    "f59",
+    "f74"
    ]
   },
   {
@@ -1014,7 +1042,7 @@
     "A cue to buy at market now"
    ],
    "answer": "A thin print that may not hold",
-   "why": "A thin print that may not hold. With few shares trading, one order can move the price. Pre-market prices may not match the open.",
+   "why": "A thin print that may not hold. With few shares trading, one order can move the price. Extended-hours prices may not match regular-hours prices.",
    "lesson_line": "I treat a 7:40 a.m. print as a hint, not a verdict. The open is the real test.",
    "facts": [
     "f4",
@@ -1027,7 +1055,7 @@
     "f29"
    ],
    "wrong": {
-    "The price it will open at": "Not promised. The SEC warns extended-hours prices may not reflect the next opening price.",
+    "The price it will open at": "Not promised. The SEC warns extended-hours prices may not reflect prices in regular hours.",
     "A cue to buy at market now": "Many brokers take only limit orders this early. Thin trading can also raise what you pay."
    }
   },
@@ -1036,7 +1064,7 @@
    "skill": "basics.hours",
    "rung": 6,
    "format": "tf",
-   "q": "Shares traded before 9:30 a.m. count toward a stock's consolidated volume for the day.",
+   "q": "Shares traded in the pre-market count toward a stock's consolidated volume for the day.",
    "answer": "True",
    "why": "True. Extended-hours trades are included in consolidated volume. The NYSE and the CTA plan both say so, and the UTP table marks them yes for volume.",
    "lesson_line": "Big pre-market volume is real volume. It counts in the day's total.",
@@ -1045,7 +1073,9 @@
     "f51",
     "f44",
     "f45",
-    "f50"
+    "f50",
+    "f46",
+    "f48"
    ]
   },
   {
@@ -1056,7 +1086,7 @@
    "q": "A trade at 7:40 a.m. can set a stock's consolidated high for the day.",
    "answer": "False",
    "why": "False. Trades outside 9:30 a.m. to 4:00 p.m. carry a T condition. In both consolidated data plans they update volume, not the high, low or last.",
-   "lesson_line": "A pre-market high is a real trade, but it doesn't print the day's consolidated high.",
+   "lesson_line": "A pre-market high is a real trade, but it doesn't set the day's consolidated high.",
    "facts": [
     "f50",
     "f44",
@@ -1134,7 +1164,144 @@
   "Consolidated high (q17): both consolidated data plans agree that 'T' trades update volume only (UTP f45, CTA f48). The question says 'consolidated high', which is what those tables govern. A chart vendor can still draw extended-hours bars its own way, so no question claims what a member's chart shows beyond q07's arithmetic (regular hours only, 78 five-minute bars).",
   "Schwab's own pages give different counts for overnight-eligible securities (over 1,300 on the extended-hours page, other figures elsewhere). Not used. Schwab's learn article cites NYSE for extended hours at 'over 11%' of share volume in early 2025; not used (one Tier 2 publisher citing a page not read here). q03 rests on FINRA (f17) and Fidelity (f62) instead.",
   "Fidelity's Viewpoints article says the jobs report comes out 'on the first Friday of every month'; the BLS schedule shows some releases on other Fridays. Not used.",
-  "Overlap with F1.03: F1.03 q18 already asks which order to use after hours on a wide quote. This unit does not ask it again; q06 asks which order type brokers accept, a different fact."
+  "Overlap with F1.03: F1.03 q18 already asks which order to use after hours on a wide quote. This unit does not ask it again; q06 asks which order type brokers accept, a different fact.",
+  "Two senses of 'gap' (checker, 2026-11-09): StockCharts' gaps article (s18) calls a gap a blank space on the chart, and an up gap needs the day's low to stay above the prior high; its gap-trading article (s19) measures close to open and calls an open above yesterday's high a 'full gap'. q10, q12 and w3 use the close-to-open sense (f73). No question asks whether a gap filled or whether the range cleared the prior day.",
+  "q14 after December 6, 2026 (checker): the SIPs move to about 23 hours, so FINRA's 'the NBBO is only published during regular trading hours' may change. Reg NMS Rule 600(b)(105) (f74, eCFR up to date as of 11/05/2026) defines a trade-through as one 'during regular trading hours', so trade-through protection still stops at 4:00 p.m. unless the rule changes. Best execution (a broker's duty of care) still applies out of hours; q14 is about a best price across venues, which no rule promises then. Re-read FINRA's page and Rule 600 after December 6, 2026.",
+  "Early-close days (q09): NYSE's hours page says NYSE American, Arca, National and Texas late sessions close at 5:00 p.m. ET on early-close days. q09 asks only when the regular session ends.",
+  "Cross-unit overlap, for the owner (checker, 2026-11-09; those units were not yet checked): F11.01 q10 asks the same 78 five-minute-bars sum as q07; V.07 q29 has the same shape as q13 (day limit order, unfilled at the close, a later after-hours price); F5.04 q20 and F5.06 q07 teach the stop-through-a-gap idea of q18 and w3; F5.04 q08 and F5.07 q07 teach the after-hours-price-vs-open idea of q15 and q19. F1.05 is the hours unit, so it is the natural home; pick one home per idea or accept the repeat as review."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Re-read f1, f17, f12, f13, f16 (SEC, FINRA), f27 (Nasdaq hours page), f57 (Fidelity FAQ; Fidelity Viewpoints agrees: pre-market 'entered and executed between 7:00 a.m. and 9:28 a.m.') and f64 (Schwab) on fresh pages, 2026-11-09. Step 2 now adds 'Some stocks now trade overnight too' (f15), so q08's 'Overnight' choice is taught first, and 'All of it is extended hours' matches FINRA f16.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f17, f8, f69 confirmed. Read the UTP matrix (spec p.48: Form T No/No/No/No, volume Yes) and the CTA table (spec p.82: T NO x5, volume YES) page by page. Step 2 said T trades 'don't set the day's high, low or last' flatly, but charts can still draw them, so it now names the consolidated record, explained with Schwab's own words (new f75). Split into 4 steps to fit 22 words. Step 4 now says 'normally': per the Nasdaq FAQ, a stock with no cross takes its last regular trade.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f20, f6, f72, f73, f9, f66, f52, f56 confirmed. 'Big news' would cover Fed decisions, which come out during the session, so it now says 'big company news' (FINRA f20). 'The open lands far' is now 'can land far'. 'A stop sleeps until the regular session' was stated for every broker, but f9 says 'many', so it now says 'At those brokers'. Added step 4 (f53): a triggered stop can fill far from the stop price.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1 (SEC) and f11 (FINRA) confirmed. The note on '4:00 a.m. to 8:00 p.m.' called it 'Nasdaq's whole day'. Nasdaq's 23/5 hub adds a 9 p.m. to 4 a.m. session from Dec 6, 2026, so that line would go stale. It now says 'pre-market start to its after-hours end' (f27, f31). The other notes are right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f12 (FINRA) confirmed. Only 'pre-market' fits 'just before the 9:30 a.m. open'. Overnight is 8 p.m. to 4 a.m. (f15), and 'core' is NYSE's name for the regular session (f40), so both are real mix-ups. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f17 (FINRA: extended-hours activity 'still dwarfed' by regular hours) and f62 (Fidelity: 'vast majority' in normal hours) confirmed in context. Two publishers, and a Tier 1 source among them. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f20 (FINRA: earnings 'normally take place during the extended-hours period'), f70 (Schwab) and f63 (Fidelity) confirmed. Both wrong notes are right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f27 (Nasdaq 4:00 a.m. to 8:00 p.m.), f28, and f57 / f64 (Fidelity and Schwab pre-market from 7:00 a.m.) confirmed. Schwab's 24/5 list on thinkorswim does not make 'every broker' true. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f9 (SEC: 'many brokerage firms currently accept only limit orders'), f58 (Fidelity) and f66, f68 (Schwab, article dated Sept 21, 2026) confirmed. Each wrong note matches its source. A different fact from F1.03 q18. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Recomputed by hand: 4:00 p.m. minus 9:30 a.m. is 6.5 h = 390 min, and 390 / 5 = 78. The calc agrees. The lesson holds: a full regular day cannot show more than 78 five-minute bars. F11.01 q10 asks the same sum (see conflicts). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f1 and f27 confirmed. 4:35 p.m. is after hours whether a platform stamps a bar's start or its end. The lesson line said any print 'after 4:00 p.m.' is after hours, but after 8:00 p.m. it is overnight (f15). It now says 4:00 to 8:00 p.m. ET (f27), with f17 added for 'thinner'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "NYSE hours page: 'close early at 1:00 p.m. ... on Friday, November 27, 2026' (f39). Nasdaq's 2026 calendar shows the same early close, with Thanksgiving (Nov 26) closed (f30). NYSE's late sessions close at 5:00 p.m. that day, but the question asks only about the regular session (see conflicts). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f72, f71, f24, f25 confirmed. The question said 'the gap on Wednesday's daily bar', but a gap sits between bars, so it now asks about 'the gap at Wednesday's open' (s19's close-to-open sense). The key said 'while the market was shut', which clashes with the after-hours session this unit teaches. It now says 'News that came out after the close' (f72). The lesson line now says 'often', because gaps also happen without news.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f24 (FINRA: 4 p.m. prices are the official close 'regardless of what happens during extended-hours trading'), f35 and f36 confirmed. The question said 'closes at $80.00', which gave the answer away. It now says 'trades at $80.00 at 4:00 p.m.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Recomputed: (44 - 40) / 40 = 10%, and pct_change agrees. The close-to-open gap matches StockCharts s19 (f73). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "f54 (Investor.gov: day orders 'generally cancel at the end of regular trading hours' and 'will not carry over to the extended hours session or the next trading day') confirmed. 'Most likely' covers brokers' Day + Extended orders (Schwab f67). Same shape as V.07 q29 (see conflicts). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "f22, f23 (FINRA), f5 (SEC) and f59 (Fidelity) confirmed. Added f74, Reg NMS Rule 600(b)(105) (eCFR, up to date as of 11/05/2026): a trade-through is one 'during regular trading hours', so False still holds after the SIPs extend their hours on Dec 6, 2026. Best execution still applies, but the statement claims a best price across venues, which nothing guarantees then.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "f4, f69, f9, f18 confirmed. f4 compares extended-hours prices with regular-hours prices. The why and the 'open at' note had narrowed that to 'the open', so both now say regular-hours prices, as the SEC does. The key and the lesson are sound trading sense: a thin print is a hint, not a verdict.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "UTP matrix: Form T updates volume (f45) and covers trades from 12:00 a.m. to 9:30 a.m. (f46, now cited). CTA table: T volume YES (f48, now cited). The NYSE and CTA FAQs both say yes (f42, f51). 'Before 9:30 a.m.' could include the previous evening's overnight trades, so it now says 'in the pre-market'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Read the UTP matrix (p.48) and the CTA table (p.82): T trades update neither the consolidated high/low nor the last. Form T covers 12:00 a.m. to 9:30 a.m. (f46), so 7:40 a.m. falls inside it. 'Consolidated' is now taught in w2. In the lesson line, 'doesn't print' is now 'doesn't set'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f52, f53 (SEC), f56 (FINRA) and f66 (Schwab) confirmed. The story states the broker's rule, so the key, near $43 just after the open, holds, and both wrong notes are right. Same idea as F5.04 q20 (see conflicts). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f21, f4, f24, f19, f8 confirmed. The key respects the news without promising a rebound. The wrong notes match f24 and f4. Close to q15 but adds 'the news is real' and the official close. No change.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
