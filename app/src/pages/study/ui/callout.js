@@ -13,16 +13,18 @@ export const POINTER = Object.freeze({
   peak: { color: '#dcbb5e', textColor: '#f6e2a0' },
 })
 
+// kit v2 (2026-11-08; batch 24: "the graphics highlighting the candle can be just a bit better and cooler"): a bolder
+// ring and leader, a stronger glow, a firmer pill edge
 const BASE = {
-  pill: true, uppercase: true, ring: true, arrow: true, fill: 'rgba(9, 9, 11, .94)', borderWidth: 1.25,
-  ringWidth: 1.6, lineWidth: 1.6,
+  pill: true, uppercase: true, ring: true, arrow: true, fill: 'rgba(9, 9, 11, .96)', borderWidth: 1.75,
+  ringWidth: 2.4, lineWidth: 2.2,
 }
 
 /** The look on a desktop and on a phone (a phone packs ~4 px per bar, so everything is a size smaller). */
 export function calloutLook(phone = false) {
   return phone
-    ? { ...BASE, font: '800 10px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.2px', textH: 12, padX: 9, padY: 5, ringPad: 3, arrowSize: 7, gap: 4, glow: 8, bottomFrac: 0.74, distances: [22, 30, 40, 52, 66, 84, 104, 130, 160, 195, 235] }
-    : { ...BASE, font: '800 12px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.6px', textH: 14, padX: 12, padY: 6, ringPad: 4, arrowSize: 9, gap: 5, glow: 12, distances: [34, 44, 56, 70, 88, 110, 136, 168, 206, 250, 300] }
+    ? { ...BASE, font: '800 10px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.2px', textH: 12, padX: 10, padY: 6, ringPad: 4, arrowSize: 8, gap: 4, glow: 14, bottomFrac: 0.74, distances: [22, 30, 40, 52, 66, 84, 104, 130, 160, 195, 235] }
+    : { ...BASE, font: '800 12px "Instrument Sans", system-ui, sans-serif', letterSpacing: '1.6px', textH: 14, padX: 14, padY: 7, ringPad: 5, arrowSize: 11, gap: 6, glow: 22, distances: [34, 44, 56, 70, 88, 110, 136, 168, 206, 250, 300] }
 }
 
 /** The callouts for one Hard chart: the signal candle (`index` into the bars the chart shows) with `label` in the

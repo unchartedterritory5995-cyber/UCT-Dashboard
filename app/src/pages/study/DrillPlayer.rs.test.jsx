@@ -29,12 +29,20 @@ vi.mock('../../components/StockChart', async () => {
           <span data-testid="rs-lines">{rs.join('|') || '-'}</span>
           <span data-testid="markers">{(props.markers || []).map((m) => `${m.id}@${m.time}`).join('|') || '-'}</span>
           <span data-testid="annotations">{(props.annotations || []).length}</span>
+          <span data-testid="callouts">{(props.callouts || []).length}</span>
           <button type="button" data-testid="tap-bar"
             onClick={() => props.onChartTap?.({ time: props.barsOverride[Number(window.__rsTapAt)].t, price: 1 })}>tap</button>
         </div>
       )
     },
   }
+})
+
+// The member's own chart settings (the widget look every Study chart wears, OWNER_PRINCIPLES rule 1) come from their
+// preferences: served here as the defaults, so the no-request proof below stays about the RS data
+vi.mock('../../hooks/usePreferences', async (importOriginal) => {
+  const real = await importOriginal()
+  return { ...real, default: () => ({ prefs: real.PREFERENCE_DEFAULTS || {}, setPref: () => {}, loading: false }) }
 })
 
 import DrillPlayer from './DrillPlayer'
@@ -106,6 +114,7 @@ describe('DrillPlayer draws the real UCT RS pane on RS drills', () => {
     expect(screen.getByTestId('rs-lines')).toHaveTextContent('study:rs:A=120/0|study:rs:B=120/0')
     expect(screen.getByTestId('rs-pair-key')).toHaveTextContent('Line A is the upper RS line, Line B the lower.')
     expect(screen.getByTestId('annotations')).toHaveTextContent('0')
+    expect(screen.getByTestId('callouts')).toHaveTextContent('0')                       // and no candle pointer
     const names = Object.values(pair.reveal_json.example.names)
     for (const n of names) expect(document.body.textContent).not.toContain(n)
     fireEvent.click(await screen.findByRole('radio', { name: 'Line B' }))
@@ -128,7 +137,7 @@ describe('DrillPlayer draws the real UCT RS pane on RS drills', () => {
     expect(screen.getByTestId('rs-lines')).toHaveTextContent('study:rs=120/0')
     const t = String(redDay.prompt_json.chart.mark.time)
     expect(screen.getByTestId('markers')).toHaveTextContent(`study-rs-mark@${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`)
-    expect(Number(screen.getByTestId('annotations').textContent)).toBeGreaterThan(0)
+    expect(Number(screen.getByTestId('callouts').textContent)).toBeGreaterThan(0)      // the candle pointer (the shared callout)
     expect(screen.queryByTestId('rs-pair-key')).toBeNull()
     fireEvent.click(await screen.findByRole('radio', { name: 'Yes' }))
     fireEvent.click(screen.getByTestId('primary-action'))

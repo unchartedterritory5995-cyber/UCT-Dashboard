@@ -36,7 +36,7 @@ export function SymbolBadge({ symbol = null, masked = true }) {
   )
 }
 
-export default function StudyChart({ id, bars, view = null, height = 400, annotations = null, callouts = null, calloutLook = null, chartOpts = null, symbol = null, masked = true, watermark = null, extra = null }) {
+export default function StudyChart({ id, bars, view = null, height = 400, annotations = null, callouts = null, calloutLook = null, chartOpts = null, symbol = null, masked = true, watermark = null, extra = null, frameEnd = null, markers = null }) {
   const { prefs } = usePreferences(true)
   const surface = useChartSurfaceSettings()        // read-only here: the session override below is what the chart persists to
   const own = surface.ownChartSource
@@ -64,17 +64,21 @@ export default function StudyChart({ id, bars, view = null, height = 400, annota
     showDrawingTools: false,
     hotkeysActive: false,
     dailyDefaultBars: shown,
+    // the replay (2026-11-08): the frame ends on its newest day and re-frames as each day arrives, `view` wide, so it
+    // starts close and widens with the run (the owner: "the replay starts way too far back")
+    ...(frameEnd ? { anchorDate: String(frameEnd), hideAnchorMarker: true } : {}),
     rightPadBars: phone ? 3 : 2,          // the owner, batch 2: "a slight gap at the right ... like 1-2 candles space at max"
     settingsOverride: session.settingsOverride,
     onSettingsPersist: session.onSettingsPersist,
     annotations,
+    markers,   // the trade's action items (challenges/tradeMarks.tradeMarkers): the chart's own bar markers
     annotationsVisible: !!annotations,
     annotationsTextVisible: !!annotations,
     // round 21: the pointer is the chart's own callout layer (open space, never over a candle; ui/callout.js)
     callouts: callouts && callouts.length ? callouts : null,
     calloutLook,
     ...(extra || {}),
-  }), [bars, showWatermark, watermark, phone, shown, session.settingsOverride, session.onSettingsPersist, annotations, callouts, calloutLook, extra])
+  }), [bars, showWatermark, watermark, phone, shown, frameEnd, markers, session.settingsOverride, session.onSettingsPersist, annotations, callouts, calloutLook, extra])
   if (!n) return null
   return (
     <div className={`${ws.widget} ${s.frame}`} style={{ height }} data-charts-theme={prefs?.charts_theme || 'default'} data-testid="study-chart" data-masked={showWatermark || (!masked && symbol) ? '0' : '1'}>
