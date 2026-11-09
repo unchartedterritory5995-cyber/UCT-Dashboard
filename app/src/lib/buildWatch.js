@@ -6,7 +6,7 @@
 // see the toast. The watcher lives here; the leaf only holds a reference count. The stop on the last
 // release is delayed so a remount (release then acquire in the same commit) keeps the same watcher.
 import { getClientBuildId, createBuildWatcher, fetchHealthSafe } from './buildVersion'
-import { announceUpdateRequired } from './reloadGuard'
+import { announceNewBuild, clearNewBuild } from './reloadGuard'
 
 const STOP_GRACE_MS = 2000
 let refs = 0
@@ -20,7 +20,8 @@ export function acquireBuildWatch({ fetchHealth = fetchHealthSafe, intervalMs } 
     watcher = createBuildWatcher({
       fetchHealth,
       clientId: getClientBuildId(document),
-      onNewBuild: announceUpdateRequired,
+      onNewBuild: announceNewBuild,
+      onBuildCleared: clearNewBuild,
       ...(intervalMs ? { intervalMs } : {}),
     })
   }

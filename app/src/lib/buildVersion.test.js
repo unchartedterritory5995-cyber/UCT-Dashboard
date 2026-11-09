@@ -77,6 +77,39 @@ describe('createBuildWatcher', () => {
     w.stop()
   })
 
+  it('A, B, A: announces B, clears when the server returns to the client id, announces B again', async () => {
+    const queue = [
+      { build_id: 'assets/index-b.js' }, { build_id: 'assets/index-b.js' },
+      { build_id: 'assets/index-old.js' },
+      { build_id: 'assets/index-b.js' }, { build_id: 'assets/index-b.js' },
+    ]
+    const fetchHealth = vi.fn(async () => (queue.length > 1 ? queue.shift() : queue[0]))
+    const onNewBuild = vi.fn()
+    const onBuildCleared = vi.fn()
+    const w = createBuildWatcher({
+      fetchHealth, clientId: 'assets/index-old.js', onNewBuild, onBuildCleared, intervalMs: 1000,
+    })
+    await tick(2)
+    expect(onNewBuild).toHaveBeenCalledTimes(1)
+    expect(onBuildCleared).not.toHaveBeenCalled()
+    await tick(1)
+    expect(onBuildCleared).toHaveBeenCalledTimes(1)
+    await tick(2)
+    expect(onNewBuild).toHaveBeenCalledTimes(2)
+    w.stop()
+  })
+
+  it('a match with nothing announced never calls onBuildCleared', async () => {
+    const onBuildCleared = vi.fn()
+    const w = createBuildWatcher({
+      fetchHealth: async () => ({ build_id: 'assets/index-old.js' }),
+      clientId: 'assets/index-old.js', onNewBuild: vi.fn(), onBuildCleared, intervalMs: 1000,
+    })
+    await tick(3)
+    expect(onBuildCleared).not.toHaveBeenCalled()
+    w.stop()
+  })
+
   it('a match between mismatches resets the streak', async () => {
     const { w, onNewBuild } = make([
       { build_id: 'assets/index-new.js' }, { build_id: 'assets/index-old.js' },

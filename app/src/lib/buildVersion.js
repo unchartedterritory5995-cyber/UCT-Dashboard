@@ -35,7 +35,7 @@ export function getClientBuildId(doc) {
  * same differing id is seen on 2 consecutive polls. Empty ids and fetch
  * failures never fire (a failure also resets the streak). Not mounted here.
  */
-export function createBuildWatcher({ fetchHealth, clientId, onNewBuild, intervalMs = 300000 }) {
+export function createBuildWatcher({ fetchHealth, clientId, onNewBuild, onBuildCleared, intervalMs = 300000 }) {
   if (!clientId) return { stop() {} }
   let streakId = ''
   let streak = 0
@@ -57,6 +57,15 @@ export function createBuildWatcher({ fetchHealth, clientId, onNewBuild, interval
     if (stopped) return
     if (!serverId || serverId === clientId) {
       reset()
+      // The server is back on this client's own build (a rollback): withdraw what was announced.
+      if (serverId && announced) {
+        announced = ''
+        try {
+          onBuildCleared?.()
+        } catch {
+          /* a bad callback must not stop polling */
+        }
+      }
       return
     }
     if (serverId === streakId) streak += 1

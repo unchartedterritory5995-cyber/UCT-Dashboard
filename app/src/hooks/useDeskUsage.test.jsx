@@ -129,4 +129,24 @@ describe('the leaf', () => {
     const raw = fetchMock.mock.calls[0][1].body
     expect(raw).not.toMatch(/http|Mozilla|\/|AAPL/)
   })
+  describe('the 23:50 ET timer', () => {
+    const setVis = (v) => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v })
+    afterEach(() => { vi.useRealTimers() })
+    // 23:00 ET on 2026-11-10 (EST) is 04:00Z the next day; the timer is 50 minutes out.
+    const arm = (vis) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+      vi.setSystemTime(new Date('2026-11-10T04:00:00Z'))
+      setVis(vis)
+      render(<DeskUsageReporter />)
+      act(() => { vi.advanceTimersByTime(51 * 60 * 1000) })
+    }
+    it('files nothing for a tab that was hidden all day (left idle overnight)', () => {
+      arm('hidden')
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+    it('files one report for a tab that was visible that day', () => {
+      arm('visible')
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+  })
 })

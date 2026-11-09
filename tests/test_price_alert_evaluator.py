@@ -83,6 +83,16 @@ def test_market_closed_rows_do_not_evaluate(tmp_db, delivered):
     assert len(delivered) == 1
 
 
+@pytest.mark.parametrize("bad", [0.0, 0, -1.5])
+def test_zero_or_negative_price_never_fires_a_below_alert(tmp_db, delivered, bad):
+    wls.create_alert("u1", "ZZZQ", 100.0, "below")
+    r = ev.run_cycle(lambda s: {"ZZZQ": _row(bad)}, 1000.0)
+    assert delivered == [] and r["triggered"] == 0
+    # still armed: a real price below the level fires it
+    r = ev.run_cycle(lambda s: {"ZZZQ": _row(90.0)}, 1060.0)
+    assert len(delivered) == 1
+
+
 def test_fetch_failure_logs_fires_nothing_and_next_cycle_runs(tmp_db, delivered, caplog):
     wls.create_alert("u1", "ZZZQ", 100.0, "above")
 

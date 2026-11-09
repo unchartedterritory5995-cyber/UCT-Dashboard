@@ -241,6 +241,12 @@ def run_cycle(fetch_prices, now: float) -> dict:
                 # Closed-market rows replay the last close; same rule as live_prices.
                 if closed or price is None:
                     continue
+                # An empty row reads 0.0, which would fire every "below" alert at $0.00.
+                try:
+                    if not float(price) > 0:
+                        continue
+                except (TypeError, ValueError):
+                    continue
                 prices[sym] = price
         report["fetched"] = len(prices)
         if report["error"] and not prices:

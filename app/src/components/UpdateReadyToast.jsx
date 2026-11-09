@@ -6,25 +6,28 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { subscribePopouts, hasOpenPopouts } from '../lib/popoutRegistry'
 import { acquireBuildWatch } from '../lib/buildWatch'
 import {
-  subscribeUpdateRequired, isUpdateAnnounced, reloadNow,
+  subscribeUpdateRequired, getUpdateMode, dismissUpdate, reloadNow,
 } from '../lib/reloadGuard'
 import styles from './UpdateReadyToast.module.css'
 
 export const COPY_PLAIN = 'A new version of UCT is ready.'
-export const COPY_POPOUTS = 'A new version of UCT is ready. Your popped-out windows will close, and you can restore boards afterward.'
+export const COPY_POPOUTS = 'A new version of UCT is ready. Your popped-out windows will close, and you can restore boards from Charts afterward.'
 
 export default function UpdateReadyToast({ watch = true }) {
-  const announced = useSyncExternalStore(subscribeUpdateRequired, isUpdateAnnounced)
+  const mode = useSyncExternalStore(subscribeUpdateRequired, getUpdateMode)
   const popouts = useSyncExternalStore(subscribePopouts, hasOpenPopouts)
 
   // The watcher is a page-level singleton (lib/buildWatch.js): this leaf only holds a reference.
   useEffect(() => (watch ? acquireBuildWatch() : undefined), [watch])
 
-  if (!announced) return null
+  if (mode === 'hidden') return null
   return (
     <div className={styles.toast} role="status" data-testid="update-ready-toast">
       <span>{popouts ? COPY_POPOUTS : COPY_PLAIN}</span>
       <button type="button" className={styles.btn} onClick={() => reloadNow()}>Reload</button>
+      {mode === 'dismissible' && (
+        <button type="button" className={styles.btn} onClick={() => dismissUpdate()}>Later</button>
+      )}
     </div>
   )
 }

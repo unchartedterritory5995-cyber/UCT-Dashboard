@@ -9,7 +9,12 @@ import { markAppClosing, clearAppClosing } from '../pages/charts/popout/PopoutWi
 export const UPDATE_REQUIRED_EVENT = 'uct:update-required'
 const STAY_CHECK_MS = 5000
 
-let announced = false
+// Two sources. A stale chunk that could not load (forced) needs the Reload, so it is never
+// dismissible. A newer build seen by the watcher (buildId) is a courtesy: the member can say Later,
+// and that is remembered here, in module state, so it survives remounts of Layout.
+let forced = false
+let buildId = ''
+let dismissedId = ''
 
 /** True on the Terminal pop-out child page: /terminal with a ?popout= token. */
 export function isTerminalPopoutChild(loc = typeof window !== 'undefined' ? window.location : null) {
@@ -27,12 +32,44 @@ export function shouldDeferReload() {
 }
 
 /** Tell the toast an update is waiting. Idempotent. */
-export function announceUpdateRequired() {
-  announced = true
+function notify() {
   try { window.dispatchEvent(new Event(UPDATE_REQUIRED_EVENT)) } catch { /* no window */ }
 }
 
-export function isUpdateAnnounced() { return announced }
+/** A route could not load (stale chunk): the Reload is needed, so the toast is not dismissible. */
+export function announceUpdateRequired() {
+  forced = true
+  notify()
+}
+
+/** The build watcher saw a newer server build. Shows again only for an id not yet dismissed. */
+export function announceNewBuild(id) {
+  buildId = id || 'unknown'
+  notify()
+}
+
+/** The server id returned to the client's own id (rollback): withdraw the courtesy toast. */
+export function clearNewBuild() {
+  buildId = ''
+  dismissedId = ''
+  notify()
+}
+
+/** The member's Later. Remembers the build id so only a different one brings the toast back. */
+export function dismissUpdate() {
+  if (forced || !buildId) return
+  dismissedId = buildId
+  notify()
+}
+
+export function isUpdateAnnounced() { return forced || !!buildId }
+
+/** 'hidden' | 'dismissible' | 'forced' (a primitive, for useSyncExternalStore). */
+export function getUpdateMode() {
+  if (forced) return 'forced'
+  if (buildId && buildId !== dismissedId) return 'dismissible'
+  return 'hidden'
+}
 
 /** For useSyncExternalStore. */
 export function subscribeUpdateRequired(fn) {
@@ -41,7 +78,7 @@ export function subscribeUpdateRequired(fn) {
 }
 
 /** Tests only. */
-export function __resetReloadGuardForTests() { announced = false }
+export function __resetReloadGuardForTests() { forced = false; buildId = ''; dismissedId = '' }
 
 /**
  * The member's Reload button. Marks the app closing so the pop-outs closing with it do not dock

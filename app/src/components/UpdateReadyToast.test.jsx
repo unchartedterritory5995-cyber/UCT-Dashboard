@@ -3,7 +3,9 @@ import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import UpdateReadyToast, { COPY_PLAIN, COPY_POPOUTS } from './UpdateReadyToast'
 import { registerPopout } from '../lib/popoutRegistry'
-import { announceUpdateRequired, __resetReloadGuardForTests } from '../lib/reloadGuard'
+import {
+  announceUpdateRequired, announceNewBuild, clearNewBuild, __resetReloadGuardForTests,
+} from '../lib/reloadGuard'
 import { fetchHealthSafe } from '../lib/buildVersion'
 
 const realLocation = window.location
@@ -31,15 +33,48 @@ describe('UpdateReadyToast', () => {
     let release
     act(() => { release = registerPopout() })
     expect(screen.getByText(COPY_POPOUTS)).toBeTruthy()
-    expect(COPY_POPOUTS).toBe('A new version of UCT is ready. Your popped-out windows will close, and you can restore boards afterward.')
+    expect(COPY_POPOUTS).toBe('A new version of UCT is ready. Your popped-out windows will close, and you can restore boards from Charts afterward.')
     act(() => release())
     expect(screen.getByText(COPY_PLAIN)).toBeTruthy()
   })
-  it('copy has no em dashes and the toast has no dismiss control', () => {
+  it('copy has no em dashes', () => {
     expect(COPY_PLAIN + COPY_POPOUTS).not.toMatch(/—/)
+  })
+  it('a stale-chunk update (forced) has no dismiss control', () => {
     render(<UpdateReadyToast watch={false} />)
     act(() => announceUpdateRequired())
     expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Later' })).toBeNull()
+  })
+  it('a watcher-announced build can be dismissed with Later, and stays dismissed across remounts', () => {
+    const a = render(<UpdateReadyToast watch={false} />)
+    act(() => announceNewBuild('assets/index-b.js'))
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }))
+    expect(screen.queryByTestId('update-ready-toast')).toBeNull()
+    a.unmount()
+    const b = render(<UpdateReadyToast watch={false} />)
+    expect(b.container.innerHTML).toBe('')
+  })
+  it('A, B, A: dismissed B stays hidden, a different build C returns, rollback to A clears', () => {
+    render(<UpdateReadyToast watch={false} />)
+    act(() => announceNewBuild('assets/index-b.js'))
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }))
+    act(() => announceNewBuild('assets/index-b.js'))
+    expect(screen.queryByTestId('update-ready-toast')).toBeNull()
+    act(() => announceNewBuild('assets/index-c.js'))
+    expect(screen.getByTestId('update-ready-toast')).toBeTruthy()
+    act(() => clearNewBuild())
+    expect(screen.queryByTestId('update-ready-toast')).toBeNull()
+    act(() => announceNewBuild('assets/index-b.js'))
+    expect(screen.getByTestId('update-ready-toast')).toBeTruthy()
+  })
+  it('a forced update cannot be dismissed even after a build was dismissed', () => {
+    render(<UpdateReadyToast watch={false} />)
+    act(() => announceNewBuild('assets/index-b.js'))
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }))
+    act(() => announceUpdateRequired())
+    expect(screen.getByTestId('update-ready-toast')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Later' })).toBeNull()
   })
   it('Reload calls location.reload', () => {
     const reload = vi.fn()

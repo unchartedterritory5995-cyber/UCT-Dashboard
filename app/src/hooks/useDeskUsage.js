@@ -91,7 +91,13 @@ export function useDeskUsage(uid) {
   useEffect(() => {
     if (!uid) return undefined
     let poppedDay = ''   // ET day on which a pop-out was seen open
+    let visibleDay = ''  // ET day on which this tab was seen visible
     let timer = null
+
+    const markVisible = () => {
+      try { if (document.visibilityState === 'visible') visibleDay = etDay() } catch { /* ignore */ }
+    }
+    markVisible()
 
     const send = () => {
       try {
@@ -113,11 +119,20 @@ export function useDeskUsage(uid) {
       } catch { /* never throws into the app */ }
     }
 
-    const onVisibility = () => { if (document.visibilityState === 'hidden') send() }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') send()
+      else markVisible()
+    }
+    // The 23:50 timer is for a tab that never hides. A tab left idle and hidden overnight was not used
+    // that day, so it files nothing; one that was visible at some point that ET day still does.
+    const sendFromTimer = () => {
+      markVisible()
+      if (visibleDay === etDay()) send()
+    }
     const arm = () => {
       const ms = msUntilReportTime()
       const wait = Number.isFinite(ms) ? Math.max(ms, 60 * 1000) : 60 * 60 * 1000
-      timer = setTimeout(() => { send(); arm() }, wait)
+      timer = setTimeout(() => { sendFromTimer(); arm() }, wait)
     }
     const unsub = subscribePopouts(() => { if (hasOpenPopouts()) send() })
     if (hasOpenPopouts()) send()
