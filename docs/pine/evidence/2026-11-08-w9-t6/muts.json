@@ -1,0 +1,150 @@
+[
+ {
+  "mutant": "control-comment",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "SURVIVED",
+  "failing": []
+ },
+ {
+  "mutant": "poc-endBar-off",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x a market entry / close placed on bar t fills at t's close; the script reads it from t+1 16ms",
+   "x unpinned, the first close fill stops the run naming B-POC and W9-P1 6ms",
+   "x [B-POC-PYR] a close fill that adds to the position (pyramiding 2): sizes 1 then 2 8ms"
+  ]
+ },
+ {
+  "mutant": "poc-declaration-ignored",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x a market entry / close placed on bar t fills at t's close; the script reads it from t+1 19ms",
+   "x unpinned, the first close fill stops the run naming B-POC and W9-P1 6ms",
+   "x [B-POC-PYR] a close fill that adds to the position (pyramiding 2): sizes 1 then 2 8ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-POC-ask-markets",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "SURVIVED",
+  "failing": []
+ },
+ {
+  "mutant": "drop-B-POC-PYR-ask",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x [B-POC-PYR] a close fill that adds to the position (pyramiding 2): sizes 1 then 2 53ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-POC-FILLS-rerun",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x [B-POC-FILLS] with process_orders_on_close, a close fill re-runs the bar from its start state 16ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-J1-ask",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x B-J1 is asked with every next-bar fill, and stops the run by name with W9-J1 when unpinned 59ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-TICK-HIST-ask",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x the same fills and values as the default, and the rule is asked 19ms"
+  ]
+ },
+ {
+  "mutant": "coof-never",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x three extra executions on bar 3, each placing an order that fills later on the same bar 26ms",
+   "x a market order an extra execution places fills on the next tick: the next path vertex 6ms",
+   "x a price order an extra execution places already past its level at that tick is refused by name (Q-S1e) 7ms"
+  ]
+ },
+ {
+  "mutant": "vm-no-rollback",
+  "file": "src/components/chart/engine/runtime/vm.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x three extra executions on bar 3, each placing an order that fills later on the same bar 25ms",
+   "x [B-POC-FILLS] with process_orders_on_close, a close fill re-runs the bar from its start state 7ms"
+  ]
+ },
+ {
+  "mutant": "vertex-market-fill-off",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x a market order an extra execution places fills on the next tick: the next path vertex 14ms"
+  ]
+ },
+ {
+  "mutant": "closing-tick-guard-off",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x a fill on the CLOSING tick (one execution or two is not stated) stops the run by name 16ms"
+  ]
+ },
+ {
+  "mutant": "afterExtra-off",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x a price order an extra execution places already past its level at that tick is refused by name (Q-S1e) 13ms"
+  ]
+ },
+ {
+  "mutant": "extra-run-prices-at-close",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x three extra executions on bar 3, each placing an order that fills later on the same bar 26ms",
+   "x unpinned, the first fill stops the run naming B-FILLS and W9-P2 18ms",
+   "x a fill on the CLOSING tick (one execution or two is not stated) stops the run by name 10ms"
+  ]
+ },
+ {
+  "mutant": "fill-limits-fill-at-trigger",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x fills only once the price passes the level by N ticks, and then at the level 58ms"
+  ]
+ },
+ {
+  "mutant": "fill-limits-ignored",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x fills only once the price passes the level by N ticks, and then at the level 19ms",
+   "x unpinned, it stops by name saying no capture row is queued 4ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-FILLS-ask-open",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "SURVIVED",
+  "failing": []
+ },
+ {
+  "mutant": "record-poc-null",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x all pinned (test ledger), the record states the timing settings and names B-POC on its fills 21ms"
+  ]
+ }
+]

@@ -147,6 +147,9 @@ export function makeBroker(cfg, data) {
   // ⭐⭐ W9-T1 — `pinned(rule)`, asked when the run REACHES a rule. One-argument calls only: the
   // test-only pin set arrives as `data.isPinned` (a predicate), never as `pinned`'s second argument.
   const isPinned = typeof data.isPinned === 'function' ? data.isPinned : (id) => pinned(id)
+  // ⭐ W9-T4 r1 — the symbol's minimum contract (`syminfo.mincontract`), as the run context states it;
+  // undefined when the caller does not know it (today: every product caller)
+  const minContract = data.minContract
   const okRules = new Set()
   const rule = (id) => {
     if (okRules.has(id)) return
@@ -155,6 +158,16 @@ export function makeBroker(cfg, data) {
   }
   const defaulted = cfg.defaulted || {}
   const maxEntries = Math.max(1, Math.floor(Number(cfg.pyramiding) || 0)) // [B-PYR]
+  // ⭐⭐ W9-T6 — FILL TIMING, read from the declaration (`ast/strategyBroker.js`). Each setting off its
+  // default asks its own rule when a run REACHES it, so a run that never does is unchanged.
+  const poc = cfg.processOrdersOnClose === true // [B-POC] process_orders_on_close
+  const coof = cfg.calcOnOrderFills === true // [B-FILLS] calc_on_order_fills
+  // [B-TICK-HIST] R6 `calc_on_every_tick`: "a new execution ... on every available tick in each REALTIME
+  // bar" - on history a bar executes once on its close. Asked once, before the first bar: it is the
+  // whole run's execution model. (The forming bar is refused separately, Q-S1o, in `vm.js`.)
+  if (cfg.calcOnEveryTick === true) rule('B-TICK-HIST')
+  /** the price of the tick an extra execution runs on ([B-FILLS]); `null` while the script runs on the close */
+  let tickPx = null
   let mintick = NaN
   let pointvalue = NaN
   let seq = 0
@@ -397,6 +410,17 @@ export function makeBroker(cfg, data) {
   const reserve = (x, t) => {
     const others = exits.filter((y) => y !== x && (y.trades.has(t) || y.maybe.has(t)))
     if (!x.qtySpec && !others.length) { x.res.delete(t); return }
+    // ⭐⭐ Several FULL exit commands on one trade: S1 (master) lets each one fill if its level is reached
+    // first. The reservation reading changes that (a second full exit gets nothing), so it is taken ONLY
+    // when B-EXIT-QTY is pinned; unpinned, the run keeps S1's behaviour exactly and asks nothing new
+    // (coordinator ruling 2026-11-08; rail: w9T7Exits "S1's behaviour while B-EXIT-QTY is unpinned").
+    // A PARTIAL size has no S1 behaviour to keep: `exit` asks B-EXIT-QTY at the partial command's own call,
+    // so with the rule unpinned no partial size ever reaches this line (one guard, not two).
+    if (!isPinned('B-EXIT-QTY')) {
+      x.res.delete(t)
+      for (const y of others) y.res.delete(t)
+      return
+    }
     rule('B-EXIT-QTY')
     if (x.qtySpec && x.trades.size + x.maybe.size > 1) {
       throw new BrokerRefusal(`\`strategy.exit\` \`${x.id}\` closes part of more than one open trade, and whether its `
@@ -553,8 +577,73 @@ export function makeBroker(cfg, data) {
     }
   }
 
-  /** ⭐ [B-FILL] fill everything bar `bar` fills, BEFORE the script runs on it. */
-  const beginBar = (bar) => {
+  /** ⭐⭐ W9-T6 — ONE TICK'S FILLS, for the three ticks a market order can fill on:
+   *  - `open`: the next bar's open ([B-FILL] / [B-MARKET], [B-GAP], [B-IMMEDIATE]);
+   *  - `poc`: the bar's own close, for the orders its close execution placed ([B-POC], [B-POC-PRICE]);
+   *  - `vertex`: the next path vertex, for a market order an extra execution placed ([B-FILLS]).
+   *  More than one order on one tick (other than one exit command's legs) is refused (Q-S1d).
+   *  Returns `{ filled, fresh }`: whether any order filled, and the trade an entry opened. */
+  const tickFill = (px, bar, mode) => {
+    const atClose = mode === 'poc'
+    // [B-POC-PRICE] HYPOTHESIS, the R6 reading (W9-P1 / W9-P1b grade it): "an additional attempt to
+    // execute orders after a bar closes" names no subset, so EVERY live order gets the close attempt,
+    // whichever execution placed it. An order placed before the close execution (an older one, or one an
+    // extra execution placed) that the close meets has already met its level on the path, which ends at
+    // the close, so only the close execution's orders can fill here (railed: w9T6FillTiming, X4).
+    const markets = entries.filter((e) => e.type === 'market' || e.immediate)
+    const cls = closes.slice()
+    const gaps = mode === 'vertex' ? [] : liveOrders().filter((lo) => reachedAt(lo, px))
+    const n = markets.length + cls.length + gaps.length
+    if (n === 0) return { filled: false, fresh: null }
+    const oneCommand = gaps.length > 0 && markets.length + cls.length === 0
+      && gaps.every((g) => g.kind === 'exit' && g.x === gaps[0].x)
+      && new Set(gaps.map((g) => g.t)).size === gaps.length
+    if (n > 1 && !oneCommand) {
+      const where = atClose ? 'closing tick' : mode === 'vertex' ? 'tick' : 'opening tick'
+      throw new BrokerRefusal(`${n} orders fill on the same ${where}, and the order TradingView fills them in is not stated`, 'Q-S1d')
+    }
+    let fresh = null
+    if (cls.length) {
+      const cl = cls[0]
+      closes = closes.filter((c) => !cls.includes(c))
+      // a vertex fill is LABELLED B-FILLS and asks nothing more: `beginBar` asked B-FILLS before the
+      // extra execution that placed the order (and asks it again before the one this fill starts)
+      if (atClose) { fillRule = 'B-POC'; rule('B-CLOSE'); rule('B-POC') } else if (mode === 'vertex') {
+        fillRule = 'B-FILLS'
+      } else { fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET') }
+      executeClose(cl, px, bar, true)
+    } else if (markets.length) {
+      const m = markets[0]
+      if (atClose) fillRule = m.immediate ? 'B-POC-PRICE' : 'B-POC'
+      else if (mode === 'vertex') { fillRule = 'B-FILLS'; if (m.immediate) rule('B-IMMEDIATE') } else fillRule = m.immediate ? 'B-IMMEDIATE' : 'B-MARKET'
+      if (mode !== 'vertex') rule(fillRule)
+      if (m.immediate && !atClose) {
+        // [B-IMMEDIATE] placed at a worse price than the market: fills on the next tick - served only
+        // while that tick still satisfies the order. (At the close, POC, it is the tick it was placed on.)
+        const ok = m.type === 'limit' ? (m.dir > 0 ? px <= m.level : px >= m.level)
+          : (m.dir > 0 ? px >= m.level : px <= m.level)
+        if (!ok) {
+          throw new BrokerRefusal(`order \`${m.id}\` was placed beyond the market and the next ${mode === 'vertex' ? 'tick' : 'open'} `
+            + 'moved back past its price', 'Q-S1e')
+        }
+      }
+      // [B-POC-PYR] a close fill that adds to the open position
+      if (atClose && open.length && open[0].dir === m.dir) rule('B-POC-PYR')
+      const before = open.length + closed.length
+      fresh = fillEntry(m, px, bar, true)
+      if (!fresh && open.length + closed.length === before) return { filled: false, fresh: null }
+    } else {
+      fillRule = atClose ? 'B-POC-PRICE' : 'B-GAP'
+      rule(fillRule)
+      for (const g of gaps) fresh = fire(g, px, bar, true) || fresh
+    }
+    return { filled: true, fresh }
+  }
+
+  /** ⭐ [B-FILL] fill everything bar `bar` fills, BEFORE the script runs on it.
+   *  ⭐⭐ W9-T6 — a GENERATOR, so a run under calc_on_order_fills can stop at a fill tick, run the script
+   *  there (`vm.js`), and resume the walk from that tick. Without it the walk never yields. */
+  function* barTicks(bar) {
     if (bar <= 0) return
     if (entries.length || closes.length || exits.length) rule('B-FILL')
     const o = O[bar]; const h = H[bar]; const l = L[bar]; const c = C[bar]
@@ -565,46 +654,18 @@ export function makeBroker(cfg, data) {
       return
     }
     // ── the open tick ([B-MARKET], [B-GAP], [B-IMMEDIATE]) ──
-    const markets = entries.filter((e) => e.type === 'market' || e.immediate)
-    const gaps = liveOrders().filter((lo) => reachedAt(lo, o))
-    const atOpen = markets.length + closes.length + gaps.length
-    const oneCommand = gaps.length > 0 && markets.length + closes.length === 0
-      && gaps.every((g) => g.kind === 'exit' && g.x === gaps[0].x)
-      && new Set(gaps.map((g) => g.t)).size === gaps.length
-    if (atOpen > 1 && !oneCommand) {
-      throw new BrokerRefusal(`${atOpen} orders fill on the same opening tick, and the order TradingView fills them `
-        + 'in is not stated', 'Q-S1d')
-    }
-    let fresh = null
-    if (closes.length) {
-      const cl = closes[0]
-      closes = []
-      fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET')
-      executeClose(cl, o, bar, true)
-    } else if (markets.length) {
-      const m = markets[0]
-      fillRule = m.immediate ? 'B-IMMEDIATE' : 'B-MARKET'
-      rule(fillRule)
-      if (m.immediate) {
-        // [B-IMMEDIATE] placed at a worse price than the market: fills on the next tick,
-        // here the open - served only while the open still satisfies the order
-        const ok = m.type === 'limit' ? (m.dir > 0 ? o <= m.level : o >= m.level)
-          : (m.dir > 0 ? o >= m.level : o <= m.level)
-        if (!ok) {
-          throw new BrokerRefusal(`order \`${m.id}\` was placed beyond the market and the next open moved back past `
-            + 'its price', 'Q-S1e')
-        }
-      }
-      fresh = fillEntry(m, o, bar, true)
-    } else if (gaps.length) {
-      fillRule = 'B-GAP'; rule('B-GAP')
-      for (const g of gaps) fresh = fire(g, o, bar, true) || fresh
-    }
+    const opened = tickFill(o, bar, 'open')
     marginCheckBar(bar)
-    checkActivation(o, fresh)
+    checkActivation(o, opened.fresh)
     ratchetTrails(o)
+    if (coof && opened.filled) { tickPx = o; yield o; afterExtra(o) }
     // ── the path through the bar ([B-PATH]) ──
-    if (!(h > l)) return
+    if (!(h > l)) {
+      if (coof && waiting()) {
+        throw new BrokerRefusal('an extra execution placed an order on a bar with no range left to fill it on', 'W9-P2')
+      }
+      return
+    }
     fillRule = 'B-PATH'
     if (liveOrders().some((lo) => lo.level >= l && lo.level <= h)) rule('B-PATH')
     const dh = h - o; const dl = o - l
@@ -612,14 +673,22 @@ export function makeBroker(cfg, data) {
     if (dh < dl) path = [h, l, c]
     else if (dl < dh) path = [l, h, c]
     else {
-      if (liveOrders().some((lo) => lo.level >= l && lo.level <= h)) {
+      if (liveOrders().some((lo) => lo.level >= l && lo.level <= h) || (coof && waiting())) {
         throw new BrokerRefusal('the bar opened exactly half-way between its high and low, so the order in which '
           + 'TradingView assumes it reached them is not stated', 'Q-S1c')
       }
       return
     }
+    // [B-FILLS] a fill on the CLOSING tick under calc_on_order_fills: whether that is one execution or two is
+    // not stated, so it stops the run by name.
+    const closingTick = () => {
+      throw new BrokerRefusal('an order filled on the closing tick of a bar under `calc_on_order_fills`, and whether '
+        + 'the bar then executes once or twice is not stated', 'W9-P2')
+    }
     let p = o
-    for (const target of path) {
+    for (let si = 0; si < path.length; si += 1) {
+      const target = path[si]
+      const last = si === path.length - 1
       for (let guard = 0; guard < 10000; guard += 1) {
         const up = target > p
         const lows = liveOrders().filter((lo) => lo.up === up && (up
@@ -633,14 +702,71 @@ export function makeBroker(cfg, data) {
           throw new BrokerRefusal(`${hit.length} orders sit at the same price ${best}, and the order TradingView `
             + 'fills them in is not stated', 'Q-S1d')
         }
+        if (coof && best === target && waiting()) {
+          throw new BrokerRefusal(`a price order at ${best} and a market order from an extra execution meet on one tick, `
+            + 'and the order TradingView fills them in is not stated', 'Q-S1d')
+        }
         p = best
         let made = null
         for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
         checkActivation(best, made)
+        if (coof) {
+          if (last && best === target) closingTick()
+          tickPx = best; yield best; afterExtra(best)
+        }
       }
       p = target
       ratchetTrails(target)
+      // [B-FILLS] a market order an extra execution placed fills on the next tick: this vertex
+      if (coof && waiting()) {
+        const r = tickFill(target, bar, 'vertex')
+        checkActivation(target, r.fresh)
+        if (r.filled) {
+          if (last) closingTick()
+          tickPx = target; yield target; afterExtra(target)
+        }
+      }
     }
+  }
+  /** [B-FILLS] after an extra execution at `px`: a price order it placed already past its level there would
+   *  fill on the next tick at a price that is not stated - the run stops by name. */
+  const afterExtra = (px) => {
+    for (const lo of liveOrders()) {
+      if (reachedAt(lo, px)) {
+        throw new BrokerRefusal(`an order an extra execution placed is already past its level ${lo.level} at that tick, `
+          + 'and where TradingView fills it then is not stated', 'Q-S1e')
+      }
+    }
+  }
+  /** a market order (or close) is waiting for a tick: only an extra execution leaves one mid-bar */
+  const waiting = () => closes.length > 0 || entries.some((e) => e.type === 'market' || e.immediate)
+  let ticking = null
+  let tickingBar = -1
+  /** Walk bar `bar`'s fills up to the next tick that re-runs the script. `true`: the walk stopped at a fill
+   *  under calc_on_order_fills and the script runs there (an extra execution); call again to resume.
+   *  `false`: the bar's fills are done and the script runs on the close. */
+  const beginBar = (bar) => {
+    if (tickingBar !== bar) { tickingBar = bar; ticking = barTicks(bar) }
+    tickPx = null
+    if (!ticking) return false
+    const step = ticking.next()
+    if (step.done) { ticking = null; tickPx = null; return false }
+    // [B-FILLS] ONE ask, for every extra execution, before the script runs there
+    rule('B-FILLS')
+    return true
+  }
+  /** ⭐⭐ W9-T6 [B-POC] — after the script ran on bar `bar`'s close: under process_orders_on_close the orders
+   *  that close execution placed get their attempt AT the close. `true`: an order filled there and
+   *  calc_on_order_fills re-runs the script on this bar ([B-POC-FILLS]). */
+  const endBar = (bar) => {
+    if (!poc) return false
+    const c = C[bar]
+    if (!finite(c)) return false
+    const r = tickFill(c, bar, 'poc')
+    if (!r.filled) return false
+    checkActivation(c, r.fresh)
+    if (coof) { rule('B-POC-FILLS'); return true }
+    return false
   }
   /** [B-CLOSE] a market close's fill: the trades of its id (or all), whole, or ([B-CLOSE-QTY], W9-T7)
    *  its size of them, oldest first. */
@@ -671,6 +797,16 @@ export function makeBroker(cfg, data) {
   }
 
   // ─── the order commands (called while the script runs on `bar`) ───────────
+  /** ⭐⭐ W9-T7 x W9-T6 — the T7 order kinds were built and railed on the DEFAULT timing only. Under
+   *  `process_orders_on_close` (an attempt at the close, W9-P1) or `calc_on_order_fills` (extra executions
+   *  on fill ticks, W9-P2) no capture combines them with a trailing stop, a partial size, an OCA group,
+   *  strategy.order, a stop-limit or an immediate close, so the run stops by name. */
+  const t7DefaultTimingOnly = (what) => {
+    if (poc || coof) {
+      throw new BrokerRefusal(`${what} under ${poc ? 'process_orders_on_close' : 'calc_on_order_fills'} is not served `
+        + '(no capture combines the two)', poc ? 'W9-P1' : 'W9-P2')
+    }
+  }
   /** ⭐ W9-T7 [B-OCA] an order's One-Cancels-All group: `null`, or `{ name, type }`. R6 `oca_name`:
    *  "The default is an empty string, which means the order does not belong to an OCA group";
    *  `strategy.oca.none`: "the order executes independently of all other orders, including those with
@@ -683,6 +819,7 @@ export function makeBroker(cfg, data) {
     }
     if (name === '') return null
     rule('B-OCA')
+    t7DefaultTimingOnly(`${fn} with an OCA group`)
     return type === 'none' ? null : { name, type }
   }
   /** `strategy.entry` (kind 'entry') and ⭐ W9-T7 `strategy.order` (kind 'order', [B-ORDER]). */
@@ -692,7 +829,7 @@ export function makeBroker(cfg, data) {
     rule('B-SIG')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
-    if (kind === 'order') rule('B-ORDER')
+    if (kind === 'order') { rule('B-ORDER'); t7DefaultTimingOnly('`strategy.order`') }
     const id = idText(id0, fn)
     rule('B-DIR')
     let dir
@@ -702,13 +839,15 @@ export function makeBroker(cfg, data) {
     const lim = finite(limV); const stp = finite(stpV)
     const type = lim && stp ? 'stoplimit' : (lim ? 'limit' : (stp ? 'stop' : 'market'))
     const level = stp ? stpV : (lim ? limV : NaN)
-    const cl = C[bar]
+    // ⭐⭐ W9-T6 — an extra execution ([B-FILLS]) runs at its fill tick's price, not the close
+    const cl = tickPx === null ? C[bar] : tickPx
     if (type === 'stoplimit') {
       // ⭐⭐ W9-T7 [B-STOP-LIMIT] served only where the reference's sentence is the whole story: the
       // stop not yet reached at the signal close, and the limit strictly BETTER than the stop (a long's
       // below it), so the limit cannot fill on the stop's own tick. Otherwise refused by name (Q-S1j):
       // whether a limit at or beyond the stop fills at the stop's tick, and at which price, is not stated.
       rule('B-STOP-LIMIT')
+      t7DefaultTimingOnly(`the stop-limit ${fn}`)
       if (dir > 0 ? stpV <= cl : stpV >= cl) {
         throw new BrokerRefusal(`the stop-limit ${fn} \`${id}\` was placed with its stop already reached, and when its `
           + 'limit becomes live then is not stated', 'Q-S1j')
@@ -761,6 +900,7 @@ export function makeBroker(cfg, data) {
    *  in the SAME execution sees it is not stated: such a read refuses (W9-X4, `value`). */
   const closeNow = (cl, bar) => {
     rule('B-IMMEDIATELY')
+    t7DefaultTimingOnly('a close with `immediately = true`')
     const keep = fillRule
     fillRule = 'B-IMMEDIATELY'
     executeClose(cl, C[bar], bar, onTick(C[bar]))
@@ -774,7 +914,7 @@ export function makeBroker(cfg, data) {
     if (!truthy(when)) return
     const id = idText(id0, '`strategy.close`')
     const spec = closeSpec(qtyV, pctV, '`strategy.close`')
-    if (spec) rule('B-CLOSE-QTY')
+    if (spec) { rule('B-CLOSE-QTY'); t7DefaultTimingOnly('a partial `strategy.close`') }
     // [B-CLOSE] no open trade with this id when the command is called: no effect
     if (!open.some((t) => t.entryId === id)) return
     if (now !== undefined && truthy(now)) { closeNow({ kind: 'id', id, spec }, bar); return }
@@ -825,6 +965,7 @@ export function makeBroker(cfg, data) {
     let trail = null
     if (finite(trP) || finite(trPts) || finite(trOff)) {
       rule('B-TRAIL')
+      t7DefaultTimingOnly('a trailing stop')
       if (!(finite(trP) || finite(trPts)) || !finite(trOff)) {
         throw new BrokerRefusal('`strategy.exit` with only half of a trailing stop (an activation level and an offset '
           + 'are both needed), and what it places then is not stated', 'W9-X1')
@@ -858,7 +999,7 @@ export function makeBroker(cfg, data) {
       if (!(pctV > 0 && pctV < 100)) throw new BrokerRefusal(`\`strategy.exit\` with qty_percent ${pctV}`, 'W9-X2')
       qtySpec = { pct: pctV }
     }
-    if (qtySpec) rule('B-EXIT-QTY')
+    if (qtySpec) { rule('B-EXIT-QTY'); t7DefaultTimingOnly('a partial `strategy.exit`') }
     let x = exits.find((e) => e.id === id)
     if (!tp && !sl && !trail) {
       rule('B-EXIT-NA')
@@ -949,8 +1090,11 @@ export function makeBroker(cfg, data) {
    *   - cash:    units = value / (close × pointvalue);
    *   - percent: units = equity × value / 100 / (close × pointvalue), `equity` = `strategy.equity` at
    *     that close (the v6 constant's text: "a percentage (0-100) of equity");
-   *   - rounded DOWN to whole units (`syminfo.mincontract`: "For most other types of asset, it is often
-   *     1"; this run is not told the symbol's minimum contract, so a whole unit is the step).
+   *   - rounded DOWN to whole units, served ONLY for a symbol whose minimum contract the run context
+   *     states is 1 (`syminfo.mincontract`: "The smallest amount of the current symbol that can be traded
+   *     ... For cryptocurrencies, it is often less than 1 token. For most other types of asset, it is
+   *     often 1."). A fractional symbol, or one whose minimum contract the run was not told, refuses.
+   *     No product caller states it yet, so on the member door this refuses even once B-QTY is pinned.
    * Every case the hypothesis does not reach refuses by name (Q-S1a): a price (limit / stop) order,
    * whose sizing price could be its level or the signal close; a percent order placed while trades are
    * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
@@ -973,9 +1117,23 @@ export function makeBroker(cfg, data) {
     }
     rule('B-QTY'); if (defaulted.qty) rule('B-DEFAULTS')
     const unit = qtyType === 'cash' ? 'cash' : 'percent-of-equity'
+    // ⭐⭐ W9-T4 x W9-T6 (review merge note) — an extra execution ([B-FILLS]) runs at its fill tick's price
+    // (`tickPx`), and this size is taken at the bar's close: one order would read two prices. Which one
+    // TradingView sizes it at is not stated, so it stops by name. (A FIXED default reads no price.)
+    if (tickPx !== null) {
+      throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size in an extra execution at ${tickPx} `
+        + "(`calc_on_order_fills`), and whether that tick or the bar's close sizes it is not stated", 'Q-S1a')
+    }
     if (type !== 'market') {
       throw new BrokerRefusal(`the ${type} entry \`${id}\` takes a ${unit} default size, and whether its level or `
         + 'the signal bar\'s close sizes it is not stated', 'Q-S1a')
+    }
+    if (minContract !== 1) {
+      throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size, which this broker rounds down to `
+        + `whole units, and this symbol's minimum contract is ${finite(minContract)
+          ? `${minContract} (a fractional symbol, such as a cryptocurrency, trades in parts of a unit)`
+          : 'not known to this run (a fractional symbol, such as a cryptocurrency, trades in parts of a unit)'}`,
+      'Q-S1a')
     }
     needSymbol()
     const px = C[bar]
@@ -1119,5 +1277,5 @@ export function makeBroker(cfg, data) {
     },
   })
 
-  return { beginBar, call, summary }
+  return { beginBar, endBar, call, summary }
 }

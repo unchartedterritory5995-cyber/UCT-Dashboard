@@ -32,12 +32,21 @@ MUTANTS = [
   ('M18 v6 exit levels take the farther level', BROKER, "return sign * t.dir > 0 ? Math.min(spec.abs, r) : Math.max(spec.abs, r)", "return sign * t.dir > 0 ? Math.max(spec.abs, r) : Math.min(spec.abs, r)"),
   ('M19 v5 exit levels take the distance', BROKER, "        if (cfg.version === 5) return spec.abs", "        if (cfg.version === 5) return rel()"),
   ('M20 B-TRAIL never asked at the call', BROKER, "    if (finite(trP) || finite(trPts) || finite(trOff)) {\n      rule('B-TRAIL')", "    if (finite(trP) || finite(trPts) || finite(trOff)) {\n      void 0"),
-  ('M21 B-ORDER never asked at placement', BROKER, "    if (kind === 'order') rule('B-ORDER')\n", "\n"),
+  ('M21 B-ORDER never asked at placement', BROKER, "if (kind === 'order') { rule('B-ORDER'); t7DefaultTimingOnly", "if (kind === 'order') { void 0; t7DefaultTimingOnly"),
   ('M22 B-OCA never asked', BROKER, "    if (name === '') return null\n    rule('B-OCA')", "    if (name === '') return null\n    void 0"),
   ('M23 FE: oca.cancel read as reduce', FE, "'strategy.oca.cancel': 'cancel'", "'strategy.oca.cancel': 'reduce'"),
   ('M24 exit oca_name accepted at build', SB, "  oca_name: (n) => n.type === 'string' && n.value === '',", "  oca_name: () => true,"),
+  ('M26 second full exit reserved even while B-EXIT-QTY is unpinned', BROKER, "    if (!isPinned('B-EXIT-QTY')) {", "    if (false) {"),
+  ('M27 S1 fallback taken even when B-EXIT-QTY is pinned', BROKER, "    if (!isPinned('B-EXIT-QTY')) {", "    if (true) {"),
+  ('M28 T7 kinds served under POC / calc_on_order_fills', BROKER, "    if (poc || coof) {\n      throw new BrokerRefusal(`${what} under", "    if (false) {\n      throw new BrokerRefusal(`${what} under"),
+  ('M29 T6 tick routine closes whole trades again', BROKER, "      executeClose(cl, px, bar, true)\n    } else if (markets.length) {", "      for (const t of (cl.kind === 'all' ? open.slice() : open.filter((u) => u.entryId === cl.id))) closeTrade(t, px, bar, true)\n      afterPositionChange()\n    } else if (markets.length) {"),
+  ('M30 trail best ignores the open', BROKER, "    checkActivation(o, opened.fresh)\n    ratchetTrails(o)\n", "    checkActivation(o, opened.fresh)\n"),
   ('M25 partial exit closes the whole trade', BROKER, "      closePart(lo.t, units, price, bar, exact)\n      lo.x.trades.delete", "      closePart(lo.t, lo.t.qty, price, bar, exact)\n      lo.x.trades.delete"),
 ]
+
+ONLY = sys.argv[1:]
+if ONLY:
+    MUTANTS = [m for m in MUTANTS if m[0].split()[0] in ONLY]
 
 def sha(p):
     return hashlib.sha256(open(p, 'rb').read()).hexdigest()
@@ -85,7 +94,7 @@ for name, path, old, new in MUTANTS:
     results.append({'mutant': name, 'status': status, 'rail': tail.strip()})
     print(name, status, tail.strip(), flush=True)
 
-out = r'C:/Users/Patrick/uct-worktrees/pine-dsk-w9t7/docs/pine/evidence/2026-11-08-w9-t7/muts.json'
+out = r'C:/Users/Patrick/uct-worktrees/pine-dsk-w9t7/docs/pine/evidence/2026-11-08-w9-t7/' + ('muts-merged-t6-' + '-'.join(ONLY) + '.json' if ONLY else 'muts-merged-t6.json')
 os.makedirs(os.path.dirname(out), exist_ok=True)
 json.dump({'control': base_tail.strip(), 'results': results}, open(out, 'w', encoding='utf-8'), indent=1)
 print('survivors:', [r['mutant'] for r in results if r['status'] != 'KILLED'])

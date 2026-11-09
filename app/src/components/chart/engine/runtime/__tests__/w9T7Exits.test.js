@@ -96,6 +96,14 @@ describe('W9-T7 [B-TRAIL] trailing stops (W9-X1; hypothesis: the best follows th
     const { trades } = served(TRAIL, { bars })
     expect(trades[0].exit).toEqual({ time: at(4), price: 101.8, rule: 'B-TRAIL' })
   })
+  it('an active trail\'s best moves to a gap-up open before the bar\'s path is walked', () => {
+    // active since bar 3 with best 104 (stop 103). Bar 4 gaps up: 106 / 108 / 104.5 / 105, low nearer
+    // (1.5 < 2): the open sets best 106 (stop 105), then 106 -> 104.5 crosses 105: filled at 105.
+    // (Had the open not moved the best, the fall would miss 103 and the stop would fill at 107.)
+    const bars = barsOf([...HEAD, [106, 108, 104.5, 105], ...FILL(4, [105, 106, 104.5, 105.5])])
+    const { trades } = served(TRAIL, { bars })
+    expect(trades[0].exit).toEqual({ time: at(4), price: 105, rule: 'B-TRAIL' })
+  })
   it('trail_price is an absolute activation level', () => {
     const { trades } = served(`${V5}${ENTER}    strategy.exit("x", "L", trail_price = 102, trail_offset = 100)\nplot(strategy.position_size)\n`)
     expect(trades[0].exit).toEqual({ time: at(4), price: 103, rule: 'B-TRAIL' })
@@ -149,6 +157,26 @@ describe('W9-T7 [B-EXIT-QTY] partial and multi-level exits (W9-X2; hypothesis: c
     const { trades, used } = served(src)
     expect(trades.map((t) => [t.qty, t.exit.price])).toEqual([[4, 103]])
     expect(used).toContain('B-EXIT-QTY')
+  })
+  it('S1\'s behaviour while B-EXIT-QTY is unpinned: both full exits stay live and the stop reached first fills', () => {
+    // the same script as above with every rule pinned EXCEPT B-EXIT-QTY: the reservation reading is not
+    // taken, so x2's stop at 99.6 (bar 2 falls to 99.5) closes the whole trade first, as S1 (master) does,
+    // and the run never asks B-EXIT-QTY
+    const src = `${V5}if bar_index == 1\n    strategy.entry("L", strategy.long, qty = 4)\n`
+      + '    strategy.exit("x1", "L", limit = 103)\n    strategy.exit("x2", "L", stop = 99.6)\nplot(strategy.position_size)\n'
+    const { trades, used } = served(src, { pins: (id) => id !== 'B-EXIT-QTY' })
+    expect(trades.map((t) => [t.qty, t.exit.price, t.exit.time])).toEqual([[4, 99.6, at(2)]])
+    expect(used).not.toContain('B-EXIT-QTY')
+    // and the same pin set with S1's own rules only (the T1 vocabulary) gives the same trades
+    const S1_ONLY = new Set(['B-FILL', 'B-MARKET', 'B-PATH', 'B-GAP', 'B-SIG', 'B-DIR', 'B-EXIT-BIND', 'B-EXIT-LIFE', 'B-FIFO', 'B-VAL', 'B-MARGIN', 'B-DEFAULTS'])
+    const s1 = served(src, { pins: (id) => S1_ONLY.has(id) })
+    expect(s1.trades).toEqual(trades)
+  })
+  it('a partial size still asks B-EXIT-QTY when it is unpinned (it has no S1 behaviour to keep)', () => {
+    const { err } = attempt(`${V5}if bar_index == 1\n    strategy.entry("L", strategy.long, qty = 4)\n`
+      + '    strategy.exit("x1", "L", limit = 103)\n    strategy.exit("x2", "L", qty = 1, stop = 99.6)\nplot(strategy.position_size)\n',
+      { pins: (id) => id !== 'B-EXIT-QTY' })
+    expect(err && err.rule).toBe('B-EXIT-QTY')
   })
   it('one full exit alone on a trade asks nothing new (S1\'s served case)', () => {
     const { used } = served(`${V5}${ENTER}    strategy.exit("x", "L", limit = 103)\nplot(strategy.position_size)\n`)
@@ -346,6 +374,24 @@ describe('W9-T7 [B-EXIT-LEVELS] profit and limit together, by version (Q-S1k)', 
   })
 })
 
+describe('W9-T7 x W9-T6: the T7 kinds are served on the default timing only', () => {
+  const kinds = [
+    ['a trailing stop', `    strategy.exit("x", "L", trail_points = 200, trail_offset = 100)\n`],
+    ['a partial exit', `    strategy.exit("x", "L", qty = 1, limit = 103)\n`],
+    ['strategy.order', `    strategy.order("O", strategy.long, qty = 1)\n`],
+    ['a stop-limit', `    strategy.entry("S", strategy.long, qty = 1, stop = 102, limit = 101.5)\n`],
+    ['an OCA group', `    strategy.entry("S", strategy.long, qty = 1, stop = 102, oca_name = "g", oca_type = strategy.oca.cancel)\n`],
+  ]
+  for (const [prop, row] of [['process_orders_on_close = true', 'W9-P1'], ['calc_on_order_fills = true', 'W9-P2']]) {
+    for (const [what, line] of kinds) {
+      it(`${what} under ${prop} stops by name (${row})`, () => {
+        unsettled(`//@version=5\nstrategy("t", pyramiding = 2, ${prop})\nif bar_index == 1\n    strategy.entry("L", strategy.long, qty = 2)\n${line}`
+          + 'plot(strategy.position_size)\n', row)
+      })
+    }
+  }
+})
+
 // ─── pin before serve (D1) ──────────────────────────────────────────────────────
 const SAMPLES = {
   'B-TRAIL': [`${V5}${ENTER}    strategy.exit("x", "L", trail_points = 200, trail_offset = 100)\nplot(strategy.position_size)\n`],
@@ -404,8 +450,8 @@ describe('W9-T7 pin before serve (D1): nothing T7 adds serves without its own pi
       expect(err && err.rule, rule).toBe(rule)
     }
   })
-  it('the D7 scorecard stays derived: 0 of 30', () => {
-    expect(BROKER_RULE_IDS.length).toBe(30)
-    expect(strategyScorecardWording()).toMatch(/^0 of 30 broker rules are pinned/)
+  it('the D7 scorecard stays derived: 0 of every named rule (the size is pinned once, strategiesAreRuled.test.js)', () => {
+    for (const r of T7_RULES) expect(BROKER_RULE_IDS).toContain(r)
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^0 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })

@@ -74,7 +74,7 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 
 Not served at all (refused by name at build, `runtime:strategy-option` / `runtime:strategy-value`):
 `strategy.risk.*`, a `strategy.exit` `oca_name` (W9-X3), commission, slippage,
-`process_orders_on_close = true`, `calc_on_order_fills`, bar magnifier, `close_entries_rule = "ANY"`,
+bar magnifier, `calc_on_every_history_tick = true`, `backtest_fill_limits_assumption` other than 0 (W9-T6 made `process_orders_on_close` and `calc_on_order_fills` READ: each refuses at run time by its rule until pinned; W9-T7 made `strategy.order`, `trail_*`, partial `qty` / `qty_percent`, entry / order OCA groups and `immediately` READ the same way), `close_entries_rule = "ANY"`,
 an account currency, and every `strategy.*` value outside B-VAL (`max_drawdown`, `*_percent` but
 `netprofit_percent`, `position_entry_name`, `avg_*`, `max_contracts_held_*`, the per-trade functions
 other than `opentrades.entry_price / entry_bar_index / size` and `closedtrades.entry_price / exit_price
@@ -108,6 +108,14 @@ Every rule above serves only when `pinned(rule)` is true, asked when a run REACH
 | B-QTY | Q-S1a | qty = na takes the declared default size |
 | B-DEFAULTS | Q-S1b | the per-version declaration defaults |
 | B-VAL | Q-S1-core | the strategy.* values and per-trade reads |
+| B-POC | W9-P1 | (W9-T6) `process_orders_on_close`: a market order (entry, close, close_all) placed on bar t fills at t's close, after the script ran on t; the script reads it from t+1 |
+| B-POC-PRICE | W9-P1 | (W9-T6) `process_orders_on_close`: a price order placed on bar t gets one attempt at t's close and fills there only if the close meets its level; otherwise it is live from the next open |
+| B-POC-PYR | W9-P1 | (W9-T6) `process_orders_on_close` with pyramiding: a close fill that adds to the position |
+| B-POC-FILLS | W9-P1b | (W9-T6) `process_orders_on_close` + `calc_on_order_fills`: a close fill re-runs the bar from its start state |
+| B-FILLS | W9-P2 | (W9-T6) `calc_on_order_fills` on history: an extra execution on each fill tick (open, path level, extreme); OHLC hold the bar's final values; rolled back; its orders fill from the next tick |
+| B-TICK-HIST | W9-P3 | (W9-T6) `calc_on_every_tick` on history: a historical bar executes once, on its close |
+
+W9-T6 r1: the July-2026 Properties defaults (W9-J1) are not a rule. They are a precondition on Q-S1-core's fixtures in the pin resolver (`evidence_engine.py::resolve_pins`, `j1_readback_ok`). Three of the timings above are hypotheses their capture rows grade: B-POC's fill AT the close price and B-FILLS' rollback and final-value prices rest on the User Manual, not on R6 (R6 says only that a market order is executed "before the next bar's open"); B-POC-PRICE's close attempt for every live order is the R6 reading ("an additional attempt to execute orders" names no subset).
 
 | B-TRAIL | W9-X1 | (W9-T7) trailing stop: activation via `trail_price` / `trail_points` beyond the entry, then `trail_offset` ticks behind the best price on the intrabar path |
 | B-EXIT-QTY | W9-X2 | (W9-T7) `strategy.exit` `qty` / `qty_percent` and several exit commands on one trade: call-order reservation; a fill closes the reserved part, and that exit id is done with the trade |
@@ -135,6 +143,10 @@ pinned) or a named refusal.**
 | B-IMMEDIATELY | "the closing order executes on the same tick when the strategy places it, ignoring the strategy properties that restrict execution to the opening tick of the following bar" | on a historical bar that tick is the bar close: filled at the close, stamped with that bar | a `strategy.*` value read later in the same execution (does it see the fill?), W9-X4 |
 | B-STOP-LIMIT | "generates a limit order at the `limit` price only after the market price reaches the `stop` value or a worse price" | the limit is live from the stop's tick and fills at its level on the path | the stop already reached at the signal close, and a limit at or beyond the stop (does it fill on the stop's own tick, and where?). Q-S1j |
 | B-EXIT-LEVELS | R5 `profit`: "The command ignores this parameter if the limit value is not na"; R6 `profit` / `loss`: "places a take-profit order only at the price level expected to trigger an exit first" | v5: the price wins; v6: the level nearer the entry on that leg's side | the pair in v4 (no v4 text read), Q-S1k |
+
+**Two rulings on the merged T6 + T7 tree (coordinator, 2026-11-08):**
+- Several FULL exit commands on one trade keep S1's behaviour (each fills if its level is reached first) while B-EXIT-QTY is unpinned; the reservation reading (a second full exit gets nothing) is taken only once B-EXIT-QTY is pinned. A partial size has no S1 behaviour and always asks B-EXIT-QTY.
+- The T7 kinds (trailing stop, partial exit or close, OCA, `strategy.order`, stop-limit, `immediately`) were built on the default timing only: under `process_orders_on_close` they stop by name (W9-P1), under `calc_on_order_fills` (W9-P2). No capture combines the two yet.
 
 Left as they were (named refusals; their capture rows gate T7 per the design): Q-S1d (several orders on
 one tick, now also an activation or a stop-limit trigger beside another order), Q-S1f (an exit with no

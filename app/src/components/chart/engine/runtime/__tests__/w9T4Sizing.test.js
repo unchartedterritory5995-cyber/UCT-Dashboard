@@ -7,7 +7,10 @@
 // the hypothesis `broker.js` `defaultSize` states. A Q-S1a / Q-S1b / W9-D1 capture that disagrees moves
 // the hypothesis, never these numbers silently.
 import { describe, it, expect, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 
+import { makeBroker } from '../broker.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { readStrategyDeclaration, DECLARATION_DEFAULTS } from '../../ast/strategyBroker.js'
 import { lowerIrProgram } from '../lowerIr.js'
@@ -27,13 +30,15 @@ const UP = barsOf(Array.from({ length: 30 }, (_, i) => [100 + i, 101.5 + i, 99 +
 const DOWN = barsOf(Array.from({ length: 30 }, (_, i) => [200 - i, 201 - i, 198.5 - i, 199.5 - i]))
 const ALL = () => true
 
-const attempt = (src, { bars = UP, pins = ALL } = {}) => {
+// `minContract` is the run context's `syminfo.mincontract` (W9-T4 r1): 1 = a whole-unit symbol such as
+// RDDT; null = the caller does not state it (every product caller today)
+const attempt = (src, { bars = UP, pins = ALL, minContract = 1 } = {}) => {
   const built = buildRuntimeIr(src, { bars, inputs: {}, symbol: SYMBOL, strategyBroker: true })
   if (!built.ok) return { refused: built.refusal }
   const program = lowerIrProgram(built.ir, { historyFromListing: true })
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars.map((b) => b[k])))
   const ctx = { bars: bars.length, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t),
-    historyWindowBars: 5000 }
+    historyWindowBars: 5000, ...(minContract === null ? {} : { minContract }) }
   try {
     // pins = 'ledger': no test predicate at all, so the run asks the COMMITTED ledger
     const res = execute(program, ctx, undefined, pins === 'ledger' ? undefined : { brokerPinned: pins })
@@ -78,10 +83,28 @@ describe('W9-T4 the declaration: type and value reach the broker', () => {
   })
   it('the record states the declared type and value', () => {
     const cfg = decl('strategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)', 5)
-    const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: [] } }, decl: cfg, barTimes: [1], historyWindowBars: 5000, confirmed: true })
-    expect(rec.settings.default_qty).toEqual({ type: 'percent_of_equity', value: 10 })
-    const old = strategyRecordOf({ summary: {}, decl: { defaultQty: 3 }, barTimes: [1], historyWindowBars: 5000, confirmed: true })
-    expect(old.settings.default_qty).toEqual({ type: 'fixed', value: 3 })
+    const recOf = (rulesUsed, d) => strategyRecordOf({ summary: { record: { trades: [], rulesUsed } }, decl: d,
+      barTimes: [1], historyWindowBars: 5000, confirmed: true })
+    expect(recOf(['B-QTY', 'B-VAL'], cfg).settings.default_qty).toEqual({ type: 'percent_of_equity', value: 10 })
+    expect(recOf(['B-QTY'], { defaultQty: 3 }).settings.default_qty).toEqual({ type: 'fixed', value: 3 })
+  })
+  it('r1 P2: the record states no default size unless the run sized an order by it (asked B-QTY)', () => {
+    const cfg = decl('strategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)', 5)
+    const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: ['B-VAL', 'B-MARKET'] } }, decl: cfg,
+      barTimes: [1], historyWindowBars: 5000, confirmed: true })
+    expect(rec.settings.default_qty).toBe(null)
+    expect(strategyRecordOf({ summary: {}, decl: { defaultQty: 3 }, barTimes: [1], historyWindowBars: 5000, confirmed: true })
+      .settings.default_qty).toBe(null)
+    const recFor = (r) => strategyRecordOf({ summary: r.res.broker, decl: r.program.broker, barTimes: UP.map((b) => b.t),
+      historyWindowBars: 5000, confirmed: true })
+    // through real runs: an explicit qty never asks B-QTY, so the record names no default size
+    const explicit = attempt('//@version=5\nstrategy("t", default_qty_type = strategy.cash, default_qty_value = 10000)\n'
+      + 'if bar_index == 3\n    strategy.entry("L", strategy.long, qty = 2)\nplot(strategy.position_size)\n')
+    expect(recFor(explicit).settings.default_qty).toBe(null)
+    const sized = attempt(`//@version=5\nstrategy("t", default_qty_type = strategy.cash, default_qty_value = 10000)\n${CYCLE}`)
+    const b = recFor(sized)
+    expect(b.settings.default_qty).toEqual({ type: 'cash', value: 10000 })
+    expect(b.unserved['settings.currency']).toBe('W9-D2 (deferred)')
   })
 })
 
@@ -171,8 +194,8 @@ describe('W9-T4 sizing, behind the test-only pin set (hand-computed)', () => {
 })
 
 describe('W9-T4 what the sizing hypothesis does not reach refuses by name (Q-S1a)', () => {
-  const stop = (src, bars) => {
-    const r = attempt(src, { bars })
+  const stop = (src, bars, o = {}) => {
+    const r = attempt(src, { bars, ...o })
     expect(r.err, 'the run did not stop').toBeDefined()
     expect(r.err.guard).toBe('runtime:strategy-unsettled')
     expect(r.err.message).toMatch(/Q-S1a/)
@@ -197,6 +220,73 @@ describe('W9-T4 what the sizing hypothesis does not reach refuses by name (Q-S1a
     const e = stop('//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 150)\n'
       + 'if bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n')
     expect(e.message).toMatch(/more than 100/)
+  })
+  const SIZE_DECLS = ['default_qty_type = strategy.cash, default_qty_value = 10000',
+    'default_qty_type = strategy.percent_of_equity, default_qty_value = 10']
+  for (const [what, mc, says] of [
+    ['a fractional symbol (mincontract 0.001)', 0.001, /minimum contract is 0\.001 \(a fractional symbol/],
+    ['a symbol whose minimum contract the run was not told', null, /minimum contract is not known to this run/],
+  ]) {
+    it(`r1 P1: ${what} is never floored to whole units`, () => {
+      for (const d of SIZE_DECLS) {
+        const e = stop(`//@version=5\nstrategy("t", ${d})\nif bar_index == 3\n    strategy.entry("L", strategy.long)\n`
+          + 'plot(strategy.position_size)\n', UP, { minContract: mc })
+        expect(e.message).toMatch(says)
+        expect(e.message).toMatch(/such as a cryptocurrency/)
+      }
+    })
+  }
+  it('r1 P1: the control, mincontract 1, sizes (cash 96, percent 966)', () => {
+    const sizes = SIZE_DECLS.map((d) => attempt(`//@version=5\nstrategy("t", ${d})\nif bar_index == 3\n`
+      + '    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n', { minContract: 1 }).cols[0][4])
+    expect(sizes).toEqual([96, 966])
+  })
+  it('r1 P1: a fixed default size does not need the minimum contract', () => {
+    const { cols, err } = attempt('//@version=5\nstrategy("t", default_qty_value = 3)\nif bar_index == 3\n'
+      + '    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n', { minContract: null })
+    expect(err).toBeUndefined()
+    expect(cols[0][4]).toBe(3)
+  })
+})
+
+describe('W9-T4 r1 P3: the point value divides the money (direct broker, pointvalue 50)', () => {
+  // mintick 0.25, pointvalue 50 (a futures-like symbol) over the UP bars; sized at bar 3's close 103.5
+  const series = ['o', 'h', 'l', 'c'].map((k) => UP.map((b) => b[k]))
+  const runDirect = (cfg) => {
+    const b = makeBroker({ pyramiding: 0, initialCapital: 1000000, marginLong: 0, marginShort: 0, defaulted: {}, ...cfg },
+      { series, barTimes: UP.map((x) => x.t), isPinned: ALL, minContract: 1 })
+    const size = []
+    for (let bar = 0; bar < 8; bar += 1) {
+      b.beginBar(bar)
+      b.call('#symbol', [0.25, 50], bar)
+      if (bar === 3) b.call('strategy.entry', ['L', 1, undefined, undefined, undefined, undefined], bar)
+      size.push(b.call('strategy.position_size', [], bar))
+    }
+    return size
+  }
+  it('cash 100,000: floor(100,000 / (103.5 x 50)) = floor(19.32) = 19', () => {
+    expect(runDirect({ qtyType: 'cash', qtyValue: 100000, defaultQty: null })[4]).toBe(19)
+  })
+  it('percent 10 of 1,000,000: floor(100,000 / (103.5 x 50)) = 19', () => {
+    expect(runDirect({ qtyType: 'percent_of_equity', qtyValue: 10, defaultQty: null })[4]).toBe(19)
+  })
+})
+
+describe('W9-T4 r1 P1: no product source states the minimum contract yet', () => {
+  it('RAIL: `minContract` is named in vm.js (read from ctx) and broker.js only', () => {
+    const root = path.resolve(__dirname, '../../..')
+    const hits = []
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const f = path.join(d, e.name)
+        if (e.isDirectory()) { if (e.name !== '__tests__' && e.name !== 'node_modules') walk(f); continue }
+        if (!/\.(jsx?|mjs)$/.test(e.name) || /\.test\./.test(e.name)) continue
+        if (/\bminContract\b/.test(fs.readFileSync(f, 'utf8'))) hits.push(e.name)
+      }
+    }
+    walk(root)
+    expect(hits.sort()).toEqual(['broker.js', 'vm.js'])
+    expect(fs.readFileSync(path.resolve(__dirname, '../vm.js'), 'utf8')).toMatch(/minContract: ctx\.minContract/)
   })
 })
 
@@ -237,9 +327,12 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
     expect(err.rule).toBe('B-QTY')
     expect(err.message).toMatch(/Q-S1a/)
   })
-  it('the D7 scorecard pins nothing: 0 of every named rule, derived (22 at T4; 30 once W9-T7 named its 8)', () => {
-    expect(BROKER_RULE_IDS.length).toBe(30)
-    expect(strategyScorecardWording()).toMatch(/^0 of 30 broker rules are pinned/)
+  // T4 adds no rule (it builds behind B-QTY): the count is derived, never typed here (the vocabulary's
+  // size is pinned once, in strategiesAreRuled.test.js)
+  it('the D7 scorecard is unchanged by T4: 0 of every named rule, derived', () => {
+    expect(BROKER_RULE_IDS).toContain('B-QTY')
+    expect(strategyScorecardWording()).toBe(strategyScorecardWording({ ledger: { rules: {} } }))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^0 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })
 

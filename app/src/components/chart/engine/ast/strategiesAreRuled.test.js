@@ -177,16 +177,18 @@ describe('D7: the strategy-backtest scorecard wording', () => {
       `0 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
-    // 22 rules at T1 (S1's settled set); W9-T7 named 8 more (the exit family and the other order
-    // kinds, each pinned by its own capture row: W9-X1..X4, Q-S1j, Q-S1k). A rule added without
-    // moving this number is the drift this line exists to catch.
-    expect(BROKER_RULE_IDS.length).toBe(30)
+    // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
+    // fill-timing rules (B-POC, B-POC-PRICE, B-POC-PYR, B-POC-FILLS, B-FILLS, B-TICK-HIST) + 8 W9-T7 rules
+    // (B-TRAIL, B-EXIT-QTY, B-CLOSE-QTY, B-OCA, B-ORDER, B-IMMEDIATELY, B-STOP-LIMIT, B-EXIT-LEVELS).
+    // W9-J1 is a pin-resolver precondition and fill limits refuse at build (T6 r1): neither is a rule.
+    // Every other rail DERIVES the count; a rule added without moving this line is the drift it catches.
+    expect(BROKER_RULE_IDS.length).toBe(36)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {
     const ledger = { rules: { 'B-MARKET': ['fx'], 'B-FILL': ['fx'], 'NOT-A-RULE': ['fx'] } }
     expect(pinnedBrokerRules(ledger)).toEqual(['B-FILL', 'B-MARKET'])
-    expect(strategyScorecardWording({ ledger })).toMatch(/^2 of 30 broker rules are pinned/)
+    expect(strategyScorecardWording({ ledger })).toMatch(new RegExp(`^2 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 
   it('drops the not-served sentence only when the caller says it is served', () => {

@@ -42,6 +42,16 @@ export const BROKER_RULES = Object.freeze({
   'B-DEFAULTS': Object.freeze({ capture: 'Q-S1b', what: 'the per-version declaration defaults' }),
   // the values
   'B-VAL': Object.freeze({ capture: 'Q-S1-core', what: 'the strategy.* values and per-trade reads' }),
+  // ── W9-T6: fill timing (`broker.js` tick routine and `endBar`, `vm.js` step order) ──
+  // (The July-2026 defaults, W9-J1, are NOT a rule: they are a precondition on Q-S1-core's fixtures in the
+  // pin resolver, `evidence_engine.py::resolve_pins`. `backtest_fill_limits_assumption` other than 0 is
+  // refused at build, `ast/strategyBroker.js`: no capture is queued for it.)
+  'B-POC': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close: a market order (entry, close, close_all) placed on bar t fills at t\'s close, after the script ran on t; the script reads that fill from bar t+1' }),
+  'B-POC-PRICE': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close: a price order placed on bar t gets one attempt at t\'s close and fills there only if the close meets its level; otherwise it is live from the next open' }),
+  'B-POC-PYR': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close with pyramiding: a close fill that adds to an open position in the same direction' }),
+  'B-POC-FILLS': Object.freeze({ capture: 'W9-P1b', what: 'process_orders_on_close with calc_on_order_fills: a fill on the closing tick re-runs the script on that bar, from the bar\'s start state' }),
+  'B-FILLS': Object.freeze({ capture: 'W9-P2', what: 'calc_on_order_fills on history: one extra execution on each tick (the open, a level on the path, an extreme) where an order fills; OHLC hold the bar\'s final values; the extra execution is rolled back; orders it places fill from the next tick' }),
+  'B-TICK-HIST': Object.freeze({ capture: 'W9-P3', what: 'calc_on_every_tick on history: a historical bar executes once, on its close, as the default does' }),
   // ── W9-T7: the exit family and the other order kinds (`broker.js`; design section 4 T7) ──
   // Each is a rule of its own because each is pinned by its own capture row: pinning Q-S1-core
   // (B-EXIT-BIND, B-CLOSE) must never also serve a trailing stop or a partial exit.
