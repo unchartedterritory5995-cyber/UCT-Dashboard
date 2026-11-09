@@ -563,5 +563,37 @@
   "skill": "vocab.process_terms",
   "hint": "Trading plan, watchlist, pre-market routine, trade journal, playbook, post-trade review, process vs outcome, win rate, average win / loss, expectancy. Named authors (Bellafiore, Steenbarger, Tendler, Annie Duke), broker education. NEVER 'the loop' (a model invented it; the owner never used it).",
   "n": 60
+ },
+ {
+  "id": "F5.08",
+  "track": "F5",
+  "title": "Earnings Desk: real quarters",
+  "skill": "fund.earnings_desk",
+  "n": 24,
+  "hint": "Feeds the Earnings Desk game. Real, well-known quarters from 2015 to 2026 (large, liquid US companies). For each: the reported EPS and revenue from the company's own earnings release or 8-K on SEC EDGAR (Tier 1), the consensus estimate as a named outlet reported it ('analysts polled by LSEG expected ...', Reuters / AP / CNBC, Tier 2), and the stock's reaction as that outlet reported it. Questions: beat, miss or in line (mcq), the surprise in percent (numeric, calc pct_change or arith), and scenarios that teach that a beat does not guarantee a rally (guidance, expectations). Never key a reaction you cannot quote. Name the company and quarter in the question (these are dated, public facts); the reaction stays in the reveal."
+ },
+ {
+  "id": "F7.08",
+  "track": "F7",
+  "title": "History Detective",
+  "skill": "history.detective",
+  "n": 20,
+  "hint": "Feeds the History Detective game. Famous US market declines from 2000 on: 2000-02, 2008-09, August 2011, 2015-16, Q4 2018, February-March 2020, 2022. Every date, depth and cause from Tier 1 (Federal Reserve History, Fed and SEC reports, NBER) or two Tier 2 publishers. Use the contract's `chart` field for SPY (from 2000) or QQQ (from 2000) with asof on the decline's low or a key day, window 120 to 250. A member sees the chart's date axis in a lesson, so a chart question must not be answerable by reading a date: ask how deep, how long, what came next, what caused it, what the market did in the weeks after. Depths and durations only as quoted or by calc from quoted values; never read a number off the picture."
+ },
+ {
+  "id": "F7.09",
+  "track": "F7",
+  "title": "Sector leadership",
+  "skill": "history.sectors",
+  "n": 20,
+  "hint": "Feeds the Sector Race game. The 11 GICS sectors and their sector funds (State Street Select Sector SPDR pages, S&P Dow Jones Indices GICS pages, Tier 1). Which sector led or lagged in well-documented years or episodes (e.g. energy in 2022, technology in 2023, utilities and staples in defensive stretches), each from S&P Dow Jones Indices dashboards or year-end reports, or two Tier 2 publishers (Reuters, AP, Morningstar). Teach group strength before stock, rotation, defensive vs cyclical sectors. Percent returns only as quoted."
+ },
+ {
+  "id": "F12.07",
+  "track": "F12",
+  "title": "Spot the mistake",
+  "skill": "process.mistakes",
+  "n": 24,
+  "hint": "Feeds the Spot the Mistake game. Every question is a `scenario`: the story is a four-line trade plan or journal entry, each line on its own numbered sentence ('1. ... 2. ... 3. ... 4. ...'), exactly ONE line breaks a sound rule; q is 'Which line breaks the plan?' and the choices are exactly 'Line 1', 'Line 2', 'Line 3', 'Line 4'; `wrong` says why each other line is fine. The broken rules: risking more than the plan (our 2% ceiling, docs/study/sizing_rule.md owner lines, house: true), no stop, moving a stop further away, averaging down a loser, sizing before the stop, holding full size through earnings with a tight stop (gap risk, FINRA / SEC), chasing an extended stock, revenge trading after losses, a market order in a thin premarket. General rules from Tier 1 (SEC, FINRA) or two Tier 2 publishers; ours only from house pages. The right line must be clearly wrong to an experienced trader and the other three clearly fine."
  }
 ]
