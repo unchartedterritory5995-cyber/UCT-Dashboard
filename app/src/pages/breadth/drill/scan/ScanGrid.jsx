@@ -1,6 +1,7 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../../components/StockChart'
 import ErrorBoundary from '../../../../components/ErrorBoundary'
+import useSessionChartSettings from '../../../../components/chart/pane/useSessionChartSettings'
 import { fmtPct } from './scanDeckModel'
 import { GRID_SORTS, sortGridRows } from './gridSort'
 import styles from './ScanDeck.module.css'
@@ -17,6 +18,9 @@ const SIZES = [['l', 'Large'], ['m', 'Medium'], ['s', 'Small']]
 const TFS = [['D', 'Daily'], ['W', 'Weekly']]
 
 const MiniChart = memo(function MiniChart({ sym, tf, settings }) {
+  // A card borrows the Focus chart's look; an edit on a card (legend chip,
+  // right-click) stays on that card for the session, never in global settings.
+  const session = useSessionChartSettings(settings || undefined, `${sym}:${tf}`)
   return (
     <ErrorBoundary fallback={<div className={styles.cardEmpty}>Chart unavailable</div>}>
       <StockChart
@@ -38,7 +42,8 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings }) {
         priceScaleTopMargin={0.1} priceScaleBottomMargin={0.08}
         hideExtHoursToolbarToggle
         // The Focus chart's look (its template), so a card and the big chart match.
-        settingsOverride={settings || undefined}
+        settingsOverride={session.settingsOverride}
+        onSettingsPersist={session.onSettingsPersist}
       />
     </ErrorBoundary>
   )
