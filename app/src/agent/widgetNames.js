@@ -145,6 +145,8 @@ export const ITEM_LISTS = {
   themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }],
   // C3-202: the Notebook widget's notes; its New control creates a blank one and opens it
   notebook: [{ key: 'notes', noun: 'note', nouns: ['note', 'notebook', 'blank', 'new'], ops: ['create'], blank: 'Untitled note' }],
+  // C3-140 (round 8, r8-presets): the News (Trade Exchange) widget's saved filter presets, renamed or deleted as its Presets menu does
+  tradeExchangeNews: [{ key: 'presets', noun: 'filter preset', nouns: ['preset', 'set'], ops: ['rename', 'delete'], max: 40 }],
 }
 /** The board's widgets that the message reaches by one of their OWN item names, beside an item word (set, preset, rename, delete). */
 export function itemNamedTypes(message, items) {

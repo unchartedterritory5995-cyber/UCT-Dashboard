@@ -1182,6 +1182,7 @@ export function registerBoardCapabilities() {
     if (io.op === 'rename') {
       const name = String(io.name || '').trim()
       if (!name) return `Say the new name for “${r.it.name}”.`
+      if (l.max && name.length > l.max) return `A ${l.noun} name is at most ${l.max} characters (the widget's own rename box allows no more).`
       if (r.items.some(x => x.id !== r.it.id && norm(x.name) === norm(name))) return `You already have a ${l.noun} named “${name}”.`
     }
     return null
