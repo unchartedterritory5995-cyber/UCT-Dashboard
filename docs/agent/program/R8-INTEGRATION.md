@@ -62,6 +62,52 @@ branch is byte-neutral on the manifest:
 - r8-multistep, r8-scanner-filter, r8-indicator-style, r8-errors: no manifest change;
 - r8-presets: +0, an item list of widget.setOption.
 
+## Targets for pl-auto's unseen9 batch
+
+This branch should turn the cases below from failing to passing. A fresh unseen9 batch should aim at them with new phrasings,
+NOT the ones listed here: those are the tuning and held-out phrasings already in the tests.
+
+### unseen8 cases this branch fixes
+
+| unseen8 | What failed | Fix (branch) | Rails here |
+|---|---|---|---|
+| class 1, u8-sequences-02 | "switch to AAPL, weekly, hide the volume and draw a line at 120" with the LEFT chart clicked and AAPL on the right: the ticker the step switches TO was read as naming the right chart | `withoutArgTickers` in deixis: an op's own ticker argument names no chart (screenUnnamedTargets, the click check, screenDeicticOps) (r8-multistep) | agentMultiStep "unseen8" block |
+| class 2 | An answer to the Agent's own choice question ("2", "the bottom one") was not understood, and it asked again | `pickOffered`: the answer is read against the OFFERED options (a number, an ordinal, "option N", "last", label words such as a position or a ticker); two that fit are asked again with just those two (r8-errors) | agentChoiceAnswer, agentChoiceAnswerHeldOut 8/8 |
+| class 4 | "every chart except that one" / "all but the SPY chart" asked "Which charts should it go on?" | `multiChartAmbiguity` EXCEPT_WORDS in indicatorAuthoring.js: every chart here but the ones set aside (the click for a negated pointer, or the charts named after "except") (r8-multistep) | agentMultiStep "every chart except that one" |
+| class 3 | A saved screen | **NOT in this branch**: still waiting on pl-auto's fixture check | none |
+
+Also new in this branch and worth probing in unseen9:
+
+- multi-step runs: the exact per-step receipt "Done n of m steps (…), then stopped at …";
+- a changed premise: a layout opened from OUTSIDE the run stops it, while the run's own layout-open step does not;
+- Undo of a partial run;
+- Drawing Boards by name;
+- News preset rename / delete.
+
+### C-ids this branch should move to VERIFIED
+
+The exec-gen-1 status doc (d64d6f127a) already records these from the r8 branches. unseen9 can confirm them on this
+integrated build:
+
+- **Drawings (r8-drawings):**
+  - C1-126 hide / show every drawing on a chart;
+  - C1-158 lock / unlock one;
+  - C1-159 hide / show one;
+  - C1-167 switch a Drawing Board;
+  - C1-168 create one;
+  - C1-169 rename one;
+  - C1-170 delete one (shown first, no Undo);
+  - C1-116 an alert at a line's fixed level (cited from drawingFamily.outcome; already on the base).
+- **Indicator settings (r8-indicator-style):** C2-026 flip an on/off setting; C2-031 histogram up / down colours.
+- **Widgets (r8-scanner-filter):**
+  - C3-108 a Scanner back to its picker;
+  - C3-109 search the Scanner preset list (first-call reach is 0/2 as pinned; the reroute reaches it);
+  - C3-194 the Market Map's Follow the linked list.
+- **C3-140, News filter presets: apply (r8-scanner-filter) plus rename and delete (r8-presets).** exec-gen-1 still lists it as
+  IMPLEMENTED / UNVERIFIED (apply only). On this branch the whole row is covered, so it should move to VERIFIED.
+
+Not moved by this branch: C3-138 / C3-139 (already VERIFIED in rounds 6-7); the saved-screen row behind unseen8 class 3.
+
 ## pytest still owed (not run here: C:\data holds real data; AUDIT / CI)
 
 - tests/test_uct_agent_flow_widget_gate.py
