@@ -213,6 +213,32 @@ describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', ()
     if (r?.steps) expect(r.steps.length).toBeLessThanOrEqual(MAX_STEPS)
     else expect(r?.say || '', JSON.stringify(r)).toMatch(new RegExp(`at most ${MAX_STEPS}`))
   })
+  it('(5) 0 retries: a step whose write fails TRANSIENTLY (throws once, would succeed after) is attempted once, never re-tried; the run stops there with the exact receipt; nothing after it runs', async () => {
+    const steps = stepsOf(SEQ)
+    const k = steps.findIndex(t => /macd/i.test(t))
+    expect(k, JSON.stringify(steps)).toBeGreaterThan(0)
+    const { say, board } = mount()
+    let macdWrites = 0, laterWrites = 0, thrown = false
+    const hasMacd = (patch) => (patch.settings?.indicatorInstances || []).some(i => i.defId === 'macd' && !i.deleted)
+    board.state.failChartCommit = (patch) => {
+      if (thrown && ('tf' in patch || patch.settings?.logScale)) laterWrites += 1     // a step after the failed one
+      if (!hasMacd(patch)) return false
+      macdWrites += 1
+      if (!thrown) { thrown = true; throw new Error('transient: the chart was busy') }   // fails ONCE …
+      return false                                                                   // … and would succeed if tried again
+    }
+    const out = await say(SEQ)
+    expect(macdWrites, 'the failing write is attempted exactly once: no retry').toBe(1)
+    expect(laterWrites, 'no step after the failed one runs').toBe(0)
+    const s = state(board)
+    expect(s.ind).not.toContain('macd')
+    expect(s).toMatchObject({ symbol: 'AMD', tf: 'D', log: false })
+    const done = steps.slice(0, k)
+    expect(out).toContain(`Done ${done.length} of ${steps.length} steps (${done.map(t => `“${t}” on Chart (c0)`).join('; ')}), then stopped at “${steps[k]}”`)
+    expect(out).toContain(`Not done: ${steps.slice(k).map(t => `“${t}”`).join(', ')}.`)
+    expect(out).not.toMatch(/All d+ steps done/)
+    expect(p.turns(), 'no model call re-plans it').toBe(0)
+  }, 60000)
   it('(5) bounded: past the wall-clock cap no further step starts; 0 model calls for a multi-step request', async () => {
     const { _setCompoundWallMs } = await import('./useAgent')
     const { say, board } = mount()
