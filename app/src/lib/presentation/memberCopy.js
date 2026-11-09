@@ -44,16 +44,39 @@ export function memberSentence(s) {
   return /[.!?]$/.test(c) ? c : `${c}.`
 }
 
-/** Any internal guard id a sentence quotes: `(runtime:strategy-start)`, a bare
- *  `pine:strategy-call`, `enum:...`, `strategy:...`. A guard id is a name for engineers
- *  and rails; a member reads the sentence. Same rule as the strategy report panel's
- *  (feat/pine-w9-t13b-report-panel), held here so there is one authority. */
-export const GUARD_ID = /\s*\(?\b(?:runtime|pine|strategy|enum):[a-z0-9][a-z0-9:-]*\)?/gi
 
-/** `s` with every quoted guard id removed and nothing else changed. */
+/** ⭐ THE ONE LIST of guard-id namespaces (`<ns>:<id>`). There is no guard registry in the
+ *  engine: ids are string literals across the lanes (`pine:`, `runtime:`, `thinkscript:`, `pcf:`,
+ *  ...). Measured 2026-11-08 by grepping every `guard: '<ns>:` literal under app/src; add a
+ *  namespace HERE when a lane mints a new one. The member rail
+ *  (attachedPineDisclosures.noGuardIds.test.jsx) builds its pattern from this same list. */
+export const GUARD_NAMESPACES = Object.freeze([
+  'pine', 'runtime', 'strategy', 'enum', 'thinkscript', 'pcf', 'canonicalise', 'objects', 'alert',
+  'import', 'other-symbol', 'request', 'let', 'picker', 'budget', 'resolve', 'probe', 'engine', 'bind',
+])
+
+const NS = GUARD_NAMESPACES.join('|')
+/** A guard id: a known namespace, a colon, then an id that may carry `.`, `_`, `-`, `:` and the
+ *  uppercase of an `err.name` (`runtime:runtime.error`, `runtime:TypeError`). Never `3:2`. */
+export const GUARD_ID_SOURCE = String.raw`(?<![\w:-])(?:${NS}):[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?`
+
+const ID = GUARD_ID_SOURCE
+const WHOLE_PAREN = new RegExp(String.raw`\s*\(\s*${ID}\s*\)`, 'g')           // " (pine:x)"
+const TRAILING_IN_PAREN = new RegExp(String.raw`\s*[,;]\s*${ID}(?=\s*\))`, 'g') // "(row 3, pine:x)"
+const LEADING_IN_PAREN = new RegExp(String.raw`\(\s*${ID}\s*[,;:]\s*`, 'g')     // "(pine:x, row 3)"
+const BACKTICKED = new RegExp('`' + ID + '`' + String.raw`\s*[,;:]?\s*`, 'g')   // "`pine:x`: oops"
+
+/** `s` with every QUOTED guard id removed: a whole `(ID)` parenthetical, an `, ID` / `ID, `
+ *  inside one (its parentheses kept), or a backticked id with its separator. ⛔ A bare id in the
+ *  middle of a sentence is left alone: removing it eats the subject or the noun it stands for, so
+ *  that sentence is its composer's to fix. Non-strings pass through unchanged. */
 export function withoutGuardIds(s) {
   if (typeof s !== 'string') return s
-  const re = new RegExp(GUARD_ID.source, 'gi')
-  if (!re.test(s)) return s
-  return s.replace(new RegExp(GUARD_ID.source, 'gi'), '').replace(/\s+([.,;:])/g, '$1').trim()
+  const t = s
+    .replace(WHOLE_PAREN, '')
+    .replace(TRAILING_IN_PAREN, '')
+    .replace(LEADING_IN_PAREN, '(')
+    .replace(BACKTICKED, '')
+    .replace(/\s*\(\s*\)/g, '')
+  return t === s ? s : t.replace(/^\s+/, '')
 }

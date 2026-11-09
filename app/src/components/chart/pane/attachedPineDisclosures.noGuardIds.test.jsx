@@ -10,13 +10,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../engine/runtimeErrorNotice'
 import { runtimeRunStopOf } from '../engine/nativeRegistry'
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds, GUARD_NAMESPACES } from '../../../lib/presentation/memberCopy'
 import RunsOnLine from '../builder/RunsOnLine'
 import SaveReceipt from '../builder/studio/SaveReceipt'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const GUARD_RE = /\b(runtime|pine|strategy|enum):[a-z-]+/
+// built from memberCopy's one namespace list, never retyped here
+const GUARD_RE = new RegExp(`\\b(?:${GUARD_NAMESPACES.join('|')}):[a-zA-Z0-9]`)
 
 const STRAT_WHY = 'a strategy run takes the most recent bars of its history window, and this run is over a window that slides with each new bar, so its trades would move. Nothing is drawn.'
 const runDef = { compute: { kind: 'runtime', outputs: { p0: 0 } }, meta: { name: 'My Strategy' } }
@@ -24,7 +25,7 @@ const startStop = runtimeRunStopOf(runDef, { __columnErrors: { p0: { guard: 'run
 
 const FIXTURE_NOTES = [
   { name: 'Alerts', note: 'Alerts are not run here (pine:alertcondition-call).' },
-  { name: 'Strategy', note: 'refused strategy:commission-type here' },
+  { name: 'Strategy', note: 'refused here (`strategy:commission-type`).' },
   { name: 'Enum', note: 'An input option is not offered (enum:unknown-member): pick another.' },
   { name: 'Runtime', note: 'its run computed nothing on this chart (runtime:history-start)' },
 ]
@@ -72,7 +73,8 @@ describe('the disclosure strip never prints a guard id', () => {
     const plain = 'This script is a strategy: nothing is drawn (calc_bars_count).'
     expect(withoutGuardIds(plain)).toBe(plain)
     expect(withoutGuardIds('it stopped (runtime:strategy-unpinned).')).toBe('it stopped.')
-    expect(withoutGuardIds('refused pine:strategy-call here')).toBe('refused here')
+    // a bare mid-sentence id is its composer's to fix: removing it eats a word
+    expect(withoutGuardIds('refused pine:strategy-call here')).toBe('refused pine:strategy-call here')
   })
 })
 
@@ -109,23 +111,28 @@ export const SITES = [
   ['components/chart/builder/ConciergeBox.jsx', ['item.reason', 'refusal.reason', 'proposal.sentence']],
   ['components/chart/builder/ConverseBox.jsx', ['c.text', 'editability.text']],
   ['components/chart/builder/ImageBox.jsx', ['refusal.reason', 'c.sentence', 'r.reason']],
-  ['components/chart/builder/PineBox.jsx', ['refusal.message', 'shownVerdict.reason', 'n.note', 'v.note', 'n.message', 'condition.reason']],
   ['components/chart/builder/StarterLibrary.jsx', ['entry.sentence']],
   ['components/chart/builder/studio/CreateIndicatorPanel.jsx', ['editability.text', 'conv.dropped.reason', 'o.reason', 'p.text']],
   ['components/chart/builder/studio/SaveReceipt.jsx', ['it.text']],
   ['components/chart/builder/memberPane/MemberPane.jsx', ['built.reason', 'n.note']],
-  ['components/chart/builder/PineEditorStatus.jsx', ['it.why', 'it.reason', 'r.note', 'r.why', 'x.why', 'status.saved.why']],
   ['components/chart/builder/RunsOnLine.jsx', ['s.sentence']],
   ['components/chart/ChartSettingsIndicators.jsx', ['f.why', 'n.sentence']],
   ['components/chart/IndicatorAlertPopover.jsx', ['preflight.reason']],
   ['components/chart/IndicatorLibraryDialog.jsx', ['n.sentence']],
   ['pages/charts/widgets/ScanObjectCard.jsx', ['item.reason', 'view.reason']],
   ['pages/formulas/FormulaReference.jsx', ['item.sentence', 'item.reason']],
+  ['agent/capabilities/indicatorAlerts.js', ['gate.reason']],
+  ['components/StockChart.jsx', ['n.sentence']],
 ]
+// ⭐ RULING 2026-11-08 (coordinator): guard ids are hidden on every member surface EXCEPT the
+// Pine editor proper, where a script author benefits from the code. These two files print the
+// raw id on purpose and are exempt BY NAME; every file in SITES must wrap.
+export const EDITOR_EXEMPT = ['components/chart/builder/PineBox.jsx', 'components/chart/builder/PineEditorStatus.jsx']
+
 /** bare JSX/template prints of `expr`: `{expr}`, `${expr}`, `={expr}` (an attribute) */
 export function barePrints(src, expr) {
   const e = expr.replace(/[.()]/g, (c) => `\\${c}`)
-  const re = new RegExp(String.raw`(?:\$\{|[{=])\s*` + e + String.raw`\s*\}`, 'g')
+  const re = new RegExp(String.raw`(?:\$\{|[{=]|why:)\s*` + e + String.raw`\s*\}`, 'g')
   // a dedup/React key (`${n.name}::${n.note}`) never reaches the DOM's text: skipped by its `::`
   const out = []
   for (const m of src.matchAll(re)) {
@@ -143,10 +150,61 @@ describe('r1 — census: every composer print site goes through withoutGuardIds'
       expect(src.includes(`withoutGuardIds(${e})`), `${rel}: ${e} wrapped`).toBe(true)
     }
   })
+  it('the editor exemption is exactly the two editor files, and they are not in SITES', () => {
+    for (const rel of EDITOR_EXEMPT) {
+      expect(SITES.some(([r]) => r === rel)).toBe(false)
+      expect(fs.readFileSync(path.join(SRC, rel), 'utf8')).not.toContain('withoutGuardIds')
+    }
+  })
+  it('CONTROL: a non-editor bare print fails the census', () => {
+    const rel = 'components/chart/builder/RunsOnLine.jsx'
+    expect(EDITOR_EXEMPT).not.toContain(rel)
+    const src = fs.readFileSync(path.join(SRC, rel), 'utf8').replace('withoutGuardIds(s.sentence)', 's.sentence')
+    expect(barePrints(src, 's.sentence').length).toBeGreaterThan(0)
+  })
   it('CONTROL: the census sees a bare print', () => {
     expect(barePrints('<li>{n.note}</li> title={f.why} `x ${r.why}`', 'n.note')).toHaveLength(1)
     expect(barePrints('title={f.why}', 'f.why')).toHaveLength(1)
     expect(barePrints('`x ${r.why}`', 'r.why')).toHaveLength(1)
     expect(barePrints('<li>{withoutGuardIds(n.note)}</li>', 'n.note')).toHaveLength(0)
+  })
+})
+
+describe('r3 — withoutGuardIds: the review probe table (NO-GUARD-IDS.md)', () => {
+  it.each([
+    ['(capture row Q-S1a, runtime:strategy-unsettled).', '(capture row Q-S1a).'],
+    ['its run computed nothing on this chart (runtime:runtime.error)', 'its run computed nothing on this chart'],
+    ['not drawn on this chart (pine:runtime.error): division by zero', 'not drawn on this chart: division by zero'],
+    ['not read back here (`pine:parse`: oops), so nothing', 'not read back here (oops), so nothing'],
+    ['not drawn on this chart (runtime:strategy-start): a strategy run takes', 'not drawn on this chart: a strategy run takes'],
+    ['Refused (thinkscript:no-plot) here.', 'Refused here.'],
+    ['stopped (runtime:TypeError).', 'stopped.'],
+    ['read back (pcf:read-back, row 3) failed', 'read back (row 3) failed'],
+    ['the `pcf:read-back` guard refused it', 'the guard refused it'],
+    ['an (other-symbol:x-y) note', 'an note'],
+    ['(pine:x) stops here', 'stops here'],
+  ])('%s', (input, want) => { expect(withoutGuardIds(input)).toBe(want) })
+
+  it.each([
+    '3:2', '1:1', 'runtime: x', 'A runtime: error and pine: script text', 'This script is a strategy: nothing is drawn.',
+    'a strategy: nothing', 'pine:strategy-call stops this.', 'Use the runtime:limit (budget) guard.',
+    'Strategy:Long entry fired', 'at 10:30 (ET)', 'ratio (3:2) holds',
+  ])('untouched: %s', (input) => { expect(withoutGuardIds(input)).toBe(input) })
+
+  it('non-strings pass through', () => {
+    expect(withoutGuardIds(null)).toBe(null)
+    expect(withoutGuardIds(undefined)).toBe(undefined)
+  })
+  it('the rail pattern covers every namespace the helper strips', () => {
+    for (const ns of GUARD_NAMESPACES) {
+      expect(`(${ns}:some.id)`).toMatch(GUARD_RE)
+      expect(withoutGuardIds(`x (${ns}:some.id)`)).toBe('x')
+    }
+  })
+})
+
+describe('r3 — a backticked id that was the whole parenthetical leaves no empty ()', () => {
+  it('refused here (`strategy:x`).', () => {
+    expect(withoutGuardIds('refused here (`strategy:commission-type`).')).toBe('refused here.')
   })
 })

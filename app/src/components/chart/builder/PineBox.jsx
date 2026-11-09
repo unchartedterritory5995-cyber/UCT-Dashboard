@@ -21,7 +21,6 @@
 // rides on `data-guard` so a diagnostic names the gate rather than describing the
 // symptom, exactly as `FormulaField`'s error chip does.
 
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import UIcon from '../../ui/UIcon'
 import { translatePine } from '../engine/ast/pine'
@@ -454,7 +453,7 @@ function Refusal({ refusal, testId, dialect, onApply = null }) {
           : <span className={styles.refusalWhere}>This script</span>}
       </span>
       {/* ⛔ VERBATIM. The refusing door owns the sentence. */}
-      <span className={styles.refusalText}>{withoutGuardIds(refusal.message)}</span>
+      <span className={styles.refusalText}>{refusal.message}</span>
       {refusal.excerpt && <pre className={styles.excerpt}>{refusal.excerpt}</pre>}
       {/* ⭐⭐ THE OFFER, WHERE THE MEMBER IS ALREADY LOOKING. thinkorswim publishes
           no default for some study parameters, and this engine REFUSES to assume
@@ -1196,7 +1195,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               {report.foreign ? ` — this looks like ${report.foreign}` : ''}
               {report.rerouted ? ` — read as thinkScript: \`${report.rerouted.name}\` is a thinkorswim name` : ''}
               {shownVerdict.reason && shownVerdict.verdict !== 'unsupported' && shownVerdict.verdict !== 'error'
-                ? ` — ${withoutGuardIds(shownVerdict.reason)}` : ''}
+                ? ` — ${shownVerdict.reason}` : ''}
             </p>
           )}
           {/* ⭐ SUPPORT LOOP A1/A2/A3 (`docs/pine/support-loop/PHASE-A.md`): which
@@ -1211,7 +1210,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               {semanticShown.map((n, i) => (
                 <li key={`${n.name}-${i}`} className={styles.note} data-severity="semantic">
                   <span className={styles.noteWhere}>{noteHeading(n.name)}</span>
-                  <span>{withoutGuardIds(n.note)}</span>
+                  <span>{n.note}</span>
                 </li>
               ))}
             </ul>
@@ -1330,7 +1329,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               {active.vendorNotes.map((v) => (
                 <li key={v.name} className={styles.note} data-vendor-note={v.name}>
                   <span className={styles.noteWhere}>{noteHeading(v.name)}</span>
-                  <span>{withoutGuardIds(v.note)}</span>
+                  <span>{v.note}</span>
                 </li>
               ))}
             </ul>
@@ -1446,7 +1445,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                   {collapsedNotes.map((n, i) => (
                     <li key={`${n.code}-${n.line}-${i}`} className={styles.note}>
                       <span className={styles.noteWhere}>{n.line != null ? `line ${n.line}` : '—'}</span>
-                      <span>{withoutGuardIds(n.message)}</span>
+                      <span>{n.message}</span>
                     </li>
                   ))}
                 </ul>
@@ -1573,7 +1572,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
               )}
               {condition && !condition.ok && (
                 <span className={styles.toScreenWhy} data-testid="pine-screen-why">
-                  {withoutGuardIds(condition.reason)}
+                  {condition.reason}
                 </span>
               )}
               {/* ⛔ SAY WHAT HAPPENS IF THEY LEAVE IT BLANK, rather than letting an
