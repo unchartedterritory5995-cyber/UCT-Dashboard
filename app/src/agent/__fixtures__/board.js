@@ -6,6 +6,7 @@
 import { planPlacement } from '../../pages/charts/placement/place'
 import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync, positionWord } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { themeAllChartWidgets, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 
 export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
@@ -14,6 +15,8 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
   const keyOf = (w) => (w.color === 'N' ? `N:${w.id}` : w.color)
   const widgetOps = {
     layout: () => state,
+    // the theme gallery's "all charts" as ChartsWorkspace wires it (agentWidgetOps.themeAll): the product's own pure function
+    themeAll: (ws, themeId) => (CHART_THEME_BY_ID[themeId] ? themeAllChartWidgets(ws, CHART_THEME_BY_ID[themeId], null) : null),
     add: (type, slot = null, init = null) => {
       adds += 1
       if (failAddAt && adds === failAddAt) return                  // a write that never lands
@@ -36,6 +39,7 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       let ws = state.widgets.filter(w => !(p.remove || []).includes(w.id)).map(w => (p.set?.[w.id] ? { ...w, ...p.set[w.id] } : w))
       for (const r of p.restore || []) if (!ws.some(w => w.id === r.id)) ws.push(r)
       state.widgets = ws
+      if ('layoutTheme' in p) state.layoutTheme = p.layoutTheme ?? null      // the layout's remembered chart look (theme gallery "all charts")
     },
     grid: () => ({ cols: 24, rows: 20 }),
     minOf: minOf || (() => ({ minW: 2, minH: 3 })),
