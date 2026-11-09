@@ -10792,6 +10792,7 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
+app.include_router(notebook_research_capture_router.tweets_router)
 
 # Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.

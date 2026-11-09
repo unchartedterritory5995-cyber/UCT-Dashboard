@@ -369,36 +369,56 @@ def find_deleted_tweet_ids(tweet_ids: Iterable[str]) -> set[str]:
     still_resolves: set[str] = set()
     for start in range(0, len(ids), _TWEETS_BY_IDS_BATCH):
         batch = ids[start:start + _TWEETS_BY_IDS_BATCH]
-        try:
-            r = requests.get(
-                f"{BASE_URL}/twitter/tweets",
-                params={"tweet_ids": ",".join(batch)},
-                headers={"x-api-key": _api_key()},
-                timeout=TIMEOUT,
-            )
-        except requests.RequestException as e:
-            raise TwitterApiTransientError(f"network error: {e}") from e
-
-        if r.status_code == 401:
-            raise TwitterApiAuthError(f"auth failed: {r.text[:200]}")
-        if r.status_code == 402:
-            raise TwitterApiPaymentRequired(f"out of credits: {r.text[:200]}")
-        if r.status_code == 429:
-            raise TwitterApiRateLimited(f"rate limited: {r.text[:200]}")
-        if r.status_code >= 500:
-            raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
-        if r.status_code != 200:
-            raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
-
-        body = r.json()
-        for t in _extract_tweets(body):
-            if not isinstance(t, dict):
-                continue
+        for t in _request_tweets_by_ids(batch):
             tid = str(t.get("id") or t.get("id_str") or t.get("tweetId") or "")
             if tid:
                 still_resolves.add(tid)
 
     return set(ids) - still_resolves
+
+
+def _request_tweets_by_ids(batch: list[str]) -> list[dict]:
+    """ONE call to GET /twitter/tweets for `batch` (already within the per-call
+    size) and the raw tweet dicts it returned. The single request helper behind
+    `find_deleted_tweet_ids` and `get_tweets_by_ids`: the same per-status error
+    handling and the same TwitterApi* classes for both."""
+    try:
+        r = requests.get(
+            f"{BASE_URL}/twitter/tweets",
+            params={"tweet_ids": ",".join(batch)},
+            headers={"x-api-key": _api_key()},
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as e:
+        raise TwitterApiTransientError(f"network error: {e}") from e
+
+    if r.status_code == 401:
+        raise TwitterApiAuthError(f"auth failed: {r.text[:200]}")
+    if r.status_code == 402:
+        raise TwitterApiPaymentRequired(f"out of credits: {r.text[:200]}")
+    if r.status_code == 429:
+        raise TwitterApiRateLimited(f"rate limited: {r.text[:200]}")
+    if r.status_code >= 500:
+        raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+    if r.status_code != 200:
+        raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+
+    return [t for t in _extract_tweets(r.json()) if isinstance(t, dict)]
+
+
+def get_tweets_by_ids(tweet_ids: Iterable[str]) -> list[dict]:
+    """Fetch tweets by numeric id and return them normalized (`_normalize_tweet`,
+    the `tweet_store` row shape). An id the vendor cannot return (deleted,
+    protected, suspended author) is simply absent from the result. Raises the
+    TwitterApi* classes for a transport/auth/quota failure."""
+    ids = [str(i) for i in tweet_ids if i]
+    out: list[dict] = []
+    for start in range(0, len(ids), _TWEETS_BY_IDS_BATCH):
+        for raw in _request_tweets_by_ids(ids[start:start + _TWEETS_BY_IDS_BATCH]):
+            if not (raw.get("id") or raw.get("id_str") or raw.get("tweetId")):
+                continue
+            out.append(_normalize_tweet(raw, fallback_handle=""))
+    return out
 
 
 def _hi_res_avatar(url: str) -> str:

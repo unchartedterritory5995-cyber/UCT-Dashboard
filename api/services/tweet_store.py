@@ -547,22 +547,45 @@ def feed(hours: int = 12, limit: int = 50, official_only: bool = False) -> list[
                    LIMIT ?""",
                 (since, limit),
             ).fetchall()
-        tweets = [dict(r) for r in rows]
-        if tweets:
-            ids = [t["id"] for t in tweets]
-            placeholders = ",".join("?" * len(ids))
-            links = c.execute(
-                f"""SELECT tweet_id, ticker FROM tweet_tickers
-                    WHERE tweet_id IN ({placeholders})""",
-                ids,
-            ).fetchall()
-            by_id: dict[str, list[str]] = {}
-            for lr in links:
-                by_id.setdefault(lr["tweet_id"], []).append(lr["ticker"])
-            for t in tweets:
-                t["tickers"] = by_id.get(t["id"], [])
-                t["media"] = _extract_media(t.get("raw_json"))
-        return tweets
+        return _attach_links(c, [dict(r) for r in rows])
+
+
+def _attach_links(c: sqlite3.Connection, tweets: list[dict]) -> list[dict]:
+    """Add `tickers` (joined) and `media` (from raw_json) to each row, in place."""
+    if tweets:
+        ids = [t["id"] for t in tweets]
+        placeholders = ",".join("?" * len(ids))
+        links = c.execute(
+            f"""SELECT tweet_id, ticker FROM tweet_tickers
+                WHERE tweet_id IN ({placeholders})""",
+            ids,
+        ).fetchall()
+        by_id: dict[str, list[str]] = {}
+        for lr in links:
+            by_id.setdefault(lr["tweet_id"], []).append(lr["ticker"])
+        for t in tweets:
+            t["tickers"] = by_id.get(t["id"], [])
+            t["media"] = _extract_media(t.get("raw_json"))
+    return tweets
+
+
+def with_links(tweets: list[dict]) -> list[dict]:
+    """`tweets` (rows from `tweets_for_ticker`, say) with `tickers` and `media`
+    attached the way `feed` does. Read-only; the input rows are not mutated."""
+    rows = [dict(t) for t in tweets]
+    if not rows:
+        return rows
+    with contextlib.closing(_connect()) as c:
+        return _attach_links(c, rows)
+
+
+def get_tweet(tweet_id: str) -> Optional[dict]:
+    """One stored tweet by its id, with `tickers` and `media`, or None."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM tweets WHERE id = ?", (str(tweet_id),)).fetchone()
+        if row is None:
+            return None
+        return _attach_links(c, [dict(row)])[0]
 
 
 def batch_counts(tickers: Iterable[str], hours: int = 24) -> dict[str, int]:
