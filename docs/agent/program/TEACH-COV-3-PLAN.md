@@ -71,3 +71,16 @@ Each item is its own commit, with held-out phrasings first where routing changes
 - Items 4 and 6 first (truthfulness, small). Then 1 (held-out set already committed), then 2 and 3 together (one fresh full runner pass), then 5.
 - No lock slot until the Lead clears it. Targeted vitest only until then.
 - Each branch still needs its full suite, PR doc, and before/after counts before it is reviewable.
+
+## Request to the builder/Pine team: an anchor for the formula's intent (owner to route)
+The guide can only point at controls the product names with a `data-guide` anchor. In `components/chart/builder/BuilderSheet.jsx`, the "What is it for?" radiogroup (Plot / Signal / Value, inside `data-testid="intent-section"`) has none. That leaves the guide no honest walkthrough for signal markers and signal colours. Those options (`builder.signalLook`) appear only after the member types a yes/no formula and chooses **Signal**. A walkthrough that can't point at Signal either rings a control that isn't there yet, or skips the step the member needs.
+
+**Request:** add one attribute-only anchor, `data-guide="builder.intent"`, on that radiogroup. No behaviour change is needed. The guide would then teach the whole path: the formula box ("such as close > open"), then Signal, then the marker and colour options.
+
+This unblocks 4 cases, which today correctly show the honest sentence "These show once the formula gives a yes or no…":
+- C2-070 Set signal markers
+- C2-071 Colour candles or background on a signal
+- held-out H3-09 "show a dot under the bar when my condition is true"
+- held-out H3-10 "paint the candles when the signal is true"
+
+The Lead's ruling (option c) leaves the anchor to the builder team, because #982 just changed that file and more may be in flight.
