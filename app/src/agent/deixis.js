@@ -579,6 +579,26 @@ export function ordinalChart(text, charts = []) {
   else if (word === 'last') idx = n - 1
   else if (['middle', 'center', 'centre'].includes(word)) {
     const cells = charts.map(c => c.cell).filter(Boolean)
+    // unseen9 P2 (pl-teach's trace): a ROW word ("the middle chart on the bottom row", "the bottom middle chart") or a COLUMN word
+    // ("the middle one in the left column") names a line first; its middle is the chart meant when the line holds an odd number
+    // (3 or more). Any other line → asked, as before. The guide's namedChart reads the same function.
+    const t = String(text || '')
+    const rowW = /\b(top|upper|bottom|lower)\b/i.exec(t)
+    const colW = /\b(left|right)\s+(?:column|side)\b/i.exec(t)
+    if (cells.length === n && (rowW || colW)) {
+      const ask = { ask: { text: 'Which chart is the middle one here? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+      let line
+      if (colW) {
+        const xs = charts.map(c => c.cell.x)
+        const want = colW[1].toLowerCase() === 'left' ? Math.min(...xs) : Math.max(...xs)
+        line = charts.filter(c => c.cell.x === want).sort((a, b) => a.cell.y - b.cell.y)
+      } else {
+        const ys = charts.map(c => c.cell.y)
+        const want = /^(?:top|upper)$/i.test(rowW[1]) ? Math.min(...ys) : Math.max(...ys)
+        line = charts.filter(c => c.cell.y === want).sort((a, b) => a.cell.x - b.cell.x)
+      }
+      return line.length >= 3 && line.length % 2 === 1 ? { ref: line[(line.length - 1) / 2].ref, word, match: m } : ask
+    }
     const oneRow = cells.length === n && new Set(cells.map(c => c.y)).size === 1
     const oneCol = cells.length === n && new Set(cells.map(c => c.x)).size === 1
     idx = (n === 3 || n === 5) && (oneRow || oneCol) ? (n - 1) / 2 : null
