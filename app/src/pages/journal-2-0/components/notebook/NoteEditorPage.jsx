@@ -148,6 +148,8 @@ import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { useNoteNavigation } from '../../lib/splitView'
 import { TranscriptInsertHost } from './TranscriptDoors'
+import { TweetInsertHost } from './TweetDoors'
+import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { noteDayOf } from '../../lib/blocks/toolDays'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
@@ -5773,6 +5775,16 @@ export default function NoteEditorPage({
               label={<UIcon name="paperclip" {...TOOLBAR_ICON} />}
               title="Attach a file"
             />
+            {/* Import a tweet: the same event as /tweet, on this editor's own DOM root.
+                Absent while notebook_tweet_import_enabled is off. */}
+            {tweetImportEnabled() && (
+              <ToolButton
+                onClick={() => editor.view.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true }))}
+                label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--ut-gold)' }}><UIcon name="xLogo" {...TOOLBAR_ICON} />Import a tweet</span>}
+                title="Import a tweet"
+                disabled={!editor.isEditable}
+              />
+            )}
             </span>
             {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
                 "Dictate" starts the same mic). Paid members only — the mic
@@ -6203,6 +6215,8 @@ export default function NoteEditorPage({
       )}
       {/* Wave 13 lane 13G-1: the /transcript insert's sheet (renders nothing while its gate is off). */}
       <TranscriptInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} />
+      {/* Import a tweet: the /tweet and toolbar sheet (renders nothing while its gate is off). */}
+      <TweetInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} noteTitle={title} />
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel
