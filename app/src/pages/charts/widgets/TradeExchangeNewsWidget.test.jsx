@@ -234,6 +234,23 @@ describe('TradeExchangeNewsWidget', () => {
     vi.useRealTimers()
   })
 
+  it('unmounting mid-flash leaves no timer behind: nothing fires after the widget is gone', () => {
+    vi.useFakeTimers({ now: NOW })
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { container, unmount } = mount()
+      act(() => feed.set({ items: [...HISTORY, H(6, 'SYNTHETIC: flashing', [], { received_at_ms: Date.now() })], lastSeq: 6 }))
+      expect(container.querySelector('[data-seq="6"] [class*="flash"]')).not.toBeNull()
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)                            // the flash-clear (and every other timer) was cleared
+      expect(() => act(() => { vi.advanceTimersByTime(5000) })).not.toThrow()
+      expect(errors).not.toHaveBeenCalled()                         // no setState after unmount, no unhandled error
+    } finally {
+      errors.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('search narrows the feed (debounced)', async () => {
     const { container } = mount()
     fireEvent.change(screen.getByLabelText('Search headlines'), { target: { value: 'guidance' } })

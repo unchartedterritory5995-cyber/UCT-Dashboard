@@ -25,6 +25,7 @@ import secrets
 import time
 from typing import Any, Callable
 
+from api.services import call_deadline
 from api.services.uct_agent import turn as t1
 
 log = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ _UNDO_WEAK = re.compile(r"\b(?:restored|restoring|reversed|put (?:it|that|them|t
 ROUND_LIMIT = "I stopped there: that request needed more steps than one turn allows. What is done is shown above; ask for the rest on its own."
 TURN_CAP = "I stopped there: that request reached one turn's AI budget. What is done is shown above; ask for the rest on its own."
 STEP_TIMEOUT = "I stopped there: a step did not report back in time. What is done is shown above."
+TURN_DEADLINE = "I stopped there: that request ran too long. What is done is shown above; ask for the rest on its own."
 TRUNCATED = "That reply ran long and was cut off; what is done is shown above."
 NO_CHANGE_AFTER_RESEARCH = "no changes after a web lookup in the same turn: ask for the change on its own"
 ISOLATED_NOTE = ("[UCT showed the member this result on their screen. Its values are shown ONLY to the member and are "
@@ -569,6 +571,8 @@ def _rounds(state: dict, caller, meter, on_event, wait_step) -> dict:
         try:
             resp = t1._paid(meter, "v2_round", caller, **kwargs)
         except budget.BudgetRefused as e:
+            if e.reason == "turn_deadline":
+                return _final(state, TURN_DEADLINE, "turn_deadline")
             if e.reason != "turn_cap":
                 raise
             return _final(state, TURN_CAP, "turn_cap")   # the ledger's sum includes what this loop did not spend itself
@@ -712,6 +716,8 @@ def _send_group(state: dict, group: list, on_event, wait_step) -> dict | None:
         state["usage"]["stages"]["steps"].append(t1._ms(t0))
         if res is None:
             step["status"] = "timeout"
+            if call_deadline.expired():                  # the wait ended because the turn did
+                return _final(state, TURN_DEADLINE, "turn_deadline")
             return _final(state, STEP_TIMEOUT, "step_timeout")
         results.append(dict(res))
     if any(r.get("status") == "proposed" for r in results):
@@ -729,6 +735,8 @@ def _send_group(state: dict, group: list, on_event, wait_step) -> dict | None:
         state["awaiting"] = {"tool_use_id": uid, "step": step, "cap": cap,
                              "others": [{"tool_use_id": u, "step": st} for u, c, st in waiting[:-1]]}
         state["expires"] = time.time() + PAUSE_TTL_S
+        # active time so far: the resume's clock starts from it, and time on the card is not counted
+        state["active_s"] = float(state.get("active_s") or 0.0) + time.monotonic() - state["started"]
         _rails(state)["paused"] += 1
         if on_event is not None:
             on_event({"t": "paused", "turnId": state["token"], "id": step["id"]})

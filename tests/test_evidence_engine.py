@@ -831,3 +831,62 @@ def test_every_committed_queue_doc_parses_and_every_target_resolves_to_its_file(
         assert not (t["needsLive"] and t["status"] == "QUEUED"), t["id"]
         assert not (t["chartDefaulted"] and t["status"] != "NEEDS_CHART"), t["id"]
         assert ee.STEM_RX.fullmatch(t["captureStem"]), t["id"]
+
+
+# ── the ONE live marker (2026-11-08): an explicit `live` column, else a pattern that names a SESSION ─────────
+@pytest.mark.parametrize("text", [
+    "`w9-q-s1e-live-past.pine` | NYSE:RDDT 1D | an exit already past its level",     # `live` in a probe name
+    "`w9-p3-every-tick-history.pine` | NYSE:RDDT 1D | calc on every tick over history",
+    "`w9-q-s1d-same-tick.pine` | NYSE:RDDT 1D | ids by label",
+    "`str.tostring(x, format.mintick)` per pass | AMEX:SPY 1D",                       # Q-W3-6's mintick
+    "exit levels given as ticks (profit/loss)",
+    "AMEX:SPY **1W** and **1M**",                                                     # 1M is MONTHLY
+    "3 passes and `y = 23, 24` left => over the live list",                           # live = not a snapshot
+    "`varip` counter over history",
+    "No market hours needed: every row is read off historical bars",
+])
+def test_a_word_that_also_names_history_is_not_a_live_session(text):
+    assert ee.row_needs_live(["row", "probe", "chart"], ["Z", text, ""], text, "t") is False
+
+
+@pytest.mark.parametrize("text", [
+    "AMEX:SPY 5 during regular hours, newest bar forming",
+    "needs market hours", "realtime ticks", "real-time updates", "Q-S1-core during RTH on SPY 5",
+    "two readings minutes apart",
+])
+def test_a_row_that_names_a_session_is_live(text):
+    assert ee.row_needs_live(["row", "probe"], ["Z", text], text, "t") is True
+
+
+def test_the_live_column_is_the_authority_for_its_table_both_ways():
+    head = ["row", "probe", "chart", "live"]
+    assert ee.row_needs_live(head, ["Q", "`p.pine`", "AMEX:SPY 5", "yes"], "x", "t") is True
+    # the column says no: a session word in the row does not overrule it
+    assert ee.row_needs_live(head, ["Q", "`p.pine`", "realtime forming", "no"], "realtime forming", "t") is False
+    assert ee.row_needs_live(["row", "needs market hours"], ["Q", "**true**"], "", "t") is True
+    with pytest.raises(ee.LiveMarkerError, match="must be one of"):
+        ee.row_needs_live(head, ["Q", "`p.pine`", "AMEX:SPY 5", "maybe"], "", "t")
+
+
+#: The six rows the 2026-11-08 capture plan named: four history captures the old word pattern marked live, and
+#: the only two W9 rows that truly need a session.
+LIVE_ROWS = {
+    ("capture-queue-2026-11-05-w9", "W9-P3"): False, ("capture-queue-2026-11-05-w9", "Q-S1d"): False,
+    ("capture-queue-2026-11-05-w9", "Q-S1e"): False, ("capture-queue-2026-11-02-w3", "Q-W3-6"): False,
+    ("capture-queue-2026-11-05-w9", "Q-S1o"): True, ("capture-queue-2026-11-05-w9", "Q-S1p-live"): True,
+}
+
+
+def test_the_committed_live_rows_are_exactly_the_session_rows():
+    world = ee.World()
+    got = {}
+    for stem, rid in LIVE_ROWS:
+        rows = ee.parse_doc(world, REPO / "docs" / "pine" / f"{stem}.md")["rows"]
+        got[(stem, rid)] = next(r["needsLive"] for r in rows if r["key"] == f"{stem}#{rid}")
+    assert got == LIVE_ROWS
+    q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
+    by = {t["id"]: t["status"] for t in q["targets"]}
+    for tid in ("w9-p3-every-tick-history@NYSE:RDDT@D", "w9-q-s1d-same-tick@NYSE:RDDT@D",
+                "w9-q-s1e-live-past@NYSE:RDDT@D", "vw-w3-loop-ternary-text@AMEX:SPY@D"):
+        assert by[tid] == "QUEUED", tid
+    assert by["w9-q-s1o-every-tick@AMEX:SPY@5"] == by["s1-broker-core@AMEX:SPY@5"] == "NEEDS_LIVE"

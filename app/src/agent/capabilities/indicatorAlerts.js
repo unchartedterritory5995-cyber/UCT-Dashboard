@@ -22,6 +22,7 @@
 //   kind 'indicatorAlertLibrary'  one target — where new indicator alerts are made (and the list read)
 //   kind 'indicatorAlert'         one target per alert (ref = its real id)
 
+import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
 import { indicatorsOn } from './indicators'
 import { instancesForAddress, addressBase } from '../../components/chart/engine/alertSets'
@@ -622,7 +623,7 @@ function resolveCreate({ instance, plot, condition, threshold, crossWith = null,
     if (faithful) return { why: faithful }
     if (installed) {
       const gate = signalAlertGate(installed.def, installed.key, { tf })
-      if (gate.status === 'refused') return { why: gate.reason }
+      if (gate.status === 'refused') return { why: withoutGuardIds(gate.reason) }
     }
     return { found, p, tf, policy: trigger, ...compileTriggerPolicy(trigger), cross: null }
   }

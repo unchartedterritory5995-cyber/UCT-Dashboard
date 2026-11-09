@@ -15,6 +15,11 @@
 // ⛔ A rule with `capture: null` has no probe queued yet: it is refused until one is written.
 
 export const UNPINNED_GUARD = 'runtime:strategy-unpinned'
+/** A broker refusal for a behaviour no source settles (`broker.js` re-exports it under the same name).
+ *  Declared HERE, beside UNPINNED_GUARD, so the strategy report (`brokerReport.js`) can name it without
+ *  importing the broker itself: that import split `broker.js` into its own shared chunk and pushed
+ *  bytes.notebook_first_open over budget (engine 40). One authority, two doors. */
+export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 
 export const BROKER_RULES = Object.freeze({
   // the run's execution model
@@ -88,4 +93,22 @@ export function ruleCapture(ruleId) {
     throw new Error(`broker rule \`${ruleId}\` is not named in brokerRules.js`)
   }
   return BROKER_RULES[ruleId].capture
+}
+
+// ─── W9-T12: PRESENTATION RULES (not emulator rules) ─────────────────────────────
+//
+// A rule about how a backtest is SHOWN, not how it fills. It is pinned by the same ledger
+// (`brokerPins.resolved.json`, `pinned(ruleId)`) and lands the same way (a ledger entry plus a
+// `SCRIPT_ENGINE_VERSION` bump, design rule 7), but it is never an emulator rule: `ruleCapture`
+// and every broker rail keep reading `BROKER_RULES` alone.
+export const MARKER_RULE = 'MK-LOOK'
+export const PRESENTATION_RULES = Object.freeze({
+  [MARKER_RULE]: Object.freeze({ capture: 'W9-MK1', what: 'how TradingView draws a strategy\'s trade markers (shape, colour, text, placement)' }),
+})
+export const PRESENTATION_RULE_IDS = Object.freeze(Object.keys(PRESENTATION_RULES))
+
+/** ⭐ The ledger's vocabulary: an emulator rule or a presentation rule, nothing else. */
+export function isLedgerRuleId(id) {
+  return typeof id === 'string' && (Object.prototype.hasOwnProperty.call(BROKER_RULES, id)
+    || Object.prototype.hasOwnProperty.call(PRESENTATION_RULES, id))
 }

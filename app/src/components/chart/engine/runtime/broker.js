@@ -26,9 +26,10 @@
 // bar at all (`vm.js`), so no realtime tick ever reaches this file.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, COMMISSION_NET_VALUES } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, COMMISSION_NET_VALUES, BROKER_UNSETTLED_GUARD } from './brokerRules.js'
 
-export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
+// declared in brokerRules.js (one authority); re-exported here under its old name for every importer
+export { BROKER_UNSETTLED_GUARD }
 export const BROKER_START_GUARD = 'runtime:strategy-start'
 export { UNPINNED_GUARD }
 
