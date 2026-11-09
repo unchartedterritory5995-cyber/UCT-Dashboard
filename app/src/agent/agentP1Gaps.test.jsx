@@ -191,7 +191,7 @@ function withGroups({ failMembers = false } = {}) {
   })
 }
 const compsAt = (b) => mergeChartSettings(b.state.widgets[0].opts?.settings || null).comparisonSymbols || []
-const groupOp = (type, name) => op('chart.compare', { add: [], remove: [], clear: false, group: { type, name } })
+const groupOp = (type, name) => op('chart.compare', { add: [], remove: [], clear: false, groupType: type, groupName: name })
 describe('C1-035: a whole compare group (theme / sector / industry) on one chart', () => {
   it.each(GROUP_HELD_OUT.map(c => [c.text, c]))('held-out "%s": every member but the chart\'s own symbol, tagged with the group; Undo restores exactly', async (t, c) => {
     withGroups()
