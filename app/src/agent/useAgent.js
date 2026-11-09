@@ -25,7 +25,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, clauseCharts } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, pickOffered, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, clauseCharts } from './deixis'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -2049,6 +2049,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // model is told it was set aside — never merged into the new request.
     const qOpen = lastQuestionRef.current
     const localOpen = pendingRef.current?.kind === 'target'
+    // round 8 (family 4): an answer to UCT's own local choice question ("2", "the bottom one") is read against the options it
+    // OFFERED — never the board: one fits → that pick, exactly as clicking it; two fit → asked again with just those two
+    const offered = localOpen && !answering && Array.isArray(qOpen?.choices) && qOpen.choices.length ? pickOffered(text, qOpen.choices) : null
+    if (offered?.ref) {
+      releaseLock()
+      return await chooseTarget(offered.ref, text)
+    }
+    if (offered?.ask) {
+      push({ role: 'member', text, voice })
+      push({ role: 'question', text: `Two of those fit: ${offered.ask.map(c => c.label).join(' or ')}. Which one?`, choices: offered.ask.map(c => ({ ref: c.ref, label: c.label })), local: true })
+      releaseLock()
+      return
+    }
     const setAside = !answering && (!!askedFor0 || localOpen) && isNewRequest(text, qOpen)
     const askedFor = setAside ? null : askedFor0
     askedForRef.current = null

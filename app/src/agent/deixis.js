@@ -334,13 +334,34 @@ const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** The answer to a question UCT asked, read against its choices: an exact label, "2", "the second (one)". */
 export function pickedChoice(text, choices = []) {
-  const t = String(text || '').trim().toLowerCase().replace(/[.!]+$/, '')
-  if (!t || !choices.length) return null
-  const byLabel = choices.filter(c => c?.ref && String(c.label || '').trim().toLowerCase() === t)
-  if (byLabel.length === 1) return byLabel[0].ref
-  const m = /^(?:the\s+)?(\d|first|second|third|fourth|1st|2nd|3rd|4th)(?:\s+(?:one|chart))?$/.exec(t)
-  const n = m ? (Number(m[1]) || ORDINAL[m[1]]) : 0
-  return n >= 1 && n <= choices.length ? choices[n - 1]?.ref || null : null
+  const r = pickOffered(text, choices)
+  return r?.ref || null
+}
+
+// ⭐ round 8 (family 4, pl-auto unseen8 class 2): an answer to the Agent's OWN choice question, read against the OPTIONS IT
+// OFFERED — never the board. "2" / "the second" / "option 2" / "the last one" = that place in the offered list; an option's
+// label, or the words of one (a position, a ticker: "the bottom one", "NVDA") = the one option they fit; two fit → { ask }
+// with those two. → { ref, label } | { ask: [choices] } | null (not an answer to this list).
+const OFFER_FILLER = /\b(?:the|a|an|one|ones|chart|charts|please|option|choice|number|no|pick|take|go|with|i|mean|meant|want|that|this|it|is)\b/g
+export function pickOffered(text, choices = []) {
+  const list = (choices || []).filter(c => c && c.ref)
+  const t = String(text || '').trim().toLowerCase().replace(/[.!?]+$/, '')
+  if (!t || !list.length) return null
+  const exact = list.filter(c => String(c.label || '').trim().toLowerCase() === t)
+  if (exact.length === 1) return exact[0]
+  const m = /^(?:(?:the|option|choice|number|no\.?|#)\s*)?(\d{1,2}|first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last)(?:\s+(?:one|option|choice|chart))?$/.exec(t)
+  if (m) {
+    const n = m[1] === 'last' ? list.length : (Number(m[1]) || ORDINAL[m[1]] || ORD_WORDS[m[1]] || 0)
+    return n >= 1 && n <= list.length ? list[n - 1] : null
+  }
+  // the member's own words, each one in the option's label (positions as words: "bottom left" fits "Bottom-left chart (NVDA)")
+  const words = t.replace(OFFER_FILLER, ' ').split(/[^a-z0-9.$%]+/).filter(Boolean)
+  if (!words.length || words.length > 4) return null
+  const labelWords = (c) => String(c.label || '').toLowerCase().split(/[^a-z0-9.$%]+/).filter(Boolean)
+  const fit = list.filter(c => { const lw = labelWords(c); return words.every(w => lw.includes(w) || lw.includes(w.replace(/^\$/, ''))) })
+  if (fit.length === 1) return fit[0]
+  if (fit.length > 1) return { ask: fit }
+  return null
 }
 
 // ── Charts operator P1: a chart named by its ORDER on the board ──
