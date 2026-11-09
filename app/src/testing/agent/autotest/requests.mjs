@@ -19,6 +19,7 @@ import { unseen10 } from './families/unseen10.mjs'
 import { unseen11 } from './families/unseen11.mjs'
 import { unseen12 } from './families/unseen12.mjs'
 import { unseen13 } from './families/unseen13.mjs'
+import { unseen14 } from './families/unseen14.mjs'
 
 export function publicRequests() {
   const L = []
@@ -128,6 +129,13 @@ export function unseen13Requests() {
   const L = []
   unseen13(L)
   return L.map(r => ({ ...r, set: 'unseen13' }))
+}
+
+/** Batch 14, TICKER ANCHORS (2026-11-09): AUDIT probe-18's five families (G1-G5) in pl-auto's own words, written before any run. */
+export function unseen14Requests() {
+  const L = []
+  unseen14(L)
+  return L.map(r => ({ ...r, set: 'unseen14' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
