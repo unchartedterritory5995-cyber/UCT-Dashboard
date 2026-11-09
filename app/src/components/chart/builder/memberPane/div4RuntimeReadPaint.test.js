@@ -17,8 +17,29 @@ import * as registry from '../../engine/nativeRegistry'
 import { validateDefinition } from '../../engine/defSchema'
 import { memberPaneDefinition } from './memberPaneDefinition'
 import { translatePine, PAINT_RUNTIME_COLOUR } from '../../engine/ast/pine'
+import fs from 'node:fs'
+import path from 'node:path'
+import { bindingKey } from '../../engine/pool'
+import { paintColoursFor, createBinder } from '../../engine/binder'
+import { addInstance } from '../../engine/instanceControls'
+import { mergeChartSettings } from '../../chartDefaults'
+import { createFakeChart } from '../../engine/__tests__/fakeChart'
+import { runtimeErrorNotices } from '../../engine/runtimeErrorNotice'
+import { toProductBars } from '../../engine/__tests__/vendorHarness/ourSide'
+import { vendorPaints } from '../../engine/__tests__/vendorHarness/paintColours'
+import { coloursAgree, normalizeColor, NO_COLOUR } from '../../../../../../tools/vendor_harness/compare.mjs'
+import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
+import {
+  setRuntimeKillList, runtimeSourceHash, __resetRuntimeAllowList, __allowEveryRuntimeScriptForTests,
+} from '../../engine/runtimeKill'
+import { registerObjectRuntimeValues, registeredObjectRuntimeValues } from '../../engine/objectRuntimeSeam'
 
-afterEach(() => { vi.unstubAllEnvs() })
+afterEach(() => {
+  vi.unstubAllEnvs()
+  __permitRuntimePaneForTests()
+  __allowEveryRuntimeScriptForTests()
+  setRuntimeKillList([])
+})
 
 // written for this rail (not corpus text): two counts since a latch flipped
 const SRC = `//@version=5
@@ -164,5 +185,159 @@ describe('⛔ DIV-4 — the schema admits a runtime colour column only as declar
     const d = base()
     d.compute = { ...d.compute, runtimeColours: { ...d.compute.runtimeColours, keys: ['value'] } }
     expect((validateDefinition(d).errors || []).join(' ')).toMatch(/runtimeColours\.keys\[0\]/)
+  })
+})
+
+// ─── r1 — on the real script the triage named, and every gate the run answers to ────
+const CAPTURE = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'vendor', 'harness',
+  'supertrend-strategy-rddt-1d-2026-10-02.json')
+const cap = JSON.parse(fs.readFileSync(CAPTURE, 'utf8'))
+const ST = cap.source.text // MPL-2.0, committed with the capture
+const ST_BARS = toProductBars(cap)
+const ST_CTX = { tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, historyFromListing: true, newestBarIsForming: false }
+const stDoor = () => {
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+  return memberPaneDefinition({ source: ST, id: 'u_00000000d4b1', name: 'st' })
+}
+
+describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', () => {
+  it('its barcolor is read on the PANE lane (the object door refuses `timestamp`) and equals the capture on every bar', () => {
+    const d = stDoor()
+    expect(d.ok, d.reason).toBe(true)
+    const paint = d.definition.paints.find((p) => p.kind === 'barcolor')
+    expect(paint && paint.colorMode).toBe('column:rtcolour1')
+    const cols = registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)
+    expect(registry.columnErrors(cols).rtcolour1).toBeUndefined()
+    const ours = paintColoursFor(paint, 'i', new Map([[bindingKey('i', 'rtcolour1'), cols.rtcolour1]]), ST_BARS.length)
+    const [vendor] = vendorPaints(cap).filter((v) => v.kind === 'barcolor')
+    const canon = (c) => (c === null || c === undefined ? NO_COLOUR : (normalizeColor(c) || c))
+    let differ = 0
+    let painted = 0
+    vendor.colors.forEach((vc, j) => {
+      if (vc === undefined) return
+      if (canon(vc) !== NO_COLOUR) painted += 1
+      if (!coloursAgree(canon(vc), canon(ours[j]))) differ += 1
+    })
+    expect(painted).toBeGreaterThan(100)
+    expect(differ).toBe(0)
+  })
+
+  it('⛔ a moved input, the pane off for the member, the kill list, the allowlist, the build flag off: not served', () => {
+    const d = stDoor()
+    let overrides
+    const served = () => registry.computeFor(d.definition, ST_BARS, overrides, ST_CTX).rtcolour1
+    expect(served()).toBeInstanceOf(Float64Array) // control
+    const inp = d.definition.inputs.find((i) => typeof i.default === 'number')
+    overrides = { [inp.key]: inp.default + 1 }
+    expect(served()).toBeUndefined()
+    overrides = undefined
+    __resetRuntimePanePermission()
+    expect(served()).toBeUndefined()
+    __permitRuntimePaneForTests()
+    setRuntimeKillList([runtimeSourceHash(ST)])
+    expect(served()).toBeUndefined()
+    setRuntimeKillList([])
+    __resetRuntimeAllowList()
+    expect(served()).toBeUndefined()
+    __allowEveryRuntimeScriptForTests()
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
+    expect(served()).toBeUndefined()
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    expect(served()).toBeInstanceOf(Float64Array) // and back
+  })
+
+  it('⛔ the door does not lift it for a killed or a not-yet-graded script', () => {
+    setRuntimeKillList([runtimeSourceHash(ST)])
+    expect(stDoor().definition.compute.runtimeColours).toBeUndefined()
+    setRuntimeKillList([])
+    __resetRuntimeAllowList()
+    expect(stDoor().definition.compute.runtimeColours).toBeUndefined()
+    __allowEveryRuntimeScriptForTests()
+    expect(stDoor().definition.compute.runtimeColours).toBeTruthy() // control
+  })
+
+  it('⛔ a bar the probe runs disagree on withholds the whole column', () => {
+    const d = stDoor()
+    const real = registeredObjectRuntimeValues()
+    try {
+      registerObjectRuntimeValues((rt, bars, c) => {
+        const v = real(rt, bars, c)
+        const unknown = v.unknown.map(() => { const m = new Uint8Array(bars.length); m[7] = 1; return m })
+        return { ...v, unknown }
+      })
+      const cols = registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)
+      expect(cols.rtcolour1).toBeUndefined()
+      expect(registry.columnErrors(cols).rtcolour1.message).toMatch(/cannot settle/)
+    } finally {
+      registerObjectRuntimeValues(real)
+    }
+  })
+
+  it('⭐ the member reads why on the chart runtime strip (here: off the listing), and it clears when served', () => {
+    const def = stDoor().definition
+    const installed = registry.installUserDefinitions([def])
+    expect(installed.errors).toEqual([])
+    try {
+      const fake = createFakeChart()
+      const binder = createBinder({ chart: fake.chart, LWC: fake.LWC, scope: 'div4r1' })
+      const cs = addInstance(mergeChartSettings({}), def.id, registry)
+      const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
+      const candles = fake.chart.addSeries(fake.LWC.CandlestickSeries || 'CandlestickSeries', {}, 0)
+      const sync = (listing) => binder.sync({
+        priceSeries: () => candles, setBarColours: () => {}, enabled: true, cs, instances, registry,
+        bars: ST_BARS, tf: 'D', symbol: ST_CTX.symbol, newestBarIsForming: false, historyFromListing: listing,
+        adjustTime: (t) => t, applyData: (series, data) => series.setData(data), plan: { fresh: true },
+        resolvePlacement: () => ({ paneIndex: 0, scaleId: def.id, scaleOptions: {} }),
+      })
+      sync(false)
+      const said = runtimeErrorNotices('div4r1').map(([, s]) => s).join(' | ')
+      expect(said).toMatch(/`barcolor` \(line 56\) is not drawn on this chart: runtime:not-from-listing/)
+      sync(true)
+      expect(runtimeErrorNotices('div4r1')).toEqual([])
+      binder.teardown()
+    } finally {
+      registry.uninstallUserDefinition(def.id)
+    }
+  })
+})
+
+describe('⛔ DIV-4 r1 — a reached runtime.error, and a script below v4', () => {
+  it('a reached `runtime.error` draws no run colour either', () => {
+    const src = SRC.replace('plot(ta.sma(close, len), "c")',
+      'plot(ta.sma(close, len), "c")\nif bar_index == 40\n    runtime.error("stop")')
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const d = memberPaneDefinition({ source: src, id: 'u_00000000d4c1', name: 'rte' })
+    expect(d.ok, d.reason).toBe(true)
+    expect(d.definition.compute.runtimeColours).toBeTruthy()
+    const cols = registry.computeFor(d.definition, BARS, undefined,
+      { tf: 'D', symbol: 'AMEX:SPY', historyFromListing: true, newestBarIsForming: false })
+    const stop = registry.runtimeErrorStopOf(cols)
+    expect(stop && stop.reached).toBe(true)
+    expect(cols.rtcolour1).toBeUndefined()
+    expect(registry.columnErrors(cols).rtcolour1.guard).toBe(registry.RUNTIME_COLOUR_GUARD)
+  })
+  it('a v3 script is not lifted', () => {
+    const v3 = [
+      '//@version=3',
+      'study("div4 v3", overlay = true)',
+      'hi = highest(high, 3)[1]',
+      'lo = lowest(low, 3)[1]',
+      'trend = close > hi ? 1 : close < lo ? -1 : nz(trend[1], 1)',
+      'b = barssince(trend == 1 and trend[1] == -1)',
+      's = barssince(trend == -1 and trend[1] == 1)',
+      'plot(close)',
+      'barcolor(b < s ? green : b > s ? red : na)',
+      '',
+    ].join('\n')
+    const t = translatePine(v3, { strict: true })
+    expect(t.presentation.paints[0].withheld.code).toBe('paint:colour')
+    expect(t.presentation.paints[0][PAINT_RUNTIME_COLOUR]).toBeTruthy()
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const d = memberPaneDefinition({ source: v3, id: 'u_00000000d4c2', name: 'v3' })
+    expect(d.ok, d.reason).toBe(true)
+    expect(d.definition.compute.runtimeColours).toBeUndefined()
   })
 })

@@ -162,7 +162,7 @@ import {
   AVWAP_ANCHORS,
 } from '../indicators'
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
-import { runtimeKillOf } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf } from './runtimeKill'
 import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
@@ -3116,6 +3116,40 @@ function runtimeColoursAtDefaults(def, inputs) {
     && manifestAtDefaults(def)
 }
 
+/** ⭐ r1 (review N5) — ONE run spec per `compute.runtimeColours` object, so the run's
+ *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
+ *  on the next paint instead of growing by one entry a call. */
+const _runSpecs = new WeakMap()
+function runSpecOf(rc) {
+  let rt = _runSpecs.get(rc)
+  if (!rt) { rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane' }); _runSpecs.set(rc, rt) }
+  return rt
+}
+
+/** ⭐⭐ r1 (review N4) — WHY A PAINT'S RUN-READ COLOUR IS NOT DRAWN ON THIS CHART, as
+ *  the sentence the runtime strip shows (`binder.noteRuntimeErrorStop`, the route a
+ *  runtime document's own stop takes), or null. Read off the columns' errors
+ *  (`withRuntimeColours`), one clause per paint, so the member who expects the colour
+ *  reads why it is missing: off the listing, settings moved, the run switched off or
+ *  killed, a `runtime.error`, a bar the run cannot settle, the lane not loaded. */
+export function runtimeColourStopOf(def, cols) {
+  const rc = def && def.compute && def.compute.runtimeColours
+  if (!rc || !Array.isArray(rc.keys) || !cols) return null
+  const errs = columnErrors(cols)
+  const lineOf = new Map((Array.isArray(def.paints) ? def.paints : [])
+    .filter((p) => p && typeof p.colorMode === 'string')
+    .map((p) => [p.colorMode.slice('column:'.length), p]))
+  const parts = []
+  for (const key of rc.keys) {
+    const e = errs[key]
+    if (!e || e.guard !== RUNTIME_COLOUR_GUARD) continue
+    const p = lineOf.get(key)
+    const name = p ? `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}` : 'a bar colour'
+    parts.push(`${name} is not drawn on this chart: ${String(e.message || '').trim()}`)
+  }
+  return parts.length ? { guard: RUNTIME_COLOUR_GUARD, sentence: parts.join('; ') } : null
+}
+
 /** ⭐⭐ DIV-4 — THE GUARD a runtime-read colour column carries when it is not served. */
 export const RUNTIME_COLOUR_GUARD = 'runtime:colour-not-served'
 
@@ -3146,17 +3180,27 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   // ⭐ the pane lane answers to the runtime pane's per-member permission and the kill
   // list on every run, exactly as a runtime document does (`runtimeColumnsOrReasons`)
   const killed = runtimeKillOf({ defId: def.id, source: rc && rc.source })
-  if (!runtimePanePermitted()) {
+  // ⛔ r1 (review N3) — and the BUILD flag and the starter allowlist, on every run: a
+  // stored or hand-posted document carrying `runtimeColours` on a build whose runtime
+  // pane is off, or a script later taken off the allowlist, never draws the run colour.
+  // (A runtime DOCUMENT is reached only after the door asked both; this one is an
+  // ordinary `ast` document and is not.)
+  const notGraded = runtimeNotGradedOf({ source: rc && rc.source })
+  if (!runtimePaneEnabled()) {
+    refuse('scripts drawn bar by bar are not part of this build, so this colour is not drawn')
+  } else if (!runtimePanePermitted()) {
     refuse('scripts drawn bar by bar are switched off for you right now, so this colour is not drawn')
   } else if (killed) {
     refuse(killed)
+  } else if (notGraded) {
+    refuse(notGraded)
   } else if (stop && stop.reached) {
     // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
     refuse(stop.sentence || 'the script stops with its own runtime.error')
   } else if (!fn) {
     refuse('runtime:not-loaded — the per-bar lane that computes this colour is not loaded on this chart yet')
   } else {
-    const v = fn({ source: rc.source, at: rc.at, lane: 'pane' }, bars, {
+    const v = fn(runSpecOf(rc), bars, {
       tf: ctx && ctx.tf,
       symbol: ctx && ctx.symbol,
       newestBarIsForming: ctx && ctx.newestBarIsForming,
