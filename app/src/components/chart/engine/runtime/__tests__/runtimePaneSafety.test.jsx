@@ -189,8 +189,10 @@ describe('RF — the member reads WHY on the disclosure strip (real binder, real
     expect(notices.length).toBe(1)
     expect(notices[0][1]).toMatch(new RegExp(`\\(${RUNTIME_WARMUP_GUARD}\\)`))
     render(<AttachedPineDisclosures settings={settings} registry={registry} />)
-    const row = screen.getByText(/runtime:warmup-never-converges/)
-    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart \(runtime:warmup-never-converges\): this script is drawn bar by bar/)
+    const row = screen.getByText(/^ADX and DI — not drawn on this chart/)
+    // the store keeps the guard id (rails read it); the DOM never prints it (memberCopy.withoutGuardIds)
+    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart: this script is drawn bar by bar/)
+    expect(row.textContent).not.toMatch(/\b(runtime|pine|strategy|enum):[a-z-]+/)
     // the chart is not wedged: syncing again is cheap and stays at one notice
     binder.sync(ctxFor())
     expect(runtimeErrorNotices().length).toBe(1)

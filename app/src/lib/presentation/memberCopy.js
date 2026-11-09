@@ -43,3 +43,17 @@ export function memberSentence(s) {
   const c = t[0].toUpperCase() + t.slice(1)
   return /[.!?]$/.test(c) ? c : `${c}.`
 }
+
+/** Any internal guard id a sentence quotes: `(runtime:strategy-start)`, a bare
+ *  `pine:strategy-call`, `enum:...`, `strategy:...`. A guard id is a name for engineers
+ *  and rails; a member reads the sentence. Same rule as the strategy report panel's
+ *  (feat/pine-w9-t13b-report-panel), held here so there is one authority. */
+export const GUARD_ID = /\s*\(?\b(?:runtime|pine|strategy|enum):[a-z0-9][a-z0-9:-]*\)?/gi
+
+/** `s` with every quoted guard id removed and nothing else changed. */
+export function withoutGuardIds(s) {
+  if (typeof s !== 'string') return s
+  const re = new RegExp(GUARD_ID.source, 'gi')
+  if (!re.test(s)) return s
+  return s.replace(new RegExp(GUARD_ID.source, 'gi'), '').replace(/\s+([.,;:])/g, '$1').trim()
+}
