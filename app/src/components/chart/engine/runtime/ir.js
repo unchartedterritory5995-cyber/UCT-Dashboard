@@ -534,7 +534,8 @@ export function validateIr(p) {
       case EXPR.BROKER:
         if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a broker op carries a name`)
         if (!Array.isArray(e.args)) throw new IrError(`${where}: a broker op carries an args array`)
-        if (!['void', 'number'].includes(e.returns)) {
+        // W9-T7-F1: 'string', a trade's order id / comment (`broker.js::BROKER_OPS`)
+        if (!['void', 'number', 'string'].includes(e.returns)) {
           throw new IrError(`${where}: \`${e.fn}\` declares what it returns`)
         }
         e.args.forEach((x, i) => { if (x !== null) walkExpr(x, `${where}.${e.fn}[${i}]`) })

@@ -243,6 +243,77 @@ def test_no_vision_model_call_escapes_the_reservation():
     assert src.index("reserve_member_call(") < src.index(".messages.create(")
 
 
+# ═══ one member's share of the lane ══════════════════════════════════════════════════════════════
+def test_one_members_timeouts_stop_at_their_share_and_the_lane_stays_open(real):
+    """Before: one member's timeouts could reserve the whole $4 and refuse everyone else for the day."""
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    share = real.svc.MEMBER_VISION_USD
+    outs = [ask(real, client, user="heavy") for _ in range(40)]
+    assert client.calls == int(share / worst)
+    assert outs[-1]["gate"] == "vision:member-share"
+    assert interactive(real) <= share
+    assert ask(real, Client(), user="someone-else").get("gate") not in ("vision:spend-cap", "vision:member-share")
+
+
+def test_the_share_is_inside_the_lane_and_the_lanes_total_is_unchanged(real):
+    assert real.svc.MEMBER_VISION_USD == 1.00
+    assert real.guard.interactive_limit_usd() == 4.0 and real.guard.hard_cap_usd() == 15.0
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    outs = [ask(real, client, user=f"u{i // 2}") for i in range(80)]
+    assert client.calls == int(real.guard.interactive_limit_usd() / worst)
+    assert outs[-1]["gate"] == "vision:spend-cap"
+
+
+def test_settled_reads_give_their_room_back_to_the_member(real):
+    """The share counts dollars, so ordinary reads cost what they cost, not their reservation."""
+    client, actual = Client(lambda: reply((1200, 300))), real.guard.estimate_cost(real.svc.MODEL, 1200, 300)
+    outs = [ask(real, client, user="ordinary") for _ in range(40)]
+    assert all(o.get("gate") != "vision:member-share" for o in outs)
+    assert client.calls == 40 and interactive(real) == pytest.approx(actual * 40)
+
+
+def test_racing_uploads_of_one_member_hold_the_share(real):
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    share = real.svc.MEMBER_VISION_USD
+    barrier = threading.Barrier(12)
+
+    def one():
+        barrier.wait()
+        ask(real, client, user="racer")
+
+    threads = [threading.Thread(target=one) for _ in range(12)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert client.calls == int(share / worst)
+
+
+def test_raising_the_lane_does_not_raise_a_members_dollar(real, monkeypatch):
+    """Before: the share was a fraction of the lane, so a raised lane quietly raised every member's ceiling."""
+    monkeypatch.setenv("INTERACTIVE_AI_RESERVE_USD", "8.00")
+    client, worst = Client(lambda: (_ for _ in ()).throw(Timeout())), real.svc.worst_case_usd()
+    outs = [ask(real, client, user="heavy") for _ in range(20)]
+    assert client.calls == int(1.00 / worst) and outs[-1]["gate"] == "vision:member-share"
+
+
+def test_the_ledger_keeps_estimates_apart_from_confirmed_charges(real):
+    ask(real, Client(lambda: reply((1200, 300))), user="ok")
+    ask(real, Client(lambda: (_ for _ in ()).throw(Timeout())), user="timed-out")
+    split = real.store.estimated_and_confirmed(real.day, "indicator-vision:")
+    assert split["confirmed_usd"] == pytest.approx(real.guard.estimate_cost(real.svc.MODEL, 1200, 300), abs=1e-5)
+    assert split["estimated_usd"] == pytest.approx(real.svc.worst_case_usd(), abs=1e-5)
+
+
+def test_a_share_refusal_makes_no_ledger_row(real):
+    worst = real.svc.worst_case_usd()
+    slot = real.guard.reserve_member_call(real.day, "indicator-vision:x", real.svc.MODEL, worst,
+                                          member_limit_usd=worst / 2)
+    assert slot == {"refused": "member-share"} and interactive(real) == 0
+
+
+def test_a_caller_with_no_share_is_unchanged(real):
+    assert real.guard.reserve_member_call(real.day, "concierge:x", real.svc.MODEL, 0.5).get("id")
+
+
 # ═══ the honest worst case ═══════════════════════════════════════════════════════════════════════
 def _request(svc, note=""):
     return dict(model=svc.MODEL, max_tokens=svc.MAX_TOKENS, system=svc.system_prompt(), tools=[svc.anthropic_tool()],
@@ -280,3 +351,4 @@ def test_a_timeout_settles_at_the_honest_figure(real):
 
 def test_the_lane_is_no_larger_because_the_reservation_is_smaller(real):
     assert real.guard.interactive_limit_usd() == 4.0
+    assert real.svc.MEMBER_VISION_USD == 1.00

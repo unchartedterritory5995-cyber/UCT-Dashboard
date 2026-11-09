@@ -12,7 +12,7 @@
   align-items: center;
   justify-content: center;
   /* One gap on all four sides: the window fills the screen less this margin. */
-  padding: 40px;
+  padding: 60px;
 }
 
 /* The panel takes programmatic focus on open (tabIndex -1) so the dialog is

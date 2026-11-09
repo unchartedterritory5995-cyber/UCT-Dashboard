@@ -949,11 +949,24 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   }
   if (!ourObjs || !ourObjs.ok) return { verdict: 'INCONCLUSIVE', reason: `our object lane did not run: ${(ourObjs && ourObjs.reason) || 'no result'}` }
   const families = ['lines', 'labels', 'boxes', 'tables', 'tableCells']
+  // ⭐ W-C22-DEL — a family our run WITHHELD WHOLE, by name (`withheldFamilies`,
+  // runtime family names): not compared, and never part of a MATCH. A gap with a
+  // name, the way F3 grades a withheld drawing — and where every other family
+  // agrees the verdict is INCONCLUSIVE, since what TradingView holds of the
+  // withheld family is not what we hold.
+  const RUNTIME_FAMILY = { lines: 'line', labels: 'label', boxes: 'box', tables: 'table', tableCells: 'table' }
+  const withheldFams = new Set(Array.isArray(ourObjs.withheldFamilies) ? ourObjs.withheldFamilies : [])
   const rows = []
   let diverge = 0
+  let withheldHeld = 0
   for (const f of families) {
     const v = vendorObjs.counts ? vendorObjs.counts[f] : undefined
     const o = ourObjs.counts ? ourObjs.counts[f] : undefined
+    if (withheldFams.has(RUNTIME_FAMILY[f])) {
+      if (Number.isFinite(v) && v > 0) withheldHeld += 1
+      rows.push({ family: f, vendor: v ?? null, ours: null, agree: null, withheld: true })
+      continue
+    }
     if (v === undefined || o === undefined) { rows.push({ family: f, vendor: v ?? null, ours: o ?? null, agree: null }); continue }
     const agree = v === o
     if (!agree) diverge += 1
@@ -961,6 +974,7 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   }
   const textRows = []
   for (const f of ['labels', 'tableCells']) {
+    if (withheldFams.has(RUNTIME_FAMILY[f])) continue
     const vt = vendorObjs.texts && vendorObjs.texts[f]
     const ot = ourObjs.texts && ourObjs.texts[f]
     if (!Array.isArray(vt) || !Array.isArray(ot)) continue
@@ -972,6 +986,20 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   }
   const measured = rows.filter((r) => r.agree !== null).length + textRows.length
   if (!measured) return { verdict: 'INCONCLUSIVE', reason: 'no object family was recorded on both sides', counts: rows }
+  // (a colour that differs on a family we DO draw still diverges)
+  const shownColourDiffers = colour
+    ? objectColourRows(colour).some((r) => r.agree === false && !withheldFams.has(RUNTIME_FAMILY[r.family]))
+    : false
+  if (withheldHeld && !diverge && !shownColourDiffers) {
+    const names = rows.filter((r) => r.withheld).map((r) => r.family).join(', ')
+    return {
+      verdict: 'INCONCLUSIVE',
+      withheld: 'objects:collector',
+      reason: `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree`,
+      counts: rows,
+      texts: textRows,
+    }
+  }
   if (!colour) {
     return {
       verdict: diverge ? 'DIVERGE' : 'MATCH',

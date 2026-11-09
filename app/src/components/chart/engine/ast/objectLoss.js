@@ -475,13 +475,32 @@ export const DRAWING_NOTE_NAME = 'Drawings'
  */
 export function withRenderDrops(note, drops) {
   const n = drops && Number.isInteger(drops.dropped) ? drops.dropped : 0
-  if (n <= 0) return note || null
-  const of = drops.held >= n ? drops.held : n
-  const sentence = `${n} of the ${of} drawings this script holds on this chart could not be placed `
-    + '(a coordinate with no bar on this chart, or a text this chart could not compute), so '
-    + (note ? 'they are not drawn either.' : 'what it draws is incomplete.')
-  if (!note) return { name: DRAWING_NOTE_NAME, note: sentence }
-  return { name: note.name || DRAWING_NOTE_NAME, note: `${note.note} On this chart, ${sentence}` }
+  const fams = drops && Array.isArray(drops.families) ? drops.families : []
+  if (n <= 0 && !fams.length) return note || null
+  const parts = note ? [note.note] : []
+  if (n > 0) {
+    const of = drops.held >= n ? drops.held : n
+    const sentence = `${n} of the ${of} drawings this script holds on this chart could not be placed `
+      + '(a coordinate with no bar on this chart, or a text this chart could not compute), so '
+      + (note ? 'they are not drawn either.' : 'what it draws is incomplete.')
+    parts.push(note ? `On this chart, ${sentence}` : sentence)
+  }
+  // ⭐ W-C22-DEL — a family withheld whole, by name (`collectorFamiliesSentence`).
+  if (fams.length) parts.push(collectorFamiliesSentence(fams))
+  return { name: (note && note.name) || DRAWING_NOTE_NAME, note: parts.join(' ') }
+}
+
+/** ⭐⭐ W-C22-DEL — the member's sentence for a family the run withheld WHOLE because
+ *  TradingView's object limit may have removed some of it (`objectRuntime.js`,
+ *  `withheldBy['objects:collector']`): this chart could not tell whether the script
+ *  drew on some bars, so it cannot know how many TradingView made, nor which old
+ *  ones TradingView has since removed to stay under the script's limit. */
+export function collectorFamiliesSentence(families) {
+  const fs = (families || []).map((f) => (f === 'linefill' ? 'fill between lines' : f))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
+  return `No ${list} is shown on this chart: on some bars this chart can't tell whether the `
+    + "script drew one, so it can't know which older ones TradingView has already removed to "
+    + "stay within the script's limit, and drawing them could show some TradingView no longer does."
 }
 
 /**

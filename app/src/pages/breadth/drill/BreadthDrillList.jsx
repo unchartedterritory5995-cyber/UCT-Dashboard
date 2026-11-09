@@ -4,7 +4,7 @@ import GroupControls from '../grouping/GroupControls'
 import useBreadthGrouping from '../grouping/useBreadthGrouping'
 import { ChartsSymContext } from '../../charts/ChartsSymContext'
 import { useWorkspace } from '../../charts/WorkspaceContext'
-import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
+import { DRILL_COLS_KEY, DRILL_TABLE_COLS_KEY } from './drillListCols'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
 import { useDrillSource } from './DrillSourceContext'
 import { FilterButton, GroupSwitch, FilterChips } from './scan/ScanFilters'
@@ -41,8 +41,6 @@ const DRILL_DEFAULT_COLS = {
   sort: { key: 'chg', dir: 'desc' },
   widths: { chg: DRILL_NUM_COL_W, price: DRILL_NUM_COL_W, vol: DRILL_NUM_COL_W },
 }
-// Namespaced off the watchlist key the same way the scanner namespaces its own.
-const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.focus7`
 // The Scan Deck's TABLE mode gives the list most of the window, so it opens with
 // the columns a screener would: who the company is, where it sits, how big, and
 // how stretched. Its OWN key, so arranging Table never rearranges the compact
@@ -52,7 +50,6 @@ const DRILL_TABLE_DEFAULT_COLS = {
   order: ['flag', 'sym', 'name', 'price', 'chg', 'rvol', 'sector', 'theme', 'mcap', 'rating', 'atr', 'a50', 'earn'],
   sort: { key: 'chg', dir: 'desc' },
 }
-const DRILL_TABLE_COLS_KEY = `${WL_COLS_LS}.breadthDrill.table`
 
 export default function BreadthDrillList({ color, settingsOverride = null, onSettingsPersist = null }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
@@ -157,12 +154,15 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // only while the group is empty, so a user's own selection is never stomped.
   const seededSymRef = useRef(false)
   useEffect(() => {
+    // The scan window picks its own first stock (the top gainer) and re-picks
+    // it for every new list, so the list does not seed one here.
+    if (drill?.deckHosted) return
     if (seededSymRef.current || !color) return
     const first = items.length ? String(tickerOf(items[0]) || '').toUpperCase() : ''
     if (!first) return
     seededSymRef.current = true
     if (!groupSyms?.[color]) setGroupSym?.(color, first)
-  }, [items, color, groupSyms, setGroupSym])
+  }, [items, color, groupSyms, setGroupSym, drill?.deckHosted])
 
   // ⭐ WARM THE BARS THE USER IS ABOUT TO OPEN. Clicking a row swaps the paired
   // chart's symbol, and with nothing warmed every click is a cold fetch. The drill
@@ -310,7 +310,6 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             // independently collapsible.
             groupExpand={drill?.deckHosted ? 'accordion' : 'multi'}
             openFirstGroup={!!drill?.deckHosted}
-            numbersRight={!!drill?.deckHosted}
             stableGutter={!!drill?.deckHosted}
             renderGroupRow={drill?.deckHosted ? renderGroupRow : null}
             groupAccent={drill?.deckHosted ? groupAccent : null}

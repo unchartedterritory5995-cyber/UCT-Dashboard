@@ -2318,7 +2318,7 @@
             [
               "lines",
               55,
-              0
+              null
             ],
             [
               "boxes",
@@ -2547,16 +2547,16 @@
       "script": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
               504,
-              500
+              null
             ]
           ]
         ],

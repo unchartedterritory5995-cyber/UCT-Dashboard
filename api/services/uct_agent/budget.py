@@ -56,10 +56,13 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 import time
 from datetime import datetime
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
+
+from api.services import call_deadline
 
 log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
@@ -68,6 +71,10 @@ DEFAULT_CAP_USD = 5.0
 DEFAULT_MAX_CALLS = 2
 DEFAULT_TURN_USD = 0.25
 TURN_USD_ENV = "UCT_AGENT_TURN_USD"
+# THE TURN DEADLINE, a maximum safety bound, from the per-call timeouts: planner v2's 6 default rounds at 60 s
+# each, plus one research lookup's 4 attempts at 30 s. TurnClock below says how it is enforced.
+DEFAULT_TURN_DEADLINE_S = 6 * 60.0 + 4 * 30.0
+TURN_DEADLINE_ENV = "UCT_AGENT_TURN_DEADLINE_S"
 #: Cache-write multipliers by TTL: the default (5 minute) cache write bills 1.25x input, a 1-hour write 2x.
 CACHE_WRITE_MULT = 1.25
 CACHE_WRITE_MULT_1H = 2.0
@@ -85,6 +92,8 @@ RESEARCH_ATTEMPTS = 4
 #: seconds): it is SETTLED at its worst case -- never released -- so the day stays conservative and rows don't pile up.
 STALE_RESERVATION_S = 900
 STALE_SWEEP_LIMIT = 200
+#: A closed row a late reply may still confirm: closed without a reply, not settled from one.
+LATE_OUTCOMES = ("deadline", "stale_worst_case")
 
 AGENT_EXHAUSTED = ("UCT Agent has reached today's AI budget, so I can't interpret new requests until tomorrow. "
                    "Charts, breadth and other instant commands still work.")
@@ -92,6 +101,8 @@ SITE_EXHAUSTED = ("UCT's shared AI budget for today has been reached, so UCT Age
                   "tomorrow. Charts, breadth and other instant commands still work.")
 UNAVAILABLE = ("UCT Agent can't check its AI budget right now, so nothing was sent and nothing changed. "
                "Instant commands still work. Please try again shortly.")
+TURN_DEADLINE = ("That request has been running too long, so I stopped before starting another AI step. "
+                 "Try asking in smaller parts.")
 STEP_LIMIT = "That request needed more AI steps than one request is allowed, so nothing was changed. Try asking in smaller parts."
 TURN_CAP_FIRST = ("That request is larger than one turn's AI budget allows, so nothing was sent and nothing changed. "
                   "Try a shorter request or a new chat.")
@@ -126,6 +137,11 @@ def cap_usd() -> float:
 def turn_cap_usd() -> float:
     """One member request's dollar ceiling (v1 by request id here; planner v2 reads the same switch per turn)."""
     return _num(TURN_USD_ENV, DEFAULT_TURN_USD)
+
+
+def turn_deadline_s() -> float:
+    """How long one turn may keep STARTING paid calls. The environment can only shorten it."""
+    return min(_num(TURN_DEADLINE_ENV, DEFAULT_TURN_DEADLINE_S), DEFAULT_TURN_DEADLINE_S)
 
 
 def max_calls() -> int:
@@ -188,14 +204,16 @@ def _connect():
 
 
 def _add_turn_column(conn) -> None:
-    """A ledger created before the per-turn cap gets its column (older rows carry NULL). Two first opens racing
-    may both see it missing: the loser's "duplicate column" means the winner already added it."""
-    if "turn_request_id" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_spend)").fetchall()}:
-        try:
-            conn.execute("ALTER TABLE agent_spend ADD COLUMN turn_request_id INTEGER")
-        except sqlite3.OperationalError as e:
-            if "duplicate column" not in str(e).lower():
-                raise
+    """A ledger created before these columns gets them (older rows carry NULL). Two first opens racing may both
+    see one missing: the loser's "duplicate column" means the winner already added it."""
+    for table, column, kind in (("agent_spend", "turn_request_id", "INTEGER"), ("agent_spend", "confirmed_usd", "REAL"),
+                                ("agent_requests", "closed_at", "INTEGER")):
+        if column not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+            except sqlite3.OperationalError as e:
+                if "duplicate column" not in str(e).lower() and "no such table" not in str(e).lower():
+                    raise
     conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_spend_turn ON agent_spend(turn_request_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_spend_open ON agent_spend(status, created_at)")   # the stale sweep
 
@@ -378,6 +396,11 @@ def reserve(*, user_id: Any, request_id: int | None, category: str, model: str, 
         with contextlib.closing(_connect()) as c:
             c.execute("BEGIN IMMEDIATE")
             try:
+                # A turn past its deadline starts nothing, through any Meter, in any process: this is the ledger's word
+                if turn_id is not None and (c.execute("SELECT closed_at FROM agent_requests WHERE id = ?",
+                                                      (int(turn_id),)).fetchone() or (None,))[0] is not None:
+                    c.execute("ROLLBACK")
+                    raise BudgetRefused("turn_deadline", TURN_DEADLINE)
                 if request_id is not None and counts_as_call:
                     moved = c.execute("UPDATE agent_requests SET calls = calls + 1 WHERE id = ? AND calls < ?",
                                       (int(request_id), max_calls())).rowcount
@@ -425,7 +448,17 @@ def settle(reservation_id: int, *, actual_usd: float | None, tokens: dict | None
     try:
         with contextlib.closing(_connect()) as c:
             c.execute("BEGIN IMMEDIATE")
-            row = c.execute("SELECT reserved_usd, status FROM agent_spend WHERE id = ?", (int(reservation_id),)).fetchone()
+            row = c.execute("SELECT reserved_usd, status, outcome FROM agent_spend WHERE id = ?", (int(reservation_id),)).fetchone()
+            if row and row[1] != "reserved" and row[2] in LATE_OUTCOMES and actual_usd is not None:
+                # A reply after the row was closed: kept as the confirmed figure. The charge stands, so it counts once.
+                if float(actual_usd) > float(row[0]):
+                    log.error("[uct-agent budget] a late reply exceeded its worst case (reservation %s)", reservation_id)
+                c.execute("UPDATE agent_spend SET confirmed_usd=?, input_tokens=?, output_tokens=?, cache_read_tokens=?,"
+                          " cache_write_tokens=? WHERE id = ?",
+                          (round(float(actual_usd), 6), int(t.get("input", 0)), int(t.get("output", 0)),
+                           int(t.get("cache_read", 0)), int(t.get("cache_write", 0)), int(reservation_id)))
+                c.execute("COMMIT")
+                return 0.0
             if not row or row[1] != "reserved":
                 c.execute("ROLLBACK")
                 return 0.0
@@ -438,9 +471,10 @@ def settle(reservation_id: int, *, actual_usd: float | None, tokens: dict | None
                     # The bound's assumptions failed (docs/agent/budget/PER-TURN-CAP.md): the real figure is kept
                     # (never hidden), so later calls see it, and the bound is logged as wrong.
                     log.error("[uct-agent budget] actual cost exceeded its worst case (reservation %s)", reservation_id)
-            c.execute("UPDATE agent_spend SET status='settled', actual_usd=?, input_tokens=?, output_tokens=?,"
+            confirmed = None if actual_usd is None or outcome == "partial" else round(charged, 6)
+            c.execute("UPDATE agent_spend SET status='settled', actual_usd=?, confirmed_usd=?, input_tokens=?, output_tokens=?,"
                       " cache_read_tokens=?, cache_write_tokens=?, outcome=?, settled_at=? WHERE id = ?",
-                      (round(charged, 6), int(t.get("input", 0)), int(t.get("output", 0)), int(t.get("cache_read", 0)),
+                      (round(charged, 6), confirmed, int(t.get("input", 0)), int(t.get("output", 0)), int(t.get("cache_read", 0)),
                        int(t.get("cache_write", 0)), outcome, int(time.time()), int(reservation_id)))
             c.execute("COMMIT")
             return charged
@@ -487,6 +521,76 @@ def _is_provider_error_response(e: BaseException) -> bool:
         return False
 
 
+class TurnClock:
+    """The one deadline of a member's turn. `used_s` is the active time a paused turn already spent, so a run of
+    resumes cannot each start a fresh deadline; the time a member spends on an approval card is not active time.
+
+    ENFORCEMENT, cooperative because Python cannot kill a thread: no paid call starts past it, each model and
+    lookup timeout is capped to what is left (call_deadline), a stream stops reading, and a wait on the browser
+    ends. `expire()` is the backstop for a worker that is still blocked: limits.guard calls it, and it runs each
+    cleanup once, so nothing the turn holds outlives the deadline even while that thread is stuck. `on_stuck` is
+    only for that case: a worker that came back delivers its own last word, so nothing may end its stream first."""
+
+    def __init__(self, used_s: float = 0.0):
+        self.started = time.monotonic()
+        self.used_before_s = max(0.0, float(used_s or 0.0))
+        self.at = self.started + turn_deadline_s() - self.used_before_s
+        self.expired = threading.Event()
+        self._cleanups: list[Callable[[], None]] = []
+        self._stuck: list[Callable[[], None]] = []
+        self._lock = threading.Lock()
+
+    def left(self) -> float:
+        return self.at - time.monotonic()
+
+    def used_s(self) -> float:
+        return self.used_before_s + (time.monotonic() - self.started)
+
+    def on_expire(self, fn: Callable[[], None]) -> None:
+        with self._lock:
+            self._cleanups.append(fn)
+
+    def on_stuck(self, fn: Callable[[], None]) -> None:
+        with self._lock:
+            self._stuck.append(fn)
+
+    def expire(self, worker_stuck: bool = False) -> None:
+        """Run every cleanup, once, and the stuck-worker ones if the worker never came back. One that fails never
+        stops the others."""
+        self.expired.set()
+        with self._lock:
+            cleanups, self._cleanups = self._cleanups, []
+            if worker_stuck:
+                cleanups, self._stuck = cleanups + self._stuck, []
+        for fn in cleanups:
+            try:
+                fn()
+            except Exception:  # noqa: BLE001
+                log.exception("[uct-agent budget] a turn deadline cleanup failed")
+
+
+def close_turn(turn_request_id: int | None) -> int:
+    """End a turn on the ledger: nothing more can be reserved for it, and its open reservations close AT THEIR WORST
+    CASE, as estimates (`confirmed_usd` stays NULL). Never released to $0: a call still running may be billed, and $0
+    would let the daily cap undercount. A late reply only fills `confirmed_usd`, so it cannot lower the charge.
+    This ends the REQUEST, so the browser's reroute of a request that hit its deadline is refused the same way."""
+    if turn_request_id is None:
+        return 0
+    try:
+        with contextlib.closing(_connect()) as c:
+            c.execute("BEGIN IMMEDIATE")
+            c.execute("UPDATE agent_requests SET closed_at = COALESCE(closed_at, ?) WHERE id = ?",
+                      (int(time.time()), int(turn_request_id)))
+            n = c.execute("UPDATE agent_spend SET status='settled', actual_usd=reserved_usd, outcome='deadline',"
+                          " settled_at=? WHERE turn_request_id = ? AND status='reserved'",
+                          (int(time.time()), int(turn_request_id))).rowcount
+            c.execute("COMMIT")
+            return n
+    except Exception:  # noqa: BLE001 -- the row stays reserved: it counts at its worst case and the stale sweep closes it
+        log.exception("[uct-agent budget] could not close a turn on the ledger")
+        return 0
+
+
 class Meter:
     """The paid-call gate for one member request: every Messages call and research lookup goes
     through `call` / `research`. `None` user/request (scripts, tests) still meters dollars.
@@ -494,13 +598,35 @@ class Meter:
     in-flight lease (limits.renew)."""
 
     def __init__(self, *, user_id: Any, request_id: int | None, site_reader=None, turn_request_id: int | None = None,
-                 heartbeat: Callable[[], None] | None = None):
+                 heartbeat: Callable[[], None] | None = None, clock: TurnClock | None = None):
         self.user_id = user_id
         self.request_id = request_id
         self.turn_request_id = request_id if request_id is not None else turn_request_id
         self.site_reader = site_reader
         self.heartbeat = heartbeat
         self.spent_usd = 0.0
+        self.clock = clock or TurnClock()
+        self.clock.on_expire(lambda: close_turn(self.turn_request_id))
+
+    @property
+    def deadline(self) -> float:
+        return self.clock.at
+
+    @deadline.setter
+    def deadline(self, at: float) -> None:
+        self.clock.at = min(self.clock.at, at)         # a deadline can only come sooner
+
+    def _check_deadline(self) -> None:
+        """Refused before anything is sent. The turn ends on the ledger too, so no other Meter can carry on with it."""
+        if self.clock.left() <= 0:
+            close_turn(self.turn_request_id)
+            raise BudgetRefused("turn_deadline", TURN_DEADLINE)
+
+    def _check_still_in_time(self, rid: int) -> None:
+        """`reserve` can wait on the store for seconds: a deadline that passed meanwhile sends nothing."""
+        if self.clock.left() <= 0:
+            release(rid, outcome="deadline_unsent")
+            self._check_deadline()
 
     def calls_left(self) -> int:
         if self.request_id is None:
@@ -526,18 +652,23 @@ class Meter:
         settled against the daily and site caps exactly like any other, but does not use one of the request's calls,
         so a classified turn keeps its planner call, its reroute and its research round. It still counts toward the
         request's per-turn dollar cap (every row carries its request)."""
+        self._check_deadline()
         model = str(kwargs.get("model") or "")
         worst = worst_case_usd(kwargs)
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category=category, model=model,
                       worst_usd=worst, site_reader=self.site_reader, counts_as_call=counts_as_call,
                       turn_request_id=self.turn_request_id)
+        self._check_still_in_time(rid)
         if self.heartbeat is not None:
             self.heartbeat()
         try:
-            resp = fn(**kwargs)
+            with call_deadline.until(self.clock.at):
+                resp = fn(**kwargs)
         except Exception as e:
             partial = getattr(e, "uct_usage", None)
-            if isinstance(partial, dict):
+            if isinstance(e, call_deadline.NotStarted):
+                release(rid, outcome="deadline_unsent")
+            elif isinstance(partial, dict):
                 # a stream that failed AFTER the provider reported its input (even with an error event: generation
                 # had started, so it is never released): the input as reported, the output at its ceiling (what
                 # was generated but never received is unknown)
@@ -548,6 +679,7 @@ class Meter:
                 release(rid)
             else:
                 self.spent_usd += settle(rid, actual_usd=None, outcome="worst_case")
+            self._check_deadline()               # settled first: the member's sentence, nothing left open
             raise
         if getattr(resp, "usage", None) is None:
             self.spent_usd += settle(rid, actual_usd=None)
@@ -559,15 +691,19 @@ class Meter:
         return resp
 
     def research(self, fn: Callable[[], dict]) -> dict:
+        self._check_deadline()
         rid = reserve(user_id=self.user_id, request_id=self.request_id, category="research", model="perplexity",
                       worst_usd=research_worst_case_usd(), site_reader=self.site_reader, counts_as_call=False,
                       turn_request_id=self.turn_request_id)
+        self._check_still_in_time(rid)
         if self.heartbeat is not None:
             self.heartbeat()
         try:
-            res = fn()
+            with call_deadline.until(self.clock.at):
+                res = fn()
         except Exception:
             self.spent_usd += settle(rid, actual_usd=None, outcome="worst_case")
+            self._check_deadline()
             raise
         if isinstance(res, dict) and res.get("cached"):
             self.spent_usd += settle(rid, actual_usd=0.0, outcome="cached")
@@ -594,7 +730,9 @@ def state(day: str | None = None) -> dict:
             " SUM(status='settled'), SUM(status='reserved'), SUM(status='released'),"
             " COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),"
             " COALESCE(SUM(cache_read_tokens),0), COALESCE(SUM(cache_write_tokens),0),"
-            " SUM(outcome IN ('no_usage','worst_case','partial','research_retried','stale_worst_case'))"
+            " COALESCE(SUM(confirmed_usd),0),"
+            " COALESCE(SUM(CASE WHEN status='settled' AND confirmed_usd IS NULL THEN actual_usd ELSE 0 END),0),"
+            " SUM(outcome IN ('no_usage','worst_case','partial','research_retried','stale_worst_case','deadline'))"
             " FROM agent_spend WHERE et_day = ?", (day,)).fetchone()
         by_cat = {row[0]: round(float(row[1] or 0), 6) for row in c.execute(
             "SELECT category, SUM(CASE status WHEN 'reserved' THEN reserved_usd ELSE actual_usd END)"
@@ -605,8 +743,9 @@ def state(day: str | None = None) -> dict:
     cap = cap_usd()
     out = {"et_day": day, "cap_usd": cap, "settled_usd": round(settled, 6), "reserved_usd": round(open_, 6),
            "committed_usd": round(settled + open_, 6), "remaining_usd": round(max(0.0, cap - settled - open_), 6),
+           "confirmed_usd": round(float(r[9] or 0), 6), "estimated_usd": round(float(r[10] or 0), 6),
            "calls": {"settled": int(r[2] or 0), "open": int(r[3] or 0), "released": int(r[4] or 0),
-                     "charged_worst_case": int(r[9] or 0)},
+                     "charged_worst_case": int(r[11] or 0)},
            "tokens": {"input": int(r[5]), "output": int(r[6]), "cache_read": int(r[7]), "cache_write": int(r[8])},
            "by_category": by_cat, "models": models, "max_calls_per_request": max_calls(), "turn_cap_usd": turn_cap_usd()}
     try:

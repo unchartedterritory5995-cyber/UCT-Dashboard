@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
@@ -37,6 +38,8 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
+import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
+import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
 import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
@@ -8009,6 +8012,13 @@ export default function StockChart({
       return (_storedInstances() || []).some((i) => definitionWithholdsOffListing(_defOf(i && i.defId)))
     } catch { return false }
   }, [_storedInstances, _defOf, userDefsGeneration])
+  // ⭐ W9-T11-F1 r1 (review N1) — does this chart hold a strategy document? Only then is the
+  // strategy window asked for (`useStrategyHistoryWindow` below): a chart of indicators never asks.
+  const _holdsStrategyWindow = useMemo(() => {
+    try {
+      return (_storedInstances() || []).some((i) => isStrategyWindowDefinition(_defOf(i && i.defId)))
+    } catch { return false }
+  }, [_storedInstances, _defOf, userDefsGeneration])
   // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
   // asynchronously; a ref would leave the chart painted with the empty map until
   // something unrelated triggered another paint. The hook keeps the map's
@@ -9943,6 +9953,10 @@ export default function StockChart({
   const historyFromListing = useMemo(() => historyFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
+  // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
+  // binder hands no document a window. Fixed for the tab once it lands.
+  const { bars: strategyHistoryWindow, pending: strategyWindowPending } = useStrategyHistoryWindow(_holdsStrategyWindow)
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -14309,6 +14323,11 @@ export default function StockChart({
         // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
         // another translator keeps its bounded window whatever this says.
         historyFromListing,
+        // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
+        // to strategy documents only; every other document's ctx is unchanged.
+        historyWindowBars: strategyHistoryWindow,
+        // r1 (N3): asked, not answered yet — the binder holds a strategy run instead of refusing it
+        historyWindowPending: strategyWindowPending,
         adjustTime,
         applyData: _applyData,
         // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
@@ -15397,7 +15416,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -20430,7 +20449,7 @@ export default function StockChart({
                   }}
                 >
                   <strong>{n.label} — {String(n.mode).replace(/-/g, ' ')}</strong>
-                  <div style={{ opacity: 0.85 }}>{n.sentence}</div>
+                  <div style={{ opacity: 0.85 }}>{withoutGuardIds(n.sentence)}</div>
                 </div>
               ))}
             </div>

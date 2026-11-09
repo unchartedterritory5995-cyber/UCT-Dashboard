@@ -29,7 +29,8 @@
 // read names the scope it reads. An absent scope is `''`, its own scope, so a
 // binder and a strip that name none still meet, and nothing else.
 
-/** scope → instanceId → `{dropped, held}` (only `dropped > 0` is kept). */
+/** scope → instanceId → `{dropped, held, families?}` (kept while `dropped > 0` or
+ *  `families` names a family withheld whole — W-C22-DEL). */
 const drops = new Map()
 const scoped = (scope) => drops.get(scope || '') || null
 const listeners = new Set()
@@ -38,13 +39,14 @@ const emit = () => { for (const fn of [...listeners]) { try { fn() } catch { /* 
 
 /** Record (or clear, with a zero count) what ONE instance's render state dropped
  *  out of the objects its program held on the last bar. Emits only on a change. */
-export function setObjectRenderDrops(instanceId, dropped, held, scope = '') {
+export function setObjectRenderDrops(instanceId, dropped, held, scope = '', families = []) {
   if (!instanceId) return
   const d = Number.isInteger(dropped) && dropped > 0 ? dropped : 0
   const h = Number.isInteger(held) && held >= d ? held : d
+  const fams = [...new Set((Array.isArray(families) ? families : []).filter((f) => typeof f === 'string' && f))].sort()
   const own = scoped(scope)
   const had = own ? own.get(instanceId) : undefined
-  if (!d) {
+  if (!d && !fams.length) {
     if (had) {
       own.delete(instanceId)
       if (!own.size) drops.delete(scope || '')
@@ -52,16 +54,20 @@ export function setObjectRenderDrops(instanceId, dropped, held, scope = '') {
     }
     return
   }
-  if (had && had.dropped === d && had.held === h) return
-  if (own) own.set(instanceId, { dropped: d, held: h })
-  else drops.set(scope || '', new Map([[instanceId, { dropped: d, held: h }]]))
+  const entry = fams.length ? { dropped: d, held: h, families: fams } : { dropped: d, held: h }
+  if (had && had.dropped === d && had.held === h
+    && (had.families || []).join(',') === fams.join(',')) return
+  if (own) own.set(instanceId, entry)
+  else drops.set(scope || '', new Map([[instanceId, entry]]))
   emit()
 }
 
 /** `{dropped, held}` for one instance in one binder's scope, or null. */
 export function objectRenderDropsFor(instanceId, scope = '') {
   const own = scoped(scope)
-  return own && own.has(instanceId) ? { ...own.get(instanceId) } : null
+  if (!own || !own.has(instanceId)) return null
+  const e = own.get(instanceId)
+  return e.families ? { ...e, families: [...e.families] } : { ...e }
 }
 
 /** ⭐ Subscribe; returns the unsubscribe. */

@@ -234,8 +234,6 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
               onClick={(e) => { e.stopPropagation(); onExplain(item, e.currentTarget) }}
               aria-label="Explain this headline"
               data-guide="teNews.explain"
-              data-guide="teNews.explain"
-              data-guide="teNews.explain"
               aria-expanded={!!explainOpen}
               title="Explain"
             ><UIcon name="sparkle" size={11} gold={false} /></button>
