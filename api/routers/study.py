@@ -283,9 +283,7 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
     n = max(1, min(30, int(body.size or study_select.SET_SIZE)))
 
     def bank():
-        rows = study_store.list_bank()
-        if body.skill_id:
-            rows = [r for r in rows if r["skill_id"] == body.skill_id]
+        rows = study_store.list_bank(skill_id=body.skill_id or None)
         if body.hard:
             rows = [r for r in rows if r.get("has_chart") and study_hard.item_eligible(r["id"])]
         return rows
@@ -293,7 +291,8 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
     if body.kind == "unit":
         # §13.9 #1: the unit's walk-throughs first (max 3, prompt_json.order
         # then id), then the scored items as today composes them.
-        ids = study_select.compose_unit(uid, body.skill_id, bank, n=n)
+        ids = study_select.compose_unit(uid, body.skill_id, bank, n=n,
+                                        band=study_store.get_skill_band(uid, body.skill_id))
     else:
         due_slots = 0 if body.kind in ("skill", "checkpoint") else study_select.DUE_SLOTS
         ids = study_select.compose_today(uid, bank, n=n, due_slots=due_slots)
@@ -352,7 +351,7 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     uid = user["id"]
     rounds = max(1, min(24, int(body.rounds or 8)))
     view = max(20, min(250, int(body.view or 90)))
-    rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
+    rows = [r for r in study_store.list_bank(types=("spot",)) if r.get("has_chart") and r.get("type") == "spot"
             and r.get("skill_id") in study_hard.SETUP_RULES]
     day = study_store.et_day_of()
     rng = _random.Random((f"daily:{day}" if body.shared else f"{uid}:{_date.today().isoformat()}")

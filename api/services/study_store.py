@@ -718,12 +718,21 @@ def reveal_for(item: dict) -> dict:
 
 
 def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] = None,
-              limit: int = 5000) -> list[dict]:
+              limit: int = 50000, skill_id: Optional[str] = None) -> list[dict]:
     """Lightweight candidate rows for the set composer: id, type, skill_id,
-    difficulty, has_chart. Never the key, never the ticker."""
+    difficulty, has_chart. Never the key, never the ticker. `skill_id` filters
+    IN THE QUERY: a skill session must never filter after the row cap, or once
+    the approved bank passes `limit` a random share of every skill's items
+    silently stops being drawn (found 2026-11-09 while the course bank grew).
+    The default cap was 5000 for the same reason the daily set and Spot the
+    Setup draw from the whole bank: it is 50000 now, far above any real bank,
+    so it guards memory without ever trimming the draw."""
     q = ("SELECT id, type, skill_id, difficulty, (bars_ref IS NOT NULL) AS has_chart "
          "FROM study_items WHERE review_status=?")
     args: list = [status]
+    if skill_id:
+        q += " AND skill_id=?"
+        args.append(skill_id)
     if types:
         ts = list(types)
         q += f" AND type IN ({','.join('?' for _ in ts)})"
@@ -735,6 +744,14 @@ def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] =
     return [{"id": r["id"], "type": r["type"], "skill_id": r["skill_id"],
              "difficulty": int(r["difficulty"] or 1), "has_chart": bool(r["has_chart"])}
             for r in rows]
+
+
+def get_skill_band(user_id: str, skill_id: str) -> str:
+    """The member's band on one skill ('learning' until they have a row): the unit composer leans its picks to it."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT band FROM study_skill WHERE user_id=? AND skill_id=?", (user_id, skill_id)).fetchone()
+    band = row["band"] if row else "learning"
+    return band if band in BANDS else "learning"
 
 
 def list_walkthroughs(skill_id: str, *, status: str = STATUS_APPROVED) -> list[dict]:
