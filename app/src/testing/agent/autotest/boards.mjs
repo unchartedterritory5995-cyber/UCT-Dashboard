@@ -26,6 +26,9 @@ const tfmix = () => [chart('c-tl', 'A', 0, 0, 9, 10, 'D'), chart('c-tr', 'B', 9,
 const W = (id, type, x, y) => ({ id, type, color: 'A', x, y, w: 8, h: 4, opts: {} })
 const widgets = () => [chart('w-chart-a', 'A', 0, 0, 8, 20), W('w-flow', 'optionsflow', 8, 0), W('w-themes', 'themes', 16, 0), W('w-breadth', 'breadth', 8, 4), W('w-idx', 'indexes', 16, 4),
   W('w-term', 'calendar', 8, 8), W('w-nhnl', 'nhnl', 16, 8), W('w-vol', 'volumescan', 8, 12), W('w-map', 'scatter', 16, 12), W('w-news', 'tradeExchangeNews', 8, 16)]
+// 3 x 2: a middle column, so "the middle one" names two charts and "the one below this" is exact. Link colours E-H are dark (an
+// auth flag), so the bottom middle and bottom right share A and B with the top row: SPY and QQQ name two charts each here
+const six = () => [chart('c-tl', 'A', 0, 0, 6, 10), chart('c-tm', 'B', 6, 0, 6, 10), chart('c-tr', 'C', 12, 0, 6, 10), chart('c-bl', 'D', 0, 10, 6, 10), chart('c-bm', 'A', 6, 10, 6, 10), chart('c-br', 'B', 12, 10, 6, 10), WATCH()]
 const one = () => [chart('w-chart-a', 'A', 0, 0, 18, 20), WATCH()]
 const scan = () => [chart('w-chart-a', 'A', 0, 0, 12, 20), { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 0, w: 12, h: 20, opts: {} }]
 
@@ -76,6 +79,12 @@ export const BOARDS = {
     // axis choices are its metric catalog, served here through its own route with synthetic labels (no market values)
     browser: { prefs: prefsOf(widgets(), GROUPS), waitDoors: ['w-themes', 'w-idx', 'w-term', 'w-nhnl', 'w-map', 'w-vol', 'w-breadth'],
       routes: [{ match: '^GET /api/scatter/metrics', body: { metrics: [{ key: 'rvol', label: 'RVOL', group: 'Volume', live: true }, { key: 'chg_today', label: 'Change today', group: 'Price', live: true }, { key: 'mcap', label: 'Market cap', group: 'Size', live: false }] } }] },
+    sim: null,
+  },
+  SIX: {
+    roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TM: { id: 'c-tm', position: 'top-middle', sym: 'QQQ' }, TR: { id: 'c-tr', position: 'top-right', sym: 'NVDA' },
+      BL: { id: 'c-bl', position: 'bottom-left', sym: 'TSLA' }, BM: { id: 'c-bm', position: 'bottom-middle', sym: 'SPY' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'QQQ' } },
+    browser: { prefs: prefsOf(six(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }), iaCatalog: IA_CATALOG },
     sim: null,
   },
   ONE: {

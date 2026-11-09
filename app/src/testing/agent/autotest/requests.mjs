@@ -14,6 +14,7 @@ import { unseen5 } from './families/unseen5.mjs'
 import { unseen6 } from './families/unseen6.mjs'
 import { unseen7 } from './families/unseen7.mjs'
 import { unseen8 } from './families/unseen8.mjs'
+import { unseen9 } from './families/unseen9.mjs'
 
 export function publicRequests() {
   const L = []
@@ -87,6 +88,14 @@ export function unseen8Requests() {
   const L = []
   unseen8(L)
   return L.map(r => ({ ...r, set: 'unseen8' }))
+}
+
+/** Batch 9 (2026-11-09), written before any run of it: multistep + undo, scanner filters, the indicator library, references on
+ *  3-, 4- and 6-chart boards (its walkthrough part is tutorialCases.mjs tut9-). */
+export function unseen9Requests() {
+  const L = []
+  unseen9(L)
+  return L.map(r => ({ ...r, set: 'unseen9' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */

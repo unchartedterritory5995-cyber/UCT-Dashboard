@@ -81,4 +81,11 @@ add('click', 'other-chart-control-no-restart', { ...own, acts: [['tfButtonOf', '
 add('click', 'mc-own-cell-keeps-it', { board: 'MC', clicks: ['B'], say: 'how do I change the timeframe in this cell', feature: 'timeframe', acts: [['canvasOf', 'B'], ['wait', 800]], lifecycle: 'a click on its own cell', expect: [['starts', null], ['stillActive']] })
 add('click', 'mc-other-cell-ends-it', { board: 'MC', clicks: ['B'], say: 'how do I change the timeframe in this cell', feature: 'timeframe', acts: [['canvasOf', 'C'], ['wait', 2000]], lifecycle: 'a click on another cell', expect: [['starts', null], ['nothingOnScreen']] })
 
+// ── tut9 (2026-11-09, written before any run): start, completion, cancel and a chart switch on the 6-chart board ────────────────
+add('9', 'six-named-bottom-middle', { board: 'SIX', clicks: ['TL'], say: 'how do I change the timeframe on the bottom middle chart', feature: 'timeframe', expect: [['starts', null], ['ringOn', 'BM', 'chart.timeframe']] })
+add('9', 'six-completed', { board: 'SIX', clicks: ['TR'], say: 'show me how to change the timeframe here', feature: 'timeframe', acts: [['next'], ['next']], lifecycle: 'its last step', expect: [['starts', null], ['endsGone', 'done'], ['unchanged']] })
+add('9', 'six-cancel', { board: 'SIX', clicks: ['BL'], say: 'how do I change the symbol on this chart', feature: 'symbol', acts: [['exit']], lifecycle: 'Exit', expect: [['starts', null], ['endsGone', 'exit'], ['unchanged']] })
+add('9', 'six-switch-chart-ends', { board: 'SIX', clicks: ['TM'], say: 'how do I change the timeframe on this chart', feature: 'timeframe', acts: [['canvasOf', 'BR'], ['wait', 2000]], lifecycle: 'a click on another chart', expect: [['starts', null], ['nothingOnScreen']] })
+add('9', 'six-own-chart-keeps', { board: 'SIX', clicks: ['TM'], say: 'how do I open the settings of this chart', feature: 'settings', acts: [['canvasOf', 'TM'], ['wait', 800]], lifecycle: 'a click on its own chart', expect: [['starts', null], ['stillActive']] })
+
 export const tutorialCases = () => L.map(c => ({ ...c, set: 'tutorial' }))

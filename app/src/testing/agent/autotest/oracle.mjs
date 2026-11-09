@@ -65,6 +65,34 @@ const stateOnly = (s) => worldPrint({ ...s, unreadable: [...(s.unreadable || [])
  * Grade one request. `ev`: { before, after, turns: [{ say, newReceipt, receiptText, card, modelCalls, last, envelope }],
  * undo: { after } | null, guide: guideEvidence | null, errors: [] }. → { pass, graded, na, checks }
  */
+/** The charts a scripted plan's ops do NOT touch, for the strict repaint check of a change with no `only`. A chart counts as touched
+ *  when an op targets it (`$chart:X` / `$ie:X` / `$dr:X`, `sel` = the chart clicked last) or shows a symbol an op draws or alerts on
+ *  (a drawing or an alert line paints every chart showing its symbol). A plan that edits the board, the workspace or a layout, or any
+ *  op the rig cannot place on a chart, gives no list at all: there, no chart is provably untouched. */
+export function untargetedRoles(request, ev, roles, before) {
+  const ops = (request.turns || []).flatMap(t => t.plan?.ops || [])
+  if (!ops.length) return []
+  const clicked = (() => { const id = ev.clicks?.at(-1); return Object.entries(roles).find(([, v]) => v.id === id)?.[0] || request.select || null })()
+  const touched = new Set()
+  const symsTouched = new Set()
+  for (const op of ops) {
+    const m = /^\$(chart|ie|dr):(.+)$/.exec(String(op.target || ''))
+    if (!m) {
+      if (op.action === 'alert.create' && typeof op.args?.symbol === 'string') {
+        const s = /^\$sym:(.+)$/.exec(op.args.symbol)
+        if (s) touched.add(s[1] === 'sel' ? clicked : s[1]); else symsTouched.add(op.args.symbol)
+        continue
+      }
+      return []
+    }
+    const role = m[2] === 'sel' ? clicked : m[2]
+    if (!role || !roles[role]) return []
+    touched.add(role)
+  }
+  for (const r of [...touched]) if (before?.charts?.[r]?.sym) symsTouched.add(before.charts[r].sym)
+  return Object.keys(roles).filter(r => !touched.has(r) && !symsTouched.has(before?.charts?.[r]?.sym))
+}
+
 export function grade(request, ev) {
   const o = request.oracle
   const C = []
@@ -125,10 +153,13 @@ export function grade(request, ev) {
   if (ev.prewarm) {
     push('the one-off definitions redraw stayed within its bound (prewarm.mjs)', ev.prewarm.ok, ev.prewarm.detail, 'prewarm')
     const roles = BOARDS[request.board]?.roles || {}
-    const untouched = o.outcome === 'change' ? (o.only ? Object.keys(roles).filter(r => !o.only.includes(r)) : []) : ['read', 'refuse', 'clarify', 'answer'].includes(o.outcome) ? Object.keys(roles) : []
+    // (AUDIT gap a) a change with no `only`: every chart the plan's ops do not target, when the plan names its charts
+    const untouched = o.outcome === 'change' ? (o.only ? Object.keys(roles).filter(r => !o.only.includes(r)) : untargetedRoles(request, ev, roles, before))
+      : ['read', 'refuse', 'clarify', 'answer'].includes(o.outcome) ? Object.keys(roles) : []
     for (const role of untouched) {
       const layers = ev.repaints?.[roles[role].id]
-      if (!layers) continue
+      // (AUDIT gap b) a chart missing from the count was not measured: that is a failed check, never a pass
+      if (!layers) { push(`${role} did not repaint`, false, 'not measured: the chart was not in the repaint count', 'repaint'); continue }
       push(`${role} did not repaint`, layers.every(n => n === 0), `clears per layer: ${layers.join(',')}`, 'repaint')
     }
   }
