@@ -83,7 +83,7 @@ export function buildFrom(catalog, groups) {
         let entry = null
         let why = null
         if (!parsed.ok) {
-          why = `${setup} no longer parses: ${parsed.guard}: ${parsed.error}`
+          why = `${setup} no longer parses (${parsed.guard}): ${parsed.error}`
         } else if (JSON.stringify(parsed.ast) !== JSON.stringify(spec.ast)) {
           why = `${setup} carries a frozen tree that is not what the parser `
             + 'produces from its own source, so the two lanes would disagree '
@@ -204,7 +204,7 @@ export default function StarterLibrary({ onPick = null, activeSource = '' }) {
               {UNGROUNDED.map(({ setup, reason }) => (
                 <li key={setup} className={styles.refusedRow} data-setup={setup}>
                   <span className={styles.refusedName}>{setup}</span>
-                  <span className={styles.refusedReason}>{reason}</span>
+                  <span className={styles.refusedReason}>{withoutGuardIds(reason)}</span>
                 </li>
               ))}
             </ul>

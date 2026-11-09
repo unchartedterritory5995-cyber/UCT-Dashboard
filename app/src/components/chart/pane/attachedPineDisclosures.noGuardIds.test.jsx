@@ -111,7 +111,7 @@ export const SITES = [
   ['components/chart/builder/ConciergeBox.jsx', ['item.reason', 'refusal.reason', 'proposal.sentence']],
   ['components/chart/builder/ConverseBox.jsx', ['c.text', 'editability.text']],
   ['components/chart/builder/ImageBox.jsx', ['refusal.reason', 'c.sentence', 'r.reason']],
-  ['components/chart/builder/StarterLibrary.jsx', ['entry.sentence']],
+  ['components/chart/builder/StarterLibrary.jsx', ['entry.sentence', 'reason']],
   ['components/chart/builder/studio/CreateIndicatorPanel.jsx', ['editability.text', 'conv.dropped.reason', 'o.reason', 'p.text']],
   ['components/chart/builder/studio/SaveReceipt.jsx', ['it.text']],
   ['components/chart/builder/memberPane/MemberPane.jsx', ['built.reason', 'n.note']],
@@ -206,5 +206,57 @@ describe('r3 — withoutGuardIds: the review probe table (NO-GUARD-IDS.md)', () 
 describe('r3 — a backticked id that was the whole parenthetical leaves no empty ()', () => {
   it('refused here (`strategy:x`).', () => {
     expect(withoutGuardIds('refused here (`strategy:commission-type`).')).toBe('refused here.')
+  })
+})
+
+describe('r4 — StarterLibrary composer and trailing trim', () => {
+  it('the UNGROUNDED parse refusal reads as a plain sentence once wrapped', () => {
+    expect(withoutGuardIds('vcp no longer parses (pcf:unknown-name): oops')).toBe('vcp no longer parses: oops')
+  })
+  it('a backticked id at the end of the string leaves no trailing space', () => {
+    expect(withoutGuardIds('the guard that refused it is `pine:parse`')).toBe('the guard that refused it is')
+  })
+})
+
+// ── r4 N2 — DRIFT RAIL: every guard-literal namespace the engine mints is in GUARD_NAMESPACES ──
+// Scans app/src (tests excluded) for `guard: '<ns>:`, `refusal('<ns>:` and `GUARD... = '<ns>:`.
+// THROW: / threw: are internal-only crash tags that never reach a sentence a member reads.
+const INTERNAL_ONLY = ['THROW', 'threw']
+const GUARD_LITERAL = /(?:\bguard\s*:\s*|\brefusal\(\s*|\b[A-Z_]*GUARD[A-Z_]*\s*=\s*)['`]([A-Za-z][A-Za-z_-]*):[A-Za-z0-9]/g
+export function namespacesIn(text) {
+  const out = new Set()
+  for (const m of text.matchAll(GUARD_LITERAL)) out.add(m[1])
+  return out
+}
+function walk(dir, out = []) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, ent.name)
+    if (ent.isDirectory()) { if (ent.name !== 'node_modules' && ent.name !== '__fixtures__') walk(p, out) }
+    else if (/\.jsx?$/.test(ent.name) && !/\.test\.jsx?$/.test(ent.name) && !p.includes(`${path.sep}__tests__${path.sep}`)) out.push(p)
+  }
+  return out
+}
+describe('r4 — drift rail: guard namespaces', () => {
+  it('every namespace minted under app/src is known (or internal-only)', () => {
+    const seen = new Map()
+    for (const f of walk(SRC)) {
+      for (const ns of namespacesIn(fs.readFileSync(f, 'utf8'))) if (!seen.has(ns)) seen.set(ns, path.relative(SRC, f))
+    }
+    expect(seen.size).toBeGreaterThan(10) // the scan found the engine, not nothing
+    const unknown = [...seen].filter(([ns]) => !GUARD_NAMESPACES.includes(ns) && !INTERNAL_ONLY.includes(ns))
+    expect(unknown, 'add these to memberCopy.GUARD_NAMESPACES').toEqual([])
+  })
+  it('CONTROL: a new namespace is caught', () => {
+    const ns = namespacesIn("x = { guard: 'brandnew:thing' }; throw refusal('pine:x', 'y'); const FOO_GUARD = 'runtime:z'")
+    expect([...ns].sort()).toEqual(['brandnew', 'pine', 'runtime'])
+    expect(GUARD_NAMESPACES).not.toContain('brandnew')
+  })
+})
+
+describe('r4 — StarterLibrary composes the parse refusal with its id in parentheses', () => {
+  it('so the one rule can strip it whole (a bare `: ${guard}:` would be left to read as code)', () => {
+    const src = fs.readFileSync(path.join(SRC, 'components/chart/builder/StarterLibrary.jsx'), 'utf8')
+    expect(src).toContain('no longer parses (${parsed.guard}): ${parsed.error}')
+    expect(src).not.toMatch(/\$\{parsed\.guard\}(?!\))/)
   })
 })
