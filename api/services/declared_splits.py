@@ -153,7 +153,12 @@ class DeclaredSplits:
         # ⭐ NO KEY IS SAID ONCE, NOT DISCOVERED 600 TIMES. With the default fetcher
         # and no FMP_API_KEY every call fails, closes the shared brake and leaves
         # every name unknown; the run says so in `stats["no_key"]` instead.
-        self._has_key = (bool(os.environ.get("FMP_API_KEY")) if uses_builtin else True)             if has_key is None else bool(has_key)
+        if has_key is not None:
+            self._has_key = bool(has_key)
+        elif uses_builtin:
+            self._has_key = bool(os.environ.get("FMP_API_KEY"))
+        else:
+            self._has_key = True                     # a swapped fetcher brings its own provider
         # ⭐ A CLOSED BRAKE IS WAITED OUT, within `max_wait_s` per run (review,
         # 2026-11-07). The brake pauses 30 s and doubles to 600 s; a loop that only
         # reads SQLite between names finished the other ~3,000 names inside ONE

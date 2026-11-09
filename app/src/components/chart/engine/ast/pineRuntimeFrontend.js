@@ -29,13 +29,14 @@
 // next true dependency is exposed rather than hidden behind `pine:state`.
 
 import {
-  lexPine, blockStatements, parseWholeExpression, Resolver,
+  lexPine, blockStatements, refuseOffBlockIndent, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
+  legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -86,7 +87,7 @@ import { MAP_TYPE_SEP, MAP_ANSWER_READ } from '../runtime/maps.js'
 import { methodFormCall, splitMethodName } from './ufcs.js'
 // ⭐⭐ W6-T3a — a slot's static type is ONE descriptor, `slots[s].ty` (`typeDescriptor.js`).
 import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, elemUdtOf, drawingOf,
-  isTextTy, isColourTy, methodNsOf } from './typeDescriptor.js'
+  isTextTy, isColourTy, methodNsOf, collectionNumWordsConflict, numWordOf } from './typeDescriptor.js'
 // ⭐⭐ W6-T6 — the `for … in` walk rule (live list vs snapshot, the witnessed mutations): ONE
 // table, read by this lane and the host object lane (`pineObjects.js`) alike.
 import {
@@ -1405,7 +1406,7 @@ export function buildRuntimeIr(source, opts = {}) {
  *  measure-pair proves its output identical (the caller does not call this there). */
 const SWITCH_WORD = (t) => t && t.kind === 'ident' && t.value === 'switch'
 const ARM_VALUE_OPENERS = new Set(['if', 'switch', 'for', 'while'])
-function wrappedArmOf(arm, indents) {
+function wrappedArmOf(arm, indents, srcLines = null) {
   const h = arm.header || []
   const body = arm.body || []
   const at = findTop(h, (x) => isPunct(x, '=>'))
@@ -1417,7 +1418,16 @@ function wrappedArmOf(arm, indents) {
   let wraps = 0
   let blocks = 0
   let prevLine = h.length ? h[h.length - 1].line : null
+  // ⛔ HONESTY-SWEEP item 6 (2026-11-07, W34-I6a review N2): a COMMENT-ONLY line between the
+  // arm and a wrapped line (the lexer drops it) — the manual's wrapping rule speaks of
+  // indentation only, and does not say a wrap continues across a comment line.
+  let commentGap = false
   for (const tok of body) {
+    if (srcLines && prevLine !== null && tok.line > prevLine + 1) {
+      for (let ln = prevLine + 1; ln < tok.line; ln += 1) {
+        if (/^\s*\/\//.test(String(srcLines[ln - 1] || ''))) commentGap = true
+      }
+    }
     if (tok.line !== prevLine && depth === 0) {
       if ((indents[tok.line - 1] || 0) % 4 === 0) blocks += 1
       else wraps += 1
@@ -1430,17 +1440,18 @@ function wrappedArmOf(arm, indents) {
   }
   if (!wraps) return arm
   if (blocks) return { ...arm, wrapMixed: true }
+  if (commentGap) return { ...arm, wrapComment: true }
   return { header: h.concat(body), body: [], sub: [] }
 }
-function joinWrappedSwitchArms(list, indents) {
+function joinWrappedSwitchArms(list, indents, srcLines = null) {
   if (!list || !list.length) return list
   let changed = false
   const out = list.map((st) => {
-    let sub = st.sub && st.sub.length ? joinWrappedSwitchArms(st.sub, indents) : st.sub
+    let sub = st.sub && st.sub.length ? joinWrappedSwitchArms(st.sub, indents, srcLines) : st.sub
     if (sub && sub.length && findTop(st.header || [], SWITCH_WORD) >= 0) {
       let armsChanged = false
       const arms = sub.map((arm) => {
-        const a = wrappedArmOf(arm, indents)
+        const a = wrappedArmOf(arm, indents, srcLines)
         if (a !== arm) armsChanged = true
         return a
       })
@@ -1614,9 +1625,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
 
   let stmts
-  try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
+  // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
+  try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
-  if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents)
+  if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
   // bar-0 value (`nz(x[k])`) runs as the slot it is (`v2SelfReferenceStatements`).
   // ⛔ Not at the C18 object door: it keeps master's answer.
@@ -4743,6 +4756,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return out || NA_TY
   }
   /** An expression's type carries no `declaredOnly` (a slot's history, not a type). */
+  /** ⛔ HONESTY-SWEEP item 5 — the number words a collection type holds, for a refusal sentence. */
+  const numWordsIn = (ty) => {
+    if (!ty) return '?'
+    if (ty.kind === 'num') return numWordOf(ty) || 'number'
+    const inner = [ty.key, ty.elem].filter(Boolean).map(numWordsIn).join(', ')
+    return `${ty.kind}<${inner}>`
+  }
   const plainTy = (ty) => (ty && ty !== NA_TY && ty.declaredOnly
     ? makeTy(ty.kind, { elem: ty.elem || null, key: ty.key || null, name: ty.name || null }) : ty)
   const argNode = (a) => (a && a.value !== undefined ? a.value : a)
@@ -5414,6 +5434,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // Pine's bare builtins that change state are output calls, which no argument
   // holds; every collection and drawing call is namespaced or a method, and those
   // keep answering true. ⛔ `alert()` keeps the stricter default (unknown is true).
+  // W9-OQ-N1 (2026-11-07): at the same site a `strategy.*` READ call
+  // (`strategy.opentrades.entry_price(0)`, `strategy.closedtrades.profit(0)`,
+  // `strategy.convert_to_*`, `strategy.default_entry_qty`) is a value too. With the
+  // broker dark the order is dropped, so an argument that is a value is dropped with
+  // it and the read reaches nothing served. ⛔ It is a value, NOT a silent zero: an
+  // argument that ALSO holds an effect is lowered whole, and the read in it then
+  // refuses `pine:strategy-call` by name (its value may reach a plot through that
+  // effect), exactly as a `strategy.*` read anywhere else does.
+  const STRATEGY_READ_CALL = /^strategy\.(?:(?:opentrades|closedtrades)\.[a-z_]+|convert_to_account|convert_to_symbol|default_entry_qty)$/
   const argumentHasEffect = (node, depth = 0, bareIsValue = false) => {
     if (!node || typeof node !== 'object') return false
     if (depth > 64) return true
@@ -5423,7 +5452,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (isUserFn(name) || definedNames.has(name)) {
         if (!fnByName.has(name) || !fnIsEffectFree(fnByName.get(name))) return true
       } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)
-          && !(bareIsValue && /^[A-Za-z_]\w*$/.test(name))) return true
+          && !(bareIsValue && /^[A-Za-z_]\w*$/.test(name))
+          && !(bareIsValue && STRATEGY_READ_CALL.test(name))) return true
     }
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
         && argumentHasEffect(node.n.expr, depth + 1, bareIsValue)) return true
@@ -6817,6 +6847,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // `ta.highestbars` (pine.js re-routes it, measured against TradingView), so it takes the same
     // negated shape. Asking the tree with the bare name answered the positive table entry: the
     // right magnitude and the wrong sign, for every v4 `highestbars` / `lowestbars` in this lane.
+    // ⛔⛔ HONESTY-SWEEP item 2 — v1-v3 bare `highestbars`/`lowestbars`: no stated sign (pine.js).
+    if (legacyBarsSignUnstated(name, pineVersion)) {
+      throw new RuntimeRefusal('runtime:statement', `\`${name}\`: ${LEGACY_BARS_SIGN_SENTENCE}`, null)
+    }
     const nsName = pineNamespacedName(name, pineVersion)
     const ns = nsName === null ? undefined : namespacedWindowShape(nsName)
     if (ns !== undefined) return ns
@@ -8334,6 +8368,31 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // would read WRONGLY (see `fnCondUnsafe`); in a loop, any at all.
           if (loopDepth > 0 ? fnAnyHistory(fn) : fnCondUnsafe(fn)) {
             r4Guard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
+          }
+          // ⛔⛔ HONESTY-SWEEP item 5 (2026-11-07) — A COLLECTION OF ONE NUMBER WORD PASSED WHERE
+          // THE OTHER IS DECLARED (`f(array<float> id)` called with an `array<int>`, a method's
+          // receiver included). This lane has one number type, so it used to run the body; Pine
+          // tells `int` from `float` and no sentence says an `array<int>` converts to an
+          // `array<float>` (W6-T9 review N3). Refused by name until capture Q-HS5
+          // (`vw-hs5-int-array-float-param.pine`) says whether Pine compiles it.
+          const srcDef = fnSourceByName.get(node.name)
+          if (srcDef && Array.isArray(srcDef.params)) {
+            const declaredTys = paramTypeHeads(srcDef.toks, srcDef.arrow)
+            srcDef.params.forEach((p, k) => {
+              const d = declaredTys.get(p)
+              if (!d || k >= args.length) return
+              const want = writtenTyOf(d.word, d.typeArgs)
+              let got = null
+              try { got = exprType(args[k], scope) } catch { got = null }
+              if (collectionNumWordsConflict(want, got)) {
+                const g = methodDecls.has(node.name) ? 'runtime:udt-method' : 'runtime:function'
+                note(g)
+                throw new RuntimeRefusal(g, `\`${node.name}\` declares \`${p}\` as a collection of `
+                  + `\`${numWordsIn(want)}\` and is handed one of \`${numWordsIn(got)}\`: Pine tells \`int\` from `
+                  + '`float`, and whether it converts the collection (or does not compile the call) is not stated '
+                  + '(Q-HS5)', locate(node.tok))
+              }
+            })
           }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
@@ -10915,6 +10974,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       // ⛔ W34-I6a: wrapped lines AND a line at a block indent under one inline arm. Pine's
       // line-wrapping rule does not say whose statement that line is (see `wrappedArmOf`).
+      // ⛔ HONESTY-SWEEP item 6 — a wrap that would be joined across a comment-only line.
+      if (arm.wrapComment) {
+        throw new RuntimeRefusal('runtime:block-value',
+          `an arm of \`${label ? `${label} ` : ''}switch …\` wraps onto a continuation line across a comment-only line; Pine's line-wrapping rule speaks of indentation only and does not say a wrap continues past a comment line (Q-HS6)`,
+          locate(arm.header[0]))
+      }
       if (arm.wrapMixed) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label ? `${label} ` : ''}switch …\` wraps onto a continuation line and also has a line at a block indent (a multiple of four) beneath it; Pine's line-wrapping rule does not say which statement that line belongs to`,

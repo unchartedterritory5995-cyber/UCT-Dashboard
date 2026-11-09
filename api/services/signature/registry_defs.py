@@ -46,7 +46,10 @@ the gate — and this file cannot reach a provider that has not been plugged in.
 """
 from __future__ import annotations
 
+import functools
+import logging
 import math
+import re
 from collections.abc import Sequence
 from typing import Any, Callable, Iterable
 
@@ -116,6 +119,15 @@ _RS_MENU_ORDER: tuple[str, ...] = ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "INDUST
 RS_LINE_BENCHMARKS: tuple[str, ...] = rs_benchmark_menu(
     _RS_MENU_ORDER, _rs_benchmarks.LITERAL_BENCHMARKS + _rs_benchmarks.AUTO_BENCHMARKS)
 
+# ⭐ THE v4 MENU (Phase 3 unit 3-05, decision D4): the v3 menu plus CUSTOM, a
+# member's own ticker, NAMED here and nowhere upstream. CUSTOM stays out of
+# `rs_benchmarks.LITERAL_BENCHMARKS + AUTO_BENCHMARKS` on purpose, so
+# `RS_LINE_BENCHMARKS` above, the alert lane's `alert_rs_series.RS_ALERT_BENCHMARKS`,
+# the prewarm set and the screener's ETF set (all derived from those two tuples)
+# never grow it. Only the v4 row offers it; the ticker itself is the
+# `customBenchmark` string input, validated by `rs_benchmarks.CUSTOM_SYMBOL_RE`.
+RS_LINE_BENCHMARKS_V4: tuple[str, ...] = RS_LINE_BENCHMARKS + (_rs_benchmarks.CUSTOM_BENCHMARK,)
+
 # ⭐ UCT RELATIVE STRENGTH v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-
 # strength-indicator-design.md §8.1, §13). `wire_columns` requires the provider's
 # keys to EQUAL the declared `columns`, so a rollout flag cannot live in the
@@ -125,6 +137,20 @@ RS_LINE_BENCHMARKS: tuple[str, ...] = rs_benchmark_menu(
 import os as _os  # noqa: E402 — beside the one constant it serves
 
 RS_V2_ENABLED: bool = _os.environ.get("RS_V2_ENABLED", "0") == "1"
+
+# ⭐ UCT RELATIVE STRENGTH PHASE 3 (engineering map docs/superpowers/plans/
+# 2026-11-08-uct-rs-phase3-4-engineering-map.md, unit 3-05; decisions D19, D20).
+# ONE flag for the whole Phase 3 contract (the row shape, the columns and the
+# `requiresServer` controls the client reads off `/api/signature/definitions`),
+# read once at import beside the flag it builds on. It only means something ON
+# TOP of `RS_V2_ENABLED`: with V2 off the row is v1, which has no Phase 1
+# columns to extend, so V3 alone is IGNORED and logged (`_rs_line_row`), never a
+# half shape. Both on => the v4 row (rev 4). Unset => the v3 row, byte for byte
+# (`tests/fixtures/rs_line_rows_pre_phase3.json` is the control). Import time,
+# so arming and rollback are the variable plus `railway redeploy --service web --yes`.
+RS_V3_ENABLED: bool = _os.environ.get("RS_V3_ENABLED", "0") == "1"
+
+_log = logging.getLogger(__name__)
 
 
 # ── Refusals. DELIBERATELY DISJOINT PHRASES ─────────────────────────────────
@@ -224,9 +250,101 @@ RS_PHASE2A_WIRE_COLUMNS: tuple[str, ...] = (
     "mansfield", "mansfieldCrossUp", "mansfieldCrossDown", "dotMansfieldCross",
 )
 
+# ⭐ THE v4 SHAPE BEHIND `RS_V3_ENABLED` (Phase 3 unit 3-05). The v3 row plus
+# the wire subset of `relative_strength.PHASE3_COLUMNS` (unit 3-03) and the
+# Phase 3 inputs, at version 4 / `compute.rev` 4.
+#
+# The wire subset is what the chart DRAWS: the two rotation lines, the Clenow
+# score and its gap dot, the VARS line and its average. `quadrant`,
+# `clenowAnnual`, `clenowR2`, `clenowGap` and `varsState` stay off the wire
+# (readout and screener material, read from `relative_strength` directly),
+# exactly as `mansfieldState` did in 2a. `dotClenowGap` is NOT a
+# `PHASE3_COLUMNS` name: it is a wire-only dot the provider derives from
+# `clenowGap` (unit 3-06), the `dotMansfieldCross` precedent.
+# `tests/test_registry_string_inputs.py` holds every name here to that rule.
+#
+# ⭐ REV 5 (Deepvue round 2, 2026-11-08). The same row, one Reading more: the
+# `rating` view ("RS Rating", the stock's nightly IBD-style rating over time) and
+# its two wire columns (`RS_RATING_WIRE_COLUMNS`). The row's wire columns and its
+# `view` enum both change, so version and rev move together, 4 to 5, in all three
+# lanes (this row, `nativeRegistry.js`'s `compute.rev`, and
+# `alert_rev_migration.ADDRESS_REVS`). The names keep `V4` because they name the
+# Phase 3 shape behind `RS_V3_ENABLED`, which this extends; the number is what
+# moved. RS alerts are untouched: they compute from `compute_phase1_columns` /
+# `compute_mansfield_columns`, which this rev does not change (the no-move rail
+# in `tests/test_rs_rating_view.py`).
+RS_V4_VERSION = 5
+RS_V4_REV = 5
+RS_PHASE3_WIRE_COLUMNS: tuple[str, ...] = (
+    "rsRatio", "rsMomentum", "clenowScore", "dotClenowGap", "vars", "varsMa",
+)
+#: The RS Rating reading's wire columns (rev 5): the stored daily IBD-style
+#: rating at each bar's session and its 21-session average, null where the
+#: history holds no row. Wire-only, like `dotClenowGap`: the provider reads them
+#: from `rs_history.rating_series`, never from `relative_strength`.
+RS_RATING_WIRE_COLUMNS: tuple[str, ...] = ("ratingLine", "ratingMa")
 
-def _rs_line_row(v2: bool) -> dict:
-    """The `rsLine` row, in its v1 or v3 shape (see `RS_V2_ENABLED`).
+# The v4 "Reading" enum (decision D2): one choice, one pane. `showMansfield`
+# stays declared, which is what keeps saved Trend instances valid, and on the v4
+# row it declares `mapsTo` the Mansfield Reading (unit 3-08b): a request that
+# sends `showMansfield: true` and NO `view` resolves to `view: "mansfield"`; a
+# request that sends a `view` gets that view (`resolve_inputs`).
+RS_VIEWS: tuple[str, ...] = ("ratio", "mansfield", "rotation", "quality", "vars", "rating")
+RS_DEFAULT_VIEW = "ratio"
+#: The legacy switch's successor, the same declaration the JS definition makes
+#: on its `showMansfield` input (`nativeRegistry.js`, `legacyInputs.js`).
+RS_MANSFIELD_LEGACY_MAP: dict = {"when": True, "key": "view", "value": "mansfield"}
+
+# The anchor date (map section 0 point 4): a `YYYY-MM-DD` string; blank means the
+# benchmark's 20-session low. The SHAPE only; the provider parses the date.
+RS_ANCHOR_DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
+
+# The Phase 3 method ranges. `relative_strength` owns the DEFAULTS (it computes
+# with them); its Phase 3 functions take any length and answer `None` on a
+# degenerate one rather than clamping, so the clamp lives here, once, and the
+# JS definition (unit 3-08) declares the same ranges for the dialog's steppers.
+_RS_PHASE3_RANGES: dict[str, tuple] = {
+    "rrgRatioLength": (3, 60),
+    "rrgMomentumLength": (2, 30),
+    "clenowWindow": (20, 252),
+    "clenowGapPct": (1.0, 50.0),
+    "atrLength": (5, 100),
+    "varsLookback": (10, 252),
+}
+
+
+def _rs_phase3_inputs() -> list[dict]:
+    """The inputs the v4 row adds, after the v3 ones."""
+    from api.services import relative_strength as rsm
+
+    def number(key: str, kind: str, default) -> dict:
+        lo, hi = _RS_PHASE3_RANGES[key]
+        return {"key": key, "type": kind, "default": default, "min": lo, "max": hi}
+
+    return [
+        {"key": "view", "type": "enum", "default": RS_DEFAULT_VIEW, "options": list(RS_VIEWS)},
+        # ⭐ ONE AUTHORITY FOR WHAT A CUSTOM BENCHMARK MAY BE: the pattern is
+        # `rs_benchmarks.CUSTOM_SYMBOL_RE`'s own source, never re-typed, and
+        # `maxLength` is the longest ticker it accepts (a rail checks both).
+        {"key": "customBenchmark", "type": "string", "default": "",
+         "pattern": _rs_benchmarks.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"},
+        number("rrgRatioLength", "int", rsm.DEFAULT_RRG_RATIO_LEN),
+        number("rrgMomentumLength", "int", rsm.DEFAULT_RRG_MOM_LEN),
+        number("clenowWindow", "int", rsm.DEFAULT_CLENOW_WINDOW),
+        number("clenowGapPct", "float", rsm.DEFAULT_CLENOW_GAP_PCT),
+        number("atrLength", "int", rsm.DEFAULT_ATR_LENGTH),
+        number("varsLookback", "int", rsm.DEFAULT_VARS_LOOKBACK),
+        {"key": "anchorDate", "type": "string", "default": "", "pattern": RS_ANCHOR_DATE_PATTERN},
+    ]
+
+
+def _rs_line_row(v2: bool, v3: bool = False) -> dict:
+    """The `rsLine` row, in its v1, v3 or v4 shape.
+
+    * v1: both flags off (master's first shape).
+    * v3: `RS_V2_ENABLED` only. Byte-identical to the row served before Phase 3.
+    * v4: `RS_V2_ENABLED` and `RS_V3_ENABLED`. `v3` without `v2` is ignored and
+      logged: the v1 row has nothing for Phase 3 to extend.
 
     Only COMPUTE-affecting inputs are declared here: `resolve_inputs` drops any
     key the row does not declare, which is exactly what keeps a member's colour
@@ -234,9 +352,13 @@ def _rs_line_row(v2: bool) -> dict:
     `min`/`max` so the resolver can clamp; the JS definition declares the same
     ranges for the dialog's steppers.
     """
+    if v3 and not v2:
+        _log.warning("RS_V3_ENABLED is set without RS_V2_ENABLED; ignored, the "
+                     "rsLine row stays v1 (Phase 3 extends the v3 row only)")
+        v3 = False
     inputs: list[dict] = [
         {"key": "benchmark", "type": "enum", "default": "SPY",
-         "options": list(RS_LINE_BENCHMARKS)},
+         "options": list(RS_LINE_BENCHMARKS_V4 if v3 else RS_LINE_BENCHMARKS)},
     ]
     if v2:
         # ⭐ ONE SOURCE FOR THE RANGES. `relative_strength` owns the defaults and
@@ -263,20 +385,32 @@ def _rs_line_row(v2: bool) -> dict:
             # drive, so OFF blanks the `mansfield` column and its cross dot.
             {"key": "mansfieldLength", "type": "int", "default": rsm.DEFAULT_MANSFIELD_LENGTH,
              "min": rsm.MANSFIELD_LENGTH_RANGE[0], "max": rsm.MANSFIELD_LENGTH_RANGE[1]},
-            {"key": "showMansfield", "type": "bool", "default": False},
+            {"key": "showMansfield", "type": "bool", "default": False,
+             # v4 only: the v3 row has no `view`, and stays byte-identical
+             **({"mapsTo": dict(RS_MANSFIELD_LEGACY_MAP)} if v3 else {})},
             {"key": "showRedDay", "type": "bool", "default": False},
             {"key": "showNewLow", "type": "bool", "default": False},
         ]
+    if v3:
+        inputs += _rs_phase3_inputs()
     if v2:
         from api.services.relative_strength import PHASE1_COLUMNS
         columns = list(PHASE1_COLUMNS) + list(RS_PHASE2A_WIRE_COLUMNS)
+        if v3:
+            columns += list(RS_PHASE3_WIRE_COLUMNS) + list(RS_RATING_WIRE_COLUMNS)
     else:
         columns = ["rsLine"]
-    return {
+    if v3:
+        version, rev = RS_V4_VERSION, RS_V4_REV
+    elif v2:
+        version, rev = RS_V3_VERSION, RS_V3_REV
+    else:
+        version, rev = 1, 1
+    return _checked_legacy_maps({
         "schemaVersion": SCHEMA_VERSION,
         "id": "rsLine",
-        "version": RS_V3_VERSION if v2 else 1,
-        "compute": {"kind": "server", "fn": "rsLine", "rev": RS_V3_REV if v2 else 1},
+        "version": version,
+        "compute": {"kind": "server", "fn": "rsLine", "rev": rev},
         "meta": {
             "name": "UCT Relative Strength" if v2 else "Relative Strength Line",
             "shortName": "UCT RS" if v2 else "RS", "category": "Momentum",
@@ -294,10 +428,99 @@ def _rs_line_row(v2: bool) -> dict:
         # it is written to the append-only signal ledger. `ledger_indicator()`
         # returning None for it is the assertion that the two are different things.
         "rules_key": None,
-    }
+    })
 
 
-_RS_LINE = _rs_line_row(RS_V2_ENABLED)
+# ── A legacy input read as its successor (unit 3-08b) ───────────────────────
+#
+# ⭐ ONE RULE, the JS lane's (`app/src/components/chart/engine/legacyInputs.js`):
+# an input that declares ``mapsTo: {when, key, value}`` maps onto its successor
+# ONLY when the successor is genuinely absent from what the caller sent. A
+# supplied successor always wins, so a member who picked the RS line by hand on
+# a saved Trend instance (``showMansfield: true, view: "ratio"``) gets the RS
+# line. ``resolve_inputs`` is where the raw request and the defaults meet, so it
+# is the one place on this lane that can tell "sent" from "defaulted"; the
+# provider reads the result.
+#
+# ⛔ Checked when the row is built (fail closed, like the JS `defSchema`): the
+# exact three fields; a declared successor other than itself; ``when`` a legal,
+# non-default value of the legacy input; ``value`` a legal, non-default value of
+# the successor; one mapping per successor.
+
+_LEGACY_MAP_FIELDS = ("when", "key", "value")
+
+
+def _legal_value(spec: dict, value: Any) -> bool:
+    kind = spec.get("type")
+    if kind == "bool":
+        return isinstance(value, bool)
+    if kind == "enum":
+        return value in (spec.get("options") or [])
+    if kind in ("int", "float"):
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if kind == "string":
+        return isinstance(value, str)
+    return False
+
+
+def _checked_legacy_maps(row: dict) -> dict:
+    by_key = {s["key"]: s for s in row["inputs"]}
+    targets: dict[str, str] = {}
+    for spec in row["inputs"]:
+        m = spec.get("mapsTo")
+        if m is None:
+            continue
+        where = f"{row['id']}.inputs.{spec['key']}.mapsTo"
+        if not isinstance(m, dict) or set(m) != set(_LEGACY_MAP_FIELDS):
+            raise ValueError(f"{where}: expected exactly {{when, key, value}}, got {m!r}")
+        target = by_key.get(m["key"])
+        if target is None or m["key"] == spec["key"]:
+            raise ValueError(f"{where}.key: {m['key']!r} is not another declared input")
+        if not _legal_value(spec, m["when"]) or m["when"] == spec.get("default"):
+            raise ValueError(f"{where}.when: {m['when']!r} is not a legal non-default value of {spec['key']!r}")
+        if not _legal_value(target, m["value"]) or m["value"] == target.get("default"):
+            raise ValueError(f"{where}.value: {m['value']!r} is not a legal non-default value of {m['key']!r}")
+        if m["key"] in targets:
+            raise ValueError(f"{where}.key: {m['key']!r} is already the successor of {targets[m['key']]!r}")
+        targets[m["key"]] = spec["key"]
+    return row
+
+
+def _as_bool(val: Any) -> bool:
+    if isinstance(val, str):
+        return val.strip().lower() in ("1", "true", "yes", "on")
+    return bool(val)
+
+
+def apply_legacy_maps(specs: Sequence[dict], supplied: dict | None, values: dict) -> dict:
+    """``values`` with each declared ``mapsTo`` applied where the caller
+    SUPPLIED the legacy key with the ``when`` value and did not supply the
+    successor (absent or ``None``, the resolver's own "not sent"). Returns a new
+    dict, and is idempotent: run over its own output it finds the successor
+    supplied and changes nothing."""
+    src = supplied if isinstance(supplied, dict) else {}
+    out = dict(values)
+    for spec in specs:
+        m = spec.get("mapsTo")
+        if not m or spec["key"] not in src or src.get(m["key"]) is not None:
+            continue
+        got = src[spec["key"]]
+        if spec.get("type") == "bool":
+            got = _as_bool(got)
+        if got == m["when"]:
+            out[m["key"]] = m["value"]
+    return out
+
+
+def legacy_mapped(def_id: str, inputs: dict | None) -> dict:
+    """``inputs`` read through the installed row's legacy mappings: a no-op on
+    ``resolve_inputs`` output (every declared key is present), the mapping
+    itself for a caller that hands a provider its raw inputs."""
+    src = inputs if isinstance(inputs, dict) else {}
+    return apply_legacy_maps(definition(def_id)["inputs"], src, src)
+
+
+_RS_LINE = _rs_line_row(RS_V2_ENABLED, RS_V3_ENABLED)
 
 SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE)
 
@@ -413,8 +636,70 @@ def resolve_inputs(def_id: str, raw: dict | None) -> dict:
                 val = val.strip().lower() in ("1", "true", "yes", "on")
             else:
                 val = bool(val)
+        elif kind == "string":
+            val = _resolve_string(def_id, key, val, spec)
+        else:
+            # ⛔ NEVER STORED RAW (engineering map F4): before Phase 3 an unknown
+            # kind passed through unchanged, so a row that declared one would
+            # have forwarded whatever the client sent straight into a provider
+            # and its cache key. No current row reaches this branch.
+            raise InputRejected(
+                f"input {key!r} of {def_id!r} declares the input kind {kind!r}, "
+                "which the resolver has no branch for")
         out[key] = val
-    return out
+    # ⭐ unit 3-08b: a supplied legacy input maps onto a successor the caller did
+    # NOT send (`apply_legacy_maps`); a sent successor always wins.
+    return apply_legacy_maps(d["inputs"], src, out)
+
+
+@functools.lru_cache(maxsize=32)
+def _declared_pattern(pattern: str) -> re.Pattern:
+    """A row's `pattern`, compiled ASCII-only: Python's `\\d` would otherwise
+    accept other scripts' digits that the browser's `RegExp` refuses."""
+    return re.compile(pattern, re.ASCII)
+
+
+def _resolve_string(def_id: str, key: str, val: Any, spec: dict) -> str:
+    """The `string` branch (Phase 3 unit 3-05): strip, apply the declared `case`,
+    then refuse a NON-EMPTY value that exceeds `maxLength` or misses `pattern`
+    (matched whole). Empty is always allowed: it means "not set" (a blank custom
+    benchmark, the default anchor), and the provider owns that meaning.
+
+    A declared `case` also refuses non-ASCII text: `"ı".upper()` is `"I"`, so
+    folding first would accept a ticker the router's ASCII `_SYM_RE` never
+    would (`rs_benchmarks.normalize_custom_symbol` refuses it the same way).
+    """
+    if not isinstance(val, str):
+        raise InputRejected(
+            f"input {key!r} of {def_id!r} expects text but was given {type(val).__name__}")
+    s = val.strip()
+    case = spec.get("case")
+    if case is not None:
+        if not s.isascii():
+            raise InputRejected(
+                f"input {key!r} of {def_id!r} holds characters outside ASCII; a "
+                "case-folded input accepts ASCII only")
+        if case == "upper":
+            s = s.upper()
+        elif case == "lower":
+            s = s.lower()
+        else:
+            raise InputRejected(
+                f"input {key!r} of {def_id!r} declares the case rule {case!r}; "
+                "only 'upper' and 'lower' exist")
+    if not s:
+        return s
+    max_len = spec.get("maxLength")
+    if max_len is not None and len(s) > int(max_len):
+        raise InputRejected(
+            f"input {key!r} of {def_id!r} is {len(s)} characters long, past its "
+            f"declared maxLength of {int(max_len)}")
+    pattern = spec.get("pattern")
+    if pattern is not None and _declared_pattern(pattern).fullmatch(s) is None:
+        raise InputRejected(
+            f"input {key!r} of {def_id!r} was given {s!r}, which does not match "
+            f"the declared pattern {pattern}")
+    return s
 
 
 def _clamp_number(val: Any, spec: dict, kind: str) -> float | int:

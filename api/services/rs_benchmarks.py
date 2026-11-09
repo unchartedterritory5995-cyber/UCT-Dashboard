@@ -14,6 +14,11 @@ The chart's `benchmark` input is an enum the server resolves:
   that joins or returns indexed to the composite's own level on that bar (so a
   membership change is never a step in the line). Too few members ⇒ the sector
   ETF, then SPY.
+* ``CUSTOM`` — a member's own ticker (Phase 3 unit 3-04, decision D4), passed as
+  ``custom``: any symbol :data:`CUSTOM_SYMBOL_RE` accepts, ETFs included, never
+  an index (``$SPX``). Empty or invalid ⇒ SPY with ``fallback`` set; a valid
+  ticker is NEVER swapped for SPY. Not in :data:`AUTO_BENCHMARKS`, so neither
+  the chart's menu nor the alert lane grows it by accident.
 
 ⭐ PURE WHERE IT CAN BE. The bar fetcher is injected (the router passes
 `_fetch_bars_for_tf`; an optional `has_bars` presence probe rides the same
@@ -25,6 +30,9 @@ database.
 from __future__ import annotations
 
 import logging
+import re
+import threading
+import time
 from typing import Callable, Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
@@ -32,6 +40,27 @@ logger = logging.getLogger(__name__)
 LITERAL_BENCHMARKS = ("SPY", "QQQ", "IWM", "RSP")
 AUTO_BENCHMARKS = ("SECTOR", "INDUSTRY")
 DEFAULT_BENCHMARK = "SPY"
+
+# ⭐ CUSTOM IS RESOLVED HERE BUT LISTED NOWHERE (engineering map 3-04, D4). It
+# is deliberately OUT of LITERAL_BENCHMARKS + AUTO_BENCHMARKS: the chart's menu
+# (`registry_defs.RS_LINE_BENCHMARKS`), the alert lane's list
+# (`alert_rs_series.RS_ALERT_BENCHMARKS`), the prewarm set
+# (`bars_prewarm.RS_BENCHMARK_TICKERS`) and the screener's ETF set
+# (`rs_history.default_etf_tickers`) are all DERIVED from those two tuples, and
+# an alert on an arbitrary symbol would bypass the benchmark cache the alert
+# lane depends on. The chart offers CUSTOM by naming it explicitly (unit 3-05).
+CUSTOM_BENCHMARK = "CUSTOM"
+
+#: The one statement of what a custom benchmark may be (D4): a listed ticker,
+#: ETFs included; no index symbols (``$SPX``, ``^GSPC``). Matched AFTER strip and
+#: upper-case on an ASCII string, which accepts exactly what the router's
+#: `_SYM_RE` (``^[A-Za-z][A-Za-z.\-]{0,9}$`` on the stripped value) accepts.
+CUSTOM_SYMBOL_RE = re.compile(r"^[A-Z][A-Z.\-]{0,9}$")
+
+#: The fallback reason when CUSTOM carries no usable ticker.
+CUSTOM_NO_SYMBOL = "no custom symbol"
+#: A ticker is warmed at most once per this many seconds per process.
+CUSTOM_WARM_TTL_S = 600.0
 
 #: Finviz sector name (what `industry_map` stores) → SPDR sector ETF.
 SECTOR_ETF: Dict[str, str] = {
@@ -198,8 +227,86 @@ def equal_weight_composite(series_by_member: Dict[str, Sequence[dict]]) -> List[
     return out
 
 
+Warm = Callable[[str], None]
+
+#: ticker → monotonic time of its last warm request (per process).
+_custom_warmed: Dict[str, float] = {}
+_custom_warm_lock = threading.Lock()
+#: Past this many remembered tickers, expired entries are dropped on insert.
+_CUSTOM_WARM_MEMO_PRUNE_AT = 512
+#: The clock, one seam for tests.
+_now: Callable[[], float] = time.monotonic
+
+
+def normalize_custom_symbol(value: Optional[str]) -> Optional[str]:
+    """The upper-cased ticker when ``value`` is an acceptable custom benchmark,
+    else ``None``. Strip, refuse any non-ASCII text (``"ı".upper()`` is ``"I"``,
+    which the router's ASCII class would never have accepted), upper-case, then
+    :data:`CUSTOM_SYMBOL_RE`. ``fullmatch`` so a trailing newline cannot slip
+    past ``$``."""
+    s = str(value or "").strip()
+    if not s or not s.isascii():
+        return None
+    s = s.upper()
+    return s if CUSTOM_SYMBOL_RE.fullmatch(s) else None
+
+
+def custom_no_bars_note(ticker: str) -> str:
+    """The Benchmark row's second line for a custom ticker the pod holds no
+    bars for yet (D4). Stated here so the provider does not re-type it."""
+    return f"No {ticker} bars yet; they usually load within a minute"
+
+
+def _warm_custom_once(ticker: str, warm: Optional[Warm]) -> bool:
+    """Call ``warm(ticker)`` unless this process asked for the same ticker in
+    the last :data:`CUSTOM_WARM_TTL_S` seconds. Thread-safe: the memo is
+    claimed under the lock BEFORE the call, so two requests racing on a cold
+    ticker warm it once. ``warm`` must be fire-and-forget (it runs on the
+    request thread); an exception from it is logged and swallowed. Returns
+    whether ``warm`` was called."""
+    if warm is None:
+        return False
+    now = _now()
+    with _custom_warm_lock:
+        last = _custom_warmed.get(ticker)
+        if last is not None and now - last < CUSTOM_WARM_TTL_S:
+            return False
+        _custom_warmed[ticker] = now
+        if len(_custom_warmed) > _CUSTOM_WARM_MEMO_PRUNE_AT:
+            for k in [k for k, t in _custom_warmed.items() if now - t >= CUSTOM_WARM_TTL_S]:
+                del _custom_warmed[k]
+    try:
+        warm(ticker)
+    except Exception:                                   # noqa: BLE001 — a warm is best effort
+        logger.exception("rs_benchmarks: custom benchmark warm failed for %s", ticker)
+    return True
+
+
+def _resolve_custom(sym_u: str, custom: Optional[str], tf: str, count: int,
+                    fetch_bars: FetchBars, warm: Optional[Warm]) -> dict:
+    """The CUSTOM branch of :func:`resolve_benchmark` (unit 3-04, D4)."""
+    req = CUSTOM_BENCHMARK
+    ticker = normalize_custom_symbol(custom)
+    if ticker is None:
+        return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
+                "fallback": CUSTOM_NO_SYMBOL, "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count),
+                "note": None}
+    bars = fetch_bars(ticker, tf, count)
+    note = None
+    # The chart's own symbol resolves as itself so the provider's same-symbol
+    # state applies; its bars are the chart's, so there is nothing to warm.
+    if not bars and ticker != sym_u:
+        # ⛔ NEVER A SILENT SWAP TO SPY FOR A VALID TICKER. Empty bars make the
+        # provider report `no-benchmark-bars`; the warm fills bars.db behind it.
+        _warm_custom_once(ticker, warm)
+        note = custom_no_bars_note(ticker)
+    return {"requested": req, "resolved": ticker, "label": ticker,
+            "fallback": None, "bars": list(bars or []), "note": note}
+
+
 def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
-                      fetch_bars: FetchBars, has_bars: Optional[HasBars] = None) -> dict:
+                      fetch_bars: FetchBars, has_bars: Optional[HasBars] = None, *,
+                      custom: Optional[str] = None, warm: Optional[Warm] = None) -> dict:
     """Resolve the enum to bars.
 
     Returns ``{"requested", "resolved", "label", "fallback", "bars"}``.
@@ -208,9 +315,21 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
     request resolved as asked, else a short reason the legend prints.
     ``has_bars`` is the optional presence probe `order_industry_members` uses
     on a group larger than the fetch cap.
+
+    ``CUSTOM`` (D4) resolves ``custom``, the member's ticker: valid ⇒
+    ``resolved`` and ``label`` are the ticker; empty or invalid ⇒ SPY with
+    ``fallback: "no custom symbol"``; the chart's own symbol ⇒ itself (the
+    provider's same-symbol state); no bars ⇒ the ticker with ``bars: []``,
+    ``note`` set to :func:`custom_no_bars_note`, and ``warm(ticker)`` called at
+    most once per ticker per :data:`CUSTOM_WARM_TTL_S` in this process. A CUSTOM
+    result also carries ``note`` (``None`` unless bars are missing). ``custom``
+    and ``warm`` are ignored for every other benchmark.
     """
     req = str(requested or DEFAULT_BENCHMARK).upper()
     sym_u = str(sym or "").upper()
+
+    if req == CUSTOM_BENCHMARK:
+        return _resolve_custom(sym_u, custom, tf, count, fetch_bars, warm)
 
     # ⛔ AN UNKNOWN VALUE IS AN ERROR, NOT SPY. The definition's enum vocabulary
     # (`registry_defs.RS_LINE_BENCHMARKS`, derived from the two tuples above)

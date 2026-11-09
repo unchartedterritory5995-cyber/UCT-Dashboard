@@ -297,8 +297,12 @@ def test_store_summary_agrees_with_the_in_memory_summary_on_the_same_rows(tmp_pa
     assert got == mem
     assert mem["rows"] == 3 and mem["per_signal"]["x"]["n_signals"] == 2
     assert mem["split_skipped"] == {ev.BASELINE_KEY: 1, "y": 1} and mem["per_signal"]["y"]["n_signals"] == 1
+    # Pin moved 2026-11-07 (unit VA3): each horizon also counts the sessions with a
+    # COMPLETE window there (x: 2 sessions with an event, 1 with a complete 63 window).
     assert mem["per_signal"]["x"]["horizons"]["63"] == {"n": 1, "incomplete": 1, "incomplete_share": 0.5,
-                                                        "hit_rate": 0.0, "median_excess": -2.0, "mean_excess": -2.0}
+                                                        "hit_rate": 0.0, "median_excess": -2.0, "mean_excess": -2.0,
+                                                        "dates": 1}
+    assert mem["per_signal"]["x"]["dates"] == 2 and mem["per_signal"]["x"]["horizons"]["21"]["dates"] == 2
 
 
 # --------------------------------------------------------------------------- #

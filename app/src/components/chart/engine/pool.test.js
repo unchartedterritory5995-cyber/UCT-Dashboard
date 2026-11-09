@@ -19,6 +19,7 @@ import {
   lineStyleValue,
   AUTOSCALE_EXCLUDE,
   AUTOSCALE_DEFAULT,
+  includeRangeProvider,
   autoscaleProvider,
   AUTOSCALE_PROVIDER_MODES,
 } from './pool'
@@ -519,7 +520,11 @@ describe('seriesOptionsForPlot', () => {
         for (const [k, v] of Object.entries(o)) {
           if (typeof v !== 'function') continue
           expect(k, `${def.id}.${plot.key}.${k} is an uncomparable function`).toBe('autoscaleInfoProvider')
-          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          // rsLine rev 5: a plot's `autoscaleInclude` gets the include-range provider,
+          // MEMOISED by range (the same identity on every bind), so it is comparable too
+          const inc = plot.autoscaleInclude ? [includeRangeProvider(plot.autoscaleInclude.min, plot.autoscaleInclude.max)] : []
+          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, ...inc], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          expect(seriesOptionsForPlot(plot, { scaleId: 'x' })[k], `${def.id}.${plot.key}: a fresh provider per bind`).toBe(v)
           sawProvider++
         }
       }
@@ -889,13 +894,19 @@ describe('`plots[].precision` is honoured on every pool key', () => {
 // LWC 5.2.0's PriceFormatter rounds to `minMove` and only pads to `precision`,
 // so a 4-decimal plot left at LWC's `minMove: 0.01` printed 0.2500 for 0.2477
 // (the real-chart proof is `__tests__/priceFormatMinMove.realChart.test.js`).
+// ⛔ The expected steps are LITERALS, not `10 ** -p`: the exponent operator is not
+// correctly rounded on every engine (V8 in Node 20 — CI's Node — gives
+// 0.00009999999999999999 for `10 ** -4`), so an expectation built from it agreed
+// with an implementation built from it and both were one ulp off together. A
+// number literal is correctly rounded everywhere. (2026-11-08)
+const STEP = [1, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001, 1e-7, 1e-8, 1e-9, 1e-10]
 describe('B1: every engine priceFormat carries minMove = 10^-precision', () => {
   it('for every precision 0..10, and the step times 10^p is exactly 1', () => {
     // LWC builds its formatter from `minMove * 10^precision`; anything but 1 there
     // means a step that is not one unit of the last printed decimal.
     for (let p = 0; p <= 10; p++) {
       const pf = seriesOptionsForPlot({ ...bareplot('line'), precision: p }, {}).priceFormat
-      expect(pf, `precision ${p}`).toEqual({ type: 'price', precision: p, minMove: 10 ** -p })
+      expect(pf, `precision ${p}`).toEqual({ type: 'price', precision: p, minMove: STEP[p] })
       expect(pf.minMove * 10 ** p, `precision ${p}`).toBe(1)
     }
   })
@@ -908,7 +919,7 @@ describe('B1: every engine priceFormat carries minMove = 10^-precision', () => {
       for (const plot of def.plots || []) {
         if (!Number.isInteger(plot.precision) || !poolKey(plot)) continue
         const pf = seriesOptionsForPlot(plot, {}).priceFormat
-        expect(pf, `${def.id}.${plot.key}`).toEqual({ type: 'price', precision: plot.precision, minMove: 10 ** -plot.precision })
+        expect(pf, `${def.id}.${plot.key}`).toEqual({ type: 'price', precision: plot.precision, minMove: STEP[plot.precision] })
         seen.push(`${def.id}.${plot.key}`)
       }
     }

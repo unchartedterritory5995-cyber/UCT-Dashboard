@@ -52,7 +52,9 @@
    "docs/pine/capture-queue-2026-11-06-w34-i4.md",
    "docs/pine/capture-queue-2026-11-06-w34-i6c.md",
    "docs/pine/capture-queue-2026-11-06-w6-t6.md",
-   "docs/pine/capture-queue-2026-11-06-w6.md"
+   "docs/pine/capture-queue-2026-11-06-w6.md",
+   "docs/pine/capture-queue-2026-11-07-honesty-sweep.md",
+   "docs/pine/capture-queue-2026-11-07-i6a-n4.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
@@ -76,22 +78,22 @@
   }
  },
  "counts": {
-  "targets": 292,
+  "targets": 305,
   "byStatus": {
    "CAPTURED": 78,
    "NEEDS_CHART": 59,
    "NEEDS_LIVE": 9,
-   "QUEUED": 146
+   "QUEUED": 159
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
     "NEEDS_CHART": 57,
     "NEEDS_LIVE": 9,
-    "QUEUED": 116
+    "QUEUED": 126
    },
    "W1": {
-    "QUEUED": 5
+    "QUEUED": 6
    },
    "W3": {
     "CAPTURED": 2
@@ -99,7 +101,7 @@
    "W4": {
     "CAPTURED": 9,
     "NEEDS_CHART": 2,
-    "QUEUED": 24
+    "QUEUED": 26
    },
    "W7": {
     "CAPTURED": 2,
@@ -111,12 +113,12 @@
     "CAPTURED": 61,
     "NEEDS_CHART": 58,
     "NEEDS_LIVE": 9,
-    "QUEUED": 132
+    "QUEUED": 144
    },
    "1-2": {
     "CAPTURED": 17,
     "NEEDS_CHART": 1,
-    "QUEUED": 14
+    "QUEUED": 15
    }
   },
   "byDocWave": {
@@ -168,6 +170,12 @@
    },
    "h5-values": {
     "QUEUED": 2
+   },
+   "honesty-sweep": {
+    "QUEUED": 7
+   },
+   "i6a-n4": {
+    "QUEUED": 6
    },
    "l1-libraries": {
     "CAPTURED": 1
@@ -359,6 +367,66 @@
    "rows": [
     "capture-queue-2026-11-02-w3#S1-E a per-pass helper call returning text (a ?: over its pa",
     "capture-queue-2026-11-02-w3#Q-W3-5"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs2-v3-highestbars@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs2-v3-highestbars.pine",
+   "sourceKind": "probe",
+   "sha256": "b4fd5f2ac77bd2775dcd9085e9aa423ad23e282525706acda0f543783a1b0fd8",
+   "bytes": 874,
+   "stem": "vw-hs2-v3-highestbars",
+   "captureStem": "vw-hs2-v3-highestbars",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "committed:sector-rotation__0fca060bf4"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 129,
+    "upperSample": [
+     "builtin:24-hour-volume__24hVolume",
+     "builtin:aroon-oscillator__Aroon_Oscill",
+     "builtin:auto-fib-extension__Auto1Fib1Ext",
+     "builtin:auto-fib-retracement__Auto1Fib1Ret",
+     "builtin:auto-pitchfork__Auto1Pitchfo",
+     "builtin:chandelier-exit__Chandelier_E",
+     "builtin:gaps__Gaps",
+     "builtin:kaufman039s-adaptive-moving-average__Kaufmans_Ada",
+     "builtin:open-interest__OpenInterest",
+     "builtin:pivot-points-standard__Pivot1Points",
+     "builtin:price-momentum-oscillator__Price_Moment",
+     "builtin:price-target__Price1Target"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:builtin",
+    "runtime:statement"
+   ],
+   "planWave": "W1",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS2"
    ],
    "origins": [
     "queue-doc"
@@ -3303,6 +3371,121 @@
    "oldestDoc": "2026-10-31",
    "rows": [
     "capture-queue-2026-10-31-wsa-for-bound#Q-A3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs6-wrap-comment@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs6-wrap-comment.pine",
+   "sourceKind": "probe",
+   "sha256": "657f95d28ab1a8f811c2a7e888bba3426915f2842d2037bf6a13089bee0874a2",
+   "bytes": 1109,
+   "stem": "vw-hs6-wrap-comment",
+   "captureStem": "vw-hs6-wrap-comment",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 16,
+    "upperSample": [
+     "builtin:seasonality__Seasonality",
+     "builtin:volatility-stop__Volatility_S",
+     "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce",
+     "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606",
+     "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:neural-network-buy-and-sell-signals__fbbb11d0c7",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:supply-demand-mtf-flux-charts__7fb4bff229",
+     "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
+     "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
+     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:block-value"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS6"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs5-int-array-float-param@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs5-int-array-float-param.pine",
+   "sourceKind": "probe",
+   "sha256": "573daa5483cf523860ebdf2bc44e70d68667e2b178eaeefa52db3f0ed07e0d64",
+   "bytes": 1390,
+   "stem": "vw-hs5-int-array-float-param",
+   "captureStem": "vw-hs5-int-array-float-param",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 14,
+    "upperSample": [
+     "builtin:auto-fib-retracement__Auto1Fib1Ret",
+     "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0",
+     "committed:kalman-psar-backquant__0a389f529b",
+     "committed:mgi-levels-suite__285168ddfb",
+     "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6",
+     "committed:supply-demand-mtf-flux-charts__7fb4bff229",
+     "committed:trend-line-harrybot__vMv5yOQxcA",
+     "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156",
+     "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:function",
+    "runtime:udt-method"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS5"
    ],
    "origins": [
     "queue-doc"
@@ -13967,6 +14150,434 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "i6a-n4-control-8@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-control-8.pine",
+   "sourceKind": "probe",
+   "sha256": "b6728f7b96462bcabe4aa244bfaf77c2d41b2d6b77d956572232ce66b82f7de2",
+   "bytes": 816,
+   "stem": "i6a-n4-control-8",
+   "captureStem": "i6a-n4-control-8",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-0"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-if-6@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-if-6.pine",
+   "sourceKind": "probe",
+   "sha256": "87c2242f539117a9f6c74720a622716ff15c4227a273c5e96a888d4027a7b074",
+   "bytes": 869,
+   "stem": "i6a-n4-if-6",
+   "captureStem": "i6a-n4-if-6",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1c"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-if-tab2@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-if-tab2.pine",
+   "sourceKind": "probe",
+   "sha256": "32b658bc35a82f7ae88620d4a278ab2050ed50124ef9c0dbf2bac8580f80dfab",
+   "bytes": 733,
+   "stem": "i6a-n4-if-tab2",
+   "captureStem": "i6a-n4-if-tab2",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1d"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-switch-12@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-switch-12.pine",
+   "sourceKind": "probe",
+   "sha256": "9b3753890508505b3e949fce5b5f7fc66c461694948f2cd69701ec3febd272c7",
+   "bytes": 908,
+   "stem": "i6a-n4-switch-12",
+   "captureStem": "i6a-n4-switch-12",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-switch-6@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-switch-6.pine",
+   "sourceKind": "probe",
+   "sha256": "d3c93db4250c44597c24ca282e0d70d83e4342c04d500a1f182071619cebde17",
+   "bytes": 741,
+   "stem": "i6a-n4-switch-6",
+   "captureStem": "i6a-n4-switch-6",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "i6a-n4-switch-9@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/i6a-n4-switch-9.pine",
+   "sourceKind": "probe",
+   "sha256": "402d3e8a5dd452114d7343a8599d692e6b43da2368d96b27789a0d6e9ded2c89",
+   "bytes": 971,
+   "stem": "i6a-n4-switch-9",
+   "captureStem": "i6a-n4-switch-9",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:indent"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "i6a-n4"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-i6a-n4#I6A-N4-1a"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs1-enum-na@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs1-enum-na.pine",
+   "sourceKind": "probe",
+   "sha256": "814b6059b35ea02bcd7ae2bf1edd2f6bd48e7bbb1c73374fdd4f1eb68b6e2706",
+   "bytes": 2183,
+   "stem": "vw-hs1-enum-na",
+   "captureStem": "vw-hs1-enum-na",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs3-matrix-degenerate@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs3-matrix-degenerate.pine",
+   "sourceKind": "probe",
+   "sha256": "9016329c3cc843336b1b8688ae8f699937802eaada593053696ccc8a5c729030",
+   "bytes": 1076,
+   "stem": "vw-hs3-matrix-degenerate",
+   "captureStem": "vw-hs3-matrix-degenerate",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs4-map-color-key@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs4-map-color-key.pine",
+   "sourceKind": "probe",
+   "sha256": "b6fb558bae75053c395e86baf84f6006ee37140e809dc4c55f711146362996fd",
+   "bytes": 1065,
+   "stem": "vw-hs4-map-color-key",
+   "captureStem": "vw-hs4-map-color-key",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS4"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hs7-enum-named-call@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs7-enum-named-call.pine",
+   "sourceKind": "probe",
+   "sha256": "0b00dae8dcfad86725fb7fd02e8a5ae4a3dd353551c639a713adc39e982986f0",
+   "bytes": 1513,
+   "stem": "vw-hs7-enum-named-call",
+   "captureStem": "vw-hs7-enum-named-call",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "honesty-sweep"
+   ],
+   "oldestDoc": "2026-11-07",
+   "rows": [
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS7"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -15865,6 +16476,18 @@
    "doc": "docs/pine/capture-queue-2026-11-06-w6.md",
    "wave": "w6",
    "rows": 7,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-07-honesty-sweep.md",
+   "wave": "honesty-sweep",
+   "rows": 7,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-07-i6a-n4.md",
+   "wave": "i6a-n4",
+   "rows": 6,
    "contextTables": 0
   }
  ]

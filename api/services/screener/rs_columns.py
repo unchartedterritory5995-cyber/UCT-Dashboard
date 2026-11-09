@@ -12,6 +12,21 @@ chart dot and an alert read ONE answer (plan §2.3 principle 5).
 `tests/test_screener_rs_columns.py` has the AST rail: this module defines no
 average, extreme, slope or ratio of its own.
 
+⭐ PHASE 3 (unit 3-10; engineering map decision D7): three more columns,
+:data:`PHASE3_COLUMNS`, computed by :func:`collect_one` ONLY when the builder
+passes ``phase3=True`` (``snapshot_builder.rs_v3_enabled()``; dark by default,
+and a dark call returns exactly the ten keys and costs nothing). Each is the
+last bar of a `relative_strength` Phase 3 column (unit 3-03):
+
+* ``rrg_quadrant`` — `rrg_columns` on WEEKLY bars, resampled from the row's
+  full daily series and from SPY through `bars_fetch._resample_weekly_iso` (the
+  one weekly resampler, the one `candles.weekly_candle` uses), named by
+  `RRG_QUADRANT_NAMES`. See :func:`_weekly_quadrant` for why only a tail of the
+  daily series is resampled first and why that is the full-series answer.
+* ``clenow_score`` — `clenow_columns` on DAILY bars, 90 closes, 4 dp.
+* ``vars_state`` — `vars_columns` on the same DAILY window as the ten, against
+  SPY's own sessions over that window's span, named by :data:`VARS_STATE_NAMES`.
+
 Pure: no env read, no DB, no builder import. `snapshot_builder.build_row`
 calls :func:`collect_one` as ``_step("bars_rs", ...)`` with the row's 400-bar
 window and the SPY / RSP bar dicts `_run_build_locked` read ONCE at
@@ -39,6 +54,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
+import time
 from typing import Dict, Optional, Sequence
 
 from api.services import relative_strength as rs
@@ -95,6 +111,47 @@ MIN_BARS: Dict[str, int] = {
 }
 MIN_BARS_FULL = max(MIN_BARS.values())   # 253: every column computable
 MIN_BARS_ANY = min(MIN_BARS.values())    # 20: below this, nothing is
+
+# ── Phase 3 (unit 3-10, decision D7): three columns, DARK unless asked ─────
+#
+# ⛔ A SEPARATE TUPLE, NOT AN EXTENSION OF `COLUMNS`: `COLUMNS` is the ten every
+# armed RS_V2 build writes (and every rail derived from it); these three exist
+# only while RS_V3_ENABLED is armed. `snapshot_db.COLUMNS` holds all thirteen.
+PHASE3_COLUMNS = (
+    "rrg_quadrant",   # WEEKLY: Leading | Weakening | Lagging | Improving vs SPY (the Terminal's RRG)
+    "clenow_score",   # DAILY: Clenow annualised slope x R^2 over 90 closes (a fraction, 4 dp)
+    "vars_state",     # DAILY: Strong, rising | Strong, fading | Weak, improving | Weak, falling
+)
+PHASE3_TEXT_COLUMNS = frozenset({"rrg_quadrant", "vars_state"})
+RRG_RATIO_LEN = rs.DEFAULT_RRG_RATIO_LEN           # 10 (the Terminal's RRG_METHOD)
+RRG_MOM_LEN = rs.DEFAULT_RRG_MOM_LEN               # 5
+CLENOW_WINDOW = rs.DEFAULT_CLENOW_WINDOW           # 90 trading days
+#: `clenow_score` is a FRACTION (annualised return x R^2, 0.85 = 85 %), so it
+#: keeps four places, where a percent column keeps two.
+CLENOW_DP = 4
+#: `vars_columns`' ``varsState`` codes 1-4, in code order (its docstring).
+VARS_STATE_NAMES = ("Strong, rising", "Strong, fading", "Weak, improving", "Weak, falling")
+#: Bars each Phase 3 column needs before it can have a value: WEEKLY bars for
+#: the quadrant (`rsMomentum` is first known on the ratio_len + mom_len - 1-th
+#: joined week), DAILY bars for the other two (VARS: the ATR's warm-up, then
+#: `lookback` changes, then the 50-bar average of VARS).
+PHASE3_MIN_BARS: Dict[str, int] = {
+    "rrg_quadrant": RRG_RATIO_LEN + RRG_MOM_LEN - 1,                       # 14 weeks
+    "clenow_score": CLENOW_WINDOW,                                         # 90 days
+    "vars_state": (rs.DEFAULT_ATR_LENGTH + rs.DEFAULT_VARS_LOOKBACK
+                   + rs.DEFAULT_VARS_MA_LENGTH - 1),                       # 129 days
+}
+#: Daily bars resampled for the quadrant before the full series is (see
+#: :func:`_weekly_quadrant`): 260 sessions is ~52 weeks, almost four times the
+#: 14 the newest quadrant reads.
+RRG_DAILY_TAIL = 260
+#: Per-column outcomes counted into ``stats`` (the builder's
+#: ``sources["bars_rs"]``) when a Phase 3 column comes back ``None``:
+#: ``phase3_short:<col>`` when the history is below :data:`PHASE3_MIN_BARS`,
+#: ``phase3_none:<col>`` for any other reason (a flat window, no benchmark
+#: bar, a VARS of exactly 0).
+PHASE3_SHORT = "phase3_short"
+PHASE3_NONE = "phase3_none"
 
 #: The per-ticker outcomes :func:`collect_one` counts into ``stats`` — the
 #: builder lands them under ``sources["bars_rs"]`` beside any raise.
@@ -214,6 +271,147 @@ def _count(stats: Optional[dict], key: str) -> None:
         stats[key] = stats.get(key, 0) + 1
 
 
+# ── Phase 3 helpers: shapes and windows only, every number is `rs`'s ───────
+
+def _iso(v) -> Optional[str]:
+    """``'YYYY-MM-DD'`` for any date shape :func:`_ymd` reads (the screener's
+    bars key by ``YYYYMMDD`` int; the shared weekly resampler keys by ISO)."""
+    n = _ymd(v)
+    if n is None:
+        return None
+    return f"{n // 10000:04d}-{n // 100 % 100:02d}-{n % 100:02d}"
+
+
+def _weekly(bars: Sequence[dict]) -> list:
+    """Weekly bars from daily ones through `bars_fetch._resample_weekly_iso`
+    (the resampler `candles.weekly_candle` uses; a second bucketing here would
+    be a second authority on what a week is). A bar without a date or a finite
+    close is skipped; a close-only bar (the float-list compat path) stands in
+    its close for O/H/L, which the quadrant never reads."""
+    from api.services import bars_fetch
+    iso = []
+    for b in bars:
+        t, c = _iso(b.get("t")), b.get("c")
+        if t is None or not _finite(c):
+            continue
+        hl = {k: (b.get(k) if _finite(b.get(k)) else c) for k in ("o", "h", "l")}
+        iso.append({**b, **hl, "t": t})
+    return bars_fetch._resample_weekly_iso(iso) if iso else []
+
+
+def _bench_weekly(bench: Sequence[dict], session, cache: Optional[dict],
+                  owner=None) -> list:
+    """The benchmark's weekly bars as of ``session`` (the ticker's newest daily
+    bar: the benchmark's daily bars at or before it, so a ticker whose newest bar is a Wednesday pairs with SPY's
+    week-to-Wednesday, never SPY's Friday close). ``cache`` is the builder's
+    per-build dict: one resample per (benchmark list, session), not per row.
+    The key holds the ``id`` of ``owner`` (the CALLER's benchmark object, which
+    the build holds for its whole life, so the id cannot be reused; ``bench``
+    itself is a fresh list per call) plus its length and end times."""
+    src = bench if owner is None else owner
+    key = (id(src), len(bench), bench[0].get("t") if bench else None,
+           bench[-1].get("t") if bench else None, _ymd(session))
+    if cache is not None and key in cache:
+        return cache[key]
+    out = _weekly(_clip(bench, session))
+    if cache is not None:
+        cache[key] = out
+    return out
+
+
+def _weekly_quadrant(full: Sequence[dict], bench: Sequence[dict],
+                     cache: Optional[dict], owner=None):
+    """``(code, weekly_bars_read)``: the newest `rrg_columns` quadrant on weekly
+    bars of ``full`` (the row's whole daily series) against ``bench`` as of
+    ``full``'s newest bar.
+
+    ⭐ THE TAIL IS THE FULL-SERIES ANSWER, EXACTLY. Resampling ~5,000 daily bars
+    costs ~55 ms a row and the RRG over ~1,000 weeks ~23 ms (measured on a
+    5,000-bar fixture), for one quadrant that reads only the newest
+    ``ratio_len + mom_len - 1`` joined weeks. So the last :data:`RRG_DAILY_TAIL`
+    daily bars are resampled first. Every week in that tail has the close the
+    full resample gives it (a week's close is its LAST daily close, and the tail
+    ends on the series' last bar; only the first week's O/H/L can differ, which
+    the quadrant does not read), and both averages are window RE-SUMS
+    (`compute_sma`), so the newest values depend on the newest joined weeks
+    alone. When the tail cannot produce a quadrant and the series is longer,
+    the full series is resampled and asked instead, so the answer is always
+    the full series' answer (`tests/test_screener_rs_phase3_columns.py`)."""
+    tail = full[-RRG_DAILY_TAIL:]
+    b_week = _bench_weekly(bench, full[-1].get("t"), cache, owner)
+    for part in ((tail, full) if len(full) > len(tail) else (full,)):
+        weeks = _weekly(part)
+        if not weeks:
+            continue
+        got = rs.rrg_columns(weeks, _trim_to(b_week, _times_of(weeks)),
+                             RRG_RATIO_LEN, RRG_MOM_LEN)["quadrant"][-1]
+        if got is not None or part is full:
+            return got, len(weeks)
+    return None, 0
+
+
+def _closes_suffix(bars: Sequence[dict], k: int) -> list:
+    """The shortest suffix of ``bars`` holding ``k`` finite positive closes:
+    exactly the closes `clenow_columns` reads for the newest bar (it skips a
+    bar with no positive close), so asking it of this suffix is its newest
+    answer over the whole window, at one fit instead of one per bar."""
+    seen = 0
+    for i in range(len(bars) - 1, -1, -1):
+        c = bars[i].get("c")
+        if _finite(c) and c > 0:
+            seen += 1
+            if seen >= k:
+                return list(bars[i:])
+    return list(bars)
+
+
+def _span(bench: Sequence[dict], win: Sequence[dict]) -> list:
+    """The benchmark's OWN sessions from the window's first bar to its last
+    (by date). VARS reads each series' own ATR, so the benchmark keeps its own
+    calendar inside the span (a ticker's halt does not thin SPY's ATR) and its
+    ATR warms up from the same date the ticker's does. A bar whose time is not
+    a date is kept (the compat index calendar)."""
+    lo, hi = _ymd(win[0].get("t")), _ymd(win[-1].get("t"))
+    if lo is None or hi is None:
+        return list(bench)
+    out = []
+    for b in bench:
+        t = b.get("t")
+        # The build's bars carry YYYYMMDD ints: compare those directly (5,000
+        # benchmark bars a row), and parse any other shape through `_ymd`.
+        if not (type(t) is int and 10000101 <= t <= 99991231):
+            t = _ymd(t)
+        if t is None or lo <= t <= hi:
+            out.append(b)
+    return out
+
+
+def _name(code, names) -> Optional[str]:
+    """A 1-based classification code -> its name; ``None`` for anything else."""
+    if isinstance(code, int) and not isinstance(code, bool) and 1 <= code <= len(names):
+        return names[code - 1]
+    return None
+
+
+def _phase3(win: list, full: list, spy_all: list,
+            stats: Optional[dict], cache: Optional[dict], owner=None) -> dict:
+    """The three Phase 3 columns for one ticker, with their short/none counts."""
+    quad, weeks = _weekly_quadrant(full, spy_all, cache, owner)
+    clen = rs.clenow_columns(_closes_suffix(win, CLENOW_WINDOW), CLENOW_WINDOW)
+    vrs = rs.vars_columns(win, _span(spy_all, win))
+    out = {
+        "rrg_quadrant": _name(quad, rs.RRG_QUADRANT_NAMES),
+        "clenow_score": _real(clen["clenowScore"][-1], CLENOW_DP),
+        "vars_state": _name(vrs["varsState"][-1], VARS_STATE_NAMES),
+    }
+    have = {"rrg_quadrant": weeks, "clenow_score": len(win), "vars_state": len(win)}
+    for col in PHASE3_COLUMNS:
+        if out[col] is None:
+            short = have[col] < PHASE3_MIN_BARS[col]
+            _count(stats, f"{PHASE3_SHORT if short else PHASE3_NONE}:{col}")
+    return out
+
+
 # ── The collector ───────────────────────────────────────────────────────────
 
 def _blank() -> dict:
@@ -232,8 +430,11 @@ def _blank() -> dict:
 
 
 def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
-                stats: Optional[dict] = None) -> dict:
-    """The ten columns for ONE ticker — ``{column: value}``, every key present.
+                stats: Optional[dict] = None, phase3: bool = False,
+                full=None, weekly_cache: Optional[dict] = None,
+                timing: Optional[dict] = None) -> dict:
+    """The ten columns for ONE ticker — ``{column: value}``, every key present
+    (thirteen with ``phase3=True``: :data:`PHASE3_COLUMNS` as well).
 
     ``bars`` is the ticker's daily window (the builder's sanitized 400 bars, or
     a float close list); ``spy_bars`` / ``rsp_bars`` the benchmark bar dicts
@@ -242,21 +443,36 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     newest bar). ``stats`` is an optional out-dict that receives one of
     :data:`OUTCOME_RATED` / :data:`OUTCOME_SHORT` / :data:`OUTCOME_NO_BENCH`.
 
+    ``phase3`` (the builder passes ``rs_v3_enabled()``) adds the three Phase 3
+    columns; ``full`` is the row's whole sanitized daily series for the WEEKLY
+    quadrant (``None`` = ``bars``); ``weekly_cache`` the builder's per-build
+    dict for the benchmark's weekly resample; ``timing`` an optional out-dict
+    whose ``phase3_ms`` accumulates the Phase 3 share of this call. A blank
+    Phase 3 column lands in ``stats`` as ``phase3_short:<col>`` (history below
+    :data:`PHASE3_MIN_BARS`) or ``phase3_none:<col>``, beside the row's own
+    outcome; a row with no benchmark ratio at all is ``no_bench`` alone. With
+    ``phase3=False`` none of it runs and the result is exactly the ten keys.
+
     Never raises on a short or empty input; a malformed bar (no ``c``) is a
     ``None`` in every derived column, as everywhere in `relative_strength`.
     """
     values = _blank()
+    if phase3:
+        values.update({c: None for c in PHASE3_COLUMNS})
     win = _clip(_as_bars(bars), session)
     n = len(win)
     if n == 0:
         _count(stats, OUTCOME_SHORT)
+        if phase3:
+            for col in PHASE3_COLUMNS:
+                _count(stats, f"{PHASE3_SHORT}:{col}")
         return values
-    spy = _as_bars(spy_bars, like=win)
-    if not spy:
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
         _count(stats, OUTCOME_NO_BENCH)
         return values
     times = _times_of(win)
-    spy = _trim_to(spy, times)
+    spy = _trim_to(spy_all, times)
 
     p1 = rs.compute_phase1_columns(win, spy)      # defaults: 252 / EMA 21 / 2 % / −0.5 %
     rs_spy = p1["rsLine"]
@@ -305,6 +521,20 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
         if n < need:
             values[col] = None
     _count(stats, OUTCOME_SHORT if n < MIN_BARS_FULL else OUTCOME_RATED)
+
+    if phase3:
+        t0 = time.perf_counter()
+        whole = _as_bars(full) if full else win
+        last, s = (_ymd(whole[-1].get("t")) if whole else None), _ymd(session)
+        if whole is not win and not (last is not None and (s is None or last <= s)):
+            # Only a series that runs PAST the session (or is not dated) needs
+            # the per-bar clip; the builder's `bars_full` ends on the session.
+            whole = _clip(whole, session)
+        values.update(_phase3(win, whole or win, spy_all, stats, weekly_cache,
+                              owner=spy_bars))
+        if timing is not None:
+            timing["phase3_ms"] = (timing.get("phase3_ms", 0.0)
+                                   + (time.perf_counter() - t0) * 1000.0)
     return values
 
 

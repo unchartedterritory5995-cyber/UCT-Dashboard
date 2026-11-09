@@ -67,7 +67,8 @@ describe('A5b — the stacking rule', () => {
     const block = line.children[1]
     expect(block.className).toMatch(/chipsStacked/)
     const ids = [...block.children].map((c) => c.dataset.presetId)
-    expect(ids).toEqual([...rsDef().meta.presets.map((p) => p.id), '__custom'])
+    // 3-08: with no server declaration the four Phase 3 presets are hidden
+    expect(ids).toEqual([...rsDef().meta.presets.filter((p) => p.requiresServer !== true).map((p) => p.id), '__custom'])
     const origin = within(row).getByTestId('preset-origin')
     expect(origin.className).toMatch(/presetOrigin/)
     expect(origin.previousElementSibling).toBe(line)
@@ -127,8 +128,8 @@ describe('A5c — swatches: the current colour, always present, always marked', 
   test('on a fresh Classic instance every colour row is stacked and marks exactly one swatch, the drawn colour', async () => {
     const user = userEvent.setup()
     mount(rsCs(), rsEditing)
-    await user.click(headNamed('Line'))
-    await user.click(headNamed('New highs'))
+    // VA2: the colour rows live in the plan's five folded groups
+    for (const g of ['Line', 'New highs', 'Stress test', 'Method']) await user.click(headNamed(g))
     const colours = rsDef().inputs.filter((i) => i.type === 'color')
     expect(colours.length).toBeGreaterThan(5)
     for (const input of colours) {

@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-11-07",
+  "measured_at": "2026-11-08",
   "scripts": 266,
-  "host_ok": 83,
+  "host_ok": 82,
   "screener_ok": 69,
   "threw": [],
   "rows": [
@@ -805,10 +805,10 @@
     },
     {
       "file": "flawless-victory-strategy__1BVZuaaWOU.pine",
-      "host": true,
+      "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:constant-only"
+        "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy"

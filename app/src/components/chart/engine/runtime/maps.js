@@ -140,6 +140,17 @@ export function buildMapFns({ CollectionError }) {
           throw new CollectionError(`map.new<${kt || '?'}, …>: this runtime holds a map keyed by int, float, `
             + 'bool, string or color (the reference\'s primitive key types); an enum key waits for W6-T10')
         }
+        // ⛔⛔ HONESTY-SWEEP item 4 (2026-11-07) — A COLOUR KEY. REF lists `color` among the key
+        // types, but no sentence says when two colours are the SAME key: this runtime compared
+        // packed RGBA, so `color.new(color.red, 50)` and `color.red` were two keys (and a
+        // colour made by `color.rgb`, `color.from_gradient` or an input the same or not by its
+        // bytes). Until capture Q-HS4 (`vw-hs4-map-color-key.pine`) settles it, the run stops
+        // here by name rather than serving a guessed equality.
+        if (kt === 'color') {
+          throw new CollectionError('map.new<color, …>: a map keyed by colour — when two colours are the same '
+            + 'key (and whether transparency counts) is not stated by the Pine reference or manual, so the run '
+            + 'stops here rather than serving a guessed equality (Q-HS4)')
+        }
         return mapFromParts(kt, null, vt || null)
       },
     },

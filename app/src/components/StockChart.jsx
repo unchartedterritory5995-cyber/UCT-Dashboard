@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
-import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
@@ -82,7 +82,7 @@ import { useChartIq } from '../hooks/useChartIq'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar, { CHART_TOOLBAR_FOOTPRINT_PX, TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
-import { VOLUME_PANE_SURFACE_FIXED, overlayRowId } from './chart/indicatorRegistry'
+import { VOLUME_PANE_SURFACE_FIXED, overlayRowId, visiblePresets } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
 import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
          legacyPairOwnsStack } from './chart/volumePaneDrag'
@@ -141,6 +141,8 @@ import {
   setInstanceDisplayTarget,
   // ⭐ Phase 2a (A6) — the chip menu's Preset page reads the dialog's own three helpers.
   presetsOf, detectPreset, applyPresetInputs,
+  // ⭐ UCT RS 3-09 — a readout row's pick-a-date / reset writes ONE string input.
+  setInstanceInput,
 } from './chart/engine/instanceControls'
 // ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
 // walks BINDINGS and `planBindings` drops a hidden instance, so a hidden
@@ -156,13 +158,20 @@ import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipV
 // header, a row's `card` opens a three-line About page in the same popover,
 // and Learn links resolve through the app's one Desk-video builder.
 import { scalarsFor } from './chart/engine/serverCompute'
+// ⭐ UCT RS 3-09 — the server gate the chip menu reads (its Preset page, its readout actions).
+import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serverCompute'
+// ⭐ UCT RS 3-09 — the readout row's "Open the rotation map" asks the workspace's
+// Compare panel (unit 3-12) by this window event; one spelling, the panel's own.
+import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
+// ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
+import { createRsInstanceTracker, noteRsPreset, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
 // ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
 // mounted without one on several surfaces (popups, the Model Book, its own
 // suites), and `<Link>` calls `useHref`, which throws there.
 import { Link, useInRouterContext } from 'react-router-dom'
-import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
+import { rendererPaneIndexOf, reservedEmptyPaneIndex, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/cotFollow'
 // ⭐ P2 Track B — Create Indicator's ephemeral live-chart preview (a READ VIEW).
 import { withPreviewInstance, stripPreview } from './chart/builder/studio/chartPreview'
@@ -172,8 +181,17 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 // overlays and the volume pane. They became removable with `chartDefaults`'s
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
 import LegendRow from './chart/legend/LegendRow'
+// ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
+import PaneRanksTable from './chart/pane/PaneRanksTable'
+import { paneTableShownOn, paneTableFits } from './chart/engine/paneTable'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
+// ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
+// first-add Tour page, the About page's Glossary link and "Ask Compass about this".
+import useIndicatorTours from './chart/useIndicatorTours'
+import { tourCardsOf, claimTour, tourClaimed } from './chart/legend/indicatorTour'
+import { readoutPageHint } from './chart/legend/readoutPageHint'
+import CompassAssistButton from './voice/CompassAssistButton'
 import { needsScriptForUpgrade, UPGRADE_NOTICE_LABEL } from './chart/builder/memberPane/savedScriptUpgrade'
 import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
@@ -511,6 +529,10 @@ function chipMenuRowToPopoverRow(it) {
  * on the way in.
  */
 const EMPTY_READOUT_ROWS = Object.freeze([])
+/** How long a first-add tour waits for its new chip to derive before giving up (unit 4-05). */
+const TOUR_WAIT_MS = 8000
+/** How long it then waits for that chip's own label to paint, to anchor beside it, before using the chart's corner. */
+const TOUR_ANCHOR_WAIT_MS = 1500
 
 /**
  * ⭐ Phase 2a (unit 2a-10) — `rows`: the chip's READOUT ROWS, what the legend
@@ -527,7 +549,151 @@ const EMPTY_READOUT_ROWS = Object.freeze([])
  * a row": it is a real control that opens the row's three-line About page in
  * place of the menu body (`onCard`), so it is a tab stop that does something.
  */
-function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false }) {
+/** ⭐ VA2 — a readout row's rating band (`readoutSchema` `band`: lead / strong /
+ *  neutral / lag, the site's 80 / 60 / 40 cuts), or `undefined` when the row has
+ *  none — so `data-band` is absent and every other row renders as before. */
+function bandOf(r) {
+  return r && typeof r.band === 'string' && READOUT_BAND_CLASS[r.band] ? r.band : undefined
+}
+/** The value span's class, with the band's ink when the row carries one. */
+function bandedClass(base, r) {
+  const b = bandOf(r)
+  return b ? `${base} ${styles[READOUT_BAND_CLASS[b]]}` : base
+}
+const READOUT_BAND_CLASS = Object.freeze({ lead: 'legBandLead', strong: 'legBandStrong', neutral: 'legBandNeutral', lag: 'legBandLag' })
+
+// ─── UCT RS 3-09 — WHAT A READOUT ROW OFFERS TO DO ─────────────────────────
+//
+// `readoutSchema.readoutRows` copies a row's declared `action` (3-07) onto the
+// resolved row; the engine cannot hide an action by SERVER STATE or by HOST, so
+// this surface decides, per row, whether the control renders at all:
+//   pickDate      "Pick a date on the chart" — the server declares the input it
+//                 writes AND the chart is daily (decision D6: the checks are daily)
+//   resetInput    "Use the default anchor"   — the server declares the input
+//   openRotation  "Open the rotation map"    — the chart's host mounts the Compare
+//                 Symbols panel (`canOpenCompare`), never the phone shell
+// Any other answer is null, and the row renders exactly as before.
+const READOUT_ACTION_COPY = Object.freeze({
+  pickDate: Object.freeze({ label: 'Pick a date on the chart', icon: 'calendar' }),
+  resetInput: Object.freeze({ label: 'Use the default anchor', icon: 'refresh' }),
+  openRotation: Object.freeze({ label: 'Open the rotation map', icon: 'compass' }),
+})
+
+/** Does the live server row declare this input? (`serverDeclares`' shape.) */
+function declaresReadoutInput(declared, key) {
+  return !!declared && Array.isArray(declared.inputs) && typeof key === 'string' && declared.inputs.includes(key)
+}
+
+/**
+ * The control a readout row's `action` renders here, or null.
+ *
+ * @param {{key: string, action?: {kind: string, input?: string}}} row a resolved readout row
+ * @param {{declared: object|null, daily: boolean, canOpenCompare: boolean,
+ *   onPick: (input: string) => void, onReset: (input: string) => void, onRotation: () => void}} ctx
+ * @returns {{kind: string, rowKey: string, label: string, icon: string, onClick: () => void}|null}
+ */
+function readoutActionControl(row, ctx) {
+  const a = row && row.action
+  if (!a || !ctx || !Object.prototype.hasOwnProperty.call(READOUT_ACTION_COPY, a.kind)) return null
+  const copy = READOUT_ACTION_COPY[a.kind]
+  const base = { kind: a.kind, rowKey: row.key, label: copy.label, icon: copy.icon }
+  if (a.kind === 'pickDate') {
+    if (!ctx.daily || !declaresReadoutInput(ctx.declared, a.input)) return null
+    return { ...base, onClick: () => ctx.onPick(a.input) }
+  }
+  if (a.kind === 'resetInput') {
+    if (!declaresReadoutInput(ctx.declared, a.input)) return null
+    return { ...base, onClick: () => ctx.onReset(a.input) }
+  }
+  if (!ctx.canOpenCompare) return null
+  return { ...base, onClick: () => ctx.onRotation() }
+}
+
+/** The action's button: under its row, indented to the value column. Not gold —
+ *  gold is the card's one look-here mark (the lesson link). */
+function ReadoutActionButton({ control, inCard = false }) {
+  return (
+    <button type="button"
+      className={inCard ? `${styles.legRowAction} ${styles.legRowActionCard}` : styles.legRowAction}
+      data-readout-action={control.kind} data-readout-action-row={control.rowKey}
+      onClick={control.onClick}>
+      <UIcon name={control.icon} size={12} gold={false} />
+      <span>{control.label}</span>
+    </button>
+  )
+}
+
+/** A bar time from the library's click → the ET session date `YYYY-MM-DD`, or
+ *  null. Daily bars are `'YYYY-MM-DD'` strings already (an ET session date); an
+ *  intraday number is pre-shifted to ET, so `crosshairSync.etDayOf` reads its UTC
+ *  parts as the ET wall clock. ⛔ Never `new Date(x).toISOString()` on a raw
+ *  instant: that is the UTC date, a day late for an evening ET time. */
+function rsPickDayOf(time) {
+  let day = null
+  if (time && typeof time === 'object' && Number.isInteger(time.year) && Number.isInteger(time.month) && Number.isInteger(time.day)) {
+    day = `${time.year}-${String(time.month).padStart(2, '0')}-${String(time.day).padStart(2, '0')}`
+  } else {
+    day = etDayOf(time)
+  }
+  return typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null
+}
+
+/** The marker ids the badge click handlers own (`news-<ts>`, `desk-<day>`). */
+const BADGE_ID_PREFIXES = Object.freeze(['news-', 'desk-'])
+const hoveredBadgeId = (param) => {
+  const id = param ? String(param.hoveredObjectId ?? '') : ''
+  return BADGE_ID_PREFIXES.some((p) => id.startsWith(p))
+}
+
+/**
+ * ⭐ a11y (spec §12.2 keyboard check, 2026-11-08) — A PAGE CHANGE KEEPS FOCUS IN
+ * THE POPOVER. The chip popover is a portal, and React bubbles a portal's click
+ * through the React tree: the chart region (`ChartPane.handleChartClick`, click to
+ * focus for type-to-search) took focus on every click that reached it, so Enter on
+ * a readout row, a card's back row or the tour's Next threw keyboard focus out of
+ * the popover onto the chart, with no ring, and the member had to Tab back in.
+ * When this page (a card, a tour step, the menu after a card) appears and focus is
+ * not already inside it, focus `selector` in it. A pointer click focuses too, but
+ * `:focus-visible` draws no ring for a pointer, so nothing changes for the mouse.
+ */
+function focusInto(root, selector) {
+  if (!root || typeof document === 'undefined') return false
+  const ae = document.activeElement
+  if (ae && ae !== document.body && root.contains(ae)) return false
+  const el = selector ? root.querySelector(selector) : null
+  if (!el || typeof el.focus !== 'function') return false
+  el.focus({ preventScroll: true })
+  return true
+}
+
+/** ⭐ a11y gate §12.2 — the focusable legend control of an instance's chip, the
+ *  element that hosts its menu: the `[data-instance-id]` node itself when it is the
+ *  button, else the row button around its label (the vertical grid variant puts the
+ *  id on the label). Never an ancestor outside `scope` (the chart region is
+ *  focusable too, and focus landing there is the bug this exists for). A visible
+ *  node wins over a folded one. */
+function chipFocusTarget(scope, instanceId) {
+  if (!scope || !instanceId) return null
+  let nodes = []
+  try {
+    nodes = [...scope.querySelectorAll('[data-instance-id]')].filter((n) => n.getAttribute('data-instance-id') === instanceId)
+  } catch { return null }
+  const targets = nodes
+    .map((n) => (n.matches('[role="button"][tabindex]') ? n : n.closest('[role="button"][tabindex]')))
+    .filter((n) => n && scope.contains(n) && n.getAttribute('tabindex') !== '-1')
+  return targets.find((n) => n.offsetParent !== null) || targets[0] || null
+}
+
+function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false, rowAction = null,
+  focusRowKey = null, onRowFocused = null }) {
+  // ⭐ a11y — back from a card: focus returns to the row that opened it.
+  const headRef = useRef(null)
+  useEffect(() => {
+    if (typeof focusRowKey !== 'string' || !focusRowKey) return
+    const esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(focusRowKey) : focusRowKey
+    focusInto(headRef.current, `button[data-readout-row="${esc}"]`)
+    if (typeof onRowFocused === 'function') onRowFocused()
+  }, [focusRowKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const list = Array.isArray(rows)
     ? rows.filter((r) => r && typeof r.key === 'string' && typeof r.text === 'string' && r.text)
     : EMPTY_READOUT_ROWS
@@ -537,7 +703,7 @@ function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows,
   // and the fixed-dark menu inks were near-white on white there. ⛔ Every other
   // chip's header keeps its classes exactly, so no other indicator moves a pixel.
   return (
-    <div className={readout ? `${styles.legMenuHead} ${styles.legMenuHeadRs}` : styles.legMenuHead}
+    <div ref={headRef} className={readout ? `${styles.legMenuHead} ${styles.legMenuHeadRs}` : styles.legMenuHead}
       data-legend-head={readout ? 'readout' : undefined}>
       <div className={styles.legMenuTop}>
         <span className={styles.legMenuName} data-legend-name="">{label}</span>
@@ -562,30 +728,39 @@ function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows,
             const body = (
               <>
                 <span className={styles.legMenuRowLabel}>{r.label}</span>
-                <span className={styles.legMenuRowVal}>{r.text}</span>
+                <span className={bandedClass(styles.legMenuRowVal, r)} data-band={bandOf(r)}>{r.text}</span>
                 {note ? <span className={styles.legMenuRowNote} data-readout-note="">{note}</span> : null}
               </>
             )
+            // ⭐ 3-09 — the row's action, when this surface renders it, sits UNDER
+            // the row as its own button (never inside a card row's button).
+            const control = typeof rowAction === 'function' ? rowAction(r) : null
+            const actionEl = control ? <ReadoutActionButton control={control} /> : null
             if (r.card && typeof onCard === 'function') {
               return (
-                <button
-                  key={r.key}
-                  type="button"
-                  className={`${cls} ${styles.legMenuRowBtn}`}
-                  data-readout-row={r.key}
-                  data-muted={muted ? 'true' : 'false'}
-                  data-readout-card=""
-                  onClick={() => onCard(r)}
-                >
-                  {body}
-                  <span className={styles.legMenuRowChev} aria-hidden="true"><UIcon name="chevronRight" size={11} gold={false} /></span>
-                </button>
+                <Fragment key={r.key}>
+                  <button
+                    type="button"
+                    className={`${cls} ${styles.legMenuRowBtn}`}
+                    data-readout-row={r.key}
+                    data-muted={muted ? 'true' : 'false'}
+                    data-readout-card=""
+                    onClick={() => onCard(r)}
+                  >
+                    {body}
+                    <span className={styles.legMenuRowChev} aria-hidden="true"><UIcon name="chevronRight" size={11} gold={false} /></span>
+                  </button>
+                  {actionEl}
+                </Fragment>
               )
             }
             return (
-              <div key={r.key} className={cls} data-readout-row={r.key} data-muted={muted ? 'true' : 'false'}>
-                {body}
-              </div>
+              <Fragment key={r.key}>
+                <div className={cls} data-readout-row={r.key} data-muted={muted ? 'true' : 'false'}>
+                  {body}
+                </div>
+                {actionEl}
+              </Fragment>
             )
           })}
         </div>
@@ -625,14 +800,16 @@ function learnLessons(def) {
   return out
 }
 
-/** The definition's lessons as links — the foot of a card and of the About page. */
-function LegendLessons({ lessons, className }) {
+/** The definition's lessons as links — the foot of a card and of the About page.
+ *  `def` (VA2) names whose lessons they are, for the `rs_learn` count. */
+function LegendLessons({ lessons, className, def = null }) {
   if (!lessons || !lessons.length) return null
   return (
     <div className={`${styles.legCardLessons}${className ? ' ' + className : ''}`} data-legend-lessons="">
       <span className={styles.legCardLessonsKey}>Lessons</span>
       {lessons.map((l) => (
-        <LearnLink key={l.key} href={l.href} className={styles.legCardLesson} data-learn={l.key}>
+        <LearnLink key={l.key} href={l.href} className={styles.legCardLesson} data-learn={l.key}
+          onClick={() => noteRsLearn(def, l.key)}>
           <UIcon name="play" size={11} gold={false} />
           <span>{l.label}</span>
         </LearnLink>
@@ -660,7 +837,7 @@ function LegendLessons({ lessons, className }) {
  * the provider's honesty sentence), else the static `card.evidence` stands
  * (`readoutSchema.cardEvidenceText`). Nothing here rewords either.
  */
-function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard }) {
+function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard, rowAction = null }) {
   const card = row.card || {}
   const evidenceText = cardEvidenceText(row, scalars)
   const learnKey = typeof card.learn === 'string' ? card.learn : null
@@ -671,8 +848,11 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard }) {
   const numbers = Array.isArray(details)
     ? details.filter((r) => r && typeof r.key === 'string' && typeof r.text === 'string' && r.text)
     : EMPTY_READOUT_ROWS
+  // ⭐ a11y — the card opens with focus on its back row (see `focusInto`).
+  const cardRef = useRef(null)
+  useEffect(() => { focusInto(cardRef.current, '[data-legend-back]') }, [row.key])
   return (
-    <div className={styles.legCard} data-legend-card={row.key}>
+    <div ref={cardRef} className={styles.legCard} data-legend-card={row.key}>
       {/* ⭐ Phase 2a (A1) — THE BACK ROW CARRIES THE ROW LABEL ONLY (`‹ Last RS
           high`). The composed values are too long for one line beside a title;
           the value lives in the numbers block below and on the menu's row. */}
@@ -693,21 +873,31 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard }) {
             const body = (
               <>
                 <span className={styles.legCardNumLabel}>{r.label}</span>
-                <span className={styles.legCardNumVal}>{r.text}</span>
+                <span className={bandedClass(styles.legCardNumVal, r)} data-band={bandOf(r)}>{r.text}</span>
               </>
             )
+            // ⭐ 3-09 — a number's action (Since anchor: pick a date; Picked date:
+            // back to the default) sits under it, indented to the value column.
+            const control = typeof rowAction === 'function' ? rowAction(r) : null
+            const actionEl = control ? <ReadoutActionButton control={control} inCard /> : null
             if (r.card && typeof onDetailCard === 'function') {
               return (
-                <button key={r.key} type="button" className={`${cls} ${styles.legCardNumBtn}`}
-                  data-card-number={r.key} data-readout-card="" data-muted={muted ? 'true' : 'false'}
-                  onClick={() => onDetailCard(r)}>
-                  {body}
-                  <span className={styles.legMenuRowChev} aria-hidden="true"><UIcon name="chevronRight" size={11} gold={false} /></span>
-                </button>
+                <Fragment key={r.key}>
+                  <button type="button" className={`${cls} ${styles.legCardNumBtn}`}
+                    data-card-number={r.key} data-readout-card="" data-muted={muted ? 'true' : 'false'}
+                    onClick={() => onDetailCard(r)}>
+                    {body}
+                    <span className={styles.legMenuRowChev} aria-hidden="true"><UIcon name="chevronRight" size={11} gold={false} /></span>
+                  </button>
+                  {actionEl}
+                </Fragment>
               )
             }
             return (
-              <div key={r.key} className={cls} data-card-number={r.key} data-muted={muted ? 'true' : 'false'}>{body}</div>
+              <Fragment key={r.key}>
+                <div className={cls} data-card-number={r.key} data-muted={muted ? 'true' : 'false'}>{body}</div>
+                {actionEl}
+              </Fragment>
             )
           })}
         </div>
@@ -728,12 +918,88 @@ function LegendMenuCard({ row, def, scalars, onBack, details, onDetailCard }) {
           </div>
         ) : null}
         {lesson ? (
-          <LearnLink href={lessonHref} className={styles.legCardLearn} data-learn={learnKey}>
+          <LearnLink href={lessonHref} className={styles.legCardLearn} data-learn={learnKey}
+            onClick={() => noteRsLearn(def, learnKey)}>
             <UIcon name="play" size={12} />
             <span>Watch the lesson<span className={styles.legCardLearnSub}> · {lesson.label}</span></span>
           </LearnLink>
         ) : null}
-        <LegendLessons lessons={lessons} />
+        <LegendLessons lessons={lessons} def={def} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * ⭐ UCT RS Phase 4 (unit 4-05) — THE TOUR PAGE of the chip popover: the
+ * definition's `meta.tour` cards, ONE AT A TIME, opened by the chart on the
+ * member's first add (D12). Next / Back move through them; "Skip tour" and the
+ * last card's "Done" both mark the tour seen (`useIndicatorTours.markSeen`, the
+ * caller's `onFinish`). Same popover as the menu and the cards (296 px on an RS
+ * chip, the readout sheet on the phone); a card is capped at 60 + 240 characters
+ * by `defSchema`, so it always fits without scrolling.
+ *
+ * ⛔ ONE HEIGHT FOR EVERY CARD (4-11 check: the phone sheet grew 237 → 258 px from
+ * one card to the next, over the RS pane it describes). Every card is laid out in
+ * ONE grid cell, the live one on top and the rest as invisible sizers, so the card
+ * area is always the TALLEST card's height at whatever width and font the sheet
+ * has: measured by layout, never a typed pixel guess. The sizers carry no
+ * `data-tour-*` hook, are hidden from assistive tech and take no pointer.
+ */
+function LegendTourPage({ cards, step, name, onStep, onFinish }) {
+  const total = cards.length
+  const at = Math.min(Math.max(0, step | 0), total - 1)
+  const card = cards[at]
+  const last = at === total - 1
+  // ⭐ a11y — a step keeps focus on the button that made it: Back stays on Back
+  // while there is one, Next stays on Next and becomes Done on the last card.
+  const tourRef = useRef(null)
+  const movedByRef = useRef(null)
+  const moveTo = (n, by) => { movedByRef.current = by; onStep(n) }
+  useEffect(() => {
+    const by = movedByRef.current
+    movedByRef.current = null
+    if (!by) return
+    const sel = by === 'back' && at > 0 ? '[data-tour-back]' : '[data-tour-next], [data-tour-done]'
+    focusInto(tourRef.current, sel)
+  }, [at])
+  return (
+    <div ref={tourRef} className={styles.legTour} data-legend-tour="" data-tour-step={at}>
+      <div className={styles.legTourHead}>
+        <span className={styles.legTourName}>{name}</span>
+        <span className={styles.legTourCount} data-tour-count="">{`${at + 1} of ${total}`}</span>
+      </div>
+      <div className={styles.legTourCards} data-tour-cards="">
+        <div className={styles.legTourCard} data-tour-card={at} aria-live="polite">
+          <div className={styles.legTourTitle} data-tour-title="">{card.title}</div>
+          <div className={styles.legTourBody} data-tour-body="">{card.body}</div>
+        </div>
+        {cards.map((c, i) => (
+          <div key={i} className={`${styles.legTourCard} ${styles.legTourSizer}`} aria-hidden="true" data-tour-sizer={i}>
+            <div className={styles.legTourTitle}>{c.title}</div>
+            <div className={styles.legTourBody}>{c.body}</div>
+          </div>
+        ))}
+      </div>
+      <div className={styles.legTourDots} aria-hidden="true">
+        {cards.map((_, i) => (
+          <span key={i} className={i === at ? `${styles.legTourDot} ${styles.legTourDotOn}` : styles.legTourDot} />
+        ))}
+      </div>
+      <div className={styles.legTourNav}>
+        {!last ? (
+          <button type="button" className={styles.legTourSkip} data-tour-skip="" onClick={onFinish}>Skip tour</button>
+        ) : <span />}
+        <span className={styles.legTourSteps}>
+          {at > 0 ? (
+            <button type="button" className={styles.legTourBack} data-tour-back="" onClick={() => moveTo(at - 1, 'back')}>Back</button>
+          ) : null}
+          {last ? (
+            <button type="button" className={styles.legTourNext} data-tour-done="" data-autofocus="" onClick={onFinish}>Done</button>
+          ) : (
+            <button type="button" className={styles.legTourNext} data-tour-next="" data-autofocus="" onClick={() => moveTo(at + 1, 'next')}>Next</button>
+          )}
+        </span>
       </div>
     </div>
   )
@@ -3045,6 +3311,12 @@ export default function StockChart({
   // MOBILE editor sheet. Absent (every desktop surface), chip bodies stay
   // inert and only the Task-4 controls respond.
   onLegendStudyTap = null,
+  // ⭐ UCT RS 3-09 — this chart sits in a workspace that mounts the Compare Symbols
+  // panel (the desktop Charts workspace; `ChartWidget` passes it from the workspace
+  // context). Only then does a readout row offer "Open the rotation map": the phone
+  // shell, the Terminal and the popup chart have no panel to open, so the row is
+  // not rendered there. Default false — a surface opts in, never out.
+  canOpenCompare = false,
   // ⭐⭐ The scope this chart's indicator binder publishes its bind-time notes under
   // (`createBinder({scope})`: `time(<tf>)` withholdings, render drops, a script's
   // `runtime.error`). `ChartPane` passes the id it also hands its disclosure strip,
@@ -3325,13 +3597,19 @@ export default function StockChart({
   // pale bottom of a light or gradient canvas. Derived from the canvas AT THE
   // SEPARATOR'S OWN HEIGHT; the dark values are the originals, so the default is
   // visually unchanged.
-  const separatorColors = useMemo(() => {
+  // ⭐ UCT RS design round (2026-11-08) — is the canvas at the pane-label height
+  // light? The corner ranks strip takes the light theme's darker band inks there
+  // (real-screen check: the bright greens and ambers read ~2:1 on white).
+  const lowCanvasIsLight = useMemo(() => {
     const rgb = parseColor(canvasSample.low)
-    const light = rgb ? luminance(rgb) > 0.5 : false
+    return rgb ? luminance(rgb) > 0.5 : false
+  }, [canvasSample])
+  const separatorColors = useMemo(() => {
+    const light = lowCanvasIsLight
     return light
       ? { color: 'rgba(0, 0, 0, 0.22)', hover: 'rgba(0, 0, 0, 0.38)' }
       : { color: 'rgba(255, 255, 255, 0.18)', hover: 'rgba(255, 255, 255, 0.32)' }
-  }, [canvasSample])
+  }, [lowCanvasIsLight])
 
   // UCT breadth line-chart ink: black on a light canvas, white on a dark one, so
   // the single-color line always contrasts the background (mirrors the axis/
@@ -3847,6 +4125,9 @@ export default function StockChart({
   // to it verbatim would render as a live button that does nothing at all. That
   // is the exact defect this task exists to remove, one layer up.
   const [chipPage, setChipPage] = useState(null)
+  // ⭐ a11y (§12.2) — the readout row whose card's back row returned to the menu;
+  // the menu focuses it once on the way back (`LegendMenuHeader.focusRowKey`).
+  const cardReturnRef = useRef(null)
   // The instance whose ABOUT page the same popover is showing (spec §6's About
   // row). A second PAGE of one popover rather than a second popover: the text is
   // `def.meta.description`, which every definition already declares.
@@ -3855,6 +4136,22 @@ export default function StockChart({
   // the server's report flag, asked for only once a chip menu has opened.
   const [reportFor, setReportFor] = useState(null)
   const reportCfg = useReportsConfig(!!chipMenu)
+  // ⭐ UCT RS 3-09 — THE SERVER GATE FOR THE OPEN CHIP MENU: what the live server
+  // row declares for the menu's definition (`serverDeclares`), for its Preset page
+  // (`visiblePresets`) and its readout actions. Asked only for a `server`
+  // definition or one whose readout offers an action, so opening RSI's menu never
+  // spends the page's one definitions GET. The snapshot is memoised and frozen per
+  // definition, and the subscription re-renders the menu when the answer lands.
+  const chipMenuDef = chipMenu && chipMenu.chip ? engineRegistry.getDefinition(chipMenu.chip.defId) : null
+  const chipGateId = chipMenuDef && (
+    (chipMenuDef.compute && chipMenuDef.compute.kind === 'server')
+    || (Array.isArray(chipMenuDef.readout) && chipMenuDef.readout.some((e) => e && e.action))
+  ) ? chipMenuDef.id : null
+  const chipDeclared = useSyncExternalStore(
+    subscribeServerDefinitions,
+    () => (chipGateId ? serverDeclares(chipGateId) : null),
+    () => null,
+  )
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -4463,6 +4760,10 @@ export default function StockChart({
    *  reason `volLegendRef` is: they must slide WITH the divider the user is
    *  dragging, and a re-render per frame fights the drag instead of following it. */
   const paneLegendRefs = useRef(new Map())
+  /** ⭐ UCT RS design round (2026-11-08) — each pane's corner table node, by the
+   *  same pane key. Pinned by `pinPaneLegend` in the same frame as the label it
+   *  must never touch. */
+  const paneTableRefs = useRef(new Map())
   /** Which indicator panes exist, in order — published by the layout effect.
    *
    *  ⭐ STATE, NOT A READ OF `paneLayoutRef` DURING RENDER. The layout lives in a
@@ -5833,9 +6134,146 @@ export default function StockChart({
     const def = inst ? engineRegistry.getDefinition(inst.defId) : null
     const preset = def ? presetsOf(def).find((p) => p.id === presetId) : null
     if (!preset) return
+    noteRsPreset(def, preset)
     const next = applyPresetInputs(cs, instanceId, def, preset, engineRegistry)
     if (next !== cs) writeInstance(next)
   }, [cs, writeInstance])
+
+  // ═══ UCT RS 3-09 — PICK A DATE ON THE CHART (decision D6) ═════════════════
+  //
+  // ⭐ A ONE-SHOT MODE. A readout row's "Pick a date on the chart" closes the menu
+  // and arms `rsPick` ({instanceId, input, sym, tf}); the NEXT library click on a
+  // bar (`subscribeClick`, which a touch tap also raises) is read as the ET
+  // session date and written ONCE through `setInstanceInput`, the settings
+  // dialog's own validating door, by way of `writeInstance`. Then the mode is gone.
+  //
+  // ⛔ IT IS NEVER ARMED ACROSS A SYMBOL OR TIMEFRAME CHANGE. `rsPickArmed` is
+  // DERIVED: a pick armed on another symbol or timeframe, or off a daily chart,
+  // reads as not armed from the very render that changed it, and the effect below
+  // then drops it, so going back to the symbol does not re-arm it. Escape cancels;
+  // unmounting takes the state with it.
+  //
+  // ⛔ AND IT IS NOT A WRITER OF BARS. It writes one instance input and nothing
+  // else; the developing-bar writers (`singleWriterIndex.test.js`) are untouched.
+  const [rsPick, setRsPick] = useState(null)
+  const rsPickArmed = rsPick && rsPick.sym === sym && rsPick.tf === resolvedTf && resolvedTf === 'D' ? rsPick : null
+  const rsPickRef = useRef(null)
+  rsPickRef.current = rsPickArmed
+  // The click param a pick consumed: the badge handlers on the same click see the
+  // SAME object (the library hands one param to every subscriber), so a candle
+  // click that anchored the check does not also open a news story.
+  const rsPickTookRef = useRef(null)
+  useEffect(() => { setRsPick(null) }, [sym, resolvedTf])
+  const cancelRsPick = useCallback(() => { rsPickRef.current = null; setRsPick(null) }, [])
+  const armRsPick = useCallback((instanceId, input) => {
+    if (!instanceId || typeof input !== 'string' || !input) return
+    setRsPick({ instanceId, input, sym, tf: resolvedTf })
+  }, [sym, resolvedTf])
+  // The one write, for the pick and for the reset row. A refused value (a date the
+  // input's pattern rejects, an instance that has gone) comes back by identity and
+  // `writeInstance` persists nothing.
+  const handleReadoutInput = useCallback((instanceId, key, value) => {
+    writeInstance(setInstanceInput(cs, instanceId, key, value, engineRegistry))
+  }, [cs, writeInstance])
+  const readoutInputRef = useRef(handleReadoutInput)
+  readoutInputRef.current = handleReadoutInput
+  useEffect(() => {
+    if (!rsPickArmed) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') cancelRsPick() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [rsPickArmed, cancelRsPick])
+
+  // ⭐ UCT RS Phase 4 (unit 4-05) — THE FIRST-ADD TOUR (D12). The library reports the
+  // first add of a definition with an unseen `meta.tour` (`onIndicatorFirstAdd`,
+  // through the toolbar, which closes the library first); this chart then waits for
+  // the new instance's chip and opens ITS chip menu on the Tour page (`tour:<n>`).
+  // On the phone the same popover is the readout sheet (C5), so there is one path.
+  //
+  // ⛔ NEVER OVER ANYTHING. A tour that would open over an armed pick, another chip
+  // menu, the About page, a settings dialog or the report dialog is DROPPED, not
+  // queued: nothing is marked seen, so the member meets it on a later first add,
+  // never as a surprise minutes after the add. ⛔ AND ONCE PER PAGE: a tour this
+  // chart opens is claimed (`indicatorTour.claimTour`), so a second chart on the
+  // page never reopens it before the seen write lands.
+  const { seen: tourSeen, markSeen: markTourSeen } = useIndicatorTours(showDrawingTools)
+  const [tourPending, setTourPending] = useState(null)
+  const tourBlockedRef = useRef(false)
+  tourBlockedRef.current = !!(rsPickArmed || chipMenu || chipAbout || settingsInstanceId || reportFor)
+  const handleIndicatorFirstAdd = useCallback((defId) => {
+    if (!defId || tourClaimed(defId) || tourSeen(defId)) return
+    if (!tourCardsOf(engineRegistry.getDefinition(defId)).length) return
+    setTourPending({ defId, sym, tf: resolvedTf })
+  }, [tourSeen, sym, resolvedTf])
+  // The toolbar API's door onto the same handler (`indicatorFirstAdd`), read at call time:
+  // Chart Settings → Indicators is a SIBLING of this chart (ChartPane's modal), so its
+  // first add reaches the tour through the API, after the modal closes (4-11).
+  const indicatorFirstAddRef = useRef(handleIndicatorFirstAdd)
+  indicatorFirstAddRef.current = handleIndicatorFirstAdd
+  useEffect(() => {
+    if (!tourPending) return undefined
+    if (tourPending.sym !== sym || tourPending.tf !== resolvedTf) { setTourPending(null); return undefined }
+    const started = Date.now()
+    let chipSeenAt = null
+    let timer = null
+    const tick = () => {
+      const chip = latestChips().find((c) => c && c.defId === tourPending.defId && c.instanceId)
+      if (!chip) {
+        // The instance's chip never derived (no data, a refused bind): give up quietly.
+        if (Date.now() - started > TOUR_WAIT_MS) { setTourPending(null); return }
+        timer = setTimeout(tick, 120)
+        return
+      }
+      // ⛔ SEARCH THE WRAPPER, NOT THE PLOT. An own-pane study's label (the pane
+      // readout, `[data-pane-legend]`) renders as a SIBLING of `containerRef`, so a
+      // plot-only search never found it and the card always fell back to the
+      // chart's top-left corner, over the price legend and far from the new pane it
+      // explains (measured on the 4-11 sandbox pass). And the chip's row can derive
+      // a frame before its label paints, so wait for it a bounded while first.
+      let el = null
+      try {
+        const scope = wrapperRef.current || containerRef.current
+        const nodes = [...(scope?.querySelectorAll('[data-instance-id]') || [])]
+          .filter((n) => n.getAttribute('data-instance-id') === chip.instanceId)
+        el = nodes.find((n) => n.offsetParent !== null) || nodes[0] || null
+      } catch { /* noop */ }
+      if (chipSeenAt === null) chipSeenAt = Date.now()
+      if (!el && Date.now() - chipSeenAt < TOUR_ANCHOR_WAIT_MS) {
+        timer = setTimeout(tick, 120)
+        return
+      }
+      setTourPending(null)
+      if (tourBlockedRef.current || tourClaimed(tourPending.defId) || !claimTour(tourPending.defId)) return
+      let anchor = null
+      try {
+        const r = el && el.getBoundingClientRect()
+        if (r) anchor = { x: r.left, y: r.bottom + 3 }
+      } catch { /* noop */ }
+      if (!anchor) {
+        const r = containerRef.current ? containerRef.current.getBoundingClientRect() : null
+        anchor = { x: (r ? r.left : 0) + 12, y: (r ? r.top : 0) + 40 }
+      }
+      setChipAbout(null)
+      setChipPage('tour:0')
+      setChipMenu({ chip, anchor })
+    }
+    timer = setTimeout(tick, 0)
+    return () => { if (timer) clearTimeout(timer) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `latestChips` reads refs at call time
+  }, [tourPending, sym, resolvedTf])
+
+  // ⭐ VA2 — `rs_on` / `rs_off_within_60s` / `rs_benchmark` (plan §13), OBSERVED from
+  // the stored instance list rather than wired per door, so every door counts and
+  // the next one needs no edit (`lib/rsTelemetry`). The first observation is this
+  // chart's baseline; a no-op only in a build with VITE_RS_TELEMETRY_ENABLED=0.
+  const rsTrackerRef = useRef(null)
+  if (!rsTrackerRef.current) rsTrackerRef.current = createRsInstanceTracker()
+  const storedInstances = cs ? cs.indicatorInstances : null
+  useEffect(() => {
+    rsTrackerRef.current.observe(storedInstances, { symbol: sym })
+    // `sym` is read, not watched: a symbol change is not an RS change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedInstances])
 
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
@@ -5856,6 +6294,13 @@ export default function StockChart({
     toolbarApiRef.current = {
       openIndicatorLibrary: () => {
         try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
+      },
+      // ⭐ 4-11 — a first add of a toured definition made OUTSIDE this chart's own
+      // library (Chart Settings → Indicators, held by the pane until its modal
+      // closes): the same handler the library's `onFirstAdd` reaches, with the same
+      // rules (seen, claimed, never over a pick or an open menu).
+      indicatorFirstAdd: (defId) => {
+        try { indicatorFirstAddRef.current?.(defId) } catch { /* noop */ }
       },
       // The formula builder. Mounted ONCE, inside `ChartToolbar` (an AST rail in
       // `BuilderSheet.test.jsx` fails the build on a second `<BuilderSheet>`), so
@@ -6285,7 +6730,11 @@ export default function StockChart({
     const suffix = siblings.length > 1 && n >= 0 ? (instanceMenuSuffixes(cs, siblings)[n] || '') : ''
     const namesItsSource = !!(def.meta && def.meta.labelFrom === 'source')
     const paneName = `${namesItsSource ? chip.label : labelFor(inst.defId)}${suffix}`
-    const presets = presetsOf(def)
+    // ⭐ 3-09 — through `visiblePresets`, as the chip menu lists them. Read at
+    // click time (this menu is rebuilt per open), for a `server` definition only.
+    const paneDeclared = def.compute && def.compute.kind === 'server' ? serverDeclares(def.id) : null
+    const paneShown = new Set(visiblePresets(def, paneDeclared))
+    const presets = presetsOf(def).filter((p) => paneShown.has(p))
     const current = presets.length
       ? detectPreset(presets, resolvedInputsOf(def, inst.inputs || {}), { instance: inst, def, cs })
       : null
@@ -17882,11 +18331,20 @@ export default function StockChart({
       // identity -- see `engine/paneReadoutPlacement.js`. `null` = nothing of this
       // key drew, so there is no pane to label; `undefined` = cannot tell, keep
       // the slot.
-      const drawnAt = rendererPaneIndexOf(key,
+      let drawnAt = rendererPaneIndexOf(key,
         engineRef.current && engineRef.current.binder ? engineRef.current.binder.bindings() : null,
         chipPaneHostRef.current)
+      // ⭐ UCT RS 3-14 — nothing drew, but the arrangement reserved this key's band
+      // (an empty placeholder pane at its slot): label the band, so the member
+      // reads why it is empty and can open the indicator's menu.
+      if (drawnAt === null) {
+        const reserved = reservedEmptyPaneIndex(row.index, chart.panes ? chart.panes() : null)
+        if (reserved !== null) drawnAt = reserved
+      }
       const hide = drawnAt === null
       if ((el.style.display === 'none') !== hide) el.style.display = hide ? 'none' : ''
+      const tableEl = paneTableRefs.current.get(key) || null
+      if (tableEl && (tableEl.style.display === 'none') !== hide) tableEl.style.display = hide ? 'none' : ''
       if (hide) return
       const index = drawnAt === undefined ? row.index : drawnAt
       const panes = chart.panes ? chart.panes() : null
@@ -17899,6 +18357,36 @@ export default function StockChart({
       }
       const want = `${Math.round(top + 3)}px`
       if (el.style.top !== want) el.style.top = want
+      // ⭐ UCT RS design round (2026-11-08) — THE CORNER TABLE, same pane, same top,
+      // its right edge 6 px left of the price scale (the axis column every pane
+      // shares, so it never sits over a price label). It steps aside while it
+      // would touch the label (`paneTable.paneTableFits`, measured here every
+      // frame): on a 390 px phone the label spans most of the plot, and the
+      // readout's Rating card carries the same numbers one tap away.
+      if (tableEl) {
+        // ⭐ 1 px under the pane's top, not the label's 3: the strip is 16 px tall and
+        // must end inside the band the price scale keeps clear above the line
+        // (real-screen check: at +3 the newest new-high dot of a leader sat under it).
+        const wantTable = `${Math.round(top + 1)}px`
+        if (tableEl.style.top !== wantTable) tableEl.style.top = wantTable
+        let axisW = 0
+        try { axisW = chart.priceScale('right').width() || 0 } catch { axisW = 0 }
+        let leftW = 0
+        try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
+        let plotW = 0
+        try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+        const right = `${Math.round(axisW + 6)}px`
+        if (tableEl.style.right !== right) tableEl.style.right = right
+        const fits = paneTableFits({
+          plotWidth: leftW + plotW,
+          labelRight: (el.offsetLeft || 0) + (el.offsetWidth || 0),
+          tableWidth: tableEl.offsetWidth || 0,
+        })
+        if (tableEl.hasAttribute('data-collapsed') === fits) {
+          if (fits) { tableEl.removeAttribute('data-collapsed'); tableEl.removeAttribute('aria-hidden') }
+          else { tableEl.setAttribute('data-collapsed', ''); tableEl.setAttribute('aria-hidden', 'true') }
+        }
+      }
     } catch { /* pane API missing → the CSS default */ }
   }, [])
 
@@ -18372,6 +18860,33 @@ export default function StockChart({
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch { /* gone */ } }
   }, [onChartTap, chartReady])
+
+  // ── UCT RS 3-09: the armed pick's click (a mouse click or a touch tap) ──
+  // Subscribed only while a pick is armed. A click ON a badge (a news or Desk
+  // marker by its id, the earnings or IPO pill by its pixels) belongs to that
+  // badge's own handler and is not a pick; a click with no bar under it (the blank
+  // space past the newest candle) leaves the pick armed.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !chartReady || !rsPickArmed) return undefined
+    const handler = (param) => {
+      const pick = rsPickRef.current
+      if (!pick || !param) return
+      if (hoveredBadgeId(param)) return
+      if (param.point) {
+        if (earnBadgeRef.current?.hitTest?.(param.point.x, param.point.y) != null) return
+        if (ipoBadgeRef.current?.hitTest?.(param.point.x, param.point.y) != null) return
+      }
+      const day = rsPickDayOf(param.time)
+      if (!day) return
+      rsPickRef.current = null
+      rsPickTookRef.current = param
+      setRsPick(null)
+      readoutInputRef.current(pick.instanceId, pick.input, day)
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch { /* gone */ } }
+  }, [chartReady, rsPickArmed])
   // subscribe to all clicks and match the clicked time against news markers
   // with a tolerance of half a bar. On match → open the article URL.
   useEffect(() => {
@@ -18380,6 +18895,11 @@ export default function StockChart({
     const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
     const handler = (param) => {
       if (!param || param.time == null) return
+      // ⭐ UCT RS 3-09 — while a date pick is armed (or this very click made one),
+      // only a click ON the news badge opens the story: news matches the whole bar
+      // column, and a member anchoring the check on that day clicked the candle.
+      if ((rsPickRef.current || rsPickTookRef.current === param)
+        && !String(param.hoveredObjectId ?? '').startsWith('news-')) return
       // Compare based on time-type alignment (number vs string).
       const matching = newsMarkers.find(m => {
         if (typeof m.time === 'number' && typeof param.time === 'number') {
@@ -18463,7 +18983,10 @@ export default function StockChart({
       let hit = null
       const hitTime = earnBadgeRef.current?.hitTest?.(param.point.x, param.point.y)
       if (hitTime != null) hit = earningsEvents.find(m => String(m.date) === String(hitTime))
-      if (!hit && param.time != null) hit = earningsEvents.find(m => String(m.date) === String(param.time))
+      // ⭐ UCT RS 3-09 — the bar-time fallback is off while a date pick is armed (or
+      // this click made one): that click was on the candle, and it is the pick's.
+      const picking = !!rsPickRef.current || rsPickTookRef.current === param
+      if (!hit && !picking && param.time != null) hit = earningsEvents.find(m => String(m.date) === String(param.time))
       if (!hit) return
       const rect = containerRef.current?.getBoundingClientRect()
       const px = rect && param.point ? rect.left + param.point.x + 12 : (rect?.left ?? 0) + 40
@@ -19535,7 +20058,13 @@ export default function StockChart({
         // ⭐ Phase 2a (A6) — the presets this definition declares, and the one the
         // instance matches: `detectPreset` over the RESOLVED inputs plus the
         // instance's non-input fields, the dialog's own reading. `null` = Custom.
-        const menuPresets = presetsOf(def)
+        // ⭐ 3-09 — the presets the live server row admits (`visiblePresets`, the
+        // dialog's, the Inspector's and the phone sheet's one reader): a
+        // `requiresServer` preset, or one that sets a hidden gated input or
+        // option, is not offered until the row declares it.
+        const menuDeclared = chipGateId && def && def.id === chipGateId ? chipDeclared : null
+        const shownPresets = new Set(visiblePresets(def, menuDeclared))
+        const menuPresets = presetsOf(def).filter((p) => shownPresets.has(p))
         const currentPreset = menuPresets.length && inst
           ? detectPreset(menuPresets, resolvedInputsOf(def, inst.inputs || {}), { instance: inst, def, cs })
           : null
@@ -19544,6 +20073,39 @@ export default function StockChart({
         // by `.legMenuHeadRs`'s host rule. A chip with no readout keeps 204.
         const readoutMenu = declaresReadout(def)
         const menuWidth = readoutMenu ? 296 : 204
+        // ⭐ 4-05 — THE TOUR PAGE (`tour:<n>`), opened by the chart on a first add.
+        // Done and Skip mark the tour seen; closing the popover any other way does
+        // not (the page-session claim still keeps it from reopening on this page).
+        const tourStep = typeof chipPage === 'string' && chipPage.startsWith('tour:') ? Number(chipPage.slice(5)) : null
+        const tourCards = tourStep != null ? tourCardsOf(def) : EMPTY_READOUT_ROWS
+        if (tourStep != null && tourCards.length) {
+          const finishTour = () => {
+            close()
+            try { Promise.resolve(markTourSeen(c.defId)).catch(() => {}) } catch { /* noop */ }
+          }
+          return (
+            <ContextPopover
+              guide="chart.chipMenu"
+              open
+              onClose={close}
+              anchor={chipMenu.anchor}
+              width={296}
+              dense
+              sheetClassName={sheetCls}
+              /* ⭐ a11y gate §12.2: the tour opens on Next, its primary action (not
+                 on Skip tour, first in reading order: `data-autofocus` on Next/Done
+                 in LegendTourPage), and Done / Skip / Escape hand focus to the chip
+                 it is about. The chart opened it on its own, so the focus recorded at
+                 open was the chart region or the page, never the chip. Resolved at
+                 close: the chip's node is whatever is live then. */
+              returnFocusTo={{ get current() { return chipFocusTarget(wrapperRef.current || containerRef.current, c.instanceId) } }}
+            >
+              <LegendTourPage cards={tourCards} step={tourStep}
+                name={(def && def.meta && def.meta.name) || c.label}
+                onStep={(n) => setChipPage(`tour:${n}`)} onFinish={finishTour} />
+            </ContextPopover>
+          )
+        }
         const items = chipMenuItems(c, def, {
           onPreset: (id, presetId) => { close(); handleChipPreset(id, presetId) },
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
@@ -19665,6 +20227,23 @@ export default function StockChart({
         // reads them (`resolvedInputsOf`), exactly the call `readout.stampReadout`
         // made for `c.readout`. `scalarsFor` is a cache read — one lookup, never a
         // fetch — and "nothing landed" is `null`, which leaves the static line.
+        // ⭐ 3-09 — what each readout row's `action` renders on THIS chart, or
+        // null (`readoutActionControl`): a pick needs the declared input and a
+        // daily chart; a reset the declared input; the rotation link a host with
+        // a Compare panel, never the phone shell.
+        const rowAction = (row) => readoutActionControl(row, {
+          declared: menuDeclared,
+          daily: resolvedTf === 'D',
+          canOpenCompare: canOpenCompare === true && typeof onLegendStudyTap !== 'function',
+          onPick: (input) => { close(); armRsPick(c.instanceId, input) },
+          onReset: (input) => { close(); handleReadoutInput(c.instanceId, input, '') },
+          onRotation: () => {
+            close()
+            try {
+              window.dispatchEvent(new CustomEvent(COMPARE_OPEN_EVENT, { detail: { tab: 'rotation', sym, group: 'theme' } }))
+            } catch { /* noop */ }
+          },
+        })
         const cardScalars = cardRow
           ? (() => { try { return readoutChipOpts.scalarsOf(def, resolvedInputsOf(def, (inst && inst.inputs) || {})) } catch { return null } })()
           : null
@@ -19679,12 +20258,39 @@ export default function StockChart({
               dense
               sheetClassName={sheetCls}
             >
-              <LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack={() => setChipPage(cardParent ? `card:${cardParent}` : null)}
+              <LegendMenuCard row={cardRow} def={def} scalars={cardScalars} onBack={() => {
+                cardReturnRef.current = cardParent ? null : cardRow.key
+                setChipPage(cardParent ? `card:${cardParent}` : null)
+              }}
                 details={detailRows.get(cardRow.key)}
-                onDetailCard={(r) => setChipPage(`card:${cardRow.key}>${r.key}`)} />
+                rowAction={rowAction}
+                onDetailCard={(r) => { noteRsCard(def, r.key); setChipPage(`card:${cardRow.key}>${r.key}`) }} />
             </ContextPopover>
           )
         }
+        // ⭐ 4-05 — "ASK COMPASS ABOUT THIS" (D16): a definition with a readout
+        // offers a voice question about what the rows say, with the glance rows as
+        // the page hint (`readoutPageHint`, ≤ 480 characters, reusable by any
+        // assistant). `CompassAssistButton` renders null without a VoiceProvider
+        // (and for a free member), and the row collapses with it (`.legAsk:empty`).
+        const benchRow = readoutRows.find((r) => r && r.key === 'benchmark' && typeof r.text === 'string' && r.text)
+        const askHint = readoutMenu && glanceRows.length
+          ? readoutPageHint(glanceRows, {
+              name: (def && def.meta && (def.meta.shortName || def.meta.name)) || menuName,
+              sym,
+              vs: benchRow ? benchRow.text : '',
+              skip: benchRow ? ['benchmarkName'] : [],
+            })
+          : ''
+        const askCompass = askHint && chipPage !== 'move' ? (
+          // The press starts the conversation (the button's own click), then the
+          // menu closes so the member sees the chart while they talk.
+          <div className={styles.legAsk} data-legend-ask=""
+            onClick={(e) => { if (e.target && e.target.closest && e.target.closest('button')) close() }}>
+            <CompassAssistButton pageHint={askHint} label="Ask Compass about this"
+              ariaLabel="Ask Compass about this" />
+          </div>
+        ) : null
         // ⭐ A8 — the header's value falls back to the last known one, muted.
         const liveValue = Number.isFinite(Number(c.value)) ? chipValueText(c) : ''
         const headValue = liveValue || (surface && surface.fallback ? surface.fallback.text : '')
@@ -19709,7 +20315,7 @@ export default function StockChart({
                so it alone overflowed a 320 px screen. Not a row, not focusable. */
             header={chipPage === 'move'
               ? (readoutMenu ? <span className={styles.legReadoutMark} aria-hidden="true" data-readout-mark="" /> : null)
-              : (
+              : (<>
               <LegendMenuHeader
                 label={menuName}
                 hidden={!!c.hidden}
@@ -19719,9 +20325,15 @@ export default function StockChart({
                   menuPresets.length ? presetLabelOf(menuPresets, currentPreset ? currentPreset.id : null) : undefined)}
                 rows={glanceRows}
                 readout={readoutMenu}
-                onCard={(row) => setChipPage(`card:${row.key}`)}
+                rowAction={rowAction}
+                onCard={(row) => { noteRsCard(def, row.key); setChipPage(`card:${row.key}`) }}
+                focusRowKey={cardReturnRef.current}
+                onRowFocused={() => { cardReturnRef.current = null }}
               />
-            )}
+              {/* ⭐ 4-05 — the Ask row follows the header (not a menu row: the
+                  button is its own control, and a row's button cannot hold one). */}
+              {askCompass}
+            </>)}
             items={page.map(chipMenuRowToPopoverRow)}
             sheetClassName={sheetCls}
           />
@@ -19794,7 +20406,16 @@ export default function StockChart({
               {/* ⭐ Phase 2a (unit 2a-10) — the lessons the definition declares
                   (`meta.learn`), as Desk video links. Nothing for a definition
                   that declares none. */}
-              <LegendLessons lessons={learnLessons(def)} className={styles.legAboutLessons} />
+              <LegendLessons lessons={learnLessons(def)} className={styles.legAboutLessons} def={def} />
+              {/* ⭐ 4-05 (D15) — the definition's public glossary page
+                  (`meta.glossaryHref`, an in-app path `defSchema` checks), beside
+                  the lessons. Nothing for a definition that declares none. */}
+              {typeof meta.glossaryHref === 'string' && meta.glossaryHref ? (
+                <LearnLink href={meta.glossaryHref} className={styles.legAboutGlossary} data-glossary-link="">
+                  <UIcon name="book" size={11} gold={false} />
+                  <span>Glossary</span>
+                </LearnLink>
+              ) : null}
               {notices.map((n) => (
                 <div
                   key={n.plotKey}
@@ -21098,6 +21719,23 @@ export default function StockChart({
       {sharePrompt && (
         <SharedIndicatorsPrompt count={sharePrompt.count} onUseTheirs={useSharedIndicators} onKeepMine={() => setSharePrompt(null)} />
       )}
+      {/* ⭐ UCT RS 3-09 — the armed date pick's hint, for as long as it is armed.
+          Toast-styled; the Cancel button is the touch twin of Escape, so the phone
+          shell (no keyboard) says "Tap" and leaves Escape out. */}
+      {rsPickArmed && (
+        <div role="status" aria-live="polite" data-rs-pick-hint=""
+          style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 31,
+            display: 'flex', alignItems: 'center', gap: 10, maxWidth: 'calc(100% - 32px)',
+            font: '600 12px "Instrument Sans", sans-serif', background: 'rgba(20,22,28,0.96)', color: '#e8e6e0',
+            border: '1px solid rgba(232,230,224,0.22)', borderRadius: 8, padding: '5px 6px 5px 14px' }}>
+          <span>{paneTextChips ? 'Tap a bar to anchor the check.' : 'Click a bar to anchor the check. Esc cancels.'}</span>
+          <button type="button" data-rs-pick-cancel="" onClick={cancelRsPick}
+            style={{ appearance: 'none', background: 'none', border: '1px solid rgba(232,230,224,0.22)', borderRadius: 6,
+              color: '#e8e6e0', font: 'inherit', fontWeight: 500, padding: '3px 10px', minHeight: 28, cursor: 'pointer' }}>
+            Cancel
+          </button>
+        </div>
+      )}
       {/* Brief action toast (add-to-list, alert). */}
       {chartToast && (
         <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
@@ -21312,9 +21950,28 @@ export default function StockChart({
         // so the readout sits above the bars instead of stacking down over them.
         // ⭐ `csView`, so a follow-the-chart COT pane is titled for the market it drew.
         const group = paneGroupOf(row.chips, csView)
+        // ⭐ UCT RS design round (2026-11-08) — the pane's corner table: the first
+        // chip in the pane whose definition declares one and resolves it, on a
+        // timeframe it is shown on (the RS ranks are daily). One table per pane.
+        const tableChip = row.chips.find((c) => c && c.paneTable && paneTableShownOn(c.paneTable, resolvedTf)) || null
         return (
+        <Fragment key={row.key}>
+        {tableChip ? (
+          <PaneRanksTable
+            table={tableChip.paneTable}
+            paneKey={row.key}
+            canvas={lowCanvasIsLight ? 'light' : 'dark'}
+            ref={(el) => {
+              const m = paneTableRefs.current
+              if (el) {
+                m.set(row.key, el)
+                const lg = paneLegendRefs.current.get(row.key)
+                if (lg) pinPaneLegend(lg, row.key)
+              } else m.delete(row.key)
+            }}
+          />
+        ) : null}
         <div
-          key={row.key}
           ref={(el) => {
             const m = paneLegendRefs.current
             if (el) { m.set(row.key, el); pinPaneLegend(el, row.key) } else m.delete(row.key)
@@ -21376,8 +22033,11 @@ export default function StockChart({
                  definition prints exactly what it always did. */
               value={chipValueText(c) || (() => {
                 const s = readoutSurfaceOf(c)
+                // ⭐ 3-14 — the server's note (no bars for this benchmark yet) wraps
+                // under the name instead of running off a phone's edge.
                 return s && s.fallback
-                  ? <span className={styles.paneValueStale} data-stale-value="">{s.fallback.text}</span>
+                  ? <span className={s.fallback.note ? `${styles.paneValueStale} ${styles.paneValueNote}` : styles.paneValueStale}
+                      data-stale-value="" {...(s.fallback.note ? { 'data-empty-note': '' } : null)}>{s.fallback.text}</span>
                   : ''
               })()}
               color={c.color}
@@ -21408,6 +22068,7 @@ export default function StockChart({
             />
           ))}
         </div>
+        </Fragment>
         )
       })}
       {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
@@ -21589,6 +22250,8 @@ export default function StockChart({
           <ChartToolbar
             ref={toolbarRef}
             hiddenHost={mobileDrawBar}
+            /* ⭐ 4-05 — the first add of a toured definition opens its tour here. */
+            onIndicatorFirstAdd={handleIndicatorFirstAdd}
             sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
             favBoundsRef={containerRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped

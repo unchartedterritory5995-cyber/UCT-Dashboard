@@ -38,6 +38,7 @@ import usePreferences from '../../hooks/usePreferences'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
+import { isRsPairItem, primeRsColumns, rsInstances, rsMarkMarkers, rsPairKey, rsRevealPrimed } from './studyRsOverlay'
 import { studyOpenMarkers } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
 import { brandWords, itemHasChart, questionOf } from './drills/types'
@@ -87,6 +88,7 @@ export function skillChip(skillId) {
   if (id === 'read.events') return 'Chart event'
   if (id === 'read.bases') return 'Base'
   if (id === 'read.levels') return 'Levels and lines'
+  if (id === 'read.rs') return 'Relative strength'
   if (id.startsWith('size.')) return 'Sizing'
   if (id.startsWith('regime.')) return 'Regime'
   return id.split('.').pop().replace(/_/g, ' ')
@@ -174,16 +176,31 @@ export default function DrillPlayer({
   // the chart's ticker, shown before answering in a lesson (the owner, 2026-11-08 "Yes"; the challenges never carry it)
   const ticker = (chartItem?.ticker || item?.ticker || null)
   const chartOpts = chartItem?.prompt_json?.chart
+  const chartTf = chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'
+  // RS 4-09: an RS drill draws the REAL UCT RS pane from the columns the item carries (studyRsOverlay). Primed
+  // into the server lane's cache HERE, in render, ahead of StockChart's bind: the chart's sym is the item id, so
+  // an unprimed rsLine would fetch /api/signature/columns. A TAP or red-day item's prompt blanks the dots (a dot is
+  // the answer, or gives it away), and so does a leader item's on BOTH lines (only the leader can have a new-high dot);
+  // once scored, the reveal's own columns (reveal.rs / reveal.rs_pair) replace them on the same chart.
+  const rsRevealed = phase === 'reveal' && !!result && chartItemId === item?.id
+  const rsReveal = rsRevealed ? result.reveal || null : null
+  const rsPrimed = useMemo(
+    () => (chartItem && chartItemId ? primeRsColumns(chartItem, chartItemId, chartTf, { reveal: rsReveal, revealed: rsRevealed }) : []),
+    [chartItem, chartItemId, chartTf, rsReveal, rsRevealed],
+  )
+  const rsKey = useMemo(() => rsPairKey(rsPrimed), [rsPrimed])
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
-  const studyOverride = useMemo(
-    () => memberSettingsOverride(chartOpts, { instances: slingshotInstances(chartItem) }),
-    [chartOpts, chartItem],
-  )
+  const studyOverride = useMemo(() => {
+    const own = [...(slingshotInstances(chartItem) || []), ...(rsInstances(rsPrimed) || [])]
+    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null })
+  }, [chartOpts, chartItem, rsPrimed])
   // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
-  const sessionChart = useSessionChartSettings(studyOverride, chartItemId || null)
+  // An RS reveal starts a fresh session blob, so an edit made on the prompt cannot pin the blank-dot line.
+  const rsRevealKey = rsRevealPrimed(rsPrimed) ? ':rs-reveal' : ''
+  const sessionChart = useSessionChartSettings(studyOverride, chartItemId ? `${chartItemId}${rsRevealKey}` : null)
   // Rule 1 of the owner's principles (docs/study/OWNER_PRINCIPLES.md): every Study chart is the member's own Charts-tab
   // widget, with our logo and their legend, the look the challenges' widget charts already wear (ChallengeChart)
   const surface = useChartSurfaceSettings()
@@ -216,16 +233,19 @@ export default function DrillPlayer({
   }, [phase, reveal, chartBars, baseLen])
   const pointer = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
+    // a which-line-leads item asks about two RS lines, not a candle: no pointer
+    if (isRsPairItem(item)) return null
     if (phase !== 'reveal' || !result) return null
     return (keyTrade && tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars)) || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
-  }, [chartVisible, chartBars, item?.type, baseLen, phase, result, keyTrade])
+  }, [chartVisible, chartBars, item, baseLen, phase, result, keyTrade])
   const callouts = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
+    if (isRsPairItem(item)) return null
     const tone = phase === 'reveal' && result ? (result.correct ? 'ok' : 'bad') : 'ask'
     // N068 ("detailing the question much more"): a setup chart's pointer names the setup asked about
     const asked = SETUP_SKILLS[item?.skill_id] ? `${SETUP_SKILLS[item.skill_id]} here?` : 'This candle'
     return hardCallouts({ index: baseLen - 1, label: tone === 'ask' ? asked : tone === 'ok' ? 'You were right' : 'The answer', tone })
-  }, [chartVisible, chartBars, item?.type, item?.skill_id, baseLen, phase, result])
+  }, [chartVisible, chartBars, item, baseLen, phase, result])
   const calloutStyle = useMemo(() => calloutLook(phone), [phone])
   // the facts a trader reads before answering, from the bars in hand (the question's own window, not the forward bars)
   const stats = useMemo(() => (needsChart && chartBars?.length ? barStats(chartBars.slice(0, baseLen || chartBars.length)) : []), [needsChart, chartBars, baseLen])
@@ -233,13 +253,14 @@ export default function DrillPlayer({
   // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
   // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
   const openMarkers = useMemo(() => (chartVisible ? studyOpenMarkers(item, chartBars) : null), [chartVisible, item, chartBars])
-  // the trade's action items join them on the reveal (challenges/tradeMarks.tradeMarkers), in the time order the chart wants
-  const lessonMarkers = useMemo(() => {
-    const own = openMarkers || []
+  // An RS red-day item marks the session it asks about (prompt_json.chart.mark): a small muted dot under that bar; the
+  // trade's action items join them on the reveal (challenges/tradeMarks.tradeMarkers), in the time order the chart wants
+  const chartMarkers = useMemo(() => {
+    const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const trade = phase === 'reveal' && result && item?.type === 'spot' ? (tradeMarkers(keyTrade, chartBars, baseLen) || []) : []
-    const both = [...own, ...trade]
-    return both.length ? both.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
-  }, [openMarkers, phase, result, item?.type, keyTrade, chartBars, baseLen])
+    const all = [...(openMarkers || []), ...(rs || []), ...trade]
+    return all.length ? all.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
+  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -399,6 +420,7 @@ export default function DrillPlayer({
               title={result.correct ? CORRECT_WORD : WRONG_WORD}
               sub={answerKey ? <>{result.correct ? 'You said' : 'The answer:'} <b>{answerKey}</b></> : null}
               seal={<UiStamp ok={!!result.correct} inline />} />
+            {chartVisible && rsKey ? <p className={sa.lDetail} data-testid="rs-pair-key">{rsKey[0]} is the upper RS line, {rsKey[1]} the lower.</p> : null}
           </div>
         ) : (
         <div className={`${sa.area} ${styles.askHead}`}>
@@ -406,6 +428,7 @@ export default function DrillPlayer({
             <span className={sa.lEyebrow}>{skillChip(item.skill_id) || 'Lesson'}</span>
             <h2 className={sa.lQ} id="study-question">{questionOf(item)}</h2>
             {(needsChart ? framingShort : framing) ? <p className={sa.lDetail}>{needsChart ? framingShort : framing}</p> : null}
+            {chartVisible && rsKey ? <p className={sa.lDetail} data-testid="rs-pair-key">{rsKey[0]} is the upper RS line, {rsKey[1]} the lower.</p> : null}
           </div>
         </div>
         )}
@@ -427,7 +450,7 @@ export default function DrillPlayer({
             <StockChart
               {...lookProps}
               sym={chartItemId}
-              tf={chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'}
+              tf={chartTf}
               height={CHART_HEIGHT}
               studyMode
               barsOverride={shownBars}
@@ -452,7 +475,7 @@ export default function DrillPlayer({
               calloutLook={calloutStyle}
               annotationsVisible={!!annotations}
               annotationsTextVisible={!!annotations}
-              markers={lessonMarkers}
+              markers={chartMarkers}
               onCrosshairMove={onCrosshairMove}
               onChartTap={onChartTapLib}
             />

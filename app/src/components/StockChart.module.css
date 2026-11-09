@@ -1586,7 +1586,7 @@
    inline; a stylesheet `max-width` still wins over an inline `width`, and the
    body scrolls inside when the page is taller than the window. Scoped with
    `:has()` to a popover holding readout content, so no other menu changes. */
-:global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark) {
+:global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark, .legTour) {
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
   overflow-y: auto;
@@ -1635,6 +1635,16 @@
 }
 .legMenuRowMuted .legMenuRowLabel,
 .legMenuRowMuted .legMenuRowVal { color: var(--text-muted); font-weight: 500; }
+/* ⭐ VA2 — the RS rating's band (the site's cuts: 80 and above, 60 to 79, 40 to
+   59, below 40; `readoutSchema.RATING_BANDS`), while the member's Rating colours
+   switch is on. Theme tokens only, so the light popover keeps its contrast. The
+   60 to 79 band keeps the row's own ink: two greens side by side read as one.
+   Two classes per rule: `.legCardNumVal` is declared further down and would
+   otherwise win on order. */
+.legMenuRowVal.legBandLead, .legCardNumVal.legBandLead { color: var(--gain); }
+.legMenuRowVal.legBandStrong, .legCardNumVal.legBandStrong { color: var(--text-bright); }
+.legMenuRowVal.legBandNeutral, .legCardNumVal.legBandNeutral { color: var(--warn); }
+.legMenuRowVal.legBandLag, .legCardNumVal.legBandLag { color: var(--loss); }
 /* The row's `note`: a muted second line in the VALUE column (grid row 2), one
    step smaller, so a fallback reason or a benchmark gap reads as a qualifier of
    the value above it, never as a row of its own. */
@@ -1666,8 +1676,35 @@
   width: calc(100% + 8px);
 }
 .legMenuRowBtn:hover,
-.legMenuRowBtn:focus-visible { background: var(--bg-hover); outline: none; }
+.legMenuRowBtn:focus-visible { background: var(--bg-hover); }
 .legMenuRowChev { display: inline-flex; align-self: center; justify-self: end; color: var(--text-muted); flex: none; }
+/* ⭐ UCT RS 3-09 — A READOUT ROW'S ACTION ("Pick a date on the chart", "Use the
+   default anchor", "Open the rotation map"): its own button directly under the
+   row, its text starting in the row's VALUE column so it reads as that row's.
+   The bright ink, never gold (gold is the card's one look-here mark). The
+   padding-left is the label column plus the gap: 88 + 8 in the menu, 104 + 8 in
+   a card's numbers block (`.legRowActionCard`), and the phone's wider columns. */
+.legRowAction {
+  appearance: none;
+  background: none;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: calc(100% + 8px);
+  min-height: 28px;
+  margin: 0 -4px 2px;
+  padding: 4px 4px 4px 100px;
+  border-radius: 4px;
+  font: 600 12px/16px 'Instrument Sans', sans-serif;
+  color: var(--text-bright);
+  text-align: left;
+  cursor: pointer;
+}
+.legRowAction:hover,
+.legRowAction:focus-visible { background: var(--bg-hover); }
+.legRowActionCard { padding-left: 116px; }
 
 /* ─── THE ABOUT CARD — one readout row, explained in three lines ───────────
    Rendered through `ContextPopover`'s `children` branch, so it REPLACES the
@@ -1699,7 +1736,7 @@
   cursor: pointer;
 }
 .legCardBack:hover,
-.legCardBack:focus-visible { background: var(--bg-hover); outline: none; }
+.legCardBack:focus-visible { background: var(--bg-hover); }
 .legCardBackChev { display: inline-flex; color: var(--text-muted); flex: none; }
 .legCardTitle { white-space: nowrap; min-width: 0; }
 /* ⭐ THE NUMBERS BLOCK — the same grid as the rows, a wider label column (the
@@ -1751,7 +1788,7 @@
   width: calc(100% + 8px);
 }
 .legCardNumBtn:hover,
-.legCardNumBtn:focus-visible { background: var(--bg-hover); outline: none; }
+.legCardNumBtn:focus-visible { background: var(--bg-hover); }
 .legCardBody { padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 7px; }
 .legCardLine { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .legCardKey {
@@ -1774,7 +1811,7 @@
   text-decoration: none;
 }
 .legCardLearn:hover,
-.legCardLearn:focus-visible { text-decoration: underline; outline: none; }
+.legCardLearn:focus-visible { text-decoration: underline; }
 .legCardLearnSub { font-weight: 500; font-size: 11px; color: var(--text-muted); }
 .legCardLessons { display: flex; flex-direction: column; gap: 0; padding-top: 4px; border-top: 1px solid var(--border); }
 .legCardLessonsKey { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); padding: 2px 0; }
@@ -1789,7 +1826,7 @@
   text-decoration: none;
 }
 .legCardLesson:hover,
-.legCardLesson:focus-visible { color: var(--ut-gold); outline: none; }
+.legCardLesson:focus-visible { color: var(--ut-gold); }
 
 /* ─── THE PRESET PAGE (spec A6) — a page of the same 296 px popover ─────────
    Back row `‹ Preset`, then one row per preset: the name at 12 px / 600, its
@@ -1824,7 +1861,7 @@
   cursor: pointer;
 }
 .legPresetRow:hover,
-.legPresetRow:focus-visible { background: var(--bg-hover); outline: none; }
+.legPresetRow:focus-visible { background: var(--bg-hover); }
 .legPresetState { cursor: default; }
 .legPresetState:hover { background: none; }
 .legPresetCheck { display: inline-flex; padding-top: 2px; color: var(--text-bright); }
@@ -1839,6 +1876,10 @@
 
 /* ⭐ A8 — the pane label's last known value, muted, with its date. */
 .paneValueStale { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
+/* ⭐ UCT RS 3-14 — a pane that drew nothing prints the server's note (`No XYZQ bars
+   yet; they usually load within a minute`). It wraps inside the band rather than
+   running past a 390 px phone's edge. */
+.paneValueNote { white-space: normal; max-width: min(320px, calc(100vw - 180px)); }
 
 /* TOUCH (≤1024px): every row that is a button meets the 44 px floor. */
 @media (max-width: 1024px) {
@@ -1846,6 +1887,7 @@
   .legPresetRow { min-height: var(--tap-min); }
   .legMenuRowBtn { min-height: var(--tap-min); }
   .legCardNumBtn { min-height: var(--tap-min); }
+  .legRowAction { min-height: var(--tap-min); }
 }
 
 /* PHONE (≤640px): one size per list, 14 px; the wider grid; three lines. */
@@ -1861,6 +1903,8 @@
     min-height: 32px;
   }
   .legMenuRowBtn { min-height: var(--tap-min); }
+  .legRowAction { font-size: 14px; line-height: 20px; padding-left: 124px; }
+  .legRowActionCard { padding-left: 132px; }
   .legMenuRowVal { -webkit-line-clamp: 3; line-clamp: 3; }
   .legCardNum,
   .legCardNumBtn {
@@ -1876,3 +1920,124 @@
 }
 /* The About page's copy of the lessons list sits under the description. */
 .legAboutLessons { margin-top: 8px; }
+/* ⭐ 4-05 — the About page's Glossary link: a lesson-row look, under the lessons. */
+.legAboutGlossary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  margin-top: 4px;
+  font: 500 12px 'Instrument Sans', sans-serif;
+  color: var(--text);
+  text-decoration: none;
+}
+.legAboutGlossary:hover,
+.legAboutGlossary:focus-visible { color: var(--ut-gold); }
+
+/* ─── 4-05 — "Ask Compass about this", under the readout rows ──────────────
+   The assist button renders null without a VoiceProvider (and for a free
+   member), and `:empty` then removes the row's border and padding too. */
+.legAsk {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.legAsk:empty { display: none; }
+/* The shared CompassAssistButton is a 24 px chip; in the readout SHEET every other row
+   is a 44 px tap, so on a touch width the ask button takes the same floor (4-11 pass). */
+@media (max-width: 1024px) {
+  .legAsk button { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+}
+
+/* ─── 4-05 — THE TOUR PAGE: the definition's `meta.tour`, one card at a time ──
+   Same popover as the cards. A card is capped at 60 + 240 characters by
+   `defSchema`, so the page never scrolls inside 296 px or on a 390 px phone. */
+.legTour {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-family: 'Instrument Sans', sans-serif;
+  color: var(--text);
+}
+.legTourHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--border);
+  font: 600 11px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.legTourName { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legTourCount { flex: none; font-variant-numeric: tabular-nums; }
+/* ONE HEIGHT FOR EVERY CARD (4-11: the phone sheet jumped 237 -> 258 px between cards): every card sits
+   in the same grid cell, the live one over invisible sizers, so the area is always the tallest card's. */
+.legTourCards { display: grid; }
+.legTourCards > .legTourCard { grid-area: 1 / 1; }
+.legTourCard { display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 6px; }
+.legTourSizer { visibility: hidden; pointer-events: none; }
+.legTourTitle { font: 600 13px/18px 'Instrument Sans', sans-serif; color: var(--text-bright); }
+.legTourBody { font: 400 12px/18px 'Instrument Sans', sans-serif; color: var(--text); }
+.legTourDots { display: flex; gap: 5px; padding: 4px 10px 2px; }
+.legTourDot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); opacity: 0.4; }
+/* The current card reads at full strength; --border alone vanished on the light theme (4-11 sandbox pass). */
+.legTourDotOn { background: var(--text-bright); opacity: 1; }
+.legTourNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 10px;
+}
+.legTourSteps { display: flex; align-items: center; gap: 6px; }
+.legTourSkip,
+.legTourBack,
+.legTourNext {
+  appearance: none;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font: 600 12px 'Instrument Sans', sans-serif;
+  cursor: pointer;
+}
+.legTourSkip { background: none; border: 0; padding-left: 0; color: var(--text-muted); }
+.legTourBack { background: none; border: 1px solid var(--border); color: var(--text-bright); }
+.legTourNext { background: var(--text-bright); border: 1px solid var(--text-bright); color: var(--bg-elevated, #14161a); }
+.legTourSkip:hover,
+.legTourSkip:focus-visible { color: var(--text-bright); }
+.legTourBack:hover,
+.legTourBack:focus-visible { background: var(--bg-hover); }
+.legTourNext:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 1px; }
+/* ⭐ a11y — EVERY RS LEGEND CONTROL SHOWS A FOCUS RING (spec §12.2 keyboard check,
+   2026-11-08). These rules used to end in `outline: none` and leave focus to a
+   background shift: `--bg-hover` #1a1a1a on the #111 popover is about 1.1:1, so a
+   keyboard member could not see which readout row, card control, lesson link or
+   tour button had focus, while every verb under them wore the app's gold ring.
+   Nothing here declares a ring: the rules simply stop suppressing the app's own
+   (`tokens.css` :focus-visible, 2 px `--ut-gold`, the ring every verb below wears),
+   so no new gold is written into the readout (the one look-here gold stays the
+   Learn link). They only move it INSIDE the row-like controls, because the
+   popover scrolls (`overflow-y: auto`) and clips an outset ring at its edges; the
+   links and the tour buttons sit inside padding and keep it just outside. */
+.legMenuRowBtn:focus-visible,
+.legRowAction:focus-visible,
+.legCardBack:focus-visible,
+.legCardNumBtn:focus-visible,
+.legPresetRow:focus-visible { outline-offset: -2px; }
+.legCardLearn:focus-visible,
+.legCardLesson:focus-visible,
+.legAboutGlossary:focus-visible,
+.legTourSkip:focus-visible,
+.legTourBack:focus-visible { outline-offset: 1px; }
+@media (max-width: 1024px) {
+  .legTourSkip, .legTourBack, .legTourNext, .legAboutGlossary { min-height: var(--tap-min); }
+}
+@media (max-width: 640px) {
+  .legTourTitle { font-size: 15px; line-height: 21px; }
+  .legTourBody { font-size: 14px; line-height: 21px; }
+  .legTourSkip, .legTourBack, .legTourNext { font-size: 14px; padding: 6px 14px; }
+}

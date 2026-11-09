@@ -104,6 +104,9 @@ import { safeCssColour } from './objectColour'
 // no serverCompute, no DOM. The scalars themselves arrive through `opts.scalarsOf`
 // (see `stampReadout`), so this module still imports no server lane.
 import { readoutRows, readoutChipRows } from './readoutSchema'
+import { paneTableFor } from './paneTable'
+import { inputsAsRead } from './legacyInputs'
+import { identityTextFor } from './defSchema'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -281,7 +284,8 @@ function chipLabel(def, plot, inputs, displayName) {
   const params = (def.meta && def.meta.legendParams) || []
   if (!params.length) return name
   const declared = new Map((def.inputs || []).map(i => [i.key, i.default]))
-  const values = params.map(k => (inputs && inputs[k] !== undefined ? inputs[k] : declared.get(k)))
+  // 3-14: an option that is only a door to a text box prints the typed text (`UCT RS(XLK)`), never its code.
+  const values = params.map(k => identityTextFor(def, k, (inputs && inputs[k] !== undefined ? inputs[k] : declared.get(k)), inputs))
   return `${name}(${values.join(', ')})`
 }
 
@@ -316,6 +320,24 @@ function chipLabel(def, plot, inputs, displayName) {
 // (the field `paneReadoutLabel` already prints) and `chip.readout` only.
 const IDENTITY_INPUT_TYPES = new Set(['enum', 'string'])
 
+// ─── AN OPTION THAT IS ONLY A DOOR TO A TEXT BOX (unit 3-09b, 2026-11-07) ───
+//
+// ⚰️ MEASURED: with "Your symbol" picked, the chip read `UCT RS · CUSTOM` until
+// the server's resolved benchmark row replaced it. `CUSTOM` is the enum's CODE
+// for "the member typed one"; it names nothing a member chose.
+//
+// ⭐ THE RULE IS DECLARED, NOT SPELLED HERE. A `string` input that declares
+// `identityFor: '<enum key>'` and `activeWhen: {key: <enum key>, equals: <option>}`
+// is that option's companion (`defSchema.validateIdentityFor` refuses a half
+// pair). When the enum holds that option, its identity text is the companion's
+// typed value, or the option's LABEL while the box is empty — never the code.
+// Every other value, and every definition with no companion, reads exactly as
+// before. The server's resolved row still replaces it in `stampReadout`.
+// The pair's reader is `defSchema.identityTextFor`, shared with `sourceRef.instanceLabel`.
+function identityTextOf(inp, raw, def, inputs) {
+  return identityTextFor(def, inp.key, raw, inputs)
+}
+
 /** `legendParams` whose input is a named choice, resolved for THIS instance:
  *  `Map(key → value)`, declaration order. Empty for every numeric parameter. */
 function legendIdentityParts(def, inputs) {
@@ -328,7 +350,7 @@ function legendIdentityParts(def, inputs) {
     const inp = declared.get(k)
     if (!inp || !IDENTITY_INPUT_TYPES.has(inp.type)) continue
     const raw = (inputs && inputs[k] !== undefined) ? inputs[k] : inp.default
-    if (typeof raw === 'string' && raw) parts.set(k, raw)
+    if (typeof raw === 'string' && raw) parts.set(k, identityTextOf(inp, raw, def, inputs))
   }
   return parts
 }
@@ -358,15 +380,21 @@ function stampReadout(chip, def, inputs, opts) {
   const reader = (opts && typeof opts.scalarsOf === 'function') ? opts.scalarsOf : null
   const identity = legendIdentityParts(def, inputs)
   let rows = null
+  // ⭐ DESIGN ROUND (2026-11-08) — the pane table (`meta.paneTable`), resolved from
+  // the SAME scalars read the rows are, so the corner table and the Rating card
+  // can never print two different numbers for one rank.
+  let table = null
+  const wantsTable = !!(def.meta && def.meta.paneTable)
   if (reader) {
     rows = []
-    if (Array.isArray(def.readout) && def.readout.length) {
+    if ((Array.isArray(def.readout) && def.readout.length) || wantsTable) {
       let scalars = null
       try { scalars = reader(def, resolvedInputsOf(def, inputs)) } catch { scalars = null }
       // A plain object or nothing: an array, a string or a number is not a
       // payload, and "nothing landed" prints no rows — not even a fallback.
       if (scalars && typeof scalars === 'object' && !Array.isArray(scalars)) {
-        rows = readoutRows(def, scalars, { inputs })
+        if (Array.isArray(def.readout) && def.readout.length) rows = readoutRows(def, scalars, { inputs })
+        if (wantsTable) table = paneTableFor(def, scalars, { inputs })
       }
     }
   }
@@ -374,7 +402,8 @@ function stampReadout(chip, def, inputs, opts) {
   if (rows && rows.length) {
     for (const r of readoutChipRows(def, rows)) {
       if (identity.has(r.key)) identity.set(r.key, r.text)
-      else extra.push(r.text)
+      // ⭐ VA2 — a row's `chipPrefix` word rides the pane label only (`fast 91`).
+      else extra.push(typeof r.chipText === 'string' && r.chipText ? r.chipText : r.text)
     }
   }
   const lead = [...identity.values()].map((v) => ` · ${v}`).join('')
@@ -383,6 +412,9 @@ function stampReadout(chip, def, inputs, opts) {
   const suffix = `${lead}${sibling}${tail}`
   if (rows) chip.readout = rows
   if (suffix || rows) chip.suffix = suffix
+  // Present only when the definition declares a table AND it resolves, so every
+  // other chip keeps exactly the fields it had.
+  if (table) chip.paneTable = table
   return chip
 }
 
@@ -434,7 +466,9 @@ function resolvePlotColor(plot, inputs, def) {
  *        exists: two RSI lines at different periods would print the same number
  *        twice. That is the reason this is a PARAMETER and not a lookup inside.
  * @param {Function} [displayFor] `(defId, instanceId) => string|null`, the stored
- *        display name of the instance (a `labelFrom: 'source'` definition).
+ *        display name of the instance (a `labelFrom: 'source'` definition), and
+ *        (3-09b) the sibling suffix when every copy in a colliding group has a
+ *        distinct one (`UCT RS(SPY) · Line A`).
  * @param {object[]} [instances] the normalised instance list, for the sibling
  *        disambiguator's source words.
  * @param {{scalarsOf?: (def: object, inputs: object) => (object|null)}} [opts]
@@ -462,6 +496,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
   // chip's keys must not start seeing a resolved-inputs blob it never had.
   const inputsByChip = new Map()
+  // ⭐ 3-09b — and the instance's stored display name, beside them for the same
+  // reason: the sibling pass prefers it as the suffix (`disambiguateSiblings`).
+  const displayByChip = new Map()
   // The hovered bar's time, read off whichever series has a row there -- only a
   // gap-breaking binding (`valueAt`, `gapRuns.js`) asks for it.
   const hoveredTime = hoveredTimeOf(seriesData)
@@ -533,8 +570,8 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     // `frame` (a chart-frame series has none), so an ordinary indicator's chip is
     // byte-identical to before.
     const frameSuffix = typeof e.frame === 'string' && e.frame ? ` · ${tfLabel(e.frame)}` : ''
-    const label = chipLabel(def, plot, inputs,
-      typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null) + frameSuffix
+    const displayName = typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null
+    const label = chipLabel(def, plot, inputs, displayName) + frameSuffix
     // The observation period of the value under the crosshair (economic only).
     let observation = ''
     if (typeof e.observationAt === 'function' && hoveredTime !== undefined) {
@@ -557,8 +594,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
       ...(frameSuffix ? { frameSuffix } : {}),
     })
     inputsByChip.set(out.length - 1, inputs)
+    if (typeof displayName === 'string' && displayName.trim()) displayByChip.set(out.length - 1, displayName.trim())
   }
-  const chips = disambiguateSiblings(out, inputsByChip, registry, instances)
+  const chips = disambiguateSiblings(out, inputsByChip, registry, instances, displayByChip)
   // ⭐ AFTER the sibling pass, so the pane suffix composes with — never
   // overwrites — the ` (maLength 50)` a second copy earned. Label untouched.
   chips.forEach((c, i) => stampReadout(c, get(c.defId), inputsByChip.get(i), opts))
@@ -640,7 +678,10 @@ export function resolvedInputsOf(def, inputs) {
   for (const inp of ((def && Array.isArray(def.inputs)) ? def.inputs : [])) {
     if (inp && typeof inp.key === 'string' && inp.default !== undefined) out[inp.key] = inp.default
   }
-  for (const [k, v] of Object.entries(inputs && typeof inputs === 'object' ? inputs : {})) {
+  // ⭐ 3-08b: the legacy → successor read (`legacyInputs.inputsAsRead`), the
+  // same one `resolveInputs` applies, so the two never key a fetch differently.
+  const stored = inputsAsRead(def, inputs)
+  for (const [k, v] of Object.entries(stored && typeof stored === 'object' ? stored : {})) {
     if (v !== undefined) out[k] = v
   }
   return out
@@ -771,7 +812,30 @@ function sourceDescriber(def, get, instances) {
  * what keeps this out of the existing chart assertions, which are written against
  * single-instance legends.
  */
-function disambiguateSiblings(chips, inputsByChip, registry, instances) {
+// ─── ⭐ 3-09b · A NAME THE MEMBER (OR A DRILL) GAVE BEATS AN INPUT NAME ──────
+//
+// ⚰️ Two RS lines in a Study drill, set apart only by their Mansfield length,
+// read `UCT RS(SPY) (mansfieldLength 200)`: an input KEY in a member's legend.
+// The drill had already named them (`display: {name: 'Line A'}`), and that name
+// is what the lesson's words say. So when EVERY instance in a colliding group
+// carries a display name and the names are DISTINCT, the suffix is
+// ` · <name>` (`UCT RS(SPY) · Line A`). Any instance unnamed, or two sharing a
+// name, and the input-diff suffix stands, byte for byte.
+function namedSiblingSuffixes(chips, idxs, displayByChip) {
+  if (!(displayByChip instanceof Map)) return null
+  const byInstance = new Map()
+  for (const i of idxs) {
+    const name = displayByChip.get(i)
+    if (typeof name !== 'string' || !name) return null
+    const id = chips[i].instanceId
+    if (byInstance.has(id) && byInstance.get(id) !== name) return null
+    byInstance.set(id, name)
+  }
+  if (new Set(byInstance.values()).size !== byInstance.size) return null
+  return idxs.map((i) => ` · ${displayByChip.get(i)}`)
+}
+
+function disambiguateSiblings(chips, inputsByChip, registry, instances, displayByChip) {
   // ⛔⛔ THE LABEL IS PART OF THE GROUP KEY, AND THAT IS WHAT MAKES A MIXED GROUP
   // BEHAVE. Grouping on `defId::plotKey` alone was the same sentence while every
   // definition named itself from its own metadata: either every chip in a group
@@ -822,8 +886,9 @@ function disambiguateSiblings(chips, inputsByChip, registry, instances) {
     // failure: thin, and never `@inst:dataSeries:1::value` in a member's legend.
     const describe = sourceDescriber(def0, (id) => (registry && typeof registry.getDefinition === 'function'
       ? registry.getDefinition(id) : null), instances)
-    const suffixes = siblingSuffixes(idxs.map(i => resolvedInputsOf(def0, inputsByChip.get(i))), ignore,
-      describe ? { describe } : undefined)
+    const suffixes = namedSiblingSuffixes(chips, idxs, displayByChip)
+      || siblingSuffixes(idxs.map(i => resolvedInputsOf(def0, inputsByChip.get(i))), ignore,
+        describe ? { describe } : undefined)
 
     idxs.forEach((chipIdx, n) => {
       const label = `${chips[chipIdx].label}${suffixes[n]}`
@@ -1243,10 +1308,16 @@ export function readoutDateText(asOf) {
  * (`payload.legend.asOf`): `0.4700 · Nov 4`. No finite value at all, or no
  * envelope yet → a muted `—`.
  *
+ * ⭐ UCT RS 3-14 — NO VALUE AT ALL, BUT THE SERVER SAID WHY: the first readout row
+ * carrying a `note` (the muted second line, e.g. the Benchmark row's `No XYZQ bars
+ * yet; they usually load within a minute`) is printed in place of the dash,
+ * muted, marked `note: true`. A pane whose every plot came back empty then tells
+ * the member why on screen instead of only inside the chip menu.
+ *
  * @param {object|null} def
  * @param {object|null} scalars the envelope payload (`scalarsFor`), or null
  * @param {number} [decimals] the plot's legend decimals (the chip's)
- * @returns {{text: string, muted: true}|null} null for a definition without a readout
+ * @returns {{text: string, muted: true, note?: true}|null} null for a definition without a readout
  */
 export function readoutFallbackValue(def, scalars, decimals, inputs) {
   if (!declaresReadout(def)) return null
@@ -1254,16 +1325,29 @@ export function readoutFallbackValue(def, scalars, decimals, inputs) {
   // of readout-grammar entries ({source, format, when?}). The first that
   // resolves is the pane label's value, LIVE (not muted, no date): a view that
   // blanks the primary line (the RS Mansfield view) names the line it draws.
+  // ⭐ rsLine rev 5 (2026-11-08): an entry may declare a `muted` GATE (the readout
+  // grammar's). While it holds, the entry's text is the pane label's value in the
+  // MUTED ink: the server's reason for an empty pane ("daily charts only") is what
+  // the label should say, never another reading's number. An entry with no `muted`
+  // is unchanged (live, as before).
   const alts = def && def.meta && Array.isArray(def.meta.legendFallback) ? def.meta.legendFallback : []
   if (alts.length) {
     const rows = readoutRows({ ...def, readout: alts.map((a, i) => ({ ...a, key: a.key || `legendFallback${i}`, label: a.label || 'value' })) },
       scalars, { inputs: inputs || {} })
-    if (rows.length && rows[0].text && !rows[0].muted) return { text: rows[0].text, muted: false }
+    const first = rows.length ? rows[0] : null
+    const gated = first && typeof (alts.find((a, i) => (a.key || `legendFallback${i}`) === first.key) || {}).muted === 'string'
+    if (first && first.text && (!first.muted || gated)) return { text: first.text, muted: first.muted === true }
   }
   const legend = scalars && typeof scalars === 'object' && scalars.legend && typeof scalars.legend === 'object'
     ? scalars.legend : null
   const v = legend ? legend.lastValue : null
-  if (typeof v !== 'number' || !Number.isFinite(v)) return { text: '—', muted: true }
+  if (typeof v !== 'number' || !Number.isFinite(v)) {
+    if (scalars && typeof scalars === 'object') {
+      const noted = readoutRows(def, scalars, { inputs: inputs || {} }).find((r) => typeof r.note === 'string' && r.note)
+      if (noted) return { text: noted.note, muted: true, note: true }
+    }
+    return { text: '—', muted: true }
+  }
   const dp = Number.isInteger(decimals) ? decimals : 4
   const date = readoutDateText(legend.asOf)
   return { text: date ? `${v.toFixed(dp)} · ${date}` : v.toFixed(dp), muted: true }

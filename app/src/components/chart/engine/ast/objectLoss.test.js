@@ -76,7 +76,7 @@ describe('⛔ every drop reason the pass emits is classified', () => {
   it('every TEMPLATED key has a family, and `guard:` covers every reader op kind', () => {
     const families = DROP_KEY_FAMILIES.map((f) => f.prefix)
     const unhandled = TEMPLATE_PREFIXES
-      .filter((p) => p !== 'guard:' && p !== 'fn:' && !families.includes(p))
+      .filter((p) => p !== 'guard:' && p !== 'fn:' && p !== 'strategy:' && !families.includes(p))
     expect(unhandled).toEqual([])
     const unguarded = READER_KINDS.filter((k) => !Object.prototype.hasOwnProperty.call(GUARD_KINDS, k))
     expect(unguarded).toEqual([])
@@ -93,6 +93,14 @@ describe('⛔ every drop reason the pass emits is classified', () => {
     expect(dead).toEqual([])
     // ⛔ An unknown `why` fails closed like any other unclassified key.
     expect(classifyDropKey('fn:teleport').cls).toBe(LOSS.REMOVES)
+  })
+
+  it('⛔ W9-OQ-N2 — `strategy:<kind>` takes the class of the op it withholds; an unknown kind is refused', () => {
+    expect(TEMPLATE_PREFIXES).toContain('strategy:')
+    expect(classifyDropKey('strategy:create').cls).toBe(LOSS.PARTIAL)
+    expect(classifyDropKey('strategy:update').cls).toBe(LOSS.PARTIAL)
+    expect(classifyDropKey('strategy:delete').cls).toBe(LOSS.REMOVES)
+    expect(classifyDropKey('strategy:teleport').cls).toBe(LOSS.REMOVES)
   })
 
   it('⛔ an unknown key is REFUSED, never guessed', () => {

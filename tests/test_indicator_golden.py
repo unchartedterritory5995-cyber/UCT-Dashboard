@@ -81,6 +81,19 @@ RS_EVENT_CASES = ["rs_events_default"]
 # — `kind: "rs_mansfield"`, the same two-series footing, the same kind of list,
 # and again NO `_CASE_COLUMNS` row. Read by `test_rs_mansfield_*` below.
 RS_MANSFIELD_CASES = ["rs_mansfield"]
+# Phase 3 maths (unit 3-03): read by tests/test_rs_phase3_math.py and, for RRG, by
+# app/src/pages/terminal/panels/relativeMath.rsFixture.test.js (one fixture, both lanes).
+RS_PHASE3_CASES = ["rs_rrg", "rs_clenow", "rs_vars"]
+# Phase 3 public-method parity (unit 3-13): NOT compute_case inputs. Each holds what an
+# outside reference publishes (Quant Investing's Clenow example, OANDA's VARS case study,
+# a person's StockCharts RRG reading) and is read by tests/test_rs_phase3_parity.py.
+# Design round (2026-11-08): `rs_parity_deepvue` records our RS Rating beside Deepvue's
+# ranks for 21 names; read by tests/test_rs_parity_deepvue.py.
+RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcharts", "rs_parity_deepvue"]
+# Deepvue round 2 (2026-11-08): the RS Rating Reading's hand-checkable golden case (stored
+# ratings in, `ratingLine` / `ratingMa` and `payload.ratingHistory` out). NOT a compute_case
+# input; read by tests/test_rs_rating_view.py through the real provider.
+RS_RATING_VIEW_CASES = ["rs_rating_view"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
@@ -258,7 +271,8 @@ def test_every_fixture_file_is_covered_by_a_test():
     """A fixture nobody reads is a fixture nobody maintains."""
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
-              | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES))
+              | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES)
+              | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES) | set(RS_RATING_VIEW_CASES))
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )

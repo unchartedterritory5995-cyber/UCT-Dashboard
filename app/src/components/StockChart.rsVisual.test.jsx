@@ -601,7 +601,7 @@ describe('the stylesheet — one type scale, one grid, the host inks', () => {
 
   it('⛔ no `--menu-*` and no literal #f8f7f3 in the readout rows, the cards or the preset page; inks are host tokens', () => {
     const owned = (base.match(/[^{}]*\{[^}]*\}/g) || [])
-      .filter((r) => /\.(legMenuRow|legMenuRows|legMenuHeadRs|legCard|legPreset|legVerb)/.test(r.split('{')[0]))
+      .filter((r) => /\.(legMenuRow|legMenuRows|legMenuHeadRs|legCard|legPreset|legVerb|legTour|legAsk)/.test(r.split('{')[0]))
     expect(owned.length).toBeGreaterThan(20)
     for (const r of owned) {
       expect(r, r.split('{')[0].trim()).not.toMatch(/--menu-/)
@@ -620,8 +620,9 @@ describe('the stylesheet — one type scale, one grid, the host inks', () => {
   })
 
   it('one popover width capped to the viewport, scrolling inside, scoped to readout content', () => {
-    // every RS page: menu (header), card, Preset, and Display in (its marker, VA3)
-    const cap = rule(base, ':global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark)')
+    // every RS page: menu (header), card, Preset, Display in (its marker, VA3) and the
+    // first-add Tour page (4-05)
+    const cap = rule(base, ':global([data-guide="chart.chipMenu"]):has(.legMenuHeadRs, .legCard, .legPresetPage, .legReadoutMark, .legTour)')
     expect(cap).toMatch(/max-width:\s*calc\(100vw - 16px\)/)
     expect(cap).toMatch(/max-height:\s*calc\(100vh - 16px\)/)
     expect(cap).toMatch(/overflow-y:\s*auto/)
@@ -654,6 +655,9 @@ describe('the wires, read from the source', () => {
   })
   it('A8: the pane label falls back to the muted last value for a readout definition', () => {
     expect(src).toMatch(/value=\{chipValueText\(c\) \|\| \(\(\) => \{/)
-    expect(src).toContain('<span className={styles.paneValueStale} data-stale-value="">{s.fallback.text}</span>')
+    // ⭐ 3-14: the same muted span; a server note (`fallback.note`, a pane that drew
+    // nothing) also takes `paneValueNote` (it wraps) and `data-empty-note`.
+    expect(src).toContain('<span className={s.fallback.note ? `${styles.paneValueStale} ${styles.paneValueNote}` : styles.paneValueStale}')
+    expect(src).toContain(`data-stale-value="" {...(s.fallback.note ? { 'data-empty-note': '' } : null)}>{s.fallback.text}</span>`)
   })
 })

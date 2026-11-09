@@ -121,7 +121,20 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # rs_history.py (split guard, backfill), snapshot_db.py (the bars_rs receipt column) and
 # methodology.py on purpose. The pin is that work's last Screener commit; master changed no
 # Screener file since the RS branches split from it, so the go-live merge adds nothing here.
-SCREENER_PIN = "e4a6491b60a76c53b5353e16331e005ca3d2a384"
+# Re-pinned 2026-11-08 (UCT RS Phase 3, integration unit 3-14): the Phase 3 programme changes the
+# Screener on purpose, dark behind RS_V3_ENABLED: afc25422d7 (VA3, methodology's evidence sentence),
+# df1ffd8472 (3-10, the rrg_quadrant / clenow_score / vars_state collector in rs_columns.py,
+# snapshot_builder.py and snapshot_db.py), 30300b263e and fa88a026c5 (3-11, their filters and
+# methodology entries). The pin is that work's last Screener commit; master changed no Screener
+# file since the Phase 3 branch split from it.
+# Re-pinned 2026-11-08 (UCT RS Phase 4, integration unit 4-11): unit 4-01 changes snapshot_db.py on
+# purpose, dark behind RS_LISTS_ENABLED: status() gains the read-only `rs_lists` receipt
+# (deb8078927, `_rs_lists_last_run`, which reads rs_lists.last_run() and never raises). The pin is
+# that work's last Screener commit; no other Screener file changed since the Phase 3 pin.
+# Re-pinned 2026-11-08 (RS 9M component rank, landed via PR #961): 9c3f881e2c changes rs_history.py on
+# purpose (the 9M component rank in the rating history + a fill-only backfill mode). It is the only
+# Screener file changed since deb8078927 (`git diff --name-only deb8078927...origin/master -- <paths>`).
+SCREENER_PIN = "9c3f881e2c17d05ba37f1317cf1c2ecd942f1bd6"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -170,7 +183,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/rs_history.py" in r.stdout.split()  # a file the pinned commit changed (the review fixes)
+    assert "api/services/screener/rs_history.py" in r.stdout.split()  # the file the pinned commit changed (the RS 9M component rank)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

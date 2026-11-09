@@ -60,6 +60,7 @@ import {
   bindingKey,
   lineStyleValue,
   OHLC_POOL_KEYS,
+  plotActiveFor,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
@@ -103,6 +104,7 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
+import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
@@ -133,6 +135,16 @@ function rthFrameBars(fbars) {
 
 /** Projection memo: frame column set → (chart bars → projected set). */
 const _projMemo = new WeakMap()
+
+/** ⭐ UCT RS design round (2026-11-08) — is this band switched on for the
+ *  binding's instance? A fill that declares no `activeWhen` always is; one that
+ *  does reads the inputs' condition grammar through the SAME evaluator a plot's
+ *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
+ *  default), so a band and a guide can never disagree about one switch. */
+function fillActiveFor(fillSpec, b) {
+  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+  return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
+}
 
 /** A STATIC fill's colour and opacity -- `fillPaint.staticFillOf`, the one
  *  authority both band paths share (the per-bar half is `bandColoursFor`).
@@ -2065,6 +2077,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // Chart Theme is chosen, so a signed histogram that stores no colour of its
       // own follows the theme for free — one palette, not a second one.
       candles: (ctx.cs && ctx.cs.candles) || null,
+      // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
+      // value that row drops (a v4 Reading under a v3 server) is not drawn.
+      serverDeclares,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
@@ -2415,7 +2430,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // guides use, and it detaches here for the same reason.
       let fill = (b.from && b.from.fill) || null
       const fillSpec = b.plot && b.plot.fill
-      const fillWith = fillSpec && typeof fillSpec.with === 'string' ? fillSpec.with : null
+      // ⭐ UCT RS design round (2026-11-08) — `fill.activeWhen`: a band the member
+      // switches (the RS line's "Shade vs average"). Off ⇒ exactly the no-fill
+      // path below: the primitive comes off, the columns are untouched.
+      const fillWith = fillSpec && typeof fillSpec.with === 'string' && fillActiveFor(fillSpec, b) ? fillSpec.with : null
       if (fill && (b.source !== 'same' || !fillWith)) {
         attempt(() => series.detachPrimitive(fill.primitive))
         fill = null
@@ -2479,7 +2497,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const kept = new Map()
         for (const hp of ((b.def && b.def.plots) || [])) {
           if (!hp || hp.hidden !== true) continue
-          const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
+          const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
           const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
           const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))

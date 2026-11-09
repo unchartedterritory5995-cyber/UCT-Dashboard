@@ -2253,6 +2253,29 @@ def _run_rs_evidence_pull() -> None:
         print(f"[scheduler] rs evidence pull error: {e}")
 
 
+def _run_rs_lists() -> None:
+    """The `rs_lists_nightly` job (Phase 4 unit 4-01, 04:40 ET). Never raises.
+
+    One `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
+    returns before reading or writing anything), applies its guards (the rating history
+    must have caught up to the screener session; an empty list never replaces a full one
+    unless the session is fresh), rebuilds RS Leaders and RS Emerging in place through
+    `watchlist_prebuilt.write_rs_list`, and records its receipt (read back on
+    `snapshot_db.status()` as `rs_lists`). One log line here.
+    """
+    try:
+        from api.services import rs_lists
+        r = rs_lists.nightly_job()
+        lists = r.get("lists") or {}
+        print(f"[scheduler] rs lists: enabled={r.get('enabled')} session={r.get('session')} "
+              f"rs_session={r.get('rs_session')} fresh={r.get('fresh')} "
+              f"skipped={r.get('skipped')} "
+              + " ".join(f"{k.replace(' ', '_')}={v.get('status')}:{v.get('names')}"
+                         for k, v in lists.items()))
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs lists error: {e}")
+
+
 # -- UCT Relative Strength: the nightly Discord leaders post (engineering map ----
 # docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md, unit 2b-08;
 # the poster itself is `api.services.rs_discord_post`, unit 2b-07)
@@ -2567,6 +2590,22 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run_rs_evidence_pull,
                       trigger=CronTrigger(hour=4, minute=30, timezone=_ET),
                       id="rs_evidence_pull", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength: the RS Leaders and RS Emerging lists (unit 4-01) --
+    #
+    # 04:40 ET: after the 04:15 rating job (the lists read that session's ratings and
+    # refuse to write while the history is behind the screener session) and before the
+    # 04:45 Discord post. Same `coalesce` and grace as the siblings, for the same reason;
+    # a late or doubled fire is safe because the write makes each list exactly the rule's
+    # answer for the session (in place, idempotent).
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the switch is
+    # `rs_lists.enabled()` (`RS_LISTS_ENABLED`, read per call), so arming and rollback are
+    # one Railway variable with no deploy.
+    scheduler.add_job(_run_rs_lists,
+                      trigger=CronTrigger(hour=4, minute=40, timezone=_ET),
+                      id="rs_lists_nightly", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- UCT Relative Strength: the nightly Discord leaders post (unit 2b-08) --
@@ -7199,6 +7238,18 @@ async def lifespan(app: FastAPI):
                     optionsflow_etf_push.reconcile()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[of-etf-push] post-sync reconcile failed: %s", _e)
+                # The ROUTING classification, replicated to flow-worker (owner decision
+                # 2026-11-08). ⛔ ITS OWN try/except, not folded into the one above: these
+                # are two independent replications with two independent flags, and a fault
+                # in either must not stop the other or make the canonical sync look failed.
+                # DARK until TICKER_TYPES_REPLICA_PUSH_ENABLED=1 on web AND
+                # TICKER_TYPES_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+                try:
+                    from api.services import ticker_types_push
+                    ticker_types_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[ticker-types-push] post-sync reconcile failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
 
@@ -8083,8 +8134,11 @@ async def lifespan(app: FastAPI):
 
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-58/2", timezone=_ET),
-                               id="tweet_poll_burst_open", max_instances=1, replace_existing=True)
+            # tweet_poll_burst_open (09:30-09:58 every 2 min) was REMOVED 2026-11-07:
+            # the premarket job above already fires every 2 min through 09:58, so it
+            # polled the open twice per tick -- billed twice under the timeline mode.
+            # ⛔ replace_existing does not delete a job id that is no longer added;
+            # the scheduler's job store is in-memory, so a restart is what retires it.
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-58/2", timezone=_ET),
                                id="tweet_poll_burst_close", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/2", timezone=_ET),

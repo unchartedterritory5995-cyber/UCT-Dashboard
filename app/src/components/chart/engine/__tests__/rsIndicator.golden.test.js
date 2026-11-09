@@ -29,7 +29,14 @@
 //      same way: the `mansfield` line names its column, the zero-cross dot is
 //      finite exactly where either cross fired and EQUALS the Mansfield value
 //      there — which may be at or BELOW zero, the reason it is a point-marker
-//      plot and not a glyph (`markerPrimitive.marks` is `> 0`).
+//      plot and not a glyph (`markerPrimitive.marks` is `> 0`);
+//   6. (Phase 3, unit 3-08) every v4 plot reads its shared golden fixture the
+//      same way: `rsRatio` / `rsMomentum` → `rs_rrg.json` (the Terminal's RRG
+//      formula, D1), `clenowScore` → `rs_clenow.json`, `vars` / `varsMa` →
+//      `rs_vars.json` (the files `tests/test_rs_phase3_math.py` recomputes in the
+//      Python lane), and the gap-session dot is the score's value EXACTLY on the
+//      session whose one-bar move exceeds the gap threshold (the provider's rule,
+//      `rs_provider._rs_phase3`), never on every bar of the window flag.
 //
 // ⚠️ THE FIXTURE'S `expected` IS THE PYTHON LANE'S OUTPUT, HAND-VERIFIED IN ITS
 // `note` — asserting it HERE is what makes the two lanes meet on one file.
@@ -67,8 +74,21 @@ const DOT_TO_EVENT = Object.freeze({
 const MANSFIELD_DOT_TO_EVENTS = Object.freeze({
   dotMansfieldCross: ['mansfieldCrossUp'],
 })
+/** 3-08 — the wire-only gap dot the provider derives from `rs_clenow`'s bars:
+ *  its oracle is the score column plus the one-bar move rule, pinned below. */
+const DERIVED_DOTS = Object.freeze({ dotClenowGap: 'rs_clenow' })
+/** Design round (2026-11-08) — the two CLIENT-derived cross triangles
+ *  (`plots[].derive`, `derivedColumns.js`): no wire column of their own, so their
+ *  oracle is the fixture's `rsLine` and the event they read, checked in
+ *  `rsDesignRound.test.js` (the RS value exactly where the event is 1). */
+const CLIENT_DERIVED_DOTS = Object.freeze({ dotCrossUp: 'crossUp', dotCrossDown: 'crossDown' })
 /** Which fixture each LINE plot's column lives in. */
-const LINE_FIXTURE = Object.freeze({ rsLine: 'rs_events_default', rsAbove: 'rs_events_default', rsMa: 'rs_events_default', mansfield: 'rs_mansfield' })
+const LINE_FIXTURE = Object.freeze({
+  rsLine: 'rs_events_default', rsAbove: 'rs_events_default', rsMa: 'rs_events_default', mansfield: 'rs_mansfield',
+  rsRatio: 'rs_rrg', rsMomentum: 'rs_rrg', clenowScore: 'rs_clenow', vars: 'rs_vars', varsMa: 'rs_vars',
+  // rev 5 (Deepvue round 2): the RS Rating Reading, from the hand-checkable case
+  ratingLine: 'rs_rating_view', ratingMa: 'rs_rating_view',
+})
 
 const isEvent = (v) => v === null || v === 0 || v === 1
 
@@ -106,10 +126,18 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     for (const p of markers) {
       // 🔴 A new marker plot without a fixture column is a dot with no oracle.
       const inMansfield = Object.prototype.hasOwnProperty.call(MANSFIELD_DOT_TO_EVENTS, p.key)
-      expect(DOT_TO_EVENT[p.key] || inMansfield,
+      const derived = Object.prototype.hasOwnProperty.call(DERIVED_DOTS, p.key)
+      const clientDerived = Object.prototype.hasOwnProperty.call(CLIENT_DERIVED_DOTS, p.key)
+      expect(DOT_TO_EVENT[p.key] || inMansfield || derived || clientDerived,
         `marker plot "${p.key}" has no dot → event pairing in rsIndicator.golden.test.js — `
         + 'add the pairing AND the fixture columns before shipping the dot').toBeTruthy()
-      if (inMansfield) {
+      if (derived) {
+        expect(loadCase(DERIVED_DOTS[p.key]).expected, `${p.key}'s source column`).toHaveProperty('clenowScore')
+      } else if (clientDerived) {
+        expect(p.derive, `${p.key} is client-derived`).toMatchObject({ from: 'rsLine', where: CLIENT_DERIVED_DOTS[p.key] })
+        expect(exp, `${p.key}'s event column`).toHaveProperty(CLIENT_DERIVED_DOTS[p.key])
+        expect(exp, `${p.key}'s value column`).toHaveProperty('rsLine')
+      } else if (inMansfield) {
         expect(m.expected, `marker plot "${p.key}" names a column rs_mansfield.json does not carry`).toHaveProperty(p.key)
         for (const ev of MANSFIELD_DOT_TO_EVENTS[p.key]) expect(m.expected, `event "${ev}" is not in rs_mansfield.json`).toHaveProperty(ev)
       } else {
@@ -134,9 +162,11 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     // large ones glyphs, and the Mansfield cross dot is PLAIN because its value
     // may be ≤ 0. Visual round A3: the red-day glyph carries NO text (platform §7)
     // and is declared before the before-price glyph, so gold paints on top.
+    // Design round (2026-11-08): the two small cross triangles are glyphs too, at 0.6,
+    // declared before the large ones so the gold paints on top.
     expect(markers.map(p => [p.key, p.marker ? 'glyph' : 'point'])).toEqual([
-      ['dotNH', 'point'], ['dotNHred', 'glyph'], ['dotNHbeforePx', 'glyph'],
-      ['dotNHpartial', 'point'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'],
+      ['dotNH', 'point'], ['dotCrossUp', 'glyph'], ['dotCrossDown', 'glyph'], ['dotNHred', 'glyph'], ['dotNHbeforePx', 'glyph'],
+      ['dotNHpartial', 'point'], ['dotNL', 'point'], ['dotMansfieldCross', 'point'], ['dotClenowGap', 'point'],
     ])
     // L1 (2026-11-07): both large glyphs are size 1.6 (13 px at the floor), was 2.0
     expect(def.plots.find(p => p.key === 'dotNHred').marker).toEqual({ shape: 'circle', position: 'inBar', size: 1.6 })
@@ -147,18 +177,21 @@ describe('rs_events_default — the shared RS event fixture, read by the JS lane
     // `rsAbove` is the HIDDEN 0/1 condition that colours the line (unit 5); it is
     // a line plot by declaration and a column in the fixture like the others.
     // `mansfield` (2a-14) is the Trend preset's line and lives in rs_mansfield.json.
-    expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa', 'mansfield'])
+    expect(lines.map(p => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa', 'mansfield',
+      'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa', 'ratingLine', 'ratingMa'])
     for (const p of lines) {
       const fx = LINE_FIXTURE[p.key]
       expect(fx, `line plot "${p.key}" has no fixture in LINE_FIXTURE`).toBeDefined()
-      const e = fx === 'rs_mansfield' ? m.expected : exp
+      const e = fx === 'rs_events_default' ? exp : loadCase(fx).expected
       expect(e, `line plot "${p.key}" is not in ${fx}.json`).toHaveProperty(p.key)
       expect(e[p.key].some(Number.isFinite), `${p.key} is entirely null`).toBe(true)
     }
     // No plot style this test does not know how to pair. The one `hlines` plot is
     // the Mansfield zero guide (visual round A2): static, so it returns no column.
     for (const p of def.plots) expect(['line', 'markers', 'hlines'], `plot "${p.key}" style ${p.style}`).toContain(p.style)
-    expect(def.plots.filter(p => p.style === 'hlines').map(p => [p.key, p.levels])).toEqual([['mansfieldZero', [0]]])
+    // v4: one guide per reading that has a centre — Rotation's 100 and VARS's zero.
+    expect(def.plots.filter(p => p.style === 'hlines').map(p => [p.key, p.levels]))
+      .toEqual([['mansfieldZero', [0]], ['rotationCentre', [100]], ['varsZero', [0]], ['ratingGuides', [80, 90]]])
   })
 
   it('events are {0, 1, null} and each one FIRES; dots are finite EXACTLY where their event is 1 and equal rsLine there', () => {
@@ -341,7 +374,7 @@ describe('rs_mansfield — the Mansfield fixture, read by the JS lane as the con
     const cols = { mansfield: exp.mansfield, mansfieldCrossUp: exp.mansfieldCrossUp,
       mansfieldCrossDown: exp.mansfieldCrossDown, dotMansfieldCross: exp.dotMansfieldCross }
     const parsed = columnsFromWire({ times: m.bars.map(b => b.t), columns: cols, rev: def.compute.rev })
-    expect(parsed.rev).toBe(3)
+    expect(parsed.rev).toBe(5)
     const aligned = alignColumns(parsed, m.bars)
     for (const key of Object.keys(cols)) {
       exp[key].forEach((e, i) => {
@@ -357,5 +390,107 @@ describe('rs_mansfield — the Mansfield fixture, read by the JS lane as the con
     expect(m.params.length).toBeLessThanOrEqual(inp.max)
     expect(def.meta.serverInputs).toContain('mansfieldLength')
     expect(def.meta.serverInputs).toContain('showMansfield')
+  })
+})
+
+// ─── Phase 3, unit 3-08 — the v4 columns, each against its shared fixture ───
+
+/** Wire → chart for one fixture's columns: every value follows its bar by time,
+ *  `null` → NaN, exactly as the binder receives them. */
+function expectWireRoundTrip(fx, keys, def) {
+  const cols = Object.fromEntries(keys.map(k => [k, fx.expected[k]]))
+  const parsed = columnsFromWire({ times: fx.bars.map(b => b.t), columns: cols, rev: def.compute.rev })
+  expect(parsed.rev).toBe(5)
+  const aligned = alignColumns(parsed, fx.bars)
+  for (const key of keys) {
+    expect(aligned[key]).toBeInstanceOf(Float64Array)
+    fx.expected[key].forEach((e, i) => {
+      if (e === null) expect(Number.isNaN(aligned[key][i]), `${key}[${i}]`).toBe(true)
+      else expect(aligned[key][i], `${key}[${i}]`).toBe(e)
+    })
+  }
+}
+
+describe('3-08 — the Rotation, Quality and VARS plots read the Phase 3 golden fixtures', () => {
+  const def = getDefinition('rsLine')
+  const plot = (key) => def.plots.find(p => p.key === key)
+
+  it('rs_rrg: RS-Ratio and RS-Momentum, around 100, on the definition\'s default lengths (the Terminal\'s 10 and 5)', () => {
+    const r = loadCase('rs_rrg')
+    expect(r.params).toEqual({ ratio_len: 10, mom_len: 5 })
+    const input = (k) => def.inputs.find(i => i.key === k)
+    expect([input('rrgRatioLength').default, input('rrgMomentumLength').default]).toEqual([10, 5])
+    for (const key of ['rsRatio', 'rsMomentum']) {
+      const col = r.expected[key]
+      expect(col.length, key).toBe(r.bars.length)
+      const real = col.filter(Number.isFinite)
+      expect(real.length, `${key} is entirely null`).toBeGreaterThan(10)
+      // both oscillate around 100, which is why the guide sits there
+      expect(Math.min(...real), key).toBeLessThan(100)
+      expect(Math.max(...real), key).toBeGreaterThan(100)
+      expect(plot(key)).toMatchObject({ style: 'line', role: 'context', legend: { hide: true } })
+    }
+    // a11y gate §12.2 (owner decision): the two thin lines are told apart by the
+    // dash, not by colour alone — RS-Momentum is `largeDashed` like the RS MA, and
+    // RS-Ratio stays solid. Colours are unchanged (info blue / neutral).
+    expect(plot('rsMomentum').lineStyle).toBe(plot('rsMa').lineStyle)
+    expect(plot('rsMomentum').lineStyle).toBe('largeDashed')
+    expect(plot('rsRatio').lineStyle ?? 'solid').toBe('solid')
+    expect([plot('rsRatio').color, plot('rsMomentum').color]).toEqual(['#6ba3be', '#8a8574'])
+    expectWireRoundTrip(r, ['rsRatio', 'rsMomentum'], def)
+  })
+
+  it('rs_clenow: the score line, and the gap dot is the score EXACTLY on the session that moved more than the threshold', () => {
+    const c = loadCase('rs_clenow')
+    expect(c.params.gap_pct).toBe(15)
+    const score = c.expected.clenowScore
+    expect(score.filter(Number.isFinite).length).toBe(61)
+    // The provider's rule (rs_provider._rs_phase3): the score where ONE session's
+    // move |C[t] − C[t−1]| / C[t−1] × 100 is strictly above the threshold.
+    const closes = c.bars.map(b => b.c)
+    const dot = score.map((s, i) => {
+      if (i === 0 || !Number.isFinite(s)) return null
+      const move = Math.abs(closes[i] - closes[i - 1]) / closes[i - 1] * 100
+      return move > c.params.gap_pct ? s : null
+    })
+    const fired = dot.map((v, i) => (v === null ? -1 : i)).filter(i => i >= 0)
+    // bar 60 (17.0%) is the one gap; bar 25 moved EXACTLY 15.0% and is not one
+    expect(fired).toEqual([60])
+    expect(dot[60]).toBe(score[60])
+    // the window flag would have drawn 19 dots in a row: the dot is the session, not the window
+    expect(c.expected.clenowGap.filter(v => v === 1).length).toBe(19)
+    const p = plot('dotClenowGap')
+    expect(p).toMatchObject({ style: 'markers', width: 2, restyle: false })
+    expect(p.marker, 'a plain point: the score can sit at or below zero').toBeUndefined()
+    expectWireRoundTrip({ ...c, expected: { ...c.expected, dotClenowGap: dot } }, ['clenowScore', 'dotClenowGap'], def)
+  })
+
+  it('rs_vars: VARS and its average, across a benchmark gap (null in both, never invented)', () => {
+    const v = loadCase('rs_vars')
+    for (const key of ['vars', 'varsMa']) {
+      expect(v.expected[key].length, key).toBe(v.bars.length)
+      expect(v.expected[key].some(Number.isFinite), key).toBe(true)
+      expect(v.expected[key][45], `${key} at the halted benchmark bar`).toBeNull()
+    }
+    expect(plot('varsMa').lineStyle).toBe('largeDashed')
+    expectWireRoundTrip(v, ['vars', 'varsMa'], def)
+  })
+
+  // rev 5 (Deepvue round 2): the RS Rating Reading's hand-checkable case, the same
+  // file `tests/test_rs_rating_view.py` runs through the real provider.
+  it('rs_rating_view: the stored rating and its 21-session average, gaps kept as gaps', () => {
+    const rv = loadCase('rs_rating_view')
+    const fx = { ...rv, bars: rv.sessions.map(t => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 })) }
+    expectWireRoundTrip(fx, ['ratingLine', 'ratingMa'], def)
+    expect(rv.expected.ratingLine[17]).toBeNull()
+    expect(rv.expected.ratingMa.slice(26)).toEqual([70, 71, 72, 73])
+  })
+
+  it('every v4 wire column the definition draws is a plot, and the guides are the views\' own', () => {
+    const v4Drawn = ['rsRatio', 'rsMomentum', 'clenowScore', 'dotClenowGap', 'vars', 'varsMa']
+    for (const k of v4Drawn) expect(plot(k), k).toBeDefined()
+    expect(plot('rotationCentre')).toMatchObject({ levels: [100], activeWhen: { key: 'view', equals: 'rotation' } })
+    expect(plot('varsZero')).toMatchObject({ levels: [0], activeWhen: { key: 'view', equals: 'vars' } })
+    expect(plot('mansfieldZero').activeWhen).toEqual({ key: 'view', equals: 'mansfield' })
   })
 })

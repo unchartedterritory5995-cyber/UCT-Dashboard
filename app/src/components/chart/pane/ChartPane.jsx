@@ -702,6 +702,26 @@ function ChartPane({
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
    *  holding Escape at a time — the hazard `openFormulaBuilder` describes). */
+  /** ⭐ UCT RS Phase 4 (4-11) — Chart Settings → Indicators' FIRST add of a toured
+   *  definition (the indicator's first-add tour, unit 4-05).
+   *
+   *  ⛔ HELD UNTIL THE MODAL CLOSES, NOT OPENED UNDER IT, AND THE MODAL IS NOT
+   *  CLOSED FOR IT. This door's own flow is "search → add → see it land → edit it":
+   *  the new row's Inspector takes the right column so the member configures what
+   *  they just added, and closing the modal on the add would take that step away.
+   *  The tour describes the PANE on the chart, which the modal covers, so it waits:
+   *  the moment the member closes Chart Settings, the chart's own handler gets the
+   *  definition and applies its own rules (seen, claimed, nothing open over the
+   *  chart; a removed instance never derives a chip, so no tour). The newest add
+   *  wins; one tour per close. */
+  const pendingTourRef = useRef(null)
+  const onSettingsFirstAdd = useCallback((defId) => { pendingTourRef.current = defId || null }, [])
+  useEffect(() => {
+    if (settingsOpen || !pendingTourRef.current) return
+    const defId = pendingTourRef.current
+    pendingTourRef.current = null
+    try { paneToolbarApi.current?.indicatorFirstAdd?.(defId) } catch { /* noop */ }
+  }, [settingsOpen])
   const definitionDoors = useMemo(() => ({
     canModify: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
     modify: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openCreateIndicator?.({ defId }) ?? false } catch { return false } },
@@ -788,7 +808,13 @@ function ChartPane({
     })
   }, [onSymbolChange])
 
-  const handleChartClick = useCallback(() => {
+  const handleChartClick = useCallback((e) => {
+    // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
+    // bubbles a click inside a portalled popover (the chip menu, its cards, the
+    // RS tour, a sheet) through its React parent, so it reached this handler and
+    // threw keyboard focus out of the popover onto the chart region. Only a click
+    // whose target is inside the region's own DOM focuses the chart.
+    if (e && e.currentTarget && e.target && !e.currentTarget.contains(e.target)) return
     // Don't steal focus from a child input (e.g., the open search dropdown).
     const ae = document.activeElement
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return
@@ -1226,6 +1252,7 @@ function ChartPane({
         onCreateIndicator={openCreateIndicator}
         definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
+        onIndicatorFirstAdd={onSettingsFirstAdd}
       />
       {/* The Create Indicator dock host. Always mounted (so the panel can portal
           into it the moment it opens) and `display: none` while empty, so a closed

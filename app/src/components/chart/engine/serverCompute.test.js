@@ -465,7 +465,7 @@ describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () 
 
   it('⛔ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED — the flag-off (v1) envelope renders the line and never loops', async () => {
     const def = getDefinition('rsLine')
-    expect(def.compute.rev).toBe(3)   // v2 at Phase 1; v3 since 2a-14 (the Mansfield columns)
+    expect(def.compute.rev).toBe(5)   // v2 at Phase 1; v3 since 2a-14 (the Mansfield columns); v4 since 3-08; v5 since Deepvue round 2
     const inputs = { benchmark: 'SPY' }
     const ctx = { sym: 'NVDA', tf: 'D' }
     // the dark default: the server row is v1 (one column, rev 1) while the client definition is v3
