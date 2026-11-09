@@ -106,3 +106,35 @@ describe('tuning: the owner sequence, per-step receipts, Undo of the whole', () 
     expect(state(board).symbol).toBe('SPY')
   }, 60000)
 })
+
+// pl-auto unseen8 (BROWSER-MOCK), against this branch: the ticker a step switches TO names no chart (u8-sequences-02), and "every
+// chart except that one" is exactly the other charts. Tuning: pl-auto's own sentences; paired.
+describe('unseen8: a sequence\'s own ticker, and every chart except the click', () => {
+  const tcell = (id, x) => ({ id, type: 'chart', x, y: 0, w: 8, h: 10, color: 'N', opts: { settings: bareSettings() } })
+  const THREE = [tcell('l', 0), tcell('r', 8), tcell('m', 16)]
+  const T_SYMS = { 'N:l': 'SPY', 'N:r': 'AAPL', 'N:m': 'QQQ' }
+  const tw = (b, id) => b.state.widgets.find(x => x.id === id)
+  const ref = (body, id) => body.context.charts.find(c => c.label === `Chart (${id})`).ref
+  const ie = (body, id) => (body.context.indicatorEdits || []).find(x => x.chart === `Chart (${id})`)?.ref
+  it('u8-sequences-02 "switch to AAPL, weekly, hide the volume and draw a line at 120" (left clicked; AAPL is on the right chart): every step on the LEFT, no question', async () => {
+    const { say, board } = p.mount(THREE, T_SYMS, { decorate: label })
+    p.select('l')
+    p.st.envelopes.push((body) => p.env('apply', [
+      { action: 'chart.setSymbol', target: ref(body, 'l'), args: { symbol: 'AAPL' } },
+      { action: 'chart.setTimeframe', target: ref(body, 'l'), args: { timeframe: 'W' } },
+    ]))
+    const out = await say('switch to AAPL, weekly, hide the volume and draw a line at 120')
+    expect(out).not.toMatch(/Which chart/)
+    expect(tw(board, 'l').opts?.tf || 'D', out).toBe('W')
+    expect(tw(board, 'r').opts?.tf || 'D').toBe('D')
+  }, 60000)
+  it('every chart except that one: the RSI lands on the two others, not on the click; a plan that adds it to the click too is not run silently', async () => {
+    const { say, board } = p.mount(THREE, T_SYMS, { decorate: label })
+    p.select('l')
+    p.st.envelopes.push((body) => p.env('apply', ['r', 'm'].map(id => ({ action: 'indicator.add', target: ie(body, id), args: { defId: 'rsi', inputs: null } }))))
+    const out = await say('add rsi to every chart except that one')
+    const has = (id) => (tw(board, id).opts?.settings?.indicatorInstances || []).some(i => !i.deleted && i.defId === 'rsi')
+    expect(out).not.toMatch(/Which charts should it go on/)
+    expect([has('l'), has('r'), has('m')], out).toEqual([false, true, true])
+  }, 60000)
+})

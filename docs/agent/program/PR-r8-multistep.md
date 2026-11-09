@@ -22,6 +22,13 @@ Shared targeting core touched: `useAgent.js`, `compound.js`, `fastPath.js`, `cap
 - A layout save inside a sequence ("…, then save the layout") stays what it always is: a card that waits for Apply. The steps
   before it are done and said; the save is proposed.
 
+- **pl-auto unseen8 (u8-sequences-02):** the ticker a step switches TO names no chart inside a sequence either: "switch to
+  AAPL, weekly, hide the volume and draw a line at 120" with the left chart clicked and AAPL on the right chart acts on the left
+  chart, no question. The screens (`screenUnnamedTargets`, the deictic screen) read the words without the ops' own ticker
+  arguments (`withoutArgTickers`).
+- **"every chart except that one":** an indicator added to every chart but the one set aside (the click for a negated
+  pointer, or the charts named after "except") names its targets: no "Which charts should it go on?".
+
 ## Held-out (agentMultiStepHeldOut, committed first in 77a98ad782)
 
 6/6 pass after the change; 2/6 passed before it (q1, u1). **Oracle note:** the held-out file expects `ind: ['ema']` for "add a

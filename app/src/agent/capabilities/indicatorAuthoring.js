@@ -26,6 +26,8 @@
 // result. Preview is shown only when the member asks for it.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { negatedPointer, chartsNamedBy } from '../deixis'
+const EXCEPT_WORDS = /\b(?:except(?:\s+for)?|but(?:\s+not)?|other\s+than|besides|apart\s+from|excluding)\b/i
 import {
   AUTHORING_CONTRACT, AUTHORING_REASONS as R, openDraft, draftTurn, draftUndo, draftStatus, listDrafts,
   saveDraft, showDraftPreview, renameDraft, discardDraft,
@@ -283,6 +285,16 @@ export function multiChartAmbiguity(host, adds, text) {
   if (both && targets.length !== 2) return ask
   // "all charts" = every chart here; "both" on a two-chart board is those two
   if (targets.length === charts.length) return null
+  // pl-auto (unseen8): "every chart except that one" / "all but the SPY chart" = every chart here but the one(s) set aside — the
+  // click for a negated pointer, or the charts named after the "except"; exactly those targets, nothing to ask
+  const exceptAt = EXCEPT_WORDS.exec(text)
+  if (exceptAt) {
+    const excluded = new Set()
+    if (negatedPointer(text)) { let sel = null; try { sel = host?.charts?.selected?.() || null } catch { sel = null }; if (sel) excluded.add(sel) }
+    for (const r of chartsNamedBy(text.slice(exceptAt.index), charts)) excluded.add(r)
+    const rest = charts.map(c => c.ref).filter(r => !excluded.has(r))
+    if (excluded.size && rest.length === targets.length && rest.every(r => targets.includes(r))) return null
+  }
   // otherwise the member must have named each one (its symbol or its position)
   const named = (c) => [c.symbol, c.position].filter(Boolean).some(w => new RegExp(`\\b${String(w).replace(/[^A-Za-z0-9]/g, '')}\\b`, 'i').test(text))
   return targets.every(t => named(charts.find(c => c.ref === t))) ? null : ask
