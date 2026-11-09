@@ -33,7 +33,7 @@ Base: teach-ship-2 (#989). Stack position: 3 of 5. Master `25f049554f` (with #98
 - **Full suite before the restack** (at `297e4621aa`): Test Files 266 passed | 5 skipped, Tests 9295 passed | 6 skipped.
 - **AUDIT review (11-08):** ACCEPTED, with T1f fixed.
 - **Restack:** ship-2 was merged in with no conflicts. This slice's own files against ship-2 are unchanged by the restack.
-- **Owed:** a full suite on this head once a lock slot is free.
+- **Post-restack full suite:** run on teach-ship-5 `9a689f56b7`, which contains ship-2 through ship-5 on master `25f049554f`. Path set: `src/agent` plus pl-exec's 9 paths; BelowNormal; LOCAL / SIMULATED. Result: `Test Files 299 passed | 5 skipped (304)`, `Tests 9830 passed | 6 skipped (9836)`. No failures.
 
 ## Note
 `f72e5a1e56` was split by file: its lifecycle part is in ship-2 and its "the other chart" part is here.
