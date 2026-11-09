@@ -786,6 +786,7 @@ def get_recent_activity(limit: int = 50) -> list[dict]:
             "SELECT a.id, a.user_id, a.action, a.details, a.ip_address, a.created_at, "
             "u.email, u.display_name "
             "FROM activity_log a JOIN users u ON a.user_id = u.id "
+            "WHERE a.action <> 'desk_usage' "
             "ORDER BY a.created_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
