@@ -65,3 +65,40 @@ The Watchlists-page rows (C3-073, C3-092 to C3-096, C3-066, C3-091) wait on the 
   - Expected +8, got +9.
 - `CHARTS_TEACH_STATUS.md` was regenerated from that run and `cov5-probe`.
 - No product or guide code changed, so no suite run or byte measurement is owed for this item.
+
+## Item 3: Chart Settings and drawing-menu routing (LOCAL / SIMULATED)
+- **Held-out first:** `agentGuideHeldOutCov5.test.js` (`44b4e20073`), 18 phrasings of its own, written before any
+  routing change. **15 of 18 reach what they named.** The 3 KNOWN MISSES are recorded both ways (test file and
+  `knownMisses.json`):
+  - "a solid colour behind the candles": no word of the background's own;
+  - the magnet crosshair, twice. Its only toggles are StockChart's region menu and ChartToolbar's panel, and a desktop
+    `/charts` right-click opens neither (the workspace chart menu has no such row). The row I first added for it was
+    removed, because no walkthrough can ring it there yet.
+- **Product guide change** (`a9fffcfbf8`):
+  - `controls.js` "The chart's background": Canvas → Background. It does not fire for gradient, swing labels,
+    text/notes, fonts, logos, widgets, watchlists, signals, palette or intensity.
+  - `actions.js` chartView "Light or dark chart": Shift+T. It never fires for a UCT chart theme.
+  - Drawing menu: "copy that line" is Duplicate (a drawing has no clipboard copy).
+  - "show the price on my line" is Show price label.
+  - A control that only the Text Note has takes "the note" as its drawing.
+- **Hand assignments** (`c47b1d0001`):
+  - C1-049 → The chart's background (was the matrix's chartSetting);
+  - C1-078 → Light or dark chart;
+  - C1-150 → Bold;
+  - C1-154 → Show price label;
+  - C1-157 → Duplicate.
+  - Cases 313 → 318.
+- **Browser:** the 5 new cases, run once: 5/5.
+- **Fresh full runner pass at `c47b1d0001`** (Vite fresh, frozen cases file, each case run once):
+  **295 VERIFIED of 318 cases**, or 295 of 499 rows.
+  - The same 23 fail as before. None lost.
+  - Run record: `runs/2026-11-09.cov5b.results.json`. Status regenerated.
+- **Locked full suite at `c47b1d0001`** (`src/agent` + `src/pages/command`, BelowNormal):
+  - `Test Files 2 failed | 307 passed | 5 skipped (314)`;
+  - `Tests 3 failed | 9832 passed | 14 skipped (9849)`.
+  - The 3 failures are `src/pages/command` keyListenerCensus ×2 and shortcutRegistry DrillPlayer ×1. They are the
+    same 3 the joined cov-4-wl baseline suite fails, and this slice touches neither file.
+  - `src/agent` is all green.
+- **Notebook bytes:** cov-4-wl `6056e91cd4` 2,261,090 B → `c47b1d0001` 2,261,090 B. **Delta 0.**
+  - This lineage's own merge-base budget check was already +297 B over before this slice, because the lineage
+    predates master's later budget raise. That is not this item's doing.
