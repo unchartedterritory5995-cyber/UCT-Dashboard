@@ -115,7 +115,7 @@ export function relationMatch(text) {
   if (c) { c.unplaced = true; return c }
   // the STRUCTURAL rule: a spatial word on a CHART reference anchored on the click (not on a non-chart noun: placesNonChart, and a
   // bare "one" that stands for a thing, S2-B) → a relation UCT may not place: the click is only its anchor
-  const chartRef = (x) => !!x && !placesNonChart(s.slice(0, x.index)) && !(/^\s*(?:the|that)\s+one\b/i.test(x[0]) && oneStandsForAThing(s.slice(0, x.index)))
+  const chartRef = (x) => !!x && !placesNonChart(s.slice(0, x.index), x[0]) && !(/^\s*(?:the|that)\s+one\b/i.test(x[0]) && oneStandsForAThing(s.slice(0, x.index)))
     && !PLACED_IN.test(x[0]) && !x[0].toLowerCase().split(/[^a-z0-9%]+/).some(w => w && !SPAN_STOP.has(w) && (PLACED.test(w) || isIndicatorWord(w)))
   // plurals: "both neighbours of this one", "both charts on either side of this one" — the set on both sides of the click
   const nb = STRUCT_NEIGHBOURS.exec(s) || EITHER_SIDE.exec(s)
@@ -136,7 +136,7 @@ export function relationMatch(text) {
   }
   // a possessive on a relational word the rewrite could not place ("its upper side"): the click is only the anchor
   const pr = POSS_REL.exec(s)
-  if (pr && !placesNonChart(s.slice(0, pr.index))) { pr.unplaced = true; return pr }
+  if (pr && !placesNonChart(s.slice(0, pr.index), pr[0])) { pr.unplaced = true; return pr }
   return null
 }
 // grammar words inside a span are never an indicator's name ("from", "the", "one" appear in indicator titles)
@@ -148,7 +148,7 @@ const ANCHOR_OBJ = '(?:this|that|here|it|the\\s+(?:selected|clicked|current|high
 // redirected onto the click then
 const REF_PP_ANY = new RegExp(`\\b(?:(?:away|up|down|over|across|out)\\s+from|from|than|as|beside|opposite|across|next\\s+to|near|nearest\\s+to|closest\\s+to|beyond|past|around|below|above|under|over|behind)\\s+${ANCHOR_OBJ}\\b`, 'i')
 // …unless what stands before it is a placed thing ("stick the stochastic below this one": a pane on the click, AUDIT's rule)
-const refPointAny = (t) => { const s = possessiveAnchor(t); const m = REF_PP_ANY.exec(s); return !!m && !placesNonChart(s.slice(0, m.index)) }
+const refPointAny = (t) => { const s = possessiveAnchor(t); const m = REF_PP_ANY.exec(s); return !!m && !placesNonChart(s.slice(0, m.index), m[0]) }
 const EITHER_SIDE = new RegExp(`\\b(?:both|the|the\\s+two)\\s+(?:charts?|ones|cells|panels)\\s+(?:on\\s+)?(?:either|each|both)\\s+sides?\\s+of\\s+${ANCHOR_OBJ}\\b`, 'i')
 const REF_POINT = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,4}?(?:chart|one|cell|pane|panel|graph|side|end|corner)s?\\b[^.;,]{0,40}?\\b(?:(?:away|up|down|over|across|out)\\s+from|from|of|than|as|beside|opposite|across|next\\s+to|near|nearest\\s+to|closest\\s+to|beyond|past|around|below|above|under|over|behind)\\s+${ANCHOR_OBJ}\\b`, 'i')
 const IMPLICIT_NEIGHBOUR = /\b(?:the|that)\s+(?:(?:next[-\s]door|neighbou?ring|adjacent|nearby)\s+(?:chart|one|cell|pane|panel)|(?:chart|one|cell|pane|panel)\s+next\s+door)\b/i
@@ -158,7 +158,7 @@ const IMPLICIT_FAR_END = /\b(?:the\s+(?:other|far(?:thest)?|opposite)\s+end\s+of
 const PLACED_IN = /\b(?:lines?|levels?|indicators?|studies|study|volume|alerts?|labels?|markers?|notes?|drawings?|bands?|overlays?|averages?|ma|ema|sma|50-day|200-day|price|prices|trendlines?|candles?|bars?)\b/i
 function relationMatchOf(text) {
   const s = String(text || '')
-  const aboutChart = (x) => !placesNonChart(s.slice(0, x.index)) && (REL_CHART_ANCHOR.test(x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
+  const aboutChart = (x) => !placesNonChart(s.slice(0, x.index), x[0]) && (REL_CHART_ANCHOR.test(x[0]) || placementNP(s.slice(0, x.index), x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
   const st = DIAG_STEP.exec(s)
   if (st && aboutChart(st)) { st.step = { v: /^(up|above)$/i.test(st[1]) ? 'above' : 'below', h: st[2].toLowerCase() }; return st }
   const fe = FAR_END.exec(s)
@@ -169,7 +169,7 @@ function relationMatchOf(text) {
   // ⛔ AUDIT S2-B: the same rule for an anchored relation — "the alert and the one above it": a bare "one" coordinated with a
   // non-chart noun stands for that thing, so no chart relation (the click is read as it would be without one)
   if (m) { const pre = /\b(?:the|that)\s+one\s*$/i.exec(s.slice(0, m.index)); if (pre && oneStandsForAThing(s.slice(0, pre.index))) return null }
-  if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
+  if (m && !placesNonChart(s.slice(0, m.index), m[0]) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
   if (m) return null
   const u = UNPLACED_RELATION.exec(s)
   if (u && aboutChart(u)) { u.unplaced = true; return u }
@@ -223,7 +223,22 @@ function isIndicatorWord(w) {
   }
   return indicatorWords.has(w)
 }
-function placesNonChart(before) {
+// pl-auto u12 (#988): the chart a PLACEMENT preposition (on / onto / to / into / for) introduces is the TARGET noun phrase; a thing
+// named BEFORE that preposition ("put RSI on …", "add an alert to …") is what is placed, never part of the chart reference. So the
+// words from that preposition to the relation are read as the chart reference, whatever its head noun ("the corner opposite here",
+// "its left neighbour"). Not when that phrase itself names a placed thing: then the thing is placed on the click, as before.
+const PLACE_NP = /\b(?:on|onto|to|into|for)\s+((?:(?:the|that|which|any|both|all|either|its|my)\b[^,;.!?]*)?)$/i
+/** Do the words from the clause's last placement preposition through `span` form the chart reference that preposition introduces? */
+function placementNP(before, span = '') {
+  const pp = PLACE_NP.exec(String(before || '').split(CLAUSE_SPLIT_LOCAL).pop())
+  if (!pp) return false
+  const np = `${pp[1]}${span}`
+  const words = pp[1].toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean)
+  return /^\s*(?:the|that|which|any|both|all|either|its|my)\b/i.test(np) && words.length <= 4
+    && !words.some(w => !SPAN_STOP.has(w) && (PLACED.test(w) || isIndicatorWord(w)))
+}
+function placesNonChart(before, span = '') {
+  if (placementNP(before, span)) return false
   const clause = String(before || '').split(CLAUSE_SPLIT_LOCAL).pop()
   const words = clause.toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean).slice(-3)
   for (let i = words.length - 1; i >= 0; i--) {
