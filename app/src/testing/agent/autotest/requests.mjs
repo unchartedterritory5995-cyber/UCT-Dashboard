@@ -16,6 +16,7 @@ import { unseen7 } from './families/unseen7.mjs'
 import { unseen8 } from './families/unseen8.mjs'
 import { unseen9 } from './families/unseen9.mjs'
 import { unseen10 } from './families/unseen10.mjs'
+import { unseen11 } from './families/unseen11.mjs'
 
 export function publicRequests() {
   const L = []
@@ -104,6 +105,13 @@ export function unseen10Requests() {
   const L = []
   unseen10(L)
   return L.map(r => ({ ...r, set: 'unseen10' }))
+}
+
+/** Batch 11, RELATIONS II (2026-11-09): 20 new relation phrasings, written before any run and without reading deixis.js or #988's tests. */
+export function unseen11Requests() {
+  const L = []
+  unseen11(L)
+  return L.map(r => ({ ...r, set: 'unseen11' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
