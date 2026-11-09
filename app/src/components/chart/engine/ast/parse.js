@@ -29,6 +29,10 @@
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
 import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS } from './callExpansions.js'
+// ⭐ engine-40 bytes: this re-export edge places the member-text guard-id rule (`guardIdText.js`, its ONE
+// authority) inside this module's chunk, which every chart-side wrap site already loads. Import it
+// from `./guardIdText.js`; this line exists for chunk placement (see that file's header).
+export { withoutGuardIds, GUARD_NAMESPACES, GUARD_ID_SOURCE } from './guardIdText.js'
 
 // --------------------------------------------------------------------------- //
 // the table

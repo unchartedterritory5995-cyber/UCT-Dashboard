@@ -1083,9 +1083,10 @@ export default function NoteEditorPage({
   // The visible Find door (the header button, and on a phone the More panel's item).
   const openFind = () => setFindOpen(true)
   // S10 (M4): the save indicator is mounted empty, then filled (a live region that arrives holding words is often
-  // not read).
-  const [indicatorOn, setIndicatorOn] = useState(false)
-  useEffect(() => { setIndicatorOn(true) }, [])
+  // not read). Finish review 1: keyed on WHERE the region lives (`indicatorHome`, below), not on this component's
+  // first mount -- the region first mounts when the note ARRIVES (the loading skeleton has none), and again when a
+  // phone crosses 640 px, and each of those inserts must be empty. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const [indicatorOnFor, setIndicatorOnFor] = useState(null)
   // The More panel's "Move to folder" select on a phone (its label's target).
   const moveFolderId = useId()
   const onPageKeyDown = (e) => {
@@ -3561,6 +3562,22 @@ export default function NoteEditorPage({
   // Above 640 px the coach card is unchanged; the mic's hint, since the 2026-10-10 UX pass,
   // waits at EVERY width (see the mic below). Rails: NoteEditorPage.firstRunDefer.test.jsx.
   const deferFirstRun = useIsPhone()
+  // Finish batch (2026-11-05, iPhone at 360-390 px): the header row has room for back, Folders and the four controls,
+  // not for the indicator's words too, so a phone says them at the end of the line under the title (NoteDetailsLine
+  // `trail`). ONE indicator is mounted at a time, so there is one polite region. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const savedOnTitleLine = deferFirstRun
+  const indicatorHome = !note ? null : (savedOnTitleLine ? 'title-line' : 'header')
+  // The commit that inserts the region renders it empty; this effect runs after that commit and fills it.
+  useEffect(() => { setIndicatorOnFor(indicatorHome) }, [indicatorHome])
+  const indicatorOn = indicatorHome !== null && indicatorOnFor === indicatorHome
+  const saveIndicator = (className) => (
+    <span className={className} role="status" aria-live="polite" data-save-indicator="">
+      {indicatorOn ? saveIndicatorWords({
+        status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
+        offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
+      }) : ''}
+    </span>
+  )
   useEffect(() => (deferFirstRun ? claimFirstRunStage() : undefined), [deferFirstRun])
 
   // The lock IS `editable`: every surface that edits the note asks
@@ -5267,12 +5284,9 @@ export default function NoteEditorPage({
             read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
             one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
             announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}
-        <span className={styles.savedIndicator} role="status" aria-live="polite" data-save-indicator="">
-          {indicatorOn ? saveIndicatorWords({
-            status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-            offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
-          }) : ''}
-        </span>
+        {/* Finish batch (2026-11-05, iPhone): on a phone the indicator sits on the line under the title
+            (`savedOnTitleLine`), so the header is ONE row: back · Folders · ★ · AI · Share · ⋯. */}
+        {!savedOnTitleLine && saveIndicator(styles.savedIndicator)}
         {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to
             Trash are in ⋯; the folder and the linked trades are on the line under the title. */}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
@@ -5344,10 +5358,12 @@ export default function NoteEditorPage({
               note's details, beside the properties it derives (Sector, Industry, Theme). It
               was also mirrored there as a read-only "Ticker" property, so the ticker showed
               twice; now there is ONE control, the same input on the same door. */}
-          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
-          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
-          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
-          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Finish review 3: `.headerMsg` -- on a phone a header message takes a line of its own, so the one-row
+              header never wraps while it shows. */}
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} className={styles.headerMsg} />
+          {chromeMsg && <span className={`${styles.chromeMsg} ${styles.headerMsg}`} role="status">{chromeMsg}</span>}
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
@@ -5942,7 +5958,8 @@ export default function NoteEditorPage({
           aria-label="Subtitle"
         />
         <NoteDetailsLine items={detailItems} open={detailsOpen} onToggle={toggleDetails}
-          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead} />
+          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead}
+          trail={savedOnTitleLine ? saveIndicator(styles.savedLine) : null} />
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />

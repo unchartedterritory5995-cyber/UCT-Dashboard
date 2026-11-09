@@ -66,6 +66,10 @@ const FALLBACK = {
   // Apply a theme to EVERY widget in the layout — chart or not (watchlist, theme
   // tracker, fundamentals, breadth, …). null-safe no-op off the workspace.
   applyThemeToAllWidgets: () => {},
+  // UCT RS 3-09: this host mounts the Compare Symbols panel and opens it on a
+  // `uct:compare-open` event (the desktop Charts workspace alone), so a chart's
+  // readout may offer "Open the rotation map". Off everywhere else.
+  canOpenCompare: false,
 }
 
 export function useWorkspace() {

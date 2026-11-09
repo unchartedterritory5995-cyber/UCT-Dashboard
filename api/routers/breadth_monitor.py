@@ -1738,6 +1738,22 @@ def get_drill_list(date_str: str, metric_key: str,
     return {"date": date_str, "metric": metric_key, "items": items}
 
 
+@router.get("/api/breadth-monitor/{date_str}/drill/{metric_key}/context")
+def get_drill_context(date_str: str, metric_key: str,
+                      _user: dict = Depends(require_paid)):
+    """Badges for the scan window: which OTHER lists each name is also on that day, and
+    how many of the previous 5 sessions it was already in this list. A SEPARATE request
+    from the list itself, so the list paints first and the badges fill in after; the
+    window treats a failure here as "no badges", never as "no stocks".
+    Read-only, same member gate as the list."""
+    items = svc.get_drill_list(date_str, metric_key)
+    if items is None:
+        raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
+    tickers = [i["t"] for i in items if isinstance(i, dict) and i.get("t")]
+    ctx = svc.get_drill_context(date_str, metric_key, tickers)
+    return {"date": date_str, "metric": metric_key, **ctx}
+
+
 @router.get("/api/breadth-monitor/{date_str}/lists")
 def get_breadth_lists(date_str: str,
                       keys: str = Query(default=""),

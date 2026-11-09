@@ -48,6 +48,7 @@
 // `closedTable.json`'s own note. Neither is the read-back and neither is written
 // by the model, so the rule at the top of this file is untouched.
 
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { useCallback, useId, useState } from 'react'
 import { sentenceFor } from '../engine/ast/sentence.js'
 import { truncateBarsForPropose } from './proposeBars.js'
@@ -147,7 +148,7 @@ function Gaps({ notUnderstood, unavailable }) {
           {dropped.map((item, i) => (
             <div key={`nu-${i}`} data-testid="concierge-not-understood-item">
               <span style={S.quote}>“{item.clause || item.phrase}”</span>
-              {' — '}{item.reason}
+              {' — '}{withoutGuardIds(item.reason)}
             </div>
           ))}
         </div>
@@ -158,7 +159,7 @@ function Gaps({ notUnderstood, unavailable }) {
           {absent.map((item, i) => (
             <div key={`un-${i}`} data-testid="concierge-unavailable-item">
               <span style={S.quote}>“{item.phrase}”</span>
-              {' — '}{item.reason}
+              {' — '}{withoutGuardIds(item.reason)}
             </div>
           ))}
         </div>
@@ -319,7 +320,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
       {refusal ? (
         <>
           <div style={S.refusal} role="alert" data-testid="concierge-refusal">
-            <div>{refusal.reason}</div>
+            <div>{withoutGuardIds(refusal.reason)}</div>
             <div style={S.meta} data-testid="concierge-gate">{refusal.gate}</div>
           </div>
           <Gaps notUnderstood={refusal.notUnderstood}
@@ -334,7 +335,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
               asked for unless the missing half is in front of them first. */}
           <Gaps notUnderstood={proposal.notUnderstood}
                 unavailable={proposal.unavailable} />
-          <div style={S.sentence} data-testid="concierge-sentence">{proposal.sentence}</div>
+          <div style={S.sentence} data-testid="concierge-sentence">{withoutGuardIds(proposal.sentence)}</div>
           <div style={S.source} data-testid="concierge-source">{proposal.source}</div>
           <div style={S.meta} data-testid="concierge-repaint">{proposal.repaint}</div>
           <div style={S.row}>

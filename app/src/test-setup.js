@@ -39,6 +39,7 @@ import './components/chart/engine/lowerTfGate.js'
 import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
 import { __setFirstLiveWidgetForTests } from './pages/journal-2-0/lib/notebookTelemetry'
 import { __setTodayLandingForTests } from './pages/journal-2-0/lib/todayHome'
+import { __setRsTelemetryOffForTests } from './lib/rsTelemetry'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -63,6 +64,12 @@ beforeEach(() => { __setWarmRetryDelaysForTests([]) })
 // pin "renders from params without a fetch"; the beacon is off here by default and railed ON in
 // `pages/journal-2-0/lib/notebookTelemetry.test.js` and `components/notebook/EmptyNamesAsk.test.jsx`.
 beforeEach(() => { __setFirstLiveWidgetForTests(false) })
+
+// ── UCT RS (2026-11-07): the six RS counts are ON by default in a build since the server lists them. The chart
+// suites written while they were dark mount RS copies under fetch mocks that count calls, so the counts are off here
+// by default; the real gate (on by default, `VITE_RS_TELEMETRY_ENABLED=0` the kill switch) is railed in
+// `lib/rsTelemetry.test.js`, and a test sink opens it wherever a suite reads the events.
+beforeEach(() => { __setRsTelemetryOffForTests(true) })
 
 // ── Audit 2026-11-05 (S15): the Today home is the Notebook's default landing. The suites written before it render a
 // bare Notebook and expect Research Home, so the default is off here; `?view=today` still opens Today, and the

@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import * as hp from '../../../../../../../tools/pine_runtime_host_parity.mjs'
 
 const REPO = resolve(__dirname, '../../../../../../..')
@@ -46,6 +47,53 @@ describe('HP-1 / HP-4 / HP-7 end to end (the server bundle, built fresh)', () =>
     expect(Object.keys(hp.ADAPTER_FILES)).toEqual(['worker', 'node'])
     expect(p.status).toBe(0)
   }, 60000)
+})
+
+describe('an interrupted run (SIGINT / SIGTERM / harness timeout) is INTERRUPTED, never runtime:failed', () => {
+  it('cases after the stop are interrupted, none is failed, and --write refuses the run', () => {
+    // esbuild cannot build under jsdom: the run happens in a child Node, the stop lands mid-run
+    // (after the second case finished, before the third starts), the child prints what it got
+    const src = `import * as hp from ${JSON.stringify(pathToFileURL(TOOL).href)}
+const b = await hp.buildBundle(); const ac = new AbortController(); let seen = 0
+const got = await hp.runNode({ bundle: b.bundle, signal: ac.signal, log: () => { seen += 1; if (seen === 2) ac.abort() } })
+let refusal = null
+try { hp.writeExpected(null, got, hp.loadCorpus()) } catch (e) { refusal = e.message }
+process.stdout.write(JSON.stringify({ got, refusal }))`
+    const p = spawnSync(process.execPath, ['--input-type=module', '-e', src], { cwd: REPO, encoding: 'utf8', timeout: 240000 })
+    expect(p.stderr).toBe('')
+    const { got, refusal } = JSON.parse(p.stdout)
+    const recs = Object.values(got.records)
+    expect(got.interrupted).toBe(true)
+    expect(recs.length).toBeGreaterThan(2)
+    expect(recs.filter((r) => r.status === 'interrupted').length).toBe(recs.length - 2)
+    for (const r of recs.filter((x) => x.status === 'interrupted')) expect(r).toEqual({ status: 'interrupted', digest: null, guards: [hp.INTERRUPTED_GUARD], warmup: null })
+    // the two finished cases keep their committed verdict (a genuine runtime:failed stays one); the rest
+    // carry no engine verdict at all
+    const committed = JSON.parse(readFileSync(hp.EXPECTED_FILE, 'utf8')).cases
+    for (const [name, r] of Object.entries(got.records)) {
+      if (r.status === 'interrupted') expect(committed[name].guards).not.toEqual(r.guards)
+      else expect({ status: r.status, digest: r.digest, guards: r.guards }).toEqual({ status: committed[name].status, digest: committed[name].digest, guards: committed[name].guards })
+    }
+    expect(refusal).toMatch(/^refused: the run was interrupted/)
+    // the flag alone refuses, even over records that all look finished
+    const prev = JSON.parse(readFileSync(hp.EXPECTED_FILE, 'utf8'))
+    expect(() => hp.writeExpected(prev, { ...got, interrupted: true, records: prev.cases }, hp.loadCorpus())).toThrow(/interrupted/)
+  }, 240000)
+
+  it('the CLI: a SIGINT mid-run exits 130 naming the interruption, with no verdict and no file touched', () => {
+    const before = readFileSync(hp.EXPECTED_FILE)
+    // the signal is delivered when the first case line is logged, i.e. mid-run, deterministically
+    const src = `const log = console.log; let sent = false
+console.log = (...a) => { log(...a); if (!sent && / ms /.test(String(a[0]))) { sent = true; process.emit('SIGINT', 'SIGINT') } }
+const hp = await import(${JSON.stringify(pathToFileURL(TOOL).href)})
+process.exitCode = await hp.main(['--host', 'node', '--check'])`
+    const p = spawnSync(process.execPath, ['--input-type=module', '-e', src], { cwd: REPO, encoding: 'utf8', timeout: 240000 })
+    expect(p.stdout).toMatch(/^HP-1 INTERRUPTED by SIGINT: 1\/\d+ cases ran; nothing written, no verdict$/m)
+    expect(p.stdout.split(/\r?\n/).filter((l) => / ms /.test(l)).length).toBe(1) // no case ran after the stop
+    expect(p.stdout).not.toMatch(/^wrote /m)
+    expect(p.status).toBe(hp.INTERRUPTED_EXIT)
+    expect(readFileSync(hp.EXPECTED_FILE).equals(before)).toBe(true)
+  }, 240000)
 })
 
 describe('the record: one normalisation for both hosts', () => {

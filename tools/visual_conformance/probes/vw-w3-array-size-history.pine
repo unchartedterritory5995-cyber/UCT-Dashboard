@@ -1,0 +1,18 @@
+//@version=6
+indicator("vw-w3-array-size-history", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w3.md, W3, open item Q-W3-8. The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: an array.size-derived cell text when the loaded history does or does not start at the listing. Read the three cell texts.
+// CAPTURE: AMEX:SPY 1D (history NOT from the listing) AND NYSE:RDDT 1D (from the listing): two captures.
+
+var float[] seen = array.new_float()
+array.push(seen, close)
+if array.size(seen) > 100
+    array.shift(seen)
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 3)
+    table.cell(t, 0, 0, "n=" + str.tostring(array.size(seen)))
+    table.cell(t, 0, 1, str.tostring(bar_index))
+    table.cell(t, 0, 2, str.tostring(array.size(seen) - 1 - bar_index))

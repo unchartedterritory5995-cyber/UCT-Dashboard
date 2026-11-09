@@ -711,6 +711,33 @@ export const LISTING_UNKNOWN = Object.freeze({ listingUnknown: true })
  *  still sound, only less often known. */
 export const LISTING_MAX_GUARDED_READS = 7
 
+/** ⭐⭐ W34-I4b — WHERE PINE'S "HISTORY BEFORE BAR 0" RULE IS PINNED, AND WHERE IT
+ *  IS NOT. The listing pass above reads a self read that reaches before bar 0 as
+ *  Pine's `na` (so `nz(x[k], s)` reads `s` there, `accum(s, …)`'s seed). For v4+
+ *  that is MEASURED: on-listing NYSE:RDDT 1D captures read it so on bar 0 —
+ *  `pmax-explorer`, `supertrend-kivancozbilgic`, `supertrend-strategy` (all
+ *  `//@version=4`), `keltner-center-of-gravity-channel` and `vw-ratchet-stops`
+ *  (`//@version=5`), `tests/fixtures/vendor/harness/*-rddt-1d-*.json`.
+ *  For v1/v2 — and a script with no `//@version`, which TradingView compiles as
+ *  v1 — the Pine reference does not say whether a self-referencing series
+ *  (`x = nz(x[1], fill) + a`, the v1/v2 spelling) enters bar 0 with `x[1]` as
+ *  `na` or as `0`, and no capture has measured it (capture row W34-I4-S1, probe
+ *  R07). So there the pass keeps BOTH readings as candidates (`listingPass`'s
+ *  `zeroBeforeListing`): a bar where they agree is exact under either rule and
+ *  is published; a bar where they differ is withheld exactly as the bounded
+ *  window withholds its curtain (`NaN` / `prefixProbe` before `warmup`, the
+ *  window's own value from it). Never a guessed seed.
+ *  ⛔ The version is the LEXED pragma (`lexed.version`, `meta.pineVersion`),
+ *  never re-detected; `null` is "no pragma", i.e. v1. Each caller decides what
+ *  an ABSENT version means (`nativeRegistry.listingOptsFor`: an unstamped
+ *  document is left as it was). */
+export const LISTING_SEED_PINNED_FROM_VERSION = 3
+export const listingSeedIsUnpinned = (version) => {
+  if (version === null) return true
+  const v = Number(version)
+  return Number.isFinite(v) && v < LISTING_SEED_PINNED_FROM_VERSION
+}
+
 /** ⭐⭐ THE ONE `var` SEED WHOSE BARE READ THE TREE CANNOT SETTLE — marked.
  *
  *  A `var` read both bare and through an UNGUARDED history read seeds `na`
@@ -1067,7 +1094,7 @@ const listingKey = (v) => {
 
 /** The listing pass. Returns the column, or `null` when it is not taken (over
  *  the step ceiling), in which case the caller runs the bounded window. */
-function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup, reading = null }) {
+function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup, reading = null, zeroBeforeListing = false }) {
   const s0 = seed[0]
   // A guarded read has two candidates only when the seed is a number; with an
   // `na` seed both readings are `na`.
@@ -1109,8 +1136,15 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
       }
     }
   }
-  if ((starts.length + warmup) * length > MAX_RECURRENCE_STEPS) {
-    if (sink) sink.listing = { taken: false, trajectories: starts.length }
+  // ⭐⭐ W34-I4b — v1/v2 (`listingSeedIsUnpinned`): one more candidate, Pine
+  // entering bar 0 with every self read before it as `0` instead of `na`. Its
+  // whole pre-history is `0`, not unknown, because that IS the reading it stands
+  // for. Every other start keeps its own; nothing above moves.
+  const zeroStarts = zeroBeforeListing
+    ? [stepT(0, new Array(maxSelfLag + 1).fill(0), () => 0)]
+    : []
+  if ((starts.length + zeroStarts.length + warmup) * length > MAX_RECURRENCE_STEPS) {
+    if (sink) sink.listing = { taken: false, trajectories: starts.length + zeroStarts.length }
     return null
   }
 
@@ -1130,13 +1164,17 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
     return [...seen.values()]
   }
 
-  let steps = starts.length
+  let steps = starts.length + zeroStarts.length
   let unknownBars = 0
   let trajectories = dedupe(starts.map((v) => {
     const h = beforeBar0()
     h[0] = v
     return h
-  }))
+  }).concat(zeroStarts.map((v) => {
+    const h = new Array(maxSelfLag + 1).fill(0)
+    h[0] = v
+    return h
+  })))
   let peak = trajectories.length
   const place = (i, value) => {
     if (value !== LISTING_UNKNOWN) { out[i] = value; return }
@@ -7230,6 +7268,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         stepT: (j, history, read) => stepListing(body, j, history, read),
         ...(switched ? { windowFrom: 0 } : {}),
         ...(spelled ? { reading: spelled.reading } : {}),
+        // ⭐⭐ W34-I4b — the caller states the script's version leaves bar 0's
+        // history unpinned (`listingSeedIsUnpinned`); never inferred here.
+        ...(opts.listingSeedUnpinned === true ? { zeroBeforeListing: true } : {}),
       })
       if (listed) return listed
     }
