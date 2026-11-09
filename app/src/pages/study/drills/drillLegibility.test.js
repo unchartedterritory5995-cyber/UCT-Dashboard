@@ -50,6 +50,8 @@ const DARK = [
   ['picked', '.choice.choice[aria-checked="true"]', '.choice.choice[aria-checked="true"]'],
   ['right', '.choiceRight.choiceRight', '.choiceRight.choiceRight'],
   ['wrong', '.choiceWrong.choiceWrong', '.choiceWrong.choiceWrong'],
+  ['picked + right', '.choice.choiceRight.choiceRight[aria-checked="true"]', '.choice.choiceRight.choiceRight[aria-checked="true"]'],
+  ['picked + wrong', '.choice.choiceWrong.choiceWrong[aria-checked="true"]', '.choice.choiceWrong.choiceWrong[aria-checked="true"]'],
 ]
 const LIGHT_STATES = [
   ['resting', `${LIGHT} .choice.choice`],
@@ -105,6 +107,11 @@ describe('answer cards follow the theme (light + dark)', () => {
   it('a card fills its grid row, so a two-line label never leaves its neighbour shorter (real-screen check)', () => {
     expect(lastDeclared('.choices > li > .choice', 'height')).toBe('100%')
     expect(lastDeclared('.choicesGrid > li > .choice', 'height')).toBe('100%')
+  })
+
+  it('dark: a PICKED card shows its verdict (green / red ink), not the gold picked look (real-screen check)', () => {
+    expect(lastDeclared('.choice.choiceRight.choiceRight[aria-checked="true"]', 'color')).toBe('#8fe3b1')
+    expect(lastDeclared('.choice.choiceWrong.choiceWrong[aria-checked="true"]', 'color')).toBe('#ff9d9d')
   })
 
   it('the light theme exists in the token sheet, and the cards are the classes ChoiceList renders (the wire)', () => {

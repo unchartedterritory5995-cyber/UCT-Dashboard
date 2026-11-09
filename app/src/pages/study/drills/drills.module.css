@@ -387,6 +387,12 @@
    neighbour; every card now fills its grid row, so the pairs line up. */
 .choices > li > .choice, .choicesGrid > li > .choice { height: 100%; }
 
+/* 2026-11-08 (real-screen check, dark): the PICKED card's verdict was lost. `.choice.choice[aria-checked="true"]`
+   (round 17b) outranks the round-17 right / wrong rules, so a wrong pick kept the gold fill and cream ink with only a
+   red rim, and a right pick read gold, not green. The picked card now carries its verdict colours like the others. */
+.choice.choiceRight.choiceRight[aria-checked="true"] { border-color: #2faf68; background: linear-gradient(180deg, #112a1b, #0f1a13); color: #8fe3b1; box-shadow: 0 0 0 1px #2faf68 inset, 0 0 28px rgba(47, 175, 104, .35); }
+.choice.choiceWrong.choiceWrong[aria-checked="true"] { border-color: #df4646; background: linear-gradient(180deg, #2a1113, #1a0f10); color: #ff9d9d; box-shadow: 0 0 0 1px #df4646 inset, 0 0 28px rgba(223, 70, 70, .35); }
+
 /* THE LIGHT THEME (2026-11-08, real-screen review of the RS drafts: Yes / No and Line A / Line B read as dark text
    on dark cards). The cards above are the workbench's dark cards with LITERAL surfaces, while their ink is the
    --text-bright TOKEN, which turns near-black on the light theme. The dark look stays exactly as scored; on a light
