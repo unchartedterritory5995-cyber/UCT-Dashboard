@@ -4450,6 +4450,11 @@ def interpret(ast: Any, bars: List[dict],
         indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
         if indexed is not None:
             column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
+        # 2026-11-09 -- ...and its ``var`` half (``interpret.js::varOriginMask``): a running
+        # value that still carries what it held before the bounded window began.
+        varied = var_origin_mask(ast, bars, inputs, budget, scalars, opts)
+        if varied is not None:
+            column = [math.nan if varied[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4642,7 +4647,8 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 # C45 -- the bar-index shift analysis lives in its own module (it catches its own
 # "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
-    BAR_INDEX_LEAVES, reads_bar_index, bar_index_class, bar_index_verdict, threshold_unknown,
+    BAR_INDEX_LEAVES, FIRST_BAR_LEAVES, reads_bar_index, reads_first_bar, bar_index_class,
+    bar_index_verdict, threshold_unknown,
 )
 
 
@@ -4699,22 +4705,191 @@ def bar_index_mask(tree: Any, bars: List[dict],
     held = False
     root_reach = max_lookback(tree)
     inner = dict(o, chartClockSink=None)
+    codes = set()
     for (node, sign), nested, unbounded in found:
         if nested or _reads_recurrence_binding(node):
             return whole()
-        gap = _interpret_column({"type": "op", "name": "-", "args": [node["args"][0], node["args"][1]]},
+        # ``isfirst`` is the threshold ``bar_index < 1`` (``barIndexShift.js::FIRST_BAR_TEST``)
+        first = node.get("type") == "series" and node.get("name") in FIRST_BAR_LEAVES
+        cmp = ({"type": "op", "name": "<", "args": [{"type": "series", "name": "barindex"},
+                                                    {"type": "num", "value": 1}]} if first else node)
+        gap = _interpret_column({"type": "op", "name": "-", "args": [cmp["args"][0], cmp["args"][1]]},
                                 bars, inputs, budget, scalars, inner)
         reach = max(0, root_reach - max_lookback(node))
+        code = "bar-index:first-bar" if first else "bar-index:early-bars"
         last = -math.inf
         for i in range(n):
-            if threshold_unknown(node["name"], sign, gap[i]):
+            if threshold_unknown(cmp["name"], sign, gap[i]):
                 last = last if (unbounded and last != -math.inf) else i
             if last != -math.inf and (unbounded or i - last <= reach):
                 mask[i] = 1
                 held = True
+                codes.add(code)
     if not held:
         return None
-    _name_chart_clock(opts, ["bar-index:early-bars"])
+    _name_chart_clock(opts, sorted(codes))
+    return mask
+
+
+# --------------------------------------------------------------------------- #
+# 2026-11-09 -- a ``var`` whose value began before the loaded bars
+# --------------------------------------------------------------------------- #
+#
+# The port of ``interpret.js::varOriginMask``; read its docstring for the rule
+# and the measurements (``vw-bar-origin-spy-1d-300-2026-10-02`` O07: TradingView
+# 8429.6 where the bounded window drew 20294.6). The two lanes are held equal by
+# ``tests/fixtures/ast/bar_index_shift_parity.json`` (its ``var-origin`` cases).
+
+#: How much of a seed may survive the bounded window and still be called
+#: forgotten: ``interpret.js::SEED_RESIDUAL_TOLERANCE`` (``pine.js`` admits a
+#: contraction on exactly this residual).
+SEED_RESIDUAL_TOLERANCE = 1e-6
+
+
+def _var_origin_holds(body: Any, bind: Any) -> bool:
+    """``interpret.js::bodyHoldsSeed`` -- can the running value reach the result
+    UNCHANGED, through a ``?:`` arm or ``nz`` / ``max`` / ``min``? Iterative."""
+    stack = [body]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if kind == "series" and node.get("name") == bind:
+            return True
+        if (kind == "offset" and args and isinstance(args[0], dict)
+                and args[0].get("type") == "series" and args[0].get("name") == bind):
+            return True
+        if kind == "op" and node.get("name") == "?:" and len(args) == 3:
+            stack.extend(args[1:])
+        elif kind == "call" and node.get("name") in ("nz", "max", "min"):
+            stack.extend(args)
+    return False
+
+
+def _var_origin_seed_invariant(seed: Any, inputs: Optional[Mapping[str, Any]]) -> bool:
+    """``interpret.js::seedBarInvariant`` -- is the seed the same number on every
+    bar, by its SHAPE (numbers, text, inputs, per-symbol scalars, pure calls)?"""
+    functions = TABLE[FUNCTIONS_SECTION]
+    table_scalars = TABLE[SCALARS_SECTION]
+    given = inputs or {}
+    stack = [seed]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            return False
+        kind = node.get("type")
+        name = node.get("name")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if kind == "series":
+            if not (name in table_scalars or name in given):
+                return False
+            continue
+        if kind == "call":
+            spec = functions.get(name) if isinstance(name, str) else None
+            if (spec is None or spec.get("lookback") != 0 or name in RECURRENCES
+                    or name in MULTI_STATES or _is_stateful_call(node)):
+                return False
+        elif kind not in ("num", "str", "symtext", "textop", "op"):
+            return False
+        stack.extend(args)
+    return True
+
+
+def _var_origin_agree(a: float, b: float, spread: float) -> bool:
+    """Two runs of one recurrence from seeds ``spread`` apart agree within the
+    residual the bounded window is admitted on (``interpret.js::seedRunsAgree``)."""
+    if math.isnan(a) or math.isnan(b):
+        return math.isnan(a) and math.isnan(b)
+    return abs(a - b) <= SEED_RESIDUAL_TOLERANCE * spread
+
+
+def _var_origin_probe_seeds(real: List[float]) -> tuple:
+    """``interpret.js::probeSeedsOf`` -- the seeds a window is probed from: values
+    the running value really takes on these bars. ``(seeds, spread)``."""
+    vals = sorted({v for v in real if not math.isnan(v) and not math.isinf(v)})
+    if not vals:
+        return [PREFIX_PROBE, -PREFIX_PROBE], 2 * PREFIX_PROBE
+    if len(vals) == 1:
+        return [vals[0], vals[0] + 1], 1
+    spread = vals[-1] - vals[0]
+    return (vals if len(vals) <= 4 else [vals[0], vals[-1]]), spread
+
+
+def var_origin_mask(tree: Any, bars: List[dict],
+                    inputs: Optional[Mapping[str, Any]] = None,
+                    budget: Optional[Mapping[str, Any]] = None,
+                    scalars: Optional[Mapping[str, Any]] = None,
+                    opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::varOriginMask`` -- off the listing, in a document whose
+    recurrences are Pine ``var`` state (``opts["varOriginAbsolute"] is True``), the
+    bars whose answer reads a running value that still carries what it held
+    before its bounded window began (1 = withheld), or ``None``. Named
+    ``var-origin:window`` when every bar is withheld, else ``var-origin:bars``."""
+    o = opts or {}
+    if o.get("varOriginAbsolute") is not True or o.get("historyFromListing") is True:
+        return None
+    n = len(bars)
+    found: List[tuple] = []
+    stack = [(tree, False)]
+    seen = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        args = node.get("args")
+        if node.get("type") == "call" and node.get("name") in RECURRENCES and isinstance(args, list):
+            rec = RECURRENCES[node["name"]]
+            seed_at, body_at, bind = rec.get("seed"), rec.get("body"), rec.get("binds")
+            if isinstance(seed_at, int) and isinstance(body_at, int) and max(seed_at, body_at) < len(args):
+                body = args[body_at]
+                if switched_seed_of(args[seed_at]):
+                    found.append((node, under, "switched"))
+                elif _var_origin_holds(body, bind):
+                    bare = isinstance(body, dict) and body.get("type") == "series" and body.get("name") == bind
+                    if not (bare and _var_origin_seed_invariant(args[seed_at], inputs)):
+                        found.append((node, under, "held" if bare else "probe"))
+        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into))
+    if not found:
+        return None
+    if any(under or kind == "held" for _node, under, kind in found):
+        _name_chart_clock(opts, ["var-origin:window"])
+        return [1] * n
+    inner = dict(o, chartClockSink=None)
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    held = False
+    for node, _under, kind in found:
+        reach = max(0, root_reach - max_lookback(node))
+        if kind == "switched":
+            a = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=PREFIX_PROBE))
+            b = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=-PREFIX_PROBE))
+            unknown = [not (x == y or (math.isnan(x) and math.isnan(y))) for x, y in zip(a, b)]
+        else:
+            seed_at = RECURRENCES[node["name"]]["seed"]
+            real = _interpret_column(node, bars, inputs, budget, scalars, inner)
+            seeds, spread = _var_origin_probe_seeds(real)
+            runs = []
+            for p in seeds:
+                args = list(node["args"])
+                args[seed_at] = {"type": "num", "value": p}
+                runs.append(_interpret_column(dict(node, args=args), bars, inputs, budget, scalars, inner))
+            unknown = [any(not _var_origin_agree(real[i], r[i], spread) for r in runs) for i in range(n)]
+        last = -math.inf
+        for i in range(n):
+            if unknown[i]:
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, ["var-origin:window" if all(mask) else "var-origin:bars"])
     return mask
 
 
@@ -4773,6 +4948,10 @@ def lane_opts_for(definition: Any) -> dict:
     different ones. Empty for every document that is neither a Pine translation
     nor stamped with definition semantics 2 (P0G)."""
     out = {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
+    # 2026-11-09 -- a Pine document's `var` state began at the symbol's first bar
+    # (``interpret.js::varOriginMask``; the same declaration, ``meta.recurrenceOrigin``)
+    if bar_index_absolute_for(definition):
+        out["varOriginAbsolute"] = True
     out.update(semantics_opts_for(definition))
     return out
 
@@ -4806,6 +4985,7 @@ def whole_series_withheld(tree: Any, bars: Sequence[dict],
     rows = list(bars)
     _chart_clock_whole(tree, rows, inputs, budget, scalars, asked)
     bar_index_mask(tree, rows, inputs, budget, scalars, asked)
+    var_origin_mask(tree, rows, inputs, budget, scalars, asked)
     return tuple(code for code in CHART_CLOCK_WHOLE if code in sink)
 
 
@@ -4871,6 +5051,8 @@ CHART_CLOCK_WHOLE = (
     "bar-index:window",
     # 2026-10-31 -- a time-of-day read on an FX-shaped daily chart
     "time-clock:weekend-session",
+    # 2026-11-09 -- a `var` that began before the loaded bars (``var_origin_mask``)
+    "var-origin:window",
 )
 
 #: The clock leaves that read the TIME OF DAY rather than the date. Mirrors
@@ -4882,7 +5064,7 @@ SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
                         "lastbarhour", "lastbarminute")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
-    "bar-index:early-bars",
+    "bar-index:early-bars", "bar-index:first-bar", "var-origin:bars",
 )
 
 

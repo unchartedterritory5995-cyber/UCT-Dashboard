@@ -242,9 +242,13 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
   })
 
   it('⭐ C49 — a label on the FIRST bar (inside the partial week) prints the vendor\'s offset to an open this series does not hold — never an `na`', () => {
+    // ⭐ 2026-11-09 — the first bar is named by its distance from the newest one
+    // (`last_bar_index - bar_index`, the same number on TradingView): this 900-bar
+    // window does not start at the listing, so `barstate.isfirst` is TradingView's
+    // 1993 bar, not this one, and is withheld here (`bar-index:first-bar`, below).
     const ours = on(pine([
       'd = na(time("W")) ? -99999 : (time("W") - time) / 86400000',
-      'if barstate.isfirst',
+      `if last_bar_index - bar_index == ${CAPTURE.bars.rows.length - 1}`,
       '    label.new(bar_index, high, str.tostring(d))',
     ]))
     expect(ours.objects.ok).toBe(true)
@@ -256,10 +260,19 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
 
   it('CONTROL: the same first-bar label over a known clock IS drawn — the withholding is the anchor\'s', () => {
     const ours = on(pine([
-      'if barstate.isfirst',
+      `if last_bar_index - bar_index == ${CAPTURE.bars.rows.length - 1}`,
       '    label.new(bar_index, high, str.tostring(dayofweek))',
     ]))
     expect(ours.objects.counts.labels).toBe(1)
+  })
+
+  it('⭐ 2026-11-09 — `if barstate.isfirst` off the listing draws NO label here: TradingView\'s first bar is the listing', () => {
+    expect(CAPTURE.history.startsAtBar0).not.toBe(true)
+    const ours = on(pine([
+      'if barstate.isfirst',
+      '    label.new(bar_index, high, str.tostring(dayofweek))',
+    ]))
+    expect(ours.objects.counts.labels).toBe(0)
   })
 })
 

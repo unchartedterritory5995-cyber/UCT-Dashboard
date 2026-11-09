@@ -88,5 +88,9 @@ describe('C12s — a newly served script publishes only Pine\'s value (the listi
       expect(extra).toEqual([])
       expect(both).toBeGreaterThan(500)
     }
-  })
+  // ⚠️ 2026-11-09 — 30 s, not the default 15: off the listing every `var` that can hold its
+  // value is now run twice more from the values it takes (`interpret.js::varOriginMask`),
+  // and this case holds several. Measured on one loaded box: 13.1 s without that mask,
+  // 16.7 s with it — the default sat 2 s above the old cost already.
+  }, 30000)
 })

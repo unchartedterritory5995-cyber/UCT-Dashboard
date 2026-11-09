@@ -60,7 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
-import { barIndexVerdict, thresholdUnknown } from './barIndexShift.js'
+import { barIndexVerdict, thresholdUnknown, FIRST_BAR_TEST } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
 // THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
@@ -5244,11 +5244,36 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'there, and where it is false here it may not be. What this indicator draws from such a test is '
     + 'withheld on those early bars of the loaded history (and as far forward as the script reads back to '
     + 'them); the rest is drawn. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ 2026-11-09 — `barstate.isfirst` (`barIndexShift.js::FIRST_BAR_LEAVES`).
+  'bar-index:first-bar': () => '`barstate.isfirst` is true on the first bar of the symbol\'s history on '
+    + 'TradingView. This chart\'s loaded bars start later, so its first bar is not that bar (measured: capture '
+    + '`vw-bar-origin-spy-1d-300-2026-10-02` reads `barstate.isfirst` false on the bar this chart loads first, '
+    + 'and `ta.barssince(barstate.isfirst)` 8,177 where this chart would count 0). It is false on every later '
+    + 'bar on both platforms and is drawn there; what this indicator draws from it on the first bar, and as far '
+    + 'forward as the script reads back to it, is withheld rather than drawn wrong. On a chart whose bars start '
+    + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ 2026-11-09 — a `var` that began before the loaded bars (`varOriginMask`).
+  'var-origin:window': () => 'A `var` is set once, on the first bar of the symbol\'s history on '
+    + 'TradingView, and carried forward from there. This chart\'s loaded bars start later, so a `var` that '
+    + 'keeps the value it was first given (`var first = time`, `var anchor = close`) or keeps counting '
+    + '(`var n = 0; n += 1`) holds a number this chart cannot know (measured: capture '
+    + '`vw-bar-origin-spy-1d-300-2026-10-02` reads `var first_time = time` as the listing day, 1993-01-29, '
+    + 'where this chart would show a day 250 bars back). Everything this indicator draws from it is withheld '
+    + 'on this chart rather than drawn wrong. A `var` seeded with a fixed number or an input is drawn. On a '
+    + 'chart whose bars start at the symbol\'s listing it draws. What would settle it: nothing to capture — '
+    + 'bars reaching the listing.',
+  'var-origin:bars': () => 'A `var` is carried forward from the first bar of the symbol\'s history on '
+    + 'TradingView. This chart reads it from its own loaded bars, which start later: on a bar where the '
+    + '`var` was last set (or reset) inside those bars it is TradingView\'s value and is drawn; on a bar where '
+    + 'it still holds what it held before them (`if close > open * 1.03` / `level := high`, on a stretch with '
+    + 'no such bar; a count that has not reset yet) it is not known here, and what this indicator draws from it '
+    + 'is withheld on those bars rather than drawn wrong. On a chart whose bars start at the symbol\'s listing '
+    + 'it draws. What would settle it: nothing to capture — bars reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
-  'time-clock:weekend-session'])
+  'time-clock:weekend-session', 'var-origin:window'])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
@@ -5717,34 +5742,235 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
   if (found.length !== wanted.size) return whole()
   const mask = new Float64Array(n)
   let any = false
+  const codes = new Set()
   const rootReach = maxLookback(tree)
   for (const { t, nested, unbounded } of found) {
     if (nested || readsRecurrenceBinding(t.node)) return whole()
+    // ⭐ 2026-11-09 — `isfirst` is the threshold `bar_index < 1` (`FIRST_BAR_TEST`)
+    const first = t.node.type === 'series'
+    const cmp = first ? FIRST_BAR_TEST : t.node
     // ⛔ No `try`: a gap this pass cannot compute refuses the tree, by its own
     // guard — it is the comparison's two sides, which the tree's own run computed.
-    const gap = toColumn(interpretOnce({ type: 'op', name: '-', args: [t.node.args[0], t.node.args[1]] },
+    const gap = toColumn(interpretOnce({ type: 'op', name: '-', args: [cmp.args[0], cmp.args[1]] },
       bars, inputs, budget, scalars,
       { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
     const reach = Math.max(0, rootReach - maxLookback(t.node))
+    const code = first ? 'bar-index:first-bar' : 'bar-index:early-bars'
     let last = -Infinity
     for (let i = 0; i < n; i++) {
-      if (thresholdUnknown(t.node.name, t.sign, gap[i])) last = unbounded && last !== -Infinity ? last : i
-      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+      if (thresholdUnknown(cmp.name, t.sign, gap[i])) last = unbounded && last !== -Infinity ? last : i
+      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true; codes.add(code) }
     }
   }
   if (!any) return null
-  nameChartClock(opts, ['bar-index:early-bars'], opts.tf)
+  nameChartClock(opts, [...codes].sort(), opts.tf)
   return mask
 }
 
+/** ⭐⭐ 2026-11-09 — HOW MUCH OF A SEED MAY SURVIVE THE BOUNDED WINDOW AND STILL
+ *  BE CALLED FORGOTTEN. `pine.js::forgetsItsSeed` admits a contraction on exactly
+ *  this residual (`|a| ** warmup`), and `varOriginMask` grades a running value's
+ *  two seeded runs against it. Owned HERE because both readers import this
+ *  module; `pine.js` re-exports it under the name it always had. */
+export const SEED_RESIDUAL_TOLERANCE = 1e-6
+
+/** ⭐⭐ 2026-11-09 — CAN THE RUNNING VALUE REACH THE RESULT UNCHANGED? `self` (or a
+ *  lag of it) standing as a value: the update itself, an arm of a `?:`, an
+ *  argument of `nz` / `max` / `min`. That is a HOLD — `var x = close` read back,
+ *  `if c` / `x := high` on the bars `c` is false — and a hold keeps whatever the
+ *  window's seed was. Arithmetic over `self` is never a hold here: the
+ *  translator admits it only as a contraction (`forgetsItsSeed`) or a switched
+ *  recurrence (`switchedVarSeed`). Iterative. */
+function bodyHoldsSeed(body, bind) {
+  const stack = [body]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'series' && n.name === bind) return true
+    if (n.type === 'offset' && args[0] && args[0].type === 'series' && args[0].name === bind) return true
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) stack.push(args[1], args[2])
+    else if (n.type === 'call' && (n.name === 'nz' || n.name === 'max' || n.name === 'min')) stack.push(...args)
+  }
+  return false
+}
+
+/** ⭐⭐ 2026-11-09 — IS THIS SEED THE SAME NUMBER ON EVERY BAR, BY ITS SHAPE?
+ *  Numbers, text, the document's inputs, per-symbol scalars, and pure
+ *  (`lookback: 0`, stateless) calls over them. A bar series, a history read,
+ *  another timeframe or symbol, a windowed or running call is not. ⛔ BY SHAPE,
+ *  NEVER BY THE COLUMN: `year >= 2000 ? 1 : 0` is one number over a recent
+ *  window and another on TradingView's bar 0 (1993 on AMEX:SPY). */
+function seedBarInvariant(seed, inputs) {
+  const given = inputs || {}
+  const stack = [seed]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') return false
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'series') {
+      if (!(own(TABLE.scalars, n.name) || own(given, n.name))) return false
+      continue
+    }
+    if (n.type === 'call') {
+      const spec = own(TABLE.functions, n.name) ? TABLE.functions[n.name] : null
+      if (!spec || spec.lookback !== 0 || own(RECURRENCES, n.name) || own(MULTI_STATES, n.name)
+          || isStatefulCall(n)) return false
+    } else if (!['num', 'str', 'symtext', 'textop', 'op'].includes(n.type)) return false
+    stack.push(...args)
+  }
+  return true
+}
+
+/** Two runs of one recurrence from seeds `spread` apart agree within the
+ *  residual the bounded window is admitted on (`SEED_RESIDUAL_TOLERANCE`). */
+const seedRunsAgree = (a, b, spread) => (a !== a || b !== b
+  ? a !== a && b !== b
+  : Math.abs(a - b) <= SEED_RESIDUAL_TOLERANCE * spread)
+
+/** ⭐ THE SEEDS A WINDOW IS PROBED FROM — values the running value REALLY takes on
+ *  these bars, never an arbitrary pair. ⚰️ MEASURED: probed from `±PREFIX_PROBE`,
+ *  a SuperTrend direction (`trend == -1 and close > dn ? 1 : trend == 1 and close
+ *  < up ? -1 : trend`) never matched either test, held the probe for ever, and
+ *  withheld 622 bars the bounded window drew RIGHT (`supertrend-explorer`, AMEX:SPY
+ *  1D off the listing). A state with at most four values is probed from EACH of
+ *  them (a discrete machine is then run from every state it was seen in); a wider
+ *  one from its least and greatest value; a constant `c` from `c` and `c + 1`; a
+ *  column with no value from `±PREFIX_PROBE`. Returns `[seeds, spread]`. */
+function probeSeedsOf(real) {
+  const seen = new Set()
+  for (let i = 0; i < real.length; i++) if (Number.isFinite(real[i])) seen.add(real[i])
+  const vals = [...seen].sort((a, b) => a - b)
+  if (!vals.length) return [[PREFIX_PROBE, -PREFIX_PROBE], 2 * PREFIX_PROBE]
+  if (vals.length === 1) return [[vals[0], vals[0] + 1], 1]
+  const spread = vals[vals.length - 1] - vals[0]
+  return [vals.length <= 4 ? vals : [vals[0], vals[vals.length - 1]], spread]
+}
+
+/** ⭐⭐ 2026-11-09 — THE BARS OF A TREE THAT READS A `var` STILL CARRYING WHAT IT
+ *  HELD BEFORE ITS BOUNDED WINDOW BEGAN, as a 0/1 column (1 = withheld), or null.
+ *
+ *  Off the listing (ruling R-W) a translated `var` is `accum(seed, update, W)`:
+ *  on bar `i` it is re-seeded at bar `i - W` and stepped forward. Pine's `var`
+ *  was seeded ONCE, on the first bar of the symbol's history. The two agree
+ *  exactly where the update FORGOT the seed inside the window. Where it did not,
+ *  the window draws a number TradingView never shows — measured:
+ *    - `var int first_time = time` → `accum(time, self, 250)` is the time of the
+ *      bar 250 back on every bar (`vw-bar-origin-spy-1d-300-2026-10-02` O07:
+ *      TradingView 8429.6 days, the listing; this lane drew 20294.6, moving);
+ *    - `var float lh = 0.0` / `if close > open * 1.03` / `lh := high` holds the
+ *      seed 0 wherever the test was false for 250 bars, where TradingView holds
+ *      the older high (AMEX:SPY 1D, last 600 bars off the listing: 123 bars
+ *      drawn 0 against a real high);
+ *    - a bar counter (`var n = 0; n += 1`, C29) is a switched recurrence that
+ *      never resets: blank on every bar, and until now blank with NO name
+ *      (`vw-bar-counters-spy-1-2026-10-02` C01–C04, `vw-bar-origin-*` O03).
+ *
+ *  Three kinds, read off the tree:
+ *    held      the update is bare `self` (a `var` nobody reassigns) and the seed
+ *              moves from bar to bar (`seedBarInvariant`): every bar is the seed
+ *              of a different bar — the whole tree is withheld. A seed that is
+ *              the same number on every bar (`var k = len * 2`) IS Pine's value
+ *              and is served;
+ *    probe     any other update that can hold its value (`bodyHoldsSeed`): run
+ *              the window again from seeds the value really takes
+ *              (`probeSeedsOf`); a bar where a run differs from the real one by
+ *              more than the residual the window is admitted on
+ *              (`SEED_RESIDUAL_TOLERANCE` of the seeds' spread) still reads the
+ *              seed, and is withheld — so a contraction the translator admitted
+ *              (an EMA by hand) stays served, and a hold does not;
+ *    switched  C12s's mark: its unknown bars are already blank
+ *              (`switchedDependencyMask`); this pass gives them their NAME.
+ *  and every root bar within the tree's reach of an unknown one is withheld
+ *  (`maxLookback` is a tree sum — C12s's argument). A recurrence under `tf` /
+ *  `sym` reads other bars: the whole tree is withheld.
+ *
+ *  Named `var-origin:window` when every bar is withheld, else `var-origin:bars`.
+ *
+ *  ⛔ Asked only of a document whose recurrences are Pine `var` state
+ *  (`opts.varOriginAbsolute === true`, `nativeRegistry.varOriginAbsoluteFor`):
+ *  a formula's own `accum(…, W)` IS a `W`-bar window by its declared sentence.
+ *  From the listing the listing pass carries the seed from Pine's own bar 0 and
+ *  nothing here applies. ⚠️ The probe kind is a measurement of the window, not a
+ *  proof over every seed: a state TradingView held before the loaded bars that
+ *  never occurs inside them is not among the probes. The held and switched kinds
+ *  are exact. */
+export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
+  if (!opts || opts.varOriginAbsolute !== true || opts.historyFromListing === true) return null
+  const n = Array.isArray(bars) ? bars.length : 0
+  const found = []
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'call' && own(RECURRENCES, node.name) && Array.isArray(node.args)) {
+      const rec = RECURRENCES[node.name]
+      const seed = node.args[rec.seed]
+      const body = node.args[rec.body]
+      if (switchedSeedOf(seed)) found.push({ node, under, kind: 'switched' })
+      else if (bodyHoldsSeed(body, rec.binds)) {
+        const bare = !!body && body.type === 'series' && body.name === rec.binds
+        if (!(bare && seedBarInvariant(seed, inputs))) found.push({ node, under, kind: bare ? 'held' : 'probe' })
+      }
+    }
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
+  }
+  if (!found.length) return null
+  if (found.some((f) => f.under || f.kind === 'held')) {
+    nameChartClock(opts, ['var-origin:window'], opts.tf)
+    return new Float64Array(n).fill(1)
+  }
+  // ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself.
+  // ⭐ THE PASS'S OWN MEMO, NOT A FRESH ONE: the real run and every seeded run share
+  // the subtrees the tree's own pass already computed (a seeded node is a new object,
+  // so it never answers for the real one), and a switched node's two probes are the
+  // very runs `switchedDependencyMask` made (`probeMemo`). Without it this mask
+  // doubled the cost of a SuperTrend off the listing (`switchedServedScripts.test.js`).
+  const inner = { ...opts, probeBase: undefined, chartClockSink: undefined }
+  const run = (node, extra) => toColumn(interpretOnce(node, bars, inputs, budget, scalars,
+    extra ? { ...inner, ...extra } : inner), n)
+  const rootReach = maxLookback(tree)
+  const mask = new Float64Array(n)
+  let any = false
+  for (const { node, kind } of found) {
+    const reach = Math.max(0, rootReach - maxLookback(node))
+    let unknown
+    if (kind === 'switched') {
+      const hi = run(node, { prefixProbe: PREFIX_PROBE, crossMemo: probeMemo(opts, PREFIX_PROBE) })
+      const lo = run(node, { prefixProbe: -PREFIX_PROBE, crossMemo: probeMemo(opts, -PREFIX_PROBE) })
+      unknown = (i) => !(hi[i] === lo[i] || (hi[i] !== hi[i] && lo[i] !== lo[i]))
+    } else {
+      const at = RECURRENCES[node.name].seed
+      const seeded = (p) => ({ ...node, args: node.args.map((a, k) => (k === at ? { type: 'num', value: p } : a)) })
+      const real = run(node)
+      const [seeds, spread] = probeSeedsOf(real)
+      const runs = seeds.map((p) => run(seeded(p)))
+      unknown = (i) => runs.some((r) => !seedRunsAgree(real[i], r[i], spread))
+    }
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (unknown(i)) last = i
+      if (i - last <= reach) { mask[i] = 1; any = true }
+    }
+  }
+  if (!any) return null
+  nameChartClock(opts, [mask.every((m) => m === 1) ? 'var-origin:window' : 'var-origin:bars'], opts.tf)
+  return mask
+}
+
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30), `historyReadMask` (C38) or `barIndexMask` (C45), one
- *  channel. */
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45) or
+ *  `varOriginMask` (2026-11-09), one channel. */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
+    varOriginMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))

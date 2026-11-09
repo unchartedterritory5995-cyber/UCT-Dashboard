@@ -89,17 +89,47 @@ const PINE = {
   'close[index % 4]': [['plot(close[bar_index % 4])'], 'dep', 0],
   'an index as a truth value': [['plot(bar_index ? 1 : 0)'], 'dep', 0],
 }
+/** ⭐⭐ 2026-11-09 — what else depends on where the series starts: `barstate.isfirst`
+ *  (the threshold `bar_index < 1`) and a `var` carried from the first bar
+ *  (`interpret.js::varOriginMask`). name → [lines of Pine, class, thresholds, inputs?] */
+export const ORIGIN = {
+  isfirst: [['plot(barstate.isfirst ? 1 : 0)'], 'inv', 1],
+  'barssince(isfirst)': [['plot(ta.barssince(barstate.isfirst))'], 'inv', 1],
+  'isfirst picks a source': [['plot(barstate.isfirst ? close : close[1])'], 'inv', 1],
+  'var first time': [['var int t0 = time', 'plot(t0 / 86400000)'], 'inv', 0],
+  'var first close, as a ratio': [['var float c0 = close', 'plot(close / c0)'], 'inv', 0],
+  'var seeded by an input': [['len = input.int(14)', 'var int k = len * 2', 'plot(close * 0 + k)'], 'inv', 0, { len: 14 }],
+  'var set on a rare bar': [['var float lv = 0.0', 'if close < 94', '    lv := low', 'plot(lv)'], 'inv', 0],
+  'var set on a rare bar, seeded na': [['var float lv = na', 'if close < 94', '    lv := low', 'plot(lv)'], 'inv', 0],
+  'var set on a frequent bar': [['var float lh = 0.0', 'if close > open', '    lh := high', 'plot(lh)'], 'inv', 0],
+  'an ema by hand': [['var float e = na', 'e := na(e[1]) ? close : 0.9 * e[1] + 0.1 * close', 'plot(e)'], 'inv', 0],
+  'a bar counter': [['var int n = 0', 'n += 1', 'plot(n)'], 'inv', 0],
+  'a run-length counter': [['var int r = 0', 'r := close > open ? r + 1 : 0', 'plot(r)'], 'inv', 0],
+  // a two-state machine (a SuperTrend direction): every window from either state meets a flip
+  'a direction that flips': [['var int dir = 1',
+    'dir := dir == 1 and close < open - 1 ? -1 : dir == -1 and close > open + 1 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+}
+const linesOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) ? ORIGIN[key] : PINE[key])[0]
+const inputsOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) && ORIGIN[key][3]) || {}
 const treeOf = (key) => {
-  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${PINE[key][0].join('\n')}\n`, { strict: true })
+  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${linesOf(key).join('\n')}\n`, { strict: true })
   if (!t.ok) throw new Error(`${key}: ${t.refusal && t.refusal.message}`)
   return t.outputs[t.selected].ast
 }
 
 const PINE_DOC = { tf: 'D', barIndexAbsolute: true }
+const VAR_DOC = { ...PINE_DOC, varOriginAbsolute: true }
 /** [name, tree key, opts] — the Pine document off the listing, on it, and a
  *  formula-language document (no claim about TradingView's index). */
 const CASES = [
   ...Object.keys(PINE).map((k) => [`${k} · off the listing`, k, PINE_DOC]),
+  // ⭐⭐ 2026-11-09 — a Pine document states BOTH facts (`nativeRegistry.barIndexAbsoluteFor`,
+  // `varOriginAbsoluteFor`); the listing and the formula language are the controls.
+  ...Object.keys(ORIGIN).map((k) => [`${k} · var origin · off the listing`, k, VAR_DOC]),
+  ...['isfirst', 'var first time', 'var set on a rare bar', 'a bar counter']
+    .map((k) => [`${k} · var origin · from the listing`, k, { ...VAR_DOC, historyFromListing: true }]),
+  ...['var first time', 'var set on a rare bar', 'a bar counter']
+    .map((k) => [`${k} · var origin · the formula language's own accum`, k, { tf: 'D' }]),
   ...['index', 'index % 3', 'index > 50', 'index * close', 'a threshold under ta.cum']
     .map((k) => [`${k} · from the listing`, k, { ...PINE_DOC, historyFromListing: true }]),
   ...['index', 'index % 3', 'index > 50'].map((k) => [`${k} · the formula language's own barindex`, k, { tf: 'D' }]),
@@ -108,9 +138,9 @@ const CASES = [
     .map((k) => [`${k} · as a position`, k, { ...PINE_DOC, barIndexUse: 'position' }]),
 ]
 
-function evaluate(ast, opts) {
+function evaluate(ast, opts, inputs = {}) {
   const sink = new Map()
-  const col = Array.from(interpret(ast, BARS, {}, undefined, undefined, { ...(opts || {}), chartClockSink: sink }))
+  const col = Array.from(interpret(ast, BARS, inputs, undefined, undefined, { ...(opts || {}), chartClockSink: sink }))
     .map((x) => (Number.isNaN(x) ? null : x))
   return { expected: col, codes: [...sink.keys()].sort() }
 }
@@ -122,12 +152,16 @@ if (WRITE) {
       + 'that file and by tests/test_ast_bar_index_shift_parity.py. `cls` / `thresholds` are '
       + 'barIndexShift.js::barIndexVerdict; `expected` is the JS lane\'s own interpret output under `opts` '
       + '(null = withheld / not computable); `codes` are the withholding codes the mask named.',
-    pine: Object.fromEntries(Object.entries(PINE).map(([k, v]) => [k, v[0]])),
+    pine: Object.fromEntries([...Object.entries(PINE), ...Object.entries(ORIGIN)].map(([k, v]) => [k, v[0]])),
     bars: BARS,
     cases: CASES.map(([name, key, opts]) => {
       const ast = treeOf(key)
       const v = barIndexVerdict(ast)
-      return { name, pine: key, opts, ast, cls: v.cls, thresholds: v.thresholds.length, ...evaluate(ast, opts) }
+      // ⭐ 2026-11-09 — a `var` FROM THE LISTING is the listing pass (C12w), which only this lane
+      // runs: no server lane is ever handed bars it can prove start at the listing.
+      const jsOnly = opts.historyFromListing === true && name.includes(' · var origin · ')
+      return { name, pine: key, opts, inputs: inputsOf(key), ast, cls: v.cls, thresholds: v.thresholds.length,
+        ...(jsOnly ? { jsOnly: true } : {}), ...evaluate(ast, opts, inputsOf(key)) }
     }),
   }
   writeFileSync(FIXTURE, `${JSON.stringify(doc)}\n`)
@@ -238,7 +272,7 @@ describe('C45 · parity with the Python lane — one fixture, both lanes', () =>
     const v = barIndexVerdict(c.ast)
     expect(v.cls).toBe(c.cls)
     expect(v.thresholds.length).toBe(c.thresholds)
-    const got = evaluate(c.ast, c.opts)
+    const got = evaluate(c.ast, c.opts, c.inputs)
     expect(got.expected).toEqual(c.expected)
     expect(got.codes).toEqual(c.codes)
   })

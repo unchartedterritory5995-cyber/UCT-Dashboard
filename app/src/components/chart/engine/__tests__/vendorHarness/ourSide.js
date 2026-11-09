@@ -911,9 +911,13 @@ function runOurSideOnTheParityClock(capture) {
     const withheldWhole = new Map()
     if (clockReport) {
       for (const r of clockReport.withheld) {
-        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+        const what = r.code.startsWith('bar-index:') ? '`bar_index`'
+          : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
         notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
-        if (r.code === 'bar-index:window') for (const key of r.plots) withheldWhole.set(key, r.code)
+        // ⭐ 2026-11-09 — and a `var` that began before the loaded bars (`var-origin:window`)
+        if (r.code === 'bar-index:window' || r.code === 'var-origin:window') {
+          for (const key of r.plots) if (!withheldWhole.has(key)) withheldWhole.set(key, r.code)
+        }
       }
     }
 

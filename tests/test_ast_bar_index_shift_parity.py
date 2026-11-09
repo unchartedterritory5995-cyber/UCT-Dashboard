@@ -40,11 +40,14 @@ def _doc() -> dict:
 def _run(case: dict, doc: dict):
     sink: dict = {}
     opts = dict(case.get("opts") or {}, chartClockSink=sink)
-    return ai.interpret(case["ast"], doc["bars"], {}, opts=opts), sorted(sink)
+    return ai.interpret(case["ast"], doc["bars"], case.get("inputs") or {}, opts=opts), sorted(sink)
 
 
 @pytest.mark.parametrize("case", _doc()["cases"], ids=lambda c: c["name"])
 def test_the_python_lane_reproduces_the_js_lane(case):
+    if case.get("jsOnly"):
+        # a `var` from the listing is the JS listing pass (C12w); no server lane holds a listing
+        pytest.skip("JS-only: the listing pass")
     doc = _doc()
     verdict = ai.bar_index_verdict(case["ast"])
     assert verdict["cls"] == case["cls"], case["name"]

@@ -53,6 +53,33 @@ import { RECURRENCES } from './parse.js'
 /** The clock leaves that count bars from the first one held. */
 export const BAR_INDEX_LEAVES = Object.freeze(['barindex', 'lastbarindex'])
 
+/** ⭐⭐ 2026-11-09 — `barstate.isfirst`: true on the first bar of the symbol's
+ *  HISTORY on TradingView (Pine's reference: "true if current bar is first bar in
+ *  barset"; the barset is TradingView's loaded history, NOT this chart's window —
+ *  measured: `vw-bar-origin-spy-1d-300-2026-10-02` reads it false on the 300-bar
+ *  window's first bar, 0 of 300 true). So it IS `bar_index < 1`, and the pass
+ *  lists the leaf as exactly that THRESHOLD (`FIRST_BAR_TEST`): known false on
+ *  every bar after this chart's first, unknown on that one. It is never an index
+ *  (`BAR_INDEX_LEAVES`). The Python twin is `ast_bar_index_shift.FIRST_BAR_LEAVES`. */
+export const FIRST_BAR_LEAVES = Object.freeze(['isfirst'])
+/** The comparison an `isfirst` leaf stands for, read by `interpret.js::barIndexMask`. */
+export const FIRST_BAR_TEST = Object.freeze({ type: 'op', name: '<',
+  args: Object.freeze([Object.freeze({ type: 'series', name: 'barindex' }), Object.freeze({ type: 'num', value: 1 })]) })
+
+/** Does this tree read `isfirst`? Iterative. */
+export function readsFirstBar(tree) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'series' && FIRST_BAR_LEAVES.includes(n.name)) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
 /** Does this tree read a bar-index leaf at all? Iterative: it is asked of every
  *  tree, including ones too deep to recurse into. */
 export function readsBarIndex(tree) {
@@ -251,7 +278,7 @@ export function barIndexClass(tree) {
  * @returns {{cls: 'inv' | 'pos' | 'dep', thresholds: Array<{node: object, sign: number}>}}
  */
 export function barIndexVerdict(tree) {
-  if (!readsBarIndex(tree)) return { cls: 'inv', thresholds: NO_THRESHOLDS }
+  if (!readsBarIndex(tree) && !readsFirstBar(tree)) return { cls: 'inv', thresholds: NO_THRESHOLDS }
   const thresholds = []
   const A = makeAlgebra()
   const NA = { na: true }
@@ -289,6 +316,10 @@ export function barIndexVerdict(tree) {
         return fixed(n)
       case 'series':
         if (self && self.name === n.name) return self.sym
+        // ⭐ 2026-11-09 — `isfirst` is the threshold `bar_index < 1` (`FIRST_BAR_TEST`)
+        if (FIRST_BAR_LEAVES.includes(n.name) && !thresholds.some((t) => t.node === n)) {
+          thresholds.push({ node: n, sign: 1 })
+        }
         return BAR_INDEX_LEAVES.includes(n.name) ? lin(A.atom(n), A.constant(1)) : fixed(n)
       case 'offset': {
         const x = sub(args[0])
