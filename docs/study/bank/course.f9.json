@@ -1,0 +1,1772 @@
+[
+ {
+  "answer_json": {
+   "answer": "Where your stop goes"
+  },
+  "difficulty": 1,
+  "id": "si_1f81b36312c2",
+  "lesson_origin": "session",
+  "lesson_text": "Where your stop goes. The distance from entry to stop is your risk per share, and the size comes out of that. Size goes last. Stop first, distance second, size last.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "Where your stop goes",
+    "Your profit target",
+    "A size that feels right"
+   ],
+   "kind": "mcq",
+   "q": "You like a setup. Before you decide how many shares to buy, what do you need?",
+   "subject": "F9.02#q01"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "The biggest mistake is to decide on your position size first without calculating the space between entry and stop.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Identify the setup Determine where your trade thesis fails (this is where you place your stop-loss) Measure the distance to invalidation Size your position LAST",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "The investor must then determine where to place their stop-loss order for the specific trade. For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ],
+    "summary": "Choosing a size before measuring entry to stop is the biggest sizing mistake. The order: find the setup, put the stop where the idea fails, measure the distance, and size last. Risk per share is the dollar distance from your entry to your stop."
+   },
+   "facts": {
+    "given": "You like a setup. Before you decide how many shares to buy, what do you need? Where your stop goes Your profit target A size that feels right"
+   },
+   "lesson_line": "Stop first, distance second, size last.",
+   "unit": "F9.02",
+   "why": "Where your stop goes. The distance from entry to stop is your risk per share, and the size comes out of that. Size goes last.",
+   "wrong": {
+    "A size that feels right": "That's the mistake StockCharts calls the biggest one: picking a size before measuring entry to stop.",
+    "Your profit target": "A target helps you judge the trade, but it plays no part in the size math."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q01",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_da34fa6850e7",
+  "lesson_origin": "session",
+  "lesson_text": "True. Shares are your dollars at risk divided by the risk per share, and the risk per share is entry minus stop. Same dollar risk, wider stop, fewer shares.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Once your dollar risk is set, the distance to your stop decides how many shares you buy.",
+   "subject": "F9.02#q02"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Divide your risk per trade by the risk per share, and it'll give you the number of shares to buy",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "Shares to buy are the dollars you will risk divided by the risk per share. Shares equal the risk per trade divided by the risk per share."
+   },
+   "facts": {
+    "given": "Once your dollar risk is set, the distance to your stop decides how many shares you buy."
+   },
+   "lesson_line": "Same dollar risk, wider stop, fewer shares.",
+   "unit": "F9.02",
+   "why": "True. Shares are your dollars at risk divided by the risk per share, and the risk per share is entry minus stop."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q02",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "stop"
+  },
+  "difficulty": 1,
+  "id": "si_95c23def2097",
+  "lesson_origin": "session",
+  "lesson_text": "Stop. Trade risk is the dollar difference between the entry price and the stop. That's your planned loss per share if you're wrong. Entry minus stop is what each share can cost you.",
+  "module": "F9",
+  "prompt_json": {
+   "bank": [
+    "stop",
+    "target",
+    "high",
+    "close"
+   ],
+   "kind": "fill",
+   "q": "Finish the rule.",
+   "sentence": "Your risk per share is the distance from your entry to your ___.",
+   "subject": "F9.02#q03"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "The investor must then determine where to place their stop-loss order for the specific trade. For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "Risk per share is the dollar distance from your entry to your stop. Schwab's worked example: $750 at risk divided by $10 of risk per share."
+   },
+   "facts": {
+    "given": "Finish the rule. Your risk per share is the distance from your entry to your ___."
+   },
+   "lesson_line": "Entry minus stop is what each share can cost you.",
+   "unit": "F9.02",
+   "why": "Stop. Trade risk is the dollar difference between the entry price and the stop. That's your planned loss per share if you're wrong."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q03",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 1,
+  "id": "si_7f127a57f868",
+  "lesson_origin": "session",
+  "lesson_text": "False. Risk is what you lose if the stop is hit, not what you put in. Schwab's example risks 0.5% with about 3.4% of the account in the stock. Risk % and position % are two different numbers.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Risking 1% of your account means the position can only be 1% of your account.",
+   "subject": "F9.02#q04"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "For a general rule, some traders may risk up to 1%–2% of their account on a single trade and allocate up to 5%–10% of their portfolio in any single position.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "A more active trader may decide they only want to risk 0.5% of their portfolio, or $750 per trade",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "If they purchase 75 shares, for a total purchase price of $5,025, they'd be allocating about 3.4% of their total account value.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "because that distance determines the amount of money they allocate to a single position",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "Risk per trade and position size are two separate limits: a small percent at risk, a bigger percent in the stock. The risk budget is set first, as a percent of the account. Risking 0.5% put about 3.4% of the account in the stock: risk and position size are different numbers. The entry-to-stop distance, not the risk percent alone, sets how much money goes into the position."
+   },
+   "facts": {
+    "given": "Risking 1% of your account means the position can only be 1% of your account."
+   },
+   "lesson_line": "Risk % and position % are two different numbers.",
+   "unit": "F9.02",
+   "why": "False. Risk is what you lose if the stop is hit, not what you put in. Schwab's example risks 0.5% with about 3.4% of the account in the stock."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q04",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Dollars at risk ÷ risk per share"
+  },
+  "difficulty": 1,
+  "id": "si_68c299842798",
+  "lesson_origin": "session",
+  "lesson_text": "Dollars at risk ÷ risk per share. Investopedia's example: $500 at risk over $20 of risk per share is 25 shares. Dollars at risk divided by risk per share. That's the whole formula.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "Dollars at risk ÷ risk per share",
+    "Account size ÷ share price",
+    "Dollars at risk ÷ share price",
+    "Risk per share ÷ dollars at risk"
+   ],
+   "kind": "mcq",
+   "q": "Which of these gives you the number of shares to buy?",
+   "subject": "F9.02#q05"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Divide your risk per trade by the risk per share, and it'll give you the number of shares to buy",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "Shares to buy are the dollars you will risk divided by the risk per share. Shares equal the risk per trade divided by the risk per share."
+   },
+   "facts": {
+    "given": "Which of these gives you the number of shares to buy? Dollars at risk ÷ risk per share Account size ÷ share price Dollars at risk ÷ share price Risk per share ÷ dollars at risk"
+   },
+   "lesson_line": "Dollars at risk divided by risk per share. That's the whole formula.",
+   "unit": "F9.02",
+   "why": "Dollars at risk ÷ risk per share. Investopedia's example: $500 at risk over $20 of risk per share is 25 shares.",
+   "wrong": {
+    "Account size ÷ share price": "That buys everything you can afford. It ignores the stop, so your risk is whatever happens.",
+    "Dollars at risk ÷ share price": "That puts only your risk amount into the stock, as if a stop-out meant it went to zero.",
+    "Risk per share ÷ dollars at risk": "That's upside down. It gives you a fraction of a share."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q05",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "200",
+    "200.0",
+    "200.00"
+   ],
+   "answer": 200.0
+  },
+  "difficulty": 1,
+  "id": "si_272b8e23fd07",
+  "lesson_origin": "session",
+  "lesson_text": "200 shares. $300 divided by $1.50 of risk per share. Dollars at risk over risk per share. Nothing else goes in.",
+  "module": "F9",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "You'll risk $300 on this trade. Your stop is $1.50 below your entry. How many shares do you buy?",
+   "subject": "F9.02#q06",
+   "suffix": "shares"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "Shares to buy are the dollars you will risk divided by the risk per share. Schwab's worked example: $750 at risk divided by $10 of risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "risk / per_share",
+      "per_share": 1.5,
+      "risk": 300
+     },
+     "fn": "arith",
+     "result": 200.0
+    },
+    "given": "You'll risk $300 on this trade. Your stop is $1.50 below your entry. How many shares do you buy?"
+   },
+   "lesson_line": "Dollars at risk over risk per share. Nothing else goes in.",
+   "unit": "F9.02",
+   "why": "200 shares. $300 divided by $1.50 of risk per share."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q06",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_e7c74d0e1225",
+  "lesson_origin": "session",
+  "lesson_text": "True. The stop goes where your trade thesis fails. A bigger loss per share just means fewer shares, so the dollar loss still fits. The chart picks the stop. You pick the size.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Your stop belongs where the trade idea is proven wrong, even if that makes the loss per share bigger.",
+   "subject": "F9.02#q07"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Identify the setup Determine where your trade thesis fails (this is where you place your stop-loss) Measure the distance to invalidation Size your position LAST",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, place your stops where you think they'll work. Just adjust your position.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ],
+    "summary": "The order: find the setup, put the stop where the idea fails, measure the distance, and size last. Put the stop where it belongs and change the size instead. Shares to buy are the dollars you will risk divided by the risk per share."
+   },
+   "facts": {
+    "given": "Your stop belongs where the trade idea is proven wrong, even if that makes the loss per share bigger."
+   },
+   "lesson_line": "The chart picks the stop. You pick the size.",
+   "unit": "F9.02",
+   "why": "True. The stop goes where your trade thesis fails. A bigger loss per share just means fewer shares, so the dollar loss still fits."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q07",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The low of the day or prior day's low"
+  },
+  "difficulty": 1,
+  "id": "si_3d9a16503ef4",
+  "lesson_origin": "session",
+  "lesson_text": "The low of the day, or the prior day's low. That's our default stop, read off the chart before you size. Our default stop: today's low, or yesterday's low.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "The low of the day or prior day's low",
+    "A flat 10% under your entry",
+    "Where it fits the size you want"
+   ],
+   "kind": "mcq",
+   "q": "What is our default stop on a new long trade?",
+   "subject": "F9.02#q08"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 2: Stop first (owner's answer)",
+      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#2-stop-first"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Identify the setup Determine where your trade thesis fails (this is where you place your stop-loss) Measure the distance to invalidation Size your position LAST",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "Our default stop is the low of the day or the prior day's low. The order: find the setup, put the stop where the idea fails, measure the distance, and size last."
+   },
+   "facts": {
+    "given": "What is our default stop on a new long trade? The low of the day or prior day's low A flat 10% under your entry Where it fits the size you want"
+   },
+   "lesson_line": "Our default stop: today's low, or yesterday's low.",
+   "unit": "F9.02",
+   "why": "The low of the day, or the prior day's low. That's our default stop, read off the chart before you size.",
+   "wrong": {
+    "A flat 10% under your entry": "A flat percent ignores the chart. Our default is tied to a real low the stock just made.",
+    "Where it fits the size you want": "That's back to front. The stop comes first, and the size comes from it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q08",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "160",
+    "160.0",
+    "160.00"
+   ],
+   "answer": 160.0
+  },
+  "difficulty": 2,
+  "id": "si_0289cc1def9c",
+  "lesson_origin": "session",
+  "lesson_text": "160 shares. Take 1% of $40,000, then divide by the distance from $50 to $47.50. Account times risk %, then divide by entry minus stop.",
+  "module": "F9",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Account $40,000, risking 1%. Entry $50, stop $47.50. How many shares?",
+   "subject": "F9.02#q09",
+   "suffix": "shares"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "For example, if an investor has a $25,000 account and sets their maximum account risk to 2%, they cannot risk more than $500 per trade (2% x $25,000).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "Your dollar risk is the account size times the risk percent. Shares to buy are the dollars you will risk divided by the risk per share. Schwab's worked example: $750 at risk divided by $10 of risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "account": 40000,
+      "entry": 50,
+      "risk_pct": 1,
+      "stop": 47.5
+     },
+     "fn": "shares_from_risk",
+     "result": 160.0
+    },
+    "given": "Account $40,000, risking 1%. Entry $50, stop $47.50. How many shares?"
+   },
+   "lesson_line": "Account times risk %, then divide by entry minus stop.",
+   "unit": "F9.02",
+   "why": "160 shares. Take 1% of $40,000, then divide by the distance from $50 to $47.50."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q09",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "20",
+    "20.0",
+    "20.00"
+   ],
+   "answer": 20.0
+  },
+  "difficulty": 2,
+  "id": "si_a423893d3fe7",
+  "lesson_origin": "session",
+  "lesson_text": "20%. Position % is risk % divided by stop %, so 1% over 5%. Position % equals risk % divided by stop distance %.",
+  "module": "F9",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "You risk 1% of the account. Your stop is 5% below entry. What percent of the account goes into the stock?",
+   "subject": "F9.02#q10",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 3: Size from the stop (owner quoted)",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "In the owner's words: a 50% position with a 1% stop risks 0.5% of the account. Shares to buy are the dollars you will risk divided by the risk per share. Schwab's worked example: $750 at risk divided by $10 of risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "risk_pct / stop_pct * 100",
+      "risk_pct": 1,
+      "stop_pct": 5
+     },
+     "fn": "arith",
+     "result": 20.0
+    },
+    "given": "You risk 1% of the account. Your stop is 5% below entry. What percent of the account goes into the stock?"
+   },
+   "lesson_line": "Position % equals risk % divided by stop distance %.",
+   "unit": "F9.02",
+   "why": "20%. Position % is risk % divided by stop %, so 1% over 5%."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q10",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "1",
+    "1.0",
+    "1.00"
+   ],
+   "answer": 1.0
+  },
+  "difficulty": 2,
+  "id": "si_7396a5fa5fec",
+  "lesson_origin": "session",
+  "lesson_text": "1%. Size times stop distance: a 4% drop on 25% of the account. Size times stop distance is your real risk.",
+  "module": "F9",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Your position is 25% of the account. The stop is 4% below entry. What percent of the account is at risk?",
+   "subject": "F9.02#q11",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 3: Size from the stop (owner quoted)",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "If they purchase 75 shares, for a total purchase price of $5,025, they'd be allocating about 3.4% of their total account value.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "A more active trader may decide they only want to risk 0.5% of their portfolio, or $750 per trade",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "In the owner's words: a 50% position with a 1% stop risks 0.5% of the account. Risking 0.5% put about 3.4% of the account in the stock: risk and position size are different numbers. The risk budget is set first, as a percent of the account."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "position_pct * stop_pct / 100",
+      "position_pct": 25,
+      "stop_pct": 4
+     },
+     "fn": "arith",
+     "result": 1.0
+    },
+    "given": "Your position is 25% of the account. The stop is 4% below entry. What percent of the account is at risk?"
+   },
+   "lesson_line": "Size times stop distance is your real risk.",
+   "unit": "F9.02",
+   "why": "1%. Size times stop distance: a 4% drop on 25% of the account."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q11",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "150 shares"
+  },
+  "difficulty": 2,
+  "id": "si_d4da109ffa81",
+  "lesson_origin": "session",
+  "lesson_text": "150 shares. $300 divided by $2 a share. The stop went where the chart says, so the size came down. Move the size, never the stop.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "150 shares",
+    "300 shares, stop $1 under",
+    "300 shares, stop $2 under",
+    "600 shares"
+   ],
+   "kind": "mcq",
+   "q": "What's the right size now?",
+   "story": "You'll risk $300. You planned 300 shares with a stop $1 under entry. The chart says the real stop is $2 under.",
+   "subject": "F9.02#q12"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, place your stops where you think they'll work. Just adjust your position.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Identify the setup Determine where your trade thesis fails (this is where you place your stop-loss) Measure the distance to invalidation Size your position LAST",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ],
+    "summary": "Put the stop where it belongs and change the size instead. The order: find the setup, put the stop where the idea fails, measure the distance, and size last. Shares to buy are the dollars you will risk divided by the risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "risk / per_share",
+      "per_share": 2,
+      "risk": 300
+     },
+     "fn": "arith",
+     "result": 150.0
+    },
+    "given": "What's the right size now? You'll risk $300. You planned 300 shares with a stop $1 under entry. The chart says the real stop is $2 under. 150 shares 300 shares, stop $1 under 300 shares, stop $2 under 600 shares"
+   },
+   "lesson_line": "Move the size, never the stop.",
+   "unit": "F9.02",
+   "why": "150 shares. $300 divided by $2 a share. The stop went where the chart says, so the size came down.",
+   "wrong": {
+    "300 shares, stop $1 under": "That squeezes the stop to keep the size. The chart says the idea isn't wrong until $2 under.",
+    "300 shares, stop $2 under": "Right stop, wrong size. That doubles the risk you planned.",
+    "600 shares": "Backwards. A wider stop means fewer shares for the same risk."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q12",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_c023abe4ec1a",
+  "lesson_origin": "session",
+  "lesson_text": "True. A quick drop can trigger the stop, and the stock can bounce right back. Set stops too tight and you get stopped out a lot. Give the stop room for normal swings, then size for that distance.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A stop set inside a stock's normal daily swings can get hit even when your idea is right.",
+   "subject": "F9.02#q13"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Stop Orders: Factors to Consider During Volatile Markets",
+      "quote": "Rapid price movement during a short period of time could trigger a stop order. Due to market volatility, the stock might later rebound and resume trading at its prior price level.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+      "quote": "A stop order may be triggered by a short-term, intraday price move that results in an execution price for the stop order that is substantially worse than the stock's closing price for the day.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Keep your stops too tight, you'll get stopped out a lot.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "A quick drop can trigger a stop, and then the stock can bounce right back. A brief intraday swing can trigger a stop and fill far below where the stock closes. A stop set too tight for how much the market swings gets hit a lot."
+   },
+   "facts": {
+    "given": "A stop set inside a stock's normal daily swings can get hit even when your idea is right."
+   },
+   "lesson_line": "Give the stop room for normal swings, then size for that distance.",
+   "unit": "F9.02",
+   "why": "True. A quick drop can trigger the stop, and the stock can bounce right back. Set stops too tight and you get stopped out a lot."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q13",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "31 shares"
+  },
+  "difficulty": 2,
+  "id": "si_de40de99078d",
+  "lesson_origin": "session",
+  "lesson_text": "31 shares. 0.5% of $25,000, divided by the distance from $80 to $76, rounded down so you stay inside your risk. Round down. Rounding up spends risk you never planned.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "31 shares",
+    "62 shares",
+    "312 shares",
+    "1 share"
+   ],
+   "kind": "mcq",
+   "q": "How many shares?",
+   "story": "Account $25,000. You risk 0.5% on this one. Entry $80, stop $76.",
+   "subject": "F9.02#q14"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "For example, if an investor has a $25,000 account and sets their maximum account risk to 2%, they cannot risk more than $500 per trade (2% x $25,000).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "Your dollar risk is the account size times the risk percent. Shares to buy are the dollars you will risk divided by the risk per share. Schwab's worked example: $750 at risk divided by $10 of risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "account": 25000,
+      "entry": 80,
+      "risk_pct": 0.5,
+      "stop": 76
+     },
+     "fn": "shares_from_risk",
+     "result": 31.0
+    },
+    "given": "How many shares? Account $25,000. You risk 0.5% on this one. Entry $80, stop $76. 31 shares 62 shares 312 shares 1 share"
+   },
+   "lesson_line": "Round down. Rounding up spends risk you never planned.",
+   "unit": "F9.02",
+   "why": "31 shares. 0.5% of $25,000, divided by the distance from $80 to $76, rounded down so you stay inside your risk.",
+   "wrong": {
+    "1 share": "That divides your risk by the share price, as if a stop-out meant the stock went to zero.",
+    "312 shares": "That's all the account can buy. It ignores the stop completely.",
+    "62 shares": "That's double the risk you planned. Check the risk percent."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q14",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A's position is 4 times B's"
+  },
+  "difficulty": 2,
+  "id": "si_81c41c0bc472",
+  "lesson_origin": "session",
+  "lesson_text": "A's position is 4 times B's. Same risk, and A's stop is a quarter as far away, so A can hold 4 times as much. Stopped out at their stops, both lose about 0.5%. Equal risk, unequal sizes. The stop distance makes the difference.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "A's position is 4 times B's",
+    "B's position is 4 times A's",
+    "Both positions are the same size"
+   ],
+   "kind": "mcq",
+   "q": "Two trades each risk 0.5% of the account. A's stop is 2% away. B's stop is 8% away. How do the positions compare?",
+   "subject": "F9.02#q15"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, if your trade fails, you lose around 1%, or approximately $500.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 3: Size from the stop (owner quoted)",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
+     }
+    ],
+    "summary": "Shares to buy are the dollars you will risk divided by the risk per share. Sized from the stop, either stop choice loses about the same 1% if it fails. In the owner's words: a 50% position with a 1% stop risks 0.5% of the account."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "(risk_pct / stop_a) / (risk_pct / stop_b)",
+      "risk_pct": 0.5,
+      "stop_a": 2,
+      "stop_b": 8
+     },
+     "fn": "arith",
+     "result": 4.0
+    },
+    "given": "Two trades each risk 0.5% of the account. A's stop is 2% away. B's stop is 8% away. How do the positions compare? A's position is 4 times B's B's position is 4 times A's Both positions are the same size"
+   },
+   "lesson_line": "Equal risk, unequal sizes. The stop distance makes the difference.",
+   "unit": "F9.02",
+   "why": "A's position is 4 times B's. Same risk, and A's stop is a quarter as far away, so A can hold 4 times as much. Stopped out at their stops, both lose about 0.5%.",
+   "wrong": {
+    "B's position is 4 times A's": "Backwards. The wider stop gets the smaller position.",
+    "Both positions are the same size": "Only if the stops matched. Same risk with different stops means different sizes."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q15",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "smaller"
+  },
+  "difficulty": 2,
+  "id": "si_6e67befe940f",
+  "lesson_origin": "session",
+  "lesson_text": "Smaller. More risk per share means fewer shares for the same dollars at risk. A wide stop is fine when the size matches it. A wide honest stop is fine. It just means a smaller position.",
+  "module": "F9",
+  "prompt_json": {
+   "bank": [
+    "smaller",
+    "bigger",
+    "riskier",
+    "fixed"
+   ],
+   "kind": "fill",
+   "q": "Same stock, same dollar risk. Fill in the word.",
+   "sentence": "For the same dollar risk, a wider stop on the same stock means a ___ position.",
+   "subject": "F9.02#q16"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "But it's incredibly wide; around $38. Still, the distance doesn't matter as much as the position size.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ],
+    "summary": "A very wide honest stop works when the position is sized down to match. Shares to buy are the dollars you will risk divided by the risk per share."
+   },
+   "facts": {
+    "given": "Same stock, same dollar risk. Fill in the word. For the same dollar risk, a wider stop on the same stock means a ___ position."
+   },
+   "lesson_line": "A wide honest stop is fine. It just means a smaller position.",
+   "unit": "F9.02",
+   "why": "Smaller. More risk per share means fewer shares for the same dollars at risk. A wide stop is fine when the size matches it."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q16",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A gap can open well below your stop"
+  },
+  "difficulty": 3,
+  "id": "si_6eb5c63966cc",
+  "lesson_origin": "session",
+  "lesson_text": "A gap can open well below your stop. A triggered stop becomes a market order, and the fill can be far from your stop price. With half the account in, that hurts. A tight stop is no license for a giant position. A stop can't catch a gap.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "A gap can open well below your stop",
+    "None, the risk is still 0.5%",
+    "The risk is really 1%, not 0.5%"
+   ],
+   "kind": "mcq",
+   "q": "What's the catch?",
+   "story": "Your stop is only 1% under entry, so you buy a 50% position. On paper that's 0.5% risk. You hold it overnight.",
+   "subject": "F9.02#q17"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Stop Orders: Factors to Consider During Volatile Markets",
+      "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "Even with proper position sizing, investors can lose more than their intended risk amount if a security gaps beyond a stop-loss order.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: How Stop-Loss Orders Help Limit Investment Losses and Risk",
+      "quote": "If a stock's price gaps past the stop price, the order triggers, and the stock is sold (or bought) at the next available price, regardless of a sharp price move.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/s/stop-lossorder.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 3: Size from the stop (owner quoted)",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
+     }
+    ],
+    "summary": "Once triggered, a stop is a market order and can fill far from the stop price. A gap past your stop can cost more than the risk you planned. When price gaps through a stop, the order fills at the next available price, not at the stop. In the owner's words: a 50% position with a 1% stop risks 0.5% of the account."
+   },
+   "facts": {
+    "given": "What's the catch? Your stop is only 1% under entry, so you buy a 50% position. On paper that's 0.5% risk. You hold it overnight. A gap can open well below your stop None, the risk is still 0.5% The risk is really 1%, not 0.5%"
+   },
+   "lesson_line": "A tight stop is no license for a giant position. A stop can't catch a gap.",
+   "unit": "F9.02",
+   "why": "A gap can open well below your stop. A triggered stop becomes a market order, and the fill can be far from your stop price. With half the account in, that hurts.",
+   "wrong": {
+    "None, the risk is still 0.5%": "Only if you get filled at the stop. A gap past it costs more than the risk you planned.",
+    "The risk is really 1%, not 0.5%": "On paper it is 0.5%: half the account times a 1% stop. The danger is a gap past the stop on that much size."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q17",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "33",
+    "33.0",
+    "33.00"
+   ],
+   "answer": 33.0
+  },
+  "difficulty": 3,
+  "id": "si_39c68ee657c0",
+  "lesson_origin": "session",
+  "lesson_text": "33 shares. That's $500 at risk over the $86 to $71 distance, rounded down. If it fails, you lose about 1%. Pick the stop from support, then let the math set the shares.",
+  "module": "F9",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "StockCharts' MNST example: $50,000 account, 1% risk, entry $86, stop at support $71. How many shares?",
+   "subject": "F9.02#q18",
+   "suffix": "shares"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "You have $50,000 in your account and want to risk no more than 1%. That's $500.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Here's a real-world example using Monster Beverage Corp. (MNST). FIGURE 1. DAILY CHART OF MNST. Suppose you want to jump in now, at $86.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "If you choose the lower support level of $71",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, if your trade fails, you lose around 1%, or approximately $500.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ],
+    "summary": "In the StockCharts example, a $50,000 account risking 1% has $500 at risk. The StockCharts example buys MNST at $86. One stop choice in the MNST example is the lower support at $71. Sized from the stop, either stop choice loses about the same 1% if it fails. Shares to buy are the dollars you will risk divided by the risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "account": 50000,
+      "entry": 86,
+      "risk_pct": 1,
+      "stop": 71
+     },
+     "fn": "shares_from_risk",
+     "result": 33.0
+    },
+    "given": "StockCharts' MNST example: $50,000 account, 1% risk, entry $86, stop at support $71. How many shares?"
+   },
+   "lesson_line": "Pick the stop from support, then let the math set the shares.",
+   "unit": "F9.02",
+   "why": "33 shares. That's $500 at risk over the $86 to $71 distance, rounded down. If it fails, you lose about 1%."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q18",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "2.4% of the account"
+  },
+  "difficulty": 3,
+  "id": "si_801f8f571065",
+  "lesson_origin": "session",
+  "lesson_text": "2.4% of the account. Size times stop distance: an 8% drop on 30% of the account. That's more than double his 1%. Check risk from the size and the stop, not from the plan in your head.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "2.4% of the account",
+    "1% of the account",
+    "8% of the account",
+    "30% of the account"
+   ],
+   "kind": "mcq",
+   "q": "What is he really risking?",
+   "story": "A friend says he risks 1% a trade. He holds 30% of his account in one stock, with the stop 8% below.",
+   "subject": "F9.02#q19"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 3: Size from the stop (owner quoted)",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "If they purchase 75 shares, for a total purchase price of $5,025, they'd be allocating about 3.4% of their total account value.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "For a general rule, some traders may risk up to 1%–2% of their account on a single trade and allocate up to 5%–10% of their portfolio in any single position.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ],
+    "summary": "In the owner's words: a 50% position with a 1% stop risks 0.5% of the account. Risking 0.5% put about 3.4% of the account in the stock: risk and position size are different numbers. Risk per trade and position size are two separate limits: a small percent at risk, a bigger percent in the stock."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "position_pct * stop_pct / 100",
+      "position_pct": 30,
+      "stop_pct": 8
+     },
+     "fn": "arith",
+     "result": 2.4
+    },
+    "given": "What is he really risking? A friend says he risks 1% a trade. He holds 30% of his account in one stock, with the stop 8% below. 2.4% of the account 1% of the account 8% of the account 30% of the account"
+   },
+   "lesson_line": "Check risk from the size and the stop, not from the plan in your head.",
+   "unit": "F9.02",
+   "why": "2.4% of the account. Size times stop distance: an 8% drop on 30% of the account. That's more than double his 1%.",
+   "wrong": {
+    "1% of the account": "That's what he meant to risk. His size and stop say otherwise.",
+    "30% of the account": "That's what he has in the stock. He only loses all of it if the stock goes to zero.",
+    "8% of the account": "8% is how far the stock falls to the stop, not what the account loses."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q19",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "104",
+    "104.0",
+    "104.00"
+   ],
+   "answer": 104.0
+  },
+  "difficulty": 3,
+  "id": "si_6dbd880860a1",
+  "lesson_origin": "session",
+  "lesson_text": "104 shares. Take 0.75% of $60,000, divide by the distance from $125.40 to $121.10, and round down. Real prices are messy. Do the math and round down, so you stay inside your risk.",
+  "module": "F9",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at the day's low, $121.10. How many shares?",
+   "subject": "F9.02#q20",
+   "suffix": "shares"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 2: Stop first (owner's answer)",
+      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#2-stop-first"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "For example, if an investor has a $25,000 account and sets their maximum account risk to 2%, they cannot risk more than $500 per trade (2% x $25,000).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ],
+    "summary": "Our default stop is the low of the day or the prior day's low. Your dollar risk is the account size times the risk percent. Shares to buy are the dollars you will risk divided by the risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "account": 60000,
+      "entry": 125.4,
+      "risk_pct": 0.75,
+      "stop": 121.1
+     },
+     "fn": "shares_from_risk",
+     "result": 104.0
+    },
+    "given": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at the day's low, $121.10. How many shares?"
+   },
+   "lesson_line": "Real prices are messy. Do the math and round down, so you stay inside your risk.",
+   "unit": "F9.02",
+   "why": "104 shares. Take 0.75% of $60,000, divide by the distance from $125.40 to $121.10, and round down."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 3,
+  "id": "si_9f7218fcd788",
+  "lesson_origin": "session",
+  "lesson_text": "False. Put the stop where you think it will work and adjust the size. Squeeze it closer and a normal swing can stop you out. The chart sets the stop. Your size does the adjusting.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "If the honest stop is too far for the size you want, nudge the stop closer so the trade fits.",
+   "subject": "F9.02#q21"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, place your stops where you think they'll work. Just adjust your position.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Keep your stops too tight, you'll get stopped out a lot.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+      "quote": "Investors should carefully consider the risk of such short-term price fluctuations in deciding whether to use a stop order and in selecting the stop price for an order.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
+     }
+    ],
+    "summary": "Put the stop where it belongs and change the size instead. A stop set too tight for how much the market swings gets hit a lot. Pick the stop price with normal short-term swings in mind."
+   },
+   "facts": {
+    "given": "If the honest stop is too far for the size you want, nudge the stop closer so the trade fits."
+   },
+   "lesson_line": "The chart sets the stop. Your size does the adjusting.",
+   "unit": "F9.02",
+   "why": "False. Put the stop where you think it will work and adjust the size. Squeeze it closer and a normal swing can stop you out."
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q21",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "0 shares, so you pass"
+  },
+  "difficulty": 3,
+  "id": "si_1dad3fad2b66",
+  "lesson_origin": "session",
+  "lesson_text": "0 shares, so you pass. One share risks $25, more than your $20. The honest stop doesn't fit, so there is no trade. If the honest stop doesn't fit your risk, skip the trade. Never tighten the stop.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "0 shares, so you pass",
+    "1 share",
+    "1 share, stop $20 under",
+    "12 shares"
+   ],
+   "kind": "mcq",
+   "q": "How many whole shares fit your plan?",
+   "story": "Your account is $4,000 and you risk 0.5%, which is $20. The stock is $310. The honest stop is $25 under entry.",
+   "subject": "F9.02#q22"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, place your stops where you think they'll work. Just adjust your position.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Divide your risk per trade by the risk per share, and it'll give you the number of shares to buy",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "Put the stop where it belongs and change the size instead. Shares to buy are the dollars you will risk divided by the risk per share. Shares equal the risk per trade divided by the risk per share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "account": 4000,
+      "entry": 310,
+      "risk_pct": 0.5,
+      "stop": 285
+     },
+     "fn": "shares_from_risk",
+     "result": 0.0
+    },
+    "given": "How many whole shares fit your plan? Your account is $4,000 and you risk 0.5%, which is $20. The stock is $310. The honest stop is $25 under entry. 0 shares, so you pass 1 share 1 share, stop $20 under 12 shares"
+   },
+   "lesson_line": "If the honest stop doesn't fit your risk, skip the trade. Never tighten the stop.",
+   "unit": "F9.02",
+   "why": "0 shares, so you pass. One share risks $25, more than your $20. The honest stop doesn't fit, so there is no trade.",
+   "wrong": {
+    "1 share": "One share risks $25, more than your $20 plan. You round down, never up.",
+    "1 share, stop $20 under": "That's tightening the stop to make the trade fit. The honest stop is $25 under.",
+    "12 shares": "That's what $4,000 buys at $310. What you can afford isn't the test. The stop is."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q22",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "16.67% of the account"
+  },
+  "difficulty": 3,
+  "id": "si_cba8e0718c6c",
+  "lesson_origin": "session",
+  "lesson_text": "16.67% of the account. 1% risk over a 6% stop. Loving the setup doesn't move the place where it's wrong. Conviction never sets the size. The stop does.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "16.67% of the account",
+    "40%, with the stop moved to 2.5%",
+    "40%, with the stop at 6%",
+    "1% of the account"
+   ],
+   "kind": "mcq",
+   "q": "What's the right size?",
+   "story": "You love this setup. Your plan risks 1%, and the honest stop is 6% under entry. You want to put in 40%.",
+   "subject": "F9.02#q23"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Some of the worst losses occur when you allow conviction to override structure.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "In either case, place your stops where you think they'll work. Just adjust your position.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "The biggest mistake is to decide on your position size first without calculating the space between entry and stop.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     }
+    ],
+    "summary": "Big losses come from letting conviction override the chart's structure. Put the stop where it belongs and change the size instead. Choosing a size before measuring entry to stop is the biggest sizing mistake."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "risk_pct / stop_pct * 100",
+      "risk_pct": 1,
+      "stop_pct": 6
+     },
+     "fn": "arith",
+     "result": 16.67
+    },
+    "given": "What's the right size? You love this setup. Your plan risks 1%, and the honest stop is 6% under entry. You want to put in 40%. 16.67% of the account 40%, with the stop moved to 2.5% 40%, with the stop at 6% 1% of the account"
+   },
+   "lesson_line": "Conviction never sets the size. The stop does.",
+   "unit": "F9.02",
+   "why": "16.67% of the account. 1% risk over a 6% stop. Loving the setup doesn't move the place where it's wrong.",
+   "wrong": {
+    "1% of the account": "That's your risk, not your position. Size and risk are two different numbers.",
+    "40%, with the stop at 6%": "Right stop, but that size risks far more than your 1% plan.",
+    "40%, with the stop moved to 2.5%": "That's back-fitting the stop to the size you wanted. The idea isn't wrong at 2.5%. It's wrong at 6%."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q23",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Cut the size, a gap can skip the stop"
+  },
+  "difficulty": 3,
+  "id": "si_820b4e0c35db",
+  "lesson_origin": "session",
+  "lesson_text": "Cut the size. If the stock gaps below your stop, the order fills at the next price, not at your stop. Investopedia notes some traders halve size before earnings. Into earnings, your size is the real protection, not the stop.",
+  "module": "F9",
+  "prompt_json": {
+   "choices": [
+    "Cut the size, a gap can skip the stop",
+    "Hold, the stop caps the loss at 3%",
+    "Tighten the stop to 1.5%"
+   ],
+   "kind": "mcq",
+   "q": "What do you do before the close?",
+   "story": "Earnings come out tonight. You hold a full-size position with a stop 3% below the price.",
+   "subject": "F9.02#q24"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "If expecting volatility, like before earnings reports, investors might halve their position size to cut gap risk.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: How Stop-Loss Orders Help Limit Investment Losses and Risk",
+      "quote": "If a stock's price gaps past the stop price, the order triggers, and the stock is sold (or bought) at the next available price, regardless of a sharp price move.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/s/stop-lossorder.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Stop Orders: Factors to Consider During Volatile Markets",
+      "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
+     }
+    ],
+    "summary": "Before earnings, some traders cut the position in half to reduce gap risk. When price gaps through a stop, the order fills at the next available price, not at the stop. Once triggered, a stop is a market order and can fill far from the stop price."
+   },
+   "facts": {
+    "given": "What do you do before the close? Earnings come out tonight. You hold a full-size position with a stop 3% below the price. Cut the size, a gap can skip the stop Hold, the stop caps the loss at 3% Tighten the stop to 1.5%"
+   },
+   "lesson_line": "Into earnings, your size is the real protection, not the stop.",
+   "unit": "F9.02",
+   "why": "Cut the size. If the stock gaps below your stop, the order fills at the next price, not at your stop. Investopedia notes some traders halve size before earnings.",
+   "wrong": {
+    "Hold, the stop caps the loss at 3%": "It doesn't. A stop becomes a market order, and after a gap the fill can be far below it.",
+    "Tighten the stop to 1.5%": "A tighter stop does nothing against a gap. The open can land below both."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#q24",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_a5ee5eea4787",
+  "lesson_origin": "session",
+  "lesson_text": "Only then pick the size. Picking the size first is the mistake StockCharts calls the biggest.",
+  "module": "F9",
+  "prompt_json": {
+   "order": 1,
+   "part": 1,
+   "parts": 3,
+   "q": "Stop first",
+   "steps": [
+    "Find the price that proves the idea wrong. That's the honest stop, and you set it first.",
+    "Measure from your entry to that stop. That's what each share can cost you.",
+    "Only then pick the size. Picking the size first is the mistake StockCharts calls the biggest."
+   ],
+   "subject": "F9.02#w1"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Identify the setup Determine where your trade thesis fails (this is where you place your stop-loss) Measure the distance to invalidation Size your position LAST",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "The biggest mistake is to decide on your position size first without calculating the space between entry and stop.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "The investor must then determine where to place their stop-loss order for the specific trade. For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ]
+   },
+   "unit": "F9.02"
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#w1",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_252ea5bd8bed",
+  "lesson_origin": "session",
+  "lesson_text": "So risking 0.5% put about 3.4% in the stock. Risk and position size are different numbers.",
+  "module": "F9",
+  "prompt_json": {
+   "order": 2,
+   "part": 2,
+   "parts": 3,
+   "q": "The math, worked once",
+   "steps": [
+    "Schwab's example: buy at $67, stop at $57. That's $10 of risk per share.",
+    "The trader will risk 0.5% of the account, which is $750.",
+    "$750 divided by $10 is 75 shares. That's about 3.4% of the account.",
+    "So risking 0.5% put about 3.4% in the stock. Risk and position size are different numbers."
+   ],
+   "subject": "F9.02#w2"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "A more active trader may decide they only want to risk 0.5% of their portfolio, or $750 per trade",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "If they purchase 75 shares, for a total purchase price of $5,025, they'd be allocating about 3.4% of their total account value.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     }
+    ]
+   },
+   "unit": "F9.02"
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#w2",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_418a03dd8233",
+  "lesson_origin": "session",
+  "lesson_text": "That assumes you get out at the stop. A gap past it can cost more than you planned.",
+  "module": "F9",
+  "prompt_json": {
+   "order": 3,
+   "part": 3,
+   "parts": 3,
+   "q": "The same math in percents",
+   "steps": [
+    "Position % is your risk % divided by your stop distance %.",
+    "Here's how I put it: a 1% stop on a 50% size is 0.5% risk.",
+    "That assumes you get out at the stop. A gap past it can cost more than you planned."
+   ],
+   "subject": "F9.02#w3"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "UCT house rule: The house sizing rule, section 3: Size from the stop (owner quoted)",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
+      "quote": "Even with proper position sizing, investors can lose more than their intended risk amount if a security gaps beyond a stop-loss order.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     }
+    ]
+   },
+   "unit": "F9.02"
+  },
+  "review_status": "draft",
+  "skill_id": "risk.size_from_stop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F9/F9.02.json#w3",
+  "type": "walkthrough",
+  "version": 1
+ }
+]

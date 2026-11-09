@@ -9,7 +9,22 @@
         {
           "id": "F1",
           "title": "Market basics",
-          "units": []
+          "units": [
+            {
+              "id": "F1.03",
+              "title": "Bid, ask and the spread",
+              "skills": [
+                "basics.spread"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F1/F1.03.json"
+            }
+          ]
         },
         {
           "id": "F2",
@@ -134,7 +149,22 @@
         {
           "id": "F6",
           "title": "Options, beginner to advanced",
-          "units": []
+          "units": [
+            {
+              "id": "F6.03",
+              "title": "Intrinsic value and time value",
+              "skills": [
+                "options.value"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 31,
+              "course_file": "docs/study/courses/F6/F6.03.json"
+            }
+          ]
         },
         {
           "id": "F7",
@@ -149,7 +179,22 @@
         {
           "id": "F9",
           "title": "Account and risk basics",
-          "units": []
+          "units": [
+            {
+              "id": "F9.02",
+              "title": "Stop first, then size",
+              "skills": [
+                "risk.size_from_stop"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F9/F9.02.json"
+            }
+          ]
         },
         {
           "id": "F10",

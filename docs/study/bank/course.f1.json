@@ -1,0 +1,1506 @@
+[
+ {
+  "answer_json": {
+   "answer": "The most a buyer will pay now"
+  },
+  "difficulty": 1,
+  "id": "si_bfa5f599a1fd",
+  "lesson_origin": "session",
+  "lesson_text": "The most a buyer will pay now. The bid is the highest price a buyer is offering, for a stated number of shares. The bid is the buyer's side of the quote.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "The most a buyer will pay now",
+    "The least a seller will take now",
+    "The price of the last trade",
+    "The quote's midpoint price"
+   ],
+   "kind": "mcq",
+   "q": "On a quote, what does the bid tell you?",
+   "subject": "bid"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     }
+    ],
+    "summary": "The bid is the highest price a buyer will pay right now, for a stated number of shares. The ask is the lowest price a seller will take. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now."
+   },
+   "facts": {
+    "given": "On a quote, what does the bid tell you? The most a buyer will pay now The least a seller will take now The price of the last trade The quote's midpoint price"
+   },
+   "lesson_line": "The bid is the buyer's side of the quote.",
+   "unit": "F1.03",
+   "why": "The most a buyer will pay now. The bid is the highest price a buyer is offering, for a stated number of shares.",
+   "wrong": {
+    "The least a seller will take now": "That's the ask, the seller's side of the quote.",
+    "The price of the last trade": "That's the last. It already happened, and nobody has to repeat it.",
+    "The quote's midpoint price": "That's the midpoint, halfway between bid and ask. It's a reference, not anyone's order."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q01",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "ask"
+  },
+  "difficulty": 1,
+  "id": "si_92f391e399ae",
+  "lesson_origin": "session",
+  "lesson_text": "Ask. It's the seller's price, and it sits above the bid. Buyers bid, sellers ask. A market buy pays at or near the ask.",
+  "module": "F1",
+  "prompt_json": {
+   "bank": [
+    "bid",
+    "ask",
+    "last",
+    "spread",
+    "close"
+   ],
+   "kind": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The ___ is the lowest price a seller will take right now.",
+   "subject": "ask"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     }
+    ],
+    "summary": "The ask is the lowest price a seller will take. The bid sits below the ask, and the gap between them (ask minus bid) is the spread. A market buy fills at or near the ask; a market sell fills at or near the bid."
+   },
+   "facts": {
+    "given": "Tap the word that fits the blank. The ___ is the lowest price a seller will take right now."
+   },
+   "lesson_line": "Buyers bid, sellers ask. A market buy pays at or near the ask.",
+   "unit": "F1.03",
+   "why": "Ask. It's the seller's price, and it sits above the bid."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q02",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_6458e92912a1",
+  "lesson_origin": "session",
+  "lesson_text": "True. The bid sits below the ask, and the gap between them is the spread. Bid below, ask above, spread in between.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "On a normal quote, the bid is lower than the ask.",
+   "subject": "F1.03#q03"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     }
+    ],
+    "summary": "The bid sits below the ask, and the gap between them (ask minus bid) is the spread."
+   },
+   "facts": {
+    "given": "On a normal quote, the bid is lower than the ask."
+   },
+   "lesson_line": "Bid below, ask above, spread in between.",
+   "unit": "F1.03",
+   "why": "True. The bid sits below the ask, and the gap between them is the spread."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q03",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Ask minus bid"
+  },
+  "difficulty": 1,
+  "id": "si_a6ccbd15d49b",
+  "lesson_origin": "session",
+  "lesson_text": "Ask minus bid. It's the gap between what sellers want and what buyers offer. Spread is ask minus bid. Read it before you place the order.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "Ask minus bid",
+    "The day's high minus low",
+    "Today's change from yesterday"
+   ],
+   "kind": "mcq",
+   "q": "On a stock quote, what is the spread?",
+   "subject": "spread"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     }
+    ],
+    "summary": "The bid sits below the ask, and the gap between them (ask minus bid) is the spread."
+   },
+   "facts": {
+    "given": "On a stock quote, what is the spread? Ask minus bid The day's high minus low Today's change from yesterday"
+   },
+   "lesson_line": "Spread is ask minus bid. Read it before you place the order.",
+   "unit": "F1.03",
+   "why": "Ask minus bid. It's the gap between what sellers want and what buyers offer.",
+   "wrong": {
+    "The day's high minus low": "That's the day's range, how far price traveled today. It isn't a cost to trade.",
+    "Today's change from yesterday": "That's the day's change. It says nothing about what it costs to trade right now."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q04",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 1,
+  "id": "si_2c55f7760f9c",
+  "lesson_origin": "session",
+  "lesson_text": "False. The last is a trade that already happened. A market buy fills at or near the ask, a market sell at or near the bid. Last is history. Bid and ask are what you can trade at now.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "The last price is the price your market order will get.",
+   "subject": "F1.03#q05"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     }
+    ],
+    "summary": "The last trade is not the price your market order is promised. A market buy fills at or near the ask; a market sell fills at or near the bid."
+   },
+   "facts": {
+    "given": "The last price is the price your market order will get."
+   },
+   "lesson_line": "Last is history. Bid and ask are what you can trade at now.",
+   "unit": "F1.03",
+   "why": "False. The last is a trade that already happened. A market buy fills at or near the ask, a market sell at or near the bid."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q05",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Near the ask"
+  },
+  "difficulty": 1,
+  "id": "si_70959309d5b6",
+  "lesson_origin": "session",
+  "lesson_text": "Near the ask. A market buy takes the sellers' price, so you pay at or near the ask to get in now. A market buy pays at or near the ask. That's the price of getting in right now.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "Near the ask",
+    "Near the bid",
+    "At the last trade",
+    "At the midpoint"
+   ],
+   "kind": "mcq",
+   "q": "You place a market order to buy. Near which price should you expect to fill?",
+   "subject": "F1.03#q06"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: ETF trading tips (Fidelity Viewpoints)",
+      "quote": "By contrast, with a market order, you get the prevailing market bid or ask price.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
+     }
+    ],
+    "summary": "A market buy fills at or near the ask; a market sell fills at or near the bid. A market order takes the bid (selling) or the ask (buying)."
+   },
+   "facts": {
+    "given": "You place a market order to buy. Near which price should you expect to fill? Near the ask Near the bid At the last trade At the midpoint"
+   },
+   "lesson_line": "A market buy pays at or near the ask. That's the price of getting in right now.",
+   "unit": "F1.03",
+   "why": "Near the ask. A market buy takes the sellers' price, so you pay at or near the ask to get in now.",
+   "wrong": {
+    "At the last trade": "The last trade already happened. Your fill comes from the quote as it stands now.",
+    "At the midpoint": "The midpoint is a reference. You might get a better fill, but expect the ask.",
+    "Near the bid": "That's roughly what you'd get selling. A market buy doesn't wait for a seller to come down."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q06",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_917d7e6c9a1f",
+  "lesson_origin": "session",
+  "lesson_text": "True. Buy at the ask, sell at the bid, and the gap comes out of your pocket. The SEC's investor bulletin calls it a hidden cost. No commission doesn't mean free. Crossing the spread costs you.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "The spread is a cost of trading, even when the commission is zero.",
+   "subject": "F1.03#q07"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The spread can be thought of as a hidden cost to investors since spreads reduce potential returns.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "The wider the spread, the more it will cost you to trade JKL.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     }
+    ],
+    "summary": "The spread is a hidden cost of trading that comes out of your return. A wider spread costs you more to trade."
+   },
+   "facts": {
+    "given": "The spread is a cost of trading, even when the commission is zero."
+   },
+   "lesson_line": "No commission doesn't mean free. Crossing the spread costs you.",
+   "unit": "F1.03",
+   "why": "True. Buy at the ask, sell at the bid, and the gap comes out of your pocket. The SEC's investor bulletin calls it a hidden cost."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q07",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "0.0",
+    "0.04"
+   ],
+   "answer": 0.04
+  },
+  "difficulty": 2,
+  "id": "si_48c879a5ce9e",
+  "lesson_origin": "session",
+  "lesson_text": "$0.04. Ask minus bid: $25.02 less $24.98. Spread equals ask minus bid. Work it out before every order.",
+  "module": "F1",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "Bid $24.98, ask $25.02. What is the spread in dollars?",
+   "subject": "F1.03#q08"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     }
+    ],
+    "summary": "The bid sits below the ask, and the gap between them (ask minus bid) is the spread."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "ask": 25.02,
+      "bid": 24.98
+     },
+     "fn": "spread",
+     "result": 0.04
+    },
+    "given": "Bid $24.98, ask $25.02. What is the spread in dollars?"
+   },
+   "lesson_line": "Spread equals ask minus bid. Work it out before every order.",
+   "unit": "F1.03",
+   "why": "$0.04. Ask minus bid: $25.02 less $24.98."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q08",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "0.5",
+    "0.50"
+   ],
+   "answer": 0.5
+  },
+  "difficulty": 2,
+  "id": "si_ab7d0e3a2f53",
+  "lesson_origin": "session",
+  "lesson_text": "0.5%. Take ask minus bid, divide by the midpoint between them, and write it as a percent. The SEC's ETF rule measures spreads this way. Percent lets you compare spreads on cheap stocks and pricey ones.",
+  "module": "F1",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint?",
+   "subject": "F1.03#q09",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+      "quote": "Dividing the difference between each such bid and offer by the midpoint of the national best bid and national best offer",
+      "tier": 1,
+      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+      "quote": "The exchange-traded fund's median bid-ask spread, expressed as a percentage rounded to the nearest hundredth, computed by:",
+      "tier": 1,
+      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     }
+    ],
+    "summary": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint. The SEC's ETF rule states the spread as a percentage, to two decimals. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "ask": 20.05,
+      "bid": 19.95
+     },
+     "fn": "spread_pct",
+     "result": 0.5
+    },
+    "given": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint?"
+   },
+   "lesson_line": "Percent lets you compare spreads on cheap stocks and pricey ones.",
+   "unit": "F1.03",
+   "why": "0.5%. Take ask minus bid, divide by the midpoint between them, and write it as a percent. The SEC's ETF rule measures spreads this way."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q09",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "200",
+    "200.0",
+    "200.00"
+   ],
+   "answer": 200.0
+  },
+  "difficulty": 2,
+  "id": "si_fe77a2865f7f",
+  "lesson_origin": "session",
+  "lesson_text": "$200. You paid the ask and sold at the bid, so you gave up the full spread on all 500 shares. Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
+  "module": "F1",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?",
+   "subject": "F1.03#q10"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     }
+    ],
+    "summary": "Buying at the ask and selling straight back at the bid loses the spread on every share."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "ask": 10.2,
+      "bid": 9.8,
+      "expr": "(ask - bid) * shares",
+      "shares": 500
+     },
+     "fn": "arith",
+     "result": 200.0
+    },
+    "given": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?"
+   },
+   "lesson_line": "Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
+   "unit": "F1.03",
+   "why": "$200. You paid the ask and sold at the bid, so you gave up the full spread on all 500 shares."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q10",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Near $41.90"
+  },
+  "difficulty": 2,
+  "id": "si_dc29e3025e42",
+  "lesson_origin": "session",
+  "lesson_text": "Near $41.90. A triggered stop becomes a market sell, and a market sell fills at or near the bid. Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "Near $41.90",
+    "Near $42.05",
+    "Exactly $42.00"
+   ],
+   "kind": "mcq",
+   "q": "Near which price should you expect your shares to sell?",
+   "story": "You own a stock with a sell stop at $42.00. It trades down and the stop triggers. The quote now reads $41.90 bid, $42.05 ask.",
+   "subject": "F1.03#q11"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Order Types",
+      "quote": "On the downside, you might not get the price you saw or were originally quoted, especially in fast-moving markets.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
+     }
+    ],
+    "summary": "A stop price is a trigger: once hit, the stop becomes a market order with no promised price. A market buy fills at or near the ask; a market sell fills at or near the bid. In a fast market, a market order can fill away from the quote you saw."
+   },
+   "facts": {
+    "given": "Near which price should you expect your shares to sell? You own a stock with a sell stop at $42.00. It trades down and the stop triggers. The quote now reads $41.90 bid, $42.05 ask. Near $41.90 Near $42.05 Exactly $42.00"
+   },
+   "lesson_line": "Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
+   "unit": "F1.03",
+   "why": "Near $41.90. A triggered stop becomes a market sell, and a market sell fills at or near the bid.",
+   "wrong": {
+    "Exactly $42.00": "The stop price only triggers the order. It is not a guaranteed fill price.",
+    "Near $42.05": "That's the ask, the price buyers pay. You're the seller here."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q11",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Some at $12.40, the rest higher"
+  },
+  "difficulty": 2,
+  "id": "si_d021029177dc",
+  "lesson_origin": "session",
+  "lesson_text": "Some at $12.40, the rest higher. Only 300 shares show at the ask, so expect the rest to fill against the sellers above it. Read the size before you send size. A market order takes what's there, then reaches higher.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "All 1,000 at $12.40",
+    "Some at $12.40, the rest higher",
+    "It waits until $12.40 has size",
+    "All 1,000 below $12.40"
+   ],
+   "kind": "mcq",
+   "q": "What should you expect from the fill?",
+   "story": "The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
+   "subject": "F1.03#q12"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "An investor places a market order to buy 1000 shares of XYZ stock at $3.00 per share. The order could have 500 shares execute at $3.00 per share and the other 500 shares execute at a higher price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "Generally, a market order will be executed immediately. However, the price at which a market order will be executed is not guaranteed.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Executing an Order",
+      "quote": "“Price improvement” is the opportunity, but not the guarantee, for an order to be executed at a better price than the current quote.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/executing-order"
+     }
+    ],
+    "summary": "A big market order can fill at several prices when one price does not hold enough shares. Part of a market order can fill at the quoted price and the rest at higher prices. A market order fills right away, but its price is not guaranteed. You can be filled better than the quote (price improvement), but nothing promises it."
+   },
+   "facts": {
+    "given": "What should you expect from the fill? The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares. All 1,000 at $12.40 Some at $12.40, the rest higher It waits until $12.40 has size All 1,000 below $12.40"
+   },
+   "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
+   "unit": "F1.03",
+   "why": "Some at $12.40, the rest higher. Only 300 shares show at the ask, so expect the rest to fill against the sellers above it.",
+   "wrong": {
+    "All 1,000 at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
+    "All 1,000 below $12.40": "A better fill can happen, but it isn't promised. Plan on the ask or worse.",
+    "It waits until $12.40 has size": "A market order doesn't wait. It generally executes right away. A limit order is the one that waits."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q12",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "30.1",
+    "30.13"
+   ],
+   "answer": 30.13
+  },
+  "difficulty": 2,
+  "id": "si_37ca20c9811f",
+  "lesson_origin": "session",
+  "lesson_text": "$30.13. Shares times price for each fill, added up, then divided by the 1,000 shares. When your order fills at several prices, your real cost is the average, not the ask you saw.",
+  "module": "F1",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?",
+   "subject": "F1.03#q13"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "An investor places a market order to buy 1000 shares of XYZ stock at $3.00 per share. The order could have 500 shares execute at $3.00 per share and the other 500 shares execute at a higher price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     }
+    ],
+    "summary": "Part of a market order can fill at the quoted price and the rest at higher prices."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "fills": [
+       [
+        400,
+        30.1
+       ],
+       [
+        600,
+        30.15
+       ]
+      ]
+     },
+     "fn": "avg_price",
+     "result": 30.13
+    },
+    "given": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?"
+   },
+   "lesson_line": "When your order fills at several prices, your real cost is the average, not the ask you saw.",
+   "unit": "F1.03",
+   "why": "$30.13. Shares times price for each fill, added up, then divided by the 1,000 shares."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q13",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "size"
+  },
+  "difficulty": 1,
+  "id": "si_518d34bda2c2",
+  "lesson_origin": "session",
+  "lesson_text": "Size. A bid size of 300 means 300 shares wanted at that bid price. Price tells you where. Size tells you how many.",
+  "module": "F1",
+  "prompt_json": {
+   "bank": [
+    "size",
+    "volume",
+    "spread",
+    "range",
+    "last"
+   ],
+   "kind": "fill",
+   "q": "Fill the blank with the right word.",
+   "sentence": "The number of shares waiting at a quoted price is its ___.",
+   "subject": "size"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: Level II (thinkorswim Learning Center)",
+      "quote": "for example, 300 in the bid size column means that there are 300 shares or contracts ready to be bought at the respective bid price at the respective exchange.",
+      "tier": 2,
+      "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "Typically, the number of shares offered on the bid or the ask will be small",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     }
+    ],
+    "summary": "Bid size is the number of shares buyers want at that bid price. The bid is the highest price a buyer will pay right now, for a stated number of shares. The number of shares showing at the best bid or ask is usually small."
+   },
+   "facts": {
+    "given": "Fill the blank with the right word. The number of shares waiting at a quoted price is its ___."
+   },
+   "lesson_line": "Price tells you where. Size tells you how many.",
+   "unit": "F1.03",
+   "why": "Size. A bid size of 300 means 300 shares wanted at that bid price."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q14",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 2,
+  "id": "si_1fde74d529e3",
+  "lesson_origin": "session",
+  "lesson_text": "False. If the stock trades up and away from your price, your order just sits there unfilled. A limit order is not guaranteed to execute. A limit order protects your price and gives up the promise of a fill.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A buy limit order at the bid will fill as long as the stock keeps trading.",
+   "subject": "F1.03#q15"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "A limit order is not guaranteed to execute.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Order Types",
+      "quote": "However, there's a chance your order doesn't get executed at all. For example, if the market price fails to match or better your limit price while your order remains active, it will not be executed.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
+     }
+    ],
+    "summary": "A limit order may never fill. If the market never reaches your limit price, your limit order does not fill."
+   },
+   "facts": {
+    "given": "A buy limit order at the bid will fill as long as the stock keeps trading."
+   },
+   "lesson_line": "A limit order protects your price and gives up the promise of a fill.",
+   "unit": "F1.03",
+   "why": "False. If the stock trades up and away from your price, your order just sits there unfilled. A limit order is not guaranteed to execute."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q15",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "50.00 / 50.02, sizes 3,000 / 2,500"
+  },
+  "difficulty": 3,
+  "id": "si_eddc23ebe29f",
+  "lesson_origin": "session",
+  "lesson_text": "50.00 / 50.02 with 2,500 at the ask. A tight spread, and enough shares at the ask to cover your whole order. I want a tight spread AND real size at the price. One without the other costs you.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "50.00 / 50.02, sizes 3,000 / 2,500",
+    "49.70 / 50.30, sizes 2,000 / 2,500",
+    "50.01 / 50.02, sizes 100 / 100",
+    "49.95 / 50.05, sizes 200 / 300"
+   ],
+   "kind": "mcq",
+   "q": "Which quote would you buy 2,000 shares into?",
+   "story": "Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask.",
+   "subject": "F1.03#q16"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "The wider the spread, the more it will cost you to trade JKL.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: Level II (thinkorswim Learning Center)",
+      "quote": "for example, 300 in the bid size column means that there are 300 shares or contracts ready to be bought at the respective bid price at the respective exchange.",
+      "tier": 2,
+      "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "Typically, the number of shares offered on the bid or the ask will be small",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: ETF trading tips (Fidelity Viewpoints)",
+      "quote": "In general, smaller spreads are better, but context is key.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
+     }
+    ],
+    "summary": "A wider spread costs you more to trade. A big market order can fill at several prices when one price does not hold enough shares. Bid size is the number of shares buyers want at that bid price. The number of shares showing at the best bid or ask is usually small. Smaller spreads are generally better, judged in context."
+   },
+   "facts": {
+    "given": "Which quote would you buy 2,000 shares into? Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask. 50.00 / 50.02, sizes 3,000 / 2,500 49.70 / 50.30, sizes 2,000 / 2,500 50.01 / 50.02, sizes 100 / 100 49.95 / 50.05, sizes 200 / 300"
+   },
+   "lesson_line": "I want a tight spread AND real size at the price. One without the other costs you.",
+   "unit": "F1.03",
+   "why": "50.00 / 50.02 with 2,500 at the ask. A tight spread, and enough shares at the ask to cover your whole order.",
+   "wrong": {
+    "49.70 / 50.30, sizes 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
+    "49.95 / 50.05, sizes 200 / 300": "Wider than the best quote, and only 300 shares at the ask.",
+    "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q16",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A costs about 20x more"
+  },
+  "difficulty": 3,
+  "id": "si_137f7fd7ea7c",
+  "lesson_origin": "session",
+  "lesson_text": "A, by about 20 times. Divide each spread by its midpoint. A's small spread sits on a small price, so it eats far more of every dollar. Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "A costs about 20x more",
+    "B costs about 2x more",
+    "They cost about the same"
+   ],
+   "kind": "mcq",
+   "q": "As a percent of the midpoint, which spread costs more?",
+   "story": "Stock A quotes $4.95 bid, $5.05 ask. Stock B quotes $199.90 bid, $200.10 ask. B's spread is wider in cents. You'd put the same dollars in either.",
+   "subject": "F1.03#q17"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+      "quote": "Dividing the difference between each such bid and offer by the midpoint of the national best bid and national best offer",
+      "tier": 1,
+      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+      "quote": "The exchange-traded fund's median bid-ask spread, expressed as a percentage rounded to the nearest hundredth, computed by:",
+      "tier": 1,
+      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
+     }
+    ],
+    "summary": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint. The SEC's ETF rule states the spread as a percentage, to two decimals."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "a_ask": 5.05,
+      "a_bid": 4.95,
+      "b_ask": 200.1,
+      "b_bid": 199.9,
+      "expr": "((a_ask - a_bid) / ((a_ask + a_bid) / 2)) / ((b_ask - b_bid) / ((b_ask + b_bid) / 2))"
+     },
+     "fn": "arith",
+     "result": 20.0
+    },
+    "given": "As a percent of the midpoint, which spread costs more? Stock A quotes $4.95 bid, $5.05 ask. Stock B quotes $199.90 bid, $200.10 ask. B's spread is wider in cents. You'd put the same dollars in either. A costs about 20x more B costs about 2x more They cost about the same"
+   },
+   "lesson_line": "Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
+   "unit": "F1.03",
+   "why": "A, by about 20 times. Divide each spread by its midpoint. A's small spread sits on a small price, so it eats far more of every dollar.",
+   "wrong": {
+    "B costs about 2x more": "That's comparing cents. B's spread is bigger in cents, but its price is far bigger still.",
+    "They cost about the same": "Same dollars in, very different cost. Work each spread out as a percent of its midpoint."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q17",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A limit order at your price"
+  },
+  "difficulty": 3,
+  "id": "si_2fe5283968ab",
+  "lesson_origin": "session",
+  "lesson_text": "A limit order at your price. After hours there is less trading interest and spreads run wider. A limit order caps what you pay, though it may not fill. Thin market, wide spread: name your price or stay out.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "A limit order at your price",
+    "A market order right now",
+    "A buy stop above the ask"
+   ],
+   "kind": "mcq",
+   "q": "You want in now. Which order makes sense?",
+   "story": "A stock reports earnings after the close and jumps in after-hours trading. The quote is far wider than it was during the day. Few shares show at the ask.",
+   "subject": "F1.03#q18"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
+      "quote": "The reduced level of trading interest in extended-hours trading generally results in wider spreads between the bid and ask prices for a stock or no quotes at all.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
+      "quote": "As a result, investors may find it more difficult to get their orders executed or to get as favorable a price as they could have during regular trading hours.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "While limit orders do not guarantee execution, they do help ensure that an investor does not pay more than a pre-determined price for a stock.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: ETF trading tips (Fidelity Viewpoints)",
+      "quote": "Limit orders are a particularly valuable tool for trading thinly traded securities, where even small orders have the potential to represent a high percentage of an ETF's average daily volume and, as a result, impact the prevailing market price.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
+      "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
+     }
+    ],
+    "summary": "Before and after the regular session, spreads are usually wider, or there may be no quote at all. Wider extended-hours spreads make fills harder and prices worse than in the regular session. A limit order caps what you pay, at the cost of maybe not filling. A stop price is a trigger: once hit, the stop becomes a market order with no promised price. In thinly traded names, limit orders help because even small orders can move the price. In extended hours, many brokers accept only limit orders."
+   },
+   "facts": {
+    "given": "You want in now. Which order makes sense? A stock reports earnings after the close and jumps in after-hours trading. The quote is far wider than it was during the day. Few shares show at the ask. A limit order at your price A market order right now A buy stop above the ask"
+   },
+   "lesson_line": "Thin market, wide spread: name your price or stay out.",
+   "unit": "F1.03",
+   "why": "A limit order at your price. After hours there is less trading interest and spreads run wider. A limit order caps what you pay, though it may not fill.",
+   "wrong": {
+    "A buy stop above the ask": "A buy stop turns into a market order when it triggers, so you're back to paying whatever is there.",
+    "A market order right now": "With a wide quote and little size, a market order can fill far from what you saw. Many brokers take only limit orders after hours anyway."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q18",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 3,
+  "id": "si_652b0f09adfa",
+  "lesson_origin": "session",
+  "lesson_text": "True. That's price improvement: a fill better than the quote. It can happen, but nobody promises it. Hope for price improvement. Plan for the ask.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A market order to buy can sometimes fill below the quoted ask.",
+   "subject": "F1.03#q19"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Executing an Order",
+      "quote": "“Price improvement” is the opportunity, but not the guarantee, for an order to be executed at a better price than the current quote.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/executing-order"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: Trade execution glossary",
+      "quote": "Price improvement occurs when an order is executed at a price lower than the quoted offer when purchasing or a price higher than the quoted bid when selling.",
+      "tier": 2,
+      "url": "https://www.schwab.com/execution-quality/glossary"
+     }
+    ],
+    "summary": "You can be filled better than the quote (price improvement), but nothing promises it. Price improvement is a buy filled below the ask or a sell filled above the bid."
+   },
+   "facts": {
+    "given": "A market order to buy can sometimes fill below the quoted ask."
+   },
+   "lesson_line": "Hope for price improvement. Plan for the ask.",
+   "unit": "F1.03",
+   "why": "True. That's price improvement: a fill better than the quote. It can happen, but nobody promises it."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q19",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 3,
+  "id": "si_b65bde6f6784",
+  "lesson_origin": "session",
+  "lesson_text": "False. A thinly traded stock can show a tight spread with very little behind it. Check the size at the price and how much it trades. A tight spread is a start. Size and volume finish the check.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A tight spread on its own proves a stock is liquid enough for your size.",
+   "subject": "F1.03#q20"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "Note, however, that spreads could be tight on both, which could mislead unwitting investors to conclude that both securities are equally liquid.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "Typically, the number of shares offered on the bid or the ask will be small",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
+      "quote": "Liquidity refers to the existence of buyers and sellers who are willing to trade with incoming orders and the degree of price competition among buyers and sellers.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
+     }
+    ],
+    "summary": "A heavily traded stock and a barely traded one can both show tight spreads, so the spread alone can mislead you about liquidity. A big market order can fill at several prices when one price does not hold enough shares. The number of shares showing at the best bid or ask is usually small. Liquidity means there are buyers and sellers ready to trade with your order, competing on price."
+   },
+   "facts": {
+    "given": "A tight spread on its own proves a stock is liquid enough for your size."
+   },
+   "lesson_line": "A tight spread is a start. Size and volume finish the check.",
+   "unit": "F1.03",
+   "why": "False. A thinly traded stock can show a tight spread with very little behind it. Check the size at the price and how much it trades."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "75",
+    "75.0",
+    "75.00"
+   ],
+   "answer": 75.0
+  },
+  "difficulty": 3,
+  "id": "si_88bb618a7a20",
+  "lesson_origin": "session",
+  "lesson_text": "75%. Sell right after you buy and you'd get about the bid, already most of the way to your stop. I'd skip a name this wide. If the spread eats most of your stop room, the trade is broken before it starts.",
+  "module": "F1",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "You buy at the $8.60 ask. The bid is $8.00. Your stop is $0.80 under your fill. What percent of that $0.80 is the spread?",
+   "subject": "F1.03#q21",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     }
+    ],
+    "summary": "Buying at the ask and selling straight back at the bid loses the spread on every share. A market buy fills at or near the ask; a market sell fills at or near the bid."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "ask": 8.6,
+      "bid": 8.0,
+      "expr": "(ask - bid) / stop_distance * 100",
+      "stop_distance": 0.8
+     },
+     "fn": "arith",
+     "result": 75.0
+    },
+    "given": "You buy at the $8.60 ask. The bid is $8.00. Your stop is $0.80 under your fill. What percent of that $0.80 is the spread?"
+   },
+   "lesson_line": "If the spread eats most of your stop room, the trade is broken before it starts.",
+   "unit": "F1.03",
+   "why": "75%. Sell right after you buy and you'd get about the bid, already most of the way to your stop. I'd skip a name this wide."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q21",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_c92833f6b2cc",
+  "lesson_origin": "session",
+  "lesson_text": "The gap between them is the spread. Buy at the ask, sell at the bid, and that gap is your cost.",
+  "module": "F1",
+  "prompt_json": {
+   "order": 1,
+   "part": 1,
+   "parts": 3,
+   "q": "Two prices, one gap",
+   "steps": [
+    "Every quote has two prices. The bid is the most a buyer will pay right now.",
+    "The ask is the least a seller will take. It sits above the bid.",
+    "The gap between them is the spread. Buy at the ask, sell at the bid, and that gap is your cost."
+   ],
+   "subject": "F1.03#w1"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The spread can be thought of as a hidden cost to investors since spreads reduce potential returns.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     }
+    ]
+   },
+   "unit": "F1.03"
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#w1",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_dd69f711c478",
+  "lesson_origin": "session",
+  "lesson_text": "The last price is a trade that already happened. It is not a promise of your fill.",
+  "module": "F1",
+  "prompt_json": {
+   "order": 2,
+   "part": 2,
+   "parts": 3,
+   "q": "What you pay right now",
+   "steps": [
+    "Buy at market and you pay about the ask. Sell at market and you get about the bid.",
+    "Bid $49.90, ask $50.10. Buy now and you'd pay about $50.10. Sell now and you'd get about $49.90.",
+    "The last price is a trade that already happened. It is not a promise of your fill."
+   ],
+   "subject": "F1.03#w2"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "For example, let’s imagine JKL stock is trading with the bid at $49.90 and the offer at $50.10. The spread is therefore $0.20.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "But if you wanted to buy JKL right now, you would probably have to pay $50.10. If you wanted to sell right now, all you’d get is $49.90.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     }
+    ]
+   },
+   "unit": "F1.03"
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#w2",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_524d997ea8a2",
+  "lesson_origin": "session",
+  "lesson_text": "Say 100 shares are offered at $50.10. Buy 10,000 and you might pay $50.25 or more.",
+  "module": "F1",
+  "prompt_json": {
+   "order": 3,
+   "part": 3,
+   "parts": 3,
+   "q": "Size: how many shares sit at each price",
+   "steps": [
+    "Every bid and ask comes with a size: the shares waiting at that price.",
+    "On the full order book (Level II), the best prices usually sit on top: the highest bid, the lowest ask.",
+    "Size at the best price is often small. A bigger order reaches into worse prices.",
+    "Say 100 shares are offered at $50.10. Buy 10,000 and you might pay $50.25 or more."
+   ],
+   "subject": "F1.03#w3"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: Level II (thinkorswim Learning Center)",
+      "quote": "for example, 300 in the bid size column means that there are 300 shares or contracts ready to be bought at the respective bid price at the respective exchange.",
+      "tier": 2,
+      "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: Level II (thinkorswim Learning Center)",
+      "quote": "the bid area of the gadget is sorted in descending order by the bid price column, so that highest prices are on top. The ask side is sorted vice versa: the default sorting displays lowest prices on top.",
+      "tier": 2,
+      "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "Typically, the number of shares offered on the bid or the ask will be small",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "someone might be willing to sell you 100 shares of JKL at $50.10, but if you want to buy 10,000 shares, you might have to pay $50.25 or more.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     }
+    ]
+   },
+   "unit": "F1.03"
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#w3",
+  "type": "walkthrough",
+  "version": 1
+ }
+]

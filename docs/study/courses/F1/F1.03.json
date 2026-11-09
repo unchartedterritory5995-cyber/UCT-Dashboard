@@ -1,0 +1,1010 @@
+{
+ "unit": "F1.03",
+ "track": "F1",
+ "title": "Bid, ask and the spread",
+ "teaches": "Read a quote: the bid, the ask, the last and the spread, what you pay right now, why a wide spread costs you, and how the size at each price limits your fill.",
+ "skills": [
+  {
+   "id": "basics.spread",
+   "title": "Bid, ask and the spread"
+  }
+ ],
+ "as_of": "2026-11-08",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Exchange-Traded Funds (ETFs)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Types of Orders",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Understanding Order Types",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Extended-Hours Trading: Investor Bulletin",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Executing an Order",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/executing-order",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Order Types",
+   "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 270.6c-11)",
+   "title": "Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "ETF trading tips (Fidelity Viewpoints)",
+   "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Level II (thinkorswim Learning Center)",
+   "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trade execution glossary",
+   "url": "https://www.schwab.com/execution-quality/glossary",
+   "accessed": "2026-11-08"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
+   "claim": "The bid is the highest price a buyer will pay right now, for a stated number of shares."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
+   "claim": "The ask is the lowest price a seller will take."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
+   "claim": "The bid sits below the ask, and the gap between them (ask minus bid) is the spread."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
+   "claim": "Buying at the ask and selling straight back at the bid loses the spread on every share."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "ETFs that are more liquid and have higher trading volume typically have tighter or smaller spreads.",
+   "claim": "More liquid, higher-volume funds usually have tighter spreads."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "The spread can be thought of as a hidden cost to investors since spreads reduce potential returns.",
+   "claim": "The spread is a hidden cost of trading that comes out of your return."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+   "claim": "A market buy fills at or near the ask; a market sell fills at or near the bid."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
+   "claim": "The last trade is not the price your market order is promised."
+  },
+  {
+   "id": "f9",
+   "source": "s3",
+   "quote": "Generally, a market order will be executed immediately. However, the price at which a market order will be executed is not guaranteed.",
+   "claim": "A market order fills right away, but its price is not guaranteed."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+   "claim": "A big market order can fill at several prices when one price does not hold enough shares."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "An investor places a market order to buy 1000 shares of XYZ stock at $3.00 per share. The order could have 500 shares execute at $3.00 per share and the other 500 shares execute at a higher price.",
+   "claim": "Part of a market order can fill at the quoted price and the rest at higher prices."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "A limit order is not guaranteed to execute.",
+   "claim": "A limit order may never fill."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop price is a trigger: once hit, the stop becomes a market order with no promised price."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "While limit orders do not guarantee execution, they do help ensure that an investor does not pay more than a pre-determined price for a stock.",
+   "claim": "A limit order caps what you pay, at the cost of maybe not filling."
+  },
+  {
+   "id": "f15",
+   "source": "s4",
+   "quote": "The reduced level of trading interest in extended-hours trading generally results in wider spreads between the bid and ask prices for a stock or no quotes at all.",
+   "claim": "Before and after the regular session, spreads are usually wider, or there may be no quote at all."
+  },
+  {
+   "id": "f16",
+   "source": "s4",
+   "quote": "As a result, investors may find it more difficult to get their orders executed or to get as favorable a price as they could have during regular trading hours.",
+   "claim": "Wider extended-hours spreads make fills harder and prices worse than in the regular session."
+  },
+  {
+   "id": "f17",
+   "source": "s4",
+   "quote": "Liquidity refers to the existence of buyers and sellers who are willing to trade with incoming orders and the degree of price competition among buyers and sellers.",
+   "claim": "Liquidity means there are buyers and sellers ready to trade with your order, competing on price."
+  },
+  {
+   "id": "f18",
+   "source": "s5",
+   "quote": "“Price improvement” is the opportunity, but not the guarantee, for an order to be executed at a better price than the current quote.",
+   "claim": "You can be filled better than the quote (price improvement), but nothing promises it."
+  },
+  {
+   "id": "f19",
+   "source": "s6",
+   "quote": "This type of order provides the most certainty that your order will be executed because it's not tied to any restrictions.",
+   "claim": "A market order is the surest way to get filled."
+  },
+  {
+   "id": "f20",
+   "source": "s6",
+   "quote": "On the downside, you might not get the price you saw or were originally quoted, especially in fast-moving markets.",
+   "claim": "In a fast market, a market order can fill away from the quote you saw."
+  },
+  {
+   "id": "f21",
+   "source": "s6",
+   "quote": "However, there's a chance your order doesn't get executed at all. For example, if the market price fails to match or better your limit price while your order remains active, it will not be executed.",
+   "claim": "If the market never reaches your limit price, your limit order does not fill."
+  },
+  {
+   "id": "f22",
+   "source": "s7",
+   "quote": "The exchange-traded fund's median bid-ask spread, expressed as a percentage rounded to the nearest hundredth, computed by:",
+   "claim": "The SEC's ETF rule states the spread as a percentage, to two decimals."
+  },
+  {
+   "id": "f23",
+   "source": "s7",
+   "quote": "Dividing the difference between each such bid and offer by the midpoint of the national best bid and national best offer",
+   "claim": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint."
+  },
+  {
+   "id": "f24",
+   "source": "s8",
+   "quote": "For example, let’s imagine JKL stock is trading with the bid at $49.90 and the offer at $50.10. The spread is therefore $0.20.",
+   "claim": "Example quote: bid $49.90, ask (offer) $50.10, spread $0.20."
+  },
+  {
+   "id": "f25",
+   "source": "s8",
+   "quote": "But if you wanted to buy JKL right now, you would probably have to pay $50.10. If you wanted to sell right now, all you’d get is $49.90.",
+   "claim": "Buying right now costs the ask; selling right now gets the bid."
+  },
+  {
+   "id": "f26",
+   "source": "s8",
+   "quote": "The wider the spread, the more it will cost you to trade JKL.",
+   "claim": "A wider spread costs you more to trade."
+  },
+  {
+   "id": "f27",
+   "source": "s8",
+   "quote": "Note, however, that spreads could be tight on both, which could mislead unwitting investors to conclude that both securities are equally liquid.",
+   "claim": "A heavily traded stock and a barely traded one can both show tight spreads, so the spread alone can mislead you about liquidity."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "Typically, the number of shares offered on the bid or the ask will be small",
+   "claim": "The number of shares showing at the best bid or ask is usually small."
+  },
+  {
+   "id": "f29",
+   "source": "s8",
+   "quote": "someone might be willing to sell you 100 shares of JKL at $50.10, but if you want to buy 10,000 shares, you might have to pay $50.25 or more.",
+   "claim": "The size at the ask covers only so many shares; a much bigger order pays higher prices."
+  },
+  {
+   "id": "f30",
+   "source": "s8",
+   "quote": "The amount that you drive up the price of something you are trying to buy is called the market impact.",
+   "claim": "How far your own buying pushes the price up is called market impact."
+  },
+  {
+   "id": "f31",
+   "source": "s8",
+   "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
+   "claim": "The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "Limit orders are a particularly valuable tool for trading thinly traded securities, where even small orders have the potential to represent a high percentage of an ETF's average daily volume and, as a result, impact the prevailing market price.",
+   "claim": "In thinly traded names, limit orders help because even small orders can move the price."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "By contrast, with a market order, you get the prevailing market bid or ask price.",
+   "claim": "A market order takes the bid (selling) or the ask (buying)."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "In general, smaller spreads are better, but context is key.",
+   "claim": "Smaller spreads are generally better, judged in context."
+  },
+  {
+   "id": "f35",
+   "source": "s10",
+   "quote": "for example, 300 in the bid size column means that there are 300 shares or contracts ready to be bought at the respective bid price at the respective exchange.",
+   "claim": "Bid size is the number of shares buyers want at that bid price."
+  },
+  {
+   "id": "f36",
+   "source": "s10",
+   "quote": "the bid area of the gadget is sorted in descending order by the bid price column, so that highest prices are on top. The ask side is sorted vice versa: the default sorting displays lowest prices on top.",
+   "claim": "On a Level II book, the best prices sit on top: the highest bid and the lowest ask."
+  },
+  {
+   "id": "f37",
+   "source": "s11",
+   "quote": "Price improvement occurs when an order is executed at a price lower than the quoted offer when purchasing or a price higher than the quoted bid when selling.",
+   "claim": "Price improvement is a buy filled below the ask or a sell filled above the bid."
+  },
+  {
+   "id": "f38",
+   "source": "s4",
+   "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders",
+   "claim": "In extended hours, many brokers accept only limit orders."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two prices, one gap",
+   "steps": [
+    "Every quote has two prices. The bid is the most a buyer will pay right now.",
+    "The ask is the least a seller will take. It sits above the bid.",
+    "The gap between them is the spread. Buy at the ask, sell at the bid, and that gap is your cost."
+   ],
+   "facts": [
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f6"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "What you pay right now",
+   "steps": [
+    "Buy at market and you pay about the ask. Sell at market and you get about the bid.",
+    "Bid $49.90, ask $50.10. Buy now and you'd pay about $50.10. Sell now and you'd get about $49.90.",
+    "The last price is a trade that already happened. It is not a promise of your fill."
+   ],
+   "facts": [
+    "f7",
+    "f24",
+    "f25",
+    "f8"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Size: how many shares sit at each price",
+   "steps": [
+    "Every bid and ask comes with a size: the shares waiting at that price.",
+    "On the full order book (Level II), the best prices usually sit on top: the highest bid, the lowest ask.",
+    "Size at the best price is often small. A bigger order reaches into worse prices.",
+    "Say 100 shares are offered at $50.10. Buy 10,000 and you might pay $50.25 or more."
+   ],
+   "facts": [
+    "f35",
+    "f36",
+    "f28",
+    "f29",
+    "f10"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "basics.spread",
+   "rung": 1,
+   "format": "mcq",
+   "term": "bid",
+   "q": "On a quote, what does the bid tell you?",
+   "choices": [
+    "The most a buyer will pay now",
+    "The least a seller will take now",
+    "The price of the last trade",
+    "The quote's midpoint price"
+   ],
+   "answer": "The most a buyer will pay now",
+   "why": "The most a buyer will pay now. The bid is the highest price a buyer is offering, for a stated number of shares.",
+   "lesson_line": "The bid is the buyer's side of the quote.",
+   "facts": [
+    "f1",
+    "f2",
+    "f31"
+   ],
+   "wrong": {
+    "The least a seller will take now": "That's the ask, the seller's side of the quote.",
+    "The price of the last trade": "That's the last. It already happened, and nobody has to repeat it.",
+    "The quote's midpoint price": "That's the midpoint, halfway between bid and ask. It's a reference, not anyone's order."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "basics.spread",
+   "rung": 2,
+   "format": "fill",
+   "term": "ask",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The ___ is the lowest price a seller will take right now.",
+   "bank": [
+    "bid",
+    "ask",
+    "last",
+    "spread",
+    "close"
+   ],
+   "answer": "ask",
+   "why": "Ask. It's the seller's price, and it sits above the bid.",
+   "lesson_line": "Buyers bid, sellers ask. A market buy pays at or near the ask.",
+   "facts": [
+    "f2",
+    "f3",
+    "f7"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "basics.spread",
+   "rung": 2,
+   "format": "tf",
+   "q": "On a normal quote, the bid is lower than the ask.",
+   "answer": "True",
+   "why": "True. The bid sits below the ask, and the gap between them is the spread.",
+   "lesson_line": "Bid below, ask above, spread in between.",
+   "facts": [
+    "f3"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "basics.spread",
+   "rung": 3,
+   "format": "mcq",
+   "term": "spread",
+   "q": "On a stock quote, what is the spread?",
+   "choices": [
+    "Ask minus bid",
+    "The day's high minus low",
+    "Today's change from yesterday"
+   ],
+   "answer": "Ask minus bid",
+   "why": "Ask minus bid. It's the gap between what sellers want and what buyers offer.",
+   "lesson_line": "Spread is ask minus bid. Read it before you place the order.",
+   "facts": [
+    "f3"
+   ],
+   "wrong": {
+    "The day's high minus low": "That's the day's range, how far price traveled today. It isn't a cost to trade.",
+    "Today's change from yesterday": "That's the day's change. It says nothing about what it costs to trade right now."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "basics.spread",
+   "rung": 3,
+   "format": "tf",
+   "q": "The last price is the price your market order will get.",
+   "answer": "False",
+   "why": "False. The last is a trade that already happened. A market buy fills at or near the ask, a market sell at or near the bid.",
+   "lesson_line": "Last is history. Bid and ask are what you can trade at now.",
+   "facts": [
+    "f8",
+    "f7"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "basics.spread",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You place a market order to buy. Near which price should you expect to fill?",
+   "choices": [
+    "Near the ask",
+    "Near the bid",
+    "At the last trade",
+    "At the midpoint"
+   ],
+   "answer": "Near the ask",
+   "why": "Near the ask. A market buy takes the sellers' price, so you pay at or near the ask to get in now.",
+   "lesson_line": "A market buy pays at or near the ask. That's the price of getting in right now.",
+   "facts": [
+    "f7",
+    "f33"
+   ],
+   "wrong": {
+    "Near the bid": "That's roughly what you'd get selling. A market buy doesn't wait for a seller to come down.",
+    "At the last trade": "The last trade already happened. Your fill comes from the quote as it stands now.",
+    "At the midpoint": "The midpoint is a reference. You might get a better fill, but expect the ask."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "basics.spread",
+   "rung": 1,
+   "format": "tf",
+   "q": "The spread is a cost of trading, even when the commission is zero.",
+   "answer": "True",
+   "why": "True. Buy at the ask, sell at the bid, and the gap comes out of your pocket. The SEC's investor bulletin calls it a hidden cost.",
+   "lesson_line": "No commission doesn't mean free. Crossing the spread costs you.",
+   "facts": [
+    "f6",
+    "f26"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "basics.spread",
+   "rung": 4,
+   "format": "numeric",
+   "q": "Bid $24.98, ask $25.02. What is the spread in dollars?",
+   "answer": 0.04,
+   "calc": {
+    "fn": "spread",
+    "args": {
+     "bid": 24.98,
+     "ask": 25.02
+    }
+   },
+   "prefix": "$",
+   "why": "$0.04. Ask minus bid: $25.02 less $24.98.",
+   "lesson_line": "Spread equals ask minus bid. Work it out before every order.",
+   "facts": [
+    "f3"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "basics.spread",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint?",
+   "answer": 0.5,
+   "calc": {
+    "fn": "spread_pct",
+    "args": {
+     "bid": 19.95,
+     "ask": 20.05
+    }
+   },
+   "suffix": "%",
+   "why": "0.5%. Take ask minus bid, divide by the midpoint between them, and write it as a percent. The SEC's ETF rule measures spreads this way.",
+   "lesson_line": "Percent lets you compare spreads on cheap stocks and pricey ones.",
+   "facts": [
+    "f23",
+    "f22",
+    "f31"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "basics.spread",
+   "rung": 6,
+   "format": "numeric",
+   "q": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?",
+   "answer": 200,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(ask - bid) * shares",
+     "ask": 10.2,
+     "bid": 9.8,
+     "shares": 500
+    }
+   },
+   "prefix": "$",
+   "why": "$200. You paid the ask and sold at the bid, so you gave up the full spread on all 500 shares.",
+   "lesson_line": "Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
+   "facts": [
+    "f4"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "basics.spread",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You own a stock with a sell stop at $42.00. It trades down and the stop triggers. The quote now reads $41.90 bid, $42.05 ask.",
+   "q": "Near which price should you expect your shares to sell?",
+   "choices": [
+    "Near $41.90",
+    "Near $42.05",
+    "Exactly $42.00"
+   ],
+   "answer": "Near $41.90",
+   "why": "Near $41.90. A triggered stop becomes a market sell, and a market sell fills at or near the bid.",
+   "lesson_line": "Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
+   "facts": [
+    "f13",
+    "f7",
+    "f20"
+   ],
+   "wrong": {
+    "Near $42.05": "That's the ask, the price buyers pay. You're the seller here.",
+    "Exactly $42.00": "The stop price only triggers the order. It is not a guaranteed fill price."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "basics.spread",
+   "rung": 5,
+   "format": "scenario",
+   "story": "The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
+   "q": "What should you expect from the fill?",
+   "choices": [
+    "All 1,000 at $12.40",
+    "Some at $12.40, the rest higher",
+    "It waits until $12.40 has size",
+    "All 1,000 below $12.40"
+   ],
+   "answer": "Some at $12.40, the rest higher",
+   "why": "Some at $12.40, the rest higher. Only 300 shares show at the ask, so expect the rest to fill against the sellers above it.",
+   "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
+   "facts": [
+    "f10",
+    "f11",
+    "f9",
+    "f18"
+   ],
+   "wrong": {
+    "All 1,000 at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
+    "It waits until $12.40 has size": "A market order doesn't wait. It generally executes right away. A limit order is the one that waits.",
+    "All 1,000 below $12.40": "A better fill can happen, but it isn't promised. Plan on the ask or worse."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "basics.spread",
+   "rung": 6,
+   "format": "numeric",
+   "q": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?",
+   "answer": 30.13,
+   "calc": {
+    "fn": "avg_price",
+    "args": {
+     "fills": [
+      [
+       400,
+       30.1
+      ],
+      [
+       600,
+       30.15
+      ]
+     ]
+    }
+   },
+   "prefix": "$",
+   "why": "$30.13. Shares times price for each fill, added up, then divided by the 1,000 shares.",
+   "lesson_line": "When your order fills at several prices, your real cost is the average, not the ask you saw.",
+   "facts": [
+    "f11"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "basics.spread",
+   "rung": 3,
+   "format": "fill",
+   "term": "size",
+   "q": "Fill the blank with the right word.",
+   "sentence": "The number of shares waiting at a quoted price is its ___.",
+   "bank": [
+    "size",
+    "volume",
+    "spread",
+    "range",
+    "last"
+   ],
+   "answer": "size",
+   "why": "Size. A bid size of 300 means 300 shares wanted at that bid price.",
+   "lesson_line": "Price tells you where. Size tells you how many.",
+   "facts": [
+    "f35",
+    "f1",
+    "f28"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "basics.spread",
+   "rung": 5,
+   "format": "tf",
+   "q": "A buy limit order at the bid will fill as long as the stock keeps trading.",
+   "answer": "False",
+   "why": "False. If the stock trades up and away from your price, your order just sits there unfilled. A limit order is not guaranteed to execute.",
+   "lesson_line": "A limit order protects your price and gives up the promise of a fill.",
+   "facts": [
+    "f12",
+    "f21"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "basics.spread",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask.",
+   "q": "Which quote would you buy 2,000 shares into?",
+   "choices": [
+    "50.00 / 50.02, sizes 3,000 / 2,500",
+    "49.70 / 50.30, sizes 2,000 / 2,500",
+    "50.01 / 50.02, sizes 100 / 100",
+    "49.95 / 50.05, sizes 200 / 300"
+   ],
+   "answer": "50.00 / 50.02, sizes 3,000 / 2,500",
+   "why": "50.00 / 50.02 with 2,500 at the ask. A tight spread, and enough shares at the ask to cover your whole order.",
+   "lesson_line": "I want a tight spread AND real size at the price. One without the other costs you.",
+   "facts": [
+    "f26",
+    "f10",
+    "f35",
+    "f28",
+    "f34"
+   ],
+   "wrong": {
+    "49.70 / 50.30, sizes 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
+    "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices.",
+    "49.95 / 50.05, sizes 200 / 300": "Wider than the best quote, and only 300 shares at the ask."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "basics.spread",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Stock A quotes $4.95 bid, $5.05 ask. Stock B quotes $199.90 bid, $200.10 ask. B's spread is wider in cents. You'd put the same dollars in either.",
+   "q": "As a percent of the midpoint, which spread costs more?",
+   "choices": [
+    "A costs about 20x more",
+    "B costs about 2x more",
+    "They cost about the same"
+   ],
+   "answer": "A costs about 20x more",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "((a_ask - a_bid) / ((a_ask + a_bid) / 2)) / ((b_ask - b_bid) / ((b_ask + b_bid) / 2))",
+     "a_ask": 5.05,
+     "a_bid": 4.95,
+     "b_ask": 200.1,
+     "b_bid": 199.9
+    },
+    "round": 0
+   },
+   "why": "A, by about 20 times. Divide each spread by its midpoint. A's small spread sits on a small price, so it eats far more of every dollar.",
+   "lesson_line": "Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
+   "facts": [
+    "f23",
+    "f22"
+   ],
+   "wrong": {
+    "B costs about 2x more": "That's comparing cents. B's spread is bigger in cents, but its price is far bigger still.",
+    "They cost about the same": "Same dollars in, very different cost. Work each spread out as a percent of its midpoint."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "basics.spread",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock reports earnings after the close and jumps in after-hours trading. The quote is far wider than it was during the day. Few shares show at the ask.",
+   "q": "You want in now. Which order makes sense?",
+   "choices": [
+    "A limit order at your price",
+    "A market order right now",
+    "A buy stop above the ask"
+   ],
+   "answer": "A limit order at your price",
+   "why": "A limit order at your price. After hours there is less trading interest and spreads run wider. A limit order caps what you pay, though it may not fill.",
+   "lesson_line": "Thin market, wide spread: name your price or stay out.",
+   "facts": [
+    "f15",
+    "f16",
+    "f14",
+    "f13",
+    "f32",
+    "f38"
+   ],
+   "wrong": {
+    "A market order right now": "With a wide quote and little size, a market order can fill far from what you saw. Many brokers take only limit orders after hours anyway.",
+    "A buy stop above the ask": "A buy stop turns into a market order when it triggers, so you're back to paying whatever is there."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "basics.spread",
+   "rung": 7,
+   "format": "tf",
+   "q": "A market order to buy can sometimes fill below the quoted ask.",
+   "answer": "True",
+   "why": "True. That's price improvement: a fill better than the quote. It can happen, but nobody promises it.",
+   "lesson_line": "Hope for price improvement. Plan for the ask.",
+   "facts": [
+    "f18",
+    "f37"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "basics.spread",
+   "rung": 9,
+   "format": "tf",
+   "q": "A tight spread on its own proves a stock is liquid enough for your size.",
+   "answer": "False",
+   "why": "False. A thinly traded stock can show a tight spread with very little behind it. Check the size at the price and how much it trades.",
+   "lesson_line": "A tight spread is a start. Size and volume finish the check.",
+   "facts": [
+    "f27",
+    "f10",
+    "f28",
+    "f17"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "basics.spread",
+   "rung": 9,
+   "format": "numeric",
+   "q": "You buy at the $8.60 ask. The bid is $8.00. Your stop is $0.80 under your fill. What percent of that $0.80 is the spread?",
+   "answer": 75,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(ask - bid) / stop_distance * 100",
+     "ask": 8.6,
+     "bid": 8.0,
+     "stop_distance": 0.8
+    }
+   },
+   "suffix": "%",
+   "why": "75%. Sell right after you buy and you'd get about the bid, already most of the way to your stop. I'd skip a name this wide.",
+   "lesson_line": "If the spread eats most of your stop room, the trade is broken before it starts.",
+   "facts": [
+    "f4",
+    "f7"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Spread as a percent: SEC Rule 6c-11 (ETF disclosure) divides ask minus bid by the midpoint. Some references divide by the ask instead (I could not confirm Investopedia's wording: the site refused both the plain client and WebFetch). Every percent question names the midpoint. q09's prices give 0.50% either way; q17's 'about 20x' holds either way (20.0 by midpoint, 19.8 by ask).",
+  "Quote size units: Schwab's 'Round Lots Regulatory Changes' page (https://www.schwab.com/learn/story/round-lots-regulatory-changes, Oct 28, 2025) says brokers historically showed bid/ask/last sizes in round lots, and that from Nov 3, 2025 Schwab shows actual shares rounded down to the stock's round lot. Platforms differ, so no question asks what a size number means in units; every size in a question is a whole share count.",
+  "Minimum tick: the SEC's 2024 Regulation NMS amendments add a half-penny quoting increment for some stocks. Fidelity's ETF tips page says spreads 'can be as thin as $0.01'. Neither is used: no question states a minimum possible spread.",
+  "Fidelity's 'Understanding an ETF's spreads and volumes' is an ETF.com article hosted on Fidelity's Learning Center. It is filed under the publisher 'Fidelity Investments', the same as Fidelity Viewpoints, so the two can never count as two publishers under the support rule."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Read f1-f4 and f6 in context on a fresh fetch of the SEC ETF bulletin (dated Feb 23, 2023). Its spread passage covers 'ETFs and other securities', so it applies to stocks. Each step matches its fact. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f7, f8 (SEC Types of Orders) and f24, f25 (Fidelity) confirmed on fresh pages. Step 2 said 'Buy now, you pay $50.10' as a flat fact; the source says you 'would probably have to pay' it, so it now says 'about'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f35, f36 (Schwab Level II), f28, f29 (Fidelity) and f10 (SEC) confirmed. 'On a full book' was untaught jargon and f36 describes a default sort, so step 2 now says 'On the full order book (Level II), the best prices usually sit on top'. Step 4 turned f29's 'might be willing to sell you 100' into a flat fact; now 'Say 100 shares are offered at $50.10'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key matches f1 (SEC ETF bulletin). The distractor 'Halfway between bid and ask' named the bid inside a question about the bid, so it was a giveaway. Replaced it with 'The quote's midpoint price' (f31), and its wrong note now says what the midpoint is. The other wrong notes are right. The 29-character answer fits a Word Match tile.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f2, f3, f7 (SEC) confirmed. Only 'ask' fits the sentence. 'bid', 'last', 'spread' and 'close' are real mix-ups, not silly ones. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f3 (SEC): 'The bid price will be lower than the ask price'. 'On a normal quote' covers the rare locked or crossed quote. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f3 (SEC). The day's range and the day's change are real beginner confusions, and neither is a cost to trade. The 13-character answer fits Word Match. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f8 (SEC Types of Orders: the last-traded price is 'not necessarily' the fill) and f7 confirmed. False is right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f7 (SEC) and f33 (Fidelity) confirmed. The midpoint note allows for a better fill without promising one, which matches f18. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f6 (SEC: the spread is 'a hidden cost') and f26 (Fidelity). It is true at zero commission, and an experienced trader would agree. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Recomputed by hand: 25.02 - 24.98 = 0.04, and the spread calc agrees. f3. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Recomputed: 0.10 / 20.00 x 100 = 0.5%. The midpoint method is Rule 6c-11(c)(1)(v)(B) on the current eCFR (up to date as of 11/05/2026), quoted in f23. Dividing by the ask instead gives 0.4988%, which still rounds to 0.50% (see conflicts). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Recomputed: (10.20 - 9.80) x 500 = $200. This has the same shape as the SEC's own example (f4: 200 shares x $0.50 = $100). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f13 (SEC: the stop price is a trigger that turns the order into a market order), f7 (a market sell fills at or near the bid) and f20 (FINRA: fast markets) confirmed. The key, near $41.90, is right, and both wrong notes are right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "The key matches the SEC's own split-fill example (f10, f11). Hidden or reserve orders can fill more than the 300 shown at $12.40, so 'have to come from higher prices' and 'fills against the sellers above it' were too absolute. Both now say 'expect' or 'can't count on'. Key unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Recomputed: (400 x 30.10 + 600 x 30.15) / 1000 = 30,130 / 1000 = 30.13, and the avg_price calc agrees. f11 is the SEC's split-fill example. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "f35 (Schwab: '300 in the bid size column means that there are 300 shares') confirmed. 'volume' is the real confusion in the bank. This is a definition, so it moved from rung 4 (Practise) to rung 3 (Learn). Levels are now 8 / 7 / 6.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "The old wording, 'is sure to fill', gave the False away. It is now a real beginner misconception: 'will fill as long as the stock keeps trading'. That is false per f21 (FINRA: if the market price fails to match or better your limit, it will not be executed) and f12 (SEC). The why was rewritten to match.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Recomputed the spreads: A is 0.02 with 2,500 at the ask (enough for 2,000), B is 0.60, C is 0.01 but only 100 at the ask, D is 0.10 with 300. Key A is right on f26, f10 (SEC) and f28, and an experienced trader would pick it. The story now says these are four stocks. C's note says 'likely fills at higher prices', since hidden size can exist.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Recomputed: A is 0.10 / 5.00 = 2.0% and B is 0.20 / 200.00 = 0.10%, a ratio of 20.0 (19.8 if you divide by the ask). The calc rounds to 20. The wrong choice 'B 2x' is the cents ratio (0.20 / 0.10), a real mistake. f22 and f23 are on the current eCFR. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f15 and f16 (SEC extended-hours bulletin), f14 and f13 (SEC order types) and f32 (Fidelity) confirmed. The key is right. Added f38 from the same bulletin ('many brokerage firms currently accept only limit orders') to the market-order note. s4 now points at the bulletin's live investor.gov address, because sec.gov answers 403 to a plain client and 301-redirects there. The lesson line's 'or stay out' matches how an experienced trader treats chasing after hours.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f18 (SEC Executing an Order: price improvement is 'the opportunity, but not the guarantee') and f37 (Schwab: a buy filled below the quoted offer) confirmed. True is right. 'can sometimes' hints at True a little, but the statement is exact, so I kept it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "f27 (Fidelity: a 10-million-share stock and a 100-share stock can both show tight spreads and mislead you), plus f10 and f17 (SEC). False is right, and it is good trading sense. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Recomputed: (8.60 - 8.00) / 0.80 x 100 = 75%. The stop is at 7.80, so the 8.00 bid is 0.60 of the 0.80 already gone. 'I'd skip a name this wide' (a spread of about 7%) is sound judgment. f4, f7. No change.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

@@ -1,0 +1,1976 @@
+[
+ {
+  "answer_json": {
+   "answer": "Intrinsic value and time value"
+  },
+  "difficulty": 1,
+  "id": "si_49d6ef6d7425",
+  "lesson_origin": "session",
+  "lesson_text": "Intrinsic value and time value. Intrinsic is the in-the-money part, and time value is everything above it. Premium equals intrinsic value plus time value. Split every quote that way.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "Intrinsic value and time value",
+    "The bid and the ask",
+    "The strike and the expiry",
+    "Delta and theta"
+   ],
+   "kind": "mcq",
+   "q": "An option's premium is made of two parts. Which two?",
+   "subject": "F6.03#q01"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "An option’s premium has two main components: intrinsic value and time value (also known as extrinsic value).",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "Every option premium is intrinsic value plus time value; time value is also called extrinsic value. Time value is the premium minus intrinsic value; it reflects the time left before expiry."
+   },
+   "facts": {
+    "given": "An option's premium is made of two parts. Which two? Intrinsic value and time value The bid and the ask The strike and the expiry Delta and theta"
+   },
+   "lesson_line": "Premium equals intrinsic value plus time value. Split every quote that way.",
+   "unit": "F6.03",
+   "why": "Intrinsic value and time value. Intrinsic is the in-the-money part, and time value is everything above it.",
+   "wrong": {
+    "Delta and theta": "Those measure how the price changes. They don't split the premium into parts.",
+    "The bid and the ask": "Those are the two sides of the quote, what buyers bid and sellers ask. They aren't parts of the price.",
+    "The strike and the expiry": "Those are contract terms. They shape the price, but they aren't the pieces it splits into."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q01",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 1,
+  "id": "si_b063baa2f19f",
+  "lesson_origin": "session",
+  "lesson_text": "False. A put is in the money when the stock is below the strike. Above the strike, that's a call. Calls are in the money above the strike. Puts are in the money below it.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A put is in the money when the stock trades above its strike.",
+   "subject": "F6.03#q02"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A call option is in-the-money when the underlying security's price is higher than the strike price.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     }
+    ],
+    "summary": "A call is in the money when the stock is above the strike. A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value."
+   },
+   "facts": {
+    "given": "A put is in the money when the stock trades above its strike."
+   },
+   "lesson_line": "Calls are in the money above the strike. Puts are in the money below it.",
+   "unit": "F6.03",
+   "why": "False. A put is in the money when the stock is below the strike. Above the strike, that's a call."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q02",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The amount it is in the money"
+  },
+  "difficulty": 1,
+  "id": "si_e04e1b05de28",
+  "lesson_origin": "session",
+  "lesson_text": "The amount it is in the money. Out of the money, intrinsic value is zero. Intrinsic value is the in-the-money amount. Nothing more.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "The amount it is in the money",
+    "The whole premium you pay",
+    "What the company is really worth",
+    "The time left until expiry"
+   ],
+   "kind": "mcq",
+   "q": "On an option quote, what does intrinsic value mean?",
+   "subject": "Intrinsic value"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     }
+    ],
+    "summary": "Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option. A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value."
+   },
+   "facts": {
+    "given": "On an option quote, what does intrinsic value mean? The amount it is in the money The whole premium you pay What the company is really worth The time left until expiry"
+   },
+   "lesson_line": "Intrinsic value is the in-the-money amount. Nothing more.",
+   "unit": "F6.03",
+   "why": "The amount it is in the money. Out of the money, intrinsic value is zero.",
+   "wrong": {
+    "The time left until expiry": "Time left drives time value, the other part of the premium.",
+    "The whole premium you pay": "The premium is intrinsic value plus time value. Intrinsic is only one part.",
+    "What the company is really worth": "That's the stock investor's meaning of the phrase. On an option it's the in-the-money amount."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q03",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "zero"
+  },
+  "difficulty": 1,
+  "id": "si_5cf2d974e444",
+  "lesson_origin": "session",
+  "lesson_text": "Zero. Intrinsic value is the amount the option is in the money, so out of the money it is zero. Intrinsic value stops at zero. It never goes negative.",
+  "module": "F6",
+  "prompt_json": {
+   "bank": [
+    "zero",
+    "negative",
+    "some",
+    "a little"
+   ],
+   "kind": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "An out-of-the-money option has ___ intrinsic value.",
+   "subject": "F6.03#q04"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option."
+   },
+   "facts": {
+    "given": "Fill in the blank. An out-of-the-money option has ___ intrinsic value."
+   },
+   "lesson_line": "Intrinsic value stops at zero. It never goes negative.",
+   "unit": "F6.03",
+   "why": "Zero. Intrinsic value is the amount the option is in the money, so out of the money it is zero."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q04",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "At the money"
+  },
+  "difficulty": 1,
+  "id": "si_cf362dad0499",
+  "lesson_origin": "session",
+  "lesson_text": "At the money. The stock price is the same as the strike, so there is no intrinsic value. Stock equals strike: at the money, and no intrinsic value.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "At the money",
+    "In the money",
+    "Out of the money"
+   ],
+   "kind": "mcq",
+   "q": "The stock trades exactly at the option's strike price. What do you call that option?",
+   "subject": "At the money"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "This term means that the current market value of the underlying interest is the same as the exercise price of the option.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab (Schwab Asset Management): Intrinsic and Extrinsic Value",
+      "quote": "If the stock price is exactly equal to the strike price, the contract is ATM and has no intrinsic value.",
+      "tier": 2,
+      "url": "https://www.schwabassetmanagement.com/story/intrinsic-and-extrinsic-value"
+     }
+    ],
+    "summary": "At the money means the stock price equals the strike. Stock exactly at the strike is at the money, with no intrinsic value."
+   },
+   "facts": {
+    "given": "The stock trades exactly at the option's strike price. What do you call that option? At the money In the money Out of the money"
+   },
+   "lesson_line": "Stock equals strike: at the money, and no intrinsic value.",
+   "unit": "F6.03",
+   "why": "At the money. The stock price is the same as the strike, so there is no intrinsic value.",
+   "wrong": {
+    "In the money": "That needs the stock past the strike: above it for a call, below it for a put.",
+    "Out of the money": "That needs the stock on the wrong side of the strike. Here it sits right on it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q05",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The premium above intrinsic value"
+  },
+  "difficulty": 1,
+  "id": "si_1b6361ac2389",
+  "lesson_origin": "session",
+  "lesson_text": "The premium above intrinsic value. It's the part of the price that reflects the time left before expiry. Time value is a dollar amount: the premium minus intrinsic value.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "The premium above intrinsic value",
+    "The days left until expiry",
+    "The amount it is in the money",
+    "The gap from stock to strike"
+   ],
+   "kind": "mcq",
+   "q": "On an option quote, what does time value mean?",
+   "subject": "Time value"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "Time value is whatever the premium is above intrinsic value. Time value is the premium minus intrinsic value; it reflects the time left before expiry."
+   },
+   "facts": {
+    "given": "On an option quote, what does time value mean? The premium above intrinsic value The days left until expiry The amount it is in the money The gap from stock to strike"
+   },
+   "lesson_line": "Time value is a dollar amount: the premium minus intrinsic value.",
+   "unit": "F6.03",
+   "why": "The premium above intrinsic value. It's the part of the price that reflects the time left before expiry.",
+   "wrong": {
+    "The amount it is in the money": "That's intrinsic value, the other part of the premium.",
+    "The days left until expiry": "The days left drive time value, but time value is a dollar amount in the premium.",
+    "The gap from stock to strike": "That gap is distance, not price. For an in-the-money option it's the intrinsic value."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q06",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The 70 put"
+  },
+  "difficulty": 1,
+  "id": "si_703027a256c9",
+  "lesson_origin": "session",
+  "lesson_text": "The 70 put. A put is in the money when the stock is below the strike, and 64 is below 70. Puts are in the money when the stock sits below the strike.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "The 70 put",
+    "The 60 put",
+    "The 64 put"
+   ],
+   "kind": "mcq",
+   "q": "The stock trades at 64. Which put is in the money?",
+   "subject": "F6.03#q07"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "This term means that the current market value of the underlying interest is the same as the exercise price of the option.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value. At the money means the stock price equals the strike."
+   },
+   "facts": {
+    "given": "The stock trades at 64. Which put is in the money? The 70 put The 60 put The 64 put"
+   },
+   "lesson_line": "Puts are in the money when the stock sits below the strike.",
+   "unit": "F6.03",
+   "why": "The 70 put. A put is in the money when the stock is below the strike, and 64 is below 70.",
+   "wrong": {
+    "The 60 put": "The stock is above 60, so this put is out of the money. It's the 60 call that would be in the money.",
+    "The 64 put": "The stock is right at 64, so this one is at the money, not in it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q07",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_1134fbab9257",
+  "lesson_origin": "session",
+  "lesson_text": "True. Out of the money, intrinsic value is zero, so every cent of the premium is time value. No intrinsic value means the whole price is time.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "An out-of-the-money option's whole premium is time value.",
+   "subject": "F6.03#q08"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab (Schwab Asset Management): Intrinsic and Extrinsic Value",
+      "quote": "OTM options prices are entirely made up of extrinsic value.",
+      "tier": 2,
+      "url": "https://www.schwabassetmanagement.com/story/intrinsic-and-extrinsic-value"
+     }
+    ],
+    "summary": "Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option. Time value is whatever the premium is above intrinsic value. An out-of-the-money option's price is all time value."
+   },
+   "facts": {
+    "given": "An out-of-the-money option's whole premium is time value."
+   },
+   "lesson_line": "No intrinsic value means the whole price is time.",
+   "unit": "F6.03",
+   "why": "True. Out of the money, intrinsic value is zero, so every cent of the premium is time value."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q08",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Its intrinsic value only"
+  },
+  "difficulty": 1,
+  "id": "si_19b6b889cb85",
+  "lesson_origin": "session",
+  "lesson_text": "Its intrinsic value only. At expiry there is no time left, so there is no time value. At expiry the time is gone. Only intrinsic value is left.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "Its intrinsic value only",
+    "What you paid for it",
+    "Intrinsic plus a little time",
+    "Zero, every option expires dead"
+   ],
+   "kind": "mcq",
+   "q": "What is an option worth at the moment it expires?",
+   "subject": "F6.03#q09"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Theta",
+      "quote": "Upon expiration, an option has no time value and is worth its intrinsic value only.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/advancedconcepts/theta"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CME Group: Calculating Options Moneyness & Intrinsic Value",
+      "quote": "When an option contract expires, the time value would be zero. At this point the option value is equal to the intrinsic value.",
+      "tier": 2,
+      "url": "https://www.cmegroup.com/education/courses/introduction-to-options/calculating-options-moneyness-and-intrinsic-value.html"
+     }
+    ],
+    "summary": "At expiry an option has no time value left and is worth only its intrinsic value. At expiry, time value is zero and the option is worth its intrinsic value."
+   },
+   "facts": {
+    "given": "What is an option worth at the moment it expires? Its intrinsic value only What you paid for it Intrinsic plus a little time Zero, every option expires dead"
+   },
+   "lesson_line": "At expiry the time is gone. Only intrinsic value is left.",
+   "unit": "F6.03",
+   "why": "Its intrinsic value only. At expiry there is no time left, so there is no time value.",
+   "wrong": {
+    "Intrinsic plus a little time": "With no time left, time value is zero. Nothing is left to pay for.",
+    "What you paid for it": "Your cost doesn't set the price. The market only pays for what the option is worth.",
+    "Zero, every option expires dead": "Only options with no intrinsic value expire worthless. In-the-money ones are worth their intrinsic value."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q09",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The at-the-money strike"
+  },
+  "difficulty": 1,
+  "id": "si_43a759fe1234",
+  "lesson_origin": "session",
+  "lesson_text": "The at-the-money strike. Deep in-the-money and far out-of-the-money options carry less time value. At the money holds the most time value. Deep in or far out holds little.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "The at-the-money strike",
+    "A deep in-the-money strike",
+    "A far out-of-the-money strike",
+    "Every strike holds the same"
+   ],
+   "kind": "mcq",
+   "q": "Same stock, same expiry. Which strike usually holds the most time value?",
+   "subject": "F6.03#q10"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "An option normally has very little time value if it is substantially in the money.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "substantially out of the money has only time value, the amount of that time value is normally less than the time value of an option having the same underlying interest and expiration that is at the money.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Theta",
+      "quote": "options that are either deep-in-the-money or far out-of-the-money will have very little decay as they have less time premium.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/advancedconcepts/theta"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CME Group: Calculating Options Moneyness & Intrinsic Value",
+      "quote": "The time value of an option (before its expiration date) will always be greatest when the option is at the money.",
+      "tier": 2,
+      "url": "https://www.cmegroup.com/education/courses/introduction-to-options/calculating-options-moneyness-and-intrinsic-value.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab (Schwab Asset Management): Intrinsic and Extrinsic Value",
+      "quote": "ATM options have the largest amount of extrinsic value of any option.",
+      "tier": 2,
+      "url": "https://www.schwabassetmanagement.com/story/intrinsic-and-extrinsic-value"
+     }
+    ],
+    "summary": "A deep in-the-money option usually carries very little time value. A far out-of-the-money option is all time value, but normally less of it than the at-the-money option, same stock and same expiry. Deep in-the-money and far out-of-the-money options carry less time value than at-the-money ones. Time value is greatest at the money. At-the-money options carry the most time value."
+   },
+   "facts": {
+    "given": "Same stock, same expiry. Which strike usually holds the most time value? The at-the-money strike A deep in-the-money strike A far out-of-the-money strike Every strike holds the same"
+   },
+   "lesson_line": "At the money holds the most time value. Deep in or far out holds little.",
+   "unit": "F6.03",
+   "why": "The at-the-money strike. Deep in-the-money and far out-of-the-money options carry less time value.",
+   "wrong": {
+    "A deep in-the-money strike": "Its price is big, but it's mostly intrinsic value. Very little of it is time.",
+    "A far out-of-the-money strike": "It's all time value, but only a small amount of it.",
+    "Every strike holds the same": "Time value changes with the strike. It peaks near the stock price."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q10",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "7.5",
+    "7.50"
+   ],
+   "answer": 7.5
+  },
+  "difficulty": 2,
+  "id": "si_6b02e54b5d05",
+  "lesson_origin": "session",
+  "lesson_text": "$7.50. For a call it's stock minus strike: 87.50 minus 80. Call intrinsic: stock minus strike, never below zero.",
+  "module": "F6",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?",
+   "subject": "F6.03#q11"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A call option is in-the-money when the underlying security's price is higher than the strike price.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "If the current market price of XYZ stock is $43, an XYZ 40 call would be in the money by $3.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "A call is in the money when the stock is above the strike. Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option. With the stock at 43, the 40 call is in the money by 3."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "strike": 80,
+      "underlying": 87.5
+     },
+     "fn": "intrinsic",
+     "result": 7.5
+    },
+    "given": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?"
+   },
+   "lesson_line": "Call intrinsic: stock minus strike, never below zero.",
+   "unit": "F6.03",
+   "why": "$7.50. For a call it's stock minus strike: 87.50 minus 80."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q11",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "9",
+    "9.0",
+    "9.00"
+   ],
+   "answer": 9.0
+  },
+  "difficulty": 2,
+  "id": "si_74c31d295c31",
+  "lesson_origin": "session",
+  "lesson_text": "$9. For a put it's strike minus stock: 70 minus 61. Put intrinsic: strike minus stock, never below zero.",
+  "module": "F6",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "The stock trades at 61. What is the 70 put's intrinsic value, per share?",
+   "subject": "F6.03#q12"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value. Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "put",
+      "strike": 70,
+      "underlying": 61
+     },
+     "fn": "intrinsic",
+     "result": 9.0
+    },
+    "given": "The stock trades at 61. What is the 70 put's intrinsic value, per share?"
+   },
+   "lesson_line": "Put intrinsic: strike minus stock, never below zero.",
+   "unit": "F6.03",
+   "why": "$9. For a put it's strike minus stock: 70 minus 61."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q12",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 2,
+  "id": "si_8aef1878cdc6",
+  "lesson_origin": "session",
+  "lesson_text": "False. In the money describes the contract against the strike, not your trade. You still have to cover what you paid. In the money is about the strike. Profit is about what you paid.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "If your call is in the money, your trade is making money.",
+   "subject": "F6.03#q13"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "CME Group: Calculating Options Moneyness & Intrinsic Value",
+      "quote": "The terms “in the money” and “out of the money” refer to the option contract itself and do not represent the profitability of your trade, nor does it depend on whether you have bought or written the option.",
+      "tier": 2,
+      "url": "https://www.cmegroup.com/education/courses/introduction-to-options/calculating-options-moneyness-and-intrinsic-value.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Extrinsic Value Explained (James Chen, CMT)",
+      "quote": "Intrinsic value does not mean profit.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/e/extrinsicvalue.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "an XYZ 50 call (covering 100 shares of XYZ at a premium of $5 a share)",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "would incur a 20% loss even if the price of XYZ increased to 54 (assuming he did not sell his options while they had significant remaining time value)",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "In the money describes the contract, not whether your trade is profitable. Having intrinsic value is not the same as making money on the trade. In the example, the 50 call costs 5 a share. Holding the 50 calls bought at 5 to expiry with the stock at 54 still loses 20%."
+   },
+   "facts": {
+    "given": "If your call is in the money, your trade is making money."
+   },
+   "lesson_line": "In the money is about the strike. Profit is about what you paid.",
+   "unit": "F6.03",
+   "why": "False. In the money describes the contract against the strike, not your trade. You still have to cover what you paid."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q13",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The 60-day call"
+  },
+  "difficulty": 2,
+  "id": "si_73ce90aa304c",
+  "lesson_origin": "session",
+  "lesson_text": "The 60-day call. More time to expiry means more time value, and the intrinsic value is the same for both. More time costs more. You're paying for more chances to be right.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "The 60-day call",
+    "The 30-day call",
+    "They cost the same"
+   ],
+   "kind": "mcq",
+   "q": "Same stock, same 50 strike. One call expires in 30 days, the other in 60. Which usually costs more?",
+   "subject": "F6.03#q14"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "The longer the amount of time available for market conditions to work to an investor's benefit, the greater the time value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity: Understanding options pricing",
+      "quote": "Generally, options with further expiration dates cost more than an equivalent option with a shorter expiration date.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/trading-investing/understanding-options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Extrinsic Value Explained (James Chen, CMT)",
+      "quote": "an option with one month to expiration that is out of the money will have more extrinsic value than an out-of-the-money option with one week to expiration.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/e/extrinsicvalue.asp"
+     }
+    ],
+    "summary": "More time left to expiry means more time value. The later expiry usually costs more than the same option with an earlier expiry. The same out-of-the-money option has more time value with a month left than with a week left."
+   },
+   "facts": {
+    "given": "Same stock, same 50 strike. One call expires in 30 days, the other in 60. Which usually costs more? The 60-day call The 30-day call They cost the same"
+   },
+   "lesson_line": "More time costs more. You're paying for more chances to be right.",
+   "unit": "F6.03",
+   "why": "The 60-day call. More time to expiry means more time value, and the intrinsic value is the same for both.",
+   "wrong": {
+    "The 30-day call": "Less time left means less time value, so the shorter one is usually cheaper.",
+    "They cost the same": "Same strike and stock means the same intrinsic value. The time value is what differs."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q14",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "1.4",
+    "1.40"
+   ],
+   "answer": 1.4
+  },
+  "difficulty": 2,
+  "id": "si_bebcbd97e22a",
+  "lesson_origin": "session",
+  "lesson_text": "$1.40. Intrinsic is 52 minus 50. Take that off the 3.40 and the rest is time value. Premium minus intrinsic equals time value. Do it on every quote.",
+  "module": "F6",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?",
+   "subject": "F6.03#q15"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "market price of XYZ stock at $45 a share, an XYZ 40 call may have a current market price of $6 a share, reflecting an intrinsic value of $5 a share and a time value of $1 a share",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "Time value is whatever the premium is above intrinsic value. Time value is the premium minus intrinsic value; it reflects the time left before expiry. Stock at 45, the 40 call at 6 is 5 of intrinsic value plus 1 of time value."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "premium": 3.4,
+      "strike": 50,
+      "underlying": 52
+     },
+     "fn": "extrinsic",
+     "result": 1.4
+    },
+    "given": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?"
+   },
+   "lesson_line": "Premium minus intrinsic equals time value. Do it on every quote.",
+   "unit": "F6.03",
+   "why": "$1.40. Intrinsic is 52 minus 50. Take that off the 3.40 and the rest is time value."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q15",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$1.10, all of it"
+  },
+  "difficulty": 2,
+  "id": "si_c3d98f54966f",
+  "lesson_origin": "session",
+  "lesson_text": "All of it, $1.10. The call is out of the money, so intrinsic is zero and the whole price is time. Out of the money, every cent of the premium is time value.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "$1.10, all of it",
+    "$3.10",
+    "$0",
+    "$2"
+   ],
+   "kind": "mcq",
+   "q": "How much of the 1.10 is time value?",
+   "story": "A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out.",
+   "subject": "F6.03#q16"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab (Schwab Asset Management): Intrinsic and Extrinsic Value",
+      "quote": "OTM options prices are entirely made up of extrinsic value.",
+      "tier": 2,
+      "url": "https://www.schwabassetmanagement.com/story/intrinsic-and-extrinsic-value"
+     }
+    ],
+    "summary": "Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option. Time value is whatever the premium is above intrinsic value. An out-of-the-money option's price is all time value."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "premium": 1.1,
+      "strike": 40,
+      "underlying": 38
+     },
+     "fn": "extrinsic",
+     "result": 1.1
+    },
+    "given": "How much of the 1.10 is time value? A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out. $1.10, all of it $3.10 $0 $2"
+   },
+   "lesson_line": "Out of the money, every cent of the premium is time value.",
+   "unit": "F6.03",
+   "why": "All of it, $1.10. The call is out of the money, so intrinsic is zero and the whole price is time.",
+   "wrong": {
+    "$0": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
+    "$2": "That's how far the stock is from the strike. It isn't a part of the price.",
+    "$3.10": "That counts the 2 points below the strike as negative intrinsic value. Intrinsic stops at zero."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q16",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "time"
+  },
+  "difficulty": 2,
+  "id": "si_a7425a447a24",
+  "lesson_origin": "session",
+  "lesson_text": "Time. Exercising gets you the intrinsic value only. Selling the option also collects whatever time value is left. With time value left in the bid, I'd sell the option, not exercise it.",
+  "module": "F6",
+  "prompt_json": {
+   "bank": [
+    "time",
+    "intrinsic",
+    "strike",
+    "face"
+   ],
+   "kind": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Exercise an option early and you give up its ___ value.",
+   "subject": "F6.03#q17"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "Selling an option collects its remaining time value; exercising it throws that time value away."
+   },
+   "facts": {
+    "given": "Fill in the blank. Exercise an option early and you give up its ___ value."
+   },
+   "lesson_line": "With time value left in the bid, I'd sell the option, not exercise it.",
+   "unit": "F6.03",
+   "why": "Time. Exercising gets you the intrinsic value only. Selling the option also collects whatever time value is left."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q17",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$1.20"
+  },
+  "difficulty": 2,
+  "id": "si_fce352ce24b1",
+  "lesson_origin": "session",
+  "lesson_text": "$1.20. The put is in the money by 100 minus 95. The rest of the 6.20 is time value. Put intrinsic is strike minus stock. Time value is whatever sits on top.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "$1.20",
+    "$5",
+    "$6.20",
+    "$0"
+   ],
+   "kind": "mcq",
+   "q": "How much of that 6.20 is time value?",
+   "story": "XYZ trades at 95. You think it breaks lower. The 100 put is offered at 6.20.",
+   "subject": "F6.03#q18"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value. Time value is whatever the premium is above intrinsic value. Time value is the premium minus intrinsic value; it reflects the time left before expiry."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "put",
+      "premium": 6.2,
+      "strike": 100,
+      "underlying": 95
+     },
+     "fn": "extrinsic",
+     "result": 1.2
+    },
+    "given": "How much of that 6.20 is time value? XYZ trades at 95. You think it breaks lower. The 100 put is offered at 6.20. $1.20 $5 $6.20 $0"
+   },
+   "lesson_line": "Put intrinsic is strike minus stock. Time value is whatever sits on top.",
+   "unit": "F6.03",
+   "why": "$1.20. The put is in the money by 100 minus 95. The rest of the 6.20 is time value.",
+   "wrong": {
+    "$0": "That would make all 6.20 intrinsic value. The put is only in the money by 100 minus 95.",
+    "$5": "That's the intrinsic value, 100 minus 95. Time value is what's left above it.",
+    "$6.20": "That's the whole premium. Only a put with no intrinsic value is all time value."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q18",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 2,
+  "id": "si_29d6e64c92ef",
+  "lesson_origin": "session",
+  "lesson_text": "False. Time value shrinks as expiry nears, and the shrinking speeds up as the time left gets short. The clock runs slow at first and fast at the end.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "An option's time value melts at a steady rate from the day you buy it until expiry.",
+   "subject": "F6.03#q19"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "all else remaining the same, the time value of an option usually decreases as the option approaches expiration, and this decrease accelerates as the time to expiration shortens.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Theta",
+      "quote": "Theta or time decay is not linear. The theoretical rate of decay will tend to increase as time to expiration decreases.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/advancedconcepts/theta"
+     }
+    ],
+    "summary": "Time value shrinks toward expiry, and the shrinking speeds up near the end. Time decay is not a straight line; it speeds up as expiry approaches."
+   },
+   "facts": {
+    "given": "An option's time value melts at a steady rate from the day you buy it until expiry."
+   },
+   "lesson_line": "The clock runs slow at first and fast at the end.",
+   "unit": "F6.03",
+   "why": "False. Time value shrinks as expiry nears, and the shrinking speeds up as the time left gets short."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q19",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "0.4",
+    "0.40"
+   ],
+   "answer": 0.4
+  },
+  "difficulty": 2,
+  "id": "si_64419a9b10a0",
+  "lesson_origin": "session",
+  "lesson_text": "$0.40. Intrinsic is 150 minus 100, and only the 0.40 above it is time. Deep in the money, time value runs thin. Deep in the money, the premium is almost all intrinsic value.",
+  "module": "F6",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "The stock trades at 150. The 100 call is 50.40. How much time value is in it, per share?",
+   "subject": "F6.03#q20"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "An option normally has very little time value if it is substantially in the money.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     }
+    ],
+    "summary": "A deep in-the-money option usually carries very little time value. Time value is whatever the premium is above intrinsic value."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "premium": 50.4,
+      "strike": 100,
+      "underlying": 150
+     },
+     "fn": "extrinsic",
+     "result": 0.4
+    },
+    "given": "The stock trades at 150. The 100 call is 50.40. How much time value is in it, per share?"
+   },
+   "lesson_line": "Deep in the money, the premium is almost all intrinsic value.",
+   "unit": "F6.03",
+   "why": "$0.40. Intrinsic is 150 minus 100, and only the 0.40 above it is time. Deep in the money, time value runs thin."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Lost $1 a share"
+  },
+  "difficulty": 3,
+  "id": "si_ea8d76c7cd7a",
+  "lesson_origin": "session",
+  "lesson_text": "Lost $1 a share. The call is worth 54 minus 50 at the bell, but you paid 5.00 for it. In the money at expiry can still be a loss. The premium is the bar to clear.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "Lost $1 a share",
+    "Made $4 a share",
+    "Lost the whole $5",
+    "Broke even"
+   ],
+   "kind": "mcq",
+   "q": "Your call finished in the money. What did the trade make or lose, per share?",
+   "story": "You paid 5.00 for the 50 call. On expiry day the stock closes at 54.",
+   "subject": "F6.03#q21"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "an XYZ 50 call (covering 100 shares of XYZ at a premium of $5 a share)",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "would incur a 20% loss even if the price of XYZ increased to 54 (assuming he did not sell his options while they had significant remaining time value)",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Theta",
+      "quote": "Upon expiration, an option has no time value and is worth its intrinsic value only.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/advancedconcepts/theta"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CME Group: Calculating Options Moneyness & Intrinsic Value",
+      "quote": "The terms “in the money” and “out of the money” refer to the option contract itself and do not represent the profitability of your trade, nor does it depend on whether you have bought or written the option.",
+      "tier": 2,
+      "url": "https://www.cmegroup.com/education/courses/introduction-to-options/calculating-options-moneyness-and-intrinsic-value.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Exercising Options",
+      "quote": "When an investor exercises a call option, the net price paid for the underlying stock on a per share basis is the sum of the call's strike price plus the premium paid for the call.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/exercising-options"
+     }
+    ],
+    "summary": "In the example, the 50 call costs 5 a share. Holding the 50 calls bought at 5 to expiry with the stock at 54 still loses 20%. At expiry an option has no time value left and is worth only its intrinsic value. In the money describes the contract, not whether your trade is profitable. A call buyer's real cost for the shares is strike plus premium, which is the break-even at expiry."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "close": 54,
+      "expr": "premium - (close - strike)",
+      "premium": 5,
+      "strike": 50
+     },
+     "fn": "arith",
+     "result": 1.0
+    },
+    "given": "Your call finished in the money. What did the trade make or lose, per share? You paid 5.00 for the 50 call. On expiry day the stock closes at 54. Lost $1 a share Made $4 a share Lost the whole $5 Broke even"
+   },
+   "lesson_line": "In the money at expiry can still be a loss. The premium is the bar to clear.",
+   "unit": "F6.03",
+   "why": "Lost $1 a share. The call is worth 54 minus 50 at the bell, but you paid 5.00 for it.",
+   "wrong": {
+    "Broke even": "Break-even is the strike plus the premium, and 54 falls short of it.",
+    "Lost the whole $5": "The call finished in the money, so it's worth $4 at the bell, not zero.",
+    "Made $4 a share": "That's the intrinsic value at the close. You paid 5.00, so take that off."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q21",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "46",
+    "46.0",
+    "46.00"
+   ],
+   "answer": 46.0
+  },
+  "difficulty": 3,
+  "id": "si_e6d4d37b0ba8",
+  "lesson_origin": "session",
+  "lesson_text": "$46. Strike plus premium, 40 plus 6. From 45 the stock must rise $1, which is the time value you paid. Hold an in-the-money call to expiry and the stock must rise by the time value just to break even.",
+  "module": "F6",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?",
+   "subject": "F6.03#q22"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Exercising Options",
+      "quote": "When an investor exercises a call option, the net price paid for the underlying stock on a per share basis is the sum of the call's strike price plus the premium paid for the call.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/exercising-options"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "market price of XYZ stock at $45 a share, an XYZ 40 call may have a current market price of $6 a share, reflecting an intrinsic value of $5 a share and a time value of $1 a share",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "A call buyer's real cost for the shares is strike plus premium, which is the break-even at expiry. Stock at 45, the 40 call at 6 is 5 of intrinsic value plus 1 of time value."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "premium": 6,
+      "strike": 40
+     },
+     "fn": "option_breakeven",
+     "result": 46.0
+    },
+    "given": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?"
+   },
+   "lesson_line": "Hold an in-the-money call to expiry and the stock must rise by the time value just to break even.",
+   "unit": "F6.03",
+   "why": "$46. Strike plus premium, 40 plus 6. From 45 the stock must rise $1, which is the time value you paid."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q22",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$1.90"
+  },
+  "difficulty": 3,
+  "id": "si_d93bab3d604e",
+  "lesson_origin": "session",
+  "lesson_text": "$1.90. Intrinsic is 112.40 minus 105. You pay 9.30, and everything above intrinsic is time value. When you buy, measure time value from the ask. That's the price you actually pay.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "$1.90",
+    "$7.40",
+    "$9.30",
+    "$1.50"
+   ],
+   "kind": "mcq",
+   "q": "How much time value are you paying for, per share?",
+   "story": "A stock trades at 112.40. The 105 call shows bid 8.90, ask 9.30. You'd buy at the ask.",
+   "subject": "F6.03#q23"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A call option is in-the-money when the underlying security's price is higher than the strike price.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity: Understanding options pricing",
+      "quote": "Options buyers focus on the ask price as it represents the cost and risk of purchasing an option.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/trading-investing/understanding-options-pricing"
+     }
+    ],
+    "summary": "A call is in the money when the stock is above the strike. Time value is whatever the premium is above intrinsic value. A buyer pays the ask, so the ask is the buyer's real cost."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "premium": 9.3,
+      "strike": 105,
+      "underlying": 112.4
+     },
+     "fn": "extrinsic",
+     "result": 1.9
+    },
+    "given": "How much time value are you paying for, per share? A stock trades at 112.40. The 105 call shows bid 8.90, ask 9.30. You'd buy at the ask. $1.90 $7.40 $9.30 $1.50"
+   },
+   "lesson_line": "When you buy, measure time value from the ask. That's the price you actually pay.",
+   "unit": "F6.03",
+   "why": "$1.90. Intrinsic is 112.40 minus 105. You pay 9.30, and everything above intrinsic is time value.",
+   "wrong": {
+    "$1.50": "That uses the 8.90 bid. You're buying, so you pay the 9.30 ask.",
+    "$7.40": "That's the intrinsic value, 112.40 minus 105. The question asks what you pay above it.",
+    "$9.30": "That's the whole premium. Part of it is intrinsic value."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q23",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$10, intrinsic only"
+  },
+  "difficulty": 3,
+  "id": "si_0a337ed4f56a",
+  "lesson_origin": "session",
+  "lesson_text": "$10, intrinsic only. Once the shares become $50 of cash, the call loses all its time value. A cash buyout erases time value. Your call is worth the cash minus the strike.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "$10, intrinsic only",
+    "$10 plus its old time value",
+    "Nothing, deals kill options",
+    "Whatever it last traded at"
+   ],
+   "kind": "mcq",
+   "q": "What is your call worth now, per share?",
+   "story": "You own a 40 call. The company agrees to an all-cash buyout at $50 a share. The deal closes and your options now deliver the cash.",
+   "subject": "F6.03#q24"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Because of an all cash merger involving XYZ Corporation, the stock held by XYZ’s owners is extinguished in return for a payment of $50 in cash per XYZ share.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "As a result, an XYZ call option with an exercise price of $40 will lose all of its time value and the option’s value will only reflect the intrinsic value of $10 ($50 – $40 = $10).",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Additionally, an XYZ call option with an exercise price of $60 will become worthless because the exercise price exceeds the $50 cash settlement delivery amount.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "In the example, an all-cash merger turns each share into 50 dollars of cash. After that cash adjustment, the 40 call loses all its time value and is worth its 10 of intrinsic value. A call struck above the cash amount, like the 60 call, becomes worthless."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "strike": 40,
+      "underlying": 50
+     },
+     "fn": "intrinsic",
+     "result": 10.0
+    },
+    "given": "What is your call worth now, per share? You own a 40 call. The company agrees to an all-cash buyout at $50 a share. The deal closes and your options now deliver the cash. $10, intrinsic only $10 plus its old time value Nothing, deals kill options Whatever it last traded at"
+   },
+   "lesson_line": "A cash buyout erases time value. Your call is worth the cash minus the strike.",
+   "unit": "F6.03",
+   "why": "$10, intrinsic only. Once the shares become $50 of cash, the call loses all its time value.",
+   "wrong": {
+    "$10 plus its old time value": "Cash can't move, so there is nothing left for time value to pay for. It goes to zero.",
+    "Nothing, deals kill options": "Only calls struck at or above the $50 cash die, like a 60 call. Yours is struck at 40.",
+    "Whatever it last traded at": "Once the shares turn into cash, the call is worth the cash minus the strike. The last trade doesn't matter."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q24",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Call B, the 60 expiring Friday"
+  },
+  "difficulty": 3,
+  "id": "si_0bd56c24dad2",
+  "lesson_origin": "session",
+  "lesson_text": "Call B. The further out of the money and the less time left, the bigger the risk of losing it all. Far out of the money with days left is the fastest way to lose the whole premium.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "Call B, the 60 expiring Friday",
+    "Call A, the 52 with two months",
+    "About the same, both are calls"
+   ],
+   "kind": "mcq",
+   "q": "Which call is more likely to lose you the whole premium?",
+   "story": "A stock trades at 50 and you're bullish. Call A is the 52 strike with two months left. Call B is the 60 strike expiring Friday.",
+   "subject": "F6.03#q25"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "The more an option is out of the money and the shorter the remaining time to expiration, the greater the risk that an option holder will lose all or part of his investment in the option.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "an option holder must not only be right about the direction of an anticipated price change in the underlying interest, but she must also be right about when the price change will occur.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "Further out of the money and less time left means a bigger risk of losing the premium. An option buyer has to be right on direction and on timing."
+   },
+   "facts": {
+    "given": "Which call is more likely to lose you the whole premium? A stock trades at 50 and you're bullish. Call A is the 52 strike with two months left. Call B is the 60 strike expiring Friday. Call B, the 60 expiring Friday Call A, the 52 with two months About the same, both are calls"
+   },
+   "lesson_line": "Far out of the money with days left is the fastest way to lose the whole premium.",
+   "unit": "F6.03",
+   "why": "Call B. The further out of the money and the less time left, the bigger the risk of losing it all.",
+   "wrong": {
+    "About the same, both are calls": "Distance from the strike and time left both change the risk. B is worse on both.",
+    "Call A, the 52 with two months": "It costs more, but it sits nearer the stock and has far more time to work."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q25",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The call on Stock A"
+  },
+  "difficulty": 3,
+  "id": "si_f622c744d31b",
+  "lesson_origin": "session",
+  "lesson_text": "The call on Stock A. All else equal, options on jumpier stocks cost more, and the extra sits in the time value. Jumpy stocks carry fatter time value. You pay for the movement up front.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "The call on Stock A",
+    "The call on Stock B",
+    "Same strike, same price"
+   ],
+   "kind": "mcq",
+   "q": "Which call carries more time value?",
+   "story": "Two stocks both trade at 100. Stock A swings 5% most days. Stock B barely moves. You price the 100 call on each, same expiry.",
+   "subject": "F6.03#q26"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "All else being the same, options on more volatile interests command higher premiums than options on less volatile interests.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "The effect of implied volatility can be difficult to quantify. It can significantly affect the time value portion of an option's premium.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Higher volatility estimates indicate greater expected fluctuations (in either direction) in underlying price levels. This expectation generally results in higher option premiums for puts and calls alike.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     }
+    ],
+    "summary": "Options on jumpier stocks cost more, all else equal. Implied volatility can move the time value part of the premium a lot. When bigger moves are expected, calls and puts both get more expensive."
+   },
+   "facts": {
+    "given": "Which call carries more time value? Two stocks both trade at 100. Stock A swings 5% most days. Stock B barely moves. You price the 100 call on each, same expiry. The call on Stock A The call on Stock B Same strike, same price"
+   },
+   "lesson_line": "Jumpy stocks carry fatter time value. You pay for the movement up front.",
+   "unit": "F6.03",
+   "why": "The call on Stock A. All else equal, options on jumpier stocks cost more, and the extra sits in the time value.",
+   "wrong": {
+    "Same strike, same price": "Both calls are at the money with zero intrinsic. Expected movement is what differs, and it drives time value.",
+    "The call on Stock B": "A quiet stock gives the option less chance to pay off, so sellers charge less for the time."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q26",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 3,
+  "id": "si_38ee65180e54",
+  "lesson_origin": "session",
+  "lesson_text": "False. It ordinarily trades at or above intrinsic, but the options disclosure document says it occasionally trades below. Before you sell a deep in-the-money option, check the bid against its intrinsic value.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Before expiry, an American-style option can never trade below its intrinsic value.",
+   "subject": "F6.03#q27"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "An American-style option may ordinarily be expected to trade for no less than its intrinsic value prior to its expiration, although occasionally an American-style option will trade at less than its intrinsic value.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "An option normally has very little time value if it is substantially in the money.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ],
+    "summary": "An American-style option usually trades at or above intrinsic value, but occasionally below it. A deep in-the-money option usually carries very little time value."
+   },
+   "facts": {
+    "given": "Before expiry, an American-style option can never trade below its intrinsic value."
+   },
+   "lesson_line": "Before you sell a deep in-the-money option, check the bid against its intrinsic value.",
+   "unit": "F6.03",
+   "why": "False. It ordinarily trades at or above intrinsic, but the options disclosure document says it occasionally trades below."
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q27",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$1.50, the time value"
+  },
+  "difficulty": 3,
+  "id": "si_adde3de72ef7",
+  "lesson_origin": "session",
+  "lesson_text": "$1.50, the time value. Exercising nets 80 minus 70. Selling the call gets 11.50, time value included. Fees aside. Selling the option keeps the time value. Exercising throws it away.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "$1.50, the time value",
+    "$10, the intrinsic value",
+    "Nothing, same result",
+    "$11.50, the whole premium"
+   ],
+   "kind": "mcq",
+   "q": "Selling the call beats exercising and selling the shares. By how much, per share?",
+   "story": "The stock is at 80. You own the 70 call, bid 11.50, with a month left. You want out of the trade.",
+   "subject": "F6.03#q28"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     }
+    ],
+    "summary": "Selling an option collects its remaining time value; exercising it throws that time value away. Time value is whatever the premium is above intrinsic value."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "kind": "call",
+      "premium": 11.5,
+      "strike": 70,
+      "underlying": 80
+     },
+     "fn": "extrinsic",
+     "result": 1.5
+    },
+    "given": "Selling the call beats exercising and selling the shares. By how much, per share? The stock is at 80. You own the 70 call, bid 11.50, with a month left. You want out of the trade. $1.50, the time value $10, the intrinsic value Nothing, same result $11.50, the whole premium"
+   },
+   "lesson_line": "Selling the option keeps the time value. Exercising throws it away.",
+   "unit": "F6.03",
+   "why": "$1.50, the time value. Exercising nets 80 minus 70. Selling the call gets 11.50, time value included. Fees aside.",
+   "wrong": {
+    "$10, the intrinsic value": "That's what exercising nets you: buy at 70, sell at 80. It isn't the gap between the two exits.",
+    "$11.50, the whole premium": "Exercising isn't worth zero. It still nets the $10 of intrinsic value.",
+    "Nothing, same result": "Exercise captures the intrinsic value only. The time value is lost."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#q28",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_15e66186e95c",
+  "lesson_origin": "session",
+  "lesson_text": "Stock at $45, the 40 call at $6. That's $5 of intrinsic value and $1 of time value.",
+  "module": "F6",
+  "prompt_json": {
+   "order": 1,
+   "part": 1,
+   "parts": 3,
+   "q": "Two parts in every premium",
+   "steps": [
+    "Every option price has two parts: intrinsic value and time value.",
+    "Intrinsic value is how far the option is in the money right now.",
+    "Time value is everything you pay on top of that.",
+    "Stock at $45, the 40 call at $6. That's $5 of intrinsic value and $1 of time value."
+   ],
+   "subject": "F6.03#w1"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "An option’s premium has two main components: intrinsic value and time value (also known as extrinsic value).",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "market price of XYZ stock at $45 a share, an XYZ 40 call may have a current market price of $6 a share, reflecting an intrinsic value of $5 a share and a time value of $1 a share",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ]
+   },
+   "unit": "F6.03"
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#w1",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_bd07328260f7",
+  "lesson_origin": "session",
+  "lesson_text": "Only in-the-money options have intrinsic value. Everything else has zero.",
+  "module": "F6",
+  "prompt_json": {
+   "order": 2,
+   "part": 2,
+   "parts": 3,
+   "q": "In, at and out of the money",
+   "steps": [
+    "A call is in the money when the stock is above the strike.",
+    "A put is in the money when the stock is below the strike.",
+    "Stock right at the strike is at the money.",
+    "Only in-the-money options have intrinsic value. Everything else has zero."
+   ],
+   "subject": "F6.03#w2"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A call option is in-the-money when the underlying security's price is higher than the strike price.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Options Pricing",
+      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "This term means that the current market value of the underlying interest is the same as the exercise price of the option.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     }
+    ]
+   },
+   "unit": "F6.03"
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#w2",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_b0e8ce28de02",
+  "lesson_origin": "session",
+  "lesson_text": "If you're the buyer, time value is the part the clock takes from you.",
+  "module": "F6",
+  "prompt_json": {
+   "order": 3,
+   "part": 3,
+   "parts": 3,
+   "q": "The clock on time value",
+   "steps": [
+    "All else equal, time value shrinks as expiry gets closer, and the shrinking speeds up near the end.",
+    "At expiry there is no time left. The option is worth its intrinsic value only.",
+    "If you're the buyer, time value is the part the clock takes from you."
+   ],
+   "subject": "F6.03#w3"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
+      "quote": "all else remaining the same, the time value of an option usually decreases as the option approaches expiration, and this decrease accelerates as the time to expiration shortens.",
+      "tier": 1,
+      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Theta",
+      "quote": "Upon expiration, an option has no time value and is worth its intrinsic value only.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/advancedconcepts/theta"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab (Schwab Asset Management): Intrinsic and Extrinsic Value",
+      "quote": "buyers suffer from the loss of extrinsic value while option sellers benefit from this loss",
+      "tier": 2,
+      "url": "https://www.schwabassetmanagement.com/story/intrinsic-and-extrinsic-value"
+     }
+    ]
+   },
+   "unit": "F6.03"
+  },
+  "review_status": "draft",
+  "skill_id": "options.value",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.03.json#w3",
+  "type": "walkthrough",
+  "version": 1
+ }
+]
