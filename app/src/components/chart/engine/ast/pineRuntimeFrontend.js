@@ -107,6 +107,11 @@ import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp
 const ORDER_ENUM = Object.freeze({
   'order.ascending': 'ascending', 'order.descending': 'descending',
 })
+/** ⭐ W9-T7 — `strategy.oca.*` (R6 constants), read only in broker mode, as the texts the broker's
+ *  `ocaOf` reads. */
+const STRATEGY_OCA_TYPES = Object.freeze({
+  'strategy.oca.none': 'none', 'strategy.oca.cancel': 'cancel', 'strategy.oca.reduce': 'reduce',
+})
 
 const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
@@ -7536,6 +7541,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (BROKER_VALUE_NAMES.includes(node.name)) return brokerCall(node.name, [], 'number')
           if (node.name === 'strategy.long') return num(1)
           if (node.name === 'strategy.short') return num(-1)
+          // ⭐ W9-T7 [B-OCA] the OCA types, as the texts `broker.js` \`ocaOf\` reads
+          if (STRATEGY_OCA_TYPES[node.name] !== undefined) return str(STRATEGY_OCA_TYPES[node.name])
           note('runtime:strategy-value')
           throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}\``, locate(node.tok))
         }

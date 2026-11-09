@@ -30,6 +30,7 @@ Rules for every row below:
 |---|---|---|---:|---|---|---|
 | Q-S1-core | `s1-broker-core.pine` | NYSE:RDDT 1D | 1 | N02 to N14 | market, bracket, reversal, pyramid, close rules | T1 |
 | Q-S1-core-b | `s1-broker-core-range.pine` | AMEX:SPY 1D | 1 | std, joined on time | the same rules, and method (b) itself | T1 |
+| Q-S1-core-2x | `w9-q-s1core-two-exits.pine` | NYSE:RDDT 1D | 1 | exit id and comment by label; last exit price | two full exits on one trade, the second-called reached first: S1's B-EXIT-BIND (each fills if reached first; served while B-EXIT-QTY is unpinned) against the reference's reservation (B-EXIT-QTY: the first reserves the whole trade). Added 2026-11-08, integration review N2; joins Q-S1-core's fixtures for B-EXIT-BIND | T1, T7 |
 | Q-S1a | `w9-q-s1a-size-v4.pine`, `w9-q-s1a-size-v6.pine`, `w9-q-s1a-size-v5pct.pine`, `w9-q-s1a-size-v5cash.pine`, `w9-q-s1a-size-v2.pine` | NYSE:RDDT 1D | 5 | position size at the fill; equity and close at the signal | default sizing per version | T4 |
 | Q-S1b | `w9-q-s1b-defaults-v4.pine`, `w9-q-s1b-defaults-v5.pine`, `w9-q-s1b-defaults-v6.pine` | NYSE:RDDT 1D | 3 | initial capital; open trades per entry | capital, margin and pyramiding defaults; reversal | T4, T1 |
 | Q-S1c | `w9-q-s1c-tie.pine` | NYSE:RDDT 1D | 1 | trade-0 times | the path on a tie | T1 |

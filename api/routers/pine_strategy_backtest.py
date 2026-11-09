@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -145,12 +146,42 @@ def _window_bars(sym: str) -> list:
     return bars_fetch._fmt_sqlite_bars(rows, TF, sym)
 
 
-def _window_of(bars: list, sent: list) -> dict:
-    """The window this route RAN, stated on every answer (D2), from the bars it sent."""
-    start = str(bars[0].get("t"))[:10]
-    return {"startTime": sent[0]["t"], "startDate": start, "bars": len(sent),
-            "historyWindowBars": HISTORY_WINDOW_BARS, "fromListing": False,
-            "note": f"this backtest starts on {start}; TradingView may start elsewhere"}
+#: ``strategyRecord.js::START_TIMEZONE``: no record carries the symbol's exchange timezone, so the
+#: start date is the UTC date of ``window.startTime`` and the sentence says so.
+START_TIMEZONE = "UTC"
+
+
+def start_date_of(start_time: Any) -> Optional[str]:
+    """``strategyRecord.js::startDateOf``. Used ONLY on an answer with no record (a refusal); an
+    answer with a record serves the record's own date and sentence (ruling D2, one authority).
+    ``tests/test_pine_strategy_backtest.py`` holds it to the JS function through a fixture the JS
+    rail writes (``w9t13a_start_sentence.json``)."""
+    if isinstance(start_time, bool) or not isinstance(start_time, (int, float)):
+        return None
+    return datetime.fromtimestamp(start_time, timezone.utc).strftime("%Y-%m-%d")
+
+
+def start_sentence_of(start_time: Any) -> str:
+    """``strategyRecord.js::startSentenceOf``: the D2 sentence, in the same words and timezone."""
+    date = start_date_of(start_time)
+    if date is None:
+        return "this backtest ran over no bars"
+    return f"this backtest starts on {date} ({START_TIMEZONE}); TradingView may start elsewhere"
+
+
+def _window_of(sent: list, rec: Optional[dict] = None) -> dict:
+    """The window this route RAN, stated on every answer (D2). The start is ``window.startTime``,
+    the run's truth (the bar time the route SENT, never a bars.db date string). With a record, its
+    own ``startDate`` / ``startSentence`` are served verbatim (one authority with the report);
+    without one (a refusal) the same rule is applied to the time sent."""
+    start_time = sent[0]["t"]
+    if rec is not None:
+        w = rec["window"]
+        date, note = w.get("startDate"), w.get("startSentence")
+    else:
+        date, note = start_date_of(start_time), start_sentence_of(start_time)
+    return {"startTime": start_time, "startDate": date, "bars": len(sent),
+            "historyWindowBars": HISTORY_WINDOW_BARS, "fromListing": False, "note": note}
 
 
 def _transport(why: runtime_client.Refusal) -> bool:
@@ -192,13 +223,12 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
             def_id=row.get("def_id"), version=row.get("version"), doc=row.get("definition"),
             owner_id=row.get("user_id", user.get("id")), profile="backtest", jobs=jobs)
         for job, res in zip(jobs, results):
-            bars, sent = sent_of[job.job]
-            window = _window_of(bars, sent)
+            _bars, sent = sent_of[job.job]
             why = res.refusal_for(codec.STRATEGY_WANT)
             if why is not None:
                 if _transport(why):
                     raise sbt._refuse_runtime(why.guard, why.sentence)
-                answers[job.job] = {"symbol": job.job, "status": "refused", "window": window,
+                answers[job.job] = {"symbol": job.job, "status": "refused", "window": _window_of(sent),
                                     "refusal": {"guard": why.guard, "sentence": why.sentence, "bar": why.bar}}
                 continue
             rec = res.strategy
@@ -209,7 +239,13 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
                 raise sbt._refuse_runtime(
                     runtime_client.INTEGRITY,
                     f"the strategy record for {job.job} describes a window other than the one sent")
-            answers[job.job] = {"symbol": job.job, "status": "ok", "window": window, "strategy": rec}
+            # D2, one authority: the record must state its start by the one rule (the report reads it)
+            if w.get("startDate") != start_date_of(sent[0]["t"]) or not isinstance(w.get("startSentence"), str) \
+                    or not w.get("startSentence"):
+                raise sbt._refuse_runtime(
+                    runtime_client.INTEGRITY,
+                    f"the strategy record for {job.job} does not state its start (D2)")
+            answers[job.job] = {"symbol": job.job, "status": "ok", "window": _window_of(sent, rec), "strategy": rec}
 
     return {"def_id": body.def_id, "tf": TF, "historyWindowBars": HISTORY_WINDOW_BARS,
             "results": [answers[s] for s in symbols]}
