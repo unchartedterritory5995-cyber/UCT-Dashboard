@@ -75,3 +75,12 @@ and dies in `w9BrokerIntegration.test.js`'s N7 rail, so that file is in the run.
   On-grid fills are served; price + tick / 3 refuses (W9-K4).
 - **Mutants:** 37 of 37 killed. M36 restores the r1 test; M37 drops the write at the tick's decimals.
 - Node 20: 20 focused files, 510/510. Node 24.13.1: HP-1 GREEN 166/166; service suite 139/139.
+
+## r3 (review GO-WITH-NOTES @fc2aa0fcaa)
+
+- **New rail:** a satoshi tick of 1e-8 (`String(1e-8)` is "1e-8", so the decimals come from the exponent).
+  At slippage 2, price 0.00012345 fills a long at 0.00012347 and a short at 0.00012343; price + tick / 3
+  refuses (W9-K4).
+- **New mutant:** M38, a `tickDecimals` that ignores the exponent. It dies on the new rail. M36 and M37 were
+  re-run on this tree and are still killed. 38 of 38 killed.
+- Node 20: w9T5Costs 54/54.

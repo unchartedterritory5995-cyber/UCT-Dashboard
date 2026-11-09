@@ -263,6 +263,8 @@ describe('W9-T5 r2: the tick grid under slippage, for ticks that do not divide 1
     [1 / 64, 100 + 3 / 64, 100 + 5 / 64, 100 + 1 / 64], [0.00001, 1.23457, 1.23459, 1.23455],
     // 7 x 0.1 and 3 x 0.1 are not 0.7 and 0.3 in binary: the price is written at the tick's decimals
     [0.1, 0.5, 0.7, 0.3],
+    // a satoshi tick: String(1e-8) is "1e-8", so the decimals come from the exponent
+    [1e-8, 0.00012345, 0.00012347, 0.00012343],
   ]) {
     it(`tick ${tick}: ${px} is on the grid; a long fills at ${up}, a short at ${down}; ${px} + tick / 3 refuses (W9-K4)`, () => {
       expect(fillAt(tick, px, 1)).toBe(up)

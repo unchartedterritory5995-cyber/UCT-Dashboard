@@ -220,5 +220,11 @@
   "file": "src/components/chart/engine/runtime/broker.js",
   "verdict": "killed",
   "failed": 1
+ },
+ {
+  "mutant": "M38 tickDecimals ignores the exponent (r3)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1
  }
 ]

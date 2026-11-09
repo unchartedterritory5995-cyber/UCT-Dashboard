@@ -73,6 +73,7 @@ MUTANTS = [
     ('M37 the slipped price not written at the tick decimals (r2)', B,
      'return Number(((k + side * slipTicks) * mintick).toFixed(tickDecimals(mintick)))',
      'return (k + side * slipTicks) * mintick'),
+    ('M38 tickDecimals ignores the exponent (r3)', B, 'Math.max(0, frac - (exp ? Number(exp) : 0))', 'Math.max(0, frac)'),
     ('M35 percent fee ignores pointvalue (U2)', B, 'return units * price * pointvalue * comm.value / 100 }',
      'return units * price * comm.value / 100 }'),
 ]
