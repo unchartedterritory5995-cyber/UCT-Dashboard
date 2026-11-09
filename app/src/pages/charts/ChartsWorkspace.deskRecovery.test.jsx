@@ -20,7 +20,12 @@ vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mo
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
 vi.mock('./grid/MultiChartMenu', () => ({ default: () => <div data-testid="multichart-menu">MC MENU</div> }))
 vi.mock('react-grid-layout', () => ({
-  Responsive: ({ children }) => <div data-testid="rgl-responsive">{children}</div>,
+  Responsive: ({ children, onLayoutChange }) => (
+    <div data-testid="rgl-responsive">
+      <button data-testid="rgl-fire-change" onClick={() => onLayoutChange && onLayoutChange([{ i: 'fake', x: 0, y: 0, w: 6, h: 6 }])}>fire</button>
+      {children}
+    </div>
+  ),
   WidthProvider: (C) => C,
 }))
 
@@ -28,8 +33,9 @@ const setPref = vi.fn()
 const setPrefMerged = vi.fn()
 let mockPrefs = {}
 let mockPrefsLoading = false
+let mockReadFailed = false
 vi.mock('../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: mockPrefs, setPref, setPrefMerged, loading: mockPrefsLoading }),
+  default: () => ({ prefs: mockPrefs, setPref, setPrefMerged, loading: mockPrefsLoading, readFailed: mockReadFailed }),
   parsePref: (raw, fallback) => {
     if (raw == null) return fallback
     if (typeof raw !== 'string') return raw
@@ -150,6 +156,7 @@ beforeEach(() => {
   publishPrefsUser('A')
   mockPrefs = { charts_workspace_layout: board(widget('a1'), widget('a2', 6)) }
   mockPrefsLoading = false
+  mockReadFailed = false
   globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) }))
   locks = installLocks()
   openSpy = vi.spyOn(window, 'open').mockImplementation(() => makeFakeWindow())
@@ -310,6 +317,60 @@ describe('closing the window yourself', () => {
     expect(recordKeys()).toHaveLength(1)
   })
 
+  describe('a record goes only with a save that holds its widgets', () => {
+    async function dockWithRefusedSave() {
+      const fake = makeFakeWindow()
+      openSpy.mockImplementation(() => fake)
+      setPref.mockResolvedValue(false)
+      await renderWS()
+      popOut()
+      act(() => { fake._fire('beforeunload') })
+      act(() => { vi.advanceTimersByTime(600) })
+      await flush()
+      expect(recordKeys()).toHaveLength(1)
+      setPref.mockResolvedValue(true)
+    }
+    async function drag() {
+      const before = layoutWrites().length
+      act(() => { fireEvent.click(screen.getByTestId('rgl-fire-change')) })
+      act(() => { vi.advanceTimersByTime(600) })
+      await flush()
+      expect(layoutWrites().length).toBeGreaterThan(before)    // the save really ran
+    }
+
+    test('dock, refused save, board replaced, later confirmed save: the record stays', async () => {
+      await dockWithRefusedSave()
+      act(() => { fireEvent.click(screen.getByText('Layouts ▾')) })
+      act(() => { fireEvent.click(screen.getByText('Open Layout ▸')) })
+      act(() => { fireEvent.click(screen.getAllByText('UCT Default')[0]) })
+      await flush()
+      act(() => { vi.advanceTimersByTime(3000) })
+      await flush()
+      expect(screen.queryByTestId('body-a1')).toBeNull()       // the docked widgets are off the board
+
+      await drag()
+      expect(idsOf(layoutWrites().at(-1))).not.toContain('a1')
+      expect(recordKeys()).toHaveLength(1)
+      expect(readRecord('A', popId()).widgets.map((w) => w.id)).toEqual(['a1', 'a2'])
+    })
+
+    test('control: dock, refused save, later confirmed save that holds them: the record goes', async () => {
+      await dockWithRefusedSave()
+      await drag()
+      expect(idsOf(layoutWrites().at(-1))).toEqual(['a1', 'a2'])
+      expect(recordKeys()).toEqual([])
+    })
+
+    test('a save holding only some of its widgets keeps the record', async () => {
+      await dockWithRefusedSave()
+      act(() => { fireEvent.click(screen.getByTestId('remove-a1')) })
+      act(() => { vi.advanceTimersByTime(600) })
+      await flush()
+      expect(idsOf(layoutWrites().at(-1))).toEqual(['a2'])
+      expect(recordKeys()).toHaveLength(1)
+    })
+  })
+
   test('a widget edit after the dock cannot write the record back', async () => {
     const fake = makeFakeWindow()
     openSpy.mockImplementation(() => fake)
@@ -346,6 +407,24 @@ describe('the restore', () => {
     view.rerender(tree())
     await flush()
     expect(screen.getByTestId('body-r1')).toBeInTheDocument()
+  })
+
+  test('a failed preferences read offers nothing, and a later good read does', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1', 12)])
+    mockReadFailed = true                                   // between SWR retries: not loading, no stored board
+    mockPrefs = {}
+    const view = await renderWS()
+    expect(restoreButton()).toBeNull()
+
+    mockReadFailed = false
+    mockPrefs = { charts_workspace_layout: board(widget('a1')) }
+    view.rerender(tree())
+    await flush()
+    expect(restoreButton()).toBeTruthy()
+
+    await clickRestore()
+    expect(idsOf(layoutWrites().at(-1))).toEqual(['a1', 'r1'])   // the real board, not the default
+    expect(recordKeys()).toEqual([])
   })
 
   test('deletes the record only after the save resolves', async () => {

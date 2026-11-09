@@ -813,7 +813,7 @@ function ChartsWorkspaceBoard() {
     + '(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)',
   )
   const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
-  const { prefs, setPref, setPrefMerged, loading: prefsLoading } = usePreferences()
+  const { prefs, setPref, setPrefMerged, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
   // Read at WRITE time by the Watchlist-columns fold below (it runs from the autosave, 500 ms
   // after the render that scheduled it), so it must be the latest prefs, not a closure's.
   const prefsRef = useRef(prefs)
@@ -1270,13 +1270,17 @@ function ChartsWorkspaceBoard() {
   // change of member is dropped, never written into the next member's account.
   const saveOpRef = useRef(null)
   // ⛔ DESK RECORDS: a popped board's record is the only copy of its widgets, so a docked board's
-  // record goes only once a save written AFTER the dock is confirmed. Ids wait here until one is;
-  // a refused save leaves them for the next one.
+  // record goes only with a confirmed save that HOLDS those widgets. A refused save leaves the entry
+  // here, and the next save may be a different board (a layout opened, a version restored): one that
+  // does not hold them leaves the record for the next load to offer.
   const deskUidRef = useRef(null)
   const deskOwnerRef = useRef(null)
-  const dockedRecordsRef = useRef(new Set())
-  const settleDockedRecords = useCallback((saved) => {
+  const dockedRecordsRef = useRef(new Map())   // popId -> ids of the widgets that came back
+  const settleDockedRecords = useCallback((saved, savedLayout) => {
+    const onBoard = new Set((savedLayout?.widgets || []).map(w => w.id))
     const ids = [...dockedRecordsRef.current]
+      .filter(([, widgetIds]) => widgetIds.every(id => onBoard.has(id)))
+      .map(([id]) => id)
     if (!ids.length) return
     const uid = deskUidRef.current
     Promise.resolve(saved).then((result) => {
@@ -1293,7 +1297,7 @@ function ChartsWorkspaceBoard() {
     if (boardCommitInFlightRef.current) return false
     const saved = setPref('charts_workspace_layout', serializeLayout(nextLayout))
     foldWatchlistColumns()
-    settleDockedRecords(saved)
+    settleDockedRecords(saved, nextLayout)
     return saved
   }, [setPref, foldWatchlistColumns, settleDockedRecords])
   const scheduleSave = useCallback((nextLayout) => {
@@ -2656,7 +2660,7 @@ function ChartsWorkspaceBoard() {
     // Off the tracked list so nothing writes the record back, and queued for deletion by the save
     // the updater below schedules. Outside the updater: React runs updaters twice under StrictMode.
     poppedBoardsRef.current.delete(popId)
-    dockedRecordsRef.current.add(popId)
+    dockedRecordsRef.current.set(popId, returning.map(w => w.id))
     setLayout(prev => {
       const next = { ...prev, widgets: clampWidgetsToRows(placeReturningWidgets(prev.widgets, returning)) }
       scheduleSave(next)
@@ -2893,6 +2897,10 @@ function ChartsWorkspaceBoard() {
   // Offered, never docked by itself, and only once the board has loaded: a dock onto the default
   // board would be overwritten by the prefs answer, and its save would replace the real board.
   // Records are read here and deleted only after the save that holds their widgets is confirmed.
+  // ⛔ A failed read is not a loaded board: between SWR's retries nothing is loading and no stored
+  // board is present, so autoSaveReady reads true over the default board. A restore then would
+  // save the default plus the orphan over the member's real board.
+  const deskRestoreReady = autoSaveReady && !prefsReadFailed
   const offerDeskRestoreRef = useRef(null)
   const restoringRef = useRef(false)
   const restoreDeskRecord = useCallback(async (recordId) => {
@@ -2964,9 +2972,9 @@ function ChartsWorkspaceBoard() {
     })
   }
   useEffect(() => {
-    if (!autoSaveReady || !deskUid || isMobile) return
+    if (!deskRestoreReady || !deskUid || isMobile) return
     offerDeskRestoreRef.current?.()
-  }, [autoSaveReady, deskUid, isMobile])
+  }, [deskRestoreReady, deskUid, isMobile])
 
   const runNamedSave = useCallback(() => {
     namedSaveRef.current?.()
