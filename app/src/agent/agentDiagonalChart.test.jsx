@@ -126,3 +126,45 @@ describe('the anchor of a relation is never the target (the family)', () => {
     expect(tfsOf(b, FOUR)).toBe('DWDD')
   }, 40000)
 })
+
+// AUDIT #988 HOLD: the relation as a MODIFIER BEFORE the noun ("the <relation> chart"), anchorless: the click is the anchor, never
+// the target. The family × the nouns, built here rather than listed (no single phrasing is the point).
+const MODIFIERS = ['opposite-corner', 'opposite corner', 'diagonal', 'diagonally-opposite', 'diagonally opposite', 'kitty-corner', 'kitty corner',
+  'catty-corner', 'catty corner', 'far-corner', 'far corner']
+const NOUNS = ['chart', 'one', 'cell', 'panel']
+const VERBS = [(np) => `make ${np} weekly`, (np) => `switch ${np} to weekly`, (np) => `put ${np} on the weekly`]
+describe('the relation as a modifier before the noun ("the <relation> chart"), anchored on the click', () => {
+  const at = (ref, x, y) => ({ ref, cell: { x, y, w: 12, h: 10 } })
+  const C = [at('c0', 0, 0), at('c1', 12, 0), at('c2', 0, 10), at('c3', 12, 10)]
+  const OPP = { c0: 'c3', c1: 'c2', c2: 'c1', c3: 'c0' }
+  const CASES = MODIFIERS.flatMap(mod => NOUNS.map(n => `the ${mod} ${n}`))
+  it.each(CASES)('relativeChart("%s"): the click\'s diagonal, from every corner', (np) => {
+    for (const sel of ['c0', 'c1', 'c2', 'c3']) expect(relativeChart(`make ${np} weekly`, C, sel)?.hits.map(c => c.ref), `${np} from ${sel}`).toEqual([OPP[sel]])
+  })
+  // through the panel: each modifier once (nouns and verbs rotate), clicked c2, meant c1
+  const PANEL = MODIFIERS.map((mod, i) => VERBS[i % VERBS.length](`the ${mod} ${NOUNS[i % NOUNS.length]}`))
+  it.each(PANEL)('"%s" (c2 clicked): the plan on the diagonal runs there; the click is unchanged', async (t) => {
+    const b = await runOn(FOUR, FOUR_SYMS, 'c2', 'c1', t)
+    expect(tfOf(b, 'c1'), transcript()).toBe('W')
+    expect(tfOf(b, 'c2')).toBe('D')
+  }, 40000)
+  it.each(PANEL)('"%s" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes', async (t) => {
+    const b = await runOn(FOUR, FOUR_SYMS, 'c2', 'c2', t)
+    expect(tfsOf(b, FOUR), transcript()).toBe('DDDD')
+    expect(asked()).toBe(true)
+  }, 40000)
+  it('NEGATIVE the modifier on a non-chart noun is no chart relation ("the diagonal line", "the opposite corner of the candle")', () => {
+    for (const t of ['delete the diagonal line', 'draw a box in the opposite corner of the candle']) expect(relativeChart(t, C, 'c2'), t).toBeNull()
+  })
+})
+
+// AUDIT (4), for the record: "across from this" on one row of two resolves to NO chart (they share the row) and asks
+describe('across from this on a 1×2 row', () => {
+  const TWO = [cell('a0', 0, 0), cell('a1', 12, 0)]
+  const TWO_SYMS = { 'N:a0': 'SPY', 'N:a1': 'QQQ' }
+  it('resolves to none and asks; nothing changes, never the click', async () => {
+    const b = await runOn(TWO, TWO_SYMS, 'a0', 'a0', 'make the chart across from this one weekly')
+    expect(tfsOf(b, TWO), transcript()).toBe('DD')
+    expect(asked()).toBe(true)
+  }, 40000)
+})

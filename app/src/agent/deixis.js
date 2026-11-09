@@ -58,6 +58,9 @@ const DIAG_WORD = `(?:diagonal(?:ly)?\\s+(?:opposite|across)(?:\\s+(?:from|to))?
 export const DIAGONAL = new RegExp(`\\b${DIAG_WORD}\\s+${REL_ANCHOR}`, 'i')
 // anchorless ("the chart diagonally opposite", "the one in the opposite corner"): the click is the anchor, as RELATIVE_BARE
 const DIAGONAL_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:diagonally|directly)\s+(?:opposite|across)|(?:kitty|catty|cater)[-\s]?corner(?:ed)?|in\s+the\s+opposite\s+corner)\b(?!\s*(?:from|to|of)\b)/i
+// AUDIT #988: the relation as a MODIFIER before the chart noun ("the opposite-corner chart", "the diagonal one", "the kitty corner
+// cell", "the far-corner panel"), hyphenated or not: anchorless, so the click is the anchor
+const DIAGONAL_PRE = /\b(?:the|that)\s+(?:opposite[-\s]+corner(?:ed)?|diagonal(?:ly[-\s]+opposite)?|(?:kitty|catty|cater)[-\s]?corner(?:ed)?|far[-\s]+corner)\s+(?:chart|one|cell|pane|panel|graph)\b/i
 // AUDIT GO (2): a relation word UCT cannot place on the grid ("facing this one", "on the far side of this chart"), anchored on the
 // click: the click is still only the ANCHOR, so the reference resolves to no chart (asked with the real names), never the click
 const UNPLACED_RELATION = new RegExp(`\\b(?:facing|mirroring|(?:on\\s+)?the\\s+(?:far|other)\\s+side\\s+of|opposite|across|diagonal(?:ly)?|corner(?:ed)?)\\s+(?:(?:from|to|of)\\s+)?${REL_ANCHOR}`, 'i')
@@ -66,7 +69,7 @@ const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph)\b/i.test(s)
 export function relationMatch(text) {
   const s = String(text || '')
   const aboutChart = (x) => !placesNonChart(s.slice(0, x.index)) && (REL_CHART_ANCHOR.test(x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
-  const d = DIAGONAL.exec(s) || DIAGONAL_BARE.exec(s)
+  const d = DIAGONAL.exec(s) || DIAGONAL_BARE.exec(s) || DIAGONAL_PRE.exec(s)
   if (d && aboutChart(d)) { d.diagonal = true; return d }
   const m = RELATIVE.exec(s)
   // ⛔ AUDIT S2-B: the same rule for an anchored relation — "the alert and the one above it": a bare "one" coordinated with a
