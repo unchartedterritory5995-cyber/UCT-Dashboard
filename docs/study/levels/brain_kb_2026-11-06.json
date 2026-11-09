@@ -1,0 +1,1021 @@
+{
+ "db": "/data/brain/data/uct_intelligence.db",
+ "kb_rows": 19067,
+ "setups": {
+  "Kicker": {
+   "kb_matches": 84,
+   "kb": [
+    {
+     "id": 4409,
+     "category": "JOURNAL",
+     "title": "Bracco Year-End Trade Review and Positions",
+     "trader": "Bracco",
+     "source_ref": "Uncharted Territory Sunday Scans 2026-02-21",
+     "text": "Current positions: PL RDDT LLY WRBY URBN TWLO BE ALB RIVN. Closed U (6% gain) and CRSP (2.5% loss). Took 1/3 profit in LLY at $1075 from $1013 entry. Closed partial PL at $19.10 from $12.40 early in the week. Got some RIVN at $18.8 but not nearly enough - the gap up kicker candle Thursday and hourly flagging and breakout was prime but undersized."
+    },
+    {
+     "id": 5060,
+     "category": "EXECUTION",
+     "title": "Current Positions and Execution Details During Drawdown",
+     "trader": "TSDR",
+     "source_ref": "substack_unchartedterritory_sunday_scans_2026-02-21",
+     "text": "Current positions: MDB, AMD, SOXL, TWLO. Robinhood: HOOD, NVDA, AMZN, META, BE, ALB, AMDL, ARGT, GGAL, YPF, CEPU, PAM, SEI. AMD position withstood volatility, long with $330 cost basis and trimmed at $370. TWLO long from hourly push on analyst day and kicker candle gap up following day. SOXL from Friday's opening range. MDB from Friday's red to green upside reversal attempt.\n[wisdom-provenance-v1 consumer=brainkb ref=knowledge_base:5060 cite=bonde_reattribution flag=WISDOM_BRAINKB_PUBLISH_ENABLED]"
+    },
+    {
+     "id": 5376,
+     "category": "JOURNAL",
+     "title": "Bracco Year-End Positions and Trade Updates",
+     "trader": "Bracco",
+     "source_ref": "Uncharted Territory Sunday Scans 2026-02-21",
+     "text": "Current Positions: PL RDDT LLY WRBY URBN TWLO BE ALB RIVN. Closed U (6% gain) and CRSP (2.5% loss). Took 1/3 profit in LLY at $1075 from $1013 entry. Closed partial PL at $19.10 early in week from $12.40 entry. Got some RIVN at $18.8 but not enough - the gap up kicker candle Thursday was prime, then hourly flagging and breakout."
+    },
+    {
+     "id": 10921,
+     "category": "SETUP",
+     "title": "Manrav 2025-01-23 t10127: 1/23 kicker candle lesson using TAL: a strong stock at a broadening formation with a great",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10127",
+     "text": "1/23 kicker candle lesson using TAL: a strong stock at a broadening formation with a great weekly breakout; buying big gaps (about 9% here) is tough, but in hindsight it was a textbook kicker candle. Definition he scans: prior close below the 8 and 21 EMAs, current close above both. Huge gap-ups are usually news/earnings; a prior close below the 50 and 200 SMAs gapping above both is a character change. Agreed to add an ascending 200 SMA condition. Chart: The 'strong stock at the broadening formation' charts are RKLB, not TAL: daily near 31.57 (+6.6%, 31.75 high) tagging the upper line of a dra"
+    },
+    {
+     "id": 10927,
+     "category": "SETUP",
+     "title": "Manrav 2025-01-29 t10140: 1/29 kicker candle refinement: building on Bracco's definition, he would add (1) a close b",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10140",
+     "text": "1/29 kicker candle refinement: building on Bracco's definition, he would add (1) a close below the 21 EMA the previous day and (2) a gap up above the previous day's high; a gap over the high works better and is what his scan uses. Chart: The 'Kicker Candle' scan watchlist on 1/29 listed AGQ (+4.9%), FLEX (+1.4%), NXT (+22.9%), PACK (+27.2%), PCAR (+3.3%), SLV (+1.7%) and TMUS (+8.8%).\n\nIn Manrav's words: \"Kicker candles [chart]\n10:06am Thank you, Bracco! I would just add\n// 1) Close below 21 EMA previous day and\n2) Gapping up above the previous day's high\n10:28am Yeah ideally a gap over high i"
+    },
+    {
+     "id": 10943,
+     "category": "SETUP",
+     "title": "Manrav 2024-05-22 t10177: 5/22 ENPH kicker candle as a textbook buy: below the EMAs with an inside day the day befor",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10177",
+     "text": "5/22 ENPH kicker candle as a textbook buy: below the EMAs with an inside day the day before (treat it as a bear trap), then reclaimed the MAs with a launch pad on the daily -- once those reclaim, moves are fast; Oliver Kell would have doubled his position. After the gap it became a chase -- wait for a pullback; he thought it was the start of a big move. Also MARA up on volume, CRM on watch; told a member shares with a $60 stop was a great R/R. Chart: The 'Up on Volume' image is a scanner watchlist, not a MARA chart: led by DQ (+17%), CSIQ, NVAX, ARRY, SHLS, BE, JKS, FSLR, PLUG, RUN (solar-heav"
+    },
+    {
+     "id": 11868,
+     "category": "SETUP",
+     "title": "TSDR 2025-10-01 t12743: 10/1, replying to a member: he would not call the candle a kicker, wanting it to look more",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t12743",
+     "text": "10/1, replying to a member: he would not call the candle a kicker, wanting it to look more like the ARKK breakout day, but MDB was a buy candle that day; enter however you want. He showed a similar gap down to the 20 EMA and recovery (charts). Management: scale out some initial risk into the 3-5 day push, then trail the MAs as they come up through your entry and your drawdown threshold. Chart: MDB daily: a descending pennant from the mid-Sept high near 345 with a flat floor near 305 at the 20 EMA, and the 10/1 green candle near 324 pushing through the upper line. The 'similar gap down to 20 EM"
+    },
+    {
+     "id": 11901,
+     "category": "SETUP",
+     "title": "TSDR 2025-10-15 t12841: 10/15: he accepts he won't get a 20,000% winner like RGTI, it's not his style, but he will",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t12841",
+     "text": "10/15: he accepts he won't get a 20,000% winner like RGTI, it's not his style, but he will get many 30-40-100% winners. His Robinhood is stocks he has good fundamental ideas on, bought on pullbacks with 5-8% risk to see what sticks. He would consider buying a kicker candle a member posted, though was unsure given the 200 SMA.\n\nIn TSDR's words: \"I accept that I will not get a 20,000% winner like on RGTI. its just not my style\n4:29pm But I will get a lot of 30-40-100% winners\n4:33pm Id consider buying this kicker candle, although the 200SMA man idk\n4:35pm This is basically what my robinhood is. "
+    },
+    {
+     "id": 12121,
+     "category": "MACRO",
+     "title": "Bracco 2025-12-11 t13330: 12/11/25: SMH printed a nasty kicker down from the leading group, SOXX swept on the weekly",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t13330",
+     "text": "12/11/25: SMH printed a nasty kicker down from the leading group, SOXX swept on the weekly, NQ rejected; GLD triggering; FSLR hot inside bar; QBTS notably stronger than other quantum names. Crossback setups were triggering without volume or traction; a few months earlier they would have blasted, showing no risk appetite. IWM would explode if the market recovered. Chart: SMH daily near 366.4 (-2.1%): a gap-down red bar right after the prior day poked above the red ~372 line (late-Oct high) to ~376, still above the 9/20 EMAs. SOXX weekly near 308.9 wicked above the red ~313 double-top line to ~3"
+    },
+    {
+     "id": 12196,
+     "category": "MACRO",
+     "title": "Manrav 2025-12-12 t13489: Index levels 12/12-12/19/25: QQQ needed to hold the 21 EMA, careful in tech; on 12/15 it w",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t13489",
+     "text": "Index levels 12/12-12/19/25: QQQ needed to hold the 21 EMA, careful in tech; on 12/15 it was back below the 50 SMA ('not a good look'); 12/16 keep it simple, the 50 SMA is the level to reclaim, 611.4 the first level. SPY rejected at the 21 EMA but he still saw risk-on names getting bid. 12/18 SPY bounced off the 50 SMA; he was only watching the daily 50 to avoid intraday noise. 12/19 SPY/QQQ phantom prints higher, NVDA wedge pop, AMD looked hot. Chart: QQQ daily 12/15: near 612.4, below the 50 SMA (near 613.6) and a marked 617.72 line, sitting on the marked 611.4 green support after rejecting "
+    },
+    {
+     "id": 12294,
+     "category": "SETUP",
+     "title": "TSDR 2026-01-23 t13714: Kickers 1/23-1/28: RDW cranked 1/23, held its gap and ran clean from the opening range 1/2",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t13714",
+     "text": "Kickers 1/23-1/28: RDW cranked 1/23, held its gap and ran clean from the opening range 1/27. He called RDW a perfect kicker example for the psychology of it; looking back, RR (over $5) and RDW were both kickers off support with a PR, and RR/RDW/GLW news gappers were modelbook examples: screenshot them, take notes and wait for the next one. For a slower, easier intraday entry, look for a little VWAP undercut and reclaim; always need 'a little something extra'. More charts (1/28 7:42am): Commentary excerpt from his Rest of the Week letter, posted twice 1/28: 3 incredible news gappers with remark"
+    },
+    {
+     "id": 12584,
+     "category": "SETUP",
+     "title": "TSDR 2026-05-08 t14435: 5/8 a member asked about 'entry tactics': in his experience intraday entry tactics have le",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t14435",
+     "text": "5/8 a member asked about 'entry tactics': in his experience intraday entry tactics have led to more losses and missed trades than not; his entry tactic is a kicker candle on earnings. A daily setup supplies everything -- entry, stop, trigger, size -- so what does a 5-min chart add that the daily cannot? He did also watch for an undercut and reclaim of VWAP, and the first question is always: what is my stop.\n\nIn TSDR's words: \"Hey can I ask what you mean by entry tactic\n3:42pm It is my experience, that entry tactic has led to more losses and missed trades than not.\n// I think the entry tactic i"
+    },
+    {
+     "id": 12889,
+     "category": "SETUP",
+     "title": "TSDR 2026-09-03 t15138: 9/3 he told members to watch the hourly, with CRWD, RBRK, OKTA and NTSK in play for the so",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t15138",
+     "text": "9/3 he told members to watch the hourly, with CRWD, RBRK, OKTA and NTSK in play for the software group; 9/8 NTSK, OKTA, RBRK still looked solid, and 9/11 he asked who had RBRK versus 86. 9/14 (PLTR pushing opening highs, CRWD at new ATHs) he taught the group read: consider the entire group -- NTSK, CRWD, NET, RBRK, OKTA. OKTA was a failed breakout squat and then push, tough but explainable and repeatable, ideally pulling in a bit further; RBRK was a kicker candle. Chart: OKTA daily: late-August gap up from near 130 on heavy volume, a tight range under a drawn line near 175 for about two weeks,"
+    },
+    {
+     "id": 13221,
+     "category": "MACRO",
+     "title": "TSDR 2026-06-12 t1634: ALAB bought $320, sold at $303 8/18 after not selling the day before on an oops reversal a",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t1634",
+     "text": "ALAB bought $320, sold at $303 8/18 after not selling the day before on an oops reversal at breakeven as planned; admitted that mistake cost him. Chart: ALAB daily: rebound from a late-July low near 250 to near 365, then a descending trendline from that high and a flat shelf near 315 forming a tight triangle under the 20 EMA; hourly/30-min views show the 8/12-8/13 push back over the downtrend line near 330, and the 8/14 view shows price slipping to near 318 at the shelf.\n\nIn TSDR's words: \"Rolling with the punches today, pretty simple. Going to scan, talk the market, see what stands out. Objec"
+    },
+    {
+     "id": 13378,
+     "category": "MACRO",
+     "title": "TSDR 2026-04-20 t1700: BTC-miner/HPC group theme (WULF RIOT HUT APLD CRWV NBIS CORZ); bought $37.05 with a $36.30",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t1700",
+     "text": "BTC-miner/HPC group theme (WULF RIOT HUT APLD CRWV NBIS CORZ); bought $37.05 with a $36.30 stop 5/20 morning, a 10:1 R/R play covered in a mid-day video, with a shoutout to Anand for the push to buy. Chart: RIOT daily near 18.3 under a slightly descending line from ~19 (4/22 kicker setup). WULF daily near 20.6 in a small flag well above a ~17.5 breakout line. APLD daily near 37.8 retesting a long ~38.5 horizontal line from Oct/Jan highs after a May push to ~48; NBIS daily near 203 with the circled late-April hold of its ~145 breakout line. Dark-pool prints on APLD at $38.66: blocks of 3,025,40"
+    }
+   ],
+   "model_examples": [
+    {
+     "setup_type": "Kicker Candle",
+     "symbol": "QQQ",
+     "chart_date": "2026-02-20",
+     "grade": "",
+     "example_type": "model",
+     "entry_price": null,
+     "stop_price": null,
+     "target_price": null,
+     "outcome_pct": null,
+     "days_held": null,
+     "failure_analysis": "",
+     "notes": "The chart filename and price action both confirm a bullish engulfing candlestick pattern forming near a key support zone on QQQ (Invesco QQQ Trust, NA"
+    }
+   ],
+   "setup_performance": [],
+   "templates": [
+    {
+     "name": "Kicker Candle",
+     "entry_triggers": "{\"primary\": \"Buy on the kicker day (Day 2) as the gap up holds and confirms \\u2014 typically 9:45\\u201310:00 AM \\u2014 ensuring the gap is real and not fading. Enter through the opening range highs.\", \"secondary\": \"Wait for a brief tight consolidation above the kicker level after Day 2, then enter on the next push for a tighter stop and more confirmation. Also valid: hourly flag breakout following the kicker candle gap up.\", \"timing\": \"Aggressive entry: 9:45\\u201310:00 AM on kicker day to confirm gap hold. Conservative entry: next session after brief consolidation above kicker level.\", \"volume_min\": \"Elevated volume on Day 2 required \\u2014 breakout volume ideally the highest in months (e.g., ARKK highest volume since December 2023). Volume confirms the gap is institutional.\", \"closing_requirement\": \"Day 2 must close near its highs on elevated volume. The bullish open gap from Day 2 must hold \\u2014 gap fill invalidates the setup.\"}",
+     "stop_methods": "{\"initial\": \"Below the Day 1 low (kicker day prior candle low) or below the gap level (Day 2 open). For setups with a 20EMA shakeout bar, stop below the kicker candle day's low.\", \"max_pct\": 8.0, \"tightened\": \"After profit develops, watch for higher low formation above the kicker level and 9EMA for trailing. Monitor for the 9EMA to guide the uptrend (e.g., ARKK guided by 9EMA after 6/6 kicker).\", \"trailing\": \"Use 9EMA as trailing guide once trend is established. A bearish engulfing candle after entry can trigger a stop out (as seen in ARKK example).\"}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"Prior resistance or base breakout level (e.g., NBIS ATH just above $55 as first target).\", \"second_target\": \"Extended price targets based on measured move or comparable valuation (e.g., ARKK $68\\u2013$70, then $78; ASML $875).\", \"runner\": \"Ride the 9EMA-guided uptrend as long as higher lows are being set. The bullish gap from the kicker day is expected to act as support for the duration of the trend.\", \"climax_exit\": \"Watch for extension candles (over-extended from 9EMA) as a sign to take partial profits. Monday extension candles after a strong week signal a need to let the trend work rather than add.\"}",
+     "addon_rules": "{\"first\": \"Add on further breakout above a key level (e.g., TEM: add spot through $65 on breakout above prior resistance).\", \"second\": \"Add on confirmed hourly flag breakout following the initial kicker candle entry.\", \"maximum_position\": \"Size conviction trades aggressively when all signals align (kicker candle + hourly flag + sector in gear). No specific percentage cap stated, but Bracco noted he should have had 'half his account' in RIVN \\u2014 suggesting large size is appropriate for A+ setups.\"}",
+     "invalidation": "{\"structural\": \"Gap from Day 2 is filled \\u2014 'as long as the bullish open gap holds' is the key structural requirement. Loss of Day 1 low also invalidates.\", \"volume\": \"Day 2 gap up on low or below-average volume suggests institutional absence and reduces conviction significantly.\", \"regime\": \"Kicker candle on daily chart with weekly resistance = B- setup; reduce size. In a downtrending or bearish market regime, kicker candles are lower probability.\", \"behavioral\": \"A bearish engulfing candle on the session after entry triggers a stop out. Late-stage extended chart with no base or support structure reduces setup quality. Kicker on 60-min only = scalp quality, not swing quality.\"}",
+     "hold_time_range": "Swing trade: days to weeks. If 9EMA guides the trend, hold until higher lows break. Positional hold possible for IRA accounts when conviction is highest. ARKK example held for multiple weeks guided by 9EMA.",
+     "common_mistakes": "[\"Under-sizing conviction trades when all signals align (Bracco noted he should have had much larger size in RIVN).\", \"Ignoring timeframe context \\u2014 a kicker on the 60-min only is scalp quality, not swing quality; always check the weekly chart.\", \"Entering without confirming the gap holds \\u2014 buying the open before 9:45 AM risks fading into a gap fill.\", \"Treating a kicker candle at weekly resistance as equal to one at weekly support \\u2014 reduce size when weekly resistance is overhead.\", \"Not having a defined stop below Day 1 low or the gap level before entry.\"]"
+    },
+    {
+     "name": "PEG",
+     "entry_triggers": "{\"primary\": \"Buy the gap and hold on the day of the earnings gap \\u2014 stock holds above gap-open or above a key level (e.g., prior resistance, 50 MA) on strong volume.\", \"secondary\": \"Delayed reaction entry: wait for first higher low or flag to form on the hourly chart after the gap day; enter on break of that flag or remount of a key level (e.g., U: remount $38 50 SMA and break $42.20).\", \"timing\": \"Gap day entries on open or early session; delayed reaction entries actionable early the following week if no immediate follow-through.\", \"volume_min\": \"Volume 2x+ average minimum on gap day; 5x+ is ideal for highest-conviction PEG.\", \"closing_requirement\": \"Stock should close in upper portion of the gap-day range; gap fill or close near lows is a warning sign.\"}",
+     "stop_methods": "{\"initial\": \"Below the gap-day low or below the key structural level (e.g., gap open, 50 MA, prior resistance that was broken). For delayed entries, stop below the higher low formed post-gap.\", \"max_pct\": 8.0, \"tightened\": \"Tighten stop once position shows profit; move stop to breakeven or trail below subsequent consolidation lows.\", \"trailing\": \"Trail below each higher low as stock continues Stage 2 advance; trim and trail as chart allows.\"}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"Prior all-time highs or next major resistance level (e.g., RMBS ATH $76.30).\", \"second_target\": \"Extension targets based on measured move from gap or base depth.\", \"runner\": \"Trail runner below rising MAs and higher lows; hold through multiple at-bats in a true Stage 2 leader \\u2014 the stock can provide 3+ entry opportunities across its lifecycle.\", \"climax_exit\": \"Exit or trim aggressively on climax volume, parabolic extension, or gap exhaustion signals.\"}",
+     "addon_rules": "{\"first\": \"Add on first pullback to a higher low or flag formation post-gap, confirmed by volume contraction and price hold above key MAs.\", \"second\": \"Add on break to new highs (ATH break) after initial gap consolidation \\u2014 e.g., RMBS break of $73.15 toward ATH $76.30.\", \"max_position\": \"Start with small/baby position during drawdown or low-conviction market; scale to full position on confirmation in strong market.\"}",
+     "invalidation": "{\"structural\": \"Gap fills completely (stock trades back below pre-gap close); stock fails to hold above 50 MA after remount attempt.\", \"volume\": \"Gap up on below-average volume or volume dries up immediately after gap \\u2014 no institutional follow-through.\", \"regime\": \"Avoid initiating in RED or heavy ORANGE regime; PEG setups fail at much higher rates without market confirmation.\", \"behavioral\": \"Stock was NOT already in Stage 2 before the gap (late-stage, extended, or Stage 1 base \\u2014 these are lower-quality setups); gap driven by short squeeze rather than fundamental catalyst.\"}",
+     "hold_time_range": "Days to weeks; true PEG in a Stage 2 leader can be held for months across multiple at-bats.",
+     "common_mistakes": "[\"Buying a PEG in a stock that was NOT already in Stage 2 \\u2014 treating any gap up as a PEG regardless of prior trend.\", \"Chasing the gap too far extended from the entry zone rather than waiting for the delayed reaction / first higher low.\", \"Taking oversized position on gap day before confirmation of hold \\u2014 should start small (baby position) and add on strength.\", \"Ignoring market regime \\u2014 taking PEG setups in RED or ORANGE tape where institutional follow-through is absent.\", \"Selling too early on a true Stage 2 leader that provides multiple at-bats; missing the full run by not trailing runners.\"]"
+    },
+    {
+     "name": "U&R",
+     "entry_triggers": "{\"primary\": \"Reclaim of the undercut support level (MA, prior base low, HVC, pivot) \\u2014 buy the reclaim above the violated level\", \"secondary\": \"Gap up reversal off the undercut level (kicker candle overlap); gap down that gets bought up at key MA support is an ideal GO signal\", \"timing\": \"Gap up on Day 2 after weak Day 1 close (kicker candle structure); gap down reversals in early morning are ideal entry signals especially at key MAs\", \"volume_min\": \"Expanding volume on reclaim preferred; hammer candles off 10-week MA with strong closes are confirming signals\", \"closing_requirement\": \"Strong close on reclaim day is key confirmation; weak close near lows negates setup. Most valid examples close strong on reclaim day.\"}",
+     "stop_methods": "{\"initial\": \"Stop at LOD of the undercut candle (new established support low); for MAU&R entries stop at the 20EMA or the specific support level being reclaimed\", \"max_pct\": 8.0, \"tightened\": \"Tighten to 20EMA once position has profit; use rising MAs as trailing support\", \"trailing\": \"Trail stop to rising moving averages (20EMA, 50SMA) as stock advances; watch for character change (multiple upper wicks, failure to move off MA) as signal to tighten aggressively\"}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"10-15% initial target off the undercut support level; risk is incredibly defined so can target quick mean reversion move\", \"second_target\": \"20%+ on strong momentum leaders; prior resistance levels (e.g., $8.50, $9.60, $10.50 for OPEN)\", \"runner\": \"Hold runner into ATH breakout or next major resistance; for parabolic names target near-parabolic push (NBIS $70s target from $55)\", \"climax_exit\": \"Exit or reduce aggressively on character change: multiple upper wicks, failure to move off MA, extended weekly chart. 'The first 1/8 and last 1/8 is expensive' \\u2014 don't chase extended moves.\"}",
+     "addon_rules": "{\"first\": \"Add on tightness and consolidation following the initial undercut and rally \\u2014 look for hourly cup with handle or shallow pullback building higher lows after the initial reclaim\", \"second\": \"Add on breakout over ATH or key resistance level if consolidation forms cleanly (e.g., NBIS consolidation under $55 ATH breakout spot)\", \"max_position\": \"Load the boat when weekly chart is 5-star and setup has multiple confirming support factors converging (MA + HVE level + oversold condition + index higher lows)\"}",
+     "invalidation": "{\"structural\": \"Declining moving averages on reclaim attempt; failure to reclaim the violated support level (price stays below undercut level); stock unable to form higher low after undercut\", \"volume\": \"Reclaim on low/declining volume without follow-through; no hammer candle or buying evidence on the reversal bar\", \"regime\": \"Market in distribution or strong downtrend; index not building higher lows while stocks undercut (removes the supportive macro backdrop)\", \"behavioral\": \"Character change after prior extended run (multiple upper wicks, failing to explode off MA after +2000% move); late-stage extended weekly chart requiring deeper pullback and new base before next entry\"}",
+     "hold_time_range": "Short-term swing: 2 days to several weeks; MAU&R initial reclaim can be intraday to 2-day trade; full position held into ATH breakout or next resistance cluster",
+     "common_mistakes": "[\"Buying undercuts when moving averages are declining rather than rising \\u2014 declining MAs are a caution flag requiring additional confirmation\", \"Chasing the move after strong initial reclaim instead of waiting for post-MAU&R consolidation (hourly cup with handle) for lower-risk add-on\", \"Ignoring the index/macro backdrop \\u2014 the setup loses edge when the index is not contracting and building higher lows\", \"Failing to wait for the reclaim confirmation \\u2014 entering on the undercut itself before price has proven it can reclaim the level\", \"Missing the group dynamic \\u2014 when sector names move in unison (nuclear stocks), not monitoring all names simultaneously reduces opportunity capture\", \"Extended weekly charts: entering U&R on names that are too extended on the weekly, requiring a deeper pullback and new base before the next valid entry\"]"
+    }
+   ]
+  },
+  "Oops Reversal": {
+   "kb_matches": 251,
+   "kb": [
+    {
+     "id": 5060,
+     "category": "EXECUTION",
+     "title": "Current Positions and Execution Details During Drawdown",
+     "trader": "TSDR",
+     "source_ref": "substack_unchartedterritory_sunday_scans_2026-02-21",
+     "text": "Current positions: MDB, AMD, SOXL, TWLO. Robinhood: HOOD, NVDA, AMZN, META, BE, ALB, AMDL, ARGT, GGAL, YPF, CEPU, PAM, SEI. AMD position withstood volatility, long with $330 cost basis and trimmed at $370. TWLO long from hourly push on analyst day and kicker candle gap up following day. SOXL from Friday's opening range. MDB from Friday's red to green upside reversal attempt.\n[wisdom-provenance-v1 consumer=brainkb ref=knowledge_base:5060 cite=bonde_reattribution flag=WISDOM_BRAINKB_PUBLISH_ENABLED]"
+    },
+    {
+     "id": 5187,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Trading Setups",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader trading since 2022 with Bracco. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. Up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, SPX. His risk to reward on entries is remarkable. He is active, willing to take losses and be wrong, knowing the outcome is uncertain "
+    },
+    {
+     "id": 6021,
+     "category": "JOURNAL",
+     "title": "Bonde Current Positions and Drawdown Management Feb 2026",
+     "trader": "TSDR",
+     "source_ref": "substack_unchartedterritory_sunday_scans_2026-02-21",
+     "text": "Current positions: MDB (long from $330, trimmed at $370), AMD (hourly GO signal on analyst day), SOXL (Friday's opening range), TWLO (Friday's red to green reversal). Robinhood: HOOD, NVDA, AMZN, META, BE, ALB, AMDL, ARGT, GGAL, YPF, CEPU, PAM, SEI. In drawdown since late October, sized down significantly, trading small until further traction.\n[wisdom-provenance-v1 consumer=brainkb ref=knowledge_base:6021 cite=bonde_reattribution flag=WISDOM_BRAINKB_PUBLISH_ENABLED]"
+    },
+    {
+     "id": 6162,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Setups Used",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader who has been trading with the group since 2022. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He practices what he preaches and trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. He is up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, and SPX. His risk to reward on entries is remarkable. He is active, willing to ta"
+    },
+    {
+     "id": 10727,
+     "category": "RULE",
+     "title": "TSDR 2024-06-03 t0282: Educational post naming red-to-green as one of his favorite, highest-rated setups, using a",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t0282",
+     "text": "Educational post naming red-to-green as one of his favorite, highest-rated setups, using an NVAX example.\n\nIn TSDR's words: \"[6:37pm] NVAX One of my favorite setups that I trade. (RED TO GREEN Entry) This is undoubtedly a 5 Star t...\n[6:39pm] This is the 2 min chart I had on my screen at the time.\""
+    },
+    {
+     "id": 10789,
+     "category": "SETUP",
+     "title": "TSDR 2024-10-19 t0649: Full explanation of his core \"GO SIGNAL\" entry methodology, referenced throughout his aler",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t0649",
+     "text": "Full explanation of his core \"GO SIGNAL\" entry methodology, referenced throughout his alerts: (1) a stock at an interesting location after a notable prior move, (2) a weak open sweeping a near-term support/range/MA, (3) buyers stepping in to form a lower wick, often red-to-green. More charts (10/19 12:05pm): Four annotated 65-minute GO SIGNAL examples posted with the explanation. MSTR 65m: a bullish gap zone near 185-190 and a drawn wedge; on 10/17 a bar undercut the $190 support and the daily 9 EMA (arrow, 'GO SIGNAL'), then broke out on 10/18 to near 216, annotated 'Never invalidates LOD fol"
+    },
+    {
+     "id": 10831,
+     "category": "MACRO",
+     "title": "TSDR 2024-12-20 t0866: QQQ breakdown chart shared following the Zoom session's pinpointed opportunities. More cha",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t0866",
+     "text": "QQQ breakdown chart shared following the Zoom session's pinpointed opportunities. More charts (12/20 10:45am): QQQ 15-minute (12/18-12/20) annotated with the Zoom game plan: '15 min opening range defined on gap down; ADD pushing very aggressively at open confirming buyer enthusiasm and thesis for cheap discovery; undercut 15 min OR low; reclaim and break opening range high; triggering FU squeeze/oops reversal engulfing candles'. Arrows mark the undercut near 511 at a falling trendline and the reclaim near 514, with price running to ~524 through the 50 MA and the 61.8/78.6 retracement lines nea"
+    },
+    {
+     "id": 10914,
+     "category": "SETUP",
+     "title": "Bracco 2025-01-29 t10109: Oops-style trap entry (from Kell's book), shown on AMD: 1) weak close the prior day, ideal",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10109",
+     "text": "Oops-style trap entry (from Kell's book), shown on AMD: 1) weak close the prior day, ideally at or near the LOD, 2) gap up the next day, 3) break the prior day's high = traders offsides. A member preferred a gap over the prior high; make it your own. Chart: The AMD example is a daily chart from December 2023 (dated 12/7/2023), not the current day. After weak closes at the low end of a pullback to the 20 EMA near 116-118, the last candle gapped up and ran +9.9% to near 128.7, clearing the prior highs near 124-126 on the heaviest volume in weeks.\n\nIn Bracco's words: \"furthest candle to the right"
+    },
+    {
+     "id": 11028,
+     "category": "SETUP",
+     "title": "Manrav 2024-07-30 t10437: 7/30 the oops reversal works best off inside and double inside days. Bearish: opens above",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10437",
+     "text": "7/30 the oops reversal works best off inside and double inside days. Bearish: opens above the inside day, pushes higher then reverses -- short once price drops below the inside day's close with the day's high as the stop. Bullish: opens below the inside/double inside days, pushes lower then reverses -- long once it retakes the prior day's close with the day's low as the stop. These eventually form engulfing candles. FSLR the example (he was watching its double inside days). 7/31 shared a video on the oops reversal, a term coined by Larry Williams. Chart: The 8:42pm 'double inside days' chart i"
+    },
+    {
+     "id": 11061,
+     "category": "SETUP",
+     "title": "Bracco 2025-02-25 t10519: 2/25: OKLO and PLTR were his oversold-bounce horses but both went red to green premarket,",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10519",
+     "text": "2/25: OKLO and PLTR were his oversold-bounce horses but both went red to green premarket, so he sat out rather than play gap ups. Mean-reversion bounces work best when indexes are also stretched down and aligned; with SPY dangling below its 50ma and IWM below its 200ma after a weak close, a small gap up could be faded or chop. He only takes them at size on a 5-star capitulation event. He praised an X trader who only trades long intraday reversals (rubber bands or pullbacks to support in uptrends) - very selective, massive size, tiny stops, low win rate but huge R:R. More charts (2/25 6:59am): "
+    },
+    {
+     "id": 11114,
+     "category": "SETUP",
+     "title": "Bracco 2024-10-12 t10646: 10/12: play the reaction after earnings, not before; betting into earnings is a gamble. St",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10646",
+     "text": "10/12: play the reaction after earnings, not before; betting into earnings is a gamble. Studying Q1 earnings gappers, HOOD stalled on earnings day and set up a delayed earnings reaction; Brian Shannon-style AVWAPs anchored to the earnings-day open (where most gap volume trades) and close gave several swing entries; APP another earnings-AVWAP support example. Also anchor to heavy-volume events like FOMC; QQQ pulled into the 20 EMA and CPI AVWAP. Chart: HOOD Q1 2024 daily, annotated '+55% in 30 days': a $13 line marks the top of a 2-year weekly base, then the Q4-earnings gap (+15% to 52-week hig"
+    },
+    {
+     "id": 11122,
+     "category": "SETUP",
+     "title": "Bracco 2024-10-22 t10657: 10/22 on a member's name: best entry was Friday/Monday or two weeks ago; red-to-green now",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10657",
+     "text": "10/22 on a member's name: best entry was Friday/Monday or two weeks ago; red-to-green now is almost day 3, when you'd take a first trim; into July highs with supply near 24; momentum but loose, hard to manage risk without tight setups. ASTS: selling here is selling at the right spot from a cycle view. Another base looked bear-flaggy and wedgy, every spike sold hard with little accumulation: an inverse VCP like NVAX. Chart: The ASTS reply shows Oliver Kell's price-cycle diagram (credited), with the wedge pop / EMA crossback circled as the 'good entry area for potential uptrend' and the exhausti"
+    },
+    {
+     "id": 11153,
+     "category": "SETUP",
+     "title": "Bracco 2024-05-09 t10714: 5/9/24 entry mechanics: SPX was at a key spot, either retest and build out or a failed bre",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10714",
+     "text": "5/9/24 entry mechanics: SPX was at a key spot, either retest and build out or a failed breakout through the weekly highs/5200, likely chopping around VWAP until the auction. For EMA crossbacks and most of their setups, look for 'one candle to hold, then break that candle's low' (or high for longs). SPY made three green candles up into the EMAs and a red rejection candle; the short trigger was a break of that candle's low (518.58), stop above its high, targets VWAP then the red-to-green spot. For a VWAP bounce, wait for one green candle to hold VWAP and enter above its high (518.66), stop under"
+    },
+    {
+     "id": 11166,
+     "category": "SETUP",
+     "title": "Manrav 2024-09-29 t10746: 9/29 China: can't predict day-to-day but BEKE was bullish (posted in his channel the week",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10746",
+     "text": "9/29 China: can't predict day-to-day but BEKE was bullish (posted in his channel the week before, got a nice move); Chinese stocks are must-haves on the watchlist but need a setup to re-enter, ideally into the bearish gap above. 9/30 NIO moved; wished he'd held YINN longer. The explosive move from the base is notable -- institutions wanting in at any cost; serial gappers from a base are ultra bullish; slap the next setup. 10/7 HSI weekly: wanted Chinese stocks to consolidate and set up again before slapping. Chart: The 'bullish chart' image is a Bitcoin/USD monthly chart (Bitstamp) near 64.7K,"
+    },
+    {
+     "id": 11169,
+     "category": "SETUP",
+     "title": "Manrav 2024-10-06 t10750: 10/6 GEV notes: when the 21 EMA moves above your entry price you can treat it as a positio",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10750",
+     "text": "10/6 GEV notes: when the 21 EMA moves above your entry price you can treat it as a position trade (a rule he learned from another trader) and add to the position. Chart: Annotated GEV daily (10/4, near 265.6, new high 266.42 above a 257.5 line): labels walk the trade from the IPO (IPO-day high 131.25, earnings close 148.31) -- straight-away push from IPO as institutional support; wedge pop and launch pad as the entry; undercut-and-reclaim of the 50/21 EMAs as an aggressive add with a 50 SMA stop; inside day and trendline break add with a 50 SMA stop; RS held during market corrections (RS line "
+    }
+   ],
+   "model_examples": [],
+   "setup_performance": [],
+   "templates": [
+    {
+     "name": "Oops Reversal",
+     "entry_triggers": "{\"primary\": \"Gap open below prior candle's low \\u2192 price reclaims prior candle's low \\u2192 reclaims prior candle's close \\u2192 breaks 50% retrace of prior candle \\u2192 engulfs prior candle (full 6-step sequence: open below prior close, low below prior low, reclaim prior low, reclaim prior close, reclaim 50% of prior candle, take out prior candle high).\", \"secondary\": \"Red-to-green move on gap-down day; remount of 9/20EMAs lining up with break of prior day's high; inside day or red-to-green move following the initial oops candle; oops reversal off key MA (9EMA or 20EMA) on daily/weekly chart.\", \"timing\": \"Can trigger intraday on gap-down open or develop over the course of the day/week (weekly oops reversal develops across the full week). No specific time-of-day rule stated beyond watching for the reclaim sequence.\", \"volume_min\": \"No explicit RVOL threshold stated; volume confirmation implied by the reversal momentum.\", \"closing_requirement\": \"For weekly timeframe: candle must close reclaiming prior week's low, close, 50% retrace, and ideally take out prior week's high. For daily: close back above key levels confirms the setup.\"}",
+     "stop_methods": "{\"initial\": \"Below the low of the oops reversal candle (the gap-down low) or below the key support level that triggered the setup. Example: stop moved to breakeven after initial profit (Bracco: 'stop is breakeven').\", \"max_pct\": null, \"tightened\": \"Move stop to breakeven once initial profit is established ('bread and butter trade \\u2014 stop is breakeven').\", \"trailing\": \"Trail stop to breakeven and then below subsequent higher lows as the position works. Watch hourly chart for tighter entry areas to manage risk.\"}",
+     "max_stop_pct": null,
+     "profit_logic": "{\"first_target\": \"50% retrace of prior candle (intermediate resistance/target on the way to full engulf).\", \"second_target\": \"Full engulf of prior candle (take out prior candle high). For ACHR: $10.70 retest of 50% retrace as first target.\", \"runner\": \"Let runner work toward extended targets if stock is a leader (e.g., U toward $50+, IWM toward $300). Don't lose sight of the larger weekly pattern.\", \"climax_exit\": \"No specific climax exit criteria stated; implied to exit or tighten if setup fails to complete the engulf sequence or key resistance areas (e.g., IWM $265-$267) fail to flip to support.\"}",
+     "addon_rules": "{\"first\": \"No explicit add-on rules stated.\", \"second\": \"\", \"max_position\": \"No explicit maximum position size stated.\"}",
+     "invalidation": "{\"structural\": \"Failure to reclaim prior candle's low after the gap-down (setup never triggers). Price re-breaks below the oops low after initial reclaim.\", \"volume\": \"No explicit volume invalidation stated.\", \"regime\": \"Setup loses conviction in a strong downtrend or RED regime where gap-downs continue rather than reverse.\", \"behavioral\": \"Gap-down that fails to reverse and continues lower \\u2014 confirming the breakdown was structural rather than a shakeout. Also invalidated if key resistance levels (50% retrace, prior close) fail to convert to support.\"}",
+     "hold_time_range": "Intraday to multi-week depending on timeframe. Daily oops reversal: hours to days. Weekly oops reversal: days to weeks. Examples show both quick trades (Bracco breakeven stop same day) and multi-week holds (NTRA weekly oops reversal as a flag continuation).",
+     "common_mistakes": "[\"Entering before the reclaim sequence is confirmed \\u2014 jumping in on the gap-down before price actually reclaims prior low and close.\", \"Ignoring the weekly chart context \\u2014 treating a daily oops reversal as a standalone trade without recognizing whether the weekly pattern supports a reversal or a continued breakdown.\", \"Missing the ideal entry spot (e.g., the 20EMA touch) and chasing after the sequence has already completed multiple steps.\", \"Failing to move stop to breakeven after initial profit, turning a 'bread and butter' trade into a larger loss.\", \"Confusing a structural breakdown with an oops reversal \\u2014 applying the setup in a stock that lacks relative strength or is in a genuine downtrend rather than a shakeout.\"]"
+    },
+    {
+     "name": "Red to Green",
+     "entry_triggers": "{\"primary\": \"Gap down followed by reclaim of prior day's close (red to green cross) on intraday chart \\u2014 confirms buyer presence and defines risk at the day's low.\", \"secondary\": \"Reclaim of prior day's low, or reclaim of the opening range. Hammer candle on gap down also acceptable as confirmation. Oops Reversal off 9EMA on hourly is a variant.\", \"timing\": \"Preferred early in the day or early in the week (Monday/Tuesday). Post-strong-Friday setups look for red to green on Monday open. 'Ideal actionable day' is a gap down red to green on Tuesday or Wednesday.\", \"volume_min\": \"Volume increase expected on the expansion/reversal day \\u2014 'would love volume increase and intraday range expansion on breakout day.'\", \"closing_requirement\": \"\"}",
+     "stop_methods": "{\"initial\": \"Day's low (the gap down low) \\u2014 provides natural defined risk below the red to green reclaim level. Alternatively, the key daily MA (20EMA or 200SMA) used as stop on daily timeframe.\", \"max_pct\": 8.0, \"tightened\": \"Keep tight at prior day's low or the intraday reversal candle low once position is working.\", \"trailing\": \"Use 20EMA on daily as trailing stop for swing holds. Give time and room when broader market breakout is in play (e.g., ARKK breakout context).\"}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"Next key resistance level or prior swing high.\", \"second_target\": \"Major technical extension target cited at time of setup (e.g., TMDX $180 target on break over $133, U $50+ from $25 breakout).\", \"runner\": \"Hold runner with 20EMA as trailing stop on daily. Give time and room when macro tailwinds are present.\", \"climax_exit\": \"\"}",
+     "addon_rules": "{\"first\": \"On reclaim of red to green spot with confirmation \\u2014 immediate full size entry allowed ('GO SIGNAL = immediate full size').\", \"second\": \"Additional size on strength over key resistance level (e.g., CRS strength over $342, TMDX strength over $133).\", \"max_position\": \"Full size on GO SIGNAL confirmation. High conviction 'bread and butter' setup warrants maximum sizing.\"}",
+     "invalidation": "{\"structural\": \"Failure to hold red to green reclaim \\u2014 if stock reverses back below prior close after triggering, setup is invalidated. Loss of the day's low stops out the trade.\", \"volume\": \"Low volume on the reversal candle reduces conviction \\u2014 volume increase is preferred for full confidence.\", \"regime\": \"Avoid in RED market regime. Weak market open without follow-through kills the pattern.\", \"behavioral\": \"Late-stage chasing after extended move invalidates setup. Pattern is only valid when stock is still in early stage of trend or early days off a base/MA hold.\"}",
+     "hold_time_range": "Intraday to multi-day swing (1–5 days typical). Can extend to weeks if stock continues trending with 20EMA support.",
+     "common_mistakes": "[\"Entering before red to green reclaim is confirmed \\u2014 waiting for the actual cross is required, not anticipating it.\", \"Missing the entry on a strong Friday and then chasing Monday \\u2014 instead wait for red to green or inside day early week.\", \"Using too wide a stop and not anchoring it to the day's low created by the gap.\", \"Ignoring the broader market regime \\u2014 red to green entries in a weak macro environment often fail to follow through.\", \"Not sizing up on full GO SIGNAL confirmation \\u2014 this is described as a 'bread and butter' setup warranting immediate full size, not a partial starter.\"]"
+    },
+    {
+     "name": "Go Signal",
+     "entry_triggers": "{\"primary\": \"Dip under key moving average (20 EMA) or key price level followed by a fierce reclaim \\u2014 the Undercut and Rally (UnR). Confirmed by buying activity, opening range being taken out, or a strong hourly candle forming after the first 30 minutes.\", \"secondary\": \"Reclaim of red-to-green spot, reclaim of previous day's low, or reclaim of the opening range. Gap down of 0.7% or more that gets bought up is an ideal GO SIGNAL trigger. Hammer candle against the 20 EMA also qualifies.\", \"timing\": \"Prefer to act aggressively early Monday morning on gap-down GO signals. Avoid buying on OPEX (Options Expiration) Friday \\u2014 manage existing positions only. Wait for first 30 minutes before confirming hourly candle strength.\", \"volume_min\": \"Buying activity required for confirmation; no explicit RVOL number stated but 'fierce reclaim' implies above-average volume on the reversal.\", \"closing_requirement\": \"Inside day following a GO SIGNAL is ideal for better positioning entry the next session. HVC (High Volume Close) breakout concurrent with GO SIGNAL adds conviction.\"}",
+     "stop_methods": "{\"initial\": \"Below the shakeout low (the undercut level), below the key moving average (20 EMA), or below the key price level that was reclaimed. Example: anything under $786 for ASML expected to support; stop implied below that level.\", \"max_pct\": 8.0, \"tightened\": \"Raise stop to prior session's low once position gains cushion (e.g., LLY stop raised to Friday's low after profit).\", \"trailing\": \"Use 50 SMA as guide for trailing stop once extended from 20 EMA; trail to 20 EMA on dips until dips to 20 EMA are no longer being bought.\"}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"Next key resistance or price level identified at setup (e.g., CRS $324 breakout as first target, $350 as extended target; ZETA $21 next level for momentum).\", \"second_target\": \"Extended price target based on prior base or chart structure (e.g., CRS $350, BIDU $150 from $124 entry).\", \"runner\": \"Hold runner with trailing stop at 50 SMA or 20 EMA depending on momentum. BIDU example: $124 to $150 in four sessions \\u2014 full hold for momentum continuation.\", \"climax_exit\": \"No explicit climax exit rule stated; exit implied when stock fails to hold 20 EMA on a pullback or closes below it.\"}",
+     "addon_rules": "{\"first\": \"Add on confirmation of GO SIGNAL if initial entry was taken before the formal trigger (e.g., double inside days entry before GO SIGNAL, then add on the signal).\", \"second\": \"Add on breakout of next resistance level cited at time of setup (e.g., CRS: if $324 taken out early in week, add toward $350 target).\", \"max_position\": \"Immediate full size allowed on a clean GO SIGNAL at the right zone \\u2014 no scaling required if signal is high conviction. 'Bread and butter' setups warrant full conviction sizing.\"}",
+     "invalidation": "{\"structural\": \"Close below the reclaimed level or moving average (20 EMA) negates the GO SIGNAL. No close below 20 EMA daily acceptable for continuation (e.g., AMD: do not want close below $240 and 20 EMA daily).\", \"volume\": \"GO SIGNAL without buying activity or volume confirmation (no fierce reclaim) is not a valid trigger \\u2014 must wait for actual signs of strength, not hope for a bounce.\", \"regime\": \"Avoid new entries in deteriorating market conditions; gap-up scenario with high probability of inside candle reduces GO SIGNAL reliability.\", \"behavioral\": \"Late-stage behavior not explicitly defined, but missing entry on OPEX Friday is acceptable \\u2014 wait for inside day next session. Do not force entry on gap-up opens where inside candle probability is high.\"}",
+     "hold_time_range": "Intraday to multi-week; examples range from same-day gap reversals to multi-week momentum holds (BIDU 4 sessions, AMD multi-week)",
+     "common_mistakes": "[\"Buying before a GO SIGNAL without confirmation \\u2014 hoping for a bounce rather than waiting for actual signs of strength (buying activity, opening range reclaim, strong hourly candle).\", \"Attempting to enter new positions on OPEX Friday \\u2014 results in poor entries; better to wait for inside day the following session.\", \"Entering on a gap-up open when inside candle probability is high \\u2014 the ideal GO SIGNAL comes from gap-down weakness and reversal, not gap-up continuation.\", \"Not using immediate full size when a clean 20 EMA GO SIGNAL presents at the right zone \\u2014 hesitation on 'bread and butter' setups forfeits edge.\", \"Treating a gap-down as an automatic buy without waiting for the actual reclaim/reversal confirmation \\u2014 the fierce reclaim is the signal, not the gap itself.\"]"
+    }
+   ]
+  },
+  "Gap Support": {
+   "kb_matches": 113,
+   "kb": [
+    {
+     "id": 10886,
+     "category": "MACRO",
+     "title": "Bracco 2024-09-03 t10050: 9/3 sell-off: QQQ at a big spot premarket, SMH breaking Friday's lows, NVDA weakest; IWM b",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10050",
+     "text": "9/3 sell-off: QQQ at a big spot premarket, SMH breaking Friday's lows, NVDA weakest; IWM building like its mid-July HTF attempt. VIX into resistance then clearing its range; XLF exhaustion candle, XLI gap and go, XLP phenomenal. QQQ levels: 462.81 gap fill from the 8/14 close (near the anchored VWAP from 8/5), then the 455 open gap. Compared SPY to Jul-Sep 2019: similar double top, weakness into October, rally into year end; QQQ relatively weaker with a lower high and failed flag. SMH -8%, QQQ gave back nearly half its move off 8/5. Chart: QQQ 15m premarket sat on a rising trendline from the 8"
+    },
+    {
+     "id": 10906,
+     "category": "MACRO",
+     "title": "Bracco 2024-04-15 t10099: 4/15/24: premarket GS up on earnings, GLD/SLV rebounding, CRM down on acquisition talk, QQ",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10099",
+     "text": "4/15/24: premarket GS up on earnings, GLD/SLV rebounding, CRM down on acquisition talk, QQQ gapping into no man's land. QQQ 435-436 was a big area. SPY/QQQ faded -2% intraday and he had no shorts despite planning to fade the gap; by the 10th bear flag it was late, with poor risk/reward. Open gap support at SPY 503. Chart: SPY 65-min: price ~504.7 had broken below the 200 MA (~515) and the 9/20 EMAs, which had rolled over, falling toward a horizontal line at 503.00 marking the late-February gap-up level.\n\nIn Bracco's words: \"GS up on earnings, SLV and GLD rebounding after Fridays sell, CRM down"
+    },
+    {
+     "id": 10968,
+     "category": "SETUP",
+     "title": "Bracco 2025-02-11 t10250: 2/11: a potential TSDR Go Signal on SOXS if it undercut the prior LOD and defended $20. He",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10250",
+     "text": "2/11: a potential TSDR Go Signal on SOXS if it undercut the prior LOD and defended $20. He kept full size on his NVDA/SOXS short idea into CPI: he had the same gut feeling on China but did not trust himself and took size off - 'not making the same mistake again'; even if wrong, he cannot keep letting high-conviction ideas pass by. Chart: SOXS daily sat right on the drawn 20.00 line (~20.08) beneath two descending trendlines: a long one from the Nov ~25.5 high and a steeper one from the late-Jan ~23.5 spike. A green box marks the open gap near 18.1-18.9 below; the 9/20 EMAs were flat around 20."
+    },
+    {
+     "id": 10975,
+     "category": "SETUP",
+     "title": "Bracco 2025-02-19 t10262: Parabolic short framework (2/19): size of move skews positioning - MSTR +240% in 30 days,",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10262",
+     "text": "Parabolic short framework (2/19): size of move skews positioning - MSTR +240% in 30 days, SMCI +250% in 22, TIGR +324% in 13 vs INTC +30% in 5 (not parabolic). Selection: large caps up 100-200%+ and small/mids 300-1000%+ in days/weeks, 3-5+ up days, 100%+ above the 200sma, through the upper Bollinger band, stacked open gaps a 5-star bonus. Blow-off day: gap up, huge opening volume (ideally the run's highest in first 15-65 min); short an opening-range-low break, or a topping pattern through VWAP, add at ORL/LOD; target the daily 9ema. Distinguish capitulatory (SMCI's near-vertical slope with ex"
+    },
+    {
+     "id": 11158,
+     "category": "MACRO",
+     "title": "Bracco 2024-05-30 t10727: 5/30/24 premarket: IWM would leave an island bottom if the gap held, a nice undercut-and-r",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10727",
+     "text": "5/30/24 premarket: IWM would leave an island bottom if the gap held, a nice undercut-and-rally; he hoped the weekly would become a handle rather than a head and shoulders. Liked the 10-year gapping down; SQ looked like a spot to sell put credit spreads. Chart: IWM weekly: March-April highs near 211, an April pullback that undercut to about 192 at the rising 200 MA, then a May recovery into a small down-sloping flag drawn with two red lines between about 201 and 207, price near 203.60 sitting on the 9 EMA above the 20 EMA.\n\nIn Bracco's words: \"Island bottom on IWM if this gap holds\n7:37am Nice "
+    },
+    {
+     "id": 11186,
+     "category": "SETUP",
+     "title": "Bracco 2025-03-15 t10792: On whether it was the bottom: nobody knows - the late-2023 and Mar-Apr 2024 corrections bo",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10792",
+     "text": "On whether it was the bottom: nobody knows - the late-2023 and Mar-Apr 2024 corrections bottomed without an event and built strength going up; events like 8/5 make it easier to have confidence. Study market bottoms throughout history. BABA's tight Friday resembled the 2/19 and 2/25 tight days that preceded big expansion days; a laggard is a tough trade since he cannot get meaningful size. More charts (3/15 10:53am): His annotated QQQ daily study of the August 2024 bottom: 8/5 'Day 3 parabolic burst lower with two open gaps' (NQ -6.5% overnight, gapping below the 200ma, 3rd-lowest Nasdaq A/D in"
+    },
+    {
+     "id": 11232,
+     "category": "SETUP",
+     "title": "Bracco 2024-11-20 t10902: Parabolic short lessons (11/20-11/22): MSTR's max extension was 10.17 ATRs above the 50 MA",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10902",
+     "text": "Parabolic short lessons (11/20-11/22): MSTR's max extension was 10.17 ATRs above the 50 MA (Feb 2021) vs 8.52 now, 500% vs 230% above the 200 SMA; SMCI's February top (-26% that day) was the model and they topped within a few percent on both measures. Far-OTM puts can work if you size for zero (on SMCI above $1,000 he bought 880/900 puts). Lance's key: don't front-run, wait for weakness, the 'right side of the V'; the daily 9 EMA (~25% lower) is where every parabolic short he studied came back to. His favorite and most successful setup but the hardest in the market; most shouldn't attempt it. "
+    },
+    {
+     "id": 11265,
+     "category": "MACRO",
+     "title": "Bracco 2024-07-22 t10992: 7/22/24: Citi put MU on a downside catalyst watch (Samsung expected to qualify HBM with NV",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10992",
+     "text": "7/22/24: Citi put MU on a downside catalyst watch (Samsung expected to qualify HBM with NVDA). CRWD was weak after its outage: a break of Friday's low and the 200 SMA could bring a nasty 10-point drop, and it was back below its 2021 highs. QQQ failed over Friday's high. SMH and QQQ topped the week before right as TQQQ and SOXL hit their 2021 highs; hard to picture other sectors ripping while tech/semis/AI just chop, after the last 18 months. Chart: QQQ daily + 2-min split: daily ~481.3 bouncing under a drawn ~481.7 line (Friday's high) after a 3-day drop from ~503, below its cloud, with a shad"
+    },
+    {
+     "id": 11499,
+     "category": "MACRO",
+     "title": "TSDR 2025-06-25 t11670: 6/25: he trimmed at the open to lighten and was waiting patiently for new setups. QQQ back",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t11670",
+     "text": "6/25: he trimmed at the open to lighten and was waiting patiently for new setups. QQQ backtested its previous ATHs and closed above the February highs, with some expected ATH profit-taking. VIX hit low of day with SPY flat, IWM -1.15%, ARKK -1.17% ('bulls prove at support'); the ARKK candle wasn't nasty after its run and came on light volume. IBIT and XLF looked solid, SMH strong but extended, XLP had no bid. Chart: QQQ 5-minute (6/25): an opening pop to ~543, fade below a drawn shelf near 541.3, and a pullback to ~540.9 right on a drawn horizontal line near 540.81 (the prior ATH area) and the"
+    },
+    {
+     "id": 11714,
+     "category": "MACRO",
+     "title": "TSDR 2025-08-26 t12230: 8/26: he mocked 'QQQ up 15%' as a non-call; he compared the AAPL daily to the SPY hourly o",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t12230",
+     "text": "8/26: he mocked 'QQQ up 15%' as a non-call; he compared the AAPL daily to the SPY hourly off the April lows and told members to stop thinking black and white: the market filling bear gaps while leaving bull gaps open is strength. Chart: Side by side: AAPL daily (Aug 2025) with a circled higher low near 203 before its gap up, now a small drawn flag near 228 holding above the marked 223.73 line; SPY hourly from late April to 5/12/2025 with a circled dip near 553 then a flag at a marked 561.93 line and a gap up to near 581, with 632.08 marked overhead. The pairing shows AAPL now tracing the same "
+    },
+    {
+     "id": 11904,
+     "category": "MACRO",
+     "title": "Bracco 2025-10-14 t12848: 10/14: he didn't want sellers showing up -- the index was in a lower-high area and couldn'",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t12848",
+     "text": "10/14: he didn't want sellers showing up -- the index was in a lower-high area and couldn't fill the gap -- yet IWM erased nearly all of Friday's selloff and got back over Friday's open. INTC popped, MP went for a $100 breakout; the same algos and institutions that bought ALAB/CRDO/RDDT were selling them, charts highly correlated for months. HUT made a volume pop to highs off an Eric Jackson post, with ABTC popping in sympathy. Chart: The 'lower high area' chart is SPY 30-min: after the 10/10 drop from about 673 to about 653 and the 10/13 rebound that stalled near 664-665 below VWAP, the 10/14"
+    },
+    {
+     "id": 12012,
+     "category": "MACRO",
+     "title": "Bracco 2025-11-19 t13106: 11/19: he took 310c (ticker not stated) figuring it could push $300 and run 310-315 on a p",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t13106",
+     "text": "11/19: he took 310c (ticker not stated) figuring it could push $300 and run 310-315 on a post-NVDA bounce; ASML looked great and semis were very strong ahead of NVDA. NQ made a failed breakdown, held the bullish gap and was about to take out yesterday's highs; since April every VIX pop over 22 that came back down went bidless for 7-8 days. VIX 25, VXN over 30 for the third time in 3 years, F/G single digits, yet QQQ flat on the week -- almost nobody positioned for a sustained move. He read the selling as bulls selling into highs, not bears: bears short too late and fuel rallies, and big holder"
+    },
+    {
+     "id": 12138,
+     "category": "RULE",
+     "title": "TSDR 2025-12-06 t13365: 12/6: contrasting himself with PeopleWish's RDDT example from an interview, he prefers not",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t13365",
+     "text": "12/6: contrasting himself with PeopleWish's RDDT example from an interview, he prefers not to let the alert trigger his entry but to read the action into it: the $230 trigger (open gap and left-side peak), the prior day's undercut of the previous low into the 9EMA, reclaim of the previous day's low and a strong >80% DCR close. Thursday's low invalidates, $230 confirms, so optimal entry is between: reclaim of the prior low at $220 with a $215 stop (~40% of ATR), giving 1.5R at a full ATR and 2:1 on a $230 break, ideally positioned with $8-10 of cushion. He agreed your stop should be where the s"
+    },
+    {
+     "id": 12309,
+     "category": "MACRO",
+     "title": "AtTheAsk 2026-01-06 t13757: 1/6/26: SERV had interesting weeklies; SOFI recovered; 8-strike calls came in (OPEN 2/20 8",
+     "trader": "AtTheAsk",
+     "source_ref": "trader_archive:t13757",
+     "text": "1/6/26: SERV had interesting weeklies; SOFI recovered; 8-strike calls came in (OPEN 2/20 8 calls, per the flow screenshot below); NVDA popped as its CFO said demand had grown beyond the $500B forecast; NBIS made an ugly reversal and then a new HOD -- not a bad spot to risk, holding the EMAs and gap support. RKLB new ATH, RDDT and OPEN new HODs, BABA undercut Friday's lows. It was a perfect day to be in RTY calls -- 'just a buy program, no red candles in sight'. Chart: SERV flow: about 11,400 01/9/26 15 calls swept on the ask at 0.05-0.10, spot near 12.8-12.9. NBIS daily 1/6: wicked down to nea"
+    },
+    {
+     "id": 12320,
+     "category": "MACRO",
+     "title": "AtTheAsk 2026-01-28 t13778: 1/28/26: on a position he said he'd put a stop in and let it work. KTOS sold off hard then",
+     "trader": "AtTheAsk",
+     "source_ref": "trader_archive:t13778",
+     "text": "1/28/26: on a position he said he'd put a stop in and let it work. KTOS sold off hard then curled up; CHYM and LLY went red; RIVN showed clean buying; the Fed left rates unchanged. After the close TSLA beat Q4 (revenue $24.9B vs $24.78B est., EPS $0.50 vs $0.45) and META went green toward 700. On 1/29 a name held its gap support from 1/5 (chart). Chart: The 1/29 'held that gap support from 01/05' chart is INOD daily: after the early-January gap up, price pulled back to close near 55.8 just above a marked 55.21 support line, with premarket marked near 59. More charts (1/28 8:10am): \"now we are "
+    }
+   ],
+   "model_examples": [],
+   "setup_performance": [],
+   "templates": [
+    {
+     "name": "Open Bull Gap Support",
+     "entry_triggers": "{\"primary\": \"Dip into the open bullish gap zone with a quick reclaim (intraday hold or daily candle reclaim of gap support) \\u2014 the 'GO SIGNAL'\", \"secondary\": \"EMA crossback into bull gap support confirmed with a hold candle the following day (e.g., Monday dip, Wednesday hold confirmation); also inside day tightening below breakout spot just above gap\", \"timing\": \"Monitor on pullback days; gap-down opens into gap support are actionable entries. Friday reclaim candles are noted as strong GO signals.\", \"volume_min\": \"Volume pattern since catalyst (e.g., 200SMA break) must be constructive \\u2014 declining volume on pullbacks into gap, expanding volume on reclaims. 'Volume pattern makes this a must watch on pullbacks.'\", \"closing_requirement\": \"Closing candle should hold above or within gap support zone; hammer candles, inside days, and inside weeks closing near range highs are ideal confirmation signals.\"}",
+     "stop_methods": "{\"initial\": \"Low of day (LOD) on the entry candle, or below the bottom of the open bullish gap zone. Example: ARKK entry ~$61 with LOD stop at gap support.\", \"max_pct\": 8.0, \"tightened\": \"Once stock moves above prior consolidation highs or range highs, tighten stop to below the most recent inside day low or 20EMA.\", \"trailing\": \"Trail stop to 20EMA on growth names; 50SMA on larger-cap or extended names. If gap closes (stock trades back below gap open price and closes there), stop is hit.\"}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"Prior range highs or the breakout pivot above the consolidation (e.g., ULTA $612, LMND $80, TSLA $470).\", \"second_target\": \"Multi-year or all-time high breakout extensions (e.g., JAZZ $190-$195 10-year high); measured move from gap base.\", \"runner\": \"Hold runner with 50SMA as trailing guide; allow extended runs comparable to NVDA $500 breakout analog. Monitor loosely if base extends further.\", \"climax_exit\": \"No specific climax rules stated; implied exit if stock loses 50SMA on a closing basis or gap closes with volume.\"}",
+     "addon_rules": "{\"first\": \"Add on breakout above the consolidation range highs (e.g., ULTA $612 range highs, LMND $80 breakout spot) with confirmation of volume expansion.\", \"second\": \"Add on continuation above a key technical level (e.g., 10-year high breakout, $470 on TSLA) if base structure and gap support remain intact.\", \"max_position\": \"Scale to major/full position size if gap holds and catalyst remains intact; PATH and HOOD noted as 'want to be involved in a big way' \\u2014 implying larger-than-normal sizing on strong gap holds.\"}",
+     "invalidation": "{\"structural\": \"Gap closes \\u2014 stock trades back below the open bullish gap on a closing basis; this signals the gap is no longer acting as support and setup is invalid.\", \"volume\": \"Heavy volume selling through gap support with no reclaim; declining RS while sector/market holds up.\", \"regime\": \"If sector ETF (e.g., IGV) loses its own gap support or 50SMA and fails to reclaim, individual setups in that sector lose conviction. Broader market in clear downtrend (RED regime).\", \"behavioral\": \"If stock 'bases for another year' without making progress (PATH/RIVN analog), monitor loosely rather than aggressively \\u2014 extended sideways action after catalyst is a warning. Late-stage extended stocks without a clean base should be avoided.\"}",
+     "hold_time_range": "Days to weeks; initial entries held through consolidation with adds on breakouts. Multi-week to multi-month runners possible on strong catalyst names (HOOD, TSLA, JAZZ analogs).",
+     "common_mistakes": "[\"Treating the gap open price as a level that must be retraced rather than a support/resistance zone \\u2014 gaps act as S/R, not as spots to retrace.\", \"Entering before confirmation of gap hold; jumping in before the quick reclaim or hold candle is printed.\", \"Ignoring sector/ETF relative strength \\u2014 trading a bull gap setup in a sector where the ETF is failing its own gap or 50SMA.\", \"Failing to wait for inside day or tighter consolidation before entry when the stock needs 'a bit more sideways action'.\", \"Sizing too small on high-conviction gap holds \\u2014 when gap support is clearly confirmed, setup warrants meaningful position size.\", \"Not zooming out to weekly chart for key multi-year breakout levels above the gap base (missing the larger opportunity like JAZZ $190-$195).\"]"
+    }
+   ]
+  },
+  "High Volume Edge": {
+   "kb_matches": 121,
+   "kb": [
+    {
+     "id": 5187,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Trading Setups",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader trading since 2022 with Bracco. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. Up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, SPX. His risk to reward on entries is remarkable. He is active, willing to take losses and be wrong, knowing the outcome is uncertain "
+    },
+    {
+     "id": 6162,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Setups Used",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader who has been trading with the group since 2022. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He practices what he preaches and trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. He is up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, and SPX. His risk to reward on entries is remarkable. He is active, willing to ta"
+    },
+    {
+     "id": 10974,
+     "category": "SETUP",
+     "title": "Bracco 2025-02-18 t10261: 2/18 GRAL parabolic short checklist: 4 up days in a row; speculative theme; clear paraboli",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10261",
+     "text": "2/18 GRAL parabolic short checklist: 4 up days in a row; speculative theme; clear parabolic action; 170% above the last optimal base breakout; highest volume since IPO on 2/13; 50% above the 9ema at highs; picture-perfect intraday short (failed new high, re-roll, reject under VWAP, break LOD); highest opening 65min volume ever by 2x (classic parabolic top/bottom sign); and healthcare-AI peer TEM drilling all morning, suggesting GRAL was an exit-liquidity pop to catch down.\n\nIn Bracco's words: \"- 4 days up in a row\n- Speculative theme and name\n- Clear parabolic price action\n- 170% above last op"
+    },
+    {
+     "id": 11027,
+     "category": "SETUP",
+     "title": "Manrav 2024-07-27 t10433: 7/27 on news/earnings gappers (EPs): the skill is reading the news or earnings plus neglec",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10433",
+     "text": "7/27 on news/earnings gappers (EPs): the skill is reading the news or earnings plus neglect plus short interest; day 1 is ideal but chasing a 20%+ gapper is hard. He's a pattern/technical trader, so he uses the high-volume edge: HV closes, especially on highest-volume-ever candles, are major pivots for entries and exits. With an HVE, if day 2 opens above day 1's close it's a buy with that close as the stop (DRCT gave that entry). Give EPs some room, e.g. $4 entry with a 3.75 stop for the undercut. HV closes act as support/resistance; a high closing range on the HVE makes the pivot more powerfu"
+    },
+    {
+     "id": 11114,
+     "category": "SETUP",
+     "title": "Bracco 2024-10-12 t10646: 10/12: play the reaction after earnings, not before; betting into earnings is a gamble. St",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10646",
+     "text": "10/12: play the reaction after earnings, not before; betting into earnings is a gamble. Studying Q1 earnings gappers, HOOD stalled on earnings day and set up a delayed earnings reaction; Brian Shannon-style AVWAPs anchored to the earnings-day open (where most gap volume trades) and close gave several swing entries; APP another earnings-AVWAP support example. Also anchor to heavy-volume events like FOMC; QQQ pulled into the 20 EMA and CPI AVWAP. Chart: HOOD Q1 2024 daily, annotated '+55% in 30 days': a $13 line marks the top of a 2-year weekly base, then the Q4-earnings gap (+15% to 52-week hig"
+    },
+    {
+     "id": 11151,
+     "category": "SETUP",
+     "title": "Bracco 2024-05-08 t10712: 5/8/24, blow-off top short explained: he had the SLV short (mismanaged) and TSDR took GLD,",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10712",
+     "text": "5/8/24, blow-off top short explained: he had the SLV short (mismanaged) and TSDR took GLD, same look. Up 7 weeks straight, a huge blow-off move, very extended from the 50 SMA, so continuation buyers were very late. The blow-off day traded its highest volume in 2+ years, then it went sideways on light volume with selling volume in the opening sessions and no accumulation; that's consolidation before another leg lower. Low-volume wedging higher after a blow-off is a trap to the long side; a deeper flag-like retrace would be needed, and repairing a blow-off that size takes much more time. Chart: "
+    },
+    {
+     "id": 11186,
+     "category": "SETUP",
+     "title": "Bracco 2025-03-15 t10792: On whether it was the bottom: nobody knows - the late-2023 and Mar-Apr 2024 corrections bo",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10792",
+     "text": "On whether it was the bottom: nobody knows - the late-2023 and Mar-Apr 2024 corrections bottomed without an event and built strength going up; events like 8/5 make it easier to have confidence. Study market bottoms throughout history. BABA's tight Friday resembled the 2/19 and 2/25 tight days that preceded big expansion days; a laggard is a tough trade since he cannot get meaningful size. More charts (3/15 10:53am): His annotated QQQ daily study of the August 2024 bottom: 8/5 'Day 3 parabolic burst lower with two open gaps' (NQ -6.5% overnight, gapping below the 200ma, 3rd-lowest Nasdaq A/D in"
+    },
+    {
+     "id": 11187,
+     "category": "SETUP",
+     "title": "Bracco 2025-03-16 t10794: Shared Qullamaggie's breakout recipe: big move up, pullback, undercut, reclaim, surf, get",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10794",
+     "text": "Shared Qullamaggie's breakout recipe: big move up, pullback, undercut, reclaim, surf, get tight; ADR 4+; dollar volume 200x (equity x 10%); 10-20% position; sell 50% on day 3-5, trail the rest with the 10dsma; rinse and repeat. His own execution: always market orders, rarely more than 2-3 day trades a day. Chart: The chart posted with the recipe is BABA daily (as of 3/14): a big move up from near 80 in January to an earnings HVC gap above 120, then about four weeks of tightening between a marked 135.97 level and a flat top near 145, price near 141 above the rising 9/20 EMAs.\n\nIn Bracco's words"
+    },
+    {
+     "id": 11379,
+     "category": "MACRO",
+     "title": "Bracco 2025-05-07 t11282: 5/7: GOOGL dropped -3.5% in 7 minutes, then -6%, on Apple's Eddy Cue testifying that Safar",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t11282",
+     "text": "5/7: GOOGL dropped -3.5% in 7 minutes, then -6%, on Apple's Eddy Cue testifying that Safari searches fell for the first time and Apple was exploring AI search. It was on track for its highest volume in 2 years, double the prior day's by mid-morning, with 5-min volume hitting and staying elevated, which read as a programmed sell. The selling felt concentrated in mega caps and NQ looked set to bearish-engulf. Also: a week earlier TSLA was the only stock anyone talked about and now nobody did ('wear and scare'). Chart: GOOGL 1-minute: flat near 163.5 all morning, then a straight drop at about 10:"
+    },
+    {
+     "id": 11544,
+     "category": "SETUP",
+     "title": "Manrav 2025-07-13 t11804: 7/13: shared his Slingshot scan (you still have to go through the charts): one condition l",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t11804",
+     "text": "7/13: shared his Slingshot scan (you still have to go through the charts): one condition looks for 4% gappers on volume above the 50-day average within the last 25 days, adjustable; he updated his 8 EMA in ToS to show the Slingshot. 7/14 criteria: close above the 4 EMA highs after closing below the 4 EMA highs for the last 3 days, basically a delayed-reaction or pullback-buy setup; it doesn't trigger when price has been trading above the 4 EMA highs. Chart: The scan is a ThinkorSwim combo list named '! Slingshot' over US common stocks and ADRs with three daily conditions: c > xavgh4 and c[1] <"
+    },
+    {
+     "id": 11545,
+     "category": "SETUP",
+     "title": "Manrav 2025-07-15 t11808: 7/15: add high-volume closes to your charts as major pivots. Chart: The example is APLD 10",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t11808",
+     "text": "7/15: add high-volume closes to your charts as major pivots. Chart: The example is APLD 10-minute on 7/15: price spiked on heavy opening volume to a 10.13 high, just tagging the green HVE line at 10.14, then backed off to near 9.89. More charts (7/17 10:44pm): night 'HVE and close > 3': his '! HVE' watchlist scan output: AIR (+13.7%), AUDC (+19.7%), AVAV, BZAI, LAZR (+12.0%), LCID (+36.2%), SOC (+28.4%), XRPT and XXRP (+16%).\n\nIn Manrav's words: \"Use/add high volume close as major pivot pivots on your charts [chart]\""
+    },
+    {
+     "id": 11814,
+     "category": "SETUP",
+     "title": "Manrav 2025-09-01 t12545: 9/1-9/2: shared his Deepvue data panel; he uses a combo of TC2000 and DV scans, especially",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t12545",
+     "text": "9/1-9/2: shared his Deepvue data panel; he uses a combo of TC2000 and DV scans, especially DV leaders and DV universe. Asked about top-down vs bottom-up, he lets stocks lead him to groups and sectors: he scans 1000+ stocks over the weekend, which shows what is setting up and which group is leading -- always stocks first. Going theme-first to leading stocks is fine, but you will miss early entries. Chart: The Deepvue 'CANSLIM' data panel is shown loaded on AFRM (affirm.com, last near 88.46 on 43M volume, RV 5.92): its sections are Company Info (market cap, float, sector/industry ranks), Price a"
+    },
+    {
+     "id": 11820,
+     "category": "SETUP",
+     "title": "Manrav 2025-09-15 t12575: 9/15: study (deep dive) the High Volume Edge on LMND: go bar by bar to see how price behav",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t12575",
+     "text": "9/15: study (deep dive) the High Volume Edge on LMND: go bar by bar to see how price behaves, especially at the high-volume opens and closes -- especially the close. Some act right away, some give delayed entries. He offered to teach the high-volume close edge rather than have members just follow posted trades.\n\nIn Manrav's words: \"https://x.com/manrav/status/1967627372993143240\n11:52am Anyone here understands what high volume close edge is?\n// If not, do you want to learn? or just follow the trades that we are posting?\""
+    },
+    {
+     "id": 11880,
+     "category": "MACRO",
+     "title": "TSDR 2025-08-18 t1278: TLN (from the earnings watchlist) posted its highest volume ever. Chart: TLN daily (8/27):",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t1278",
+     "text": "TLN (from the earnings watchlist) posted its highest volume ever. Chart: TLN daily (8/27): after the July surge to near 395, a drawn tight descending flag near 365-390 held the 20 EMA, and the breakout candle to near 381.5 printed a volume bar far taller than any other on the chart. More charts (8/18 9:00pm): The eight 8/18 watchlist dailies: MGNI pushing over a drawn descending line from the July high near 25.5, near 24.3 above the 50 MA; MU reclaimed a drawn ~116 shelf (arrow at the late-July undercut), ran to near 128 and is in a small drawn pullback flag near 120-124; RMBS tight under a fl"
+    },
+    {
+     "id": 11943,
+     "category": "RULE",
+     "title": "Bracco 2025-10-28 t12921: 10/28: following Christian Flanders' advice to study leading new stocks of the dot-com run",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t12921",
+     "text": "10/28: following Christian Flanders' advice to study leading new stocks of the dot-com run: VIAV made a 1,000% move in a year to $100, then 6x'd again for a 5,000% move in 18 months -- a comparison for BE's current move. He was reading the headlines, acquisitions and earnings behind the 1998-2000 thematic moves, and also why the darlings collapsed (MSTR's SEC accounting investigation, JDSU's huge goodwill write-downs, job cuts, lawsuits). Chart: Side-by-side weeklies on the same scale: VIAV (split-adjusted) 1998-2000, labelled '1,000% move in 12 months' to ~130 by Sept 1999 and '5,000% move in"
+    }
+   ],
+   "model_examples": [],
+   "setup_performance": [],
+   "templates": [
+    {
+     "name": "HVC",
+     "entry_triggers": "{\"primary\": \"Price takes out (breaks above) the HVC level on volume \\u2014 the HVC level acts as the breakout trigger. Entry on reclaim or breakout above the specific HVC price.\", \"secondary\": \"Undercut and reclaim (U&R) of the HVC or 9EMA on a pullback. Also: dip under MAs and key level with a fierce reclaim (GO SIGNAL). Inside day forming below HVC level followed by breakout.\", \"timing\": \"No specific time-of-day rules stated. Hourly chart used to watch for tightness to form before entry.\", \"volume_min\": \"Above-average volume required on the breakout above HVC. Stocks with HVE (Highest Volume Ever) on the catalyst day are highest priority watches.\", \"closing_requirement\": \"Strong close above HVC level confirms the setup. Tight inside day or flag just below HVC before breakout is ideal structure.\"}",
+     "stop_methods": "{\"initial\": \"Stop placed below the HVC level, below the earnings gap low, or below the key support level (e.g., gap up low, prior base low). Example: stop below ER low when buying gap down at HVC.\", \"max_pct\": null, \"tightened\": \"Tighten stop under psychological round-number levels (e.g., Livermore $100 level) as position builds out. Treat major round numbers as tightening triggers.\", \"trailing\": \"Trail stop as stock builds higher lows and holds above HVC. Move stop up to HVC level once price has extended above it.\"}",
+     "max_stop_pct": null,
+     "profit_logic": "{\"first_target\": \"Next identifiable resistance level above HVC (e.g., prior swing highs, round numbers, psychological levels).\", \"second_target\": \"Extended targets based on prior structure or round-number levels (e.g., LAC targeting $7.50 then $10; AAOI targeting $40 over $28 HVC).\", \"runner\": \"Hold runner as long as stock continues to make higher lows and holds above HVC. Let the theme and group momentum carry the position.\", \"climax_exit\": \"Not explicitly stated; exit if stock fails to hold HVC on a retest or if group theme loses momentum.\"}",
+     "addon_rules": "{\"first\": \"Add on confirmation of hold above HVC with stop below earnings low or key support level.\", \"second\": \"Add when hourly chart tightens and builds out further above HVC \\u2014 look for tightness/consolidation on the hourly.\", \"max_position\": \"Not explicitly stated.\"}",
+     "invalidation": "{\"structural\": \"Price closes back below the HVC level and fails to reclaim it. Loss of the key support level (gap up low, base low) invalidates the setup.\", \"volume\": \"Breakout above HVC on low volume with no follow-through is a warning sign.\", \"regime\": \"Deteriorating market regime (bearish tape) reduces effectiveness; group stocks failing to move in unison signals weakness.\", \"behavioral\": \"Weekly chart extended requiring a deeper pullback and new pattern to develop before the next leg. Stock lagging peers in the same thematic group is a caution flag. 200SMA still declining is a caveat that the trade may take time or fail.\"}",
+     "hold_time_range": "Swing trade; hours to days to weeks depending on momentum and pattern development. Hourly used for fine-tuning entries; daily/weekly for broader context.",
+     "common_mistakes": "[\"Entering before HVC level is actually taken out \\u2014 waiting for confirmation is required even if the setup looks compelling.\", \"Ignoring 200SMA direction \\u2014 entering when 200SMA is still declining adds risk and the move may take significantly longer to materialize.\", \"Not monitoring the group \\u2014 in thematic trades (nuclear, drones, datacenter), failing to track peer action can lead to missing early warning signs of group deterioration.\", \"Chasing after the HVC breakout has already extended significantly \\u2014 the setup requires the stock to still be near or just above the HVC level, not already far extended.\", \"Ignoring weekly chart extension \\u2014 weeklies extended above key levels may require a deeper pullback and new base before the next valid HVC entry forms.\"]"
+    }
+   ]
+  },
+  "Slingshot": {
+   "kb_matches": 15,
+   "kb": [
+    {
+     "id": 5187,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Trading Setups",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader trading since 2022 with Bracco. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. Up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, SPX. His risk to reward on entries is remarkable. He is active, willing to take losses and be wrong, knowing the outcome is uncertain "
+    },
+    {
+     "id": 6162,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Setups Used",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader who has been trading with the group since 2022. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He practices what he preaches and trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. He is up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, and SPX. His risk to reward on entries is remarkable. He is active, willing to ta"
+    },
+    {
+     "id": 11544,
+     "category": "SETUP",
+     "title": "Manrav 2025-07-13 t11804: 7/13: shared his Slingshot scan (you still have to go through the charts): one condition l",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t11804",
+     "text": "7/13: shared his Slingshot scan (you still have to go through the charts): one condition looks for 4% gappers on volume above the 50-day average within the last 25 days, adjustable; he updated his 8 EMA in ToS to show the Slingshot. 7/14 criteria: close above the 4 EMA highs after closing below the 4 EMA highs for the last 3 days, basically a delayed-reaction or pullback-buy setup; it doesn't trigger when price has been trading above the 4 EMA highs. Chart: The scan is a ThinkorSwim combo list named '! Slingshot' over US common stocks and ADRs with three daily conditions: c > xavgh4 and c[1] <"
+    },
+    {
+     "id": 11726,
+     "category": "SETUP",
+     "title": "Manrav 2025-08-09 t12274: 8/9-8/10 launch pad teaching: a launch pad is price sitting very close to the 8, 21 and 50",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t12274",
+     "text": "8/9-8/10 launch pad teaching: a launch pad is price sitting very close to the 8, 21 and 50 (even better with the 200), shown on ALAB, with RKLB a bearish LP example. MU would give a launch pad soon; Thursday was a slingshot with the 50 SMA above, so initiate on the slingshot and add on the 50 SMA reclaim. Reviewing member names: HPE weekly flag a beauty; VZ a choppy trader but an LP (watch the bearish gap above); DOCS a beauty; EH ideally with the 50 above the 200; AAPL an LP on the double inside day break. Chart: ALAB daily: three circled/arrowed launch pads (early May near 65 and two in July"
+    },
+    {
+     "id": 11964,
+     "category": "SETUP",
+     "title": "Manrav 2025-10-05 t12978: 10/5: on oops reversals he doesn't watch intraday charts: he takes the oops on the day wit",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t12978",
+     "text": "10/5: on oops reversals he doesn't watch intraday charts: he takes the oops on the day with the prior day's low as the stop and doesn't overthink -- but the chart needs the structure, he won't slap just any oops. Shared Scot1and's video on the Slingshot pullback setup (wait for price to trade back above the 4 EMA rather than buying the first pullback day). More charts (10/5 12:03pm): ('Oops reversal + Slinsghot on the retest'): RGTI daily 10/3 at ~40.06 (+13.2%, 266% run rate) to a 40.63 high, annotated 'TEXTBOOK HTF': a 'Volatility contraction, inside day, launch pad, slingshot' base near 15 "
+    },
+    {
+     "id": 12085,
+     "category": "SETUP",
+     "title": "Manrav 2025-11-24 t13274: 11/24: OPEN, COHR, APLD strong, META slingshot, AMTM launch pad. GMED's best slingshot ent",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t13274",
+     "text": "11/24: OPEN, COHR, APLD strong, META slingshot, AMTM launch pad. GMED's best slingshot entry was Friday; QDEL similar but with declining 50/200 SMAs it would set up again on the right side of the V (wants a push above ~19). BIIB strong but not actionable. As BMNR hit the tape he took BMNR 30c and BMNU shares. MODG, FROG, TMDX at HOD; SBIT/BMNZ on the new-low scanner; he shared his scanner columns. Chart: The ~9:00 'buyers stepping in' image is a new-highs vs new-lows alerts graph in which new highs crossed above new lows near 8:57am (49%/51% bar); the 'new high left, new lows right' image is a"
+    },
+    {
+     "id": 12087,
+     "category": "SETUP",
+     "title": "Manrav 2025-11-25 t13278: 11/25: IYH, TMDX shares (hold the 50 SMA as stop), GME perky, NXT back above the 50 SMA, I",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t13278",
+     "text": "11/25: IYH, TMDX shares (hold the 50 SMA as stop), GME perky, NXT back above the 50 SMA, INSP strong, PATH slingshot, SPY and CRWV HOD, AMZN joined the move, GGAL, ZM, RGNX a nice chart. MSFT was a great R/R on its first test of the 50 SMA and bounce (though it could be a bear flag). Agreeing with bracco and tsdr, he told members to buy time or trade shares and size down, since the past month had been volatile and not conducive to longs. BROS set up a daily launch pad and UPST a hot 30min; he read UPST's wide bars as RS amid the market; he fumbled a trade now at $18 (chart). Chart: The TMDX im"
+    },
+    {
+     "id": 12088,
+     "category": "SETUP",
+     "title": "Manrav 2025-11-26 t13281: 11/26: RUN and GEV slingshots, ALAB HOD. On a name up 3 days he said they were narrow-rang",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t13281",
+     "text": "11/26: RUN and GEV slingshots, ALAB HOD. On a name up 3 days he said they were narrow-range days to keep in context: play shares with yesterday's low as stop (~9%) and add on a pullback holding the 50 SMA; after the 50 SMA reclaim it became launch pad + slingshot + 50 SMA risk. USAR, NKTR, BBBY pop, ARGT hot; QQQ closed just below the bearish gap; maybe one more shakeout, which matters for day/swing traders more than position traders. Chart: GEV daily +4% to near 595.5 back above the 21 EMA, in a range between a marked 532.72 floor and 665.77 ceiling (677.29 high), 200 SMA ~497. QQQ daily near"
+    },
+    {
+     "id": 13266,
+     "category": "SETUP",
+     "title": "AtTheAsk 2025-09-11 t16493: 9/11: on finding slingshot setups (the day he caught XPEV and MP slingshots), he told memb",
+     "trader": "AtTheAsk",
+     "source_ref": "trader_archive:t16493",
+     "text": "9/11: on finding slingshot setups (the day he caught XPEV and MP slingshots), he told members to 'use this indicator' and scan with it. Chart: TradingView Pine Screener on his 'Bread & Butter' watchlist with the TAPLOT SlingShot indicator, filter set to Slingshot = True; and the indicator 'TAPLOT SlingShot' by TaPlot starred in his favorites. More charts (9/11 1:30pm): A summary of how the slingshot is typically traded: scan for strong stocks, wait for a pullback, look for consolidation/tight range as selling fades, trigger when the close crosses above the 4-EMA of the highs (the 'slingshot' m"
+    },
+    {
+     "id": 13488,
+     "category": "SETUP",
+     "title": "Manrav 2025-09-15 t17488: 9/15: Manrav posted an annotated RBLX chart walking through its run. Chart: RBLX daily (9/",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t17488",
+     "text": "9/15: Manrav posted an annotated RBLX chart walking through its run. Chart: RBLX daily (9/15) near 135.25 under a shaded red zone near 137-139 below the 150.59 gap-spike high, above a marked 127.99 line; annotations: 'double bottom on daily', 'launch pad + slingshot' at the drawn downtrend break, 'oops, add here', 'slingshot', then '100% from launch pad, rides 8 and 21 EMAs, RS above 21 EMA all through the move'; HV close 67.12 marked; the RS pane notes it 'shows RS before the market correction'.\n\nIn Manrav's words: \"[chart]\""
+    },
+    {
+     "id": 15454,
+     "category": "SETUP",
+     "title": "Manrav 2026-01-01 t7208: BE: 1/1 the setup he would have loved to play long, missed. 1/17 textbook wedge pop that w",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t7208",
+     "text": "BE: 1/1 the setup he would have loved to play long, missed. 1/17 textbook wedge pop that went non-stop: wedge pop, quick cross back, then a 50 SMA reclaim -- 60%+ since the wedge pop in under two weeks. Chart: BE daily 12/31 near 87: a short downtrend line drawn over a tight pullback off the mid-Dec low near 80 (green support band), after a fall from the 147.86 Nov high; RS line rolling over. The 1/16 chart (149.50, +7.4%) labels 'Wedge Pop + Slingshot' off that ~81 shelf, then 'Cross back' and '50 SMA reclaim' (50 SMA near 108), price tagging the 147.86 prior high (Hi 150.84) on above-average"
+    },
+    {
+     "id": 15580,
+     "category": "MACRO",
+     "title": "Manrav 2026-04-13 t8153: 4/13 SPY stopped right at the bearish gap 'to keep us guessing'. 4/14 don't chase: after a",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t8153",
+     "text": "4/13 SPY stopped right at the bearish gap 'to keep us guessing'. 4/14 don't chase: after a run of up days the market needs digestion before picking up steam, play it day by day and by setup. 4/17 QQQ: from failed moves come fast moves, plus a green-line breakout. 4/25 IWM pausing while tech made new highs -- time for small caps? Chart: SPY daily 4/13 ~686 (SLINGSHOT) pushing up into a red bearish-gap box ~687-690 after a V off a ~630 low, above a 678.83 line and back over the 50/200 SMAs (~674/~665); 697.84 high above. QQQ daily 4/17 ~649 (high 650) broke out over its 637 GLB after reclaiming "
+    },
+    {
+     "id": 15701,
+     "category": "SETUP",
+     "title": "Manrav 2025-11-10 t9475: 11/10 study of historical winners (as in How to Make Money in Stocks): for higher-timefram",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t9475",
+     "text": "11/10 study of historical winners (as in How to Make Money in Stocks): for higher-timeframe traders, watch companies flipping from negative to positive annual EPS and find low-risk entries (launch pad, double bottom, oops) -- buy on fundamentals + technicals, sell on technicals. Examples: NVDA's 2023 EPS shift, CVNA, APP. RDDT potential double bottom plus daily slingshot. Chart: RDDT daily: +6% to ~206 off a second low near ~180 (vs the early-October lows ~190), back above the short EMAs but below the 50 SMA (~220.7), 200 SMA ~166; high 282.95. Annual EPS tables: NVDA 0.17 (2022) to 1.19 (2023"
+    },
+    {
+     "id": 15867,
+     "category": "SETUP",
+     "title": "UCT team playbook: Launch pad (MAs converging under a tight base)",
+     "trader": "UCT Team",
+     "source_ref": "setup_knowledge:sk_launch_pad",
+     "text": "Launch pad (MAs converging under a tight base). Price sits just above converging 8/21/50 moving averages in a tight base while the averages curl up.\nConditions: Averages within about 1 ATR of each other, stacked 8 over 21 over 50 (over 200 for the best grade), the 50 curling up, a tight five-day range; daily and weekly launch pads together are strongest. Pinch variant: price squeezed between the 50 and 200 SMAs.\nTrigger: Buy inside the pad or on the reclaim of the averages or a high-volume close; from below the 50, start on a slingshot and add on the 50 SMA reclaim. Stop: Below the launch pad "
+    },
+    {
+     "id": 15877,
+     "category": "SETUP",
+     "title": "UCT team playbook: Slingshot",
+     "trader": "UCT Team",
+     "source_ref": "setup_knowledge:sk_slingshot",
+     "text": "Slingshot. After a strong move, a short pullback with closes below the 4-period EMA of the highs for three or more days, then the first close back above it.\nConditions: Prior strength (a 4%+ day on above-average volume within about 25 sessions, or a fast 20%+ run), a tight pullback, price above or near the 50 SMA. It stacks well with a launch pad, a high-volume close or a kicker.\nTrigger: The close back above the 4-EMA of highs, often entered intraday on the trigger day. Stop: Prior-day low or low of day, or the bottom of the recent consolidation.\nManagement: Trim into the next 3-5 day burst.\n"
+    }
+   ],
+   "model_examples": [],
+   "setup_performance": [],
+   "templates": []
+  },
+  "Launchpad": {
+   "kb_matches": 75,
+   "kb": [
+    {
+     "id": 5187,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Trading Setups",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader trading since 2022 with Bracco. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. Up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, SPX. His risk to reward on entries is remarkable. He is active, willing to take losses and be wrong, knowing the outcome is uncertain "
+    },
+    {
+     "id": 6162,
+     "category": "BIOGRAPHY",
+     "title": "Manrav - Trader Profile and Setups Used",
+     "trader": "Manrav",
+     "source_ref": "Uncharted Territory Sunday Scans 2025-11-02",
+     "text": "Manrav is a phenomenal trader who has been trading with the group since 2022. He is a student of the market cut from the same cloth as StockBee, Mike Webster, and Ameet Rai. He practices what he preaches and trades extremely repeatable trading setups on a daily basis: Launchpad, Slingshot, HVC edge, and Oops Reversal. He uses these setups as well as Options Flow to curate a focus list of the best opportunities. He is up 105% in his trading account for the year. Notable trades include TSLA, CRWV, COIN, VKTX, AFRM, and SPX. His risk to reward on entries is remarkable. He is active, willing to ta"
+    },
+    {
+     "id": 10739,
+     "category": "SETUP",
+     "title": "TSDR 2024-06-21 t0336: Teaching post walking through top-down multi-timeframe chart analysis (weekly to daily to",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t0336",
+     "text": "Teaching post walking through top-down multi-timeframe chart analysis (weekly to daily to 65min to 5min). More charts (6/21 8:48pm): The case study is HAS (6/21/24). Weekly: late-April earnings thrust from about 54 to 66, then a falling flag (drawn lines) into the 9/20 EMAs and 50 MA - the weekly flag/launch pad - breaking up to 62.26. Daily: the thrust through the MAs, a month-long retrace that held the 50 MA near 58.5-60, then a push back to 62.26. 65-min: the 6/14 gap to about 61.5, a pullback that undercut the flat 60.4 line and reclaimed it on 6/21 (green arrow), then a trend to 62.3. 5-m"
+    },
+    {
+     "id": 10929,
+     "category": "MACRO",
+     "title": "Manrav 2025-01-30 t10144: 1/30: took a small loss after NOW and MSFT earnings did not help. Only the mega caps dragg",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10144",
+     "text": "1/30: took a small loss after NOW and MSFT earnings did not help. Only the mega caps dragged SPY and QQQ; the rest of the market held up. SPY at the daily 8 EMA, watch the 8/9 EMA; a 10-min launch pad if 603.26 held; liked the 65-min hammer but needed a reclaim of 604.5. DLB a beautiful earnings breakout; COIN 310 incoming; a nice R/R on shares with a 50 SMA stop. Chart: DLB daily (1/30) gapped up 10% to near 88.8 (high 89) on earnings, out of a months-long base above the 50 SMA (~79) and 200 SMA (~77); RS 51. The SPX position was SPXW Jan 30 '25 6060 calls with a 4.12 cost shown, up 21.5% the"
+    },
+    {
+     "id": 10935,
+     "category": "SETUP",
+     "title": "Manrav 2024-05-02 t10160: 5/2 tips: a free TraderLion position size calculator; if you feel you're selling too early",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10160",
+     "text": "5/2 tips: a free TraderLion position size calculator; if you feel you're selling too early, buy more time or cut size until confident in the setup; with a 30-minute launch pad you can give the stock time, stop on a break below the launch pad. On PDD draw a line at the high-volume open of earnings day; showed a textbook launch pad he would have skipped because earnings were pending; liked the R/R. Chart: The 8:24pm 'textbook launch pad, but had ER' chart is AMGN daily, not PDD: on 5/2 (earnings 3.96 actual vs 3.756 est) it closed near 278.4 just above a tight cluster of the 8/21 EMAs and 50 SMA"
+    },
+    {
+     "id": 10943,
+     "category": "SETUP",
+     "title": "Manrav 2024-05-22 t10177: 5/22 ENPH kicker candle as a textbook buy: below the EMAs with an inside day the day befor",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10177",
+     "text": "5/22 ENPH kicker candle as a textbook buy: below the EMAs with an inside day the day before (treat it as a bear trap), then reclaimed the MAs with a launch pad on the daily -- once those reclaim, moves are fast; Oliver Kell would have doubled his position. After the gap it became a chase -- wait for a pullback; he thought it was the start of a big move. Also MARA up on volume, CRM on watch; told a member shares with a $60 stop was a great R/R. Chart: The 'Up on Volume' image is a scanner watchlist, not a MARA chart: led by DQ (+17%), CSIQ, NVAX, ARRY, SHLS, BE, JKS, FSLR, PLUG, RUN (solar-heav"
+    },
+    {
+     "id": 10985,
+     "category": "SETUP",
+     "title": "Manrav 2024-06-28 t10305: 6/28 told a member a chart wasn't a launch pad because the EMAs weren't tight. Pointed mem",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10305",
+     "text": "6/28 told a member a chart wasn't a launch pad because the EMAs weren't tight. Pointed members to the Tuesday workshop with TSDR where he walked through the AMD chart in detail (~1h17m). Stocks move in bursts of 3-5 days -- always look to enter at the beginning of the move.\n\nIn Manrav's words: \"Daily? I won't call that a launch pad, the EMA's are not tight\n9:13am If anyone joined the workshop that TSDR and I did on Tuesday, I went through the AMD chart and the analysis in detail, go back and watch around 1 hour and 17 min\n// https://discord.com/channels/882293203485720596/1204240205146620006/1"
+    },
+    {
+     "id": 10988,
+     "category": "SETUP",
+     "title": "Manrav 2024-07-02 t10312: 7/2 answering a member on a chart: not yet -- once it pushes through the 50 SMA with all M",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10312",
+     "text": "7/2 answering a member on a chart: not yet -- once it pushes through the 50 SMA with all MAs stacked and curling up it gets a powerful move; inside day, a must-have chart, Aug 30c should pay with the launch pad as the stop. On upside reversals: ideally it opens red, makes a new low, reverses and reclaims the prior day's low -- then go long with today's low as the stop. Here he'd wait for a reclaim of yesterday's open (minimum) or the highs, or a pullback entry to the 8 or 21 EMA.\n\nIn Manrav's words: \"Not yet. Once it pushes through 50 SMA and when all the moving averages are stacked and curlin"
+    },
+    {
+     "id": 11169,
+     "category": "SETUP",
+     "title": "Manrav 2024-10-06 t10750: 10/6 GEV notes: when the 21 EMA moves above your entry price you can treat it as a positio",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10750",
+     "text": "10/6 GEV notes: when the 21 EMA moves above your entry price you can treat it as a position trade (a rule he learned from another trader) and add to the position. Chart: Annotated GEV daily (10/4, near 265.6, new high 266.42 above a 257.5 line): labels walk the trade from the IPO (IPO-day high 131.25, earnings close 148.31) -- straight-away push from IPO as institutional support; wedge pop and launch pad as the entry; undercut-and-reclaim of the 50/21 EMAs as an aggressive add with a 50 SMA stop; inside day and trendline break add with a 50 SMA stop; RS held during market corrections (RS line "
+    },
+    {
+     "id": 11171,
+     "category": "SETUP",
+     "title": "Manrav 2024-10-08 t10756: 10/8 liked GLW; CVNA and APP strong. For a member's chart: above 145.5 it can see 150 quic",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10756",
+     "text": "10/8 liked GLW; CVNA and APP strong. For a member's chart: above 145.5 it can see 150 quickly, but watch the $150 psych level. Another chart wasn't a launch pad but could trigger a weekly oops: an inside week that triggered down -- if it reclaims last week's close it's a buy with this week's low as the stop. Chart: Both member-chart replies are on A (Agilent), not GLW/CVNA/APP: the 4:15pm daily (10/8, ~144.6) shows a pullback under a short descending trendline from ~150 sitting just below the 145.45 line, above the 8 EMA (~144.7), 50 SMA (~140.3) and 200 SMA (~138.2). The 4:19pm weekly (~144.6"
+    },
+    {
+     "id": 11174,
+     "category": "SETUP",
+     "title": "Manrav 2024-10-11 t10762: 10/11 pointed a member to Oliver Kell's price-cycle video. 10/12 COIN bumped its head on a",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t10762",
+     "text": "10/11 pointed a member to Oliver Kell's price-cycle video. 10/12 COIN bumped its head on a declining 50 SMA -- it'll give plenty of entries; best to buy time, 10/18 expiry is risky. Entries/exits depend on trader type; most would be in MSTR or CORZ by now. He wants the move on day 1 (or 2), close to the MAs, so risk is defined -- he's not good at chasing. SMCI showing relative weakness but little R/R to the downside; September was a doji month, its low a big pivot. QCOM trading tight -- wait for a bullish or bearish launch pad; if the market reverses these are the shorts, until then the long s"
+    },
+    {
+     "id": 11253,
+     "category": "MACRO",
+     "title": "Bracco 2024-07-10 t10965: Rate-sensitive setup into CPI (7/10/24): XBI, KRE, IWM, ARKK and IBB weeklies looked very",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10965",
+     "text": "Rate-sensitive setup into CPI (7/10/24): XBI, KRE, IWM, ARKK and IBB weeklies looked very constructive while the 10-year showed a big head and shoulders and bearish launch pad, one down candle from a trend breakdown, which he didn't think was coincidence. That day money flowed into KRE/IWM/TAN, XBI tried to break a 4-month base, ARKK undercut and rallied, homebuilders and DPST joined, and T2108 was coiled for expansion. Reasoning: the money that runs this market likely knows CPI; such hard bidding argued for a gap up and continuation or a gap up and big sell-off, not a crash. Chart: (8 of 12 i"
+    },
+    {
+     "id": 11344,
+     "category": "MACRO",
+     "title": "Manrav 2025-05-04 t11204: 5/4/25 weekend: PLTR is THE leader and a buy on any consolidation; the cyber theme is obvi",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t11204",
+     "text": "5/4/25 weekend: PLTR is THE leader and a buy on any consolidation; the cyber theme is obvious, with CRWD the leader; SAP incredibly strong. QUBT had a beautiful launch pad with Friday as the buy point, but with earnings coming he stayed away. Chart: QUBT daily 5/2: +14% to near 8.0 off a month-long tight coil around 6.5-7.5 that sat on the 50 SMA (~6.8) and 8 EMA (~7.1), well above the 200 SMA (~5.4); volume picked up modestly on the breakout bar, RS 31.\n\nIn Manrav's words: \"Totally agree on $PLTR.\n9:48am It is THE leader and is a buy on any consolidation\n9:49am and the cyber theme is very obv"
+    },
+    {
+     "id": 11726,
+     "category": "SETUP",
+     "title": "Manrav 2025-08-09 t12274: 8/9-8/10 launch pad teaching: a launch pad is price sitting very close to the 8, 21 and 50",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t12274",
+     "text": "8/9-8/10 launch pad teaching: a launch pad is price sitting very close to the 8, 21 and 50 (even better with the 200), shown on ALAB, with RKLB a bearish LP example. MU would give a launch pad soon; Thursday was a slingshot with the 50 SMA above, so initiate on the slingshot and add on the 50 SMA reclaim. Reviewing member names: HPE weekly flag a beauty; VZ a choppy trader but an LP (watch the bearish gap above); DOCS a beauty; EH ideally with the 50 above the 200; AAPL an LP on the double inside day break. Chart: ALAB daily: three circled/arrowed launch pads (early May near 65 and two in July"
+    },
+    {
+     "id": 11964,
+     "category": "SETUP",
+     "title": "Manrav 2025-10-05 t12978: 10/5: on oops reversals he doesn't watch intraday charts: he takes the oops on the day wit",
+     "trader": "Manrav",
+     "source_ref": "trader_archive:t12978",
+     "text": "10/5: on oops reversals he doesn't watch intraday charts: he takes the oops on the day with the prior day's low as the stop and doesn't overthink -- but the chart needs the structure, he won't slap just any oops. Shared Scot1and's video on the Slingshot pullback setup (wait for price to trade back above the 4 EMA rather than buying the first pullback day). More charts (10/5 12:03pm): ('Oops reversal + Slinsghot on the retest'): RGTI daily 10/3 at ~40.06 (+13.2%, 266% run rate) to a 40.63 high, annotated 'TEXTBOOK HTF': a 'Volatility contraction, inside day, launch pad, slingshot' base near 15 "
+    }
+   ],
+   "model_examples": [],
+   "setup_performance": [],
+   "templates": [
+    {
+     "name": "Launchpad",
+     "entry_triggers": "{\"primary\": \"Break above tight consolidation range on explosive volume\", \"volume_min\": \"2x+ average\"}",
+     "stop_methods": "{\"initial\": \"Below consolidation range low\", \"max_pct\": 8.0}",
+     "max_stop_pct": 8.0,
+     "profit_logic": "{\"first_target\": \"10-30% from breakout in days\"}",
+     "addon_rules": "{}",
+     "invalidation": "{\"structural\": \"Consolidation breaks down on volume\"}",
+     "hold_time_range": "",
+     "common_mistakes": "[\"Entering before volume confirmation\", \"Mistaking a VCP for a launchpad\"]"
+    }
+   ]
+  },
+  "Bear gap": {
+   "kb_matches": 16,
+   "kb": [
+    {
+     "id": 11011,
+     "category": "MACRO",
+     "title": "Bracco 2024-04-22 t10393: 4/22/24: VIX sat on a 30-min trendline support with advance/decline at +1200, so he expect",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10393",
+     "text": "4/22/24: VIX sat on a 30-min trendline support with advance/decline at +1200, so he expected a gap down and wanted to see the response; TNX was bull-flagging under a bear gap. After a 70-point intraday rally, profit-taking made sense since the short-term trend was still down. 4/23 he flagged SPY 503 / QQQ 423 premarket as rejection spots with good risk/reward; later, up nearly a full ATR with A/D tapped, he saw no play: short a breakdown or call it a day. Chart: VIX 30-min: a rising red trendline from late March with green arrows at each prior bounce (about 13, 13.80, 15), and VIX now dropped "
+    },
+    {
+     "id": 11199,
+     "category": "MACRO",
+     "title": "Bracco 2024-10-30 t10822: 10/30-11/4: SPY could pull back but he wouldn't call 10/30 a distribution day. 10/31 MSFT",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t10822",
+     "text": "10/30-11/4: SPY could pull back but he wouldn't call 10/30 a distribution day. 10/31 MSFT broke a 3-month consolidation through the 200 SMA on earnings, AAPL broke its 50 SMA, QQQ at last Wednesday's low with a bearish engulfing week (he'd hoped for a pop over ATH before a reset), IWM closed below its support trendline after a failed flat-top breakout, VIX building a VCP. 11/1: QCOM & INTC's 2000 run vs SMCI & NVDA's 2024: same patterns, different tickers. 11/4: SPY could sell through 565, filling the bear gap at 567.80 as support, A/D line at the edge of a cliff. Chart: MSFT daily: -5.9% to a"
+    },
+    {
+     "id": 11714,
+     "category": "MACRO",
+     "title": "TSDR 2025-08-26 t12230: 8/26: he mocked 'QQQ up 15%' as a non-call; he compared the AAPL daily to the SPY hourly o",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t12230",
+     "text": "8/26: he mocked 'QQQ up 15%' as a non-call; he compared the AAPL daily to the SPY hourly off the April lows and told members to stop thinking black and white: the market filling bear gaps while leaving bull gaps open is strength. Chart: Side by side: AAPL daily (Aug 2025) with a circled higher low near 203 before its gap up, now a small drawn flag near 228 holding above the marked 223.73 line; SPY hourly from late April to 5/12/2025 with a circled dip near 553 then a flag at a marked 561.93 line and a gap up to near 581, with 632.08 marked overhead. The pairing shows AAPL now tracing the same "
+    },
+    {
+     "id": 12039,
+     "category": "SETUP",
+     "title": "TSDR 2025-11-11 t13160: 11/11 evening: on a member's name he said it looked incredible with just the bear gap abov",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t13160",
+     "text": "11/11 evening: on a member's name he said it looked incredible with just the bear gap above $190 and then $203 ATHs overhead. Reviewing another breakout (charts), he said the VCP action and overall base, combined with 3-4 tight days on the gap up before the breakout, made the setup for the month. Chart: Two of the charts are reference examples: NVDA daily from late 2022 to March 2023 with a circled reclaim of the 9/20 EMA and 50 MA in January before the trend higher, and TSLA daily mid-2025 breaking out of a months-long range near 300-350 in September to about 440. The other two images are per"
+    },
+    {
+     "id": 12073,
+     "category": "MACRO",
+     "title": "Bracco 2025-11-25 t13228: 11/25: IWM blasted, ES got back above all its MAs, AVGO hit ATHs and NVDA was maybe capitu",
+     "trader": "Bracco",
+     "source_ref": "trader_archive:t13228",
+     "text": "11/25: IWM blasted, ES got back above all its MAs, AVGO hit ATHs and NVDA was maybe capitulating. He said the 4th or 5th day off lows often brings a harsh sell bar unless the market puts in a follow-through day, then it's off to the races; he kept his bullish bias from the prior week, just a day or two early. VIX fell below 19 (18.74) as the market sliced through the bear gap and 50ma. He shared TCMLLC counting it as Day 3 of a rally attempt based on pullback-depth guidelines, noted a giant base reminding him of CLS, and advised fewer short-dated options and earnings gambles since those paper "
+    },
+    {
+     "id": 12373,
+     "category": "MACRO",
+     "title": "TSDR 2025-10-07 t1388: MSOS still looks solid though getting upper wicks at the bear gap; the DEA rescheduling ca",
+     "trader": "TSDR",
+     "source_ref": "trader_archive:t1388",
+     "text": "MSOS still looks solid though getting upper wicks at the bear gap; the DEA rescheduling catalyst (discussed in the group since August 2023) got pushed again to Jan 2026, gaining renewed attention from Trump's Truth Social posts; watch the open bullish gap near $4.70-5.00 and be mindful this could be wedging up like CRWV, needing a shakeout to confirm buyers before getting involved. More charts (10/7 8:15pm): MSOS daily near 5.47: drawn downtrend line from the early-September high near 6 down to the late-September low, broken on the 9/29 gap-up; a short horizontal near 5.4-5.5 marks the recent "
+    },
+    {
+     "id": 4250,
+     "category": "REGIME",
+     "title": "QQQ Hourly Analysis - Bouncing Between Bear and Bull Gaps",
+     "trader": "Bracco",
+     "source_ref": "Uncharted Territory Sunday Scans 2026-01-04",
+     "text": "QQQ not attractive candle to start year with nearly $13 reversal from morning strength. Bouncing between near term bear and bull gaps, rejecting at highs and holding lows. Important to take out Friday highs before anything momentous occurs. The 9ema, 20ema, and 50sma all stacked right at $616.50-$617.50. Need to get over that otherwise risk a bearish launch pad. Hourly wedge being decided soon, $607-$608 hold seems important."
+    },
+    {
+     "id": 9756,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2024-04-14",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2024-04-14",
+     "text": "21:49 *SPY--IWM--QQQ (30 Minute Charts)*\n\nFirst, there is a lot of unknowns, and with the start of earnings season we are about to make a good move and establish some good price action into the end of the month imo. Whether it be up or down, that remains to be seen. So far, it has been churning traders, trapping buyers and sellers on both sides. Hallmark of rangebound volatility, vs predictable trend. Remains shortened Duration, Lower Frequency, Lower Sizing type of environment. This can change suddenly But will need a \"MOMENT\" as well as clean follow through. We will surely be able to identif"
+    },
+    {
+     "id": 9764,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2024-04-22",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2024-04-22",
+     "text": "09:18 CRM faded off last week after news that they were looking to acquire INFA. The stock was about 8% that day. Today they announced that they are no longer actively persuing that deal. Stock is up 4% in the premarket. FI we get a pullback and hold at 275/280 I think this could be interesting. @member\n\n09:51 AMZN Looking at 180C for 4/26 or 5/3 180C \n\nWant to see us hold opening range low and 9 ema spot on the 5 min. target 179/180.55 \n\n180C for 4/26 are 1.80 @member\n\n09:55 AMZN..Need to see sweep and hold of 177 flat, or remount of 178 @member 20% max stop on the position if you take it\n\n10"
+    },
+    {
+     "id": 9986,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2025-01-14",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2025-01-14",
+     "text": "09:53 SPY-- Into a very prominent zone here that has been a decision point from the market. No need to be a hero or go for homeruns. Let the market continue to show its hand and react appropriately. Data still to come this week @member\n\n12:52 CYBR retested 330-335 zone and putting in an inside day. Might buy before close @member \n\nOnly thing holding me back is broad market. But if we get a good up day i expect it to follow GEV's technical breakout\n\n15:57 Sticking with 124 stop, will watch tomorrow, still holding about 1/2 size risk @member\n\n21:56 TSLA prime example of Anchored VWAP from key ar"
+    },
+    {
+     "id": 10102,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2025-05-28",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2025-05-28",
+     "text": "09:55 Doesnt exactly feel like a buy day right now, we will see how things develop into the afternoon. @member\n\n10:24 LOT of tight inside day behavior right now @member some fading of attempts higher, but mostly tight range so far in the first hour\n\n10:55 HTZ still like the action here consolidating over 7. No position unfortunately but can be buyable on dips @member\n\n12:29 Not every day is active for swing trades and ideas. Yesterday was movers left and right with a lot of things continuing out of some tightness. Friday was good day too as we esatablished the higher low within the strong tren"
+    },
+    {
+     "id": 10171,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2025-08-26",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2025-08-26",
+     "text": "10:01 RBRK first time in the consolidation really that we are trying for a HIGHER LOW AND THIS IS AFTER UNDERCUTING THIS CHOPPY BASE AND MOST maS TRYING TO START CURLING UP @member \n\nA GREAT CYBER GROWTH STOCK\n\n10:41 If you can answer the qwuestions\n\n1. WHats my setup \n-Theme\n-Group\n-RS (relative Strength)\n-clear thesis\n-Pattern\n-Clear trigger\n\n2. Whats my risk\n-invalidation spot\n-Sensible level\n-Tight spot \n\n3. Whats my sizing\n-[(Entry-Stop) x Shares] / Account Size\n\n4. Is the Juice worth the squeeze?\n-Can I get 3-1RR 4-1 5-1 Risk to reward\n-Is there assymetric upside vs my tight risk\n\n5. Hit"
+    },
+    {
+     "id": 10207,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2025-10-06",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2025-10-06",
+     "text": "09:34 CRML going to watch to see if it gives a VWAP undercut early in the session on smaller timeframe for a swing entry with LOD stop @member\n\n10:05 Nice move on ETHU this morning again. Willing to ride through pullback and flagging and higher lows. @member\n\n10:08 Lol I am up very very nicely but feel sad because of AMD sell on Friday. Trading is a funny game @member\n\n10:37 AMD $207 are is the bear gap from it's all time high candle. Acting as some reasonable support here @member\n\n11:11 DNUT lol okay, depends on how far out on the risk curve you want to go, but from a pure chart perspective t"
+    },
+    {
+     "id": 10208,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2025-10-07",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2025-10-07",
+     "text": "08:50 SEI is a stock I am very interested in. It is not ready for an entry yet. I wouldve like to be in around $30. It is gapping down 5% on an offering. I would like this to start a minimum of 3 weeks consolidation period where the chart gets very thight up here. If that occurs I will do further analysis and look to start a position in it @member\n\n09:10 FIG- No position yet. Could've bought the wedge pop yesterday. Don't ming a higher price though if it means a tighter risk allowing for more size. Gap up wick play possible today. Ideally build a bit above the curling MAs and give us a flag he"
+    },
+    {
+     "id": 10239,
+     "category": "CASE_STUDY",
+     "title": "TSDR desk log — 2025-11-11",
+     "trader": "TSDR",
+     "source_ref": "discord:#tsdr:2025-11-11",
+     "text": "10:03 I bought U shares on the red to green. Sorry I am on my phone and will be home soon @member\n\n10:27 Not getting the follow through. inside day behavior. If no push soon will wait and try again later @member\n\n12:52 EOSE putting in a very tight inside day so far today following the impressive move on Friday and Monday. Looking at the hourly it would be nice to see it tighten a bit further if not in already. The last entry prior to this was Friday when it took out the highs on the hourly chart at $15.33. @member\n\n12:58 I like that QQQ was able to defend the bullish open gap from yesterday. W"
+    }
+   ],
+   "model_examples": [],
+   "setup_performance": [],
+   "templates": []
+  }
+ }
+}

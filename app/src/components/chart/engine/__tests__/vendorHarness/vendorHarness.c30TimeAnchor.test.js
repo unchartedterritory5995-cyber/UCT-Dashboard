@@ -12,7 +12,8 @@
 // answers an open from bars before our window; those bars (and the bar that reads
 // one back through `ta.change`) are WITHHELD — `na` on our side, never a value.
 //
-// ⚠️ THE PROBE ITSELF STAYS REFUSED AT THE DOOR, on ONE row: T16 (`input.time`,
+// ⚰️ (RULING-0927, 2026-11-07: T16 is served now; the replay below is kept as it was.)
+// ⚠️ THE PROBE ITSELF STAYED REFUSED AT THE DOOR, on ONE row: T16 (`input.time`,
 // `pine:input-kind` — a ruled wall that is not a clock question). So the replay
 // grades a DERIVED capture — that one row cut from the source, its column dropped,
 // re-sealed — only after the PARENT capture's own receipt and source sha verify.
@@ -113,14 +114,20 @@ describe('C30 — the parent capture, and the door on the probe as captured', ()
     expect(CAPTURE.bars.rows.length).toBe(900)
   })
 
-  it('the probe as captured still refuses at the door — on a row OUTSIDE this lane, by name', () => {
+  // ⚰️ THIS SAID "the probe as captured still refuses at the door" on T16 (`input.time`,
+  // `pine:input-kind`). RULING-0927 (2026-11-07) serves T16's own form, so the probe now passes
+  // the door: T16 matches on every bar, nothing is refused and nothing diverges.
+  it('RULING-0927 — the probe as captured passes the door; T16 matches on every bar', () => {
     const { verdict } = gradeCapture(CAPTURE)
-    expect(verdict.verdict).toBe('INCONCLUSIVE')
-    expect(verdict.reason).toMatch(/member door refused \(pine:input-kind\)/)
-    // the refusal is `input.time` alone — never a `time(<timeframe>)` row (C36 serves T05 / T06)
+    const VERDICT = verdict
+    expect(verdict.reason).not.toMatch(/member door refused/)
+    const t16 = VERDICT.plots.find((p) => p.title === 'T16_input_time_default_DAYS')
+    expect(t16 && t16.stats, 'T16 was not graded').toBeTruthy()
+    expect([t16.stats.valueMismatches, t16.stats.naMismatches, t16.stats.matching]).toEqual([0, 0, t16.stats.bars])
+    expect(verdict.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
     const t = translatePine(CAPTURE.source.text, { strict: true, basePeriod: 'D' })
     const refusedTitles = t.outputs.map((o, i) => (o.refusal ? CAPTURE.study.plots[i].title : null)).filter(Boolean)
-    expect(refusedTitles).toEqual(OUT_OF_SCOPE)
+    expect(refusedTitles).toEqual([])
   })
 })
 

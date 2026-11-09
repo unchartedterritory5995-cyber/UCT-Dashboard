@@ -25,6 +25,8 @@ QUEUE = REPO / "docs" / "pine" / "capture-queue-2026-11-05-w9.md"
 # 5.2's probe names, by row (the design's table), written out. `(new)` probes plus the S1 core pair.
 EXPECTED = {
     "Q-S1-core": ["s1-broker-core"], "Q-S1-core-b": ["s1-broker-core-range"],
+    # 2026-11-08, W9 integration review N2: two full exits on one trade (S1's B-EXIT-BIND witness)
+    "Q-S1-core-2x": ["w9-q-s1core-two-exits"],
     "Q-S1a": ["w9-q-s1a-size-v4", "w9-q-s1a-size-v6", "w9-q-s1a-size-v5pct", "w9-q-s1a-size-v5cash", "w9-q-s1a-size-v2"],
     "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6"],
     "Q-S1c": ["w9-q-s1c-tie"], "Q-S1d": ["w9-q-s1d-same-tick"], "Q-S1e": ["w9-q-s1e-live-past"],

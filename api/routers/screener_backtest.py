@@ -502,6 +502,12 @@ def _runtime_admission(row: dict, plot: str) -> None:
         raise _refuse_runtime(*refused)
 
 
+def _is_strategy_document(doc: Any) -> bool:
+    """W9-T14: does this stored runtime document carry the strategy stamp (W9-T11)?"""
+    meta = doc.get("meta") if isinstance(doc, dict) else None
+    return isinstance(meta, dict) and meta.get("runtimeHistory") == runtime_client.codec.STRATEGY_WINDOW_HISTORY
+
+
 def _runtime_descriptor(row: dict, doc: dict, compute: dict, def_id: str,
                         user_id: Any, plot: Optional[str]) -> tuple[dict, dict]:
     """``(descriptor, provenance)`` for a stored runtime document. The descriptor stands
@@ -512,6 +518,18 @@ def _runtime_descriptor(row: dict, doc: dict, compute: dict, def_id: str,
     # admission wants a plot name; with none chosen yet it is asked of the first output, which
     # decides nothing (the five questions are the same for every plot of one document)
     _runtime_admission(row, plot or next(iter(outputs), ""))
+    # W9-T14 -- a STRATEGY document (stamped `strategy-window` by the member door, W9-T11) is never
+    # replayed here: its values come from the broker, which runs only over the one history window
+    # (`bars_window.HISTORY_WINDOW_BARS`, W9 design 3.4), and this door reads a fixed
+    # `RUNTIME_HISTORY_LEAD` before a member-chosen window instead. Refused by the broker's own
+    # name before any plot question, so no `strategy.*` value is screened off the wrong start.
+    if _is_strategy_document(doc):
+        raise _refuse_runtime(
+            runtime_client.codec.STRATEGY_START_GUARD,
+            f"definition {def_id!r} is a strategy: its values come from a backtest over the most recent "
+            f"{HISTORY_WINDOW_BARS} bars, and a screen backtest reads {RUNTIME_HISTORY_LEAD} bars before "
+            "the window it replays, so its trades would start from a different bar. Nothing is replayed; "
+            "a strategy is backtested by POST /api/pine/strategy-backtest.")
     if plot is None and len(outputs) == 1:
         plot = next(iter(outputs))
     if plot is None or plot not in outputs:

@@ -1,4 +1,4 @@
-import { SOURCE_BAR_FIELDS } from './defSchema'
+import { SOURCE_BAR_FIELDS, identityTextFor } from './defSchema'
 import { bindingKey } from './pool'
 import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
@@ -854,7 +854,8 @@ export function instanceLabel(def, instance) {
     const declared = (def.inputs || []).find((i) => i && i.key === key)
     const stored = instance && instance.inputs ? instance.inputs[key] : undefined
     const v = stored === undefined ? (declared ? declared.default : undefined) : stored
-    if (v !== undefined) vals.push(v)
+    // 3-14: "Your symbol" reads as the typed symbol (`UCT RS (XLK)`), never the code `CUSTOM`.
+    if (v !== undefined) vals.push(identityTextFor(def, key, v, instance && instance.inputs))
   }
   return vals.length ? `${stem} (${vals.join(', ')})` : stem
 }

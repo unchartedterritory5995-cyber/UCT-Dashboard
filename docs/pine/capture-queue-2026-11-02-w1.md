@@ -24,12 +24,12 @@ plot(na(ta.pvt) ? -1 : bar_index, "O06_pvt_first_bar")
 plot(ta.pvt - ta.cum((ta.change(close) / close[1]) * volume), "O07_pvt_minus_reference_ZERO")
 ```
 
-| row | what it settles |
-|---|---|
-| O01/O05 | the levels, bar for bar, from the listing |
-| O02/O06 | the first bar: ours is `na` on bar 0 (the published body: `ta.change` is `na` there). If TradingView's built-in reads 0 on bar 0 instead, O02 reads 0 and `O04` differs on its first bars |
-| O03/O07 | the built-in against its published reference body: expected 0 on every bar (or `na` together) |
-| O04 | the corpus quantity (`atr-support-and-resistance`, `obvEMA = ta.ema(ta.obv, 21)`) |
+| row | probe | what it settles |
+|---|---|---|
+| O01/O05 | `vw-w1-obv-pvt.pine` on AMEX:SPY 1D from the listing | the levels, bar for bar, from the listing |
+| O02/O06 | `vw-w1-obv-pvt.pine` on AMEX:SPY 1D from the listing | the first bar: ours is `na` on bar 0 (the published body: `ta.change` is `na` there). If TradingView's built-in reads 0 on bar 0 instead, O02 reads 0 and `O04` differs on its first bars |
+| O03/O07 | `vw-w1-obv-pvt.pine` on AMEX:SPY 1D from the listing | the built-in against its published reference body: expected 0 on every bar (or `na` together) |
+| O04 | `vw-w1-obv-pvt.pine` on AMEX:SPY 1D from the listing | the corpus quantity (`atr-support-and-resistance`, `obvEMA = ta.ema(ta.obv, 21)`) |
 
 ## W1-B: v4 bare `barssince(cond)`
 
@@ -41,9 +41,9 @@ plot(barssince(c), "B01_barssince_v4")
 plot(barssince(close > close[1] and volume > volume[1]), "B02_barssince_v4_compound")
 ```
 
-| row | what it settles |
-|---|---|
-| B01/B02 | v4's one-argument `barssince` is the same unbounded count as v6 `ta.barssince` (already captured: `r11-barssince-spy-1d-2026-09-11`). Expected identical to the v6 spelling, `na` before the first true bar |
+| row | probe | what it settles |
+|---|---|---|
+| B01/B02 | `vw-w1-barssince-v4.pine` on AMEX:SPY 1D from the listing | v4's one-argument `barssince` is the same unbounded count as v6 `ta.barssince` (already captured: `r11-barssince-spy-1d-2026-09-11`). Expected identical to the v6 spelling, `na` before the first true bar |
 
 ## W1-C: `ta.iii`, `ta.wvad`, `ta.wad`, `ta.cmo`, `ta.cog`
 
@@ -65,13 +65,13 @@ plot(ta.iii - ((2 * close - high - low) / (high - low)) * volume, "C12_iii_minus
 plot(volume == 0 ? 1 : 0, "C13_zero_volume_marker")
 ```
 
-| row | what it settles |
-|---|---|
-| C01-C03 | the per-bar bodies; C11 marks any `high == low` bar and C13 any zero-volume bar, where `ta.iii`'s division by zero (ours: the engine's x / 0 rule, `na`, drawn as a gap) is the open question |
-| C02/C12 | which of TradingView's two printed `ta.iii` bodies the built-in computes. Ours since the W1 re-review: the volume DIVIDES (v4 reference; TradingView's exported values in PyneCore's fixture agree on 100 of 100 rows). C02 must read 0 on every bar; C12 (the v5/v6 page's body, volume multiplying) must not |
-| C04/C05 | `wad`'s level and first bar: ours is 0 on bar 0 (both momentum tests are false on `na`), from the listing |
-| C06-C08 | `cmo`'s values and its first bar: ours lands on bar `length` (bar 0's `-na` reaches `sm2`) |
-| C09/C10 | `cog`'s values and first bar: ours lands on bar `length - 1`; float order is the published loop's |
+| row | probe | what it settles |
+|---|---|---|
+| C01-C03 | `vw-w1-volume-osc.pine` on AMEX:SPY 1D from the listing | the per-bar bodies; C11 marks any `high == low` bar and C13 any zero-volume bar, where `ta.iii`'s division by zero (ours: the engine's x / 0 rule, `na`, drawn as a gap) is the open question |
+| C02/C12 | `vw-w1-volume-osc.pine` on AMEX:SPY 1D from the listing | which of TradingView's two printed `ta.iii` bodies the built-in computes. Ours since the W1 re-review: the volume DIVIDES (v4 reference; TradingView's exported values in PyneCore's fixture agree on 100 of 100 rows). C02 must read 0 on every bar; C12 (the v5/v6 page's body, volume multiplying) must not |
+| C04/C05 | `vw-w1-volume-osc.pine` on AMEX:SPY 1D from the listing | `wad`'s level and first bar: ours is 0 on bar 0 (both momentum tests are false on `na`), from the listing |
+| C06-C08 | `vw-w1-volume-osc.pine` on AMEX:SPY 1D from the listing | `cmo`'s values and its first bar: ours lands on bar `length` (bar 0's `-na` reaches `sm2`) |
+| C09/C10 | `vw-w1-volume-osc.pine` on AMEX:SPY 1D from the listing | `cog`'s values and first bar: ours lands on bar `length - 1`; float order is the published loop's |
 
 ## W1-D: the three running totals in a DRAWING (held until this row)
 
@@ -93,10 +93,10 @@ if barstate.islast
     table.cell(t, 0, 2, str.tostring(ta.wad))
 ```
 
-| row | what it settles |
-|---|---|
-| D01-D03 on RDDT (from the listing) | whether a drawing of the level matches when the chart starts where TradingView's history starts. `multicator-table-rddt` already holds one witness (OBV `-29.984M`) |
-| D01-D03 on SPY (not from the listing) | the level TradingView prints where our chart starts later (multicator-table-spy: OBV `10.801B`). Lifting the hold for drawings is an owner decision on these two rows |
+| row | probe | what it settles |
+|---|---|---|
+| D01-D03 on RDDT (from the listing) | `vw-w1-drawing-levels.pine` | whether a drawing of the level matches when the chart starts where TradingView's history starts. `multicator-table-rddt` already holds one witness (OBV `-29.984M`) |
+| D01-D03 on SPY (not from the listing) | `vw-w1-drawing-levels.pine` | the level TradingView prints where our chart starts later (multicator-table-spy: OBV `10.801B`). Lifting the hold for drawings is an owner decision on these two rows |
 
 `ta.cog` (W1-C): the window it may unroll is the node budget's question, not a cap of its
 own. A `ta.cog` whose unrolled tree the budget would refuse (past 32 bars of `close`) is
@@ -144,9 +144,9 @@ plot(na(ta.cog(gappy, 10)) ? 1 : 0, "E07_cog_gappy_is_na")
 plot(ta.cog(hlc3, 10), "E08_cog_hlc3_10")
 ```
 
-| row | what it settles |
-|---|---|
-| E01-E03 | the sign test on derived sources: equal to ours on every bar means the published `mom >= 0`; a bar where they differ (E03 most likely: its source is 0 or one rounding step of `close` on every bar, so every momentum is dust) means the tolerant test, and `ta.cmo` goes back to refused by name on derived sources until it is built. Since the W1 fix ours compares on E01 only: E02 and E03 are computed sources, refused by name today, and their rows still settle the sign test for the day that gate widens |
-| E04/E05 | `ta.cmo` over a source with a mid-series `na`. ⛔ Since the W1 fix ours REFUSES it by name (`pine:arity`), so these rows decide whether that refusal can lift, never what we draw: TradingView numbers on bar 25 + 50k and the 9 bars after it that equal the literal body (the rail's `refCmo` over the same source) lift it for the literal body; a TradingView `na` there (E05 = 1) keeps it refused until the reading TradingView computes is built and railed |
-| E06/E07 | `ta.cog` over the same: ours is `na` while the hole is in the window; TradingView's remark says the `na` is ignored. A TradingView number there is a value we fail to draw, never a wrong one |
-| E08 | `ta.cog` on a derived source, values (no `na` expected after warm-up) |
+| row | probe | what it settles |
+|---|---|---|
+| E01-E03 | `vw-w1-cmo-cog-derived.pine` on AMEX:SPY 1D from the listing | the sign test on derived sources: equal to ours on every bar means the published `mom >= 0`; a bar where they differ (E03 most likely: its source is 0 or one rounding step of `close` on every bar, so every momentum is dust) means the tolerant test, and `ta.cmo` goes back to refused by name on derived sources until it is built. Since the W1 fix ours compares on E01 only: E02 and E03 are computed sources, refused by name today, and their rows still settle the sign test for the day that gate widens |
+| E04/E05 | `vw-w1-cmo-cog-derived.pine` on AMEX:SPY 1D from the listing | `ta.cmo` over a source with a mid-series `na`. ⛔ Since the W1 fix ours REFUSES it by name (`pine:arity`), so these rows decide whether that refusal can lift, never what we draw: TradingView numbers on bar 25 + 50k and the 9 bars after it that equal the literal body (the rail's `refCmo` over the same source) lift it for the literal body; a TradingView `na` there (E05 = 1) keeps it refused until the reading TradingView computes is built and railed |
+| E06/E07 | `vw-w1-cmo-cog-derived.pine` on AMEX:SPY 1D from the listing | `ta.cog` over the same: ours is `na` while the hole is in the window; TradingView's remark says the `na` is ignored. A TradingView number there is a value we fail to draw, never a wrong one |
+| E08 | `vw-w1-cmo-cog-derived.pine` on AMEX:SPY 1D from the listing | `ta.cog` on a derived source, values (no `na` expected after warm-up) |

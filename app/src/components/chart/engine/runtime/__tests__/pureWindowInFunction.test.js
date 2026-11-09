@@ -78,7 +78,9 @@ describe('⛔ unchanged where the source or the length is runtime state', () => 
   // (W4-T8 r1: pinned in v4 - a v5/v6 `series int` window length is read per bar now, v4 has no series length)
   it('a length only known while the bar runs says so, by name - not "a mutable GLOBAL"', () => {
     const v4 = (body) => {
-      const b = buildRuntimeIr(`//@version=4\nstudy("t")\n${body}`, { bars: BARS, inputs: {} })
+      // W34-I6c: v4 now reads a `series[integer]` length per bar, so the refusal is pinned at the OBJECT door,
+      // which keeps master's answer in every version
+      const b = buildRuntimeIr(`//@version=4\nstudy("t")\n${body}`, { bars: BARS, inputs: {}, objectDoor: true })
       expect(b.ok, 'expected a refusal').toBe(false)
       return b.refusal
     }

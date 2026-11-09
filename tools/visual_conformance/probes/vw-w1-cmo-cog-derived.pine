@@ -1,0 +1,18 @@
+//@version=6
+indicator("vw-w1-cmo-cog-derived")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w1.md, W1-E (rows E01-E03, E04/E05, E06/E07, E08). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: ta.cmo sign test on derived sources, ta.cmo / ta.cog over a source with an na every 50 bars (bar 25 + 50k), ta.cog on hlc3. Ours refuses E02-E05 by name (pine:arity).
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING, inputs at defaults.
+
+gappy = bar_index % 50 == 25 ? na : close
+plot(ta.cmo(hlc3, 9), "E01_cmo_hlc3_9")
+plot(ta.cmo(close - open, 9), "E02_cmo_close_minus_open_9")
+plot(ta.cmo(close * 1.1 / 1.1 - close, 9), "E03_cmo_dust_9")
+plot(ta.cmo(gappy, 9), "E04_cmo_gappy_9")
+plot(na(ta.cmo(gappy, 9)) ? 1 : 0, "E05_cmo_gappy_is_na")
+plot(ta.cog(gappy, 10), "E06_cog_gappy_10")
+plot(na(ta.cog(gappy, 10)) ? 1 : 0, "E07_cog_gappy_is_na")
+plot(ta.cog(hlc3, 10), "E08_cog_hlc3_10")

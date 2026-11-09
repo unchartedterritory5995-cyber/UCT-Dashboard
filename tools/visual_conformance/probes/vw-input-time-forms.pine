@@ -1,0 +1,33 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_TIME_FORMS", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for RULING-0927 r1 (docs/pine/capture-queue-2026-09-27.md,
+// "RULING-0927 r1" rows). NEVER COMPILED ON TRADINGVIEW.
+// T16 of `vw-time-tf-spy-1d-2026-09-27.json` witnesses ONE `input.time` default form:
+// `timestamp("D MMM YYYY hh:mm +0000")`. This probe holds the forms NOT already queued by
+// `vw-input-time-default.pine` (Q-D1: no zone, ISO date) and `vw-input-time-zones.pine`
+// (Q-D2: "GMT+10", "+530", tz argument "UTC+5:30"). Each row is the default in DAYS (as T16 was);
+// F00 is the T16 form and must read 19130.
+//   F01  ISO date-time, no zone             "2022-05-18T00:00:00"
+//   F02  seconds, "+0000"                   "18 May 2022 00:00:00 +0000"
+//   F03  a four-digit non-zero offset       "18 May 2022 00:00 +0530"
+//   F04  a negative GMT offset (sign?)      "18 May 2022 00:00 GMT-5"
+//   F05  tz argument "UTC"                  timestamp("UTC", 2022, 5, 18, 0, 0)
+//   F06  a literal millisecond count        1652832000000
+// CAPTURE: AMEX:SPY 1D, >= 5 bars, inputs at defaults. Every row is constant on every bar.
+
+f0 = input.time(timestamp("18 May 2022 00:00 +0000"), "F00")
+f1 = input.time(timestamp("2022-05-18T00:00:00"), "F01")
+f2 = input.time(timestamp("18 May 2022 00:00:00 +0000"), "F02")
+f3 = input.time(timestamp("18 May 2022 00:00 +0530"), "F03")
+f4 = input.time(timestamp("18 May 2022 00:00 GMT-5"), "F04")
+f5 = input.time(timestamp("UTC", 2022, 5, 18, 0, 0), "F05")
+f6 = input.time(1652832000000, "F06")
+
+plot(f0 / 86400000.0, "F00_T16_FORM_CONTROL_DAYS")
+plot(f1 / 86400000.0, "F01_iso_datetime_DAYS")
+plot(f2 / 86400000.0, "F02_seconds_plus0000_DAYS")
+plot(f3 / 86400000.0, "F03_plus0530_DAYS")
+plot(f4 / 86400000.0, "F04_gmt_minus5_DAYS")
+plot(f5 / 86400000.0, "F05_tzarg_utc_DAYS")
+plot(f6 / 86400000.0, "F06_literal_ms_DAYS")

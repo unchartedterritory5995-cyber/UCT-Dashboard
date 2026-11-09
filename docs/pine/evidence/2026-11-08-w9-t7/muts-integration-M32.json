@@ -1,0 +1,10 @@
+{
+ "control": "Tests  91 passed (91)",
+ "results": [
+  {
+   "mutant": "M32 N7: equityAt does not ask COMMISSION_RULE",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  }
+ ]
+}

@@ -483,6 +483,47 @@ def etf_index_snapshot(conn=None, include_pairs: bool = False) -> dict:
     return out
 
 
+def classification_snapshot(conn=None) -> dict:
+    """The FULL routing classification — every (ticker, asset_type) pair — from ONE read.
+
+    WHY THIS EXISTS BESIDE `etf_index_snapshot`, WHICH LOOKS LIKE IT WOULD DO.
+    `etf_index_snapshot` projects `WHERE asset_type IN ('ETF','INDEX')`, so it carries
+    ONE of the two sets `classify()` needs. The other is the STOCK set, and it is
+    load-bearing: `massive_processor.is_index_source` relies on a positive STOCK answer
+    to OVERRIDE a stale hardcoded `INDEX_SYMBOLS` entry, which is the whole reason SPCX
+    (a stock listed as an ETF) routes correctly. Replicating only the ETF/INDEX half
+    would resurrect exactly that class of bug, silently, on the pod that stores every
+    live OPRA trade.
+
+    ⛔ SAME-READ DISCIPLINE, for the reason `etf_index_snapshot` records: taking the rows
+    and the identity from two reads allows generation G to be stamped onto the rows of
+    G+1, and a replica that believes it holds G while holding G+1 is worse than one that
+    knows it is stale, because the mismatch rail can no longer see it.
+
+    Returns {rows, generation, last_synced, count, counts_by_class}. The digest is
+    `generation_from_pairs` over the FULL projection, so it is a different value from
+    `etf_index_snapshot`'s ETF/INDEX-only generation and the two must never be compared.
+    """
+    own = conn is None
+    if own:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        ensure_schema(conn)
+        rows = conn.execute("SELECT ticker, asset_type FROM ticker_types").fetchall()
+        last_synced = conn.execute("SELECT MAX(last_synced) FROM ticker_types").fetchone()[0]
+    finally:
+        if own:
+            conn.close()
+    pairs = sorted((str(t), str(a)) for t, a in rows if t)
+    by_class: dict = {}
+    for _t, a in pairs:
+        by_class[a] = by_class.get(a, 0) + 1
+    from api.services.etf_generation import generation_from_pairs
+    return {"rows": pairs, "generation": generation_from_pairs(pairs),
+            "last_synced": last_synced, "count": len(pairs),
+            "counts_by_class": by_class}
+
+
 def classification_generation() -> dict:
     """{generation, last_synced, count} — the cheap metadata-only form.
 
