@@ -62,7 +62,7 @@ describe('W9-T11 the record: schema', () => {
     const rec = runtimeStrategyOf(cols)
     expect(rec.schema).toBe(STRATEGY_RECORD_SCHEMA)
     expect(strategyRecordShapeErrors(rec)).toEqual([])
-    expect(rec.window).toEqual({ startTime: BARS[0].t, fromListing: true, bars: 30, historyWindowBars: 30, asOfBar: BARS[29].t })
+    expect(rec.window).toEqual({ startTime: BARS[0].t, startDate: '2023-11-14', startSentence: null, fromListing: true, bars: 30, historyWindowBars: 30, asOfBar: BARS[29].t })
     expect(rec.trades.map((t) => [t.n, t.entryId, t.dir, t.open])).toEqual([[1, 'L', 'long', false], [2, 'L2', 'long', true]])
     // market orders fill on the NEXT bar's open: keyed by that bar's TIME, not its index
     expect(rec.trades[0].entryTime).toBe(BARS[4].t)

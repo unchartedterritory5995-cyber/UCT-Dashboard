@@ -78,19 +78,19 @@
   }
  },
  "counts": {
-  "targets": 305,
+  "targets": 306,
   "byStatus": {
    "CAPTURED": 78,
    "NEEDS_CHART": 59,
    "NEEDS_LIVE": 9,
-   "QUEUED": 159
+   "QUEUED": 160
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
     "NEEDS_CHART": 57,
     "NEEDS_LIVE": 9,
-    "QUEUED": 126
+    "QUEUED": 127
    },
    "W1": {
     "QUEUED": 6
@@ -113,7 +113,7 @@
     "CAPTURED": 61,
     "NEEDS_CHART": 58,
     "NEEDS_LIVE": 9,
-    "QUEUED": 144
+    "QUEUED": 145
    },
    "1-2": {
     "CAPTURED": 17,
@@ -275,7 +275,7 @@
    "w9": {
     "CAPTURED": 1,
     "NEEDS_LIVE": 5,
-    "QUEUED": 45
+    "QUEUED": 46
    },
    "wsa-for-bound": {
     "NEEDS_CHART": 2,
@@ -296,7 +296,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 3,
+  "rowsNeedingProbe": 5,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
   "rowsNotCaptureQuestions": 31,
@@ -12890,6 +12890,48 @@
    ]
   },
   {
+   "id": "w9-q-s1core-two-exits@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-q-s1core-two-exits.pine",
+   "sourceKind": "probe",
+   "sha256": "f2c8b6f5aef06b76518191433bd524a30d2b2b922ae9da964db2c527a7293f30",
+   "bytes": 4343,
+   "stem": "w9-q-s1core-two-exits",
+   "captureStem": "w9-q-s1core-two-exits",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#Q-S1-core-2x"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "w9-q-s1d-same-tick@NYSE:RDDT@D",
    "status": "NEEDS_LIVE",
    "evidence": [],
@@ -14593,9 +14635,31 @@
    "text": "Q-S1c | find a bar with `open - low == high - open` (`plot(open - low == high - open ? 1 : 0)` on SPY 1D and RDDT 1D first, pick one), place `strategy.entry(\"L\", strategy.long, limit = <bar's low>)` and `strategy.exit(\"x\", \"L\", limit = <bar's high>)` the bar before | trades CSV: does the entry and the exit both fill on that bar? | the path on a tie"
   },
   {
+   "key": "capture-queue-2026-10-31-prod-ternary#Q-PT6",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 43,
+   "docWave": "prod-ternary",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-PT6 | not written yet (G-f): `if close > close[1]` / `label.new(bar_index, high, str.tostring(ta.sma(close, 5)))`, and the same with a colour `var` filled in that block from `ta.rising(close, 2)` | NYSE:RDDT 1D from the listing | does a drawing's text read the call's history over the block's RUNS, and which colour does the drawing paint? | per-run: extend #604's object-lane gate to a drawing's i"
+  },
+  {
+   "key": "capture-queue-2026-10-31-prod-ternary#Q-PT7",
+   "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
+   "line": 44,
+   "docWave": "prod-ternary",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-PT7 | not written yet (G-i): a helper reading a `var` written in an `if` block BEFORE the drawing call on the same bar, beside one written AFTER it | NYSE:RDDT 1D from the listing | does the text read the value of this bar's write, or the previous bar's? | this bar's: carry the call's position into the text reader's frame (G-i). The previous bar's: the current reading stands"
+  },
+  {
    "key": "capture-queue-2026-10-31-prod-ternary#G-i",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 70,
+   "line": 72,
    "docWave": "prod-ternary",
    "needsProbe": "no probe file named (an inline shape or prose)",
    "needsLive": false,
@@ -14606,13 +14670,13 @@
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-f",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 75,
+   "line": 77,
    "docWave": "prod-ternary",
    "needsProbe": "no probe file named (an inline shape or prose)",
    "needsLive": false,
    "guards": [],
    "namedScripts": [],
-   "text": "G-f | (object lane, pre-existing; found while merging #604) a `ta.*` call written in a drawing's NON-colour argument inside a block that varies (`if close > close[1]` / `label.new(…, str.tostring(ta.sma(close, 5)))`) is drawn off the every-bar call; and a colour `var` written in such a block (`c := … ta.rising(…) …`) is not carried at all, so the drawing paints the renderer's default | under-withh"
+   "text": "G-f | (object lane, pre-existing; found while merging #604) a `ta.*` call written in a drawing's NON-colour argument inside a block that varies (`if close > close[1]` / `label.new(…, str.tostring(ta.sma(close, 5)))`) is drawn off the every-bar call; and a colour `var` written in such a block (`c := … ta.rising(…) …`) is not carried at all, so the drawing paints the renderer's default. PT-GAPS (202"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -14779,132 +14843,132 @@
   {
    "key": "capture-queue-2026-10-31-prod-ternary#a stamped ?: inside a multi-state recurrence (accum2-accum4)",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 52,
+   "line": 54,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "the row says so: \"not a capture question: a guard over the multi-state tuple one bar back, as previousBarOf builds for accum\"",
-   "dispositionLine": 146,
+   "dispositionLine": 148,
    "text": "a stamped `?:` inside a multi-state recurrence (`accum2`-`accum4`) whose test reads a state bind | drawn as before (no standalone guard can be written for it; `armRunGates` carries no gate rather than refuse) | not a capture question: a guard over the multi-state tuple one bar back, as `previousBarOf` builds for `accum`"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#L2",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 62,
+   "line": 64,
    "docWave": "prod-ternary",
    "disposition": "withheld-ledger",
    "reason": "a row of \"Known gaps\" (every column but the id prose); its capture is vw-pt-request-arm R03 / E03 / P03 on NYSE:RDDT 1D from the listing, the file the \"Shapes this branch does NOT stamp\" row 1 already queues (one capture reads R01-R03)",
-   "dispositionLine": 147,
+   "dispositionLine": 149,
    "text": "L2 | a stamped `?:` INSIDE a `request.security(…)` expression is stamped like any other, but its guard is evaluated on the CHART's bars by the bind, while the arm runs in the REQUESTED context | either way (probe `vw-pt-request-arm.pine` R03 / E03 / P03, NYSE:RDDT 1D from the listing) | `Resolver.stampTernaryArms` (no request-context test); `engine/blockRuns.js` evaluates every guard on the chart'"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#L3",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 63,
+   "line": 65,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "a known gap of the ?: stamp (armRunGates, no enclosing-arm conjunction): a build, not a reading; PT-GAPS (feat/pine-pt-gaps) fixes it",
-   "dispositionLine": 135,
-   "text": "L3 | a NESTED arm's guard is its own test alone: in `a ? (b ? ta.sma(…) : x) : y` the inner arm runs where `a and b`, and its gate reads `b` (the outer stamp reads `a`) | over-withholds (a `b` that varies only where `a` is false still refuses) | `armRunGates` (no enclosing-arm conjunction) | AND the enclosing stamped arms' tests (negated for a false arm) into a nested stamp's guard during the walk"
+   "dispositionLine": 137,
+   "text": "L3 | FIXED (PT-GAPS, 2026-11-07): a nested stamp's guard is its own guard wrapped in every enclosing STAMPED arm's run guard, `c ? g : 0` (a bar where an encloser is not taken is a SKIP whatever the inner test reads; a `&&` would be `na` there). In `a ? (b ? ta.sma(…) : x) : y` the inner gate is `a ? b : 0`. The context is dropped through an `offset` and into a recurrence (the rule as it was there"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#L4",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 64,
+   "line": 66,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "a known gap of the ?: gate on an na test (blockRuns.firstRunAfterSkip): a build, already witnessed by rt1-na-test-; PT-GAPS fixes it",
-   "dispositionLine": 136,
-   "text": "L4 | a guard that is `na` on a bar is \"neither a run nor a skip\" (`blockRuns.firstRunAfterSkip`), but Pine v4+ takes the FALSE arm of a `?:` whose test is `na` (`naConditionFalse`): the true arm SKIPPED that bar and the false arm RAN | under-withholds (a test `na` on early bars, then true, is a run after skips the gate does not see) | `engine/blockRuns.js` / `api/services/block_runs.py` (one rule,"
+   "dispositionLine": 138,
+   "text": "L4 | FIXED (PT-GAPS, 2026-11-07): a `?:` stamp's guard is the `?:` itself, `t ? 1 : 0` (true arm) / `t ? 0 : 1` (false arm), for a test that can be `na` (`neverNaTree` false). The bind evaluates it with the plot's own options (`listingOptsFor`), so from the listing in a document declaring `meta.naConditionFalse` an `na` test is a SKIP of the true arm and a RUN of the false one (`interpret.js::PINE"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#L5",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 65,
+   "line": 67,
    "docWave": "prod-ternary",
    "disposition": "closed",
    "reason": "CLOSED by H1 (the row says so); the block-gate half is G-h",
-   "dispositionLine": 137,
-   "text": "L5 | `bgcolor` / `barcolor` colours | — | — | CLOSED by H1: a paint's colour rule is gated like a plot's (its condition column), and a withheld paint draws nothing — for ARM gates (`?:` / v6 `and` / `or`) only; C48's block gates never reach a paint or a fill colour: see G-h"
+   "dispositionLine": 139,
+   "text": "L5 | `bgcolor` / `barcolor` colours | — | — | CLOSED by H1 for ARM gates; the BLOCK-gate half (G-h) is FIXED by PT-GAPS (2026-11-07)"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#L6",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 66,
+   "line": 68,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "translation cost only (\"slow, never wrong\"): a memo, nothing to read; PT-GAPS fixes it",
-   "dispositionLine": 138,
-   "text": "L6 | the arm walk re-reads a nested chain once per level: `armHistoryCallOf` walks each `?:`'s arms, so an N-deep `else if` / colour chain costs O(N²) node visits at translation | slow, never wrong | `Resolver.stampTernaryArms` → `armHistoryCallOf` | a per-translation memo keyed by parse node (`WeakMap`), recording only answers reached without the depth cap"
+   "dispositionLine": 140,
+   "text": "L6 | FIXED (PT-GAPS, 2026-11-07): `armHistoryCallOf` memoises the nodes a chain repeats (a `ternary`, an `if` branch's `bound`) per history-function roster (`WeakMap`, so per translation); an answer reached through the depth cap is never kept. A 40-deep chain asked at every level visits each node once. | — | `armHistoryWalk`, `armMemoFor` | rails `ptGaps.test.js` L6; mutations M3 (no memo) and M7 "
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-a",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 67,
+   "line": 69,
    "docWave": "prod-ternary",
    "disposition": "closed",
    "reason": "CLOSED (fix/prod-plot-var-cond-history, review F2; the row says so)",
-   "dispositionLine": 139,
-   "text": "G-a | CLOSED (fix/prod-plot-var-cond-history, review F2): a gate the output loop notes while the PRESENTATION resolves (after the value's, `valueBlockRuns`) rides the output's colour rules (`_colourBlockRuns`, read by `colourBlockRunsOf`), so a colour that reads an `if`-bound name or a `var` filled in a block that skips withholds that colour's condition column, never the plot. Attribution is per o"
+   "dispositionLine": 141,
+   "text": "G-a | CLOSED (fix/prod-plot-var-cond-history, review F2; PT-GAPS 2026-11-07: confirmed closed): a gate the output loop notes while the PRESENTATION resolves (after the value's, `valueBlockRuns`) rides the output's colour rules (`_colourBlockRuns`, read by `colourBlockRunsOf`), so a colour that reads an `if`-bound name or a `var` filled in a block that skips withholds that colour's condition column"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-g",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 68,
+   "line": 70,
    "docWave": "prod-ternary",
    "disposition": "by-design",
    "reason": "by design (review F3; the row says so): a window-1 exemption is a per-function proof, and the error is a withheld plot, never a wrong number",
-   "dispositionLine": 140,
-   "text": "G-g | (by design, review F3) `if c` / `s := ta.sma(close, 1)` is withheld though a 1-bar window is the current value on every run: C48's mark (`condCallMark`, `stateRuns`) reads the call's NAME, not its window, as master's #604 / C31 do. Not exempted: an exemption is a per-function proof (`sma`, `ema`, `rma`, `wma`, `highest`… each with its own seed and `na` rules), of the repo's 611 `.pine` files"
+   "dispositionLine": 142,
+   "text": "G-g | (by design, review F3; PT-GAPS 2026-11-07: by design until a capture per window-1 function exists) `if c` / `s := ta.sma(close, 1)` is withheld though a 1-bar window is the current value on every run: C48's mark (`condCallMark`, `stateRuns`) reads the call's NAME, not its window, as master's #604 / C31 do. Not exempted: an exemption is a per-function proof (`sma`, `ema`, `rma`, `wma`, `highe"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-h",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 69,
+   "line": 71,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "a known gap: block gates never reach a paint's or fill's colour (resolvePaints); a build, not a reading; PT-GAPS fixes it",
-   "dispositionLine": 141,
-   "text": "G-h | (pre-existing, found in the re-review of F2) C48's BLOCK gates never reach a paint's or a fill's colour: `resolvePaints` and the fill-colour reader resolve with `condGate` off, so `resolveBinding` notes no `condCall` / `stateRuns` gate there. `bgcolor(close > s ? color.red : na)`, `s` filled from a `ta.*` call in a block that skips, paints from the every-bar `s` — on master too | under-withh"
+   "dispositionLine": 143,
+   "text": "G-h | FIXED (PT-GAPS, 2026-11-07): paints and fill colours are read with `condGate` on (`holderColourGates`, host lane only); the block gates they note hang on the colour's own rules (`COLOUR_BLOCK_RUNS`, read by `colourBlockRunsOf`), so the bind withholds that condition column, and a withheld paint or fill colour draws nothing. A colour with no rule was folded to one value on every bar and needs "
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-b",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 71,
+   "line": 73,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "a known gap of the v1-v4 bare-name roster; its witness is Q-PT3, which already names its probe (vw-arm-history-v4.pine)",
-   "dispositionLine": 142,
+   "dispositionLine": 144,
    "text": "G-b | Pine v1-v4 BARE built-ins (`sma(…)`, `highest(…)`) are not read as history calls by either lane: C48's mark reads `ta.*` tokens (`taCallIn`), the arm walk reads `ta.*` names and history helpers | under-withholds (a v4 `if` block or `if` expression calling `sma` is drawn off every bar) | `objectFnInline.taCallIn`, `pine.js::armHistoryCallOf` | one v4 roster of history-keeping bare names for b"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-c",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 72,
+   "line": 74,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "a known gap: the counter fold's JSON copy drops a stamp; a structural copy, not a reading; PT-GAPS fixes it",
-   "dispositionLine": 143,
-   "text": "G-c | the run-length counter fold copies its condition through `JSON.parse(JSON.stringify(…))`, which drops a stamp inside the condition (`n := up and ta.rising(close, 2) ? n + 1 : 0`) | under-withholds | `pine.js`, the counter fold's `copy()` (search `RESOLVED ONCE AND COPIED`) | a structural copy that carries `_armRuns` (`carryArmRuns`), keeping the JSON copy's NaN behaviour measured first"
+   "dispositionLine": 145,
+   "text": "G-c | FIXED (PT-GAPS, 2026-11-07): the counter fold copies through `copyKeepingArmRuns`, the same `JSON.parse(JSON.stringify(…))` byte for byte (its `NaN` → `null` kept), then walks original and copy in parallel and carries every `_armRuns` stamp. `n := up and ta.rising(close, 2) ? n + 1 : 0` read as `n >= 3` now carries the right side's gate | — | `pine.js` counter fold `copy()` | rails `ptGaps.t"
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-d",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 73,
+   "line": 75,
    "docWave": "prod-ternary",
    "disposition": "engine-gap",
    "reason": "a known gap: a withheld colour's refusal is not surfaced on the plot; UI disclosure, not a reading; PT-GAPS fixes it",
-   "dispositionLine": 144,
-   "text": "G-d | (FOLLOW-UP, review round 2 L2) a withheld COLOUR is not disclosed on the chart: its refusal sits in `columnErrors` under the hidden condition column's key, which no surface reads, and the plot draws in its series colour (the pane's gold for a conditional colour, this repo's \"colour not carried\" marker) | silent fallback (the colour, never the value) | `binder.columnErrorsOf`, `infoValueResol"
+   "dispositionLine": 146,
+   "text": "G-d | FIXED (PT-GAPS, 2026-11-07): `infoValueResolve.withheldColourOf` reads the plot's own condition column (`plot.colorMode = 'column:<key>'`) in `columnErrors`; a pinned info value keeps its VALUE and carries the gate's own sentence as its `reason` (the row's `title`), with `colourWithheld: true`. ⚠️ The info row only: the legend's study stack does not show it yet | — | `infoValueResolve.js` | "
   },
   {
    "key": "capture-queue-2026-10-31-prod-ternary#G-e",
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
-   "line": 74,
+   "line": 76,
    "docWave": "prod-ternary",
    "disposition": "by-design",
    "reason": "by design (M1; the row says so): \"not a gap of this rule\"",
-   "dispositionLine": 145,
-   "text": "G-e | (by design, M1) off the listing a recurrence's bounded window reads its SEED W bars back, where an arm in it holds the every-bar history; not gated, because the window's own convergence rule already answers for the seed | — | `interpret.js` bounded window | not a gap of this rule"
+   "dispositionLine": 147,
+   "text": "G-e | (by design, M1; PT-GAPS 2026-11-07: by design, nothing to build) off the listing a recurrence's bounded window reads its SEED W bars back, where an arm in it holds the every-bar history; not gated, because the window's own convergence rule already answers for the seed | — | `interpret.js` bounded window | not a gap of this rule"
   },
   {
    "key": "capture-queue-2026-10-31-wse#Q-WSE5",
@@ -16343,7 +16407,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-10-31-prod-ternary.md",
    "wave": "prod-ternary",
-   "rows": 25,
+   "rows": 27,
    "contextTables": 1
   },
   {
@@ -16451,7 +16515,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-05-w9.md",
    "wave": "w9",
-   "rows": 42,
+   "rows": 43,
    "contextTables": 0
   },
   {
