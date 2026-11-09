@@ -42,6 +42,7 @@ const q = (s) => JSON.stringify(s)
 //    (e) a widget control. `sel` finds the candidates; the one the ring overlaps most is the target measured
 const TARGETS = {
   plot: { kind: 'a chart boundary (chart.plot, after arming the trendline tool)', feature: 'drawing', detail: 'trendline', say: 'how do I draw a trendline on this chart', sel: '[data-guide="chart.plot"]', steps: [['clickRinged', '[data-guide="chart.tool.trendline"]'], ['waitRingOn', '[data-guide="chart.plot"]']] },
+  settings: { kind: 'a settings row inside the scrollable Chart Settings panel', feature: 'indicatorEdit', say: 'how do I change the settings of the 50 sma on this chart', sel: '[data-guide="chartSettings"] [data-guide], [data-guide="chartSettings"] label, [data-guide="chartSettings"] [role="row"], [data-guide="chartSettings"] input, [data-guide="chartSettings"] select, [data-guide="chartSettings"] button', steps: [['clickRing'], ['wait', 900], ['clickRing'], ['wait', 900], ['clickRing'], ['wait', 1200]], scrollOnly: true },
   edge: { kind: 'a chart boundary (resize edge)', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.e"],[data-guide="workspace.seam"]', steps: [] },
   corner: { kind: 'a chart-resize corner', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.se"]', steps: [['next']], drag: true },
   toolbar: { kind: 'a toolbar button (timeframe)', feature: 'timeframe', say: 'how do I change the timeframe on this chart', sel: '[data-guide="chart.timeframe"]', steps: [] },
@@ -51,9 +52,10 @@ const TARGETS = {
 const VIEWPORTS = { L: [1500, 900], S: [1100, 700], XS: [1100, 480] }
 const LAYOUTS = { TWO: 'A', FOUR: 'TL' }      // the board and the chart the walkthrough is asked on
 const cases = []
-for (const [t, T] of Object.entries(TARGETS)) for (const v of ['L', 'S']) for (const [b, role] of Object.entries(LAYOUTS)) for (const z of [100, 125])
+for (const [t, T] of Object.entries(TARGETS)) if (!T.scrollOnly) for (const v of ['L', 'S']) for (const [b, role] of Object.entries(LAYOUTS)) for (const z of [100, 125])
   cases.push({ id: `${t}-${b}-${v}-z${z}`, target: t, board: b, role, vp: v, zoom: z, scroll: false })
 for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-XS-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'XS', zoom: 100, scroll: true })
+for (const v of ['L', 'S']) cases.push({ id: `settings-TWO-${v}-z100-scrolled`, target: 'settings', board: 'TWO', role: 'A', vp: v, zoom: 100, scroll: true })
 // tracking must STOP: drag the corner, release, end it at once (Done, Exit, Escape) or take its target away (close the chart), then
 // count the guide's own callbacks over the next 2 s and what is still registered
 for (const how of ['done', 'exit', 'escape', 'unmount', 'drag']) cases.push({ id: `stop-${how}-TWO-L-z100`, target: 'corner', board: 'TWO', role: 'A', vp: 'L', zoom: 100, scroll: false, stop: how })
@@ -67,8 +69,9 @@ const MEASURE = (sel) => `(() => {
   const cands = [...document.querySelectorAll(${q(sel)})].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 })
   const ov = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
   let best = null, bestOv = -1, bestD = 1e9
-  for (const e of cands) { const r = R(e); const o = ring ? ov(ring, r) : 0; const d = ring ? Math.hypot((r.left + r.right) / 2 - (ring.left + ring.right) / 2, (r.top + r.bottom) / 2 - (ring.top + ring.bottom) / 2) : 0; if (o > bestOv || (o === bestOv && d < bestD)) { best = e; bestOv = o; bestD = d } }
+  for (const e of cands) { const r = R(e); const o = ring ? ov(ring, r) / (ring.width * ring.height + r.width * r.height - ov(ring, r)) : 0; const d = ring ? Math.hypot((r.left + r.right) / 2 - (ring.left + ring.right) / 2, (r.top + r.bottom) / 2 - (ring.top + ring.bottom) / 2) : 0; if (o > bestOv || (o === bestOv && d < bestD)) { best = e; bestOv = o; bestD = d } }
   const target = best ? R(best) : null
+  document.querySelectorAll('[data-geo-target]').forEach(e => e.removeAttribute('data-geo-target')); best?.setAttribute('data-geo-target', '1')
   const cell = best?.closest?.('[data-widget-id]')
   return { ring, target, candidates: cands.length, widget: cell ? { id: cell.getAttribute('data-widget-id'), ...R(cell) } : null,
     ringStyle: cs ? { border: cs.borderTopWidth, outline: cs.outlineWidth, outlineOffset: cs.outlineOffset, boxShadow: cs.boxShadow.slice(0, 120), transition: cs.transitionProperty + ' ' + cs.transitionDuration } : null,
@@ -81,7 +84,7 @@ const SAMPLER = (sel) => `(() => {
   const R = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom] }
   const ringEl = () => document.querySelector('[data-testid="guide-ring"]')
   const pick = () => { const ring = ringEl()?.getBoundingClientRect(); const c = [...document.querySelectorAll(${q(sel)})].filter(e => e.getBoundingClientRect().width > 0); if (!ring) return c[0]; let b = c[0], bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left - ring.left, r.top - ring.top); if (d < bd) { b = e; bd = d } } return b }
-  const target = pick()
+  const target = document.querySelector('[data-geo-target]') || pick()
   window.__geo = { s: [], on: true }
   const loop = () => { if (!window.__geo.on) return; window.__geo.s.push([performance.now(), R(ringEl()), R(target)]); requestAnimationFrame(loop) }
   requestAnimationFrame(loop)
@@ -178,11 +181,14 @@ async function runCase(ctx, c) {
       if (s[0] === 'next') { await p.button('Next', '[data-testid="guide-card"]'); await sleep(700) }
       if (s[0] === 'clickRinged') { const at = await p.b.evaluate(`(() => { const ring = document.querySelector('[data-testid="guide-ring"]').getBoundingClientRect(); const c = [...document.querySelectorAll(${q(s[1])})].filter(e => e.getBoundingClientRect().width > 0); let b = null, bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left + r.width / 2 - ring.left - ring.width / 2, r.top + r.height / 2 - ring.top - ring.height / 2); if (d < bd) { b = r; bd = d } } return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null })()`); if (!at) throw new Error(`nothing ringed to click: ${s[1]}`); await p.b.click(at.x, at.y); await sleep(800) }
       if (s[0] === 'waitRingOn') { const ok = await p.b.waitFor(`(() => { const g = document.querySelector('[data-testid="guide-ring"]')?.getBoundingClientRect(); if (!g) return false; return [...document.querySelectorAll(${q(s[1])})].some(e => { const r = e.getBoundingClientRect(); return r.width > 0 && Math.abs((r.left + r.right) / 2 - (g.left + g.right) / 2) < 40 && Math.abs(r.top - g.top) < 40 && g.bottom > r.top + 40 }) })()`, { timeout: 5000 }); if (!ok) throw new Error(`the ring never reached ${s[1]}`); await sleep(700) }
+      if (s[0] === 'clickRing') { const g = await p.b.evaluate(`(() => { const r = document.querySelector('[data-testid="guide-ring"]')?.getBoundingClientRect(); return r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null })()`); if (!g) throw new Error('no ring to click'); await p.b.click(g.x, g.y) }
+      if (s[0] === 'wait') await sleep(s[1])
       if (s[0] === 'waitSel') { if (!(await p.b.waitFor(`!!document.querySelector(${q(s[1])})`, { timeout: 5000 }))) throw new Error(`never appeared: ${s[1]}`); await sleep(700) }
     }
     if (c.scroll) {
+      ev.preScroll = await p.b.evaluate(MEASURE(T.sel))
       // the nearest scrollable ancestor of the target, or the page
-      const sc = await p.b.evaluate(`(() => { const t = document.querySelector(${q(T.sel)}); let e = t?.parentElement; while (e && e !== document.body) { const cs = getComputedStyle(e); if (/(auto|scroll)/.test(cs.overflowY + cs.overflowX) && (e.scrollHeight > e.clientHeight + 2 || e.scrollWidth > e.clientWidth + 2)) { e.setAttribute('data-geo-scroller', '1'); return { tag: e.tagName, cls: String(e.className).slice(0, 60), room: [e.scrollWidth - e.clientWidth, e.scrollHeight - e.clientHeight] } } e = e.parentElement } const d = document.scrollingElement; return d.scrollHeight > d.clientHeight + 2 ? { tag: 'page', room: [0, d.scrollHeight - d.clientHeight] } : null })()`)
+      const sc = await p.b.evaluate(`(() => { const t = document.querySelector('[data-geo-target]') || document.querySelector(${q(T.sel)}); let e = t?.parentElement; while (e && e !== document.body) { const cs = getComputedStyle(e); if (/(auto|scroll)/.test(cs.overflowY + cs.overflowX) && (e.scrollHeight > e.clientHeight + 2 || e.scrollWidth > e.clientWidth + 2)) { e.setAttribute('data-geo-scroller', '1'); return { tag: e.tagName, cls: String(e.className).slice(0, 60), room: [e.scrollWidth - e.clientWidth, e.scrollHeight - e.clientHeight] } } e = e.parentElement } const d = document.scrollingElement; return d.scrollHeight > d.clientHeight + 2 ? { tag: 'page', room: [0, d.scrollHeight - d.clientHeight] } : null })()`)
       ev.scroller = sc
       if (sc) {
         await p.b.evaluate(SAMPLER(T.sel))
