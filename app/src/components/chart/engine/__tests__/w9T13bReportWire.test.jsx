@@ -101,6 +101,15 @@ describe('W9-T13b the binder publishes a strategy run\'s record, and the mount r
     expect(screen.queryByTestId('strategy-reports')).toBe(null)
   })
 
+  it('r2 (review M8): the binder RELEASE path (teardown -> releaseAll) takes its strategy records with it', () => {
+    flags(true)
+    installStrategy()
+    binder.sync(ctxFor([inst()]))
+    expect(strategyRecordFor('i1')).not.toBe(null)
+    binder.teardown()
+    expect(strategyRecordFor('i1')).toBe(null)
+  })
+
   it('THE PRODUCT TODAY: the chart hands no window, so the run refuses by name and no record is published', () => {
     flags(true)
     const def = installStrategy()

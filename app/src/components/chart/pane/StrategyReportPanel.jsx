@@ -15,12 +15,13 @@
 // number would be. Never a dash, never a blank, never a guessed number.
 // ⛔ NO GUARD ID REACHES THE DOM. A refusal's `guard` (`runtime:strategy-unpinned`, ...) is a
 // name for engineers and rails; the member reads the sentence. Not rendered, not in an
-// attribute, and stripped from a sentence that quotes one (`memberSentence`).
+// attribute, and stripped from a sentence that quotes one (`memberCopy.js::withoutGuardIds`).
 // ⛔ D10 IS NOT APPLIED. Our counts are reported in full whatever the number of trades.
 // ⛔ NO FLAG READ IN THIS FILE: it is a pure view. The gate lives in the one mount,
 // `AttachedStrategyReports.jsx`.
 import { useId, useRef, useState } from 'react'
 import { SERVED_METRICS, REFUSED_METRICS } from '../engine/runtime/brokerReport.js'
+import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import styles from './StrategyReportPanel.module.css'
 
 /** TradingView's Overview tab headline figures, by report key (any refused one shows its sentence). */
@@ -33,15 +34,12 @@ export const TABS = Object.freeze([
   Object.freeze({ id: 'trades', label: 'List of trades' }),
 ])
 
-/** Any guard id a sentence quotes (`(runtime:strategy-unpinned)`, a bare `pine:strategy-call`). */
-const GUARD_ID = /\s*\(?\b(?:runtime|pine):[a-z0-9][a-z0-9:-]*\)?/gi
-/** The member's form of a refusal sentence: every guard id removed, nothing else changed. */
+/** The member's form of a refusal sentence. r2: guard ids go through the ONE shared rule,
+ *  `lib/presentation/memberCopy.js::withoutGuardIds` (whole parentheticals, balanced brackets); this
+ *  adds only the panel's fallback for a refusal that carries no sentence at all. */
 export function memberSentence(s) {
   if (typeof s !== 'string' || !s.trim()) return 'This was not shown, and the backtest did not record why.'
-  GUARD_ID.lastIndex = 0
-  if (!GUARD_ID.test(s)) return s
-  GUARD_ID.lastIndex = 0
-  return s.replace(GUARD_ID, '').replace(/\s+([.,;:])/g, '$1').trim()
+  return withoutGuardIds(s)
 }
 
 /** the metric's printed name: the report's own label (one authority with its sentence) */
@@ -219,7 +217,8 @@ export default function StrategyReportPanel({ report, name = 'Strategy' }) {
             role="tab"
             id={tabId(t.id)}
             aria-selected={tab === t.id}
-            aria-controls={panelId(t.id)}
+            // r2: only the selected tab names a panel, because only its panel is in the DOM
+            aria-controls={tab === t.id ? panelId(t.id) : undefined}
             tabIndex={tab === t.id ? 0 : -1}
             className={`${styles.tab} ${tab === t.id ? styles.tabActive : ''}`}
             onClick={() => setTab(t.id)}

@@ -18,6 +18,7 @@
   color: var(--text-muted);
   cursor: pointer;
 }
-@media (max-width: 640px) {
+/* r2: the touch tier is <=1024 (tablets too), not <=640 */
+@media (max-width: 1024px) {
   .summary { min-height: var(--tap-min, 44px); padding-top: 14px; padding-bottom: 14px; box-sizing: border-box; }
 }

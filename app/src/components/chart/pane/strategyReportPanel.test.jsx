@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
 import StrategyReportPanel, { OVERVIEW_KEYS, TABS, memberSentence, metricLabel, formatMetric } from './StrategyReportPanel'
 import AttachedStrategyReports from './AttachedStrategyReports'
+import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import {
   strategyReportOf, SERVED_METRICS, REFUSED_METRICS,
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
@@ -122,10 +123,10 @@ describe('W9-T13b the panel renders the report exactly', () => {
   it('sentence-exact: the D8 refusal sentences, literally', () => {
     render(<StrategyReportPanel report={FIXTURES.allServed} />)
     clickTab('Performance summary')
-    expect(valueCell('maxDrawdown').textContent).toBe("Max drawdown is not shown: no source we hold states exactly how "
-      + "TradingView's Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S1).")
-    expect(valueCell('sharpeRatio').textContent).toBe("Sharpe ratio is not shown: no source we hold states exactly how "
-      + "TradingView's Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S2).")
+    expect(valueCell('maxDrawdown').textContent).toBe("Max drawdown is not shown: we do not yet know exactly how "
+      + "TradingView's Strategy Tester computes it, and it has not yet been checked against TradingView.")
+    expect(valueCell('sharpeRatio').textContent).toBe("Sharpe ratio is not shown: we do not yet know exactly how "
+      + "TradingView's Strategy Tester computes it, and it has not yet been checked against TradingView.")
     expect(valueCell('equity').textContent).toBe("Equity is not shown: it includes the open trades' profit at the "
       + "last bar's close, and the backtest record does not carry that yet.")
   })
@@ -134,8 +135,8 @@ describe('W9-T13b the panel renders the report exactly', () => {
     render(<StrategyReportPanel report={FIXTURES.mixed} />)
     clickTab('Performance summary')
     expect(valueCell('totalClosedTrades').textContent).toBe('4')
-    expect(valueCell('netProfit').textContent).toBe('Net profit is not shown: it rests on the broker rule B-DEFAULTS, '
-      + 'which no matching TradingView capture pins yet (capture row Q-S1b).')
+    expect(valueCell('netProfit').textContent).toBe('Net profit is not shown: it depends on a rule of how TradingView runs '
+      + 'a backtest that has not yet been checked against TradingView.')
     expect(valueCell('numberWinningTrades').textContent).toBe(FIXTURES.mixed.metrics.numberWinningTrades.sentence)
     // the trade list serves (its fills' rules are pinned); each closed profit carries its refusal
     clickTab('List of trades')
@@ -198,7 +199,7 @@ describe('W9-T13b the panel renders the report exactly', () => {
     clickTab('Performance summary')
     for (const k of Object.keys(SERVED_METRICS)) {
       expect(valueCell(k).textContent).toBe(FIXTURES.productDefault.metrics[k].sentence)
-      expect(valueCell(k).textContent).toMatch(/ is not shown: it rests on the broker rule /)
+      expect(valueCell(k).textContent).toMatch(/ is not shown: it depends on a rule of how TradingView runs a backtest /)
     }
   })
 })
@@ -255,6 +256,31 @@ describe('W9-T13b no guard id reaches the DOM', () => {
     expect(memberSentence(plain)).toBe(plain)
     expect(memberSentence(START_SENTENCE)).toBe(START_SENTENCE)
   })
+
+  it('r2: the panel delegates to the shared rule (memberCopy.withoutGuardIds) and only adds the empty fallback', () => {
+    expect(memberSentence('')).toBe('This was not shown, and the backtest did not record why.')
+    for (const s of ['it stopped (runtime:strategy-unpinned).', 'refused pine:strategy-call here', 'refused enum:bad-value here', 'stopped (strategy:no-fill).', START_SENTENCE]) {
+      expect(memberSentence(s)).toBe(withoutGuardIds(s))
+    }
+  })
+
+  // ⏳ PENDING-ON-r3 of fix/pine-disclosure-no-guard-ids. The review's three probes, with the clean output the
+  // panel needs. memberCopy.js is that lane's file and is being fixed there (coordinator, 2026-11-08), so
+  // these are `it.fails` against today's helper: each goes RED the day r3 makes it pass, and is then turned
+  // into a plain `it` in the commit that merges r3. The wording of the clean output is r3's to settle; what
+  // these hold is "no hole, no unbalanced bracket".
+  const balanced = (out) => (out.match(/\(/g) || []).length === (out.match(/\)/g) || []).length
+  it.fails('PENDING-ON-r3: "(capture row Q-S1a, runtime:strategy-unsettled)." keeps its bracket balanced, no dangling comma', () => {
+    const out = memberSentence('(capture row Q-S1a, runtime:strategy-unsettled).')
+    expect(balanced(out), out).toBe(true)
+    expect(out, out).not.toMatch(/,\s*[.)]/)
+  })
+  it.fails('PENDING-ON-r3: "pine:strategy-call stops this." keeps a subject', () => {
+    expect(memberSentence('pine:strategy-call stops this.')).not.toMatch(/^stops this\.$/)
+  })
+  it.fails('PENDING-ON-r3: "Use the runtime:limit (budget) guard." leaves no empty-looking bracketed hole', () => {
+    expect(memberSentence('Use the runtime:limit (budget) guard.')).not.toBe('Use the (budget) guard.')
+  })
 })
 
 describe('W9-T13b one authority for names and formats', () => {
@@ -273,10 +299,43 @@ describe('W9-T13b one authority for names and formats', () => {
     const tabs = screen.getAllByRole('tab')
     expect(tabs.map((t) => t.textContent)).toEqual(['Overview', 'Performance summary', 'List of trades'])
     expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false'])
+    const selected = () => screen.getAllByRole('tab').map((t) => t.getAttribute('aria-selected'))
     fireEvent.keyDown(tabs[0], { key: 'ArrowRight' })
-    expect(screen.getAllByRole('tab').map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false'])
+    expect(selected()).toEqual(['false', 'true', 'false'])
     const panel = screen.getByRole('tabpanel')
     expect(panel.getAttribute('aria-labelledby')).toBe(screen.getAllByRole('tab')[1].id)
+    // r2 (review M5/M6): ArrowLeft wraps from the first tab to the last, End goes last, Home goes first
+    fireEvent.keyDown(screen.getAllByRole('tab')[1], { key: 'ArrowLeft' })
+    expect(selected()).toEqual(['true', 'false', 'false'])
+    fireEvent.keyDown(screen.getAllByRole('tab')[0], { key: 'ArrowLeft' })
+    expect(selected()).toEqual(['false', 'false', 'true'])
+    expect(document.activeElement).toBe(screen.getAllByRole('tab')[2])
+    fireEvent.keyDown(screen.getAllByRole('tab')[2], { key: 'Home' })
+    expect(selected()).toEqual(['true', 'false', 'false'])
+    fireEvent.keyDown(screen.getAllByRole('tab')[0], { key: 'End' })
+    expect(selected()).toEqual(['false', 'false', 'true'])
+    fireEvent.keyDown(screen.getAllByRole('tab')[2], { key: 'ArrowRight' })
+    expect(selected()).toEqual(['true', 'false', 'false'])
+  })
+
+  it('r2: every aria-controls names a panel that is in the DOM, on every tab', () => {
+    render(<StrategyReportPanel report={FIXTURES.allServed} />)
+    for (const t of TABS) {
+      clickTab(t.label)
+      const controls = screen.getAllByRole('tab').map((el) => el.getAttribute('aria-controls')).filter(Boolean)
+      expect(controls).toHaveLength(1)
+      for (const id of controls) expect(document.getElementById(id), id).not.toBe(null)
+    }
+  })
+
+  it('r2: tap targets are 44px across the whole touch tier (<=1024), not only on phones', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    for (const [file, sel] of [['StrategyReportPanel.module.css', '.tab'], ['AttachedStrategyReports.module.css', '.summary']]) {
+      const css = fs.readFileSync(path.join(here, file), 'utf8')
+      const block = css.match(/@media \(max-width: 1024px\) \{([\s\S]*?)\r?\n\}/)
+      expect(block, file).not.toBe(null)
+      expect(block[1], file).toMatch(new RegExp(`\\${sel} \\{[^}]*min-height: var\\(--tap-min, 44px\\)`))
+    }
   })
 })
 
