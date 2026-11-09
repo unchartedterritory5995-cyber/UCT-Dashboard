@@ -5,7 +5,6 @@ import { useFlagged } from '../../../hooks/useFlagged'
 import { WorkspaceContext } from '../../charts/WorkspaceContext'
 import { widgetOwnChrome, chartTypeCanvasEntry } from '../../charts/widgetChrome'
 import { uctDefaultTabSettings } from '../../charts/chartTabs'
-import { chartTemplateSettings } from '../../../components/chart/chartTemplateApply'
 import useDrillWorkspace from './drillWorkspace'
 import { DrillSourceContext } from './DrillSourceContext'
 import BreadthDrillBoard from './BreadthDrillBoard'
@@ -13,13 +12,13 @@ import PopoutWindow from '../../charts/popout/PopoutWindow'
 import PopoutShell from '../../charts/popout/PopoutShell'
 import WidgetHost from '../../charts/WidgetHost'
 import {
-  DRILL_BOARD_PREF, LIST_WIDGET_ID, CHART_WIDGET_ID, MODE_SPLIT, SCAN_MODES, SCAN_LAYOUTS,
+  DRILL_BOARD_PREF, LIST_WIDGET_ID, CHART_WIDGET_ID, MODE_SPLIT, SCAN_MODES,
   parseBoard, serializeBoard,
 } from './drillBoardPrefs'
 import WhatElseOpenPrompt from '../../../components/instruments/WhatElseOpenPrompt'
 import useScanDeck from './scan/useScanDeck'
 import { dayContext, stepDate } from './scan/scanDeckModel'
-import { ScanHeader, ScanRail, ScanStage } from './scan/ScanDeckParts'
+import { ScanHeader } from './scan/ScanDeckParts'
 import ScanGrid from './scan/ScanGrid'
 import BreadthDateNav from '../BreadthDateNav'
 import styles from './BreadthDrillModal.module.css'
@@ -41,14 +40,9 @@ const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-up
 // indicator panes. Before this, the drill chart inherited the member's whole
 // /charts stack and the price pane got a fifth of the height.
 const SCAN_TEMPLATE_ID = 'scan'
-const GLOBAL_TEMPLATE_ID = 'global'
 function scanSeedOpts() {
   return { settings: uctDefaultTabSettings(), scanTemplate: SCAN_TEMPLATE_ID }
 }
-
-// Colour groups for the 4-up layout: A is the selected stock (the list's group),
-// B–D are the next three names in the list.
-const FOUR_UP = ['B', 'C', 'D']
 
 /** Keys the scan window answers, unless focus is somewhere that owns typing:
  *  a text field, a select, or a chart (whose type-to-search takes letters). */
@@ -130,18 +124,24 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   }, [setPref])
 
   // ── The workspace value ─────────────────────────────────────────────────────
+  const widgetCanvasByType = useMemo(
+    () => ({ chart: chartTypeCanvasEntry(prefs?.chart_settings, chartsTheme) }),
+    [prefs?.chart_settings, chartsTheme],
+  )
+  // ONE canvas for the whole window: the chart's (its own settings when it has
+  // them, else the member's /charts default). The list is given the same entry,
+  // so list and chart read as one panel rather than two widgets side by side.
   const widgetCanvasById = useMemo(() => {
     const out = {}
     for (const w of board.widgets) {
       const entry = widgetOwnChrome(w, chartsTheme)
       if (entry) out[w.id] = entry
     }
+    const chartEntry = out[CHART_WIDGET_ID] || widgetCanvasByType.chart
+    if (chartEntry) out[LIST_WIDGET_ID] = chartEntry
     return out
-  }, [board.widgets, chartsTheme])
-  const widgetCanvasByType = useMemo(
-    () => ({ chart: chartTypeCanvasEntry(prefs?.chart_settings, chartsTheme) }),
-    [prefs?.chart_settings, chartsTheme],
-  )
+  }, [board.widgets, chartsTheme, widgetCanvasByType])
+  const drillCanvas = widgetCanvasById[CHART_WIDGET_ID]?.canvas || widgetCanvasByType.chart?.canvas || null
 
   const firstSym = drill?.items?.[0]?.t || null
   const baseWorkspace = useDrillWorkspace({
@@ -211,76 +211,9 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
   // ── Mode + layout ───────────────────────────────────────────────────────────
   const mode = board.mode || 'focus'
-  const layout = board.layout || '1'
   const setMode = useCallback((m) => {
     onBoardChange(b => ({ ...b, mode: m, split: MODE_SPLIT[m] ?? b.split }))
   }, [onBoardChange])
-  const setLayout = useCallback((l) => onBoardChange(b => ({ ...b, layout: l })), [onBoardChange])
-
-  // 4-up: publish the next three names into colour groups B–D.
-  useEffect(() => {
-    if (layout !== '4' || !order.length) return
-    const base = Math.max(0, selIdx)
-    // setGroupSym bails on an unchanged value, so re-running this is free.
-    FOUR_UP.forEach((c, i) => {
-      const s = order[(base + i + 1) % order.length]
-      if (s) baseWorkspace.setGroupSym(c, s)
-    })
-  }, [layout, order, selIdx, baseWorkspace])
-
-  // ── Chart template ──────────────────────────────────────────────────────────
-  const chartWidget = board.widgets.find(w => w.id === CHART_WIDGET_ID)
-  const savedTemplates = useMemo(() => {
-    let arr = prefs?.chart_templates
-    if (typeof arr === 'string') { try { arr = JSON.parse(arr) } catch { arr = [] } }
-    return Array.isArray(arr) ? arr.filter(t => t && t.name && t.settings) : []
-  }, [prefs?.chart_templates])
-  const templates = useMemo(() => [
-    { id: SCAN_TEMPLATE_ID, label: 'Breadth Scan (built-in)' },
-    { id: GLOBAL_TEMPLATE_ID, label: 'My /charts settings' },
-    ...savedTemplates.map(t => ({ id: `t:${t.id || t.name}`, label: t.name, tpl: t })),
-  ], [savedTemplates])
-  const templateId = chartWidget?.opts?.scanTemplate && templates.some(t => t.id === chartWidget.opts.scanTemplate)
-    ? chartWidget.opts.scanTemplate
-    : (chartWidget?.opts?.settings ? SCAN_TEMPLATE_ID : GLOBAL_TEMPLATE_ID)
-  const applyTemplate = useCallback((id) => {
-    const t = templates.find(x => x.id === id)
-    if (!t) return
-    const settings = id === SCAN_TEMPLATE_ID ? uctDefaultTabSettings()
-      : id === GLOBAL_TEMPLATE_ID ? null
-        : chartTemplateSettings(t.tpl)
-    onBoardChange(b => ({
-      ...b,
-      widgets: b.widgets.map(w => (w.id === CHART_WIDGET_ID ? { ...w, opts: { ...w.opts, settings, scanTemplate: id } } : w)),
-    }))
-  }, [templates, onBoardChange])
-
-  // Extra chart cells share the main chart's look; their own edits live for this
-  // open only (the main chart is the one the board remembers).
-  const [extraOpts, setExtraOpts] = useState({})
-  const extraWidgets = useMemo(() => {
-    if (!chartWidget || withdrawn) return []
-    const baseOpts = { ...chartWidget.opts }
-    if (layout === 'dw') {
-      return [{ id: 'drill-chart-w', type: 'chart', color: 'A', opts: extraOpts['drill-chart-w'] || { ...baseOpts, tf: 'W' } }]
-    }
-    if (layout === '4') {
-      return FOUR_UP.map(c => {
-        const id = `drill-chart-${c}`
-        return { id, type: 'chart', color: c, opts: extraOpts[id] || baseOpts }
-      })
-    }
-    return []
-  }, [chartWidget, layout, extraOpts, withdrawn])
-  const extraCells = extraWidgets.map(w => (
-    <WidgetHost
-      key={w.id}
-      widget={w}
-      merged
-      onOptsChange={(opts) => setExtraOpts(p => ({ ...p, [w.id]: opts }))}
-      onReplaceWidget={(id, next) => setExtraOpts(p => ({ ...p, [id]: next.opts }))}
-    />
-  ))
 
   // ── Day context + navigation ───────────────────────────────────────────────
   const colKey = drill?.colKey || null
@@ -403,21 +336,12 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
   const total = drill?.items?.length ?? 0
 
-  // The chart column: its toolbar band over the chart cells — nothing below the
-  // chart, so the price pane gets the whole height.
-  const wrapChartPane = useCallback((node) => (
-    <ScanStage
-      layout={layout} onLayout={setLayout} layouts={SCAN_LAYOUTS}
-      templates={templates} templateId={templateId} onTemplate={applyTemplate}
-      extraCells={extraCells}
-    >{node}</ScanStage>
-  ), [layout, setLayout, templates, templateId, applyTemplate, extraCells])
-
   return (
     // ⛔ The dialog role belongs to the PANEL, not the backdrop.
     <div className={styles.overlay} onClick={onClose}>
       <div
         className={styles.dialog}
+        style={drillCanvas ? { '--drill-canvas': drillCanvas } : undefined}
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
@@ -462,7 +386,6 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
                 dir={deck.dir}
                 selectedSym={selectedSym}
                 onOpen={(sym) => { setSym('A', sym); setMode('focus') }}
-                toolbarStart={<ScanRail deck={deck} total={total} inline />}
               />
             ) : (
             <BreadthDrillBoard
@@ -472,8 +395,6 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
               poppedIds={poppedIds}
               mobilePane={mobilePane}
               hosted
-              listTop={drill?.items?.length ? <ScanRail deck={deck} total={total} /> : null}
-              wrapChartPane={wrapChartPane}
             />
             )}
 

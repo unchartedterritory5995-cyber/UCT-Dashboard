@@ -78,15 +78,13 @@
   .board[data-pane='chart'] .paneList { display: none; }
 }
 
-/* Scan Deck (`hosted`): the two columns are matching cards — same frame, same
-   radius, same canvas — so the list and the chart read as one instrument. The
-   merged widget inside drops its own right/bottom seam; the card draws the edge. */
-.boardHosted { padding: 8px; gap: 0; background: var(--bg-elevated); }
-.boardHosted .pane {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md, 6px);
-  background: var(--bg);
-}
-.boardHosted .pane [class*='widgetMerged'] { border: 0 !important; box-shadow: none !important; }
-.boardHosted .divider { flex-basis: 8px; }
-.boardHosted .divider::after { inset: 20% 3px; }
+/* Scan Deck (hosted): list and chart are ONE panel. No gap, no second
+   frame: one canvas (the chart's, --drill-canvas from the modal) under both,
+   split by a single hairline that is also the resize handle. */
+.boardHosted { padding: 0; gap: 0; background: var(--drill-canvas, var(--bg)); }
+.boardHosted .pane { background: var(--drill-canvas, var(--bg)); }
+.boardHosted .pane [class*='widgetMerged'] { border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+/* The watchlist emits its own --wl-bg inline; in the drill it follows the chart. */
+.boardHosted .paneList * { --wl-bg: var(--drill-canvas, var(--bg)) !important; }
+.boardHosted .divider { flex-basis: 1px; background: var(--border); overflow: visible; }
+.boardHosted .divider::after { inset: 0 -4px; border-radius: 0; }

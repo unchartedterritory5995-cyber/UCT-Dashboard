@@ -108,15 +108,15 @@ describe('BreadthDrillList — it feeds the REAL table, it does not build one', 
     expect(lastProps.metaOverride.SRPT.rvol).toBeCloseTo(240)
   })
 
-  it('⛔ Focus opens on who/where/% (Symbol, Sector, Industry, Theme, % Chg) with its OWN column key — never raw Vol', () => {
+  it('⛔ Focus opens on who/where/% (Symbol, Sector, Industry, % Chg) with its OWN column key — never raw Vol', () => {
     // Sharing the global watchlist key shipped a dead column: `Vol` means RAW
     // volume, which a recorded snapshot has no way to supply, so every row
     // showed an em-dash there for anyone whose watchlists include it.
     mount(LIVE)
-    expect(lastProps.defaultColCfg.order).toEqual(['flag', 'sym', 'sector', 'industry', 'theme', 'chg'])
+    expect(lastProps.defaultColCfg.order).toEqual(['flag', 'sym', 'sector', 'industry', 'chg'])
     expect(lastProps.defaultColCfg.order).not.toContain('vol')
     expect(lastProps.colStorageKey).toBeTruthy()
-    expect(lastProps.colStorageKey).toMatch(/breadthDrill.focus$/)
+    expect(lastProps.colStorageKey).toMatch(/breadthDrill.list$/)
   })
 
   it('offers no dead back button — there is no picker to return to', () => {

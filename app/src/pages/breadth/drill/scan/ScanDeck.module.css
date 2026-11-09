@@ -8,38 +8,35 @@
    read as one surface instead of two widgets parked side by side. */
 
 /* ── Masthead ───────────────────────────────────────────────────────────── */
+/* One 48px line on the window's canvas. Typography and the view toggle are
+   borrowed from the chart header so the window and the chart read as one. */
 .header {
   display: flex;
-  align-items: stretch;
-  height: 60px;
+  align-items: center;
+  gap: 0;
+  height: 48px;
+  padding: 0 8px 0 16px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   min-width: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ut-gold) 4%, transparent), transparent 70%);
+  background: var(--drill-canvas, var(--bg));
 }
-.identity {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 0 18px;
-  border-right: 1px solid var(--border);
-  flex-shrink: 0;
-}
+.identity { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .metric {
   font-family: var(--font-sans);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--text-bright);
+  color: var(--ut-gold);
   background: transparent;
   border: 0;
-  padding: 0 18px 0 0;
+  padding: 0 16px 0 0;
   margin: 0;
   cursor: pointer;
-  max-width: 220px;
+  max-width: 200px;
   line-height: 1.1;
   appearance: none;
   -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--ut-gold) 50%), linear-gradient(135deg, var(--ut-gold) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
   background-position: calc(100% - 7px) 55%, calc(100% - 3px) 55%;
   background-size: 4px 4px;
   background-repeat: no-repeat;
@@ -51,81 +48,49 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .dateWrap { display: flex; align-items: center; }
 .dateWrap > * { margin-left: 0 !important; }
 .live { display: inline-flex; align-items: center; gap: 6px; color: var(--gain); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
-.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gain) 25%, transparent); }
+.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
 
-/* The reading: count + verdict on top, the plain-words sentence under it. */
+/* The reading: count, a toned verdict, then the plain-words sentence — one line. */
 .reading {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 18px;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
-  flex: 0 1 auto;
-}
-.readTop { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
-.readCount { font-size: 20px; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; line-height: 1; }
-.readUnit { font-size: 13px; color: var(--text-muted); }
-.verdict {
-  align-self: center;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid currentColor;
-  margin-left: 3px;
-}
-.verdict[data-tone='hot'] { color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
-.verdict[data-tone='up'] { color: var(--gain); background: color-mix(in srgb, var(--gain) 10%, transparent); }
-.verdict[data-tone='mid'] { color: var(--text-muted); }
-.verdict[data-tone='dn'] { color: #d58a5a; background: color-mix(in srgb, #d58a5a 10%, transparent); }
-.verdict[data-tone='cold'] { color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, transparent); }
-.readLine {
-  font-size: 12px;
-  color: var(--text-muted);
+  flex: 1 1 auto;
+  margin-left: 18px;
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
+.readCount { font-size: 15px; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.readUnit { font-size: 12px; color: var(--text-muted); }
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.verdict i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; align-self: center; }
+.verdict[data-tone='hot'] { color: var(--ut-gold); }
+.verdict[data-tone='up'] { color: var(--gain); }
+.verdict[data-tone='mid'] { color: var(--text-muted); }
+.verdict[data-tone='dn'] { color: #d58a5a; }
+.verdict[data-tone='cold'] { color: var(--loss); }
+.readLine { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .readLine b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* Past-year range: quietest → busiest day, a tick at the typical day, a gold
-   dot for this one. */
-.meter { display: inline-flex; align-items: center; width: 110px; height: 12px; margin-left: 8px; align-self: center; flex-shrink: 0; cursor: help; }
-.meterTrack { position: relative; flex: 1; height: 4px; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--loss) 45%, var(--bg-hover)), var(--bg-hover) 50%, color-mix(in srgb, var(--gain) 45%, var(--bg-hover))); }
-.meterMed { position: absolute; top: -3px; width: 1px; height: 10px; background: var(--text-muted); }
-.meterDot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--ut-gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ut-gold) 22%, transparent); }
+/* The chart header's own info fields; only the spacing is ours. */
+.meta { margin-left: 16px; flex-shrink: 0; }
+.metaTheme { max-width: 180px; overflow: hidden; }
+.up { color: var(--gain); }
+.dn { color: var(--loss); }
 
-/* Quiet stats: label over value, divided by hairlines. */
-.stats { display: flex; align-items: stretch; min-width: 0; overflow: hidden; border-left: 1px solid var(--border); }
-.stat { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 16px; border-right: 1px solid var(--border); flex-shrink: 0; }
-.statWide { flex-shrink: 1; min-width: 0; }
-.statLabel { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
-.statValue { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; min-width: 0; }
-.statValue b { font-size: 15px; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; }
-.statValue small { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.statValue b.up { color: var(--gain); }
-.statValue b.dn { color: var(--loss); }
-.statText { font-size: 14px; font-weight: 600; color: var(--text-bright); overflow: hidden; text-overflow: ellipsis; }
-
-/* View switch: three small labelled boxes. */
-.views { display: inline-flex; gap: 4px; }
-.views button {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 30px; padding: 0 11px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.views button:hover { color: var(--text); border-color: var(--border-accent); }
-.views button[aria-pressed='true'] { color: var(--ut-gold); border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent); background: color-mix(in srgb, var(--ut-gold) 10%, transparent); }
+.viewBtn { padding: 5px 12px; font-size: 10.5px; }
 
 .headEnd { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; margin-left: auto; flex-shrink: 0; }
 .closeBtn {
@@ -237,14 +202,14 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .linkBtn:hover { text-decoration: underline; }
 
 /* ── Grid view ──────────────────────────────────────────────────────────── */
-.gridView { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 8px; border: 1px solid var(--border); border-radius: var(--radius-md, 8px); background: var(--bg); overflow: hidden; }
+.gridView { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--drill-canvas, var(--bg)); overflow: hidden; }
 .gridView > .bandRow .chips { flex: 0 1 auto; }
 .gridScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .gridSheet { display: grid; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
 .gridSheet[data-size='l'] { grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); grid-auto-rows: 400px; }
 .gridSheet[data-size='m'] { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); grid-auto-rows: 300px; }
 .gridSheet[data-size='s'] { grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); grid-auto-rows: 230px; }
-.card { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); position: relative; }
+.card { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--drill-canvas, var(--bg)); position: relative; }
 .card[data-selected]::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px var(--ut-gold); pointer-events: none; }
 .cardHead {
   display: flex; align-items: center; gap: 8px;
@@ -263,25 +228,16 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .cardEmpty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px; }
 .gridEmpty { padding: 40px; text-align: center; color: var(--text-muted); }
 
-/* Narrower windows shed the masthead's least-needed pieces rather than wrap. */
-@media (max-width: 1280px) {
-  .stat:nth-child(3) { display: none; }
-  .views button svg { display: none; }
-}
-@media (max-width: 1100px) {
-  .stats { display: none; }
-}
+/* Narrower windows shed the least-needed pieces rather than wrap. */
+@media (max-width: 1450px) { .readLine { display: none; } }
+@media (max-width: 1150px) { .meta { display: none; } }
 
-/* Phone: masthead keeps identity + count; D+W and 4-up collapse to one chart. */
+/* Phone: the list + date on one line, the reading under it. */
 @media (max-width: 640px) {
-  .header { height: auto; flex-wrap: wrap; padding: 6px 0; row-gap: 6px; }
-  .identity { border-right: 0; padding: 0 10px; gap: 8px; }
-  .reading { order: 3; flex-basis: 100%; padding: 6px 10px 0; border-top: 1px solid var(--border); }
-  .headEnd { padding: 0 8px; gap: 6px; }
-  .views button { padding: 0 8px; }
-  .charts[data-layout] { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-  .charts[data-layout] > .cell:not(:first-child) { display: none; }
-  .layoutPick, .tbSep { display: none; }
+  .header { height: auto; flex-wrap: wrap; padding: 6px 8px; row-gap: 6px; }
+  .identity { gap: 8px; }
+  .reading { order: 3; flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; }
+  .headEnd { padding: 0; gap: 6px; }
   .closeBtn { width: var(--tap-min); height: var(--tap-min); }
   .gridSheet[data-size] { grid-template-columns: 1fr; }
 }

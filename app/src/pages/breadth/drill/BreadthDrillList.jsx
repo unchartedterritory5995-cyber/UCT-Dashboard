@@ -29,11 +29,11 @@ const NO_ITEMS = []
 // breadth cell IS — the stocks that moved — and it matches the order the
 // endpoint already returns.
 const DRILL_DEFAULT_COLS = {
-  order: ['flag', 'sym', 'sector', 'industry', 'theme', 'chg'],
+  order: ['flag', 'sym', 'sector', 'industry', 'chg'],
   sort: { key: 'chg', dir: 'desc' },
 }
 // Namespaced off the watchlist key the same way the scanner namespaces its own.
-const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.focus`
+const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.list`
 // The Scan Deck's TABLE mode gives the list most of the window, so it opens with
 // the columns a screener would: who the company is, where it sits, how big, and
 // how stretched. Its OWN key, so arranging Table never rearranges the compact
