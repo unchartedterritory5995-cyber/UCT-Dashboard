@@ -49,12 +49,12 @@ One fresh full runner pass (Vite restarted), each case run once:
 
 **Product commits**
 - **`f7cb3b89c4`: (5) alerts.** "Alerted" and what an alert watches now route: a trendline, or a signal line named before "alert". An alert ask never becomes an indicator-settings walkthrough.
-- **`9dc00c9442`: truthfulness.** A fib's alert is a price alert, never a drawing-menu row the fib lacks, and never fib levels.
+- **`c7211cfdfe`: truthfulness.** A fib's alert is a price alert, never a drawing-menu row the fib lacks, and never fib levels.
 - **`8a6f6432a6`: (7) closing a widget tab.** It selects the extra tab first, because its × shows only on the selected one.
-- **Truthfulness: a settings row that shows only in some state says so** when it isn't on the tab. Thin bars shows only while the chart type is Bars or HLC; the old fallback said "scroll down for it".
+- **`62f4ee8d64`: truthfulness. A settings row that shows only in some state says so** when it isn't on the tab. Thin bars shows only while the chart type is Bars or HLC; the old fallback said "scroll down for it".
 
 **Harness commits**
-- `knownMisses.json`, with the fib-alert miss.
+- **`9dc00c9442`**: `knownMisses.json`, with the fib-alert miss.
 - **`87deb3ac56`**: a bar chart given for the Thin bars row.
 
 **Browser single runs**
