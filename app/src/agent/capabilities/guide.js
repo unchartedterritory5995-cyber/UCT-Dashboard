@@ -92,7 +92,7 @@ export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
   // a control behind a release switch that is off is said, never rung (guide/releases.js)
   const walk = guideSteps(f, words)
-  const released = releasedOnly(walk.steps)
+  const released = releasedOnly(walk.steps, words)
   if (typeof released === 'string') return released
   const steps = mineOnly(released, host)
   if (typeof steps === 'string') return steps

@@ -55,3 +55,27 @@ describe('the scan’s Send to Journal follows the capture release switch', () =
     try { expect(releasedOnly([{ target: 'x', release: 'capture' }])).toBe(RELEASES.capture.off) } finally { RELEASES.capture.on = was }
   })
 })
+
+describe('a widget the capture switch keeps off the board (Indexes, Market Context) is never pointed at while it is off', () => {
+  const ASK = ['how do I hide or restore an index', 'show me how to send index levels to journal', 'how do I add the indexes widget', 'how do I send the market context to my journal']
+  it.each(ASK)('OFF: said plainly, nothing rung, never "I can’t see": %s', (q) => {
+    localStorage.setItem(CAPTURE_FLAG_KEY, '0')
+    const g = route(q)
+    expect(g).toBeTruthy()
+    const said = getCapability('guide.show').answer({}, g, host)
+    expect(said).toMatch(/^The (Indexes|Market Context) widget isn’t available yet\./)
+    expect(said).not.toMatch(/can’t see/)
+    expect(guideState()).toBeNull()
+  })
+  it.each(ASK)('ON: the walkthrough is built as designed: %s', (q) => {
+    localStorage.setItem(CAPTURE_FLAG_KEY, '1')
+    const g = route(q)
+    const steps = stepsFor(guideFeature(g.feature), g.detail || q)
+    expect(releasedOnly(steps)).toBe(steps)
+  })
+  it('a walkthrough on a released widget is untouched while the switch is off', () => {
+    localStorage.setItem(CAPTURE_FLAG_KEY, '0')
+    const steps = [{ target: { widgetType: 'breadth', guide: 'widget.settings' } }]
+    expect(releasedOnly(steps)).toBe(steps)
+  })
+})
