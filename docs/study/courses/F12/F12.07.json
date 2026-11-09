@@ -896,7 +896,7 @@
    "q": "Buying more of a losing trade to lower your average cost is a sound way to fix a bad entry.",
    "answer": "False",
    "why": "False. That's averaging down, and in a trade it puts more money on an idea that's proving wrong. O'Neil calls it throwing good money after bad.",
-   "lesson_line": "Add to winners, never to losers.",
+   "lesson_line": "Never add to a losing trade.",
    "facts": [
     "f67",
     "f61",
@@ -1518,7 +1518,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "f67 O'Neil, f61 Rhodes, f47/f48 Hirsch confirmed. 'Losing trade' and 'in a trade' scope it away from Investopedia's long-term investors (f43). f43's claim had added 'not a trading one', which the quote does not say; claim now matches the quote.",
+   "notes": "f67 O'Neil, f61 Rhodes, f47/f48 Hirsch confirmed. 'Losing trade' and 'in a trade' scope it away from Investopedia's long-term investors (f43). f43's claim had added 'not a trading one', which the quote does not say; claim now matches the quote. Integrator 2026-11-09: lesson line was 'Add to winners, never to losers.'; the owner buys the full size at one spot and never scales in, so it now says only 'Never add to a losing trade.'",
    "fixed": true,
    "by": "checker"
   },

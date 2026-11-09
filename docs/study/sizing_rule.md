@@ -55,7 +55,9 @@ from it; `houseSizing.json` becomes a cap layer the Method mentions once.
 
 - **Total open risk (heat) ≤ 10% of the account.** (App cap.)
 - **5 to 10 positions** for a momentum swing book. Concentration over diversification.
-- **Progressive exposure:** pilot → half → full, add only after the last step paid.
+- ~~Progressive exposure: pilot → half → full, add only after the last step paid.~~ **Struck by the owner,
+  2026-11-09:** *"11. is not a rule at all, I do not scale into trade i buy full at one spot with one stop."*
+  → **Our rule: buy the full position at one price, with one stop.** No pilot, no adds.
 - **Correlation:** five positions in one theme count as one trade; sector concentration flagged
   at 40% (the heat tool's rule).
 
@@ -65,7 +67,8 @@ from it; `houseSizing.json` becomes a cap layer the Method mentions once.
   (Owner, 2026-06-14.) The firm's trail: the 10/20-day for episodic pivots (dossier CORRECTIONS);
   named traders' variants appear only in questions that name the trader.
 - Breakeven rule: the point after which a trade must never again become a loser (dossier M10).
-- Base re-entry rule: cut at least half if the stock falls back into its base.
+- ~~Base re-entry rule: cut at least half if the stock falls back into its base.~~ **Struck by the owner,
+  2026-11-09:** *"15, eh, my stop is my stop most of the time."* → the exit is the stop; no half-cut rule is taught.
 
 ## 7. What the drills generate from this file
 
