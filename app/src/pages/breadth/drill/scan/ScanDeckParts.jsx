@@ -1,7 +1,6 @@
 import { useId, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import CompanyLogo from '../../../../components/CompanyLogo'
-import { fmtPct } from './scanDeckModel'
+import { GROUP_HUES, UNCLASSIFIED } from './scanDeckModel'
 import ws from '../../../charts/ChartsWorkspace.module.css'
 import styles from './ScanDeck.module.css'
 
@@ -10,14 +9,12 @@ const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
 // ── Masthead: the instrument strip (owner pick, header concept 3) ─────────────
 // The list and its day on the left, then small readouts that SHOW rather than
 // label: the count over its last 60 sessions (today in gold), the average move,
-// Health as a red-to-green gauge, and the leading theme with its stocks' logos.
+// and where they come from (the sector mix).
 export function ScanHeader({
   label, count, live, drillCols, colKey, onPickMetric,
   dateNav, ctx, summary, mode, onMode, modes, onClose, children,
 }) {
   const metricId = useId()
-  const health = Number.isFinite(ctx?.health) ? Math.max(0, Math.min(100, Math.round(ctx.health))) : null
-  const theme = summary?.topTheme
   return (
     <div className={styles.header}>
       <div className={styles.identity}>
@@ -39,36 +36,7 @@ export function ScanHeader({
 
       <CountHistory count={count} ctx={ctx} />
 
-      <div className={`${styles.tile} ${styles.tileOpt}`}>
-        <span className={styles.tileLbl}>Average move</span>
-        <span className={styles.tileVal}>
-          <b className={summary?.avgPct >= 0 ? styles.up : summary?.avgPct < 0 ? styles.dn : undefined}>{fmtPct(summary?.avgPct)}</b>
-        </span>
-      </div>
-
-      <div className={`${styles.tile} ${styles.tileOpt}`} title="The breadth Health score for this session, 0 to 100">
-        <span className={styles.tileLbl}>Health</span>
-        <span className={styles.tileVal}>
-          <b>{health ?? '—'}</b><small className={styles.muted}>/100</small>
-        </span>
-        <span className={styles.gauge} aria-hidden="true">{health != null && <i style={{ left: `${health}%` }} />}</span>
-      </div>
-
-      {theme && (
-        <div className={`${styles.tile} ${styles.tileTheme}`}
-          title={`${theme.count} of the ${count} stocks are in ${theme.key}`}>
-          <span className={styles.tileLbl}>Leading theme</span>
-          <span className={styles.tileVal}>
-            <b className={styles.themeName}>{theme.key}</b>
-            <small className={styles.muted}>{theme.count} {theme.count === 1 ? 'stock' : 'stocks'}</small>
-            <span className={styles.logos}>
-              {(theme.syms || []).slice(0, 4).map(sym => (
-                <span key={sym} className={styles.logo}><CompanyLogo sym={sym} size={18} round /></span>
-              ))}
-            </span>
-          </span>
-        </div>
-      )}
+      <SectorMix sectors={summary?.sectors} total={count} />
 
       <div className={styles.headEnd}>
         {children}
@@ -152,6 +120,42 @@ function CountHistory({ count, ctx }) {
             })}
           </svg>
         )}
+      </span>
+    </div>
+  )
+}
+
+// ── Sector mix ───────────────────────────────────────────────────────────────
+// Where the list's stocks come from: one bar split by sector (largest first, in
+// the same colours as the list's Sector sections), the top three named under it.
+// Hover a segment for its name and count.
+function SectorMix({ sectors, total }) {
+  const [hover, setHover] = useState(null)
+  const list = (sectors || []).filter(s => s.count > 0)
+  if (!list.length) return null
+  const n = list.reduce((a, s) => a + s.count, 0) || total || 1
+  const colorOf = (s, i) => (s.key === UNCLASSIFIED ? 'color-mix(in srgb, var(--text-muted) 40%, transparent)' : GROUP_HUES[i % GROUP_HUES.length])
+  const pct = (c) => Math.round((c / n) * 100)
+  const named = list.filter(s => s.key !== UNCLASSIFIED).slice(0, 3)
+  const h = hover != null ? list[hover] : null
+  return (
+    <div className={`${styles.tile} ${styles.tileMix}`}>
+      <span className={styles.tileHead}>
+        <span className={styles.tileLbl}>Sector mix</span>
+        <span className={styles.mixHover}>{h ? <><b>{h.key}</b> {h.count} {h.count === 1 ? 'stock' : 'stocks'} · {pct(h.count)}%</> : null}</span>
+      </span>
+      <span className={styles.mixBar} role="img" onMouseLeave={() => setHover(null)}
+        aria-label={'Sector mix: ' + list.map(s => `${s.key} ${pct(s.count)}%`).join(', ')}>
+        {list.map((s, i) => (
+          <i key={s.key} onMouseEnter={() => setHover(i)} data-dim={hover != null && hover !== i ? true : undefined}
+            style={{ flexGrow: s.count, background: colorOf(s, i) }} />
+        ))}
+      </span>
+      <span className={styles.mixKey}>
+        {named.map(s => (
+          <span key={s.key}><i style={{ background: colorOf(s, list.indexOf(s)) }} />{s.key} <b>{pct(s.count)}%</b></span>
+        ))}
+        {list.length > named.length && <span className={styles.muted}>+{list.length - named.length} more</span>}
       </span>
     </div>
   )

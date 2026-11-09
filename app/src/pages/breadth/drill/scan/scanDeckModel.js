@@ -51,6 +51,8 @@ export function applyFilters(rows, active, { dir = 1, available = null } = {}) {
 
 // ── Grouping / composition ───────────────────────────────────────────────────
 export const UNCLASSIFIED = 'Unclassified'
+// Group colours by rank (largest group first). Muted so they tag, not shout.
+export const GROUP_HUES = ['#7f8fd6', '#c9a84c', '#3fae74', '#c45f9a', '#4fb3b9', '#d98245', '#9a7fe0', '#9fb86a', '#8ea4c8', '#b08968']
 
 /**
  * Bucket rows by a dimension. Sorted by count desc, then name, with

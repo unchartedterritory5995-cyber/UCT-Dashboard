@@ -85,12 +85,16 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .spark rect + rect { fill: color-mix(in srgb, var(--text-muted) 45%, transparent); }
 .spark rect[data-now] { fill: var(--ut-gold); }
 .spark rect[data-hover] { fill: var(--text-bright); }
-.gauge { position: relative; width: 108px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--loss), #c9a84c, var(--gain)); }
-.gauge i { position: absolute; top: -4px; width: 2px; height: 13px; margin-left: -1px; border-radius: 1px; background: var(--text-bright); }
-.tileTheme { flex-shrink: 1; max-width: 360px; }
-.themeName { font-size: 15px !important; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.logos { display: flex; flex-shrink: 0; padding-left: 2px; }
-.logo { display: inline-flex; border-radius: 50%; box-shadow: 0 0 0 2px var(--drill-canvas, var(--bg)); margin-right: -5px; overflow: hidden; }
+.tileMix { flex: 1 1 auto; max-width: 620px; min-width: 260px; flex-shrink: 1; gap: 6px; }
+.mixHover { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mixHover b { color: var(--text-bright); font-weight: 700; }
+.mixBar { display: flex; flex-shrink: 0; gap: 2px; height: 8px; border-radius: 3px; overflow: hidden; }
+.mixBar i { flex-basis: 0; min-width: 3px; transition: opacity .12s; }
+.mixBar i[data-dim] { opacity: .3; }
+.mixKey { display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--text); overflow: hidden; }
+.mixKey > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mixKey i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.mixKey b { color: var(--text-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
 .up { color: var(--gain); }
 .dn { color: var(--loss); }
 
@@ -233,8 +237,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .gridEmpty { padding: 40px; text-align: center; color: var(--text-muted); }
 
 /* Narrower windows shed the least-needed pieces rather than wrap. */
-@media (max-width: 1450px) { .tileTheme { display: none; } }
-@media (max-width: 1150px) { .tileOpt { display: none; } }
+@media (max-width: 1100px) { .tileMix { display: none; } }
 
 /* Phone: the list + date on one line, the reading under it. */
 @media (max-width: 640px) {

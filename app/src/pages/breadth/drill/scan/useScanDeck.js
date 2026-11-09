@@ -108,6 +108,7 @@ export default function useScanDeck(drill, { storage = safeStorage() } = {}) {
       avgPct: pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null,
       topSector: known(composition(rows, r => r.sector)),
       topTheme: known(composition(rows, r => r.theme)),
+      sectors: composition(rows, r => r.sector),
     }
   }, [rows])
 

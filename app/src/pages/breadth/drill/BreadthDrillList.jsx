@@ -9,6 +9,7 @@ import { prefetchListDeep } from '../../../utils/prefetchBars'
 import { useDrillSource } from './DrillSourceContext'
 import { FilterButton, GroupSwitch, FilterChips } from './scan/ScanFilters'
 import GroupHeader from './scan/GroupHeader'
+import { GROUP_HUES } from './scan/scanDeckModel'
 import styles from './BreadthDrillList.module.css'
 
 // The breadth cell's constituents, rendered through the REAL watchlist table.
@@ -28,7 +29,6 @@ const pctOf = (r) => r?.pct
 const NO_ITEMS = []
 // Section colours, in group order (largest group first). Muted so they tag,
 // not shout.
-const GROUP_HUES = ['#7f8fd6', '#c9a84c', '#3fae74', '#c45f9a', '#4fb3b9', '#d98245', '#9a7fe0', '#9fb86a', '#8ea4c8', '#b08968']
 
 // First-run column layout. Sorted by % change desc because that is what a
 // breadth cell IS — the stocks that moved — and it matches the order the
