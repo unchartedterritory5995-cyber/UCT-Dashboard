@@ -214,19 +214,19 @@ export default function BreadthDateNav({
       <div className={styles.joined}>
         <button type="button" className={styles.jStep} title="Previous trading day" aria-label="Step back one trading day"
           onClick={() => onStep(-1)}>
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <button ref={caretRef} type="button" className={styles.jDate} title="Pick a date or year" aria-label="Pick a date or year"
           aria-expanded={open} onClick={() => (open ? setOpen(false) : openMenu())}>
           {p ? <><small>{p.dow}</small>{p.text}</> : '—'}
-          <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" className={styles.jCal}>
+          <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" className={styles.jCal}>
             <rect x="2.5" y="3.5" width="11" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.4" />
             <path d="M2.5 6.8h11M5.5 2v3M10.5 2v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </button>
         <button type="button" className={styles.jStep} title={canForward ? 'Next trading day' : 'No newer trading day'}
           aria-label="Step forward one trading day" disabled={!canForward} onClick={() => canForward && onStep(1)}>
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         {calendar}
       </div>
