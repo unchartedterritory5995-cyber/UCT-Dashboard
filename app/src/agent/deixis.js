@@ -66,16 +66,24 @@ export function relationMatch(text) {
   if (/\bone\b/i.test(b[0]) && oneStandsForAThing(s.slice(0, b.index))) return null
   return b
 }
-// the nearest noun before a bare "one": a chart word → a chart; a placed thing (a line, an alert, a level, a drawing, an
-// indicator by its catalog words, an order or a position) → that thing; none → a chart ("the one to the right")
+// ⛔ AUDIT S2-B (round 2): a bare "one" stands for a THING only when it is COORDINATED with that thing in the same noun phrase
+// ("the line and the one below", "the level I drew and the one above"). After a preposition (to / on / onto / in / into / for /
+// at / from / over) "the one <relation>" is the PLACE: a chart ("add RSI to the one below"). A word separated from "one" by a
+// verb or a preposition is never its antecedent ("the rsi looks good here, now make the one below weekly": a chart).
 const ONE_THING = /^(?:orders?|positions?|trades?|tickets?|emas?|smas?|mas|setups?|zones?|supports?|resistances?|signals?|bars?|candles?)$/
+const ONE_PREP = /\b(?:to|on|onto|in|into|for|at|from|over)\s*$/i
+const ONE_COORD = /(?:,|\b(?:and|or))\s*$/i
+// the few words a noun phrase may carry between its noun and the "and": a short relative clause ("the level I drew"), adjectives
+const NP_FILLER = /^(?:i|we|you|just|already|drew|drawn|made|added|put|placed|set|have|had|the|a|an|my|that|this|new|old|first|second|last|top|bottom|upper|lower|red|green|blue|yellow|orange|purple|white|black)$/
 function oneStandsForAThing(before) {
-  const words = String(before || '').toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean)
-  for (let i = words.length - 1; i >= 0; i--) {
+  const s = String(before || '')
+  if (ONE_PREP.test(s) || !ONE_COORD.test(s)) return false
+  const words = s.replace(ONE_COORD, ' ').toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean)
+  for (let i = words.length - 1, n = 0; i >= 0 && n < 5; i--, n++) {
     const w = words[i]
-    if (w === 'one' || w === 'ones') continue
     if (CHARTISH.test(w)) return false
     if (PLACED.test(w) || ONE_THING.test(w) || isIndicatorWord(w)) return true
+    if (!NP_FILLER.test(w)) return false                     // a verb, a preposition or anything else ends the noun phrase
   }
   return false
 }
