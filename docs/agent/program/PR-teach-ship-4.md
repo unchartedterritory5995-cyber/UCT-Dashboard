@@ -22,7 +22,7 @@ Base: teach-ship-3. Stack position: 4 of 5. Master `25f049554f` is merged in thr
 - **Full suite before the restack** (at `15c5fa00e0`): Test Files 266 passed | 5 skipped, Tests 9299 passed | 6 skipped.
 - **AUDIT review (11-08):** ACCEPTED.
 - **Browser** (teach-cov-2/3 runner passes, which build on this slice): C3-040 and C3-041 (a layout's version history, with the version store given) and the layout library rows VERIFIED.
-- **Owed:** a full suite on this head once a lock slot is free.
+- **Post-restack full suite:** run on teach-ship-5 `9a689f56b7`, which contains ship-2 through ship-5 on master `25f049554f`. Path set: `src/agent` plus pl-exec's 9 paths; BelowNormal; LOCAL / SIMULATED. Result: `Test Files 299 passed | 5 skipped (304)`, `Tests 9830 passed | 6 skipped (9836)`. No failures.
 
 ## Note
 The overlay pointer fix that was proposed for this slice is in ship-2, because the lifecycle code builds on it.
