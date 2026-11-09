@@ -30,6 +30,6 @@ through the REAL panel, and pins it.
 
 ## Full suite
 
-(to be filled after the full 4-shard run)
+Full 4-shard vitest at decbc5079d (LOCAL native Windows Node v24, BROWSER-MOCK-MODEL / SIMULATED): 9361 passed, 0 failed, 6 skipped (2274+3 / 3110 / 2092+1 / 1885+2). pytest not run (C:\data rule): owed to AUDIT / CI.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
