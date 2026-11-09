@@ -17,7 +17,7 @@
 // ⚠️ INLINE STYLES over the shared tokens, the ConciergeBox convention: the card
 // is dropped into a widget whose stylesheet belongs to that widget.
 
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../../../components/chart/engine/ast/sentence'
 import { Suspense, lazy, useMemo, useState } from 'react'
 import { readScanObject } from './scanObject'
 

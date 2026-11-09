@@ -20,7 +20,7 @@ import { strategyBrokerEnabled } from '../engine/strategyBrokerGate'
 import { strategyRecordFor, onStrategyRecordChange } from '../engine/strategyReportNotice'
 import * as defaultRegistry from '../engine/nativeRegistry'
 
-// ⛔ ENGINE-40 BYTES: the report itself (brokerReport, the panel, memberCopy through it, the CSS) is
+// ⛔ ENGINE-40 BYTES: the report itself (brokerReport, the panel, the CSS) is
 // loaded ONLY when the gate is on AND a record exists. Gate off: this import never runs.
 // (`notebook_perf_budgets.py` bytes.notebook_first_open; rail: strategyReportPanel.test.jsx "imports nothing".)
 const StrategyReportsLoaded = lazy(() => import('./StrategyReportsLoaded'))

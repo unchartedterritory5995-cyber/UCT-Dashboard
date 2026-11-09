@@ -22,7 +22,7 @@ vi.mock('./StrategyReportsLoaded', async (importOriginal) => {
   LOADED.count += 1
   return importOriginal()
 })
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../engine/ast/sentence'
 import {
   strategyReportOf, SERVED_METRICS, REFUSED_METRICS,
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
@@ -265,7 +265,7 @@ describe('W9-T13b no guard id reaches the DOM', () => {
     expect(memberSentence(START_SENTENCE)).toBe(START_SENTENCE)
   })
 
-  it('r2: the panel delegates to the shared rule (memberCopy.withoutGuardIds) and only adds the empty fallback', () => {
+  it('r2: the panel delegates to the shared rule (ast/sentence.js::withoutGuardIds) and only adds the empty fallback', () => {
     expect(memberSentence('')).toBe('This was not shown, and the backtest did not record why.')
     for (const s of ['it stopped (runtime:strategy-unpinned).', 'refused pine:strategy-call here', 'refused enum:bad-value here', 'stopped (strategy:no-fill).', START_SENTENCE]) {
       expect(memberSentence(s)).toBe(withoutGuardIds(s))

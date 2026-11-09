@@ -15,13 +15,13 @@
 // number would be. Never a dash, never a blank, never a guessed number.
 // ⛔ NO GUARD ID REACHES THE DOM. A refusal's `guard` (`runtime:strategy-unpinned`, ...) is a
 // name for engineers and rails; the member reads the sentence. Not rendered, not in an
-// attribute, and stripped from a sentence that quotes one (`memberCopy.js::withoutGuardIds`).
+// attribute, and stripped from a sentence that quotes one (`engine/ast/sentence.js::withoutGuardIds`).
 // ⛔ D10 IS NOT APPLIED. Our counts are reported in full whatever the number of trades.
 // ⛔ NO FLAG READ IN THIS FILE: it is a pure view. The gate lives in the one mount,
 // `AttachedStrategyReports.jsx`.
 import { useId, useRef, useState } from 'react'
 import { SERVED_METRICS, REFUSED_METRICS } from '../engine/runtime/brokerReport.js'
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../engine/ast/sentence'
 import styles from './StrategyReportPanel.module.css'
 
 /** TradingView's Overview tab headline figures, by report key (any refused one shows its sentence). */
@@ -35,7 +35,7 @@ export const TABS = Object.freeze([
 ])
 
 /** The member's form of a refusal sentence. r2: guard ids go through the ONE shared rule,
- *  `lib/presentation/memberCopy.js::withoutGuardIds` (whole parentheticals, balanced brackets); this
+ *  `engine/ast/sentence.js::withoutGuardIds` (whole parentheticals, balanced brackets); this
  *  adds only the panel's fallback for a refusal that carries no sentence at all. */
 export function memberSentence(s) {
   if (typeof s !== 'string' || !s.trim()) return 'This was not shown, and the backtest did not record why.'

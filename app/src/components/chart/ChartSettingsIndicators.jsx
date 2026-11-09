@@ -46,7 +46,7 @@
 // 3. A VISIBILITY toggle that is not a REMOVE. See `rowVisible` below — the two
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
-import { withoutGuardIds } from '../../lib/presentation/memberCopy'
+import { withoutGuardIds } from './engine/ast/sentence'
 import { orderCategories } from './technicalCategories'
 import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {

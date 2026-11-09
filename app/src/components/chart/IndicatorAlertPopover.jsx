@@ -22,7 +22,7 @@
 // probe, because the absence of a literal is not behaviourally observable.
 //
 // Pattern mirrors ComparisonPicker.jsx (top:40px, right:8px, position absolute inside the chart wrapper).
-import { withoutGuardIds } from '../../lib/presentation/memberCopy'
+import { withoutGuardIds } from './engine/ast/sentence'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import styles from './IndicatorAlertPopover.module.css'
 import {

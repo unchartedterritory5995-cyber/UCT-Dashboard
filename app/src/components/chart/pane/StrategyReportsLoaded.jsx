@@ -5,8 +5,8 @@
 // `AttachedStrategyReports.jsx` is in ChartPane's chunk; everything that only the report needs
 // lives here and is reached ONLY by its `React.lazy(() => import('./StrategyReportsLoaded'))`,
 // which runs only when the broker gate is on AND a run published a record. Gate off: this module
-// (and `brokerReport.js`, `broker.js` through it, `StrategyReportPanel.jsx`, `memberCopy.js` through
-// it, and both CSS modules) is never requested. Measured reason: engine 40 put these in shared
+// (and `brokerReport.js`, `broker.js` through it, `StrategyReportPanel.jsx`
+// and both CSS modules) is never requested. Measured reason: engine 40 put these in shared
 // chunks and tipped `bytes.notebook_first_open` over its budget (`tools/notebook_perf_budgets.py`).
 import { useMemo } from 'react'
 import { strategyReportOf } from '../engine/runtime/brokerReport.js'

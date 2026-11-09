@@ -40,7 +40,7 @@
 // attribute below is a hint to the file picker, not a gate — a second gate here
 // would be a second authority over the same two numbers.
 
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../engine/ast/sentence'
 import { useCallback, useId, useState } from 'react'
 import { readBackFor } from './ConciergeBox.jsx'
 import { truncateBarsForPropose } from './proposeBars.js'
