@@ -135,6 +135,12 @@ describe('first visit: a cache read stuck behind the pack ingest', () => {
 
 describe('a symbol switch restates its frame from the newest bar', () => {
   it('scrollToPosition carries the frame as an offset from the NEW symbol\'s newest bar', async () => {
+    // ⛔ THE CLOCK IS PINNED TO THE FIXTURE'S WEEKEND. Both fixtures end Fri 2026-10-16;
+    // on a later wall clock the daily paint reserve (`_dailyReserveDates`, capped at
+    // DAILY_RESERVE_MAX) appends whitespace slots for the sessions since, so SHORT's
+    // newest AXIS index stops being 299 and this test became a function of the date
+    // it ran on. Only `Date` is faked: the waits below stay real.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-17T16:00:00Z') })
     barsBy.LONG = days(600)
     barsBy.SHORT = days(300)
     const { rerender } = render(<StockChart sym="LONG" tf="D" />)
