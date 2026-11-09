@@ -32,11 +32,11 @@ const flags = (broker) => {
   if (broker) vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
 }
 const inst = (extra = {}) => ({ instanceId: 'i1', defId: DEF_ID, inputs: {}, hidden: false, ...extra })
-// ⚠️ THE CHART LANE HANDS NO WINDOW TODAY: only the server sets `ctx.historyWindowBars`
-// (`pine_runtime_client.py`), and `binder.js` forwards none, so on a chart every strategy run refuses
-// `runtime:strategy-start` by name and publishes no record (the last case below pins that). To drive
-// the wire this file hands the run a window through a registry SEAM (`windowed`), the one thing the
-// chart does not do yet. Everything else is the product's: door, binder, store, mount, panel.
+// ⭐ W9-T11-F1: the chart now hands a strategy run its window (`ctx.historyWindowBars`, from the
+// server through `strategyWindow.js`; the binder forwards it to strategy documents, railed in
+// `w9T11F1ChartWindow.test.jsx`). This file still hands it through a registry SEAM (`windowed`) so
+// this wire stays about the record and the panel; a ctx with NO window still refuses
+// `runtime:strategy-start` by name (the third case below). Door, binder, store, mount, panel are the product's.
 // 5000 (`bars_window.HISTORY_WINDOW_BARS`) covers this chart's bars, which reach the listing: an
 // off-listing window refuses this script `runtime:strategy-unsettled` (Q-S1n, B-START), by design.
 const WINDOW = 5000
@@ -110,7 +110,7 @@ describe('W9-T13b the binder publishes a strategy run\'s record, and the mount r
     expect(strategyRecordFor('i1')).toBe(null)
   })
 
-  it('THE PRODUCT TODAY: the chart hands no window, so the run refuses by name and no record is published', () => {
+  it('a chart ctx holding no window (gate off, or the server has not answered) refuses by name and publishes no record', () => {
     flags(true)
     const def = installStrategy()
     binder.sync(ctxFor([inst()], registry))
