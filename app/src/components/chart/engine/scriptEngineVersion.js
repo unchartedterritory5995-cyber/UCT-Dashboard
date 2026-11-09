@@ -120,7 +120,8 @@
 /** 36 = HONESTY-SWEEP: the 2026-11-07 honesty sweep (probes vw-hs1..hs7; see docs/pine/evidence/2026-11-07-honesty-sweep) */
 /** 37 = STRAT-COLOR: a `strategy.*` read reaching a plot's presentation (colour) or a drawing step is withheld by name (`pine:strategy-call`); the broker is not simulated */
 /** 38 = DELETE STACK (IDX-DELETE, CHAINED-REMOVAL, UDT-FIELD-CREATES, SILENT-CREATE-GAPS) + STRAT-NOTE: object removals and creates the chart cannot follow are withheld and named; a drawing withheld for a strategy read says why (see the lanes' EVIDENCE) */
-export const SCRIPT_ENGINE_VERSION = 38
+/** 39 = W9 BROKER INTEGRATION (T4 sizing, T6 fill timing, T7 exits, T13a broker report, N7): the strategy broker's integration lands; see the lanes' EVIDENCE */
+export const SCRIPT_ENGINE_VERSION = 39
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
