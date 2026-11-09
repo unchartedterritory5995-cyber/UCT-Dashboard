@@ -118,7 +118,8 @@ import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import {
-  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, isUnreadable, useUnreadableNote,
+  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, NoImplicitAtomSelection,
+  isUnreadable, useUnreadableNote,
 } from '../../lib/noteContentGuard'
 import {
   OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
@@ -3071,7 +3072,7 @@ export default function NoteEditorPage({
     // ⭐ Review I-1: `HistoryCompleteWatch` is what keeps the Undo crossing
     // detector honest (`undoCrossesSwap`, noteContentGuard.js) — ONLY this editor
     // carries an edit lineage, so only this editor needs it.
-    extensions: [...buildExtensions(), HistoryCompleteWatch],
+    extensions: [...buildExtensions(), HistoryCompleteWatch, NoImplicitAtomSelection],
     // ⛔ S1/H14: content the schema cannot read LOCKS the editor instead of
     // opening it empty (noteContentGuard.js) -- the empty stand-in is what the
     // next save used to write over the note.
