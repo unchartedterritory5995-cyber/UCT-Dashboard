@@ -126,3 +126,38 @@ describe('negatives: "its" on a THING is no relation — the click is acted on',
     expect(changed(m.board), transcript()).toEqual(['TM'])
   }, 40000)
 })
+
+// u4-clauses-10's shape as a FAMILY (Lead, after 79355cb0ac broke it): a TWO-TARGET clause, "this one and the one to its left /
+// right / above / below", must keep BOTH charts — the click (named by "this one") and its neighbour. A rewrite of the possessive
+// must never turn it into a single relation that points at the click twice. On 1×3, 2×2 and 2×3.
+const ROW3 = [w('L', 0, 0), w('M', 8, 0), w('R', 16, 0)]
+const w12 = (id, x, y) => ({ id, x, y, w: 12, h: 10 })
+const QUAD = [w12('TL', 0, 0), w12('TR', 12, 0), w12('BL', 0, 10), w12('BR', 12, 10)]
+const BOARDS = { '1x3': ROW3, '2x2': QUAD, '2x3': G }
+const SIDE_SAYS = {
+  left: ['make this one and the one to its left weekly', 'this one and the one on its left on the weekly'],
+  right: ['make this one and the one to its right weekly', 'this one and the one on its right on the weekly'],
+  above: ['make this one and the one right above it weekly'],
+  below: ['make this one and the one just below it weekly'],
+}
+// [board, clicked, side, the neighbour on that side, a chart that is neither]
+const PAIRS = [
+  ['1x3', 'R', 'left', 'M', 'L'], ['1x3', 'L', 'right', 'M', 'R'], ['1x3', 'M', 'left', 'L', 'R'], ['1x3', 'M', 'right', 'R', 'L'],
+  ['2x2', 'BR', 'left', 'BL', 'TL'], ['2x2', 'TL', 'right', 'TR', 'BR'], ['2x2', 'BR', 'above', 'TR', 'TL'], ['2x2', 'TL', 'below', 'BL', 'TR'],
+  ['2x3', 'BM', 'left', 'BL', 'TL'], ['2x3', 'BM', 'right', 'BR', 'TR'], ['2x3', 'BM', 'above', 'TM', 'TR'], ['2x3', 'TM', 'below', 'BM', 'BL'],
+]
+const CLAUSE_ROWS = PAIRS.flatMap(([g, sel, side, nb, other]) => SIDE_SAYS[side].map(t => [t, g, sel, nb, other]))
+describe('two-target clause: "this one and the one to its <side>" keeps both charts (u4-clauses-10 as a family)', () => {
+  it.each(CLAUSE_ROWS)('"%s" (%s, clicked %s): the click and %s, both weekly', async (t, g, sel, nb) => {
+    const m = mount(BOARDS[g], sel)
+    p.st.envelopes.push(planOn(sel, nb))
+    await m.say(t)
+    expect(changed(m.board).sort(), transcript()).toEqual([sel, nb].sort())
+  }, 40000)
+  it.each(CLAUSE_ROWS)('NEGATIVE "%s" (%s, clicked %s, neighbour %s): a second op on %s never lands there', async (t, g, sel, nb, other) => {
+    const m = mount(BOARDS[g], sel)
+    p.st.envelopes.push(planOn(sel, other))
+    await m.say(t)
+    expect(changed(m.board), transcript()).not.toContain(other)
+  }, 40000)
+})
