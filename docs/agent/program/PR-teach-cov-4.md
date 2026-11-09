@@ -46,4 +46,4 @@ One fresh full runner pass (Vite restarted), each case run once:
 No. Goldens are unchanged.
 
 ## Suite
-SUITE_PLACEHOLDER
+One locked full suite (`src/agent`, BelowNormal, 40-minute limit, LOCAL / SIMULATED) at `821bcc75c1`: `Test Files 274 passed | 5 skipped (279)`, `Tests 9416 passed | 14 skipped (9430)`. No failures. The slot was released.
