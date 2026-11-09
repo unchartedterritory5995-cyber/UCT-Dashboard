@@ -237,7 +237,7 @@ describe('W2-C2 · pages never leak into each other, and /charts is unchanged', 
     expect(guideFeatures({ surface: 'journal' }).map(f => f.id)).toEqual(['journalNewNote'])
     expect(guideFeatures({ surface: 'charts' }).some(f => f.surface)).toBe(false)
     // every page feature names its page
-    for (const f of GUIDE_FEATURES.filter(x => x.surface)) expect(['screener', 'breadth', 'calendar', 'journal']).toContain(f.surface)
+    for (const f of GUIDE_FEATURES.filter(x => x.surface)) expect(['screener', 'breadth', 'calendar', 'journal', 'watchlists']).toContain(f.surface)
   })
   it('/charts words match the same features as before; a page\'s words never match there (nor a chart\'s on a page)', () => {
     expect(matchFeature('where do I change the filters')).toBeNull()
