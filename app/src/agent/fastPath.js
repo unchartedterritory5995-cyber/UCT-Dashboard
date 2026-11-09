@@ -266,6 +266,8 @@ export function undoWords(t0) {
   return noun && plain ? `${plain[1]} my last ${noun} change` : t
 }
 
+// the kinds a described Undo may name (useAgent UNDO_ABOUT + UNDO_SAYS); any other word is matched against the receipts
+const UNDO_KINDS = ['indicator', 'chart', 'widget', 'drawing', 'layout', 'colour', 'style', 'timeframe', 'symbol', 'pane', 'theme', 'resize', 'size', 'move', 'rename', 'link']
 /** undo / confirm / dismiss / "just the first N" — the universal control words, or null */
 function controlWord(t) {
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
@@ -288,6 +290,15 @@ function controlWord(t) {
   // change, when it IS that change (useAgent doUndo `about`); never an older one picked out of the stack
   const what = /^(?:undo|revert|reverse) (?:just |only )?(?:that|the|my)(?: last)? (colou?r|style|timeframe|time frame|symbol|ticker|pane|layout|theme|resize|size|move|rename|link) (?:change|edit|switch|swap)$/.exec(u)
   if (what) return { kind: 'undo', about: what[1].replace(/^colou?r$/, 'colour').replace('time frame', 'timeframe').replace('ticker', 'symbol') }
+  // ⭐ round 3 (pl-exec): any other DESCRIPTION of one change — "undo the timeframe bit", "take back only the weekly change",
+  // "revert just the rsi I added" — names it by a word its receipt says (useAgent undoMatches 'says:<word>'), or by a kind
+  // (a DESCRIPTION needs a word saying it is a change — just/only, change/edit/switch/bit/part, or "I added": "undo the 50 ema"
+  // alone may as well mean removing it, so the model reads that one)
+  const said = /^(?:undo|revert|reverse|take back)\s+(just |only )?(?:that|the|my)?\s*(?:last\s+)?([a-z0-9][a-z0-9%.-]*(?:\s+[a-z0-9][a-z0-9%.-]*){0,2}?)\s*(change|changes|edit|switch|swap|bit|thing|part)?(\s+(?:i|you)\s+(?:added|made|did|set|put on|asked for))?$/.exec(u)
+  if (said && (said[1] || said[3] || said[4]) && !/^(?:that|it|this|all|everything|them|those|last|one|change|edit)$/.test(said[2])) {
+    const w = said[2].replace(/^colou?r$/, 'colour').replace('time frame', 'timeframe').replace('ticker', 'symbol')
+    return { kind: 'undo', about: UNDO_KINDS.includes(w) ? w : `says:${w}` }
+  }
   if (/^(do it|yes|yes please|yep|go ahead|apply( it| that| them)?|ok(ay)?(,)? do it|confirm|sounds good,? do it)$/.test(t)) return { kind: 'confirm' }
   if (/^(no|nope|cancel|never ?mind|don'?t|skip it|forget it)$/.test(t)) return { kind: 'dismiss' }
   const sub = /^(just |only )?(apply|do) (just |only )?the first (\d|one|two|three|four|five|six)( ones?| changes?| items?)?$/.exec(t)

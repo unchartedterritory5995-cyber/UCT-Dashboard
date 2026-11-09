@@ -7,7 +7,7 @@ import { planPlacement } from '../../pages/charts/placement/place'
 import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync, positionWord } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
-export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null } = {}) {
+export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
   let n = 0
   let adds = 0
@@ -39,6 +39,8 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
     },
     grid: () => ({ cols: 24, rows: 20 }),
     minOf: minOf || (() => ({ minW: 2, minH: 3 })),
+    // the product's own geometry, when a test passes it (ChartsWorkspace repackAroundMoved / resolveResize): a drop and an edge drag
+    ...(repack ? { repack } : {}), ...(resize ? { resize } : {}),
     remove: (id) => { state.widgets = state.widgets.filter(w => w.id !== id) },
     color: (id, color) => { state.widgets = state.widgets.map(w => (w.id === id ? { ...w, color } : w)) },
     cancelPending: () => {},

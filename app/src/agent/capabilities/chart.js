@@ -304,6 +304,23 @@ function withMemberState(host, snap) {
 // ── target kind ─────────────────────────────────────────────────────────────
 // `host.charts` is the workspace binding (agent/host.js) over every mounted
 // ChartWidget's agent adapter.
+// the top-level settings keys a change wrote (`preset` is bookkeeping every manual write stamps)
+// AUDIT D1: against the EFFECTIVE settings before (mergeChartSettings of the stored blob): a chart still inheriting the seed
+// (a null or partial blob) gets its defaults filled in by the first write, and those filled-in keys were not changed by it
+function settingsKeysOf(item) {
+  const was = mergeChartSettings(item?.before?.stored ?? null) || {}, now = item?.patch?.settings || {}
+  return [...new Set([...Object.keys(was), ...Object.keys(now)])].filter(k => k !== 'preset' && !sameJson(was[k], now[k]))
+}
+const settingsOutside = (blob, keys) => Object.fromEntries(Object.entries(blob || {}).filter(([k]) => k !== 'preset' && !keys.includes(k)))
+/** What a change's staleness is read from: only the fields it touched. */
+function scopedFp(snap, item) {
+  const p = item.patch
+  return [
+    // the ticker always: a chart showing another ticker now (its link group moved) is not the chart the change was made on
+    'tf' in p ? snap.tf : '·', snap.symbol,
+    'settings' in p ? settingsKeysOf(item).map(k => [k, snap.stored?.[k] ?? null]) : '·',
+  ]
+}
 export const chartKind = {
   name: 'chart',
   list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
@@ -389,10 +406,25 @@ export const chartKind = {
     }
     return p
   },
+  // ⭐ round 3 (pl-exec): Undo is FIELD-SCOPED. A change is stale only when what IT touched (its timeframe, its ticker, the
+  // settings keys it changed) has moved since; a newer edit to anything else ("undo the timeframe change" after an RSI was
+  // added) leaves it undoable, and the Undo writes back only those fields over the chart as it is now (undoPatchNow).
+  undoPatchNow(item, cur) {
+    const p = chartKind.undoPatch(item)
+    if (!p || !('settings' in item.patch) || !cur) return p
+    const keys = settingsKeysOf(item)
+    const now = cur.stored ?? null
+    // nothing else changed since: the exact blob it replaced (byte-exact, null included)
+    if (sameJson(settingsOutside(now, keys), settingsOutside(item.patch.settings, keys))) return p
+    const back = { ...(now || {}) }
+    for (const k of keys) { if (item.before.stored && k in item.before.stored) back[k] = item.before.stored[k]; else delete back[k] }
+    return { ...p, settings: back }
+  },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
   // ⛔ F6: a date jump's Undo is stale once the member has moved the view since — scrolling back
   // would overwrite where they are now. Every other chart change ignores the view.
-  fingerprintFor: (host, snap, item) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol,
+  fingerprintFor: (host, snap, item) => JSON.stringify([
+    ...(item?.patch ? scopedFp(snap, item) : [snap.stored ?? null, snap.tf, snap.symbol]),
     ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
     // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
     ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : []),
