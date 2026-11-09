@@ -200,6 +200,87 @@ describe('4 · cancel: no frame is requested after the walkthrough ends (the rea
   })
 })
 
+// ── pl-auto real-browser findings 2026-11-09, railed ──
+describe('6–8 · a drag keeps its step alive; no poll while the control is gone; the chart is ringed as its cell (the real overlay)', () => {
+  let p
+  let restoreProto
+  const BOX = { top: 40, left: 40, right: 160, bottom: 70, width: 120, height: 30, x: 40, y: 40 }
+  beforeEach(() => {
+    p = setupPanel()
+    store._resetGuide()
+    const rects = Element.prototype.getClientRects
+    const box = Element.prototype.getBoundingClientRect
+    Element.prototype.getClientRects = function () { return this.isConnected ? [BOX] : [] }
+    Element.prototype.getBoundingClientRect = function () { return this.isConnected ? { ...BOX } : { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 } }
+    Element.prototype.scrollIntoView = function () {}
+    restoreProto = () => { Element.prototype.getClientRects = rects; Element.prototype.getBoundingClientRect = box }
+  })
+  afterEach(() => { restoreProto(); store._resetGuide() })
+  const wait = (ms) => new Promise(r => setTimeout(r, ms))
+  const board = (extra = '') => fixture(`
+    <div data-widget-id="c" data-widget-type="chart">
+      <div data-guide="chart.symbol">sym</div>
+      <div data-guide="chart.timeframe"><button>D</button></div>
+      <div data-guide="chart.plot"><canvas></canvas></div>
+      ${extra}
+    </div>`)
+
+  it('6 · a drag on a ringed resize edge or corner keeps its step until the drag ENDS, then the step is done', async () => {
+    board('<div data-guide="widget.resize.e" style="cursor: ew-resize"></div><div data-guide="widget.resize.se" style="cursor: nwse-resize"></div>')
+    const { say } = p.mount(...ONE())
+    await say('how do I resize a widget')
+    const text = () => screen.queryByTestId('guide-text')?.textContent || ''
+    await waitFor(() => expect(text()).toMatch(/edge/))
+    const press = (sel) => act(() => { document.querySelector(sel).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 })) })
+    const release = () => act(() => { window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 })) })
+    press('[data-guide="widget.resize.e"]')
+    await act(() => wait(600))                                    // held well past the old 240 ms finish
+    expect(text()).toMatch(/edge/)
+    expect(screen.queryByTestId('guide-ring')).toBeTruthy()
+    release()
+    await waitFor(() => expect(text()).toMatch(/corner/))         // the drag ended: that step is done
+    press('[data-guide="widget.resize.se"]')
+    await act(() => wait(600))
+    expect(screen.queryByTestId('guide-card')).toBeTruthy()       // the last step stays while its corner is held
+    release()
+    await waitFor(() => expect(screen.queryByTestId('guide-card')).toBeNull())
+  })
+
+  it('7 · the step\'s chart closes: the poll stops (no look until the page changes or a deadline is due), and it resumes when the chart is back', async () => {
+    const root = board()
+    const { say } = p.mount(...ONE())
+    await say('how do I zoom in')
+    await waitFor(() => expect(screen.queryByTestId('guide-ring')).toBeTruthy())
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect')
+    const cell = root.querySelector('[data-widget-id]')
+    act(() => { cell.remove() })
+    act(() => { frame() })                                         // the page changed: one look, then nothing
+    await act(() => wait(150))
+    spy.mockClear()
+    await act(() => wait(600))                                     // 5 old poll periods: no look at all now
+    expect(spy).not.toHaveBeenCalled()
+    // the chart back: the page change looks again at once, and the ring returns
+    act(() => { root.appendChild(cell) })
+    act(() => { frame() })
+    await waitFor(() => expect(screen.queryByTestId('guide-ring')).toBeTruthy())
+    spy.mockRestore()
+  })
+
+  it('8 · a step on the chart itself (chart.plot) rings the chart\'s whole cell, header and toolbar included', async () => {
+    const root = board()
+    const cell = root.querySelector('[data-widget-id]')
+    const CELL = { top: 10, left: 20, width: 600, height: 400 }
+    cell.getBoundingClientRect = () => ({ ...CELL, right: CELL.left + CELL.width, bottom: CELL.top + CELL.height, x: CELL.left, y: CELL.top })
+    const { say } = p.mount(...ONE())
+    await say('how do I zoom in')
+    await waitFor(() => expect(screen.queryByTestId('guide-ring')).toBeTruthy())
+    const ring = screen.getByTestId('guide-ring')
+    await waitFor(() => expect(ring.style.transform).toBe(`translate3d(${CELL.left - RING.pad}px, ${CELL.top - RING.pad}px, 0)`))
+    expect(ring.style.width).toBe(`${CELL.width + RING.pad * 2}px`)
+    expect(ring.style.height).toBe(`${CELL.height + RING.pad * 2}px`)
+  })
+})
+
 describe('5 · pointer-through: the ring never takes a press', () => {
   const css = readFileSync(resolve(process.cwd(), 'src/agent/guide/GuideOverlay.module.css'), 'utf8')
   const ringBlock = /\.ring\s*\{([^}]*)\}/.exec(css)[1]
