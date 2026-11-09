@@ -482,6 +482,50 @@ class Report:
 
 # ── browser helpers ──────────────────────────────────────────────────────────────────────────
 
+#: Page-side trace for `--caret-repro`: every transaction that moves the selection or the doc, with
+#: the selection before and after, plus the member's input events. Reads the live editor off
+#: the DOM (`dom.editor`, which TipTap sets); nothing in the product knows it exists.
+CARET_TRACE_JS = r"""(() => {
+  if (window.top !== window) return;
+  const t0 = performance.now(), log = [];
+  window.__caretLog = log;
+  const now = () => Math.round(performance.now() - t0);
+  const sel = (view) => {
+    try { const j = view.state.selection.toJSON(); return j.type + ':' + (j.anchor ?? '') + (j.head != null && j.head !== j.anchor ? '-' + j.head : ''); }
+    catch (e) { return 'err'; }
+  };
+  const seen = new WeakSet(); let editorNo = 0;
+  const hook = (dom) => {
+    if (seen.has(dom) || !dom.editor || !dom.editor.view) return;
+    seen.add(dom);
+    const view = dom.editor.view, no = ++editorNo;
+    log.push({t: now(), ev: 'editor', no, sel: sel(view), docSize: view.state.doc.content.size,
+              focused: view.hasFocus(), firstNode: view.state.doc.firstChild && view.state.doc.firstChild.type.name});
+    const orig = view.dispatch.bind(view);
+    view.dispatch = (tr) => {
+      const before = sel(view), wasFocused = view.hasFocus();
+      const out = orig(tr);
+      const after = sel(view);
+      if (tr.docChanged || tr.selectionSet || after !== before) {
+        log.push({t: now(), ev: 'dispatch', no, before, after, docChanged: tr.docChanged, selectionSet: tr.selectionSet,
+                  swap: !!tr.getMeta('uctWholeDocumentSwap'), focused: wasFocused,
+                  step: tr.steps[0] ? JSON.stringify(tr.steps[0].toJSON()).slice(0, 90) : null,
+                  stack: new Error().stack.split('\n').slice(2, 9).map(s => s.trim().replace(/https?:\/\/[^/]+/, '')).join(' < ')});
+      }
+      return out;
+    };
+  };
+  new MutationObserver(() => document.querySelectorAll('.ProseMirror').forEach(hook))
+    .observe(document, {childList: true, subtree: true});
+  for (const ev of ['mousedown', 'mouseup', 'keydown', 'focusin', 'focusout']) {
+    document.addEventListener(ev, (e) => {
+      const t = e.target || {};
+      log.push({t: now(), ev, key: e.key, target: (t.tagName || '') + (t.classList && t.classList.contains('ProseMirror') ? '.PM' : '')});
+    }, true);
+  }
+})();"""
+
+
 def dismiss_intro(page) -> None:
     for attempt in (lambda: page.click('[aria-label="Skip intro"]', timeout=800),
                     lambda: page.click(INTRO_SEL, timeout=800)):
@@ -792,6 +836,22 @@ class Smoke:
         now_part = re.search(r"Now \$[\d,.]+", text)
         r.check(4, "card 1 shows Now and the % since (snapshot answered at the browser)",
                 bool(now_part) and "since" in text, text[-160:])
+
+        look = first.evaluate("""card => {
+          const font = (e) => getComputedStyle(e).fontFamily;
+          const img = card.querySelector("img[alt='Attached to the post']");
+          const take = card.querySelector('textarea');
+          const box = card.getBoundingClientRect();
+          return {width: box.width, imgHeight: img.getBoundingClientRect().height,
+                  fit: getComputedStyle(img).objectFit, card: font(card), take: font(take),
+                  name: font(card.querySelector('[class*="name"]')), text: font(card.querySelector('[class*="ctext"]')),
+                  handle: font(card.querySelector('[class*="handle"]'))};
+        }""")
+        fonts = [look[k] for k in ("card", "name", "handle", "text", "take")]
+        r.check(4, "card is capped at 740px wide", look["width"] <= 740.5, look)
+        r.check(4, "image is at most 420px tall and letterboxed", look["imgHeight"] <= 420.5 and look["fit"] == "contain", look)
+        r.check(4, "name, handle, text and My take are in the app's sans face",
+                all("Instrument Sans" in f for f in fonts), look)
 
         second = cards.nth(1).inner_text()
         day = (fx["thu"] - timedelta(days=1)).strftime("%b %-d") if os.name != "nt" else (fx["thu"] - timedelta(days=1)).strftime("%b %#d")
@@ -1135,6 +1195,84 @@ class Smoke:
         if misses:
             r.check(13, "screenshot of the note after a miss", True, self.shot("13-caret-miss"))
 
+    def caret_round(self, variant: str, round_no: int, misses_path: Path) -> dict:
+        """One note, opened fresh: reload, click the last line, type at once. Returns where the
+        words landed. `cards` is a real imported note, `hr` opens with a horizontal rule (an atom
+        that has nothing to do with this feature), `paragraph` opens with text."""
+        page, base = self.page, self.base
+        para = {"type": "paragraph", "content": [{"type": "text", "text": "Smoke line"}]}
+        bodies = {"hr": [{"type": "horizontalRule"}, para, para], "paragraph": [para, para, para]}
+        kind = variant.split("-")[0]
+        if kind == "cards":
+            note_id = page.request.post(f"{base}/api/j2/notes", data={"title": f"caret {round_no}", "ticker": SYMBOL}).json()
+            note_id = note_id.get("note", note_id)["id"]
+            for _ in range(8):
+                saved = page.request.post(f"{base}/api/j2/research-capture/tweets/save",
+                                          data={"noteId": note_id, "tweetIds": [P2, P6]})
+                if saved.status != 429:
+                    break
+                time.sleep(4)
+            if saved.status != 200:
+                raise RuntimeError(f"save answered {saved.status}")
+        else:
+            made = page.request.post(f"{base}/api/j2/notes", data={
+                "title": f"caret {round_no}", "bodyJson": {"type": "doc", "content": bodies[kind]}}).json()
+            note_id = made.get("note", made)["id"]
+        goto(page, note_url(base, note_id))
+        page.locator(".ProseMirror p").last.wait_for(timeout=30000)
+        if not variant.endswith("nosave"):
+            page.locator(".ProseMirror p").last.click()
+            page.keyboard.press("End")
+            with page.expect_response(lambda resp: resp.request.method in ("PUT", "PATCH")
+                                      and re.search(r"/api/j2/notes/[^/]+$", resp.url), timeout=20000):
+                page.keyboard.type(".", delay=5)
+            page.reload(wait_until="domcontentloaded")
+            page.wait_for_timeout(400)
+            dismiss_intro(page)
+            page.locator(".ProseMirror p").last.wait_for(timeout=30000)
+        if kind == "cards":
+            wait_cards(page, 2, timeout=30000)
+        before = structure(page)
+        page.locator(".ProseMirror p").last.click()
+        page.keyboard.press("End")
+        probe = f"probe-{variant}-{round_no}"
+        page.keyboard.type(probe, delay=5)
+        page.wait_for_timeout(300)
+        after = structure(page)
+        where = page.evaluate("""p => { const k = Array.from(document.querySelector('.ProseMirror').children);
+          const i = k.findIndex(e => e.textContent.includes(p)); return i < 0 ? null : i; }""", probe)
+        lines = [i for i, n in enumerate(after) if n["k"] != "card"]
+        hit = where is not None and where == (lines[-1] if lines else None)
+        out = {"variant": variant, "round": round_no, "hit": hit, "at": where, "of": len(after),
+               "cards_before": sum(1 for n in before if n["k"] == "card"),
+               "cards_after": sum(1 for n in after if n["k"] == "card"), "note": note_id}
+        if not hit or round_no == 1:
+            with open(misses_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({**out, "trace": page.evaluate("() => window.__caretLog"), "structure": after}) + "\n")
+        return out
+
+    def caret_repro(self, rounds: int, run: Path) -> int:
+        """`--caret-repro N`: N rounds per variant, printed and counted."""
+        misses_path = run / "caret-trace.jsonl"
+        counts = {}
+        for variant in ("cards", "cards-nosave", "hr", "paragraph"):
+            hits = misses = lost = errors = 0
+            for round_no in range(1, rounds + 1):
+                try:
+                    one = self.caret_round(variant, round_no, misses_path)
+                except Exception as e:  # noqa: BLE001 -- count it, keep going
+                    errors += 1
+                    print(f"  [caret] {variant} {round_no}: ERROR {type(e).__name__}: {str(e)[:160]}", flush=True)
+                    continue
+                print(f"  [caret] {one}", flush=True)
+                hits += one["hit"]
+                misses += not one["hit"]
+                lost += one["cards_after"] < one["cards_before"]
+            counts[variant] = {"rounds": rounds, "hit": hits, "miss": misses, "cards_lost": lost, "errors": errors}
+        print("CARET_REPRO " + json.dumps(counts), flush=True)
+        print(f"  trace: {misses_path}", flush=True)
+        return sum(c["miss"] + c["errors"] for c in counts.values())
+
     def step11(self, base: str) -> None:
         page, r = self.page, self.r
         if not self.need_note(11):
@@ -1318,7 +1456,7 @@ def run_step(report: Report, n: int, fn, smoke: "Smoke | None" = None) -> None:
                 print(f"  [{n}] could not capture the failure: {shot_error}", flush=True)
 
 
-def main_run() -> int:
+def main_run(caret_repro: int = 0) -> int:
     from playwright.sync_api import sync_playwright
 
     t0 = time.time()
@@ -1367,6 +1505,8 @@ def main_run() -> int:
                 context = browser.new_context(viewport={"width": 1600, "height": 1000}, reduced_motion="reduce",
                                               service_workers="block")
                 wire_browser(context, base, png_bytes, blocked)
+                if caret_repro:
+                    context.add_init_script(CARET_TRACE_JS)
                 page = context.new_page()
                 errors: list[str] = []
                 page.on("pageerror", lambda e: errors.append(str(e)))
@@ -1379,6 +1519,8 @@ def main_run() -> int:
                     page.get_by_role("button", name="Got it").click(timeout=4000)
                 except Exception:  # noqa: BLE001
                     print("  (no Meet Compass toast to dismiss)", flush=True)
+                if caret_repro:
+                    return 1 if smoke.caret_repro(caret_repro, run) else 0
                 guard = json.loads((run / "guard-selftest.json").read_text(encoding="utf-8"))
                 report.control("the server's socket guard refuses a non-loopback host", guard["socket"] == "refused", guard)
                 report.control("the server's curl_cffi guard refuses a non-loopback host", guard["curl_cffi"] == "refused", guard)
@@ -1453,12 +1595,14 @@ def main() -> int:
     ap.add_argument("--serve", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--removal", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--port", type=int, default=0, help=argparse.SUPPRESS)
+    ap.add_argument("--caret-repro", type=int, default=0, metavar="N",
+                    help="skip the 12 checks; run N open/click/type rounds per note shape, with a selection trace")
     args = ap.parse_args()
     if args.serve:
         return serve(args.port)
     if args.removal:
         return removal()
-    return main_run()
+    return main_run(args.caret_repro)
 
 
 if __name__ == "__main__":
