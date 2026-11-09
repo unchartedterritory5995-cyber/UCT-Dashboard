@@ -69,7 +69,8 @@ describe('W9-T1 pinned(): the committed ledger is empty, so nothing serves', () 
   it('a rule with no queued capture is refused saying so', () => {
     const { err } = attempt(`${V5}if bar_index == 3\n    strategy.cancel_all()\nplot(strategy.opentrades)\n`, { pins: (id) => id !== 'B-CANCEL' })
     expect(err.rule).toBe('B-CANCEL')
-    expect(err.message).toMatch(/no capture row is queued/)
+    // W9-T5 r1: B-CANCEL's row is W9-X5 (queued on origin/fix/pine-capture-queue-hygiene d1a6cb9fb3)
+    expect(err.message).toMatch(/capture row W9-X5/)
   })
   it('the rule table is the only vocabulary: the ledger can name nothing outside it', () => {
     for (const r of Object.keys(RESOLVED.rules)) expect(BROKER_RULE_IDS).toContain(r)

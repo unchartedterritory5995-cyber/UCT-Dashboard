@@ -27,7 +27,9 @@ export const BROKER_RULES = Object.freeze({
   'B-PYR': Object.freeze({ capture: 'Q-S1-core', what: 'pyramiding limits same-direction entries' }),
   'B-REVERSE': Object.freeze({ capture: 'Q-S1-core', what: 'an entry against the position closes it and opens the new size on one fill' }),
   'B-MODIFY': Object.freeze({ capture: 'Q-S1-core', what: 'an unfilled order with the same id is modified' }),
-  'B-CANCEL': Object.freeze({ capture: null, what: 'strategy.cancel / cancel_all remove unfilled orders (no probe queued)' }),
+  // capture row W9-X5 (`w9-x5-cancel.pine`) is queued by origin/fix/pine-capture-queue-hygiene d1a6cb9fb3, which
+  // this branch does not carry: the id is set here, the row lands with that branch (W9-T5 r1)
+  'B-CANCEL': Object.freeze({ capture: 'W9-X5', what: 'strategy.cancel / cancel_all remove unfilled orders' }),
   'B-CLOSE': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.close / close_all' }),
   'B-EXIT-BIND': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.exit binds a bracket to the trades of from_entry' }),
   'B-EXIT-LIFE': Object.freeze({ capture: 'Q-S1-core', what: 'how long an exit lives' }),

@@ -42,5 +42,24 @@ The licence-held local cache (builtin / reference) was not in this census.
 ## Mutants
 
 `mutate_t5.py` (copy, one textual change, focused rails, restore by copy, `filecmp`; never `git checkout`).
-31 of 31 killed (`muts.json`). M31 (the margin check's commission ask dropped) survives the four T5 files alone
+r0: 31 of 31 killed. M31 (the margin check's commission ask dropped) survives the four T5 files alone
 and dies in `w9BrokerIntegration.test.js`'s N7 rail, so that file is in the run.
+
+## r1 (review NO-GO @361d4bac65, `dsk/reviews/W9-T5.md`)
+
+- **B1.** A LIMIT fill (a limit entry, a take-profit) under `slippage > 0` now refuses
+  `runtime:strategy-unsettled` by name, row W9-K4, quoting both texts: R6 slips "market/stop orders", the
+  User Manual "the strategy applies constant slippage to _all_ order fills". They disagree, so by the spec's
+  own rule it is unsettled. The rail that asserted B-SLIPPAGE was not asked is flipped. A new rail runs the
+  reviewer's probe (slippage 3, a limit entry at 99.8, a take-profit at 101.2) under S1's 22 pins only: it
+  refuses, and the same script with slippage 0 is served under those pins.
+- **U2.** A percent-fee fixture at pointvalue 50 (entry fee 10, exit fee 10.35, net 329.65).
+- **U5a.** The off-grid slipping branch is gone. A market fill off the tick grid under a slippage refuses by
+  name (W9-K4), with its own rail.
+- **Citations.** Both User Manual quotes are given in full (the reviewer confirmed them on the live page), and
+  the "not yet confirmed" markers are dropped. The B-SLIPPAGE row quotes the full R6 text and the manual's
+  full sentence.
+- **B-CANCEL** now names capture row W9-X5. That row is queued on origin/fix/pine-capture-queue-hygiene
+  d1a6cb9fb3, which this branch does not carry, so the dependency is noted in `brokerRules.js` and the spec.
+- **Mutants:** 35 of 35 killed. M32 to M35 are new: the limit refusal, the take-profit refusal, the off-grid
+  refusal, and the percent fee without pointvalue.

@@ -36,9 +36,9 @@ MUTANTS = [
     ('M8 slippage in the favourable direction', B, '+ side * slipTicks) / inv', '- side * slipTicks) / inv'),
     ('M9 slippage asks no B-SLIPPAGE', B, "    rule('B-SLIPPAGE')\n", ''),
     ('M10 a close slips the entry side', B, 'slipped(price0, -targets[0].dir)', 'slipped(price0, targets[0].dir)'),
-    ('M11 a stop entry is slipped, not refused', B, "if (o.type === 'stop') noStopSlippage(`the stop entry \\`${o.id}\\``)",
-     "if (o.type === 'stop') return slipped(price, o.dir)"),
-    ('M12 stop-loss slippage refusal dropped', B, "if (lo.leg === 'sl') noStopSlippage(", "if (false) noStopSlippage("),
+    ('M11 a stop entry is slipped, not refused', B, "    noPriceOrderSlippage(`the ${o.type} entry",
+     "    if (o.type === 'stop') return slipped(price, o.dir)\n    noPriceOrderSlippage(`the ${o.type} entry"),
+    ('M12 stop-loss slippage refusal dropped', B, "if (lo.leg === 'sl') noPriceOrderSlippage(", "if (false) noPriceOrderSlippage("),
     ('M13 a limit is slipped', B, "if (o.type === 'market') return slipped(price, o.dir)", "if (o.type !== 'stop') return slipped(price, o.dir)"),
     ('M14 B-POC-COST never asked', B, "if (costTick === 'poc') rule('B-POC-COST')", "if (false) rule('B-POC-COST')"),
     ('M15 extra-execution cost refusal dropped', B, "else if (costTick === 'vertex') {", 'else if (false) {'),
@@ -61,6 +61,14 @@ MUTANTS = [
     ('M29 netprofit gross of fees', B, 'return costOn ? moneyOfClosed() : netPts() * pointvalue', 'return netPts() * pointvalue'),
     ('M30 closedtrades.profit gross of fees', B, 'return costOn ? netOf(t) : t.profit * pointvalue', 'return t.profit * pointvalue'),
     ('M31 margin check asks no commission rule', B, '    askCommission()\n    const dir = open[0].dir', '    const dir = open[0].dir'),
+    # ── r1 (review W9-T5 B1, U2, U5a) ──
+    ('M32 a limit entry under slippage served unslipped (B1)', B, "    if (!slipTicks) return\n    if (kind === 'stop') {",
+     "    if (!slipTicks || kind !== 'stop') return\n    if (kind === 'stop') {"),
+    ('M33 a take-profit under slippage served (B1)', B, "else if (lo.leg === 'tp') noPriceOrderSlippage(", "else if (false) noPriceOrderSlippage("),
+    ('M34 an off-grid market fill slipped, not refused (U5a)', B,
+     'if (!(onTick(price) && Math.abs(inv * mintick - 1) < 1e-12)) {', 'if (false) {'),
+    ('M35 percent fee ignores pointvalue (U2)', B, 'return units * price * pointvalue * comm.value / 100 }',
+     'return units * price * comm.value / 100 }'),
 ]
 
 

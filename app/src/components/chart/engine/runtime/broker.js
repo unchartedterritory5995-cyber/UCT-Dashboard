@@ -245,8 +245,8 @@ export function makeBroker(cfg, data) {
   }
   /** The fee one fill pays, asking its rules. R6 `strategy.closedtrades.commission`: "the sum of entry and
    *  exit fees paid in the closed trade", so a trade pays a fee at its entry fill AND at its exit fill (M
-   *  "Commission", read 2026-11-08 through a fetch tool, verbatim not yet confirmed: a commission "to each
-   *  filled order"). Zero commission: 0, nothing asked. */
+   *  "Commission": "With this change, the broker emulator now applies a commission of 1% of the transaction size
+   *  to each filled order by default."). Zero commission: 0, nothing asked. */
   const feeOf = (units, price) => {
     if (!costOn) return 0
     askCommission()
@@ -268,11 +268,15 @@ export function makeBroker(cfg, data) {
    * make the fill price less favorable for the strategy. E.g., if syminfo.mintick is 0.01 and `slippage` is
    * set to 5, a long market order will enter at 5 * 0.01 = 0.05 points above the actual price."
    * `side` +1 buys (fills higher), -1 sells (fills lower). Counted in whole ticks, like `trailLevel`.
-   * ⛔ Served on MARKET orders only: the W9-K4 probe fills market orders and nothing else, so a STOP order's
-   * slippage (the text's other half: a stop entry, a stop-loss, on a gap or on the path) refuses by name.
-   * HYPOTHESES (W9-K4 grades them): a reversal's one order closes and opens at the one slipped price; a
-   * slipped price may lie outside the bar (M "Slippage", read 2026-11-08 through a fetch tool, verbatim not yet
-   * confirmed: "some orders can fill outside the candle range").
+   * M "Slippage": "Because the strategy applies constant slippage to _all_ order fills, some orders can fill
+   * _outside_ the candle range in the simulation."
+   * ⛔ Served on MARKET orders only: the W9-K4 probe fills market orders and nothing else. A STOP order's
+   * slippage (R6 names it; a stop entry, a stop-loss, on a gap or on the path) and a LIMIT order's (R6 names
+   * "market/stop orders" only, the manual "_all_ order fills": the two disagree, so it is unsettled by the
+   * spec's own rule) both refuse by name (`noPriceOrderSlippage`, W9-K4). A market fill at a price OFF the
+   * tick grid also refuses (whether TradingView slips before or after rounding is not stated, W9-K4).
+   * HYPOTHESES (W9-K4 grades them): slippage counts whole ticks from an on-grid price; a reversal's one order
+   * closes and opens at the one slipped price; a slipped price may lie outside the bar (the manual above).
    */
   const slipped = (price, side) => {
     if (!slipTicks) return price
@@ -280,14 +284,22 @@ export function makeBroker(cfg, data) {
     costAtTick(`a slippage of ${slipTicks} ticks`)
     needSymbol()
     const inv = Math.round(1 / mintick)
-    if (onTick(price) && Math.abs(inv * mintick - 1) < 1e-12) return (Math.round(price / mintick) + side * slipTicks) / inv
-    return price + side * slipTicks * mintick
+    if (!(onTick(price) && Math.abs(inv * mintick - 1) < 1e-12)) {
+      throw new BrokerRefusal(`a market order fills at ${price}, off the tick grid of ${mintick}, under a slippage of `
+        + `${slipTicks} ticks, and whether TradingView slips that price before or after rounding it is not stated`, 'W9-K4')
+    }
+    return (Math.round(price / mintick) + side * slipTicks) / inv
   }
-  const noStopSlippage = (what) => {
-    if (slipTicks) {
+  /** ⛔ a STOP or LIMIT fill under a slippage: refused by name (see `slipped`) */
+  const noPriceOrderSlippage = (what, kind) => {
+    if (!slipTicks) return
+    if (kind === 'stop') {
       throw new BrokerRefusal(`${what} fills under a slippage of ${slipTicks} ticks, and the W9-K4 capture fills market `
         + 'orders only (a stop order\'s slippage is not witnessed)', 'W9-K4')
     }
+    throw new BrokerRefusal(`${what} (a limit order) fills under a slippage of ${slipTicks} ticks, and the texts disagree: `
+      + 'the v6 reference adds slippage to "market/stop orders"; the User Manual says "the strategy applies constant '
+      + 'slippage to _all_ order fills"', 'W9-K4')
   }
 
   // ─── fills ────────────────────────────────────────────────────────────────
@@ -438,12 +450,12 @@ export function makeBroker(cfg, data) {
     ocaAfterFill(o, o.qty)
     return null
   }
-  /** ⭐ W9-T5 the price an entry fills at: a market order's slipped price ([B-SLIPPAGE]); a limit's is its
-   *  own (R6: slippage is on "market/stop orders"); a stop's slippage is refused (W9-K4 fills none). */
+  /** ⭐ W9-T5 the price an entry fills at: a market order's slipped price ([B-SLIPPAGE]); under a slippage a stop or a
+   *  limit entry refuses by name (W9-K4: no capture fills one; for a limit the texts disagree). */
   const entryFillPx = (o, price) => {
     if (!slipTicks) return price
     if (o.type === 'market') return slipped(price, o.dir)
-    if (o.type === 'stop') noStopSlippage(`the stop entry \`${o.id}\``)
+    noPriceOrderSlippage(`the ${o.type} entry \`${o.id}\``, o.type)
     return price
   }
   const fillEntry = (o, price0, bar, exact) => {
@@ -658,8 +670,9 @@ export function makeBroker(cfg, data) {
     }
     rule('B-EXIT-BIND')
     orderFees = 0
-    // W9-T5: a take-profit is a limit order (no slippage, R6); a stop-loss is a stop order, refused under one
-    if (lo.leg === 'sl') noStopSlippage(`the stop-loss of exit \`${lo.x.id}\``)
+    // W9-T5: under a slippage a stop-loss (a stop order) and a take-profit (a limit order) refuse by name, W9-K4
+    if (lo.leg === 'sl') noPriceOrderSlippage(`the stop-loss of exit \`${lo.x.id}\``, 'stop')
+    else if (lo.leg === 'tp') noPriceOrderSlippage(`the take-profit of exit \`${lo.x.id}\``, 'limit')
     const keep = fillRule
     if (lo.leg === 'trail') fillRule = 'B-TRAIL'
     requireOldest([lo.t])

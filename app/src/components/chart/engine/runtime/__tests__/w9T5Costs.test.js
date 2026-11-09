@@ -20,6 +20,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { makeBroker } from '../broker.js'
 import { BROKER_RULE_IDS, BROKER_RULES, COMMISSION_RULE, COMMISSION_TYPE_RULES, commissionRulesOf } from '../brokerRules.js'
 import RESOLVED from '../brokerPins.resolved.json'
 import { strategyScorecardWording } from '../../ast/strategyScorecard.js'
@@ -145,6 +146,23 @@ describe('W9-T5 the commission types (W9-K1..K3): a fee at each fill; a trade\'s
     // a percent or per-contract fee is linear in size, so the same two cases are served
     served(two.replace('cash_per_order, commission_value = 5', 'cash_per_contract, commission_value = 1'))
   })
+  it('[B-COMM-PCT] the cash volume includes the point value: pointvalue 50 (a future) makes the fee 50 times larger', () => {
+    // r1 (review U2): every other fixture has pointvalue 1, where dropping it changes nothing.
+    // Entry 2 @ 100: 2 x 100 x 50 x 0.1 / 100 = 10; exit 2 @ 103.5: 2 x 103.5 x 50 x 0.001 = 10.35; total 20.35.
+    // Gross 2 x 3.5 x 50 = 350, so the net profit is 350 - 20.35 = 329.65.
+    const O = [100, 100, 103.5]; const H = [101, 101, 104]; const L = [99, 99, 103]; const C = [100, 100, 103.5]
+    const cfg = { version: 5, pyramiding: 1, defaultQty: 2, qtyType: 'fixed', qtyValue: 2, initialCapital: 100000,
+      marginLong: 0, marginShort: 0, defaulted: {}, commission: { type: 'percent', value: 0.1, typeDefaulted: false } }
+    const b = makeBroker(cfg, { series: [O, H, L, C], barTimes: [at(0), at(1), at(2)], isPinned: ALL })
+    b.call('#symbol', [0.01, 50], 0)
+    b.call('strategy.entry', ['L', 1, 2], 0)
+    while (b.beginBar(1)) { /* no extra executions */ }
+    b.call('strategy.close', ['L'], 1)
+    while (b.beginBar(2)) { /* no extra executions */ }
+    close12(b.call('strategy.closedtrades.commission', [0], 2), 20.35)
+    close12(b.call('strategy.netprofit', [], 2), 329.65)
+    close12(b.call('strategy.closedtrades.profit', [0], 2), 329.65)
+  })
   it('the commission is asked when a fill pays it: a run that never fills asks no cost rule', () => {
     const src = `${DECL('commission_type = strategy.commission.percent, commission_value = 0.1')}${NEVER}plot(strategy.position_size)\n`
     const { used } = served(src)
@@ -176,12 +194,40 @@ describe('W9-T5 slippage (W9-K4): market fills only', () => {
     expect(trades[0].exit.price).toBe(103.47)
     expect(trades[1].entry.price).toBe(103.47)
   })
-  it('a limit entry and a take-profit (limit orders) fill at their level, no slippage (R6: "market/stop orders")', () => {
-    const lim = served(`${SLIP()}if bar_index == 1\n    strategy.entry("L", strategy.long, limit = 99.8)\n`
-      + '    strategy.exit("x", "L", limit = 101.2)\nplot(strategy.position_size)\n')
-    expect(lim.trades[0].entry).toEqual({ time: at(2), price: 99.8, rule: 'B-PATH' })
-    expect(lim.trades[0].exit).toEqual({ time: at(2), price: 101.2, rule: 'B-PATH' })
-    expect(lim.used).not.toContain('B-SLIPPAGE')
+  // ⛔ r1 (review W9-T5 B1): R6 slips "market/stop orders", the User Manual "_all_ order fills". Where the two
+  // disagree the rule is unsettled (spec line 7), so a LIMIT fill under a slippage refuses by name, W9-K4,
+  // quoting both, under EVERY pin set: it must never be served unslipped once S1's core is pinned.
+  const LIMITS = `${SLIP()}if bar_index == 1\n    strategy.entry("L", strategy.long, limit = 99.8)\n`
+    + '    strategy.exit("x", "L", limit = 101.2)\nplot(strategy.position_size)\n'
+  const S1_ONLY = new Set(BROKER_RULE_IDS.slice(0, 22))
+  it('a limit entry under a slippage refuses by name (W9-K4), quoting the reference and the manual', () => {
+    // bar 2: 100 -> 99.5 crosses the limit 99.8: the entry's fill is where it stops
+    const e = unsettled(LIMITS, 'W9-K4')
+    expect(e.message).toMatch(/the limit entry `L` \(a limit order\)/)
+    expect(e.message).toContain('"market/stop orders"')
+    expect(e.message).toContain('"the strategy applies constant slippage to _all_ order fills"')
+  })
+  it('a take-profit under a slippage refuses by name (W9-K4)', () => {
+    // a market entry (100.03 on bar 2), then its limit exit at 101.2 is reached on bar 2's rise to 101.5
+    const e = unsettled(`${SLIP()}${ENTER}    strategy.exit("x", "L", limit = 101.2)\nplot(strategy.position_size)\n`, 'W9-K4')
+    expect(e.message).toMatch(/the take-profit of exit `x` \(a limit order\)/)
+  })
+  it('S1\'s 22 pins only (the core pinned, nothing of T5): the limit fills still refuse, never served unslipped', () => {
+    expect(S1_ONLY.has('B-SLIPPAGE')).toBe(false)
+    expect(S1_ONLY.has('B-PATH')).toBe(true)
+    const r = attempt(LIMITS, { pins: (id) => S1_ONLY.has(id) })
+    expect(r.err && r.err.guard).toBe('runtime:strategy-unsettled')
+    expect(r.err.message).toContain('W9-K4')
+    // the same script without the slippage serves under those pins (the refusal is the slippage's alone)
+    const plain = attempt(LIMITS.replace('slippage = 3', 'slippage = 0'), { pins: (id) => S1_ONLY.has(id) })
+    expect(plain.err, plain.err && plain.err.message).toBeUndefined()
+    expect(plain.trades[0].entry.price).toBe(99.8)
+  })
+  it('a market fill at a price OFF the tick grid under a slippage refuses by name (W9-K4), not slipped', () => {
+    // bar 2 opens at 100.005 (off the 0.01 grid): whether TradingView slips before or after rounding is not stated
+    const bars = barsOf([...HEAD.slice(0, 2), [100.005, 101.5, 99.5, 101], HEAD[3], [103.5, 105, 102.5, 104], ...FILL(5, [104, 105, 103.5, 104.5])])
+    const e = unsettled(`${SLIP()}${ENTER}${CLOSE3}plot(strategy.position_size)\n`, 'W9-K4', { bars })
+    expect(e.message).toMatch(/off the tick grid/)
   })
   it('a stop entry and a stop-loss under slippage refuse by name (W9-K4 fills market orders only)', () => {
     unsettled(`${SLIP()}if bar_index == 1\n    strategy.entry("L", strategy.long, stop = 101)\nplot(strategy.position_size)\n`, 'W9-K4')
