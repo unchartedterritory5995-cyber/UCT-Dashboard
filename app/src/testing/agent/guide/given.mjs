@@ -11,6 +11,7 @@
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
 //   versions   the server's version store switched on (a layout's Version history)
 //   chartSettings  the chart's own settings pref (custom intervals, compared symbols)
+//   board 'dock'  the chart with Company Info added and open (its company panel)
 //   teFeed     the TE News feed loaded, on its own /recent route
 //   calendar   a calendar day with reporters and economic events, on the widget's own route
 //   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
@@ -30,6 +31,8 @@ const BOARDS = {
   plain: PLAIN,
   // a chart with a second tab of its own, and a watchlist with a second (News) tab: pages/charts/chartTabs.js, widgetTabs.js
   tabs: [chart('w-chart-a', 'A', 0, 0, 16, 20, { chartTabs: [{ id: 'ct-2', tf: 'W' }], activeChartTab: 0 }), watch({ wtabs: [{ id: 'wt-2', type: 'news', opts: {} }], activeWtab: 0 })],
+  // the chart with Company Info added and its panel open: pages/charts/widgets/chartDock.js normalizeDock (opts.dock)
+  dock: [chart('w-chart-a', 'A', 0, 0, 16, 20, { dock: { company: true, open: true, tab: 'overview' } }), watch()],
   // a Scanner widget with a preset scan already open: pages/charts/widgets/ScannerWidget.jsx remembers it in opts.scanKey
   scan: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-scan', type: 'scanner', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { scanKey: SCAN.key, scanName: SCAN.name } }],
 }
@@ -64,6 +67,8 @@ export function givenFor(c) {
   if (/A layout’s version history/.test(c.title || '')) g.versions = true
   // a calendar day with reporters and economic events (pages/charts/widgets/CalendarWidget.jsx reads data.days[day])
   if (/^(Loading a stock from the earnings list|Filtering economic events)$/.test(c.title || '')) g.calendar = true
+  // a control of the chart's company panel: the panel is on the chart (Company Info added, open)
+  if (c.feature === 'dockAction') g.board = 'dock'
   // the TE News feed loaded (lib/tradeExchangeNewsStreamManager.js: GET /recent → { items, epoch, last_seq, first_seq })
   if (/^(Saving a headline|A headline’s actions: \w+|Back to the live feed)$/.test(c.title || '')) g.teFeed = true
   // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
