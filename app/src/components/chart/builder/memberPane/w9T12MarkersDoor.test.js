@@ -25,9 +25,11 @@ import { memberPaneDefinition } from './memberPaneDefinition'
 import * as registry from '../../engine/nativeRegistry'
 import { computeRuntimeColumns } from '../../engine/runtime/runtimeColumns'
 import { runtimeStrategyOf, withStrategyRecord } from '../../engine/runtime/strategyRecord'
-import { tradeMarkersFor, resetTradeMarkers } from '../../engine/runtime/tradeMarkers'
+import { tradeMarkersFor, resetTradeMarkers, onTradeMarkersChange } from '../../engine/runtime/tradeMarkers'
 import { createBinder } from '../../engine/binder'
 import { createFakeChart } from '../../engine/__tests__/fakeChart'
+import { RUNTIME_WARMUP_KEY } from '../../engine/runtime/runtimeObjects'
+import { objectRenderDropsFor, resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 
 const NL = String.fromCharCode(10)
 const ID = 'u_w9t12-markers'
@@ -46,6 +48,7 @@ afterEach(() => {
   registry.uninstallUserDefinition(ID)
   vi.unstubAllEnvs()
   resetTradeMarkers()
+  resetObjectRenderDrops()
   globalThis.__w9t12LookPinned = false
 })
 
@@ -59,11 +62,12 @@ function build(source) {
 }
 
 /** The real binder over the recording chart, fed `cols`; returns the render states handed to the layer. */
-function bind(def, cols, scope = '') {
+function bind(def, cols, scope = '', bars = BARS) {
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC, scope })
   const layers = []
   const sigs = []
+  const metas = []
   const instanceId = `inst:${def.id}:1`
   binder.sync({
     enabled: true,
@@ -74,12 +78,12 @@ function bind(def, cols, scope = '') {
       hasAnyFinite: (col) => Array.from(col || []).some(Number.isFinite),
       columnKeys: (x) => (x.plots || []).map((p) => p.key),
     },
-    bars: BARS, tf: 'D', adjustTime: (t) => t, plan: { fresh: true },
+    bars, tf: 'D', adjustTime: (t) => t, plan: { fresh: true },
     applyData: (series, data) => series.setData(data),
     resolvePlacement: () => ({ paneIndex: 0, scaleId: 's', scaleOptions: {} }),
-    createObjectLayer: () => ({ set: (state, sig) => { layers.push(state); sigs.push(sig) }, clear: () => {} }),
+    createObjectLayer: () => ({ set: (state, sig, meta) => { layers.push(state); sigs.push(sig); metas.push(meta) }, clear: () => {} }),
   })
-  return { binder, instanceId, layers, sigs }
+  return { binder, instanceId, layers, sigs, metas }
 }
 
 describe('W9-T12 the markers at the member door', () => {
@@ -239,5 +243,76 @@ describe('W9-T12 6 (review F4) the repaint signature carries the markers', () =>
     const last = (m) => m.sigs.filter((x, i) => m.layers[i]).pop()
     expect(last(one)).not.toBe(last(two))
     for (const m of [one, two]) m.binder.teardown()
+  })
+})
+
+describe('W9-T12 r2 (N1) the published outcome equals the picture', () => {
+  const curtained = (cols) => {
+    Object.defineProperty(cols, RUNTIME_WARMUP_KEY, { value: { withheldBars: 5, shift: 0 }, enumerable: false, configurable: true })
+    return cols
+  }
+
+  it('host drawings withheld (the warm-up curtain): the layer is cleared and served markers report the withheld refusal', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const events = []
+    onTradeMarkersChange((id) => events.push(id))
+    const m = bind(def, curtained(served(def)))
+    expect(m.layers.filter(Boolean)).toEqual([])
+    // published ONCE, after the picture was decided: never `ok` first and the refusal after
+    expect(events).toHaveLength(1)
+    const out = tradeMarkersFor(m.instanceId)
+    expect(out.status).toBe('refused')
+    expect(out.guard).toBe('runtime:strategy-markers-withheld')
+    expect(out.sentence).toMatch(/drawn together with the script's own drawings/)
+    expect(out.sentence).not.toMatch(/\b[a-z][A-Za-z]*\.[a-z][A-Za-z_]*\b/)
+    m.binder.teardown()
+  })
+
+  it('CONTROL: the same served record without the curtain is drawn and reported ok', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const m = bind(def, served(def))
+    expect(tradeMarkersFor(m.instanceId).status).toBe('ok')
+    expect(m.layers.filter(Boolean).pop().labels).toHaveLength(2)
+    m.binder.teardown()
+  })
+
+  it('CONTROL: a refusal that is not ok passes through unchanged (look unpinned, curtain up)', () => {
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const m = bind(def, curtained(served(def)))
+    expect(tradeMarkersFor(m.instanceId).capture).toBe('W9-MK1')
+    m.binder.teardown()
+  })
+})
+
+describe('W9-T12 r2 (N2) the host-path merge keeps ids and bars in step and counts a dropped marker', () => {
+  it('liveIds and createdBars stay aligned; each marker carries the bar it sits on', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const cols = served(def)
+    const m = bind(def, cols)
+    const meta = m.metas.filter((x, i) => m.layers[i]).pop()
+    expect(meta.createdBars.length).toBe(meta.liveIds.length)
+    const t = runtimeStrategyOf(cols).trades[0]
+    const barOf = (time) => BARS.findIndex((b) => b.t === time)
+    expect(meta.liveIds.slice(-2)).toEqual([`mk:${t.entryTime}|buy`, `mk:${t.exitTime}|sell`])
+    expect(meta.createdBars.slice(-2)).toEqual([barOf(t.entryTime), barOf(t.exitTime)])
+    m.binder.teardown()
+  })
+
+  it('a marker the chart cannot place is counted in the drawing note on the host path', () => {
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const cols = served(def)
+    // a date-keyed series that starts AFTER the entry fill: the entry marker has no bar here
+    const dateBars = BARS.slice(5).map((b) => ({ ...b, t: new Date(b.t * 1000).toISOString().slice(0, 10) }))
+    const base = bind(def, cols, 'base', dateBars)   // look unpinned: no markers drawn
+    expect(objectRenderDropsFor(base.instanceId, 'base')).toBe(null)
+    base.binder.teardown()
+    globalThis.__w9t12LookPinned = true
+    const m = bind(def, cols, 'tip', dateBars)
+    const drops = objectRenderDropsFor(m.instanceId, 'tip')
+    expect(drops && drops.dropped).toBe(1)
+    m.binder.teardown()
   })
 })

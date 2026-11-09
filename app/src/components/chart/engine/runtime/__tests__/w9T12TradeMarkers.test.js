@@ -15,6 +15,7 @@ import {
   MARKER_RULE, MARKER_CAPTURE, MARKER_RECORD_GUARD, MARKER_UNRECORDED_GUARD, MARKER_LOOK_HYPOTHESES,
   MARKER_UNPINNED_SENTENCE, MARKER_UNRECORDED_SENTENCE, MARKER_RECORD_SENTENCE,
   publishTradeMarkers, tradeMarkersFor, onTradeMarkersChange, resetTradeMarkers,
+  markersWithheldWith, joinMarkersToState, MARKER_WITHHELD_GUARD,
 } from '../tradeMarkers.js'
 import { strategyRecordOf, withStrategyRecord, strategyRecordShapeErrors, STRATEGY_WINDOW_HISTORY } from '../strategyRecord.js'
 import { UNPINNED_GUARD, BROKER_RULE_IDS, PRESENTATION_RULES, MARKER_RULE as RULES_MARKER_RULE } from '../brokerRules.js'
@@ -302,5 +303,39 @@ describe('W9-T12 5 the published outcome (review F2, F3)', () => {
     publishTradeMarkers('i1', null, 'A')
     expect(seen).toEqual(['A:i1', 'A:i1', 'A:i1'])
     resetTradeMarkers()
+  })
+})
+
+describe('W9-T12 r2 helpers', () => {
+  const rec = () => servedRecord([tr('L', 1, 3, 2, 10, 5, 12)], ['XL'], [ord('L', 2), ord('XL', 5)])
+
+  it('N1: markersWithheldWith turns ok into the named refusal and passes anything else through', () => {
+    const ok = tradeMarkersOf(rec(), PIN)
+    const w = markersWithheldWith(ok)
+    expect(w.status).toBe('refused')
+    expect(w.guard).toBe(MARKER_WITHHELD_GUARD)
+    expect(w.asOfBar).toBe(ok.asOfBar)
+    const refused = tradeMarkersOf(rec())
+    expect(markersWithheldWith(refused)).toBe(refused)
+    expect(markersWithheldWith(null)).toBe(null)
+  })
+
+  it('N2: joined state keeps ids and bars in step, and an unplaceable marker is dropped AND counted', () => {
+    // date-keyed daily bars from bar 4 on: the entry fill (bar 2) has no bar here, the exit (bar 5) does
+    const wbars = TIMES.slice(4).map((t) => ({ t: new Date(t * 1000).toISOString().slice(0, 10), o: 1, h: 2, l: 0.5, c: 1.5, v: 1 }))
+    const objs = tradeMarkerObjects(tradeMarkersOf(rec(), PIN))
+    const host = { lines: [{ id: 1 }], labels: [], boxes: [], tables: [], fills: [],
+      dropped: { line: 0, label: 0 }, unplaced: { line: 0, label: 0 }, counts: { line: 1, label: 0 } }
+    const j = joinMarkersToState(host, [1], [0], objs, { bars: wbars, tf: 'D' })
+    expect(j.liveIds).toEqual([1, ...objs.map((o) => o.id)])
+    expect(j.createdBars.length).toBe(j.liveIds.length)
+    expect(j.createdBars[1]).toBe(null)
+    expect(j.state.labels.length + j.state.dropped.label).toBe(2)
+    expect(j.state.dropped.label).toBe(1)
+    expect(j.state.unplaced.label).toBe(1)
+    expect(j.state.counts.label).toBe(j.state.labels.length)
+    expect(j.state.lines).toBe(host.lines)
+    // CONTROL: nothing to add returns the inputs untouched
+    expect(joinMarkersToState(host, [1], [0], [], {}).state).toBe(host)
   })
 })

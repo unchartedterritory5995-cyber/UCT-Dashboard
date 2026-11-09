@@ -77,7 +77,8 @@ import { evaluateObjects } from './objectRuntime'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
 import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
-import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers } from './runtime/tradeMarkers.js'
+import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
+  joinMarkersToState } from './runtime/tradeMarkers.js'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
@@ -1156,6 +1157,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const alive = new Set()
     if (typeof make === 'function') ensureObjectRangeSubscription()
     const theme = chartThemeOf(ctx.cs)
+    // ⭐ W9-T12 r2 (N1) — each strategy's marker outcome, published once AFTER its picture is
+    // decided, so the outcome never says `ok` over a layer this sync cleared (and never flickers).
+    const markOutcomes = new Map()
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
@@ -1173,7 +1177,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const markersHere = drawsTradeMarkers(def)
       const marks = markersHere
         ? attempt(() => memberTradeMarkers((computeMemo.get(inst.instanceId) || {}).cols)).value || null : null
-      if (markersHere) publishMarkers(inst.instanceId, marks)
+      if (markersHere) markOutcomes.set(inst.instanceId, marks)
+      const markersCleared = () => { if (markersHere) markOutcomes.set(inst.instanceId, markersWithheldWith(marks)) }
       const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
       const markSig = markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : ''
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
@@ -1196,7 +1201,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
-        if (!rstate) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         publishDrops(inst.instanceId, rstate)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
@@ -1223,6 +1228,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN: what step 1
       // computed for this instance on THIS chart decides (`runtimeObjectsWithheld`).
       if (runtimeObjectsWithheld(def, runCols ? runCols.get(inst.instanceId) : undefined)) {
+        markersCleared()
         publishClock(inst.instanceId, 'objects', [])
         publishDrops(inst.instanceId, null)
         attempt(() => layer.set(null, ''))
@@ -1315,7 +1321,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         }
       })
       publishClock(inst.instanceId, 'objects', built.ok && built.value ? built.value.chartClock : [])
-      if (!built.ok || !built.value) { publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
+      if (!built.ok || !built.value) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
@@ -1349,13 +1355,17 @@ export function createBinder({ chart, LWC, scope = '' }) {
         },
       }
       // ⭐ W9-T12 — served markers join the host program's picture (one layer per instance)
+      // (r2, N2): ids and bars kept in step, a marker the chart cannot place counted in the note
       let hstate = built.value.state
       if (markLive.length) {
-        const mstate = attempt(() => toRenderState(markLive, { bars, tf: ctx.tf, theme })).value
-        if (mstate) {
-          hstate = { ...hstate, labels: (hstate.labels || []).concat(mstate.labels) }
-          meta.liveIds = meta.liveIds.concat(markLive.map((o) => o.id))
-        }
+        const joined = attempt(() => joinMarkersToState(hstate, meta.liveIds, meta.createdBars, markLive,
+          { bars, tf: ctx.tf, theme })).value
+        if (joined) {
+          hstate = joined.state
+          meta.liveIds = joined.liveIds
+          meta.createdBars = joined.createdBars
+          meta.stats.dropped = hstate.dropped
+        } else markersCleared()
       }
       publishDrops(inst.instanceId, hstate)
       attempt(() => layer.set(hstate, sig + markSig, meta))
@@ -1365,6 +1375,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       attempt(() => layer.clear())
       objectLayers.delete(id)
     }
+    for (const [id, out] of markOutcomes) publishMarkers(id, out)
     pruneClock('objects', alive)
     pruneDrops(alive)
     pruneMarkers(alive)

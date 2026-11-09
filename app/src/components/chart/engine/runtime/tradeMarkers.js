@@ -37,6 +37,7 @@
 import { pinned } from './brokerPins.js'
 import { UNPINNED_GUARD, MARKER_RULE, PRESENTATION_RULES } from './brokerRules.js'
 import { STRATEGY_WINDOW_HISTORY, runtimeStrategyOf, strategyRecordShapeErrors } from './strategyRecord.js'
+import { toRenderState } from '../objectRenderState.js'
 
 /** The presentation rule the markers rest on, and the capture row that pins it (design 5.2),
  *  both read from the one table (`brokerRules.js`). */
@@ -44,6 +45,8 @@ export { MARKER_RULE }
 export const MARKER_CAPTURE = PRESENTATION_RULES[MARKER_RULE].capture
 /** The input is not a v1 strategy record the markers can read whole. */
 export const MARKER_RECORD_GUARD = 'runtime:strategy-markers-record'
+/** Served markers ride the script's own drawings, and this chart is not showing those yet. */
+export const MARKER_WITHHELD_GUARD = 'runtime:strategy-markers-withheld'
 /** The record does not carry a field every marker needs (the order log, the exit's id). */
 export const MARKER_UNRECORDED_GUARD = 'runtime:strategy-markers-unrecorded'
 export const TRADE_MARKERS_SCHEMA = 'uct.strategy-markers/v1'
@@ -90,6 +93,17 @@ export const MARKER_UNRECORDED_SENTENCE = 'Trade markers are not drawn: each mar
   + "that filled, and this backtest does not keep a log of its orders yet. The script's plots are not affected."
 export const MARKER_RECORD_SENTENCE = "Trade markers are not drawn: this backtest's list of trades could not be read "
   + "in full, and markers are never shown with a trade missing. The script's plots are not affected."
+
+export const MARKER_WITHHELD_SENTENCE = "Trade markers are not drawn: they are drawn together with the script's "
+  + "own drawings, and this chart is not showing those yet. The script's plots are not affected."
+
+/** ⭐ W9-T12 r2 (N1) — THE OUTCOME EQUALS THE PICTURE. When the layer the served markers ride is
+ *  cleared (the host drawings withheld, or a render that failed), the published outcome is this
+ *  refusal, never `ok` over an empty pane. A non-`ok` outcome passes through unchanged. */
+export function markersWithheldWith(result) {
+  if (!result || result.status !== 'ok') return result
+  return refusal(MARKER_WITHHELD_GUARD, MARKER_WITHHELD_SENTENCE, {}, result.asOfBar)
+}
 
 const sideOf = (role, dir) => ((role === 'entry') === (dir === 'long') ? 'buy' : 'sell')
 
@@ -197,6 +211,38 @@ export function tradeMarkerObjects(result) {
     })
   }
   return out
+}
+
+/**
+ * ⭐ W9-T12 r2 (N2) — served markers JOINED to the host program's render state, as one picture:
+ * their labels appended, their ids and their bars appended IN STEP (`liveIds[i]` was born on
+ * `createdBars[i]`), and a marker the chart cannot place counted in `dropped` / `unplaced`, so the
+ * member's drawing note (`objectRenderNotice.js`) counts it like any dropped drawing.
+ *
+ * @returns {{state, liveIds: Array, createdBars: Array}} the inputs unchanged when there is nothing to add
+ */
+export function joinMarkersToState(state, liveIds, createdBars, markLive, { bars, tf, theme } = {}) {
+  if (!state || !Array.isArray(markLive) || !markLive.length) return { state, liveIds, createdBars }
+  const m = toRenderState(markLive, { bars, tf, theme })
+  const placed = new Map(m.labels.map((l) => [l.id, l.x]))
+  const barAt = new Map((bars || []).map((b, i) => [b.t, i]))
+  const plus = (a, b) => {
+    const out = { ...(a || {}) }
+    for (const [k, v] of Object.entries(b || {})) out[k] = (Number.isFinite(out[k]) ? out[k] : 0) + v
+    return out
+  }
+  return {
+    state: {
+      ...state,
+      labels: (state.labels || []).concat(m.labels),
+      dropped: plus(state.dropped, m.dropped),
+      unplaced: plus(state.unplaced, m.unplaced),
+      ...(state.counts ? { counts: { ...state.counts, label: (state.counts.label || 0) + m.labels.length } } : {}),
+    },
+    liveIds: (liveIds || []).concat(markLive.map((o) => o.id)),
+    createdBars: (createdBars || []).concat(markLive.map((o) => (placed.has(o.id) && barAt.has(placed.get(o.id))
+      ? barAt.get(placed.get(o.id)) : null))),
+  }
 }
 
 /** ⭐ The documents that can carry a record: a runtime document stamped with the strategy window
