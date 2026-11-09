@@ -11,6 +11,10 @@ import AttachedPineDisclosures from './AttachedPineDisclosures'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../engine/runtimeErrorNotice'
 import { runtimeRunStopOf } from '../engine/nativeRegistry'
 import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import RunsOnLine from '../builder/RunsOnLine'
+import SaveReceipt from '../builder/studio/SaveReceipt'
+import fs from 'node:fs'
+import path from 'node:path'
 
 const GUARD_RE = /\b(runtime|pine|strategy|enum):[a-z-]+/
 
@@ -69,5 +73,80 @@ describe('the disclosure strip never prints a guard id', () => {
     expect(withoutGuardIds(plain)).toBe(plain)
     expect(withoutGuardIds('it stopped (runtime:strategy-unpinned).')).toBe('it stopped.')
     expect(withoutGuardIds('refused pine:strategy-call here')).toBe('refused here')
+  })
+})
+
+// ── r1: every OTHER member surface that prints a composer's sentence ────────────
+const noGuard = (root) => {
+  // data-guard is the one attribute that carries the id on purpose (tests and rails read it)
+  const out = [root.textContent]
+  for (const el of root.querySelectorAll('*')) for (const a of el.attributes) if (a.name !== 'data-guard') out.push(a.value)
+  return out
+}
+const SAID = 'this is a strategy, so nothing is drawn (pine:strategy-call).'
+
+describe('r1 — DOM: builder surfaces print no guard id', () => {
+  it('RunsOnLine: a refused lane sentence', () => {
+    const { container } = render(<RunsOnLine serverLanes={{ alerts: { guard: 'runtime:strategy-start', sentence: SAID }, screener: true, scans: true }} />)
+    expect(container.textContent).toContain('alerts: this is a strategy, so nothing is drawn.')
+    for (const s of noGuard(container)) expect(s).not.toMatch(GUARD_RE)
+  })
+  it('SaveReceipt: a failed item', () => {
+    render(<SaveReceipt receipt={{ status: 'partial', title: 'Saved', items: [{ ok: false, kind: 'alerts', text: SAID }] }} />)
+    const root = document.body
+    expect(root.textContent).toContain('this is a strategy, so nothing is drawn.')
+    for (const s of noGuard(root)) expect(s).not.toMatch(GUARD_RE)
+  })
+  it('CONTROL: the raw sentence carries the id', () => { expect(SAID).toMatch(GUARD_RE) })
+})
+
+// Census: every render site that prints a composer's sentence wraps it. A site printing the
+// bare expression fails by name. Paths are relative to app/src.
+const SRC = path.resolve(__dirname, '../../..')
+export const SITES = [
+  ['components/chart/pane/AttachedPineDisclosures.jsx', ['n.note']],
+  ['components/chart/builder/BuilderSheet.jsx', ['req.reason', 'notice.sentence', 'o.verdict.reason', 'o.verdict.note', 'objectLoss.sentence']],
+  ['components/chart/builder/ConciergeBox.jsx', ['item.reason', 'refusal.reason', 'proposal.sentence']],
+  ['components/chart/builder/ConverseBox.jsx', ['c.text', 'editability.text']],
+  ['components/chart/builder/ImageBox.jsx', ['refusal.reason', 'c.sentence', 'r.reason']],
+  ['components/chart/builder/PineBox.jsx', ['refusal.message', 'shownVerdict.reason', 'n.note', 'v.note', 'n.message', 'condition.reason']],
+  ['components/chart/builder/StarterLibrary.jsx', ['entry.sentence']],
+  ['components/chart/builder/studio/CreateIndicatorPanel.jsx', ['editability.text', 'conv.dropped.reason', 'o.reason', 'p.text']],
+  ['components/chart/builder/studio/SaveReceipt.jsx', ['it.text']],
+  ['components/chart/builder/memberPane/MemberPane.jsx', ['built.reason', 'n.note']],
+  ['components/chart/builder/PineEditorStatus.jsx', ['it.why', 'it.reason', 'r.note', 'r.why', 'x.why', 'status.saved.why']],
+  ['components/chart/builder/RunsOnLine.jsx', ['s.sentence']],
+  ['components/chart/ChartSettingsIndicators.jsx', ['f.why', 'n.sentence']],
+  ['components/chart/IndicatorAlertPopover.jsx', ['preflight.reason']],
+  ['components/chart/IndicatorLibraryDialog.jsx', ['n.sentence']],
+  ['pages/charts/widgets/ScanObjectCard.jsx', ['item.reason', 'view.reason']],
+  ['pages/formulas/FormulaReference.jsx', ['item.sentence', 'item.reason']],
+]
+/** bare JSX/template prints of `expr`: `{expr}`, `${expr}`, `={expr}` (an attribute) */
+export function barePrints(src, expr) {
+  const e = expr.replace(/[.()]/g, (c) => `\\${c}`)
+  const re = new RegExp(String.raw`(?:\$\{|[{=])\s*` + e + String.raw`\s*\}`, 'g')
+  // a dedup/React key (`${n.name}::${n.note}`) never reaches the DOM's text: skipped by its `::`
+  const out = []
+  for (const m of src.matchAll(re)) {
+    if (/::\s*$/.test(src.slice(Math.max(0, m.index - 4), m.index))) continue
+    out.push(m[0])
+  }
+  return out
+}
+describe('r1 — census: every composer print site goes through withoutGuardIds', () => {
+  it.each(SITES)('%s', (rel, exprs) => {
+    const src = fs.readFileSync(path.join(SRC, rel), 'utf8')
+    expect(src).toContain('withoutGuardIds')
+    for (const e of exprs) {
+      expect(barePrints(src, e), `${rel}: bare ${e}`).toEqual([])
+      expect(src.includes(`withoutGuardIds(${e})`), `${rel}: ${e} wrapped`).toBe(true)
+    }
+  })
+  it('CONTROL: the census sees a bare print', () => {
+    expect(barePrints('<li>{n.note}</li> title={f.why} `x ${r.why}`', 'n.note')).toHaveLength(1)
+    expect(barePrints('title={f.why}', 'f.why')).toHaveLength(1)
+    expect(barePrints('`x ${r.why}`', 'r.why')).toHaveLength(1)
+    expect(barePrints('<li>{withoutGuardIds(n.note)}</li>', 'n.note')).toHaveLength(0)
   })
 })

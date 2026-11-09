@@ -13,6 +13,7 @@
 // ⭐ Touch tier (<= 1024 px, `useIsTouch`): a one-row summary whose `Details`
 // button opens the full panel in `mobile/Sheet`. Above that, inline.
 
+import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
 import {
@@ -59,12 +60,12 @@ function ItemRow({ it, source, onGoToLine }) {
         <span className={styles.itemName}>{it.name}</span>
       </div>
       {text && <code className={styles.itemSource}>{text}</code>}
-      <p className={styles.itemWhy}><b>{it.label}.</b>{' '}{it.why}</p>
+      <p className={styles.itemWhy}><b>{it.label}.</b>{' '}{withoutGuardIds(it.why)}</p>
       {it.reason && (
         <details className={styles.details}>
           <summary>Details</summary>
           {/* ⛔ VERBATIM: the refusing door owns this sentence. */}
-          <span data-testid="pine-status-reason">{it.reason}</span>
+          <span data-testid="pine-status-reason">{withoutGuardIds(it.reason)}</span>
         </details>
       )}
     </li>
@@ -82,7 +83,7 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
           <li key={r.id} className={styles.consumer} data-consumer={r.id} data-ok={String(r.ok)}>
             <span className={styles.badge} data-ok={String(r.ok)}>{BADGE[String(r.ok)]}</span>
             <span className={styles.consumerLabel}>{r.label}</span>
-            {r.ok === true && r.note && <span className={styles.consumerWhy}>{`(${r.note})`}</span>}
+            {r.ok === true && r.note && <span className={styles.consumerWhy}>{`(${withoutGuardIds(r.note)})`}</span>}
             {r.ok === 'partial' && <span className={styles.consumerWhy}>(draws, with values withheld below)</span>}
             {/* ⭐ a number the box's threshold control can make a screen of: still [--],
                 worded "needs a threshold" (the evaluability sentence stays beside it) */}
@@ -91,7 +92,7 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
             )}
             {!r.ok && r.why && (
               <span className={styles.consumerWhy} data-testid="pine-status-consumer-why">
-                {r.subject ? `${r.subject}: ${r.why}` : r.why}
+                {r.subject ? `${r.subject}: ${withoutGuardIds(r.why)}` : withoutGuardIds(r.why)}
               </span>
             )}
             {/* ⭐ The screener lane's refusals of single plots: facts about SCREENS,
@@ -102,7 +103,7 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
                 <ul className={styles.refusedList}>
                   {r.refused.map((x, i) => (
                     <li key={`${x.name}-${i}`} data-guard={x.guard || ''}>
-                      <b>{x.name}</b>{x.why ? `: ${x.why}` : ''}
+                      <b>{x.name}</b>{x.why ? `: ${withoutGuardIds(x.why)}` : ''}
                     </li>
                   ))}
                 </ul>
@@ -117,7 +118,7 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
         <div className={styles.saved} data-testid="pine-status-saved">
           {status.saved.held && (
             <p className={styles.savedLine} data-testid="pine-status-saved-held">
-              <b>{`Saved version: ${status.saved.label}.`}</b>{' '}{status.saved.why}
+              <b>{`Saved version: ${status.saved.label}.`}</b>{' '}{withoutGuardIds(status.saved.why)}
             </p>
           )}
           {status.saved.held && status.saved.detail && (
@@ -170,7 +171,7 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
                   ) : null}
                   <span className={styles.itemName}>{it.name}</span>
                 </div>
-                <p className={styles.itemWhy}>{it.reason}</p>
+                <p className={styles.itemWhy}>{withoutGuardIds(it.reason)}</p>
               </li>
             ))}
           </ul>

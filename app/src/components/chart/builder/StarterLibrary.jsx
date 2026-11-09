@@ -36,6 +36,7 @@
 // with the reason, and a member reading one learns what the screener actually
 // holds.
 
+import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import { useMemo, useState } from 'react'
 import UIcon from '../../ui/UIcon'
 import { SETUP_GROUPS } from '../../../constants/setupGroups'
@@ -174,7 +175,7 @@ export default function StarterLibrary({ onPick = null, activeSource = '' }) {
                   <span className={styles.cardName}>{entry.setup}</span>
                   {/* ⛔ THE TREE'S OWN SENTENCE. See the header. */}
                   <span className={styles.cardSentence} data-testid="starter-sentence">
-                    {entry.sentence}
+                    {withoutGuardIds(entry.sentence)}
                   </span>
                   <code className={styles.cardSource}>{entry.source}</code>
                   <span className={styles.cardAction}>
