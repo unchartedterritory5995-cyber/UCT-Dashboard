@@ -10791,7 +10791,7 @@
   "difficulty": 1,
   "id": "si_fdc935538163",
   "lesson_origin": "session",
-  "lesson_text": "False. That's averaging down, and in a trade it puts more money on an idea that's proving wrong. O'Neil calls it throwing good money after bad. Add to winners, never to losers.",
+  "lesson_text": "False. That's averaging down, and in a trade it puts more money on an idea that's proving wrong. O'Neil calls it throwing good money after bad. Never add to a losing trade.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -10860,7 +10860,7 @@
    "facts": {
     "given": "Buying more of a losing trade to lower your average cost is a sound way to fix a bad entry."
    },
-   "lesson_line": "Add to winners, never to losers.",
+   "lesson_line": "Never add to a losing trade.",
    "unit": "F12.07",
    "why": "False. That's averaging down, and in a trade it puts more money on an idea that's proving wrong. O'Neil calls it throwing good money after bad."
   },
