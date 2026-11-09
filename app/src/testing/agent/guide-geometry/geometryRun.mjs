@@ -48,15 +48,15 @@ const TARGETS = {
   menu: { kind: 'a menu row (custom interval, in the timeframe menu)', feature: 'timeframeCustom', say: 'how do I add a custom timeframe to this chart', sel: '[data-guide="chart.timeframeMenu"] [aria-label="Interval count"]', steps: [['clickRinged', '[data-guide="chart.timeframeMore"]'], ['waitSel', '[data-guide="chart.timeframeMenu"]']] },
   widget: { kind: 'a widget control (link colour dot)', feature: 'link', say: 'how do I change the link colour of this chart', sel: '[data-guide="widget.link"]', steps: [] },
 }
-const VIEWPORTS = { L: [1500, 900], S: [1100, 700] }
+const VIEWPORTS = { L: [1500, 900], S: [1100, 700], XS: [1100, 480] }
 const LAYOUTS = { TWO: 'A', FOUR: 'TL' }      // the board and the chart the walkthrough is asked on
 const cases = []
-for (const [t, T] of Object.entries(TARGETS)) for (const [v] of Object.entries(VIEWPORTS)) for (const [b, role] of Object.entries(LAYOUTS)) for (const z of [100, 125])
+for (const [t, T] of Object.entries(TARGETS)) for (const v of ['L', 'S']) for (const [b, role] of Object.entries(LAYOUTS)) for (const z of [100, 125])
   cases.push({ id: `${t}-${b}-${v}-z${z}`, target: t, board: b, role, vp: v, zoom: z, scroll: false })
-for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-S-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'S', zoom: 100, scroll: true })
+for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-XS-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'XS', zoom: 100, scroll: true })
 // tracking must STOP: drag the corner, release, end it at once (Done, Exit, Escape) or take its target away (close the chart), then
 // count the guide's own callbacks over the next 2 s and what is still registered
-for (const how of ['done', 'exit', 'escape', 'unmount']) cases.push({ id: `stop-${how}-TWO-L-z100`, target: 'corner', board: 'TWO', role: 'A', vp: 'L', zoom: 100, scroll: false, stop: how })
+for (const how of ['done', 'exit', 'escape', 'unmount', 'drag']) cases.push({ id: `stop-${how}-TWO-L-z100`, target: 'corner', board: 'TWO', role: 'A', vp: 'L', zoom: 100, scroll: false, stop: how })
 
 // in the page: the ring, and the visible candidate that overlaps it most
 const MEASURE = (sel) => `(() => {
@@ -199,19 +199,20 @@ async function runCase(ctx, c) {
       const sx = (m.target.left + m.target.right) / 2, sy = (m.target.top + m.target.bottom) / 2
       const send = (type, x, y, buttons) => p.b.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 })
       ev.liveDuring = await p.b.evaluate(LIVE)
-      await send('mouseMoved', sx, sy, 0); await sleep(100); await send('mousePressed', sx, sy, 1)
-      for (let i = 1; i <= 20; i++) { await send('mouseMoved', sx - i * 3, sy - i * 2, 1); await sleep(16) }
-      await send('mouseReleased', sx - 60, sy - 40, 0)
-      ev.liveAfterDrag = await p.b.evaluate(LIVE)
       const tEnd = await p.b.evaluate('performance.now()')
+      if (c.stop === 'drag') {
+        await send('mouseMoved', sx, sy, 0); await sleep(100); await send('mousePressed', sx, sy, 1)
+        for (let i = 1; i <= 20; i++) { await send('mouseMoved', sx - i * 3, sy - i * 2, 1); await sleep(16) }
+        await send('mouseReleased', sx - 60, sy - 40, 0)
+      }
       if (c.stop === 'done') { if (!(await p.button('Done', '[data-testid="guide-card"]'))) throw new Error('no Done on the card') }
-      if (c.stop === 'exit') { const at = await p.box('[aria-label="Exit the guide"]'); if (!at) throw new Error('no Exit'); await p.b.click(at.x, at.y) }
+      if (c.stop === 'exit') { const at = await p.box('[aria-label="Exit the guide"]'); if (at) await p.b.click(at.x, at.y); else if (!(await p.button('Exit', '[data-testid="guide-card"]'))) throw new Error('no Exit on the card') }
       if (c.stop === 'escape') { await p.b.evaluate('document.activeElement && document.activeElement.blur && document.activeElement.blur()'); await p.b.key('Escape') }
       if (c.stop === 'unmount') { const at = await p.box(`[data-widget-id=${q(B.roles[c.role].id)}] [aria-label="Close widget"]`); if (!at) throw new Error('no Close widget'); await p.b.click(at.x, at.y) }
       await sleep(2100)
       const log = await p.b.evaluate('window.__geoI.log.slice()')
       const count = (from) => { const o = {}; for (const [k, t] of log) if (t >= from) o[k] = (o[k] || 0) + 1; return o }
-      ev.stopCheck = { how: c.stop, ringAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-ring"]') && getComputedStyle(document.querySelector('[data-testid="guide-ring"]')).opacity !== '0'`),
+      ev.stopCheck = { how: c.stop, card2s: await p.b.evaluate(`(document.querySelector('[data-testid="guide-card"]')?.textContent || '').slice(0, 160)`), ringAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-ring"]') && getComputedStyle(document.querySelector('[data-testid="guide-ring"]')).opacity !== '0'`),
         cardAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-card"]')`),
         callbacksFromEnd: count(tEnd), callbacksAfter150ms: count(tEnd + 150), callbacksLastSecond: count(tEnd + 1100), live2sAfter: await p.b.evaluate(LIVE) }
       if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
@@ -230,6 +231,9 @@ async function runCase(ctx, c) {
       await sleep(1200)
       const samples = await p.b.evaluate('(window.__geo.on = false, window.__geo.s)')
       ev.drag = { steps: N, movedPx: [Math.round(dx), Math.round(dy)], durationMs: Math.round(tRelease - tStart), ...analyse(samples.filter(s => s[0] >= tStart), tRelease) }
+      { const gone = samples.find(x => x[0] >= tStart && !x[1]); ev.drag.ringGoneAtMs = gone ? Math.round(gone[0] - tStart) : null; const back = gone ? samples.find(x => x[0] > gone[0] && x[1]) : null; ev.drag.ringBackAtMs = back ? Math.round(back[0] - tStart) : null }
+      ev.drag.cardAfter = await p.b.evaluate(`(document.querySelector('[data-testid="guide-card"]')?.textContent || '').slice(0, 200)`)
+      ev.drag.agentSaid = (await p.last()).slice(-260)
       const after = await p.b.evaluate(MEASURE(T.sel))
       ev.drag.afterRelease = { edgeOutsidePx: edges(after), handleMoved: after.target ? [+(after.target.left - m.target.left).toFixed(1), +(after.target.top - m.target.top).toFixed(1)] : null }
       if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}-after-drag.png`)).catch(() => {})
