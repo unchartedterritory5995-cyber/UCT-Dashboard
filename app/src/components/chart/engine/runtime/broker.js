@@ -26,7 +26,7 @@
 // bar at all (`vm.js`), so no realtime tick ever reaches this file.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, COMMISSION_NET_VALUES } from './brokerRules.js'
 
 export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 export const BROKER_START_GUARD = 'runtime:strategy-start'
@@ -259,6 +259,9 @@ export function makeBroker(cfg, data) {
     if (open.length === 0) return
     rule('B-MARGIN')
     if (defaulted.margin) rule('B-DEFAULTS')
+    // ⭐ W9-T13a N7 — the check below reads EQUITY, which is net of every closed trade's commission, so
+    // it rests on the commission being 0 (COMMISSION_RULE) whether or not the margin was defaulted
+    rule(COMMISSION_RULE)
     const dir = open[0].dir
     const pct = dir > 0 ? cfg.marginLong : cfg.marginShort
     const ratio = finite(pct) ? pct / 100 : NaN
@@ -1071,6 +1074,9 @@ export function makeBroker(cfg, data) {
   }
   /** [B-VAL] `strategy.equity` at bar `bar`'s close: initial capital + net profit + open profit. */
   const equityAt = (bar, what) => {
+    // ⭐ W9-T13a N7 — equity is net of commission: every reader of it (a percent-of-equity size included,
+    // not only the `strategy.equity` value) rests on COMMISSION_RULE
+    rule(COMMISSION_RULE)
     exactOpen(what); exactClosed(what); needSymbol()
     return capital() + (netPts() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty)) * pointvalue
   }
@@ -1183,6 +1189,8 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`\`${fn}\` is read on the bar an \`immediately = true\` close filled, after that close, `
         + 'and whether the value already reflects the fill is not stated', 'W9-X4')
     }
+    // [B-DEFAULTS] every figure net of commission rests on the commission being 0 (`brokerRules.js`)
+    if (COMMISSION_NET_VALUES.includes(fn)) rule(COMMISSION_RULE)
     switch (fn) {
       case 'strategy.position_size': return sum(open, (t) => t.dir * t.qty)
       case 'strategy.position_avg_price': {
@@ -1259,8 +1267,10 @@ export function makeBroker(cfg, data) {
 
   /** What the run did — for rails and diagnostics. */
   const timeOf = (bar) => (times && Number.isInteger(bar) && bar >= 0 && bar < times.length ? times[bar] : null)
+  // `exact`: every fill of the trade is on the tick grid (an off-grid fill is the open Q-S1l, and
+  // the report refuses what depends on one exactly as `value` does). W9-T13a reads it.
   const tradeRecord = (t) => ({
-    id: t.entryId, dir: t.dir, qty: t.qty,
+    id: t.entryId, dir: t.dir, qty: t.qty, exact: t.exact === true,
     entry: { time: timeOf(t.bar), price: t.price, rule: t.entryRule },
     ...(t.exitBar === undefined ? {} : { exit: { time: timeOf(t.exitBar), price: t.exitPrice, rule: t.exitRule } }),
   })
@@ -1273,6 +1283,9 @@ export function makeBroker(cfg, data) {
     record: {
       schema: 'uct.strategy-record/v0',
       trades: [...closed.map(tradeRecord), ...open.map(tradeRecord)],
+      // W9-T13a: the symbol's tick and point value as THIS run settled them (`#symbol`), null
+      // when the run never learned one. The report's currency values are price x size x pointvalue.
+      symbol: { mintick: finite(mintick) ? mintick : null, pointvalue: finite(pointvalue) ? pointvalue : null },
       rulesUsed: Array.from(okRules).sort(),
     },
   })

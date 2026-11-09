@@ -8,7 +8,7 @@ ENG = ROOT + '/src/components/chart/engine'
 BROKER = ENG + '/runtime/broker.js'
 SB = ENG + '/ast/strategyBroker.js'
 FE = ENG + '/ast/pineRuntimeFrontend.js'
-RAIL = ['src/components/chart/engine/runtime/__tests__/w9T7Exits.test.js']
+RAIL = ['src/components/chart/engine/runtime/__tests__/w9T7Exits.test.js', 'src/components/chart/engine/runtime/__tests__/w9BrokerIntegration.test.js']
 NODE20 = r'C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/dsk/tools/node-v20.20.2-win-x64'
 
 MUTANTS = [
@@ -41,6 +41,8 @@ MUTANTS = [
   ('M28 T7 kinds served under POC / calc_on_order_fills', BROKER, "    if (poc || coof) {\n      throw new BrokerRefusal(`${what} under", "    if (false) {\n      throw new BrokerRefusal(`${what} under"),
   ('M29 T6 tick routine closes whole trades again', BROKER, "      executeClose(cl, px, bar, true)\n    } else if (markets.length) {", "      for (const t of (cl.kind === 'all' ? open.slice() : open.filter((u) => u.entryId === cl.id))) closeTrade(t, px, bar, true)\n      afterPositionChange()\n    } else if (markets.length) {"),
   ('M30 trail best ignores the open', BROKER, "    checkActivation(o, opened.fresh)\n    ratchetTrails(o)\n", "    checkActivation(o, opened.fresh)\n"),
+  ('M31 N7: margin check does not ask COMMISSION_RULE', BROKER, "    // it rests on the commission being 0 (COMMISSION_RULE) whether or not the margin was defaulted\n    rule(COMMISSION_RULE)\n", "\n"),
+  ('M32 N7: equityAt does not ask COMMISSION_RULE', BROKER, "    // not only the `strategy.equity` value) rests on COMMISSION_RULE\n    rule(COMMISSION_RULE)\n", "\n"),
   ('M25 partial exit closes the whole trade', BROKER, "      closePart(lo.t, units, price, bar, exact)\n      lo.x.trades.delete", "      closePart(lo.t, lo.t.qty, price, bar, exact)\n      lo.x.trades.delete"),
 ]
 
@@ -94,7 +96,7 @@ for name, path, old, new in MUTANTS:
     results.append({'mutant': name, 'status': status, 'rail': tail.strip()})
     print(name, status, tail.strip(), flush=True)
 
-out = r'C:/Users/Patrick/uct-worktrees/pine-dsk-w9t7/docs/pine/evidence/2026-11-08-w9-t7/' + ('muts-merged-t6-' + '-'.join(ONLY) + '.json' if ONLY else 'muts-merged-t6.json')
+out = r'C:/Users/Patrick/uct-worktrees/pine-dsk-w9t7/docs/pine/evidence/2026-11-08-w9-t7/' + ('muts-integration-' + '-'.join(ONLY) + '.json' if ONLY else 'muts-integration.json')
 os.makedirs(os.path.dirname(out), exist_ok=True)
 json.dump({'control': base_tail.strip(), 'results': results}, open(out, 'w', encoding='utf-8'), indent=1)
 print('survivors:', [r['mutant'] for r in results if r['status'] != 'KILLED'])
