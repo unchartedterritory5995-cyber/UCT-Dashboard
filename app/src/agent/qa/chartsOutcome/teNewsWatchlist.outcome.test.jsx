@@ -12,6 +12,7 @@ import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor } from './ou
 import { WidgetDoorContext, mountedWidgetDoor } from '../../../pages/charts/widgetDoors'
 import { WorkspaceContext } from '../../../pages/charts/WorkspaceContext'
 import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from '../../agentExecHeldOut7.test.js'
+import { PRESET_HELD_OUT } from '../../agentScanFilterHeldOut.test.js'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const feed = vi.hoisted(() => {
@@ -54,9 +55,9 @@ await outcomeSuite()
 afterEach(() => { afterEachOutcome(); cleanup() })
 
 // the suite pins the clock (outcomeSuite) only once it runs: the headlines are stamped at mount, on that clock
-const H = (NOW, seq, content, tickers) => ({ type: 'headline', epoch: 'e', seq, id: `id${seq}`, source: 'TX-News', content, tickers, category: 'News',
+const H = (NOW, seq, content, tickers, category = 'News') => ({ type: 'headline', epoch: 'e', seq, id: `id${seq}`, source: 'TX-News', content, tickers, category,
   received_at_ms: NOW - (50 - seq) * 1000, repeat_count: 0, via: 'push', delayed: false })
-const items = (NOW) => [H(NOW, 1, 'SYNTHETIC: AMD guidance raised', ['AMD']), H(NOW, 2, 'SYNTHETIC: TSLA deliveries', ['TSLA']), H(NOW, 3, 'SYNTHETIC: SPY options expiry', ['SPY']), H(NOW, 4, 'SYNTHETIC: tariff talks resume', []), H(NOW, 5, 'SYNTHETIC: Fed holds rates', [])]
+const items = (NOW) => [H(NOW, 1, 'SYNTHETIC: AMD guidance raised', ['AMD'], 'Earnings'), H(NOW, 2, 'SYNTHETIC: TSLA deliveries', ['TSLA']), H(NOW, 3, 'SYNTHETIC: SPY options expiry', ['SPY']), H(NOW, 4, 'SYNTHETIC: tariff talks resume', []), H(NOW, 5, 'SYNTHETIC: Fed holds rates', [], 'Macro')]
 
 function Live({ board }) {
   const [, tick] = useState(0)
@@ -71,8 +72,8 @@ function Live({ board }) {
     </MemoryRouter>
   )
 }
-function mount() {
-  const m = open([chart('c1', 0, 0, 12, 20), { id: 'tn', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'N', opts: {} }], { 'N:c1': 'NVDA' })
+function mount(opts = {}) {
+  const m = open([chart('c1', 0, 0, 12, 20), { id: 'tn', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'N', opts }], { 'N:c1': 'NVDA' })
   render(<Live board={m.board} />)
   const NOW = Date.now(), ITEMS = items(NOW)
   act(() => feed.set({ status: 'live', items: ITEMS, lastSeq: ITEMS.length, replayUntil: ITEMS.length, lastHeadlineAt: NOW }))
@@ -138,5 +139,40 @@ describe('C3-138: search the News widget through its own search box', () => {
     const out = await m.say('search the news widget for this very long sentence', search('x'.repeat(120)))
     expect(out).toMatch(/at most 80 characters/)
     expect(box().value).toBe('')
+  }, 60000)
+})
+
+// C3-140 (round 8): one of the widget's own saved filter presets, applied as its Presets menu applies it. Read back: the widget's
+// opts and the rows it shows; Undo restores the filters exactly. A preset that also searches is refused with the reason.
+describe('C3-140: apply a saved News filter preset by its name', () => {
+  const PRESETS = [{ id: 'p1', name: 'Earnings Watch', categories: ['Earnings'] }, { id: 'p2', name: 'Macro only', categories: ['Macro'] }, { id: 'p3', name: 'Fed search', categories: [], query: 'Fed' }]
+  const setPreset = (value) => (c) => [{ action: 'widget.setOption', target: must(c.board?.[0]?.ref, 'board'), args: { widget: 'tn', key: 'preset', value } }]
+  const SHOWS = { 'Earnings Watch': [1], 'Macro only': [5] }
+  it.each([...PRESET_HELD_OUT.map(c => [c.text, c.preset]), ['apply the Earnings Watch filter set', 'Earnings Watch']])('"%s": the preset filters are on, only its rows show; Undo puts the filters back', async (text, name) => {
+    const m = mount({ presets: PRESETS })
+    await waitFor(() => expect(mountedWidgetDoor('tn')?.options?.().preset.map(o => o.label)).toEqual(['Earnings Watch', 'Macro only', 'Fed search']))
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
+    const out = await m.say(text, setPreset(name))
+    await waitFor(() => expect(optsOf(m).presetId).toBe(PRESETS.find(p => p.name === name).id))
+    await waitFor(() => expect(shown()).toEqual(SHOWS[name]))
+    expect(out).toMatch(new RegExp(`preset is now ${name}`))
+    await m.say('undo')
+    await waitFor(() => expect(optsOf(m).presetId ?? null).toBe(null))
+    await waitFor(() => expect(shown()).toEqual([1, 2, 3, 4, 5]))
+  }, 60000)
+  it('NEGATIVE a preset that also searches: refused with the reason, nothing changes', async () => {
+    const m = mount({ presets: PRESETS })
+    await waitFor(() => expect(mountedWidgetDoor('tn')?.options?.().preset.length).toBe(3))
+    const out = await m.say('use the Fed search preset on the news widget', setPreset('Fed search'))
+    expect(out).toMatch(/also searches for “Fed”/)
+    expect(optsOf(m).presetId ?? null).toBe(null)
+    expect(shown()).toEqual([1, 2, 3, 4, 5])
+  }, 60000)
+  it('NEGATIVE a preset the widget does not have: refused naming its own', async () => {
+    const m = mount({ presets: PRESETS })
+    await waitFor(() => expect(mountedWidgetDoor('tn')?.options?.().preset.length).toBe(3))
+    const out = await m.say('use my Crypto preset on the news widget', setPreset('Crypto'))
+    expect(out).toMatch(/Earnings Watch/)
+    expect(optsOf(m).presetId ?? null).toBe(null)
   }, 60000)
 })

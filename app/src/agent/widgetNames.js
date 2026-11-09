@@ -7,6 +7,7 @@
 import { WIDGET_REGISTRY } from '../widgets/registry'
 import { widgetControls as registryControls } from '../widgets/widgetControls'
 import { COMPANY_TABS, normalizeDock } from '../pages/charts/widgets/chartDock'
+import { cleanPresets, presetPatch } from '../pages/charts/widgets/tradeExchangeNewsModel'
 import { COMPANY_INFO, setFeatureOpen } from '../pages/charts/widgets/chartFeatures'
 
 // every control a widget offers: the registry's rows (widgets/widgetControls.js), then the Agent's own over the product's writers
@@ -36,7 +37,22 @@ const HOLDINGS_WHY = 'This chart isn’t showing an ETF or a UCT index, so it ha
 const SEARCH_WORDS = ['search', 'find', 'look', 'lookup', 'query', 'clear']
 export const AGENT_CONTROLS = {
   // C3-138 (round 7): the News (Trade Exchange) widget's own "Search headlines" box, through its door (its own setQueryRaw)
-  tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS }],
+  tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS },
+    // C3-140 (round 8): one of the widget's own saved filter presets, applied as its Presets menu applies it (presetPatch: the
+    // categories, linked, watchlist and display settings it saved). A preset that also SEARCHES is refused with the reason: the
+    // search box is the widget's own state and is not part of an exact Undo.
+    { key: 'preset', type: 'enum', from: 'door', path: 'presetId', words: ['preset', 'filter set', 'saved filter'],
+      write: (opts, v) => { const p = cleanPresets(opts?.presets).find(x => x.id === v); return p ? { ...(opts || {}), ...presetPatch(opts?.settings, p) } : opts },
+      valueWhy: (opts, v) => { const p = cleanPresets(opts?.presets).find(x => x.id === v); return p && String(p.query || '').trim() ? `The preset “${p.name}” also searches for “${String(p.query).trim()}”. I can apply its filters only without that search, so I didn't apply it: use the widget's Presets menu to apply it with the search.` : null } }],
+  // C3-108 (round 8): leave the scan a Scanner widget shows and go back to its picker, as its own back control does (exitScan)
+  scanner: [
+    // C3-109 (round 8): the scan picker's own search box (a text door control), offered only while the picker shows
+    { key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS,
+      when: (opts) => (opts?.scanKey ? 'The Scanner widget is showing a scan; its search box is on its picker (go back to the picker first).' : null) },
+    { key: 'show', type: 'enum', options: ['picker'], title: 'view', labels: { picker: 'the scan picker' }, words: ['picker', 'back', 'close', 'leave', 'list'],
+    value: (opts) => (opts?.scanKey ? (opts.scanName || opts.scanKey) : 'picker'),
+    when: (opts) => (opts?.scanKey ? null : 'The Scanner widget is already showing its scan picker.'),
+    write: (opts) => ({ ...(opts || {}), scanKey: null, scanName: null }) }],
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
   // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')

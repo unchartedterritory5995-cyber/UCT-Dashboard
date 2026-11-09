@@ -9,6 +9,7 @@
 //   • CREATE YOUR OWN — disabled until the custom scan-builder ships
 // Preset scans are intentionally EMPTY for now (the widget shell only).
 import { useState, useCallback, useMemo } from 'react'
+import { useWidgetDoor } from '../widgetDoors'
 import usePreferences from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import UIcon from '../../../components/ui/UIcon'
@@ -73,6 +74,8 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('prebuilt')   // presets live under Prebuilt
   const query = q.trim().toLowerCase()
+  // UCT Agent (C3-109): the picker's own search box, read back as typed and written through its own setter, as typing does
+  useWidgetDoor(() => ({ read: () => ({ search: q }), write: (key, v) => { if (key === 'search') setQ(String(v ?? '').slice(0, 80)) } }))
 
   // Group the (search-filtered) presets into category cards. Match on name OR
   // description so a search like "gain" still finds the Top Gainers. Only

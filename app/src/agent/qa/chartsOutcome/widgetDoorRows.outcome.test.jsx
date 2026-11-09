@@ -285,3 +285,61 @@ describe('the Notebook widget: create a note through its own New control (C3-202
     expect(data.notes.length).toBe(2)
   }, 60000)
 })
+
+// round 8 (family 2, held-out first: agentScanFilterHeldOut): a Scanner widget back to its picker (C3-108) and the Market Map's
+// Follow the linked list toggle (C3-194), through the widgets' own writers; read back from what the REAL widget draws.
+import { SCAN_BACK_HELD_OUT, FOLLOW_HELD_OUT, SCAN_SEARCH_HELD_OUT } from '../../agentScanFilterHeldOut.test.js'
+describe('round 8: a Scanner back to its picker (C3-108), the Market Map following the linked list (C3-194)', () => {
+  const SCAN = { scanKey: 'highest-volume-1y', scanName: 'Highest Volume In 1 Year' }
+  it.each(SCAN_BACK_HELD_OUT.map(c => [c.text]))('C3-108 "%s": the picker shows again; Undo opens the scan back', async (text) => {
+    const m = board([wgt('sc', 'scanner', SCAN)])
+    await waitFor(() => expect(mountedWidgetDoor('sc')?.about?.()).toMatch(/criteria/))
+    const out = await m.say(text, setOption('scanner', 'show', 'picker'))
+    await waitFor(() => expect(optsOf(m, 'sc').scanKey ?? null).toBe(null))
+    await waitFor(() => expect(within('sc').textContent).not.toMatch(/Highest Volume In 1 Year/))
+    expect(out).toMatch(/view is now the scan picker \(was Highest Volume In 1 Year\)/)
+    await m.say('undo')
+    await waitFor(() => expect(optsOf(m, 'sc').scanKey).toBe('highest-volume-1y'))
+  }, 60000)
+  it('C3-108 NEGATIVE the picker is already showing: refused with the reason, nothing changes', async () => {
+    const m = board([wgt('sc', 'scanner', {})])
+    const before = JSON.stringify(m.board.state.widgets)
+    const out = await m.say('back to the scan picker', setOption('scanner', 'show', 'picker'))
+    expect(out).toMatch(/already showing its scan picker/)
+    expect(JSON.stringify(m.board.state.widgets)).toBe(before)
+  }, 60000)
+  it.each(FOLLOW_HELD_OUT.map(c => [c.text, c.value]))('C3-194 "%s": the widget’s own Follow toggle reads it; Undo puts it back', async (text, value) => {
+    const m = board([wgt('mm', 'scatter', value ? {} : { followList: true })])
+    const toggle = () => within('mm').querySelector('[aria-label="Follow the linked list"]')
+    await waitFor(() => expect(toggle()).toBeTruthy())
+    expect(toggle().getAttribute('aria-pressed')).toBe(String(!value))
+    const out = await m.say(text, setOption('scatter', 'followList', value))
+    await waitFor(() => expect(toggle().getAttribute('aria-pressed')).toBe(String(value)))
+    expect(out).toMatch(/followList is now (on|off)/)
+    await m.say('undo')
+    await waitFor(() => expect(toggle().getAttribute('aria-pressed')).toBe(String(!value)))
+  }, 60000)
+})
+
+// C3-109 (round 8): the Scanner picker's own search box, through its door (its own setter, as typing does). Read back: the box
+// and the scans the picker lists; Undo empties the box and every scan is listed again.
+describe('round 8: search the Scanner preset list (C3-109)', () => {
+  const names = () => [...within('sc').querySelectorAll('[class*="rowName"]')].map(e => e.textContent)
+  it.each([...SCAN_SEARCH_HELD_OUT.map(c => [c.text, c.value]), ['search the scanner for gainers', 'gainers']])('C3-109 "%s": the picker lists only what matches; Undo lists all again', async (text, value) => {
+    const m = board([wgt('sc', 'scanner', {})])
+    await waitFor(() => expect(names().length).toBe(6))
+    const out = await m.say(text, setOption('scanner', 'search', value))
+    await waitFor(() => expect(mountedWidgetDoor('sc').read().search).toBe(value))
+    const want = { gap: [], volume: ['Highest Volume In 1-Year', 'Highest Volume Ever'], gainers: ['Top Gainers (30-Day)', 'Top Gainers (60-Day)', 'Top Gainers (90-Day)'] }[value]
+    await waitFor(() => expect(names()).toEqual(want))
+    expect(out).toMatch(new RegExp(`search is now ${value}`))
+    await m.say('undo')
+    await waitFor(() => expect(names().length).toBe(6))
+  }, 60000)
+  it('C3-109 NEGATIVE a Scanner showing a scan: refused with the reason (its search is on its picker)', async () => {
+    const m = board([wgt('sc', 'scanner', { scanKey: 'highest-volume-1y', scanName: 'Highest Volume In 1 Year' })])
+    await waitFor(() => expect(mountedWidgetDoor('sc')?.about?.()).toMatch(/criteria/))
+    const out = await m.say('search the scanner for gainers', setOption('scanner', 'search', 'gainers'))
+    expect(out).toMatch(/search box is on its picker/)
+  }, 60000)
+})
