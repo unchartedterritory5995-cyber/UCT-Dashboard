@@ -29,9 +29,10 @@
 //                    cannot change after its import, so one check at boot covers every run). With
 //                    a budget, the run names EVERY
 //                    wall-clock stop `runtime:time-budget` (runtimeColumns.js), which the result
-//                    cache never stores (cache.mjs `cacheable`). Without one, the VM's WALL_TIME stop
-//                    would surface as `runtime:limit`, read as deterministic and CACHED: that is the
-//                    hole this check closes.
+//                    cache never stores (cache.mjs `cacheable`): the pane budget's AND the VM's own
+//                    `limits.WALL_TIME` (LIMITS r1 ruling B2-a; the sentence names whichever ceiling
+//                    fired, and the refusal's `limit` field says WALL_TIME). The budget stays
+//                    explicit so that no future routing of a wall-clock stop can reach the cache.
 //   run-wide stop    status `withheld`, no `columns`, refusals `[{key: '*', guard, sentence, bar}]`.
 //                    guard = the run's own `err.guard`; the script's `runtime.error` is guard
 //                    `runtime.error`; an unnamed throw is the bundle's `RUNTIME_FAILED_GUARD`.
@@ -115,16 +116,21 @@ export function encodeColumn(rt, col, n) {
   return rt.bytesToB64(bytes)
 }
 
-const runWide = (job, guard, sentence, bar = null) => ({
-  job, status: 'withheld', refusals: [{ key: '*', guard, sentence, bar }],
+const runWide = (job, guard, sentence, bar = null, limit = null) => ({
+  job, status: 'withheld', refusals: [{ key: '*', guard, sentence, bar, ...(limit ? { limit } : {}) }],
 })
+
+/** LIMITS r1: a stop's limit NAME (`CALL_COUNT`, `WALL_TIME`, ...) rides as a field: the
+ *  member's sentence names it in plain words only (`limits.js::LIMIT_PLAIN`). */
+const LIMIT_NAME = /^[A-Z][A-Z0-9_]{0,63}$/
 
 /** The run-wide refusal for a thrown stop, by the run's own name. */
 export function refusalOf(rt, err) {
   const guard = (err && typeof err.guard === 'string' && err.guard)
     || (err && err.name === SCRIPT_ERROR_GUARD ? SCRIPT_ERROR_GUARD : rt.RUNTIME_FAILED_GUARD)
   const sentence = String((err && err.message) || err).slice(0, 2000)
-  return { guard, sentence, bar: err && Number.isInteger(err.bar) ? err.bar : null }
+  const limit = err && typeof err.limit === 'string' && LIMIT_NAME.test(err.limit) ? err.limit : null
+  return { guard, sentence, bar: err && Number.isInteger(err.bar) ? err.bar : null, limit }
 }
 
 /** W9-T14: why `rec` cannot be written as JSON exactly (a path and a reason), or null. Every number
@@ -212,7 +218,7 @@ export function runJob(rt, doc, job, clock = () => performance.now()) {
     out = encodeResult(rt, job, cols)
   } catch (err) {
     const r = refusalOf(rt, err)
-    out = runWide(job.job, r.guard, r.sentence, r.bar)
+    out = runWide(job.job, r.guard, r.sentence, r.bar, r.limit)
   } finally {
     rt.resetRuntimeSessions()
     rt.resetRuntimeLedgers()

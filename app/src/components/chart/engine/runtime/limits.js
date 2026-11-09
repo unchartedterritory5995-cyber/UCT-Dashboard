@@ -120,7 +120,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // 8,502 bars): delta-rsi-oscillator-strategy takes a CONSTANT 1,163 iterations a bar (its
   // fixed 21x3 least-squares solve, rebuilt every bar by the script itself) and stops here at
   // bar ~4,299; machine-learning-knn-based-strategy loops over a list that grows every bar
-  // (~bar/2 iterations on bar `bar`, 2,003,000 by bar 2,000) and stops at bar 3,160. Neither
+  // (~`bar` iterations on bar `bar`, so ~bar^2/2 in all: 2,003,000 by bar 2,000) and stops at bar 3,160. Neither
   // is our avoidable work: Pine runs the same loops. NOT RAISED, because neither reaches
   // this ceiling on the member's pane: the 1,000 ms pane budget stops delta-rsi at ~bar 610
   // and knn at ~bar 1,035 first, so a raise would change no member's chart and would only

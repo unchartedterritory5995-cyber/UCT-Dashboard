@@ -200,6 +200,21 @@ test('a wall-clock stop on the REAL bundle is runtime:time-budget, never runtime
   assert.equal(cacheable(ok), true)
 }, { timeout: 120000 })
 
+test('LIMITS r1 (B2-a): the VM OWN WALL_TIME stop, with the budget set, is runtime:time-budget, names 5,000 ms, carries limit WALL_TIME, and is never cacheable', async () => {
+  real = real || await buildRealBundle()
+  const rt = await import(pathToFileURL(real.outfile).href)
+  // 6,000 ms a read: the VM's bar-end account (before the pane's hook) is past 5,000 ms on bar 1
+  let t = 0
+  const stall = { ...rt, computeRuntimeColumns: (d, r, c, o) => rt.computeRuntimeColumns(d, r, c, { ...o, now: () => (t += 6000) }) }
+  const r = runJob(stall, docOf('//@version=5\nindicator("w")\nplot(ta.sma(close, 3))'), parsedJob('A', { n: 50 }))
+  assert.equal(r.status, 'withheld', JSON.stringify(r))
+  assert.equal(r.refusals[0].guard, rt.RUNTIME_TIME_BUDGET_GUARD, JSON.stringify(r.refusals))
+  assert.equal(r.refusals[0].limit, 'WALL_TIME')
+  assert.match(r.refusals[0].sentence, /took more than 5000 ms/)
+  assert.doesNotMatch(r.refusals[0].sentence, /1000 ms|WALL_TIME/)
+  assert.equal(cacheable(r), false, 'a VM wall-clock stop is never stored')
+}, { timeout: 120000 })
+
 test('W9-T11: runArgs forwards the job ctx window (as the browser does), and only when the job states one', () => {
   const doc = docOf('x')
   const job = parsedJob('A', { n: 2 })

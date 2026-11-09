@@ -1415,10 +1415,25 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     })
   } catch (err) {
     if (err && err.name === 'runtime.error') err.bar = finished + 1
-    if (err instanceof RuntimeLimitError && err.paneBudget === true) {
-      throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${budgetMs} ms to draw `
-        + `bar by bar (it had reached bar ${finished + 1} of ${rows.length}), which is this pane's budget `
-        + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
+    // ⭐ THE BAR A STOP NAMES, 1-BASED, THE SAME WAY FOR EVERY STOP. `finished` is the
+    // 0-based index of the last bar whose END was reached (-1 before the first). The
+    // pane's check runs IN that bar's end hook, so its stop is bar `finished + 1`; every
+    // VM stop (a limit mid-bar, or the VM's own bar-end account, which runs BEFORE the
+    // hook) is on the bar AFTER it: `finished + 2`. Railed: both sentences name the same
+    // bar for the same stop (`runtimeLimitSentence.test.js`).
+    const stopBar = err instanceof RuntimeLimitError && err.paneBudget === true ? finished + 1 : finished + 2
+    // ⛔⛔ EVERY WALL-CLOCK STOP IS `runtime:time-budget` (LIMITS r1, ruling B2-a): a time
+    // stop is a property of the box, never of the script, so the result cache (service
+    // `cache.mjs::cacheable`, `pine_runtime_client.py::cacheable`) must never store it.
+    // The sentence names the ceiling that ACTUALLY fired: the pane's `budgetMs`, or the
+    // VM's own `limits.WALL_TIME` (a single bar that ran past it, e.g. under a stall).
+    if (err instanceof RuntimeLimitError && err.limit === 'WALL_TIME') {
+      const which = err.paneBudget === true
+        ? "which is this pane's budget for one indicator"
+        : 'which is the most time one run of a script may take'
+      throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${err.ceiling} ms to draw `
+        + `bar by bar (it had reached bar ${stopBar} of ${rows.length}), ${which}, so it is stopped `
+        + 'and nothing is drawn rather than part of it.', 'WALL_TIME')
     }
     // ⭐⭐ RF — EVERY OTHER STOP OF THE RUN IS NAMED TOO. A VM limit
     // (`limits.js`: loop iterations, collection sizes, …) and an unexpected throw
@@ -1427,11 +1442,11 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // can read. The script's own `runtime.error` (C43) keeps its own path.
     if (err && err.name !== 'runtime.error' && !err.guard) {
       if (err instanceof RuntimeLimitError) {
-        throw refusal(RUNTIME_LIMIT_GUARD, runtimeLimitSentence(err, finished + 1, rows.length), err.limit)
+        throw refusal(RUNTIME_LIMIT_GUARD, runtimeLimitSentence(err, stopBar, rows.length), err.limit)
       }
       // A collection / record / VM error words its own reason (`collections.js`:
       // "array.sum of an empty array — …"); it is kept, with the bar it stopped on.
-      const failed = refusal(RUNTIME_FAILED_GUARD, `this script stopped on bar ${finished + 1} of ${rows.length} `
+      const failed = refusal(RUNTIME_FAILED_GUARD, `this script stopped on bar ${stopBar} of ${rows.length} `
         + `when drawn bar by bar (${String((err && err.message) || err).slice(0, 400)}), so nothing is drawn `
         + 'rather than part of it.')
       failed.cause = (err && err.name) || 'Error'

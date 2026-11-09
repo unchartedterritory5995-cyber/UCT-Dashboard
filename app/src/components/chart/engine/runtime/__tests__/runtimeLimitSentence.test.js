@@ -23,8 +23,9 @@ const def = (source) => ({ id: 'u_lim', version: 1, compute: { kind: 'runtime', 
   meta: { name: 'lim' }, plots: [{ key: 'value' }] })
 const bars = (n) => Array.from({ length: n }, (_, i) => ({ t: 1e9 + i * 86400, o: 1, h: 2, l: 0.5, c: 1 + (i % 7), v: 10 }))
 const ctx = { tf: 'D', newestBarIsForming: false }
-function stopOf(source, opts) {
-  try { computeRuntimeColumns(def(source), bars(40), ctx, opts) } catch (e) { return e }
+function stopOf(source, opts, n = 40) {
+  // every run from bar 0: a resumed session would skip the bars a stop is counted on
+  try { computeRuntimeColumns(def(source), bars(n), ctx, { incremental: false, ...opts }) } catch (e) { return e }
   return null
 }
 const ticking = (step) => { let t = 0; return () => { t += step; return t } }
@@ -50,7 +51,7 @@ describe('1 — every limit has a plain phrase, and the sentence carries no toke
     expect(e.limit).toBe('CALL_COUNT')
     expect(e.message).not.toMatch(TOKEN)
     expect(e.message).toContain('the number of function calls a script may make over the whole chart')
-    expect(e.message).toMatch(/at most 50, it reached 51\) on bar 5 of 40/)
+    expect(e.message).toMatch(/at most 50, it reached 51\) on bar 6 of 40/)
   })
 
   it('control: under the same ceiling raised, it draws', () => {
@@ -65,12 +66,46 @@ describe('2 — a WALL_TIME stop names the ceiling that fired', () => {
     expect(e.message).toMatch(/took more than 7 ms/)
   })
 
-  it('the VM WALL_TIME fires first: runtime:limit naming ITS ceiling, not budgetMs', () => {
+  it('the VM WALL_TIME fires first: STILL runtime:time-budget (never cached), naming ITS ceiling', () => {
     const e = stopOf(PLAIN, { budgetMs: 600000, now: ticking(10), limits: { WALL_TIME: 25 } })
-    expect(e && e.guard).toBe(RUNTIME_LIMIT_GUARD)
+    expect(e && e.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
     expect(e.limit).toBe('WALL_TIME')
+    expect(e.message).toMatch(/took more than 25 ms/)
+    expect(e.message).toContain('the most time one run of a script may take')
     expect(e.message).not.toMatch(/600,?000/)
-    expect(e.message).toContain('the time one run of a script may take (at most 25 ms')
+  })
+
+  it('the shipped VM ceiling is the one named: 5,000 ms', () => {
+    const e = stopOf(PLAIN, { budgetMs: 600000, now: ticking(1000) })
+    expect(e && e.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
+    expect(e.message).toMatch(/took more than 5000 ms/)
+  })
+})
+
+describe('4 — every stop names the 1-based bar it stopped on, the same way', () => {
+  // a sentence naming bar k is right when a chart of k-1 bars draws and one of k stops
+  const named = (e) => Number(/bar (\d[\d,]*) of/.exec(e.message)[1].replace(/,/g, ''))
+  it('a limit stop: 5 bars of 10 calls fit a 50-call ceiling, the 6th bar stops and is named bar 6', () => {
+    const lim = { limits: { CALL_COUNT: 50 } }
+    expect(stopOf(CALLS, lim, 5)).toBeNull()
+    expect(named(stopOf(CALLS, lim, 6))).toBe(6)
+  })
+  // a clock that advances ONLY when the pane's own bar-end check reads it (10 ms a bar),
+  // so its stop bar is known exactly: past 55 ms at the end of the 6th bar
+  const paneClock = () => { let t = 0; return () => (/onBar/.test(new Error().stack) ? (t += 10) : t) }
+  it('the pane budget: 5 bars fit, the 6th bar stops and is named bar 6', () => {
+    const opts = () => ({ budgetMs: 55, now: paneClock() })
+    expect(stopOf(PLAIN, opts(), 5)).toBeNull()
+    const e = stopOf(PLAIN, opts(), 6)
+    expect(e && e.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
+    expect(named(e)).toBe(6)
+  })
+  it('the same stop bar reads the same in both sentences', () => {
+    const limit = stopOf(CALLS, { limits: { CALL_COUNT: 50 } })
+    const pane = stopOf(PLAIN, { budgetMs: 55, now: paneClock() })
+    expect(limit.guard).toBe(RUNTIME_LIMIT_GUARD)
+    expect(pane.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
+    expect(named(limit)).toBe(named(pane))
   })
 })
 
