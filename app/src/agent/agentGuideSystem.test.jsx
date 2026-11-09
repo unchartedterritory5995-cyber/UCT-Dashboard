@@ -382,8 +382,6 @@ describe('a walkthrough stays on ITS chart and ends when it should', () => {
     fireEvent.pointerDown(document.querySelector('[aria-label="Send"]'), { button: 0 })
     await waitFor(() => expect(card()).toBeNull())
   }, 15000)
-  // PENDING a core change: Enter in the message box is the Agent's own key; useAgent calls endForNewRequest() when a request starts
-  it.skip('P2 a new request sent with Enter ends the walkthrough (PENDING useAgent → guideStore.endForNewRequest)', () => {})
   it('endForNewRequest ends a running walkthrough, and is a no-op with none', () => {
     startGuide(F, { steps: [{ target: 'a', text: 'x' }] })
     endForNewRequest()
@@ -398,8 +396,6 @@ describe('a walkthrough stays on ITS chart and ends when it should', () => {
     expect(own('<button data-guide="chart.tool.trendline" aria-pressed="true"></button>')).toBe(false)
     expect(own('<div aria-label="Drawing actions"></div>')).toBe(false)
   })
-  // PENDING a registry declaration: an Escape observer in the capture phase calling escapeOnBoard() (observers get no event)
-  it.skip('P2 Escape with focus on the board ends the walkthrough (PENDING shortcutRegistry: Escape observer → escapeOnBoard)', () => {})
 })
 
 // OWNER DECISION 2026-11-07: pressing ANOTHER chart ends a walkthrough on a chart, cleanly, and never restarts it there.

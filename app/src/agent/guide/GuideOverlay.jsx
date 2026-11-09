@@ -37,7 +37,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
-import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt } from './guideStore'
+import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt, escapeOnBoard } from './guideStore'
 import { needsOwnPress, findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
 import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
 import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
@@ -58,6 +58,7 @@ const hasDoIt = (feature) => !!feature?.doIt
 
 // the menus that close on Escape carry no layer attribute (a plain dropdown is not a layer): which were open at the press
 const MENUS = '[role="menu"],[data-guide$="Menu"]'
+const TOOL_OWNS = '[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],[aria-label="Drawing actions"]'
 const NO_LAYERS_BENEATH = new Set()
 
 // the walkthrough chart's symbol, from its own label (components/chart/pane/ChartIdentityRow.jsx sym-label)
@@ -230,10 +231,13 @@ export default function GuideOverlay() {
     return registerShortcuts({
       // the window capture phase: a layer that closes from its own listener is already gone by the bubble phase
       // (and a field that closes on its own Escape has lost focus by then: the name box of a new list)
-      'agent.guideEscapeGate': () => { press = { field: isEditableFocus(), layer: layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH), menus: [...document.querySelectorAll(MENUS)] } },
+      // `tool`: an armed drawing tool or a selected drawing had the press (it disarms or deselects on Escape)
+      'agent.guideEscapeGate': () => { press = { field: isEditableFocus(), layer: layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH), menus: [...document.querySelectorAll(MENUS)], tool: !!document.querySelector(TOOL_OWNS) } },
+      // round 6: heard first (window capture), whatever the board's own handlers then do with the key; never prevents or stops it
+      'agent.guideEscapeBoard': () => { if (!isEditableFocus() && !layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH)) escapeOnBoard() },
       'agent.guideEscape': (e) => {
         const { field, layer, menus } = press
-        if (e.defaultPrevented || field || layer) return
+        if (e.defaultPrevented || field || layer || press.tool) return
         // a menu that answered from a React handler has closed by the next task
         setTimeout(() => { if (!e.defaultPrevented && menus.every(m => m.isConnected)) endGuide('exit') }, 0)
       },
