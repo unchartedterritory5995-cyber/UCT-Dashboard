@@ -7,7 +7,8 @@
 // on bar 0. Through the member door, from the listing, every row is the vendor's on
 // every bar — the two spellings that become one tree are told apart by the reading
 // the translator writes into the switched mark (`interpret.js::readingSeed`).
-// Behind the listing (the curtain default, ruling R-W) every counter is WITHHELD.
+// Behind the listing (the curtain default, ruling R-W) every counter is WITHHELD —
+// `ta.cum(1)` included since 2026-11-09, by name (`running-total:window`).
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
@@ -56,10 +57,27 @@ describe('C29 — bar counters, from the listing, are TradingView\'s on every ba
     const ours = runOurSide({ ...cap, history: { startsAtBar0: false, why: 'test: not asserted' } })
     expect(ours.ok, ours.refusal).toBe(true)
     for (const p of ours.plots) {
-      // ⚠️ `ta.cum(1)` stays the host's `cum` (pine.js names why: moving it behind the
-      // curtain would blank `atr-trailing-stoploss` off the listing) — not asserted here.
+      // ⚠️ `ta.cum(1)` is not asserted on THIS capture: its control row reads
+      // `bar_index` 0 on bar 0, so the harness knows the window starts at the
+      // listing (`barIndexStartsAtZero`) and the count is TradingView's. SPY 1m below.
       if (!ROWS.includes(p.title) || !p.column || p.title === 'C05_ta_cum_1') continue
       expect(Array.from(p.column).every(Number.isNaN), `${p.title} was drawn behind the listing`).toBe(true)
     }
+  })
+
+  // ⭐⭐ 2026-11-09 — `ta.cum(1)` behind the listing. It was served as the LOADED
+  // count (1, 2, 3 …) while TradingView reads 11,761 on SPY 1m
+  // (`vw-bar-counters-spy-1-2026-10-02` C05): a silently wrong number beside four
+  // counters that were correctly withheld. It is now withheld too, BY NAME.
+  it('behind the listing on SPY 1m (the capture that found it): C05 is not 1 where TradingView reads 11,761', () => {
+    const spy = JSON.parse(fs.readFileSync(path.join(H, 'vw-bar-counters-spy-1-2026-10-02.json'), 'utf8'))
+    expect(spy.history.startsAtBar0).not.toBe(true)
+    const ours = runOurSide(spy)
+    expect(ours.ok, ours.refusal).toBe(true)
+    const c05 = ours.plots.find((p) => p.title === 'C05_ta_cum_1')
+    expect(Array.from(c05.column).every(Number.isNaN), 'C05 drew a number behind the listing').toBe(true)
+    expect(c05.withheldBy).toBe('running-total:window')
+    expect(c05.missingReason).toMatch(/by name \(running-total:window\)/)
+    expect(ours.notes.some((n) => n.includes('running-total:window'))).toBe(true)
   })
 })
