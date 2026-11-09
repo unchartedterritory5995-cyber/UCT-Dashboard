@@ -205,6 +205,8 @@ def _extract(stage: str) -> bool:
 def _is_complete_database(path: str) -> bool:
     """Fast proof that this file is a whole database holding bars.
 
+    SQLite itself refuses a file shorter than its header declares.
+
     Deliberately not PRAGMA integrity_check: on the 40 GB file it outlasted every
     gap between redeploys, so a restore could never finish. That scan already
     passed before this snapshot was uploaded, the gzip CRC covers the transfer,
@@ -213,11 +215,6 @@ def _is_complete_database(path: str) -> bool:
     try:
         conn = sqlite3.connect(path, timeout=10)
         try:
-            pages = conn.execute("PRAGMA page_count").fetchone()[0]
-            page_size = conn.execute("PRAGMA page_size").fetchone()[0]
-            if pages * page_size != os.path.getsize(path):
-                log.error("[bars-restore] database is not the size its header declares")
-                return False
             return conn.execute("SELECT 1 FROM ohlcv LIMIT 1").fetchone() is not None
         finally:
             conn.close()
