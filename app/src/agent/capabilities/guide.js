@@ -20,6 +20,7 @@ import { stepsFor, titleFor } from '../guide/slots'
 import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import { namedChart } from '../guide/namedChart'
+import { releasedOnly } from '../guide/releases'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -65,7 +66,10 @@ export function mineOnly(steps, host) {
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
-  const steps = mineOnly(stepsFor(f, words), host)
+  // a control behind a release switch that is off is said, never rung (guide/releases.js)
+  const released = releasedOnly(stepsFor(f, words))
+  if (typeof released === 'string') return released
+  const steps = mineOnly(released, host)
   if (typeof steps === 'string') return steps
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another

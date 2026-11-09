@@ -142,6 +142,8 @@ export const onBoard = (id, label, result) => [
 const cellOf = (type) => ({ widgetType: type })
 const inCell = (type, guide) => ({ widgetType: type, guide })
 const SCAN_HEAD = { widgetType: 'scanner', aria: 'Sort by Symbol' }
+// the row's own control is behind a release switch (guide/releases.js): its last step says which
+const released = (name, row) => ({ ...row, steps: row.steps.map((st, i, all) => (i === all.length - 1 ? { ...st, release: name } : st)) })
 const point = (type, label, target, name, say, alt) =>[...onBoard(type, label, cellOf(type)), { target: alt ? [target, cellOf(type)] : target, name, text: say, altText: alt }]
 
 // ── the Watchlist widget (pages/Watchlists.jsx, pages/charts/widgets/WatchlistPicker.jsx) ──
@@ -220,8 +222,9 @@ export const WIDGET_ACTIONS = [
   { id: 'scanColumns', label: 'Choosing a scan’s columns', re: /\bscan\w*\b.*\bcolumns?\b|\bcolumns?\b.*\bscan\w*\b/, steps: [...onBoard('scanner', W.scanner, cellOf('scanner')), { target: [SCAN_HEAD, cellOf('scanner')], name: 'the column titles', text: 'Right-click any column title.', altText: 'Pick a scan first: its columns show on its results.', waitFor: 'watchlist.colMenu' }, { target: 'watchlist.colMenu', name: 'the columns', text: 'Tick the columns you want. Reset columns at the bottom goes back to the default.' }] },
   widget('scanCriteria', 'scanner', 'Reading a scan’s conditions', /\bscan\w*\b.*\b(conditions?|criteria|filters?|rules?|screen\w* for|look\w* for|filter\w* (on|for))\b/, 'watchlist.scanCriteria', 'Scan criteria', 'This button lists what the scan filters on.', 'Pick a scan first: the conditions button shows on its results.'),
   widget('scanSort', 'scanner', 'Sorting a scan', /\bscans?\b.*\b(sort|order|rank)\w*\b|\b(sort|order|rank)\w*\b.*\bscans?\b/, SCAN_HEAD, 'the column titles', 'Click a column’s title to sort. Right-click one to choose the columns.', 'Pick a scan first: its columns show on its results.'),
+  // ⛔ behind Wave R's capture switch (guide/releases.js): off, nothing is rung and the guide says it isn't available yet
+  released('capture', widget('scanJournal', 'scanner', 'Sending a scan to the Journal', /\bscans?\b.*\bjournal\b|\bjournal\b.*\bscans?\b/, { widgetType: 'scanner', aria: 'Send this scan to Journal' }, 'Send to Journal', 'This sends the scan’s results to your Journal.', 'Pick a scan first: this button shows once it has results.')),
   widget('scanRead', 'scanner', 'Reading a scan’s results', /\b(read|see|view)\b.*\bscan\b.*\bresults?\b|\bscan results?\b/, cellOf('scanner'), 'the Scanner widget', 'Pick a scan, and its results list here. Click a ticker to load it on the linked chart.'),
-  widget('scanJournal', 'scanner', 'Sending a scan to the Journal', /\bscans?\b.*\bjournal\b|\bjournal\b.*\bscans?\b/, { widgetType: 'scanner', aria: 'Send this scan to Journal' }, 'Send to Journal', 'This sends the scan’s results to your Journal.', 'Pick a scan first: this button shows once it has results.'),
   widget('alertsDelete', 'alerts', 'Deleting an alert', /\b(delete|remove|cancel)\b.*\balerts?\b/, 'alerts.delete', 'the alert’s ×', 'Click this × to delete that alert.', 'You have no alerts to delete yet.'),
   widget('newsFilter', 'news', 'Filtering catalysts', /\bcatalysts?\b|\bnews\b.*\b(up|down) (moves?|days?)\b/, 'news.filters', 'the filters', 'These pills filter the catalysts: all, up or down.'),
   widget('newsRead', 'news', 'Reading a symbol’s headlines', /\b(headlines?|stored news|news for)\b/, cellOf('news'), 'the News widget', 'This widget lists the stored headlines for the linked chart’s symbol, newest first.'),

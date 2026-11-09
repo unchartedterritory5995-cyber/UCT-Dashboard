@@ -57,6 +57,8 @@ export function givenFor(c) {
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
+  // a per-browser switch the case states itself (a release flag the app reads from localStorage, e.g. widgets/captureRelease.js)
+  if (c.ls) g.ls = c.ls
   g.setup = setupScript(g)
   if (!g.setup) delete g.setup
   return g
