@@ -145,6 +145,10 @@ def _start_massive_ws():
         log.exception(f"Massive WS consumer failed to start (non-fatal): {e}")
 
 
+#: How long the day's full base waits for the boot's first delta to finish.
+BASE_WAITS_FOR_DELTA_SECONDS = 3600
+
+
 def _start_uploader():
     """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
@@ -162,6 +166,8 @@ def _start_uploader():
         import datetime as _dt
         from zoneinfo import ZoneInfo
         return _dt.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+    first_delta_done = threading.Event()
 
     def loop():
         while True:
@@ -196,6 +202,7 @@ def _start_uploader():
             with _uploader_state_lock:
                 _uploader_state["last_attempt_at"] = int(time.time())
                 _uploader_state["last_outcome"] = outcome
+            first_delta_done.set()
             # Adaptive cadence: 5 min in the active data window, slow overnight/
             # weekends. With skip-if-unchanged this drops the round-the-clock
             # 688 MB upload firehose to near-zero when the market's closed.
@@ -208,6 +215,11 @@ def _start_uploader():
         # sharing the delta loop, no delta shipped after the restore. A base stamped
         # after deltas that ran during its build is safe: each delta carries a
         # full 7-45 day window, so the next one restores anything a pod skipped.
+        #
+        # ⛔ The boot's first delta goes first. While the base copied bars.db on
+        # 2026-11-09 a delta wrote 286 KB in 10 minutes, then 12 MB a minute once
+        # the copy ended, so running them together lost the short gap between deploys.
+        first_delta_done.wait(BASE_WAITS_FOR_DELTA_SECONDS)
         while True:
             outcome = None
             try:
