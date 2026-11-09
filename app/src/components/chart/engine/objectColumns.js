@@ -42,7 +42,7 @@ import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorStopFor } from './runtimeErrorStop'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
-import { registeredObjectRuntimeValues } from './objectRuntimeSeam.js'
+import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 
 // ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
 //
@@ -61,20 +61,6 @@ import { registeredObjectRuntimeValues } from './objectRuntimeSeam.js'
 // ⭐ W5-T2 — the slot itself lives in a leaf (`objectRuntimeSeam.js`), so the runtime
 // lane can fill it without importing this module (and, through it, the registry).
 export { registerObjectRuntimeValues } from './objectRuntimeSeam.js'
-
-/** ⭐ C18 — did the member leave every input at the author's default, and edit no
- *  folded parameter? The runtime lane runs the script AS WRITTEN; a knob the
- *  member moved is in the drawing's trees and not in that run. */
-function inputsAtDefaults(definition, inputs) {
-  const manifest = definition && definition.compute && definition.compute.paramManifest
-  if (manifest && Object.keys(manifest).length) return false
-  for (const input of (definition && definition.inputs) || []) {
-    if (!input || typeof input.key !== 'string') continue
-    const v = inputs ? inputs[input.key] : undefined
-    if (v !== undefined && !Object.is(v, input.default)) return false
-  }
-  return true
-}
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //

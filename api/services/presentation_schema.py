@@ -549,10 +549,24 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_marker(plot, path, fp, out)
         _check_width(plot, inputs, path, out)
         _check_plot_colour_fields(plot, path, fp, out)
-        _check_color_mode(plot, path, fp, columns, out)
+        _check_color_mode(plot, path, fp, columns | _runtime_colour_keys(definition), out)
         _check_ohlc(plot, path, fp, columns, out)
     _check_paints(definition.get("paints"), columns, out)
     return out
+
+
+def _runtime_colour_keys(definition: Mapping) -> set:
+    """DIV-4 -- the colour columns a HOST (``ast``) document reads from the per-bar
+    run (``compute.runtimeColours.keys``, the client's ``defSchema.validateRuntimeColours``,
+    which also checks their shape): a paint may name one. Absent or malformed, none."""
+    compute = definition.get("compute")
+    if not isinstance(compute, Mapping) or compute.get("kind") != "ast":
+        return set()
+    rc = compute.get("runtimeColours")
+    keys = rc.get("keys") if isinstance(rc, Mapping) else None
+    if not isinstance(keys, list):
+        return set()
+    return {k for k in keys if isinstance(k, str) and k}
 
 
 def new_presentation_errors(definition: Mapping[str, Any],
