@@ -39,7 +39,9 @@ const boxOf = (el) => {
 const ring = () => screen.queryByTestId('guide-ring')
 const ringIsOn = (el) => {
   const r = ring()
-  return !!r && !!el && r.style.top === `${boxOf(el).top - 4}px`
+  // the ring is placed by a transform (guide/ringGeometry.js): its y is the control's top less RING.pad
+  const y = /translate3d\([^,]+,\s*([-\d.]+)px/.exec(r?.style.transform || '')?.[1]
+  return !!r && !!el && r.style.opacity === '1' && Number(y) === boxOf(el).top - 4
 }
 const card = () => screen.queryByTestId('guide-card')
 const cardText = () => screen.queryByTestId('guide-text')?.textContent || ''
