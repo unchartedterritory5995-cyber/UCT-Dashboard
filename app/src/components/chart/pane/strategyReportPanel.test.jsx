@@ -1,0 +1,327 @@
+// app/src/components/chart/pane/strategyReportPanel.test.jsx
+//
+// W9-T13b rails: the strategy report panel renders `strategyReportOf(record)` EXACTLY.
+//   - fixtures: every served metric served; mixed served/refused (an unpinned rule); a whole-report
+//     refusal (a run-wide refusal and a record the report cannot read); zero trades; the product
+//     default (the committed, empty pin ledger).
+//   - sentence-exact: each refused metric's cell IS the report's sentence; the D2 start sentence
+//     is the record's, verbatim, and it is visible on every tab.
+//   - no guard id string (`runtime:...`, `pine:...`) reaches the DOM, on any tab, in any fixture.
+//   - gate off: the one mount renders nothing, whatever the store holds.
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
+import StrategyReportPanel, { OVERVIEW_KEYS, TABS, memberSentence, metricLabel, formatMetric } from './StrategyReportPanel'
+import AttachedStrategyReports from './AttachedStrategyReports'
+import {
+  strategyReportOf, SERVED_METRICS, REFUSED_METRICS,
+  REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
+} from '../engine/runtime/brokerReport.js'
+import { strategyRecordOf } from '../engine/runtime/strategyRecord.js'
+import { UNPINNED_GUARD } from '../engine/runtime/brokerRules.js'
+import { BROKER_UNSETTLED_GUARD, BROKER_START_GUARD } from '../engine/runtime/broker.js'
+import { setStrategyRecord, resetStrategyRecords } from '../engine/strategyReportNotice'
+
+const ALL = () => true
+const except = (...ids) => (id) => !ids.includes(id)
+const T0 = 1711027800 // 2024-03-21 13:30 UTC
+const DAY = 86400
+const at = (i) => T0 + i * DAY
+const BAR_TIMES = Array.from({ length: 40 }, (_, i) => at(i))
+const START_SENTENCE = 'this backtest starts on 2024-03-21 (UTC); TradingView may start elsewhere'
+
+const tr = (id, dir, qty, e, x, exact = true) => ({
+  id, dir: dir === 'long' ? 1 : -1, qty, exact,
+  entry: { time: at(e[0]), price: e[1], rule: 'B-MARKET' },
+  ...(x ? { exit: { time: at(x[0]), price: x[1], rule: 'B-CLOSE' } } : {}),
+})
+const recordOf = (trades, { fromListing = false } = {}) => strategyRecordOf({
+  summary: { record: { trades, rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
+  decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 1, fromListing, defaulted: {} },
+  barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true,
+})
+// 4 closed (+6, -5, 0, +4) and 1 open: net 5, PF 2 (hand-checked in w9T13aBrokerReport.test.js)
+const A = recordOf([
+  tr('L1', 'long', 2, [1, 10], [3, 13]),
+  tr('S1', 'short', 1, [4, 20], [6, 25]),
+  tr('L2', 'long', 3, [7, 5], [9, 5]),
+  tr('L3', 'long', 1, [10, 50], [12, 54]),
+  tr('L4', 'long', 1, [13, 30], null),
+])
+const ZERO = recordOf([])
+const RUN_REFUSED = {
+  ...A,
+  refusals: [{ rule: 'B-PATH', guard: UNPINNED_GUARD, time: at(5),
+    sentence: 'This backtest stopped: it reached the broker rule B-PATH, which no TradingView capture pins yet (runtime:strategy-unpinned).' }],
+}
+
+const FIXTURES = {
+  allServed: strategyReportOf(A, { isPinned: ALL }),
+  mixed: strategyReportOf(A, { isPinned: except('B-DEFAULTS') }),
+  zeroTrades: strategyReportOf(ZERO, { isPinned: ALL }),
+  runRefused: strategyReportOf(RUN_REFUSED, { isPinned: ALL }),
+  badRecord: strategyReportOf({ schema: 'nope' }, { isPinned: ALL }),
+  productDefault: strategyReportOf(A),
+  fromListing: strategyReportOf(recordOf([], { fromListing: true }), { isPinned: ALL }),
+}
+
+const GUARD_IDS = [UNPINNED_GUARD, REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD,
+  REPORT_RECORD_GUARD, BROKER_UNSETTLED_GUARD, BROKER_START_GUARD, 'pine:strategy-call']
+const GUARD_SHAPE = /\b(?:runtime|pine):[a-z]/i
+
+afterEach(() => { cleanup(); vi.unstubAllEnvs(); resetStrategyRecords() })
+
+const clickTab = (label) => fireEvent.click(screen.getByRole('tab', { name: label }))
+const rowOf = (key) => screen.getByTestId(`strategy-report-metric-${key}`)
+const valueCell = (key) => rowOf(key).querySelector('td')
+
+describe('W9-T13b the fixtures are what they say', () => {
+  it('all served / mixed / zero / refused / bad / product default', () => {
+    const servedKeys = Object.keys(SERVED_METRICS)
+    expect(servedKeys.every((k) => FIXTURES.allServed.metrics[k].status === 'served')).toBe(true)
+    const mixed = servedKeys.map((k) => FIXTURES.mixed.metrics[k].status)
+    expect(mixed).toContain('served')
+    expect(mixed).toContain('refused')
+    expect(FIXTURES.zeroTrades.trades).toEqual({ status: 'served', rows: [] })
+    expect(FIXTURES.runRefused.status).toBe('refused')
+    expect(FIXTURES.badRecord.status).toBe('refused')
+    expect(FIXTURES.badRecord.window).toBe(null)
+    expect(servedKeys.every((k) => FIXTURES.productDefault.metrics[k].status === 'refused')).toBe(true)
+    expect(FIXTURES.allServed.window.sentence).toBe(START_SENTENCE)
+    expect(FIXTURES.fromListing.window.sentence).toBe(null)
+  })
+})
+
+describe('W9-T13b the panel renders the report exactly', () => {
+  it('all served: every served metric shows its label and formatted value; refused ones their sentence', () => {
+    render(<StrategyReportPanel report={FIXTURES.allServed} name="RDDT test" />)
+    clickTab('Performance summary')
+    const want = {
+      totalClosedTrades: '4', totalOpenTrades: '1', numberWinningTrades: '2', numberLosingTrades: '1',
+      numberEvenTrades: '1', netProfit: '5.00', netProfitPercent: '0.005%', grossProfit: '10.00',
+      grossLoss: '5.00', profitFactor: '2.000',
+    }
+    for (const [k, v] of Object.entries(want)) {
+      expect(rowOf(k).querySelector('th').textContent).toBe(SERVED_METRICS[k].label)
+      expect(valueCell(k).textContent).toBe(v)
+      expect(rowOf(k).getAttribute('data-status')).toBe('served')
+    }
+    for (const [k, r] of Object.entries(REFUSED_METRICS)) {
+      expect(rowOf(k).querySelector('th').textContent).toBe(r.label)
+      expect(valueCell(k).textContent).toBe(FIXTURES.allServed.metrics[k].sentence)
+    }
+    // every metric of the report is a row, in the report's order; none missing, none added
+    const rows = within(screen.getByTestId('strategy-report-summary')).getAllByTestId(/^strategy-report-metric-/)
+    expect(rows.map((r) => r.getAttribute('data-testid').replace('strategy-report-metric-', '')))
+      .toEqual(Object.keys(FIXTURES.allServed.metrics))
+  })
+
+  it('sentence-exact: the D8 refusal sentences, literally', () => {
+    render(<StrategyReportPanel report={FIXTURES.allServed} />)
+    clickTab('Performance summary')
+    expect(valueCell('maxDrawdown').textContent).toBe("Max drawdown is not shown: no source we hold states exactly how "
+      + "TradingView's Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S1).")
+    expect(valueCell('sharpeRatio').textContent).toBe("Sharpe ratio is not shown: no source we hold states exactly how "
+      + "TradingView's Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S2).")
+    expect(valueCell('equity').textContent).toBe("Equity is not shown: it includes the open trades' profit at the "
+      + "last bar's close, and the backtest record does not carry that yet.")
+  })
+
+  it('mixed: a metric resting on an unpinned rule shows the unpinned sentence; counts still serve', () => {
+    render(<StrategyReportPanel report={FIXTURES.mixed} />)
+    clickTab('Performance summary')
+    expect(valueCell('totalClosedTrades').textContent).toBe('4')
+    expect(valueCell('netProfit').textContent).toBe('Net profit is not shown: it rests on the broker rule B-DEFAULTS, '
+      + 'which no matching TradingView capture pins yet (capture row Q-S1b).')
+    expect(valueCell('numberWinningTrades').textContent).toBe(FIXTURES.mixed.metrics.numberWinningTrades.sentence)
+    // the trade list serves (its fills' rules are pinned); each closed profit carries its refusal
+    clickTab('List of trades')
+    const row1 = screen.getByTestId('strategy-report-trade-1')
+    expect(row1.querySelectorAll('td')[6].textContent).toBe(FIXTURES.mixed.trades.rows[0].profit.sentence)
+    expect(FIXTURES.mixed.trades.rows[0].profit.sentence).toMatch(/^Trade 1's profit is not shown: /)
+  })
+
+  it('the trade list: every trade a row, served profits, the open trade says why it has none', () => {
+    render(<StrategyReportPanel report={FIXTURES.allServed} />)
+    clickTab('List of trades')
+    const table = screen.getByTestId('strategy-report-trades')
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 5)
+    const cells = (n) => [...screen.getByTestId(`strategy-report-trade-${n}`).children].map((c) => c.textContent)
+    expect(cells(1)).toEqual(['1', 'Long', '2', '2024-03-22 13:30', '10.00', '2024-03-24 13:30', '13.00', '6.00'])
+    expect(cells(2)).toEqual(['2', 'Short', '1', '2024-03-25 13:30', '20.00', '2024-03-27 13:30', '25.00', '-5.00'])
+    expect(cells(5).slice(0, 7)).toEqual(['5', 'Long', '1', '2024-04-03 13:30', '30.00', 'Open', ''])
+    expect(cells(5)[7]).toBe("This open trade's profit is not shown: it is its profit at the last bar's close, "
+      + 'and the backtest record does not carry that yet.')
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
+      .toEqual(['Trade', 'Direction', 'Size', 'Entry (UTC)', 'Entry price', 'Exit (UTC)', 'Exit price', 'Profit'])
+  })
+
+  it('zero trades: the list says so, and the counts are 0 (no D10 floor)', () => {
+    render(<StrategyReportPanel report={FIXTURES.zeroTrades} />)
+    expect(valueCell('totalClosedTrades').textContent).toBe('0')
+    clickTab('List of trades')
+    expect(screen.getByTestId('strategy-report-trades-empty').textContent).toBe('This backtest placed no trades.')
+    expect(screen.queryByTestId('strategy-report-trades')).toBe(null)
+  })
+
+  it('a refused trade list shows its sentence in place of the list', () => {
+    const rep = strategyReportOf(A, { isPinned: except('B-CLOSE') })
+    expect(rep.trades.status).toBe('refused')
+    render(<StrategyReportPanel report={rep} />)
+    clickTab('List of trades')
+    expect(screen.getByTestId('strategy-report-trades-refused').textContent).toBe(rep.trades.sentence)
+  })
+
+  it('a run-wide refusal: the report holds only the refusal (no tabs, no metrics), and the start sentence', () => {
+    render(<StrategyReportPanel report={FIXTURES.runRefused} />)
+    expect(screen.getByTestId('strategy-report').getAttribute('data-status')).toBe('refused')
+    expect(screen.queryAllByRole('tab')).toHaveLength(0)
+    expect(screen.queryAllByTestId(/^strategy-report-metric-/)).toHaveLength(0)
+    const items = within(screen.getByTestId('strategy-report-refusals')).getAllByRole('listitem')
+    expect(items.map((li) => li.textContent)).toEqual([
+      'This backtest stopped: it reached the broker rule B-PATH, which no TradingView capture pins yet.'])
+    expect(screen.getByTestId('strategy-report-start-sentence').textContent).toBe(START_SENTENCE)
+  })
+
+  it('a record the report cannot read: the refusal alone, no stamp (there is no window)', () => {
+    render(<StrategyReportPanel report={FIXTURES.badRecord} />)
+    const items = within(screen.getByTestId('strategy-report-refusals')).getAllByRole('listitem')
+    expect(items.map((li) => li.textContent)).toEqual([FIXTURES.badRecord.refusals[0].sentence])
+    expect(screen.queryByTestId('strategy-report-stamp')).toBe(null)
+  })
+
+  it('the product default (empty ledger): every served metric refuses by its unpinned sentence', () => {
+    render(<StrategyReportPanel report={FIXTURES.productDefault} />)
+    clickTab('Performance summary')
+    for (const k of Object.keys(SERVED_METRICS)) {
+      expect(valueCell(k).textContent).toBe(FIXTURES.productDefault.metrics[k].sentence)
+      expect(valueCell(k).textContent).toMatch(/ is not shown: it rests on the broker rule /)
+    }
+  })
+})
+
+describe('W9-T13b ruling D2: the start sentence is always visible', () => {
+  it('on every tab, verbatim, above the tabs', () => {
+    render(<StrategyReportPanel report={FIXTURES.allServed} />)
+    for (const t of TABS) {
+      clickTab(t.label)
+      const s = screen.getByTestId('strategy-report-start-sentence')
+      expect(s.textContent).toBe(START_SENTENCE)
+      expect(s.closest('[role="tabpanel"]')).toBe(null)
+    }
+    expect(screen.getByTestId('strategy-report-asof').textContent)
+      .toBe(`Starts 2024-03-21 (UTC) · As of the bar closed ${FIXTURES.allServed.window.asOfDate} (UTC)`)
+  })
+
+  it('a window that reaches the listing carries no sentence by its authority; the stamp still dates the start', () => {
+    render(<StrategyReportPanel report={FIXTURES.fromListing} />)
+    expect(screen.queryByTestId('strategy-report-start-sentence')).toBe(null)
+    expect(screen.getByTestId('strategy-report-asof').textContent).toMatch(/^Starts 2024-03-21 \(UTC\) · /)
+  })
+})
+
+describe('W9-T13b no guard id reaches the DOM', () => {
+  for (const [name, rep] of Object.entries(FIXTURES)) {
+    it(`fixture ${name}, every tab`, () => {
+      const { container } = render(<StrategyReportPanel report={rep} />)
+      const check = () => {
+        const html = container.innerHTML
+        for (const g of GUARD_IDS) expect(html, g).not.toContain(g)
+        expect(html).not.toMatch(GUARD_SHAPE)
+      }
+      check()
+      for (const t of screen.queryAllByRole('tab')) { fireEvent.click(t); check() }
+    })
+  }
+
+  it('the fixtures DO carry guard ids (the rail above is not vacuous)', () => {
+    expect(JSON.stringify(FIXTURES.runRefused)).toContain(UNPINNED_GUARD)
+    expect(JSON.stringify(FIXTURES.allServed)).toContain(REPORT_UNSTATED_GUARD)
+    expect(JSON.stringify(FIXTURES.badRecord)).toContain(REPORT_RECORD_GUARD)
+  })
+
+  it('memberSentence strips a quoted guard id and changes nothing else', () => {
+    expect(memberSentence('it stopped (runtime:strategy-unpinned).')).toBe('it stopped.')
+    expect(memberSentence('refused pine:strategy-call here')).toBe('refused here')
+    const plain = FIXTURES.allServed.metrics.maxDrawdown.sentence
+    expect(memberSentence(plain)).toBe(plain)
+    expect(memberSentence(START_SENTENCE)).toBe(START_SENTENCE)
+  })
+})
+
+describe('W9-T13b one authority for names and formats', () => {
+  it('labels come from the report module', () => {
+    for (const k of Object.keys(SERVED_METRICS)) expect(metricLabel(k)).toBe(SERVED_METRICS[k].label)
+    for (const [k, r] of Object.entries(REFUSED_METRICS)) {
+      expect(metricLabel(k)).toBe(r.label)
+      expect(r.sentence.startsWith(`${r.label} is not shown: `)).toBe(true)
+    }
+    for (const k of OVERVIEW_KEYS) expect(Object.keys(FIXTURES.allServed.metrics)).toContain(k)
+    expect(formatMetric('netProfitPercent', 0.005)).toBe('0.005%')
+  })
+
+  it('tabs are a real tablist: one selected, arrow keys move selection', () => {
+    render(<StrategyReportPanel report={FIXTURES.allServed} />)
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Overview', 'Performance summary', 'List of trades'])
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false'])
+    fireEvent.keyDown(tabs[0], { key: 'ArrowRight' })
+    expect(screen.getAllByRole('tab').map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false'])
+    const panel = screen.getByRole('tabpanel')
+    expect(panel.getAttribute('aria-labelledby')).toBe(screen.getAllByRole('tab')[1].id)
+  })
+})
+
+describe('W9-T13b the mount is dark behind VITE_PINE_STRATEGY_BROKER_ENABLED', () => {
+  const SETTINGS = { indicatorInstances: [{ instanceId: 'i1', defId: 'u_strat' }, { instanceId: 'i2', defId: 'u_strat', hidden: true }] }
+  const REGISTRY = { getDefinition: () => ({ meta: { name: 'My strategy' } }) }
+  beforeEach(() => {
+    setStrategyRecord('i1', A, 'scopeA')
+    setStrategyRecord('i2', A, 'scopeA')
+  })
+
+  for (const v of [undefined, '', '0', 'true']) {
+    it(`gate ${JSON.stringify(v)}: nothing renders, whatever the store holds`, () => {
+      if (v !== undefined) vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', v)
+      const { container } = render(<AttachedStrategyReports settings={SETTINGS} registry={REGISTRY} noticeScope="scopeA" />)
+      expect(container.innerHTML).toBe('')
+    })
+  }
+
+  it('gate "1" (CONTROL): the drawn strategy shows its report, the hidden one does not', () => {
+    vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
+    const { container } = render(<AttachedStrategyReports settings={SETTINGS} registry={REGISTRY} noticeScope="scopeA" />)
+    expect(screen.getAllByTestId('strategy-report')).toHaveLength(1)
+    expect(container.querySelector('summary').textContent).toBe('My strategy: strategy report')
+    expect(screen.getByTestId('strategy-report-start-sentence').textContent).toBe(START_SENTENCE)
+  })
+
+  it('gate "1": another binder scope, or no record, renders nothing', () => {
+    vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
+    const { container } = render(<AttachedStrategyReports settings={SETTINGS} registry={REGISTRY} noticeScope="scopeB" />)
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('the panel has ONE mount: only AttachedStrategyReports imports it, and only ChartPane imports that', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const src = path.resolve(here, '../../..')
+    const importers = (name) => {
+      const out = []
+      const walk = (d) => {
+        for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+          const p = path.join(d, e.name)
+          if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
+          if (!/\.(jsx?|mjs)$/.test(e.name) || /\.test\./.test(e.name)) continue
+          const s = fs.readFileSync(p, 'utf8')
+          if (new RegExp(`^\\s*import\\s[^;]*from\\s+['"][^'"]*/${name}(\\.jsx)?['"]`, 'm').test(s)) out.push(path.basename(p))
+        }
+      }
+      walk(src)
+      return out.sort()
+    }
+    expect(importers('StrategyReportPanel')).toEqual(['AttachedStrategyReports.jsx'])
+    expect(importers('AttachedStrategyReports')).toEqual(['ChartPane.jsx'])
+  })
+})

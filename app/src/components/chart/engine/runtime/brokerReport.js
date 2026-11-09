@@ -69,13 +69,15 @@ export const SERVED_METRICS = Object.freeze({
   profitFactor: Object.freeze({ label: 'Profit factor', pine: null, kind: 'ratio', source: PF_SOURCE }),
 })
 
+// W9-T13b: `label` is the metric's name as the panel prints it, the SAME string its sentence opens
+// with (one authority for both: the panel never types a metric name of its own).
 const unstated = (label, row) => Object.freeze({
-  guard: REPORT_UNSTATED_GUARD, row,
+  guard: REPORT_UNSTATED_GUARD, row, label,
   sentence: `${label} is not shown: no source we hold states exactly how TradingView's Strategy Tester `
     + `computes it, and no capture has witnessed it yet (capture row ${row}).`,
 })
 const unrecorded = (label, why, owner) => Object.freeze({
-  guard: REPORT_UNRECORDED_GUARD, row: null, owner,
+  guard: REPORT_UNRECORDED_GUARD, row: null, owner, label,
   sentence: `${label} is not shown: ${why}, and the backtest record does not carry that yet.`,
 })
 
