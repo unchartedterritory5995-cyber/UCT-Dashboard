@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
-import CommandPalette from './CommandPalette'
+import CommandPaletteGate from './CommandPaletteGate'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 // Wave 14 (lane W14-C1): the ONE mount of the registered-tour gate. Tours start on Journal pages
 // (a trade, My Playbook, the setups board) as well as the Notebook, and a tour must survive the
@@ -250,7 +250,7 @@ export default function Layout({ children }) {
           </HubProvider>
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
-          <CommandPalette ref={paletteRef} />
+          <CommandPaletteGate ref={paletteRef} />
           {/* The ONE capture dialog, mounted once app-wide so every door -- palette,
               hotkey, note, research workspace, surfaces -- opens the same product. */}
           <CaptureHost />
