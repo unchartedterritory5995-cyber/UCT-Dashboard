@@ -42,6 +42,29 @@ One fresh full runner pass (Vite restarted), each case run once:
 - **One runner exception: C1-163** ("magnet for drawing"). The run recorded `Cannot read properties of null (reading 'x')` before its first step, a harness error rather than a guide failure. It passed in each of two single re-runs. It is still counted as not VERIFIED in this pass's 278.
 - **KNOWN MISSES** are listed in `CHARTS_TEACH_STATUS.md`: cov-3 ×3 and cov-4 ×1.
 
+## Items (5)–(7), after the suite above (LOCAL / SIMULATED)
+**Held-out `agentGuideHeldOutCov4b.test.js`** (written first, `b9b0fd095d`):
+- Routing: 6/9 before, 8/9 after, plus **1 KNOWN MISS**.
+- The miss: "get alerted at a fib level" now reaches the price alert. A fib has no Set alert of its own (`drawingSettingsSchema.js`), so that is the truthful walkthrough.
+
+**Product commits**
+- **`f7cb3b89c4`: (5) alerts.** "Alerted" and what an alert watches now route: a trendline, or a signal line named before "alert". An alert ask never becomes an indicator-settings walkthrough.
+- **`9dc00c9442`: truthfulness.** A fib's alert is a price alert, never a drawing-menu row the fib lacks, and never fib levels.
+- **`8a6f6432a6`: (7) closing a widget tab.** It selects the extra tab first, because its × shows only on the selected one.
+- **Truthfulness: a settings row that shows only in some state says so** when it isn't on the tab. Thin bars shows only while the chart type is Bars or HLC; the old fallback said "scroll down for it".
+
+**Harness commits**
+- `knownMisses.json`, with the fib-alert miss.
+- **`87deb3ac56`**: a bar chart given for the Thin bars row.
+
+**Browser single runs**
+- Pass: C3-019 and H4b-08 (close a widget tab); C1-018 (Thin bars, with the bar-chart given).
+- Still failing:
+  - **C3-023 / H4b-09** (a chart tab's link dot). The dot shows only on the selected extra tab, and only while that tab is linked. Selecting the tab first wasn't enough on the harness board, so the change was reverted and not committed.
+  - **C3-058** (a narrow grid cell): not attempted.
+  - **H4b-06** (MACD signal-line alert): needs MACD on the chart.
+- Not yet re-run: one full runner pass for (5)–(7), and a suite on this head.
+
 ## Plan vs actual
 The plan expected about +31 for items (1)–(4). The actual gain was **+8** VERIFIED: 270 → 278.
 
