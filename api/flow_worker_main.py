@@ -635,6 +635,28 @@ def _start_flow_schedulers():
             log.warning("auto-push scanner scheduling failed: %s", e)
 
         try:
+            # flow.db corruption canary (2026-11-09). flow.db corrupted TWICE
+            # that day and BOTH times the onset minute had rolled out of the
+            # logs before anyone looked, which is why the cause is still open.
+            # A cheap read-only quick_check on a schedule turns "we noticed
+            # hours later" into "here is the minute it happened, with context".
+            # Interval is env-tunable; 0 disables entirely.
+            from apscheduler.triggers.interval import IntervalTrigger as _IT
+            from api import flow_integrity_canary as _canary
+            _canary_sec = int(os.environ.get("FLOW_CANARY_SEC", "300"))
+            if _canary_sec > 0:
+                sched.add_job(_canary.run_tick,
+                              trigger=_IT(seconds=_canary_sec),
+                              id="flow_integrity_canary", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db integrity canary registered (every %ds)", _canary_sec)
+            else:
+                log.info("[startup] flow.db integrity canary DISABLED (FLOW_CANARY_SEC=0)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow integrity canary scheduling failed: %s", e)
+
+        try:
             # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
             # contracts with recent flow (retroactive B-side confirmation). Moved
             # from web at the P5 cutover: flow.db AND the Schwab OPRA consumer +
