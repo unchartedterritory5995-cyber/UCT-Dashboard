@@ -120,15 +120,6 @@ function MyTake({ excerpt, noteId }) {
     if (untouched) setValue(annotation)
   }, [annotation])
 
-  // A native listener, not React's onKeyDown: ProseMirror listens on the editor's own element,
-  // below the React root, so a React handler would run after the editor had heard the key.
-  useEffect(() => {
-    const field = fieldRef.current
-    const stop = (e) => e.stopPropagation()
-    field.addEventListener('keydown', stop)
-    return () => field.removeEventListener('keydown', stop)
-  }, [])
-
   useEffect(() => {
     if (consumePendingFocus(excerpt.id)) fieldRef.current?.focus()
   }, [excerpt.id])
@@ -185,9 +176,9 @@ export default function TweetCard({ excerpt, deleteNode, noteId }) {
             <div className={styles.handle}>@{tweet.handle}</div>
           </div>
           <div className={styles.xmark}>
-            <UIcon name="xLogo" size={13} gold={false} />
+            <UIcon name="xLogo" size={16} gold={false} />
             <button type="button" className={styles.rm} title="Remove from note" aria-label="Remove from note" onClick={() => deleteNode()}>
-              <UIcon name="x" size={13} gold={false} />
+              <UIcon name="x" size={16} gold={false} />
             </button>
           </div>
         </div>

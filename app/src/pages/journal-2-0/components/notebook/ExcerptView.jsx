@@ -21,7 +21,7 @@ class TweetCardBoundary extends Component {
     if (!this.state.failed) return this.props.children
     return (
       <div className={`${styles.card} ${styles.unavailable}`}>
-        <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+        <UIcon name="warning" size={16} style={{ verticalAlign: '-2px', marginRight: 4 }} />
         <span>This post couldn't load. Reload the page to see it.</span>
       </div>
     )

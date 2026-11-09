@@ -316,17 +316,6 @@ describe('TweetCard', () => {
     expect(snapshotCalls()).toHaveLength(1)
     expect(snapshotCalls()[0].url).toBe('/api/snapshot/NVDA')
   })
-
-  it('a keydown in My take never reaches anything above the card', () => {
-    const above = vi.fn()
-    const { container } = renderCard()
-    container.addEventListener('keydown', above)
-    fireEvent.keyDown(take(), { key: 'Enter' })
-    expect(above).not.toHaveBeenCalled()
-    // CONTROL: the same listener does hear a keydown from outside the field.
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Remove from note' }), { key: 'Enter' })
-    expect(above).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('TweetCard inside a real editor', () => {

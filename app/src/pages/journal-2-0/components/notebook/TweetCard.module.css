@@ -2,7 +2,7 @@
   position: relative;
   border: 1px solid var(--border-accent);
   background: var(--bg-surface);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   max-width: 740px;
   /* The note's body is serif; a post is someone else's words, set in the app's own face. */
@@ -22,12 +22,12 @@
   .card { animation: none; }
 }
 
-.cmain { padding: 13px 14px 12px; }
+.cmain { padding: 12px 16px; }
 
 .chead {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
@@ -52,7 +52,7 @@
 .name {
   font-weight: 600;
   color: var(--text-bright);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.25;
 }
 
@@ -66,7 +66,7 @@
   margin-left: auto;
   color: var(--text-faint);
   display: flex;
-  gap: 9px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -109,7 +109,7 @@
 }
 
 .cimg {
-  margin-top: 10px;
+  margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
@@ -126,9 +126,9 @@
 
 .cfoot {
   display: flex;
-  gap: 7px;
+  gap: 8px;
   align-items: center;
-  margin-top: 9px;
+  margin-top: 8px;
   color: var(--text-faint);
   font-size: 12px;
 }
@@ -144,8 +144,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 20px;
-  padding: 9px 14px;
+  gap: 8px 24px;
+  padding: 8px 16px;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
   font-size: 12px;
@@ -169,9 +169,9 @@
 
 .take {
   border-top: 1px solid var(--border);
-  padding: 9px 14px 11px;
+  padding: 8px 16px 12px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: baseline;
 }
 
@@ -205,7 +205,7 @@
 
 .saveError {
   margin: 0;
-  padding: 0 14px 10px;
+  padding: 0 16px 8px;
   color: var(--ut-red-bright);
   font-size: 12px;
 }
@@ -227,6 +227,6 @@
 
   .ttext {
     min-height: var(--tap-min);
-    font-size: 16px;
+    font-size: 17px;
   }
 }
