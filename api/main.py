@@ -10652,6 +10652,10 @@ if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
 # unset = off = nobody), before the plan gate and before any read. No flag of its own.
 from api.routers import pine_strategy_backtest as pine_strategy_backtest_router
 app.include_router(pine_strategy_backtest_router.router)
+# W9-T11-F1 -- the chart lane's strategy window (design 3.4 "The chart", section 9 item 6): a
+# signed-in read of `bars_window.HISTORY_WINDOW_BARS`. Asked only by a build with the broker gate on.
+from api.routers import pine_history_window as pine_history_window_router
+app.include_router(pine_history_window_router.router)
 # RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
 # 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
 # (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
