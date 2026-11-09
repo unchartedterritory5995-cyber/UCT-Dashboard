@@ -2,6 +2,8 @@
 
 Base: ship-1. Stack position: 2 of 5. Local only; not pushed.
 
+Stacking: this slice stacks on teach-ship-1's tested code head `d10ae09c24`, not on its doc commit, so `PR-teach-ship-1.md` is absent from this slice on purpose. The stack is not broken.
+
 ## Behaviour changes
 - **A pressed control finishes its step** even when it stays on screen, so no ring is left behind (pl-auto howto-10).
 - **The card is never placed under the member's pointer**, so it can't close a hover menu (Layouts ▾ → Multi Chart).
