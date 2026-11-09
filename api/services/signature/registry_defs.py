@@ -262,18 +262,34 @@ RS_PHASE2A_WIRE_COLUMNS: tuple[str, ...] = (
 # `PHASE3_COLUMNS` name: it is a wire-only dot the provider derives from
 # `clenowGap` (unit 3-06), the `dotMansfieldCross` precedent.
 # `tests/test_registry_string_inputs.py` holds every name here to that rule.
-RS_V4_VERSION = 4
-RS_V4_REV = 4
+#
+# ⭐ REV 5 (Deepvue round 2, 2026-11-08). The same row, one Reading more: the
+# `rating` view ("RS Rating", the stock's nightly IBD-style rating over time) and
+# its two wire columns (`RS_RATING_WIRE_COLUMNS`). The row's wire columns and its
+# `view` enum both change, so version and rev move together, 4 to 5, in all three
+# lanes (this row, `nativeRegistry.js`'s `compute.rev`, and
+# `alert_rev_migration.ADDRESS_REVS`). The names keep `V4` because they name the
+# Phase 3 shape behind `RS_V3_ENABLED`, which this extends; the number is what
+# moved. RS alerts are untouched: they compute from `compute_phase1_columns` /
+# `compute_mansfield_columns`, which this rev does not change (the no-move rail
+# in `tests/test_rs_rating_view.py`).
+RS_V4_VERSION = 5
+RS_V4_REV = 5
 RS_PHASE3_WIRE_COLUMNS: tuple[str, ...] = (
     "rsRatio", "rsMomentum", "clenowScore", "dotClenowGap", "vars", "varsMa",
 )
+#: The RS Rating reading's wire columns (rev 5): the stored daily IBD-style
+#: rating at each bar's session and its 21-session average, null where the
+#: history holds no row. Wire-only, like `dotClenowGap`: the provider reads them
+#: from `rs_history.rating_series`, never from `relative_strength`.
+RS_RATING_WIRE_COLUMNS: tuple[str, ...] = ("ratingLine", "ratingMa")
 
 # The v4 "Reading" enum (decision D2): one choice, one pane. `showMansfield`
 # stays declared, which is what keeps saved Trend instances valid, and on the v4
 # row it declares `mapsTo` the Mansfield Reading (unit 3-08b): a request that
 # sends `showMansfield: true` and NO `view` resolves to `view: "mansfield"`; a
 # request that sends a `view` gets that view (`resolve_inputs`).
-RS_VIEWS: tuple[str, ...] = ("ratio", "mansfield", "rotation", "quality", "vars")
+RS_VIEWS: tuple[str, ...] = ("ratio", "mansfield", "rotation", "quality", "vars", "rating")
 RS_DEFAULT_VIEW = "ratio"
 #: The legacy switch's successor, the same declaration the JS definition makes
 #: on its `showMansfield` input (`nativeRegistry.js`, `legacyInputs.js`).
@@ -381,7 +397,7 @@ def _rs_line_row(v2: bool, v3: bool = False) -> dict:
         from api.services.relative_strength import PHASE1_COLUMNS
         columns = list(PHASE1_COLUMNS) + list(RS_PHASE2A_WIRE_COLUMNS)
         if v3:
-            columns += list(RS_PHASE3_WIRE_COLUMNS)
+            columns += list(RS_PHASE3_WIRE_COLUMNS) + list(RS_RATING_WIRE_COLUMNS)
     else:
         columns = ["rsLine"]
     if v3:

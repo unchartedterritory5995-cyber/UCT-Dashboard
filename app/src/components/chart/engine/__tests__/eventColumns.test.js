@@ -219,8 +219,10 @@ const SHIPPED_COLUMNS = Object.freeze({
   // ⭐ design round (2026-11-08): `dotCrossUp` / `dotCrossDown` are CLIENT-derived
   // (`plots[].derive`, `derivedColumns.js`) from `rsLine` and the wire's 0/1
   // `crossUp` / `crossDown`; no wire column was added and `compute.rev` is unchanged.
+  // ⭐ rev 5 (Deepvue round 2): `ratingLine` / `ratingMa` are WIRE columns (the RS
+  // Rating Reading); `ratingGuides` is a guide and returns none.
   rsLine: ['rsLine', 'rsAbove', 'rsMa', 'mansfield', 'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa',
-    'dotNH', 'dotCrossUp', 'dotCrossDown', 'dotNHred', 'dotNHbeforePx', 'dotNHpartial', 'dotNL', 'dotMansfieldCross', 'dotClenowGap'],
+    'ratingLine', 'ratingMa', 'dotNH', 'dotCrossUp', 'dotCrossDown', 'dotNHred', 'dotNHbeforePx', 'dotNHpartial', 'dotNL', 'dotMansfieldCross', 'dotClenowGap'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who

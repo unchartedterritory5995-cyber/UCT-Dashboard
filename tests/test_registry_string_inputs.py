@@ -83,7 +83,7 @@ def test_v3_alone_is_ignored_and_logged():
 def test_both_flags_serve_the_v4_row():
     out, err = _served_row("1", "1")
     assert out == json.dumps(rd._rs_line_row(True, True))
-    assert json.loads(out)["compute"]["rev"] == 4
+    assert json.loads(out)["compute"]["rev"] == 5
     assert "ignored" not in err
 
 
@@ -104,10 +104,12 @@ def test_the_builder_logs_and_ignores_v3_without_v2(caplog):
 def test_the_v4_row_is_the_v3_row_plus_the_phase3_contract():
     v3 = rd._rs_line_row(True)
     v4 = rd._rs_line_row(True, True)
-    assert v4["version"] == rd.RS_V4_VERSION == 4
-    assert v4["compute"] == {"kind": "server", "fn": "rsLine", "rev": 4}
-    assert v4["columns"] == v3["columns"] + list(rd.RS_PHASE3_WIRE_COLUMNS)
-    assert len(v4["columns"]) == 28 and len(set(v4["columns"])) == 28
+    # Deepvue round 2 (2026-11-08): version and rev 5, the RS Rating Reading's two
+    # wire columns after the Phase 3 six
+    assert v4["version"] == rd.RS_V4_VERSION == 5
+    assert v4["compute"] == {"kind": "server", "fn": "rsLine", "rev": 5}
+    assert v4["columns"] == v3["columns"] + list(rd.RS_PHASE3_WIRE_COLUMNS) + list(rd.RS_RATING_WIRE_COLUMNS)
+    assert len(v4["columns"]) == 30 and len(set(v4["columns"])) == 30
     assert v4["payload_keys"] == ["payload"]
     assert [i["key"] for i in v4["inputs"]] == V3_INPUT_KEYS + V4_NEW_INPUT_KEYS
     # every v3 input is unchanged except the benchmark menu, which gains CUSTOM,
@@ -124,7 +126,7 @@ def test_the_v4_row_is_the_v3_row_plus_the_phase3_contract():
 def test_the_v4_inputs_are_the_ones_the_map_declares():
     by_key = {i["key"]: i for i in rd._rs_line_row(True, True)["inputs"]}
     assert by_key["view"] == {"key": "view", "type": "enum", "default": "ratio",
-                              "options": ["ratio", "mansfield", "rotation", "quality", "vars"]}
+                              "options": ["ratio", "mansfield", "rotation", "quality", "vars", "rating"]}
     assert by_key["customBenchmark"] == {
         "key": "customBenchmark", "type": "string", "default": "",
         "pattern": rb.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"}
@@ -169,9 +171,9 @@ def test_the_custom_max_length_is_the_longest_ticker_the_pattern_accepts():
     assert rb.CUSTOM_SYMBOL_RE.fullmatch("A" * 10) and not rb.CUSTOM_SYMBOL_RE.fullmatch("A" * 11)
 
 
-def test_rev_4_is_one_number_in_both_python_lanes_and_the_migration_note_is_written_down():
+def test_rev_5_is_one_number_in_both_python_lanes_and_the_migration_note_is_written_down():
     import inspect
-    assert rd._rs_line_row(True, True)["compute"]["rev"] == rev.ADDRESS_REVS["rsLine"] == 4
+    assert rd._rs_line_row(True, True)["compute"]["rev"] == rev.ADDRESS_REVS["rsLine"] == 5
     prose = " ".join(inspect.getsource(rev).replace("#", " ").split())
     assert "no runtime migrates rs_line bindings" in prose
     assert 'migrate_bindings_to_rev("rs_line", N, notify=...)' in prose

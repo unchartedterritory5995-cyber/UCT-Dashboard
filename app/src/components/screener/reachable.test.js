@@ -529,19 +529,6 @@ const AWAITING_A_DECISION = {
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
     + 'the registry would make it true by construction and unable to fail.',
-  'app/src/components/chart/engine/ast/doorCoverage.js':
-    'MEASUREMENT INFRASTRUCTURE, same class as registrySizes.js above: its '
-    + 'consumer is a RAIL, not a route. It asks which declared engine functions '
-    + 'each importer can actually reach — the question that was being answered by '
-    + 'hand, one indicator at a time, and that no gate measured because the corpus '
-    + 'can only exercise the names 75 chosen scripts happen to use. '
-    + '⛔ DELIBERATELY NOT MOUNTED. Answering it runs three translators over every '
-    + 'declared function; that belongs in a test, not in a page load, and putting '
-    + 'it on the reference page would make a member wait for a number computed for '
-    + 'engineers. ⚠️ It is nonetheless a REAL candidate for a product surface — '
-    + '"which of your platforms can reach this" is a question a member evaluating '
-    + 'a switch would want answered — so this entry is a decision recorded, not a '
-    + 'file forgotten. Rail: doorCoverage.test.js.',
   'app/src/pages/EducationalVideos.jsx':
     'A 4-line re-export shim over the LIVE pages/desk/VideosSection. Its test is '
     + 'not test-only coverage: it renders the shim, i.e. VideosSection, and carries '
@@ -753,11 +740,52 @@ const AWAITING_A_DECISION = {
   // (W9 design rule 3: the one place report metrics are computed). Its only consumer
   // is W9-T13b, the report panel, which is not built; W9 is DARK until the owner arms a
   // stage (rulings D6, D8). Rails: w9T13aBrokerReport.test.js, w9T13aReportParity.test.js.
-  // ⏳ The decision owed by the expiry: T13b mounts it (the entry goes in that commit), or
-  // the coordinator parks W9 again with a new date.
+  // ⏳ The decision owed by the expiry (2026-12-31, PARKING_EXPIRES): T13b mounts it (the entry
+  // goes in that commit), or the coordinator parks W9 again with a new date. The consumer in
+  // flight is W9-T13b on branch feat/pine-w9-t13b-report-panel (not yet on origin at the
+  // 2026-11-08 integration merge).
   'app/src/components/chart/engine/runtime/brokerReport.js':
-    'W9-T13a report metrics, built dark; its consumer is W9-T13b (the report panel, not built). '
+    'W9-T13a report metrics, built dark; its consumer is W9-T13b (the report panel, '
+    + 'feat/pine-w9-t13b-report-panel, in flight). '
     + 'Do NOT mount it to green this rail: mounting is T13b and arming is the owner (D6).',
+  // ── W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08) ──
+  // Recorded 2026-11-08 when master was found red with these orphans
+  // (each landed 2026-10-30..11-07 while the rail was already red on the lapsed
+  // cockpit block, so nobody saw them arrive). No remote branch (60 most recent
+  // checked) imports any of them from non-test code. ⏳ The decision owed by the
+  // expiry, per entry: a consumer lands (entry goes in that commit), or the rail
+  // learns build-tool entries as roots (see the RS TEACHING block), or the owner
+  // deletes. ⛔ Not dead code: each one's job is named beside it.
+  'app/src/components/chart/engine/runtime/serverEntry.js':
+    'BUILD-TOOL ENTRY: app/scripts/build-pine-runtime.mjs bundles it into '
+    + 'dist-server/pine-runtime.mjs for the W5 server runtime (docs/pine/SERVER-RUNTIME-DESIGN.md '
+    + 'T1). A walk from App.jsx cannot see a build-script entry, same shape as content/rs/teaching.js.',
+  'app/src/components/chart/engine/runtime/columnDigest.js':
+    'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
+    + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
+  'app/src/components/chart/engine/runtime/brokerPinsLock.js':
+    'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
+    + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
+  'app/src/components/chart/engine/ast/strategyScorecard.js':
+    'W9-T15 / ruling D7 scorecard wording for strategy backtests (docs/pine/W9-DECISIONS-2026-11-07.md). '
+    + 'Built dark: only strategiesAreRuled/productScorecard tests read it; no scorecard surface '
+    + 'renders it yet because strategy backtests are not served (D6).',
+  'app/src/components/chart/supportLoop/doorNameCoverage.js':
+    'Support loop Phase B (docs/pine/support-loop/PHASE-B.md): its test regenerates the committed '
+    + 'doorNameCoverage.json that the Python digest reads. A generator, not a screen.',
+  'app/src/agent/nlm1/routers.js':
+    'NLM-1 D1 pluggable routers for the dev/held-out scorers (devMetrics, nlm1Routing tests), '
+    + 'behind the dark UCT_AGENT_ROUTING_V2 flag (default off). Measurement tooling, not a route.',
+  'app/src/agent/qa/chartsOutcome/outcomeHarness.jsx':
+    'Test harness for the eight *.outcome.test.jsx files beside it. Lives outside the TEST_INFRA '
+    + 'directories; the honest fix is moving it under a testing/ path, not widening TEST_INFRA.',
+  // ── STUDY UI KIT LEFTOVER — NO IMPORTER AT ALL, OWNER DECIDES (2026-11-08) ──
+  // Zero importers anywhere, tests included, on master and on the 60 most recent
+  // remote branches. Built in round 18 (4a82de5757) and orphaned by the same day's
+  // fix 27f0e7c614 ("the seal off the chart"). Reported as DEAD; kept only because
+  // deleting is the owner's call.
+  'app/src/pages/study/ui/MarkBubble.jsx':
+    'DEAD candidate: the Study kit mark+bubble, unused since the round 18 fix. Delete or re-mount.',
   }
 
 /**
@@ -799,7 +827,12 @@ const PARKING_EXPIRES = {
   // (The WAVE 2 block's expiry, 2026-10-23, was deleted 2026-10-24 with the
   // block: it lapsed three times, and on the third its five modules were
   // deleted or moved to test infrastructure rather than renewed.)
-  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
+  // Cockpit renewed 2026-11-08 (lapsed 2026-10-31 unnoticed). Short on purpose: ten weeks
+  // live and nobody has asked for a preview back, so the tiles are deletion candidates
+  // and the decision is the owner's. doorCoverage.js left the block that day (now wired).
+  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-11-30',
+  'W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08)': '2026-12-31',
+  'STUDY UI KIT LEFTOVER — NO IMPORTER AT ALL, OWNER DECIDES (2026-11-08)': '2026-11-30',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
   'RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07)': '2026-12-31',

@@ -33,11 +33,13 @@ export const STRATEGY_WINDOW_HISTORY = 'strategy-window'
 /** The fields 3.2 names that no served rule produces yet, and the W9 task that owns each.
  *  W9-T13a-F1 (coordinator ruling, 2026-11-08): T13a computes the report from the record and
  *  serves per-trade profit in the report; equity, run-up and drawdown need a per-bar close or
- *  equity column the record does not carry yet, which is that follow-up's work. */
+ *  equity column the record does not carry yet, which is that follow-up's work.
+ *  W9-T7-F1 (coordinator ruling, 2026-11-08): T7 built the order kinds but not the order log or a
+ *  trade's exit id (the broker keeps no per-order history to log), so both are that follow-up's. */
 export const STRATEGY_RECORD_UNSERVED = Object.freeze({
-  orders: 'W9-T7',
+  orders: 'W9-T7-F1 (order log, exitId)',
   equity: 'W9-T13a-F1',
-  'trades.exitId': 'W9-T7',
+  'trades.exitId': 'W9-T7-F1 (order log, exitId)',
   'trades.profit': 'W9-T13a-F1',
   'trades.commission': 'W9-T5',
   'trades.runUp': 'W9-T13a-F1',

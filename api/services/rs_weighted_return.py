@@ -78,6 +78,12 @@ IBD_COMPONENTS: Tuple[Tuple[str, int], ...] = (
     ("m6", 126),
     ("m12", 252),
 )
+#: The 9-month component (Deepvue round 2, 2026-11-08): the plain 189-bar return's
+#: percentile, ranked like the four above. STORED in the rating history and sent to
+#: the chart (the RS pane's 9M column); NOT a screener column, so it stays out of
+#: ``IBD_COMPONENTS``, which the methodology page and the screener's seven
+#: history columns read. 189 is ``IBD_TERMS``' third quarter, one lookback table.
+IBD_M9_COMPONENT: Tuple[str, int] = ("m9", 189)
 
 
 def period_return(closes: Sequence[float], bars_back: int) -> Optional[float]:

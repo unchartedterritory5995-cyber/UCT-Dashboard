@@ -562,6 +562,12 @@ _SHAPE_5_NEW_TOP = {"rotation", "quality", "vars"}
 _SHAPE_5_FIELDS = {"rotation.summary", "rotation.inQuadrantBars", "quality.summary", "quality.annualPct",
                    "vars.summary", "vars.stateWord", "inputs.view", "inputs.customBenchmark",
                    "inputs.anchorDate", "checks.anchor.source", "checks.anchor.date"}
+#: Shape 6 (Deepvue round 2, 2026-11-08, `compute.rev` 5): the RS Rating
+#: Reading's `ratingHistory` block and the rating's 9-month component `rating.m9`.
+_SHAPE_6_NEW_TOP = {"ratingHistory"}
+_SHAPE_6_FIELDS = {"rating.m9", "ratingHistory.summary", "ratingHistory.reason", "ratingHistory.value",
+                   "ratingHistory.average", "ratingHistory.change20", "ratingHistory.sessions",
+                   "ratingHistory.asof", "ratingHistory.stale"}
 
 
 def test_a_v4_payload_field_change_comes_with_a_v4_shape_bump(monkeypatch):
@@ -571,10 +577,12 @@ def test_a_v4_payload_field_change_comes_with_a_v4_shape_bump(monkeypatch):
     _no_cache(monkeypatch)
     p = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
     got = _key_paths(p)
-    assert {k for k in got if "." not in k} == _SHAPE_3_TOP | _SHAPE_5_NEW_TOP
-    assert _SHAPE_3_FIELDS | _SHAPE_5_FIELDS <= got
+    assert {k for k in got if "." not in k} == _SHAPE_3_TOP | _SHAPE_5_NEW_TOP | _SHAPE_6_NEW_TOP
+    assert _SHAPE_3_FIELDS | _SHAPE_5_FIELDS | _SHAPE_6_FIELDS <= got
     import hashlib
     digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
-    assert (rsp._RS_PAYLOAD_SHAPE_V4, digest) == (5, "941624d86bef76c7"), (
+    # 5 / 941624d86bef76c7 until Deepvue round 2 (2026-11-08): shape 6 adds
+    # `rating.m9` and the `ratingHistory` block (`compute.rev` 5).
+    assert (rsp._RS_PAYLOAD_SHAPE_V4, digest) == (6, "b7e71e5426b27163"), (
         f"the v4 RS payload's key paths changed (digest {digest}): bump rs_provider._RS_PAYLOAD_SHAPE_V4, "
         f"then pin the new pair here. Paths: {sorted(got)}")
