@@ -112,3 +112,8 @@
 }
 /* a long answer (three lines on a phone) gets room above and below instead of touching the tile's edge */
 .tile.tile { padding-top: 12px; padding-bottom: 12px; }
+/* a tile wrapped in a list item (ChoiceList's radiogroup, two to a row from 641 px) fills its grid row, so a long
+   answer that wraps to three lines never leaves its neighbour shorter (real-screen check 2026-11-08, 1440x900: 117 px
+   beside 72 px). Tiles laid straight into a grid (AnswerLooks, ReplayPause) already stretch; a one-column list item
+   has no set height, so 100% resolves to auto there. */
+li > .tile { height: 100%; }
