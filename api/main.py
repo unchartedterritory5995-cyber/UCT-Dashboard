@@ -4804,6 +4804,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
 
+    # Price alerts: scheduled server-side evaluation, so an alert on a symbol no
+    # client is polling still fires. The thread always starts and sleeps; every
+    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off), so the kill
+    # switch needs no restart.
+    try:
+        from api.services import price_alert_evaluator
+        price_alert_evaluator.start_evaluator(interval_sec=60)
+        logging.getLogger(__name__).info("[startup] price alert evaluator thread started (flag-gated)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] price alert evaluator failed to start")
+
     # Awareness Engine (M1): durable regime-label ledger. Cheap + idempotent;
     # initialized unconditionally (like indicator_alert_service) so local
     # dev/tests never need AWARENESS_ENGINE_ENABLED=1 just to read/write it.

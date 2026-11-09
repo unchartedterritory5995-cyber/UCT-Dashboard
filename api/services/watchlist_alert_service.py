@@ -196,11 +196,18 @@ def _trigger_alert(alert_id: str) -> dict | None:
     conn = get_connection()
     try:
         now = datetime.now(timezone.utc).isoformat()
-        conn.execute(
-            "UPDATE watchlist_alerts SET is_active = 0, triggered_at = ? WHERE id = ?",
+        # Compare-and-set: only the checker that flips is_active 1 -> 0 owns the
+        # fire. /api/live-prices (run_alert_check) and the scheduled
+        # price_alert_evaluator can both have read the row as armed; the loser
+        # gets rowcount 0 and delivers nothing.
+        cur = conn.execute(
+            "UPDATE watchlist_alerts SET is_active = 0, triggered_at = ? "
+            "WHERE id = ? AND is_active = 1",
             (now, alert_id),
         )
         conn.commit()
+        if cur.rowcount != 1:
+            return None
         row = conn.execute("SELECT * FROM watchlist_alerts WHERE id = ?", (alert_id,)).fetchone()
         return dict(row) if row else None
     finally:
