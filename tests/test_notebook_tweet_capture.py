@@ -320,6 +320,7 @@ def test_the_scope_is_recorded_in_the_single_process_list():
     from pathlib import Path
     text = (Path(__file__).resolve().parents[1] / "CLAUDE.md").read_text(encoding="utf-8")
     assert "notebook-tweet-resolve" in text
+    assert "notebook-tweet-save" in text and "notebook_tweet_capture._SAVE_INFLIGHT" in text
 
 
 def test_the_payload_key_is_derived_and_defaults_off(monkeypatch):
@@ -666,13 +667,57 @@ def test_save_unresolvable_id_stops_and_reports_what_was_saved(notebook, store, 
     _seed_post(store, "733", text="$NVDA never reached")
     vendor["answer"] = []
     note_id = _note()
-    with pytest.raises(tc.TweetCaptureError) as e:
-        tc.save(UID, note_id, ["731", "732", "733"])
-    assert e.value.status == 404
-    assert "could not be found" in str(e.value)
-    assert "1 post was saved" in str(e.value)
+    out = tc.save(UID, note_id, ["731", "732", "733"])
+    assert set(out) == {"excerpts", "note", "warnings", "stopped"}
+    assert "could not be found" in out["stopped"] and "1 post was saved" in out["stopped"]
+    assert [x["capturedText"] for x in out["excerpts"]] == ["$NVDA saved before"]
+    from api.services.journal_two import notes
+    assert out["note"] == {"id": note_id, "updatedAt": notes.get_note(UID, note_id)["updatedAt"]}
     assert [r["captured_text"] for r in _rows("SELECT captured_text FROM j2_note_excerpts")] == ["$NVDA saved before"]
     assert len(_excerpt_nodes(note_id)) == 1
+
+
+def test_save_stopped_keeps_the_warnings_already_collected(notebook, store, vendor, images):
+    from api.services.journal_two import tweet_capture as tc
+    images["fail"].add("FakeImg123")
+    _seed_post(store, "734")
+    vendor["answer"] = []
+    out = tc.save(UID, _note(), ["734", "735"])
+    assert out["warnings"] == ["An image from @fakedesk_one could not be copied."]
+    assert "could not be found" in out["stopped"]
+
+
+def test_save_unexpected_failure_after_a_saved_post_is_stopped_not_an_error(notebook, store, monkeypatch):
+    from api.services.journal_two import notes, tweet_capture as tc
+    _seed_post(store, "736", text="$NVDA first")
+    _seed_post(store, "737", text="$NVDA second")
+    note_id = _note()
+    real = notes.append_document_excerpt
+    calls = []
+
+    def second_fails(*a, **k):
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("disk trouble")
+        return real(*a, **k)
+
+    monkeypatch.setattr(notes, "append_document_excerpt", second_fails)
+    out = tc.save(UID, note_id, ["736", "737"])
+    assert out["stopped"] == f"{tc.SAVE_FAILED_SENTENCE} 1 post was saved before it."
+    assert [x["capturedText"] for x in out["excerpts"]] == ["$NVDA first"]
+    assert [r["captured_text"] for r in _rows("SELECT captured_text FROM j2_note_excerpts")] == ["$NVDA first"]
+    assert len(_rows("SELECT * FROM j2_note_tweet_captures")) == 1
+
+
+def test_save_route_partial_import_is_200_with_the_revision(client, flag_on, notebook, store, vendor):
+    _seed_post(store, "738")
+    vendor["answer"] = []
+    note_id = _note()
+    r = client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": ["738", "7399"]})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["note"]["id"] == note_id and body["note"]["updatedAt"]
+    assert len(body["excerpts"]) == 1 and "could not be found" in body["stopped"]
 
 
 def test_save_unresolvable_first_id_says_nothing_was_saved(notebook, store, vendor):
@@ -772,6 +817,15 @@ def test_only_pbs_twimg_images_are_copied_and_at_most_four(notebook, store, imag
     assert all(u.startswith("https://pbs.twimg.com/") for u in images["urls"])
 
 
+def test_images_are_downloaded_at_the_large_rendition(notebook, store, images):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "764")
+    tc.save(UID, _note(), ["764"])
+    assert len(images["urls"]) == 1
+    assert images["urls"][0].startswith(IMG)
+    assert "name=large" in images["urls"][0] and "name=small" not in images["urls"][0]
+
+
 def test_stored_tweet_images_survive_the_attachment_gc(notebook, store):
     from api.services.journal_two import attachment_gc, tweet_capture as tc
     from api.services import auth_db
@@ -798,6 +852,86 @@ def test_save_route(client, flag_on, notebook, store):
     assert client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": []}).status_code == 400
     assert client.post(SAVE_URL, json={"noteId": note_id}).status_code == 400
     assert client.post(SAVE_URL, json=[1]).status_code in (400, 422)
+
+
+def test_save_rate_limit_is_its_own_429(client, flag_on, notebook, vendor, monkeypatch):
+    from api.limiter import limiter
+    from api.routers import notebook_tweet_capture as r
+    monkeypatch.setattr(limiter, "enabled", True)
+    monkeypatch.setattr(r, "TWEET_SAVE_RATE", "2/minute")
+    monkeypatch.setattr(r, "SCOPE_TWEET_SAVE", f"notebook-tweet-save-test-{time.time_ns()}")
+    vendor["answer"] = []
+    note_id = _note()
+    codes = [client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": [str(i + 1)]}).status_code
+             for i in range(3)]
+    assert codes == [404, 404, 429]
+    last = client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": ["9"]})
+    assert last.json()["detail"] == r.TWEET_SAVE_RATE_SENTENCE
+    assert len(vendor["calls"]) == 2          # the refused press spent no vendor call
+
+
+def test_the_save_rate_is_20_a_minute_per_member():
+    from api.routers import notebook_tweet_capture as r
+    assert r.TWEET_SAVE_RATE == "20/minute"
+    assert r.SCOPE_TWEET_SAVE == "notebook-tweet-save"
+
+
+def test_a_second_concurrent_save_is_429_and_the_first_finishes(client, flag_on, notebook, monkeypatch):
+    import threading
+    from api.routers import notebook_tweet_capture as r
+    from api.services.journal_two import tweet_capture as tc
+    entered, release = threading.Event(), threading.Event()
+    done = {"excerpts": [], "note": {"id": "n", "updatedAt": None}, "warnings": []}
+
+    def slow(*a):
+        entered.set()
+        assert release.wait(20)
+        return done
+
+    monkeypatch.setattr(tc, "save", slow)
+    first = {}
+    t = threading.Thread(target=lambda: first.update(
+        r=client.post(SAVE_URL, json={"noteId": "n", "tweetIds": ["1"]})))
+    t.start()
+    try:
+        assert entered.wait(20)
+        second = client.post(SAVE_URL, json={"noteId": "n", "tweetIds": ["2"]})
+        assert second.status_code == 429
+        assert second.json()["detail"] == "An import is already running. Try again in a moment."
+    finally:
+        release.set()
+        t.join(20)
+    assert first["r"].status_code == 200
+    assert client.post(SAVE_URL, json={"noteId": "n", "tweetIds": ["3"]}).status_code == 200
+    assert r._SAVE_INFLIGHT == set()
+
+
+def test_the_save_slot_is_released_after_a_failed_save(client, flag_on, notebook, store, monkeypatch):
+    from api.routers import notebook_tweet_capture as r
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "772")
+    theirs = _note(OTHER)
+    assert client.post(SAVE_URL, json={"noteId": theirs, "tweetIds": ["772"]}).status_code == 404
+    assert r._SAVE_INFLIGHT == set()
+
+    def boom(*a):
+        raise RuntimeError("disk trouble")
+
+    monkeypatch.setattr(tc, "save", boom)
+    with pytest.raises(RuntimeError):
+        client.post(SAVE_URL, json={"noteId": theirs, "tweetIds": ["772"]})
+    assert r._SAVE_INFLIGHT == set()
+
+
+def test_one_members_running_save_does_not_block_another(client, flag_on, notebook, monkeypatch):
+    from api.routers import notebook_tweet_capture as r
+    from api.services.journal_two import tweet_capture as tc
+    monkeypatch.setattr(tc, "save", lambda *a: {"excerpts": [], "note": {}, "warnings": []})
+    assert r._claim_save("someone-else") is True
+    try:
+        assert client.post(SAVE_URL, json={"noteId": "n", "tweetIds": ["1"]}).status_code == 200
+    finally:
+        r._release_save("someone-else")
 
 
 def test_save_route_is_404_while_the_flag_is_off(client, notebook, monkeypatch):

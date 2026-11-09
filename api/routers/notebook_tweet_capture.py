@@ -13,6 +13,7 @@ Service: `journal_two/tweet_capture.py`. Paid on every route, zero model calls.
 """
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -41,6 +42,31 @@ TWEET_RESOLVE_RATE = "30/minute"
 SCOPE_TWEET_RESOLVE = "notebook-tweet-resolve"
 TWEET_RESOLVE_RATE_SENTENCE = "That's a lot of links at once. Try again in a minute."
 MAX_LINK_CHARS = 2048
+
+#: `POST /tweets/save` -- each press can spend vendor reads, bar reads and image copies.
+#: PER-PROCESS state, like the resolve bucket and `_SAVE_INFLIGHT` (CLAUDE.md roster).
+TWEET_SAVE_RATE = "20/minute"
+SCOPE_TWEET_SAVE = "notebook-tweet-save"
+TWEET_SAVE_RATE_SENTENCE = "That's a lot of imports at once. Try again in a minute."
+SAVE_RUNNING_SENTENCE = "An import is already running. Try again in a moment."
+
+#: The members with a save running now: one at a time each. The route is a sync def, so
+#: requests run on threadpool threads and the set needs a real lock.
+_SAVE_INFLIGHT: set[str] = set()
+_SAVE_INFLIGHT_LOCK = threading.Lock()
+
+
+def _claim_save(user_id: str) -> bool:
+    with _SAVE_INFLIGHT_LOCK:
+        if user_id in _SAVE_INFLIGHT:
+            return False
+        _SAVE_INFLIGHT.add(user_id)
+        return True
+
+
+def _release_save(user_id: str) -> None:
+    with _SAVE_INFLIGHT_LOCK:
+        _SAVE_INFLIGHT.discard(user_id)
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -105,10 +131,20 @@ def resolve_tweet(payload: dict[str, Any] = Depends(_json(dict[str, Any])),
 def save_tweets(payload: dict[str, Any] = Depends(_json(dict[str, Any])),
                 user: dict = Depends(require_paid)) -> dict[str, Any]:
     """Posts by id into a note, as cited excerpts. A sync route (threadpool): each post is
-    re-read server-side, and nothing the client sent about a post is stored."""
+    re-read server-side, and nothing the client sent about a post is stored. 20/minute per
+    member, and one running at a time per member."""
+    from api.services.journal_two import public_note_payload as public
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="A JSON object is required")
+    uid = str(user["id"])
+    # The limiter's own 429 is its own response: it is raised OUTSIDE the try below.
+    public.enforce_rate(TWEET_SAVE_RATE, SCOPE_TWEET_SAVE, f"member:{uid}",
+                        TWEET_SAVE_RATE_SENTENCE, public=False)
+    if not _claim_save(uid):
+        raise HTTPException(status_code=429, detail=SAVE_RUNNING_SENTENCE)
     try:
-        return tw.save(str(user["id"]), payload.get("noteId"), payload.get("tweetIds"))
+        return tw.save(uid, payload.get("noteId"), payload.get("tweetIds"))
     except tw.TweetCaptureError as e:
         raise _fail(e) from e
+    finally:
+        _release_save(uid)

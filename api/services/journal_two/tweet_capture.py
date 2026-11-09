@@ -77,6 +77,8 @@ IMPORT_IMAGES_BUDGET_S = 45.0
 IDENTITY_PREFIX = "x:"
 
 _ID_RE = re.compile(r"\d{1,25}")
+#: `tweet_store._extract_media` asks for a small display size; the copy we keep is the large one.
+_SMALL_RENDITION_RE = re.compile(r"([?&]name=)small(?=&|$)")
 
 #: The host is EXACTLY x.com or twitter.com, optionally behind www. or mobile. -- the path
 #: separator (or end of string) must follow, so `x.com.evil.test` and `notx.com` never match.
@@ -244,9 +246,7 @@ def _price(post: dict[str, Any], note_ticker: Optional[str]):
 
 
 def _with_progress(sentence: str, saved: int) -> str:
-    if not saved:
-        return sentence
-    tail = "1 post was saved before it." if saved == 1 else f"{saved} posts were saved before it."
+    tail ="1 post was saved before it." if saved == 1 else f"{saved} posts were saved before it."
     return f"{sentence} {tail}"
 
 
@@ -438,7 +438,7 @@ def _copy_images(conn, user_id: str, note_id: str, doc_id: str, post: dict[str, 
     warning = f"An image from @{post.get('handle')} could not be copied."
     for url in urls[:MAX_IMAGES_PER_POST]:
         try:
-            stored.append(_copy_image(user_id, note_id, url, deadline))
+            stored.append(_copy_image(user_id, note_id, _SMALL_RENDITION_RE.sub(r"\1large", url), deadline))
         except Exception as e:  # noqa: BLE001 -- an image never costs the post
             logger.warning("[tweet_capture] image copy failed: %s", type(e).__name__)
             if warning not in warnings:
@@ -459,9 +459,10 @@ def _copy_images(conn, user_id: str, note_id: str, doc_id: str, post: dict[str, 
 def save(user_id: str, note_id: Any, tweet_ids: Any) -> dict[str, Any]:
     """Save posts, by numeric id, into `note_id` as cited excerpts, in the requested order.
 
-    Returns {excerpts, note: {id, updatedAt}, warnings}. Raises TweetCaptureError (with its
-    status) on every refusal; a failure on one post stops the import and its sentence says how
-    many were saved before it. Posts before the failure stay saved.
+    Returns {excerpts, note: {id, updatedAt}, warnings}. A failure on one post stops the import.
+    Once a post is saved the note's revision has moved and the client needs it, so a later
+    failure is still this normal answer plus `stopped`, the sentence saying what happened and
+    how many were saved. With nothing saved, it raises TweetCaptureError with its status.
     """
     from api.services.journal_two import note_excerpts, notes as notes_service
 
@@ -481,6 +482,7 @@ def save(user_id: str, note_id: Any, tweet_ids: Any) -> dict[str, Any]:
 
         saved: list[str] = []
         warnings: list[str] = []
+        stopped: Optional[str] = None
         deadline = time.monotonic() + IMPORT_IMAGES_BUDGET_S
         for tweet_id in ids:
             try:
@@ -489,12 +491,16 @@ def save(user_id: str, note_id: Any, tweet_ids: Any) -> dict[str, Any]:
                     raise TweetCaptureError(NOT_FOUND_SENTENCE, status=404)
                 excerpt_id, doc_id, created = _save_post(conn, user_id, note_id, note_ticker, post)
             except TweetCaptureError as e:
-                raise TweetCaptureError(_with_progress(str(e), len(saved)), status=e.status) from e
-            except Exception as e:
+                if not saved:
+                    raise
+                stopped = _with_progress(str(e), len(saved))
+                break
+            except Exception:
                 if not saved:
                     raise
                 logger.exception("[tweet_capture] save stopped after %d posts", len(saved))
-                raise TweetCaptureError(_with_progress(SAVE_FAILED_SENTENCE, len(saved)), status=500) from e
+                stopped = _with_progress(SAVE_FAILED_SENTENCE, len(saved))
+                break
             saved.append(excerpt_id)
             if created:
                 _copy_images(conn, user_id, note_id, doc_id, post, deadline, warnings)
@@ -502,8 +508,13 @@ def save(user_id: str, note_id: Any, tweet_ids: Any) -> dict[str, Any]:
         excerpts = [note_excerpts.get_excerpt(user_id, ex_id, conn=conn) for ex_id in saved]
         row = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ? AND user_id = ?",
                            (note_id, user_id)).fetchone()
-        return {"excerpts": excerpts,
-                "note": {"id": note_id, "updatedAt": row["updated_at"] if row else None},
-                "warnings": warnings}
+        out: dict[str, Any] = {
+            "excerpts": excerpts,
+            "note": {"id": note_id, "updatedAt": row["updated_at"] if row else None},
+            "warnings": warnings,
+        }
+        if stopped is not None:
+            out["stopped"] = stopped
+        return out
     finally:
         conn.close()
