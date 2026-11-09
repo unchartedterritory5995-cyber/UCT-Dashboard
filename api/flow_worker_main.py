@@ -2,7 +2,7 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
-Redeploy trigger 2026-11-08: substack_article.py is statically reachable from this worker but off
+Redeploy trigger 2026-11-08 (video + YouTube embeds): substack_article.py is statically reachable from this worker but off
 its watch list. The Substack poller runs on web, so this only keeps the rail honest.
 
 Redeploy trigger 2026-10-11: ships the flow_exposure_history.py empty-store fix (a
