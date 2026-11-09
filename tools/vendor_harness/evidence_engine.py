@@ -1248,83 +1248,205 @@ def read_ledger_rows(path: pathlib.Path = LEDGER) -> list:
     return rows
 
 
-# ─── W9-T6 r1 (W9-J1): the July-2026 Properties menus are a PRECONDITION, not a broker rule ───────────
-# TradingView changed its strategy tester in July 2026 (design 0.2 finding 5). Every broker fill on the
-# default timing rests on four of its settings at their defaults; if Q-S1-core's capture ran with any of
-# them moved, every rule it pins is void. So a fixture of queue row Q-S1-core counts as MATCH only when
-# EVERY committed row of it carries a settings read-back (`provenance.strategySettings`, W9-T3a) showing
-# all four at their defaults. The Properties names are read from `strategy_capture.mjs::PROPERTY_TABLE`,
-# the capture side's one table, never restated here.
-J1_QUEUE_ROW = "Q-S1-core"
-J1_DEFAULTS = {
-    "process_orders_on_close": False,        # order execution delay: one tick
+# ─── W9-T6 r1/r2: the settings read-back is a PRECONDITION on every pin fixture, not a broker rule ───────
+# Design 5.1: "every capture reads its settings back". A broker fill's timing rests on six Properties
+# settings (TradingView changed several of them in July 2026, design 0.2 finding 5; W9-J1 is the read-back
+# of their defaults on Q-S1-core). If a capture ran with any of them other than what its own source asks
+# for, every rule it pins is void. So a fixture counts as MATCH only when EVERY committed row of it:
+#   - names its source (`sourceSha256`) and that source is committed here (a probe or the committed corpus);
+#   - carries a read-back (`provenance.strategySettings.properties`, W9-T3a);
+#   - reads back, for each of the six, EXACTLY what its source's `strategy()` declares as a literal, and the
+#     R6 default for each it does not declare (a declaration that is not a literal fails closed).
+# The expected values are DERIVED from the capture's own source; the Properties names, the `strategy()`
+# parameter of each and how its literal is read come from `strategy_capture.mjs::PROPERTY_TABLE`, the
+# capture side's one table. Only the R6 defaults are stated here: each is R6 `strategy()`'s "The default is".
+SETTINGS_DEFAULTS = {
+    "process_orders_on_close": False,        # order execution delay: one tick (W9-P1 moves it)
+    "calc_on_order_fills": False,            # (W9-P1b / W9-P2 move it)
+    "calc_on_every_tick": False,             # (W9-P3 moves it)
     "backtest_fill_limits_assumption": 0,    # limit order execution: 0 ticks
     "use_bar_magnifier": False,              # bar detalization: off
     "calc_on_every_history_tick": False,     # history-bar ticks: off
 }
 STRATEGY_CAPTURE_MJS = HERE / "strategy_capture.mjs"
+SETTINGS_REFUSED = "MATCH-WITHOUT-SETTINGS-READBACK"
 
 
-def j1_property_names(path: pathlib.Path = STRATEGY_CAPTURE_MJS) -> dict:
-    """{key: TradingView's Properties input name} for the J1 keys, parsed from PROPERTY_TABLE."""
+def settings_property_table(path: pathlib.Path = STRATEGY_CAPTURE_MJS) -> dict:
+    """{key: {name, param, kind}} for the checked keys, parsed from PROPERTY_TABLE."""
     text = pathlib.Path(path).read_text(encoding="utf-8")
     out = {}
-    for key in J1_DEFAULTS:
-        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1", text)
+    for key in SETTINGS_DEFAULTS:
+        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1, param: (null|'(\w+)'), kind: '(\w+)'", text)
         if not m:
-            raise PinResolveError(f"strategy_capture.mjs PROPERTY_TABLE names no `{key}`")
-        out[key] = m.group(2)
+            raise PinResolveError(f"strategy_capture.mjs PROPERTY_TABLE names no `{key}` (name, param, kind)")
+        out[key] = {"name": m.group(2), "param": m.group(4), "kind": m.group(5)}
     return out
 
 
-def _is_queue_row(row: dict, queue_row: str) -> bool:
-    if row.get("queueTargetId") == queue_row:
-        return True
-    rs = row.get("rows")
-    return isinstance(rs, list) and any(r == queue_row or (isinstance(r, dict) and r.get("id") == queue_row) for r in rs)
+def _strategy_call_args(source: str):
+    """{param: raw text} of the source's `strategy(...)` named arguments (comments and strings respected);
+    None when there is no `strategy(` call."""
+    text = str(source or "")
+    i, n, start = 0, len(text), None
+    while i < n:                       # find `strategy(` outside comments and strings
+        ch = text[i]
+        if text.startswith("//", i):
+            i = text.find("\n", i)
+            i = n if i < 0 else i
+            continue
+        if ch in "\"'":
+            j = i + 1
+            while j < n and text[j] != ch and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+            continue
+        m = re.compile(r"(?<![\w.])strategy\s*\(").match(text, i)
+        if m and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] in "_.")):
+            start = m.end()
+            break
+        i += 1
+    if start is None:
+        return None
+    args, depth, cur, q, k = {}, 0, "", None, start
+
+    def flush(c):
+        mm = re.match(r"^\s*([A-Za-z_]\w*)\s*=(?!=)\s*([\s\S]*?)\s*$", c)
+        if mm:
+            args[mm.group(1)] = mm.group(2)
+    while k < n:
+        ch = text[k]
+        if q:
+            cur += ch
+            if ch == "\\":
+                cur += text[k + 1] if k + 1 < n else ""
+                k += 1
+            elif ch == q:
+                q = None
+            k += 1
+            continue
+        if ch in "\"'":
+            q = ch
+            cur += ch
+            k += 1
+            continue
+        if text.startswith("//", k):
+            nl = text.find("\n", k)
+            k = n if nl < 0 else nl
+            continue
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            if depth == 0:
+                flush(cur)
+                return args
+            depth -= 1
+        if ch == "," and depth == 0:
+            flush(cur)
+            cur = ""
+            k += 1
+            continue
+        cur += ch
+        k += 1
+    return None   # unbalanced: no declaration this can read
 
 
-def _at_default(value, default) -> bool:
-    if isinstance(default, bool):
-        return value is False or value == 0 or (isinstance(value, str) and value.strip().lower() in ("false", "0"))
+def _literal(raw: str, kind: str):
+    t = str(raw).strip()
+    if kind == "bool":
+        return True if t == "true" else False if t == "false" else None
+    if kind == "num":
+        return float(t) if re.fullmatch(r"[-+]?\d+(\.\d+)?", t) else None
+    return None
+
+
+def expected_settings(source: str, table: dict):
+    """The six settings this capture's source asks for: its literal declarations, R6 defaults for the
+    rest. None when the source has no `strategy(` call or declares one of them as a non-literal."""
+    args = _strategy_call_args(source)
+    if args is None:
+        return None
+    out = {}
+    for key, default in SETTINGS_DEFAULTS.items():
+        param = table[key]["param"]
+        if param and param in args:
+            lit = _literal(args[param], table[key]["kind"])
+            if lit is None:
+                return None
+            out[key] = lit
+        else:
+            out[key] = default
+    return out
+
+
+def _same(value, expected) -> bool:
+    if isinstance(expected, bool):
+        if isinstance(value, str):
+            value = value.strip().lower()
+            return value == ("true" if expected else "false") or value == ("1" if expected else "0")
+        return value is expected or (not isinstance(value, bool) and value == int(expected))
+    if isinstance(value, bool):
+        return False
     try:
-        return float(value) == float(default) and not isinstance(value, bool)
+        return float(value) == float(expected)
     except (TypeError, ValueError):
         return False
 
 
-def j1_readback_ok(row: dict, names: dict) -> bool:
-    """True only when the row's settings read-back shows every J1 setting at its default."""
+def settings_readback_ok(row: dict, source: str, table: dict) -> bool:
+    """True only when the row's read-back shows exactly what `source` asks for, for all six."""
+    expected = expected_settings(source, table) if source is not None else None
+    if expected is None:
+        return False
     ss = ((row.get("provenance") or {}).get("strategySettings") or {})
     props = ss.get("properties") if isinstance(ss, dict) else None
     if not isinstance(props, list):
         return False
     by_name = {" ".join(str(p.get("name", "")).split()).lower(): p for p in props if isinstance(p, dict)}
-    for key, default in J1_DEFAULTS.items():
-        p = by_name.get(" ".join(names[key].split()).lower())
-        if p is None or "value" not in p or not _at_default(p["value"], default):
+    for key, want in expected.items():
+        p = by_name.get(" ".join(table[key]["name"].split()).lower())
+        if p is None or "value" not in p or not _same(p["value"], want):
             return False
     return True
 
 
-def resolve_pins(pins: dict, ledger_rows: list) -> dict:
+def committed_sources_by_sha() -> dict:
+    """{sha256: source text} over every committed probe and corpus file. A capture hashes its source TEXT
+    (`adapters.mjs`), so an autocrlf checkout is hashed as LF too."""
+    out = {}
+    for d in (*PROBE_DIRS, CORPUS / "committed"):
+        if not d.exists():
+            continue
+        for p in sorted(d.rglob("*.pine")):
+            b = p.read_bytes()
+            text = b.decode("utf-8", errors="replace")
+            for variant in (b, b.replace(b"\r\n", b"\n")):
+                out.setdefault(sha256_bytes(variant), text.replace("\r\n", "\n"))
+    return out
+
+
+def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> dict:
     """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
     fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
     fixture with NO committed verdict, an empty fixture list or a malformed source is an ERROR (a
-    missing fixture fails, it never silently un-pins). A Q-S1-core fixture also needs the W9-J1
-    read-back on every row (`j1_readback_ok`); without it the fixture is not MATCH."""
+    missing fixture fails, it never silently un-pins). A MATCH row also needs its settings read-back
+    to show what its own source asks for (`settings_readback_ok`); without it the row is not MATCH.
+    `sources` ({sha256: text}) defaults to the committed probes and corpus."""
     if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
         raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
+    pinned_ids = {i for ids in pins["rules"].values() if isinstance(ids, list) for i in ids}
     verdicts = {}
-    names = None
+    table = None
     for r in ledger_rows:
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
-            if v == "MATCH" and _is_queue_row(r, J1_QUEUE_ROW):
-                names = names or j1_property_names()
-                if not j1_readback_ok(r, names):
-                    v = "MATCH-WITHOUT-J1-READBACK"   # W9-J1: the precondition failed, so not MATCH
+            if v == "MATCH" and cid in pinned_ids:
+                table = table or settings_property_table()
+                if sources is None:
+                    sources = committed_sources_by_sha()
+                if not settings_readback_ok(r, sources.get(r.get("sourceSha256")), table):
+                    v = SETTINGS_REFUSED   # design 5.1: the precondition failed, so not MATCH
             verdicts.setdefault(cid, []).append(v)
     kept = {}
     for rule in sorted(pins["rules"]):
