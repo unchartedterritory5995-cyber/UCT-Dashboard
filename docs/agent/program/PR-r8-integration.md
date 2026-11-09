@@ -54,7 +54,10 @@ When the Agent asks "which chart?", an answer like "2", "the bottom one" or "the
 - **Agent source:** `useAgent.js`, `deixis.js`, `compound.js`, `fastPath.js`, `host.js`, `memory.js`, `convTarget.js`, `routing.js`, `discovery.js`, `builtins.js`, `widgetNames.js`.
 - **Agent capabilities:** `capabilities/board.js`, `capabilities/chart.js`, `capabilities/indicatorAuthoring.js`, and the new `capabilities/drawingBoards.js`.
 - **Widgets:** `ChartsWorkspace.jsx` (a click token), `ScannerPicker.jsx` (search door), `TradeExchangeNewsWidget.jsx` (preset rename / delete through its own menu functions).
-- **Server:** `api/services/uct_agent/turn.py` (the Options Flow plan check) and its pytest, `tests/test_uct_agent_flow_widget_gate.py`.
+- **Server:**
+  - `api/services/uct_agent/turn.py`: the Options Flow plan check. Its pytest is `tests/test_uct_agent_flow_widget_gate.py`.
+  - `api/services/uct_agent/turn_v2.py`: planner v2 files Drawing Boards under the drawing domain, not history.
+  - `tests/test_uct_agent_contract.py` and the capability-regression baseline lock: they now list the new action.
 - **Tests:** 27 new or updated test files. Held-out phrasings were committed before each change.
 - **Fixtures:** the manifest golden, the NL-1 parity fixture and the capability-regression contract / coverage, re-pinned.
 - **Manifest size:** the manifest sent to the model grows by **803 bytes** (154,341 to 155,144 compact), all of it from the one new action `drawingBoard.set`. Everything else adds no manifest bytes. The Drawing Boards context is only sent when boards come up, so ordinary requests are unchanged.
