@@ -295,7 +295,7 @@ describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', (
       sync(false)
       const said = runtimeErrorNotices('div4r1').map(([, s]) => s).join(' | ')
       expect(said).toBe("The colours from `barcolor` (line 56) aren't shown on this chart: this chart's bars don't start "
-        + "at the stock's first trading day, and the colours are only worked out bar by bar from there, so the candles "
+        + "at the symbol's first trading day, and the colours are only worked out bar by bar from there, so the candles "
         + 'keep their own colours.')
       sync(true)
       expect(runtimeErrorNotices('div4r1')).toEqual([])
@@ -363,7 +363,7 @@ describe('⭐⭐ DIV-4 r2 — the strip names the cause in plain words, never a 
     ['a moved setting', { inputs: 'moved' }, /changed from the script's default/],
     ['the build flag off', { build: false }, /isn't part of this version of the app/],
     ['the permission off', { permit: false }, /switched off for your account/],
-    ['the kill list', { kill: true }, /paused for running bar by bar/],
+    ['the kill list', { kill: true }, /this script is switched off for running bar by bar/],
     ['the allowlist', { allow: false }, /hasn't been checked against TradingView/],
     ['the lane not loaded', { fn: null }, /still loading/],
     ['a bar the probes disagree on', { fn: 'unknown' }, /can't be worked out exactly/],
@@ -378,7 +378,9 @@ describe('⭐⭐ DIV-4 r2 — the strip names the cause in plain words, never a 
     ['pine:function', /can't be run bar by bar here/],
     ['runtime:TypeError', /can't be run bar by bar here/],
     ['runtime:limit', /more work than a chart is allowed/],
-    ['runtime:time', /more work than a chart is allowed/],
+    ['runtime:TOTAL_INSTRUCTIONS', /more work than a chart is allowed/],
+    ['runtime:LOOP_ITERATIONS', /more work than a chart is allowed/],
+    ['runtime:INSTRUCTIONS_PER_BAR', /more work than a chart is allowed/],
     ['runtime:request', /another symbol or timeframe/],
     ['runtime:clock-zone', /time zone isn't known/],
     ['runtime:runtime.error', /stops itself with its own error/],
@@ -449,5 +451,17 @@ describe('⭐⭐ DIV-4 r2 — the strip names the cause in plain words, never a 
     }
     expect(seen).toHaveLength(2)
     expect(seen[1]).toBe(seen[0])
+  })
+})
+
+describe('⭐ DIV-4 r3 — every limit the VM declares reads as a limit', () => {
+  it('each `runtime:<LIMIT_NAME>` the run can stop with is the limit sentence', async () => {
+    const { LIMIT_NAMES } = await import('../../engine/runtime/limits')
+    expect(LIMIT_NAMES.length).toBeGreaterThan(5)
+    for (const n of LIMIT_NAMES) {
+      expect(registry.runtimeColourWhy(`runtime:${n}`), n).toMatch(/more work than a chart is allowed/)
+    }
+    // control: an unrelated code is not called a limit
+    expect(registry.runtimeColourWhy('runtime:build')).not.toMatch(/more work/)
   })
 })

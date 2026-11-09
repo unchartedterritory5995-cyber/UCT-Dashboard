@@ -168,6 +168,7 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 // never imported by the compute closure.
 import './lowerTfGate.js'
 import { runtimeWarmupOf } from './runtime/runtimeObjects'
+import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
@@ -3122,13 +3123,13 @@ function runtimeColoursAtDefaults(def, inputs) {
  *  charts do not start at the listing, so that first sentence is the one usually
  *  read: it says so calmly and that the candles simply keep their own colours. */
 const RUNTIME_COLOUR_WHY = Object.freeze({
-  'runtime:not-from-listing': "this chart's bars don't start at the stock's first trading day, and the colours "
+  'runtime:not-from-listing': "this chart's bars don't start at the symbol's first trading day, and the colours "
     + 'are only worked out bar by bar from there, so the candles keep their own colours',
   'runtime:member-inputs': "a setting has been changed from the script's default, and the colours are only "
     + "worked out at the script's own settings, so the candles keep their own colours",
   'pane:not-built': "running scripts bar by bar isn't part of this version of the app, so the candles keep their own colours",
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
-  'pane:killed': 'this script is paused for running bar by bar while it is looked at, so the candles keep their own colours',
+  'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
   'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
@@ -3142,14 +3143,16 @@ const RUNTIME_COLOUR_WHY_OTHER = "part of the script can't be run bar by bar her
 export function runtimeColourWhy(code) {
   const c = String(code || '')
   if (Object.hasOwn(RUNTIME_COLOUR_WHY, c)) return RUNTIME_COLOUR_WHY[c]
-  if (c === RUNTIME_LIMIT_GUARD_CODE || /^runtime:(limit|time|steps|budget|statement|varip|iterations|history)/.test(c)) {
-    return RUNTIME_COLOUR_WHY_LIMIT
-  }
+  if (RUNTIME_LIMIT_CODES.has(c)) return RUNTIME_COLOUR_WHY_LIMIT
   return RUNTIME_COLOUR_WHY_OTHER
 }
 /** `runtimeColumns.js::RUNTIME_LIMIT_GUARD` (the run's own limit token), restated
  *  here only as a value to compare against: this module must not import the lane. */
 const RUNTIME_LIMIT_GUARD_CODE = 'runtime:limit'
+/** ⭐ r3 — every limit stop the run can report: `runtime:${err.limit}`, one per name the
+ *  VM declares (`runtime/limits.js::LIMIT_NAMES`, a leaf), derived from that list, plus
+ *  the source-size refusal. */
+const RUNTIME_LIMIT_CODES = new Set([RUNTIME_LIMIT_GUARD_CODE, ...LIMIT_NAMES.map((n) => `runtime:${n}`)])
 
 /** ⭐ r1 (review N5) — ONE run spec per `compute.runtimeColours` object, so the run's
  *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
