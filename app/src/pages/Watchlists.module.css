@@ -122,6 +122,12 @@
   scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent))) transparent;
 }
 .listBody::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Hosts that size their columns to the pane (the breadth drill) reserve the
+   scrollbar's room always, so the columns fit whether or not the list scrolls. */
+.stableGutter { scrollbar-gutter: stable; }
+/* Number columns right-aligned (the breadth drill), so digits line up for scanning. */
+.numRight .priceCell, .numRight .volCell, .numRight .changeCell, .numRight .metaCell { justify-content: flex-end; text-align: right; }
+.numRight .gridHead > span:not(:nth-child(-n+2)) { justify-content: flex-end; }
 .listBody::-webkit-scrollbar-track { background: transparent; }
 .listBody::-webkit-scrollbar-thumb {
   background: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)));
@@ -1685,3 +1691,7 @@
   }
   .listRow { min-height: var(--tap-min, 44px); }
 }
+
+/* A host-coloured left edge on a group member row (the breadth drill sections). */
+.accentRow { position: relative; }
+.accentRow::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }

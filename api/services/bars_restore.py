@@ -17,6 +17,9 @@ The hard edges, each from a recorded incident:
   endpoint (bars_api_main records that outage).
 * Extraction happens on the volume, because /tmp is small and because a move
   across filesystems is a copy rather than an atomic rename.
+* Every stage persists under .bars_restore/<ts>. Master can merge faster than a
+  restore runs, and each merge redeploys the worker, so a restore that starts
+  over at each boot might never finish. A kill costs only the stage in progress.
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -43,6 +47,11 @@ log = logging.getLogger("uvicorn.error")
 _MAX_QUARANTINED = 2
 _SNAPSHOT_CANDIDATES = 4
 _SIDECARS = ("-wal", "-shm")
+_STAGE_ROOT = ".bars_restore"
+_CHUNK = 8 * 1024 * 1024
+# Consecutive attempts with no new bytes. Progress resets the count.
+_DOWNLOAD_ATTEMPTS = 8
+_RETRY_SLEEP_S = 5
 
 
 def db_path() -> str:
@@ -121,6 +130,101 @@ def _use_volume_tempdir() -> None:
     tempfile.tempdir = tmp
 
 
+def _stage_root() -> str:
+    return os.path.join(data_sync._DATA_DIR, _STAGE_ROOT)
+
+
+def _download(ts: str, stage: str) -> bool:
+    """Fetch the snapshot tarball, resuming any bytes an earlier boot kept."""
+    client = data_sync._client()
+    bucket = data_sync._bucket()
+    if not (client and bucket):
+        return False
+    key = f"{data_sync._SNAPSHOT_PREFIX}{ts}.tar.gz"
+    tar = os.path.join(stage, "snapshot.tar.gz")
+    part = tar + ".part"
+    total = None
+    misses = 0
+    while misses < _DOWNLOAD_ATTEMPTS:
+        have = os.path.getsize(part) if os.path.exists(part) else 0
+        try:
+            if total is None:
+                total = int(client.head_object(Bucket=bucket, Key=key)["ContentLength"])
+            if have > total:
+                os.remove(part)
+                have = 0
+            if have < total:
+                request = {"Bucket": bucket, "Key": key}
+                if have:
+                    request["Range"] = f"bytes={have}-"
+                body = client.get_object(**request)["Body"]
+                with open(part, "ab") as fh:
+                    while True:
+                        chunk = body.read(_CHUNK)
+                        if not chunk:
+                            break
+                        fh.write(chunk)
+        except Exception as e:  # noqa: BLE001 - a retry is the handling
+            log.warning("[bars-restore] download of %s interrupted: %s", ts, e)
+        now = os.path.getsize(part) if os.path.exists(part) else 0
+        if total is not None and now == total:
+            os.replace(part, tar)
+            return True
+        misses = 0 if now > have else misses + 1
+        time.sleep(_RETRY_SLEEP_S)
+    return False
+
+
+def _extract(stage: str) -> bool:
+    """Pull bars.db out of the tarball, then free the tarball's space."""
+    tar = os.path.join(stage, "snapshot.tar.gz")
+    db = os.path.join(stage, "bars.db")
+    part = db + ".part"
+    try:
+        with tarfile.open(tar, mode="r:gz") as archive:
+            # The destination is fixed, so a hostile member name cannot escape.
+            member = next((m for m in archive
+                           if m.isfile() and os.path.normpath(m.name) == "bars.db"), None)
+            if member is None:
+                log.error("[bars-restore] snapshot has no bars.db")
+                return False
+            with archive.extractfile(member) as src, open(part, "wb") as dst:
+                shutil.copyfileobj(src, dst, _CHUNK)
+    except (tarfile.TarError, OSError, EOFError) as e:
+        log.error("[bars-restore] extract failed: %s", e)
+        return False
+    os.replace(part, db)
+    os.remove(tar)
+    return True
+
+
+def _install_snapshot(ts: str) -> bool:
+    """Advance this snapshot through download, extract, verify and install."""
+    stage = os.path.join(_stage_root(), ts)
+    os.makedirs(stage, exist_ok=True)
+    db = os.path.join(stage, "bars.db")
+    tar = os.path.join(stage, "snapshot.tar.gz")
+    verified = os.path.join(stage, "verified")
+
+    if not os.path.exists(db):
+        if not os.path.exists(tar) and not _download(ts, stage):
+            return False  # the bytes so far stay for the next attempt
+        if not _extract(stage):
+            shutil.rmtree(stage, ignore_errors=True)
+            return False
+    if not os.path.exists(verified):
+        if not data_sync._verify_snapshot_db(db):
+            log.error("[bars-restore] snapshot %s failed integrity_check", ts)
+            shutil.rmtree(stage, ignore_errors=True)
+            return False
+        with open(verified, "w", encoding="utf8"):
+            pass
+    os.replace(db, db_path())
+    data_sync._write_marker(data_sync._LAST_SYNC_MARKER, ts)
+    shutil.rmtree(_stage_root(), ignore_errors=True)
+    return True
+
+
 def restore() -> bool:
     """Quarantine the bad file and install the newest snapshot that verifies."""
     if not _quarantine():
@@ -135,7 +239,7 @@ def restore() -> bool:
 
     for ts in candidates[:_SNAPSHOT_CANDIDATES]:
         log.info("[bars-restore] installing snapshot %s", ts)
-        if data_sync.download_snapshot(ts) and not is_unreadable(db_path()):
+        if _install_snapshot(ts) and not is_unreadable(db_path()):
             log.info("[bars-restore] snapshot %s installed", ts)
             return True
         log.warning("[bars-restore] snapshot %s did not install", ts)

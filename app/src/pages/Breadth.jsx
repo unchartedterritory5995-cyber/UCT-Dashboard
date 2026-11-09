@@ -372,6 +372,8 @@ const BreadthDrillModal = lazy(() => import('./breadth/drill/BreadthDrillModal')
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
+// Every column a member can drill, in table order — the scan window's list picker.
+const DRILL_COLS = COLS.filter(c => c.drillKey).map(c => ({ key: c.key, label: c.label, drillKey: c.drillKey }))
 
 // TIER_SCORES / TIER_LABELS / TIER_TIP_COLORS moved to breadth/heatmapMetrics.js
 // (imported + re-exported above).
@@ -770,7 +772,10 @@ export default function Breadth() {
     // `url` is kept so a retry re-runs THIS request, and so a response that
     // arrives after the user has opened a different cell is discarded rather
     // than painted into the wrong drill.
+    // `colKey` + `drillKey` let the scan window rank the day, step to the next
+    // session and switch lists without closing.
     setDrill({ date: target.date, label: col.label, live: target.live,
+               colKey: col.key, drillKey: col.drillKey,
                asOf: target.live ? live?.asOf ?? null : null,
                url: target.url, items: null, error: null })
     loadDrill(target.url)
@@ -837,6 +842,17 @@ export default function Breadth() {
     () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
     [liveBreadth.row, storedRows],
   )
+
+  // The scan window's own navigation: another session of the same list, or
+  // another list on the same session, without closing. Resolves the ROW and the
+  // COLUMN and goes through `openDrill`, so live/carried routing stays decided
+  // in one place (drillTarget), never re-derived here.
+  const navigateDrill = useCallback(({ colKey, date, live }) => {
+    const col = COLS_BY_KEY[colKey]
+    if (!col?.drillKey) return
+    const row = live ? rows.find(r => r?._live) : rows.find(r => !r?._live && r?.date === date)
+    if (row) openDrill(row, col, liveBreadth)
+  }, [rows, openDrill, liveBreadth])
 
   // ── Monitor grid: virtualized over the FULL timeline index, rows loaded on
   //    demand in blocks (see useMonitorGrid). A teleport to any year is an instant
@@ -990,7 +1006,8 @@ export default function Breadth() {
         </div>
         {drill && (
           <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)} />
+            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}
+              rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} />
           </Suspense>
         )}
       </div>
@@ -1416,7 +1433,8 @@ export default function Breadth() {
       )}
       {drill && (
           <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)} />
+            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}
+              rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} />
           </Suspense>
         )}
     </div>
