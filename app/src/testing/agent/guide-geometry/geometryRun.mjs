@@ -1,0 +1,197 @@
+// UCT Agent GUIDE GEOMETRY: where the walkthrough ring sits against the control it rings, measured in a real Chromium.
+// REAL BROWSER (Chromium automation), scripted model: the real Charts board and the real guide overlay on agent-harness.html,
+// the planner scripted (guide.show), never a paid call. Read-only: no product file changes.
+//
+//   node src/testing/agent/guide-geometry/geometryRun.mjs --out dir --cache dir [--ids regex] [--port 5307] [--drag-steps 60]
+//
+// For each case: start the walkthrough, reach the step, then measure
+//   static   the ring's rect against the target's getBoundingClientRect, per edge, in CSS px (ring minus target: the overlay pads
+//            by its own `rectOf(el, 4)`, so a clean ring reads 4 px outside on every edge; the report gives the raw number)
+//   drag     (the resize corner) a continuous pointer drag of the corner, the ring and the handle sampled every animation frame
+//            in the page: per-frame offset between the ring and the handle in px, and how long ago the handle was where the ring
+//            is now (ms), plus how long after release the ring catches up
+//   scroll   the nearest scrollable ancestor of the target scrolled by 80 px: the same per-frame sampling while it moves
+// Matrix: 2 viewports x 2 boards x zoom 100 / 125 (125 = the zoom a browser applies: devicePixelRatio 1.25 and a CSS viewport
+// 1/1.25 the size, set through CDP device metrics), plus a scrolled-container variant. A screenshot per case.
+import { parseArgs } from 'node:util'
+import { join } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { startServer } from '../autotest/selectionServe.mjs'
+
+const { values: A } = parseArgs({ options: {
+  ids: { type: 'string', default: '' }, out: { type: 'string', default: 'geometry-out' }, cache: { type: 'string', default: '' }, port: { type: 'string', default: '5307' },
+  'drag-steps': { type: 'string', default: '60' }, label: { type: 'string', default: '' },
+} })
+if (!A.cache) throw new Error('--cache: a scratch folder of this run\'s own')
+for (const k of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY', 'UCT_AGENT_EVAL_API_KEY']) delete process.env[k]
+
+const MODE = 'REAL BROWSER (Chromium automation), scripted model'
+const server = await startServer({ port: Number(A.port), cacheDir: A.cache })
+process.env.BA_BASE = server.base
+const { startRelay, open, sleep } = await import('../acceptance/lib.mjs')
+const { BOARDS } = await import('../autotest/boards.mjs')
+const { scripted } = await import('../autotest/plan.mjs')
+const { runProfile } = await import('../../../econHarness/cdp.mjs')
+const { claimProfile, reapOrphans, freeProfile } = await import('../autotest/profileGuard.mjs')
+const { groupOfAction } = await import(pathToFileURL(server.routing).href)
+const say = (line) => console.log(`[GEOMETRY] ${line}`)
+const q = (s) => JSON.stringify(s)
+
+// ── the targets: (a) a chart's edge (its boundary, top to bottom), (b) the resize corner, (c) a toolbar button, (d) a menu row,
+//    (e) a widget control. `sel` finds the candidates; the one the ring overlaps most is the target measured
+const TARGETS = {
+  edge: { kind: 'a chart boundary (resize edge)', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.e"],[data-guide="workspace.seam"]', steps: [] },
+  corner: { kind: 'a chart-resize corner', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.se"]', steps: [['next']], drag: true },
+  toolbar: { kind: 'a toolbar button (timeframe)', feature: 'timeframe', say: 'how do I change the timeframe on this chart', sel: '[data-guide="chart.timeframe"]', steps: [] },
+  menu: { kind: 'a menu row (custom interval, in the timeframe menu)', feature: 'timeframeCustom', say: 'how do I add a custom timeframe to this chart', sel: '[data-guide="chart.timeframeMenu"] [aria-label="Interval count"]', steps: [['clickRinged', '[data-guide="chart.timeframeMore"]'], ['waitSel', '[data-guide="chart.timeframeMenu"]']] },
+  widget: { kind: 'a widget control (link colour dot)', feature: 'link', say: 'how do I change the link colour of this chart', sel: '[data-guide="widget.link"]', steps: [] },
+}
+const VIEWPORTS = { L: [1500, 900], S: [1100, 700] }
+const LAYOUTS = { TWO: 'A', FOUR: 'TL' }      // the board and the chart the walkthrough is asked on
+const cases = []
+for (const [t, T] of Object.entries(TARGETS)) for (const [v] of Object.entries(VIEWPORTS)) for (const [b, role] of Object.entries(LAYOUTS)) for (const z of [100, 125])
+  cases.push({ id: `${t}-${b}-${v}-z${z}`, target: t, board: b, role, vp: v, zoom: z, scroll: false })
+for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-S-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'S', zoom: 100, scroll: true })
+
+// in the page: the ring, and the visible candidate that overlaps it most
+const MEASURE = (sel) => `(() => {
+  const R = (el) => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height } }
+  const ringEl = document.querySelector('[data-testid="guide-ring"]')
+  const ring = ringEl ? R(ringEl) : null
+  const cs = ringEl ? getComputedStyle(ringEl) : null
+  const cands = [...document.querySelectorAll(${q(sel)})].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 })
+  const ov = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+  let best = null, bestOv = -1, bestD = 1e9
+  for (const e of cands) { const r = R(e); const o = ring ? ov(ring, r) : 0; const d = ring ? Math.hypot((r.left + r.right) / 2 - (ring.left + ring.right) / 2, (r.top + r.bottom) / 2 - (ring.top + ring.bottom) / 2) : 0; if (o > bestOv || (o === bestOv && d < bestD)) { best = e; bestOv = o; bestD = d } }
+  const target = best ? R(best) : null
+  const cell = best?.closest?.('[data-widget-id]')
+  return { ring, target, candidates: cands.length, widget: cell ? { id: cell.getAttribute('data-widget-id'), ...R(cell) } : null,
+    ringStyle: cs ? { border: cs.borderTopWidth, outline: cs.outlineWidth, outlineOffset: cs.outlineOffset, boxShadow: cs.boxShadow.slice(0, 120), transition: cs.transitionProperty + ' ' + cs.transitionDuration } : null,
+    dpr: devicePixelRatio, inner: [innerWidth, innerHeight], step: document.querySelector('[data-testid="guide-text"]')?.textContent?.slice(0, 120) || '' }
+})()`
+const edges = (m) => m.ring && m.target ? { left: +(m.target.left - m.ring.left).toFixed(2), top: +(m.target.top - m.ring.top).toFixed(2), right: +(m.ring.right - m.target.right).toFixed(2), bottom: +(m.ring.bottom - m.target.bottom).toFixed(2) } : null
+
+// in the page: sample the ring and the target every animation frame until stopped
+const SAMPLER = (sel) => `(() => {
+  const R = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom] }
+  const ringEl = () => document.querySelector('[data-testid="guide-ring"]')
+  const pick = () => { const ring = ringEl()?.getBoundingClientRect(); const c = [...document.querySelectorAll(${q(sel)})].filter(e => e.getBoundingClientRect().width > 0); if (!ring) return c[0]; let b = c[0], bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left - ring.left, r.top - ring.top); if (d < bd) { b = e; bd = d } } return b }
+  const target = pick()
+  window.__geo = { s: [], on: true }
+  const loop = () => { if (!window.__geo.on) return; window.__geo.s.push([performance.now(), R(ringEl()), R(target)]); requestAnimationFrame(loop) }
+  requestAnimationFrame(loop)
+  return !!target
+})()`
+
+const PAD = 4
+// per-frame analysis: offset = how far each ring edge is from where a clean ring would sit (target padded by PAD), lag = how long
+// ago the target was where the ring is now
+function analyse(samples, tRelease) {
+  const fr = samples.filter(s => s[1] && s[2])
+  const want = (t) => [t[0] - PAD, t[1] - PAD, t[2] + PAD, t[3] + PAD]
+  const off = (r, t) => { const w = want(t); return Math.max(...r.map((v, i) => Math.abs(v - w[i]))) }
+  const rows = fr.map(([ts, r, t], i) => {
+    const o = off(r, t)
+    let lag = 0
+    if (o > 1) { lag = null; for (let j = i; j >= 0; j--) if (off(r, fr[j][2]) <= 1) { lag = ts - fr[j][0]; break } }
+    return { ts, o, lag, during: tRelease == null || ts <= tRelease }
+  })
+  const pct = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1) + 0.5))].toFixed(1) }
+  const dur = rows.filter(r => r.during)
+  const offs = dur.map(r => r.o), lags = dur.map(r => r.lag).filter(x => x != null)
+  let settle = null
+  if (tRelease != null) { const after = rows.filter(r => r.ts > tRelease); const firstGood = after.find((r, k) => after.slice(k).every(x => x.o <= 1)); settle = firstGood ? +(firstGood.ts - tRelease).toFixed(0) : 'never (within the window)' }
+  const ringMissing = samples.filter(s => !s[1]).length
+  return { frames: samples.length, framesBoth: fr.length, ringMissingFrames: ringMissing, offsetPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), p50: pct(offs, 0.5) },
+    lagMs: { max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
+}
+
+async function runCase(ctx, c) {
+  const B = BOARDS[c.board], T = TARGETS[c.target]
+  const [w, h] = VIEWPORTS[c.vp]
+  const ev = { id: c.id, kind: T.kind, board: c.board, viewport: `${w}x${h}`, zoom: c.zoom, scrolled: c.scroll }
+  let p = null
+  try {
+    p = await open(ctx.R, { query: B.browser.query || '', prefs: B.browser.prefs || null, fixtures: { routes: [] }, iaCatalog: B.browser.iaCatalog || null, profile: ctx.profile, width: w, height: h })
+    if (c.zoom !== 100) { const f = c.zoom / 100; await p.b.send('Emulation.setDeviceMetricsOverride', { width: Math.round(w / f), height: Math.round(h / f), deviceScaleFactor: f, mobile: false }); await sleep(800) }
+    await p.settle()
+    await p.openPanel()
+    await p.b.waitFor(`window.__baRead().filter(w => w.type === 'chart').every(x => x.sym && x.canvases > 5)`, { timeout: 30000 })
+    await p.settle()
+    await p.select(B.roles[c.role].id)
+    await p.say(T.say, (body) => scripted({ plan: { ops: [{ action: 'guide.show', target: '$list:guide', args: { feature: T.feature, detail: null } }] } }, body, c.board))
+    await p.idle(20000)
+    if (!(await p.b.waitFor(`!!document.querySelector('[data-testid="guide-ring"]')`, { timeout: 6000 }))) throw new Error('no ring after the request')
+    await sleep(600)
+    for (const s of T.steps) {
+      if (s[0] === 'next') { await p.button('Next', '[data-testid="guide-card"]'); await sleep(700) }
+      if (s[0] === 'clickRinged') { const at = await p.b.evaluate(`(() => { const ring = document.querySelector('[data-testid="guide-ring"]').getBoundingClientRect(); const c = [...document.querySelectorAll(${q(s[1])})].filter(e => e.getBoundingClientRect().width > 0); let b = null, bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left + r.width / 2 - ring.left - ring.width / 2, r.top + r.height / 2 - ring.top - ring.height / 2); if (d < bd) { b = r; bd = d } } return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null })()`); if (!at) throw new Error(`nothing ringed to click: ${s[1]}`); await p.b.click(at.x, at.y); await sleep(800) }
+      if (s[0] === 'waitSel') { if (!(await p.b.waitFor(`!!document.querySelector(${q(s[1])})`, { timeout: 5000 }))) throw new Error(`never appeared: ${s[1]}`); await sleep(700) }
+    }
+    if (c.scroll) {
+      // the nearest scrollable ancestor of the target, or the page
+      const sc = await p.b.evaluate(`(() => { const t = document.querySelector(${q(T.sel)}); let e = t?.parentElement; while (e && e !== document.body) { const cs = getComputedStyle(e); if (/(auto|scroll)/.test(cs.overflowY + cs.overflowX) && (e.scrollHeight > e.clientHeight + 2 || e.scrollWidth > e.clientWidth + 2)) { e.setAttribute('data-geo-scroller', '1'); return { tag: e.tagName, cls: String(e.className).slice(0, 60), room: [e.scrollWidth - e.clientWidth, e.scrollHeight - e.clientHeight] } } e = e.parentElement } const d = document.scrollingElement; return d.scrollHeight > d.clientHeight + 2 ? { tag: 'page', room: [0, d.scrollHeight - d.clientHeight] } : null })()`)
+      ev.scroller = sc
+      if (sc) {
+        await p.b.evaluate(SAMPLER(T.sel))
+        await sleep(200)
+        const t0 = await p.b.evaluate(`(() => { const e = document.querySelector('[data-geo-scroller]') || document.scrollingElement; const vert = e.scrollHeight > e.clientHeight + 2; e.scrollBy(vert ? 0 : 80, vert ? 80 : 0); return performance.now() })()`)
+        await sleep(900)
+        const samples = await p.b.evaluate('(window.__geo.on = false, window.__geo.s)')
+        ev.scrollTrack = analyse(samples.filter(s => s[0] >= t0), null)
+        ev.scrollTrack.settleMs = (() => { const fr = samples.filter(s => s[0] >= t0 && s[1] && s[2]); const ok = (s) => [s[2][0] - PAD, s[2][1] - PAD, s[2][2] + PAD, s[2][3] + PAD].every((v, i) => Math.abs(v - s[1][i]) <= 1); const k = fr.findIndex((s, i) => fr.slice(i).every(ok)); return k >= 0 ? +(fr[k][0] - t0).toFixed(0) : 'never (within 900 ms)' })()
+      }
+    }
+    const m = await p.b.evaluate(MEASURE(T.sel))
+    ev.static = { ...m, edgeOutsidePx: edges(m), widgetVsRing: m.ring && m.widget ? { top: +(m.widget.top - m.ring.top).toFixed(2), bottom: +(m.ring.bottom - m.widget.bottom).toFixed(2) } : null }
+    if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
+    if (T.drag && m.target) {
+      // a continuous drag of the corner: press, move in small steps (one per ~16 ms), release; every frame sampled in the page
+      const sx = (m.target.left + m.target.right) / 2, sy = (m.target.top + m.target.bottom) / 2
+      const send = (type, x, y, buttons) => p.b.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 })
+      await p.b.evaluate(SAMPLER(T.sel))
+      await send('mouseMoved', sx, sy, 0); await sleep(150)
+      await send('mousePressed', sx, sy, 1); await sleep(60)
+      const N = Number(A['drag-steps']), dx = -Math.min(160, m.target.left * 0.25), dy = -Math.min(120, m.target.top * 0.2)
+      const tStart = await p.b.evaluate('performance.now()')
+      for (let i = 1; i <= N; i++) { const k = i / N; await send('mouseMoved', sx + dx * k, sy + dy * k, 1); await sleep(16) }
+      const tRelease = await p.b.evaluate('performance.now()')
+      await send('mouseReleased', sx + dx, sy + dy, 0)
+      await sleep(1200)
+      const samples = await p.b.evaluate('(window.__geo.on = false, window.__geo.s)')
+      ev.drag = { steps: N, movedPx: [Math.round(dx), Math.round(dy)], durationMs: Math.round(tRelease - tStart), ...analyse(samples.filter(s => s[0] >= tStart), tRelease) }
+      const after = await p.b.evaluate(MEASURE(T.sel))
+      ev.drag.afterRelease = { edgeOutsidePx: edges(after), handleMoved: after.target ? [+(after.target.left - m.target.left).toFixed(1), +(after.target.top - m.target.top).toFixed(1)] : null }
+      if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}-after-drag.png`)).catch(() => {})
+    }
+  } catch (e) {
+    ev.crash = String(e?.stack || e?.message || e).slice(0, 500)
+  }
+  try { await p?.close() } catch { /* */ }
+  ctx.R.queue.length = 0
+  return ev
+}
+
+const list = A.ids ? cases.filter(c => new RegExp(A.ids).test(c.id)) : cases
+mkdirSync(join(A.out, 'shots'), { recursive: true })
+const R = await startRelay({ groupOfAction })
+const reaped = reapOrphans()
+if (reaped.length) say(`reaped ${reaped.length} orphaned Chrome profile(s)`)
+const ctx = { R, profile: claimProfile(runProfile()), shots: join(A.out, 'shots') }
+say(`${MODE}: ${list.length} cases, out ${A.out}, ${server.base} ${A.label}`)
+const rows = []
+for (const c of list) {
+  let timer
+  const hung = new Promise((resolve) => { timer = setTimeout(() => resolve({ id: c.id, crash: 'the page stopped answering' }), 120000) })
+  let ev = await Promise.race([runCase(ctx, c), hung])
+  clearTimeout(timer)
+  if (/stopped answering|chrome did not come up/.test(ev.crash || '')) { await freeProfile(ctx.profile); ev = await runCase(ctx, c) }
+  rows.push(ev)
+  const e = ev.static?.edgeOutsidePx
+  say(`${ev.crash ? 'CRASH' : 'OK'} ${c.id}${ev.crash ? ` ${ev.crash.slice(0, 200)}` : ` edges(out px) L${e?.left} T${e?.top} R${e?.right} B${e?.bottom}${ev.drag ? ` drag offset max ${ev.drag.offsetPx.max} p95 ${ev.drag.offsetPx.p95} lag max ${ev.drag.lagMs.max}ms p95 ${ev.drag.lagMs.p95}ms settle ${ev.drag.settleAfterReleaseMs}` : ''}${ev.scrollTrack ? ` scroll offset max ${ev.scrollTrack.offsetPx.max} settle ${ev.scrollTrack.settleMs}` : c.scroll ? " no scroller" : ""}`}`)
+  writeFileSync(join(A.out, 'results.geometry.json'), JSON.stringify({ MODE, label: A.label, pad: PAD, rows }, null, 1))
+}
+R.close?.()
+await server.close()
+process.exit(0)
