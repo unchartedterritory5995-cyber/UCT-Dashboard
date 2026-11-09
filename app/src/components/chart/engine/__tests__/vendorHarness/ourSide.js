@@ -818,6 +818,30 @@ export function withholdsEveryBar(column) {
   return true
 }
 
+/** ⭐ 2026-11-09 (triage lane WN; review N2) — WHICH PLOTS OUR SIDE WITHHELD BY
+ *  NAME ON EVERY BAR: `Map<plotKey, code>` from the door's chart-clock report.
+ *  ⛔ The COLUMN decides, for every code, whole-series ones included: a plot whose
+ *  column holds no value on any bar is withheld (graded INCONCLUSIVE, with the
+ *  code); a code named on a plot that still draws a value is graded on those
+ *  values and SAID (`notes`), so a mislabelled served plot cannot hide as
+ *  INCONCLUSIVE. Each code's note is pushed here too. */
+export function withheldPlotsOf(clockReport, cols, notes) {
+  const out = new Map()
+  if (!clockReport) return out
+  for (const r of clockReport.withheld) {
+    const what = r.code.startsWith('bar-index:') ? '`bar_index`'
+      : (r.code.startsWith('running-total:') ? 'a running total' : 'time(<timeframe>)')
+    notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+    const whole = CHART_CLOCK_WHOLE.includes(r.code)
+    for (const key of r.plots) {
+      if (out.has(key)) continue
+      if (withholdsEveryBar(cols[key])) out.set(key, r.code)
+      else if (whole) notes.push(`${key}: named ${r.code} (withheld on every bar) but its column holds values — graded on them`)
+    }
+  }
+  return out
+}
+
 export function runOurSide(capture) {
   setRuntimeDoorClock(PARITY_CLOCK)
   try {
@@ -923,21 +947,7 @@ function runOurSideOnTheParityClock(capture) {
     // bars; a plot it names whose column holds NO value on any bar is withheld
     // whole just the same, and graded the same way. A plot with values keeps its
     // comparison: the bars the door drew are still judged.
-    const clockReport = registry.chartClockReport(cols)
-    const withheldWhole = new Map()
-    if (clockReport) {
-      for (const r of clockReport.withheld) {
-        const what = r.code.startsWith('bar-index:') ? '`bar_index`'
-          : (r.code.startsWith('running-total:') ? 'a running total' : 'time(<timeframe>)')
-        notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
-        const whole = CHART_CLOCK_WHOLE.includes(r.code)
-        for (const key of r.plots) {
-          if (withheldWhole.has(key)) continue
-          if (whole || withholdsEveryBar(cols[key])) withheldWhole.set(key, r.code)
-        }
-      }
-    }
-
+    const withheldWhole = withheldPlotsOf(registry.chartClockReport(cols), cols, notes)
     let colours
     try {
       colours = drawnColours(def, bars, ctx)

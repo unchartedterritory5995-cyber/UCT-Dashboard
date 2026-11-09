@@ -93,6 +93,14 @@ const PINE = {
   'ta.cum(close - open) > 0': [['plot(ta.cum(close - open) > 0 ? 1 : 0)'], 'dep', 0],
   // ⛔ a PRICE is not never-negative (a spread or a futures contract trades below zero)
   'ta.cum(close) > 100': [['plot(ta.cum(close) > 100 ? 1 : 0)'], 'dep', 0],
+  // ⛔ review R1 (2026-11-09) — a total whose SOURCE itself moves with the unseen bars
+  // (a total of a total, a total of the index) adds a D² term: no difference cancels it
+  'ta.cum(ta.cum(volume)) - ta.cum(ta.cum(volume))[1]': [['plot(ta.cum(ta.cum(volume)) - ta.cum(ta.cum(volume))[1])'], 'dep', 0],
+  'ta.change(ta.cum(bar_index))': [['plot(ta.change(ta.cum(bar_index)))'], 'dep', 0],
+  // ⛔ review R2 — `max` is never-negative only when ONE of its arguments is; two signed
+  // arguments make a signed total, and a test of it is not a threshold
+  'ta.cum(math.max(close - open, close - open - 1)) > 0': [['plot(ta.cum(math.max(close - open, close - open - 1)) > 0 ? 1 : 0)'], 'dep', 0],
+  'ta.cum(math.max(close - open, 0)) > 0': [['plot(ta.cum(math.max(close - open, 0)) > 0 ? close : open)'], 'inv', 1],
   // a NEVER-NEGATIVE source only grows with the unseen bars: a test against a fixed
   // number is a threshold (uncharted-volume-v2's `hasVolumeData = ta.cum(nz(v)) > 0`)
   'ta.cum(volume) > 0': [['plot(ta.cum(volume) > 0 ? 1 : 0)'], 'inv', 1],
@@ -280,6 +288,14 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
         }
         judged[cls] += 1
       }
+      // ⚠️ review R1 — `ta.change(ta.cum(bar_index))` IS `bar_index` (it moves by
+      // exactly D: a position). The pass cannot see through a total of a moving
+      // source and answers 'dep', the withholding side; as a plotted value a 'pos'
+      // is withheld too, so the member sees the same blank. Named here, not hidden.
+      if (cls === 'dep' && key === 'ta.change(ta.cum(bar_index))') {
+        expect(otherwise, `${key}: now moves otherwise — re-read the note above`).toBe(false)
+        continue
+      }
       if (cls === 'dep') expect(otherwise, `${key}: classified 'dep' and never moved otherwise`).toBe(true)
     }
     expect(judged.inv).toBeGreaterThanOrEqual(60)
@@ -367,6 +383,16 @@ describe('⭐⭐ 2026-11-09 · a running total off the listing is withheld BY NA
     // a total of a source that can be negative has no direction: withheld whole
     expect(nulls('ta.cum(close - open) > 0 · off the listing')).toBe(N)
     expect(codes('ta.cum(close - open) > 0 · off the listing')).toEqual(['running-total:window'])
+  })
+
+  it('⛔ review R1/R2 — a total of a moving source, and a total of a signed max, are withheld whole, by name', () => {
+    for (const k of ['ta.cum(ta.cum(volume)) - ta.cum(ta.cum(volume))[1]', 'ta.change(ta.cum(bar_index))',
+      'ta.cum(math.max(close - open, close - open - 1)) > 0']) {
+      expect(nulls(`${k} · off the listing`), k).toBe(N)
+      expect(codes(`${k} · off the listing`), k).toContain('running-total:window')
+    }
+    // the CONTROL: one never-negative argument is enough for max — a threshold, not a refusal
+    expect(codes('ta.cum(math.max(close - open, 0)) > 0 · off the listing')).not.toContain('running-total:window')
   })
 
   it('the sentences are plain English and the window code is withheld whole', () => {
