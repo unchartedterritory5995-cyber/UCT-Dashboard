@@ -16,6 +16,9 @@ let p
 beforeEach(() => {
   p = setupPanel()
   localStorage.clear()
+  // the board store is module-level: back to the one unnamed board, whatever an earlier case added or renamed
+  const [first, ...others] = store.listTracings()
+  if (first) { store.setActiveTracing(first.id); others.forEach(t => store.deleteTracing(t.id)); store.renameTracing(first.id, '') }
 })
 afterEach(() => { vi.restoreAllMocks(); cleanup(); localStorage.clear() })
 
@@ -94,6 +97,20 @@ describe('Drawing Boards through the panel', () => {
     expect(names()).toEqual(['Swing', 'Earnings', 'Scratch'])
     await m.say('undo')
     expect(names()).toEqual(['Swing', 'Earnings'])
+  }, 40000)
+  // AUDIT (c): a part of a name is matched only when it fits ONE board; two that contain it are asked about, naming both
+  it('(c) a part of a name: "swing" with boards "Swing 2" and "Long swing" is refused as ambiguous naming both; "earn" fits one and switches', async () => {
+    const [w, s] = ONE('SPY')
+    const m = p.mount(w, s)
+    store.renameTracing(store.getActiveTracingId(), 'Swing 2')
+    store.createTracing({ name: 'Long swing' })
+    store.createTracing({ name: 'Earnings' })
+    const run = async (c, text) => { p.st.envelopes.length = 0; p.st.envelopes.push(plan(c)); return m.say(text) }
+    const out = await run({ op: 'switch', board: 'swing', name: null }, 'switch to the swing drawing board')
+    expect(out).toContain('“swing” could be “Swing 2” or “Long swing” — which one?')
+    expect(active()).toBe('Swing 2')                                                   // nothing changed
+    const out2 = await run({ op: 'switch', board: 'earn', name: null }, 'switch to the earn drawing board')
+    expect(active(), out2).toBe('Earnings')
   }, 40000)
   it('NEGATIVE: a board that does not exist, an ambiguous part of a name, a taken name, the last board — refused, nothing changes', async () => {
     const [w, s] = ONE('SPY')
