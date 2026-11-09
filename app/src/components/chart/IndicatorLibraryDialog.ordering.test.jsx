@@ -23,7 +23,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
-import IndicatorLibraryDialog from './IndicatorLibraryDialog'
+import IndicatorLibraryDialog, { namesRow } from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
 import * as engineRegistry from './engine/nativeRegistry'
 import { isDelistedResult, securityResults } from './discoveryCatalog'
@@ -150,6 +150,42 @@ describe('"rsi": the indicators and the hint come first, symbols after', () => {
     expect(document.activeElement, 'focus left the RSI row when the symbols landed').toBe(btn)
     // the indicator headings kept their order; Symbols was appended after them
     expect(headings().slice(0, before.length)).toEqual(before)
+  })
+})
+
+describe('"rs": the indicator the query NAMES leads (UCT RS, not RSI)', () => {
+  it('Relative Strength is the first heading and UCT RS its first row', async () => {
+    const net = stubFetch(() => [])
+    open()
+    type('rs')
+    await answerSearch(net)
+    const hs = headings()
+    expect(hs[0], `"rs" does not lead with Relative Strength: ${hs.join(' | ')}`).toBe(TECH_CATEGORY.RELATIVE_STRENGTH)
+    const first = sectionOf(TECH_CATEGORY.RELATIVE_STRENGTH).querySelector('li')
+    expect(first.dataset.defId).toBe('rsLine')
+    // the first ↓ from the box lands on it
+    fireEvent.keyDown(box(), { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(primaryIn('rsLine'))
+  })
+
+  it('CONTROL: "rsi" still leads with Momentum (RSI names itself), and a partial word reorders nothing', async () => {
+    const net = stubFetch(() => [])
+    open()
+    type('rsi')
+    await answerSearch(net)
+    expect(headings()[0]).toBe(TECH_CATEGORY.MOMENTUM)
+    expect(sectionOf(TECH_CATEGORY.MOMENTUM).querySelector('li').dataset.defId).toBe('rsi')
+  })
+
+  it('namesRow: an exact id, short name or short-name word, never a prefix', () => {
+    const rs = { id: 'rsLine', shortName: 'UCT RS' }
+    expect(namesRow(rs, 'rs')).toBe(true)
+    expect(namesRow(rs, ' RS ')).toBe(true)
+    expect(namesRow(rs, 'uct rs')).toBe(true)
+    expect(namesRow(rs, 'rsline')).toBe(true)
+    expect(namesRow(rs, 'r')).toBe(false)
+    expect(namesRow(rs, 'rsi')).toBe(false)
+    expect(namesRow(rs, '')).toBe(false)
   })
 })
 

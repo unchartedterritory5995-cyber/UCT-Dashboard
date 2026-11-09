@@ -113,6 +113,21 @@ export function matches(row, q) {
     || (row.tags || []).some((t) => String(t).toLowerCase().includes(n))
 }
 
+/** Does the search NAME this row exactly? The query equals its id, its short name, or
+ *  one whole word of its short name ("rs" names `UCT RS`, "rsi" names `RSI`).
+ *  ⭐ 2026-11-08, real-screen check: "rs" matched a dozen Momentum rows by substring
+ *  and the fixed heading order put Relative Strength sixth, so the indicator the
+ *  member typed the name of sat below RSI, MACD and ten oscillators. A row the query
+ *  names exactly now leads its section, and its section leads the results. Only an
+ *  EXACT word counts: "r" or "rel" never reorders anything. */
+export function namesRow(row, q) {
+  const n = String(q || '').trim().toLowerCase()
+  if (!n || !row) return false
+  const short = String(row.shortName || '').toLowerCase()
+  if (String(row.id || '').toLowerCase() === n || short === n) return true
+  return short.split(/[^a-z0-9]+/).includes(n)
+}
+
 /** Is this indicator on? Through the ONE reader for an engine row; through the
  *  settings slice for the carved-out one, which has no instance to read; and
  *  through the blob's own shape for the two BUILT-IN rows, which are neither.
@@ -382,7 +397,11 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   }, [symbolResults])
   // ⛔ THE REMOTE ROWS ARE ALREADY THE ANSWER TO THIS QUERY and are not re-filtered
   // by `matches` — see the settings tab's own note for the measured reason.
-  const indicatorRows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
+  // A row the query names exactly (`namesRow`) leads; the rest keep catalogue order (a stable sort).
+  const indicatorRows = useMemo(() => {
+    const hit = all.filter((r) => matches(r, query))
+    return [...hit.filter((r) => namesRow(r, query)), ...hit.filter((r) => !namesRow(r, query))]
+  }, [all, query])
   const rows = useMemo(
     () => [...indicatorRows, ...symbolRows.rows],
     [indicatorRows, symbolRows],
@@ -433,7 +452,10 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     // to list its rows; any other heading keeps its first-appearance place after.
     const order = orderCategories([...new Set(indicatorRows.map((r) => r.category))])
     const mine = new Set(indicatorRows.filter((r) => r.userDefined).map((r) => r.category))
-    const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+    const base = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+    // ⭐ The section holding a row the query names exactly (`namesRow`) goes first.
+    const named = new Set(indicatorRows.filter((r) => namesRow(r, query)).map((r) => r.category))
+    const ranked = [...base.filter((c) => named.has(c)), ...base.filter((c) => !named.has(c))]
     const own = new Set(ranked)
     const disc = orderCategories([...new Set(symbolRows.rows.map((r) => r.category))])
       .filter((c) => !own.has(c))
