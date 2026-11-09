@@ -71,4 +71,10 @@ Partial failure is **keep-and-report** (AUDIT-confirmed): done steps are kept, n
 Suite on c5e251a211 (code head; this doc commit adds only this file): shards 2248/2251, 3191, 2026/2027, 1837/1839 =
 9302 passed, 0 failed, 6 skipped. Golden manifest unchanged (195,543 bytes on disk).
 
+GO-bar head afb72ee305 (LOCAL native Windows Node v24, BROWSER-MOCK-MODEL / SIMULATED): 9322 passed, 0 failed, 6 skipped
+(2231+3 / 3174 / 2092+1 / 1825+2). The run before it, at 25a5cdc582, had 4 failures, all fixed in afb72ee305: 3 older rails still
+read the receipt without the per-step list, and the run's own layout-open step had been read as a changed premise (now a step
+whose ops target the layouts kind re-reads the starting point; a change from outside still stops the run). pytest not run
+(C:\data rule): owed to AUDIT / CI.
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
