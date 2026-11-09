@@ -249,6 +249,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
       onStep={step}
       onPickDate={goDate}
       onPickYear={goYear}
+      variant="joined"
     />
   ) : null
   const pickMetric = useCallback((key) => {
