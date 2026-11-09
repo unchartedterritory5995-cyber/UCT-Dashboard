@@ -120,6 +120,23 @@ function pageInit(cfg) {
       if (method === 'DELETE') { const id = Number(p0.split('/').pop()); BA.alerts = A.filter(a => a.id !== id); return json({ ok: true }) }
       return json({ ok: true })
     }
+    // saved screens: the router's own routes and shapes (api/routers/screener.py saved-screens), in this page only. One UCT
+    // starter screen, so a list has something to show; the member's own start empty
+    if (p0.startsWith('/api/screener/saved-screens')) {
+      const S = (BA.screens = BA.screens || [])
+      const starters = [{ id: 'starter-momentum', name: 'UCT Momentum', spec: { filters: [{ field: 'adr_pct', op: 'gt', value: 4 }], sort: null }, starter: true }]
+      if (method === 'GET') return json({ saved: S, starters })
+      const id = p0.split('/').pop()
+      if (method === 'POST' && p0 === '/api/screener/saved-screens') {
+        const b = JSON.parse(init.body)
+        const row = { id: 900 + S.length + 1, name: b.name, spec: b.spec, created_at: '2025-10-08T12:00:00Z', updated_at: '2025-10-08T12:00:00Z' }
+        S.push(row)
+        return json(row)
+      }
+      if (method === 'PUT') { const b = JSON.parse(init.body); const r = S.find(x => String(x.id) === id); if (!r) return json({ detail: 'Not found' }, 404); r.name = b.name; return json(r) }
+      if (method === 'DELETE') { BA.screens = S.filter(x => String(x.id) !== id); return json({ ok: true }) }
+      return json({ ok: true })
+    }
     // indicator alerts: the router's own shapes (api/routers/indicator_alerts.py), in this page only
     if (p0.startsWith('/api/indicator-alerts')) {
       const I = (BA.ialerts = BA.ialerts || [])

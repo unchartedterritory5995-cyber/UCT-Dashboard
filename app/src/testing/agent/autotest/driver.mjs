@@ -25,7 +25,7 @@ export async function snapshot(p, boardName) {
     const H = window.__agentHarness || {}, B = window.__ba || {}
     let draw = {}; try { draw = JSON.parse(localStorage.getItem('uct-chart-drawings') || '{}') } catch { /* */ }
     return { wl: Object.fromEntries((H.wl || []).map(w => [w.name, w.items.map(i => i.sym)])), wlNotes: Object.fromEntries((H.wl || []).map(w => [w.name, Object.fromEntries(w.items.filter(i => i.notes).map(i => [i.sym, i.notes]))])), drawings: draw, alerts: B.alerts || [], ialerts: B.ialerts || [],
-      layouts: (H.lib?.mine || []).map(l => l.name), written: B.written, layoutWrites: (H.layoutWrites || []).map(w => [w.method, w.body && w.body.name]) }
+      layouts: (H.lib?.mine || []).map(l => l.name), written: B.written, layoutWrites: (H.layoutWrites || []).map(w => [w.method, w.body && w.body.name]), screens: (B.screens || []).map(s => s.name) }
   })()`)
   const drawings = Object.fromEntries(Object.entries(raw.drawings).filter(([, v]) => Array.isArray(v) && v.length))
   const faces = {}
