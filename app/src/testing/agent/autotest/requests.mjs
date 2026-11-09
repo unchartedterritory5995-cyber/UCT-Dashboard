@@ -13,6 +13,7 @@ import { unseen4 } from './families/unseen4.mjs'
 import { unseen5 } from './families/unseen5.mjs'
 import { unseen6 } from './families/unseen6.mjs'
 import { unseen7 } from './families/unseen7.mjs'
+import { unseen8 } from './families/unseen8.mjs'
 
 export function publicRequests() {
   const L = []
@@ -78,6 +79,14 @@ export function unseen7Requests() {
   const L = []
   unseen7(L)
   return L.map(r => ({ ...r, set: 'unseen7' }))
+}
+
+/** Batch 8 (2026-11-08), written before any run of it: sequences, screener and scanner, indicator settings across the catalog,
+ *  recovery from ambiguity. */
+export function unseen8Requests() {
+  const L = []
+  unseen8(L)
+  return L.map(r => ({ ...r, set: 'unseen8' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
