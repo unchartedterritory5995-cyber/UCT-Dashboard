@@ -371,6 +371,11 @@ def _compass_tool_union() -> set[str]:
     out.add("trader_archive_ticker")
     out.add("trader_archive_setup")
     out.add("trader_archive_rhymes")
+    # UCT Relative Strength read tools (unit 4-07). Gated per call by
+    # RS_COMPASS_TOOLS_ENABLED through voice_tools' `gate`, so listing them here is
+    # harmless while the flag is off.
+    out.add("get_rs_reading")
+    out.add("explain_rs")
     # Compass × Twitter News Ingestion (shipped 2026-05-25) — let the voice
     # agent read the same curated trader-feed surfaces the MoversSidebar +
     # EarningsModal already show.
@@ -518,6 +523,8 @@ _COMPASS_CORE_TOOLS: set[str] = {
     "portfolio_heat", "grade_watchlist",
     # TSDR trader archive (flag-gated per call; absent from schemas while off).
     "trader_archive_search", "trader_archive_ticker", "trader_archive_setup", "trader_archive_rhymes",
+    # UCT Relative Strength reading + glossary (flag-gated per call; absent while off).
+    "get_rs_reading", "explain_rs",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",

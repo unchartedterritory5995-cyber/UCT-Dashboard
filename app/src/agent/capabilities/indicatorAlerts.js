@@ -22,6 +22,7 @@
 //   kind 'indicatorAlertLibrary'  one target — where new indicator alerts are made (and the list read)
 //   kind 'indicatorAlert'         one target per alert (ref = its real id)
 
+import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
 import { indicatorsOn } from './indicators'
 import { instancesForAddress, addressBase } from '../../components/chart/engine/alertSets'
@@ -589,6 +590,13 @@ function signalOf(p) {
   return { signal: takesTriggerPolicy(installed ? installed.type : (p.output_type ?? null)), installed }
 }
 /** Everything one create request resolves to, or { why }: the check's sentence, in the check's order. */
+/** The bounded range an indicator's values live in, from its definition's fixed pane scale; null when unbounded or unknown. */
+function valueRangeOf(inst) {
+  let d = null
+  try { d = getDefinition(inst?.defId) } catch { d = null }
+  const s = d?.placement?.scale
+  return s && Number.isFinite(s.min) && Number.isFinite(s.max) && s.min < s.max ? { min: s.min, max: s.max } : null
+}
 function resolveCreate({ instance, plot, condition, threshold, crossWith = null, chart = null, trigger = null, timeframe = null }, env) {
   const found = findInstance(hostRef, instance, chart)
   if (found?.noChart) return { why: 'That chart isn’t on this board any more, so nothing was created — ask again for the chart you mean.' }
@@ -615,7 +623,7 @@ function resolveCreate({ instance, plot, condition, threshold, crossWith = null,
     if (faithful) return { why: faithful }
     if (installed) {
       const gate = signalAlertGate(installed.def, installed.key, { tf })
-      if (gate.status === 'refused') return { why: gate.reason }
+      if (gate.status === 'refused') return { why: withoutGuardIds(gate.reason) }
     }
     return { found, p, tf, policy: trigger, ...compileTriggerPolicy(trigger), cross: null }
   }
@@ -623,6 +631,12 @@ function resolveCreate({ instance, plot, condition, threshold, crossWith = null,
   const cond = (p.conditions || []).find(c => c.value === condition)
   if (!cond) return { why: `${plotLabel(p)} can alert on ${(p.conditions || []).map(c => `${c.value} (${c.label})`).join(', ')} — not “${condition}”.` }
   if (cond.needs_threshold && !Number.isFinite(threshold)) return { why: `Say the level for “${cond.label}” on ${plotLabel(p)} (a number).` }
+  // ⭐ round 3 (pl-exec): a level the indicator can never reach is refused, from the indicator's OWN declared range (its
+  // definition's fixed pane scale: RSI 0-100, Williams %R -100-0, CMO -100-100…), never a per-indicator list
+  const range = cond.needs_threshold ? valueRangeOf(found.inst) : null
+  // at the ends the bound is EXCLUSIVE for a level that has to be passed: RSI can never go above 100 or below 0
+  const upward = /^(?:above|cross_above)$/.test(condition), downward = /^(?:below|cross_below)$/.test(condition)
+  if (range && (threshold < range.min || threshold > range.max || (upward && threshold >= range.max) || (downward && threshold <= range.min))) return { why: `${plotLabel(p)} moves between ${range.min} and ${range.max}, so ${threshold} can never be reached — nothing was created. Say a level from ${range.min} to ${range.max}.` }
   let cross = null
   if (isCrossPlot(p)) {
     cross = resolveCross(found, crossWith, condition)

@@ -56,11 +56,19 @@ describe('challenge bank', () => {
     expect(r.forward).toEqual([{ t: '2025-02-01', o: 1, h: 2, l: 0.5, c: 1.5, v: 1 }])
   })
 
+  it('a bank spot item never becomes a "what fired" question: it may be a chart where the setup does not fire', () => {
+    const spots = Array.from({ length: 8 }, (_, i) => ({ id: `s${i}`, skill: 'setup.family3.kicker', name: 'Kicker', q: 'Does a Kicker fire?', choices: ['Yes', 'No'], bars: bars(12), sessionId: 's' }))
+    const qs = buildBlitzQuestions(spots, [], 7)
+    expect(qs.some((q) => q.kind === 'name')).toBe(false)
+    expect(qs.filter((q) => q.kind === 'fires')).toHaveLength(4)
+  })
+
   it('buildBlitzQuestions mixes the kinds deterministically per seed: name questions carry the item\'s own setup among four names, facts are measured from the bars, server kinds carry no local answer', () => {
     const spots = Array.from({ length: 8 }, (_, i) => ({ id: `s${i}`, skill: 'setup.family3.kicker', name: 'Kicker', q: 'Does a Kicker fire?', choices: ['Yes', 'No'], bars: bars(12), sessionId: 's' }))
     const recalls = [{ id: 'r1', skill: 'vocab.candle', name: 'Candle name', q: 'Which name fits?', choices: ['Hammer', 'Doji', 'Marubozu', 'Spinning top'], bars: bars(12), sessionId: 'r', highlight: 1 }]
-    const a = buildBlitzQuestions(spots, recalls, 42)
-    const b = buildBlitzQuestions(spots, recalls, 42)
+    const named = [{ id: 'n1', skill: 'setup.family3.kicker', name: 'Kicker', bars: bars(12), sessionId: 'n' }]
+    const a = buildBlitzQuestions(spots, recalls, 42, named)
+    const b = buildBlitzQuestions(spots, recalls, 42, named)
     expect(a.map((q) => q.kind)).toEqual(b.map((q) => q.kind))
     const kinds = new Set(a.map((q) => q.kind))
     expect([...kinds].sort()).toEqual(['fact', 'fires', 'name', 'recall'])

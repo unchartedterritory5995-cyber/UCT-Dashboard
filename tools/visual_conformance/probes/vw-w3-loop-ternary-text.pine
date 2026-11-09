@@ -1,0 +1,19 @@
+//@version=6
+indicator("vw-w3-loop-ternary-text", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w3.md, W3 S1, row Q-W3-6 (shape S1-F). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a ?: whose test is a per-pass comparison, str.tostring(x, format.mintick) and (x, "#.#") per pass, na(x) ? "n/a" over a list element. Read the ten cell texts.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. The queue marks the row needsLive (its rule column says
+// `val` "under a tick", meaning format.mintick); no line here reads a realtime bar.
+
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 5)
+    float[] rs = array.from(close, open, na, low, high)
+    for k = 0 to 4
+        bool onMark = k == 2
+        float x = array.get(rs, k)
+        string xTxt = na(x) ? "n/a" : str.tostring(x, "#.#")
+        table.cell(t, 0, k, (onMark ? "> " : "") + str.tostring(close + k * syminfo.mintick, format.mintick))
+        table.cell(t, 1, k, xTxt)

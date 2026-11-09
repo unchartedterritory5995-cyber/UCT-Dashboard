@@ -314,7 +314,10 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
             user["id"], raw, body.condition, body.threshold, body.trigger_policy)
     except alert_trigger_policy.PolicyRefused as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    refusal = ias.refusal_for(body.indicator, condition, body.tf, threshold)
+    # 2026-11-07 (RS fix U1, review #17): the symbol and params ride along so an
+    # RS alert measuring a symbol against itself is refused here, in a sentence.
+    refusal = ias.refusal_for(body.indicator, condition, body.tf, threshold,
+                              sym=body.sym, params=body.params)
     if refusal:
         raise HTTPException(status_code=400, detail=refusal)
     # ⭐ 2026-11-04 — THE PARAMS' OWN SHAPE, for an address whose column declares
@@ -372,6 +375,31 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
                             surface="alert", indicator=body.indicator,
                             sym=body.sym.upper(), tf=body.tf)
     return {"id": alert_id}
+
+
+def _reads_benchmark(address: str) -> bool:
+    from api.services import alert_series
+    return bool(getattr(alert_series.series_function(address), "reads_benchmark", False))
+
+
+def _rs_prefill_value(address: str, bars: list, params: dict, tf: str,
+                      sym: str) -> Optional[float]:
+    """2026-11-07 (RS fix U1, review #29): an RS column answers no value to the
+    one-symbol `address_value` call (no timeframe, no symbol), so the threshold
+    box always opened empty and the member had no hint of the ratio's scale.
+    Read it the way the closed lane judges it: `call_series` with the timeframe
+    and symbol, inside an RS pass, on the closed window, at `closed_bar_index`.
+    A timeframe the lane refuses raises its typed refusal, which the caller
+    turns into ``{"value": null, "detail": ...}``."""
+    import time as _time
+    from api.services import alert_rs_series, alert_series
+    i = indicator_alert_evaluator.closed_bar_index(bars, tf or "", _time.time())
+    if i < 0:
+        return None
+    fn = alert_series.series_function(address)
+    with alert_rs_series.rs_pass():
+        series = alert_user_series.call_series(fn, bars[:i + 1], params, tf=tf, sym=sym)
+    return series[-1] if series else None
 
 
 @router.get("/current-value")
@@ -438,6 +466,8 @@ def get_current_value(sym: str, tf: str, indicator: str,
         # ⭐ W5-T13 -- a runtime plot runs on this symbol and timeframe.
         if user_fn is not None and getattr(user_fn, "runtime_plot", None) is not None:
             value = alert_user_series.call_series(user_fn, bars, parsed, tf=tf, sym=sym.upper())
+        elif user_fn is None and _reads_benchmark(address):
+            value = _rs_prefill_value(address, bars, parsed, tf, sym.upper())
         else:
             value = (user_fn(bars, parsed) if user_fn is not None
                      else indicator_alert_evaluator.address_value(address, bars, parsed))

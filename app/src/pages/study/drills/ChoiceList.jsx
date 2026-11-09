@@ -7,7 +7,7 @@
  * Nothing fires a haptic or a sound on choosing (D11: reveal only).
  */
 import { useCallback, useRef } from 'react'
-import UIcon from '../../../components/ui/UIcon'
+import Tile from '../ui/Tile'
 import styles from './drills.module.css'
 import { answerWord } from '../revealCardHelpers'
 
@@ -51,30 +51,18 @@ export default function ChoiceList({ choices, value, onChange, disabled = false,
     refs.current[next]?.focus()
   }, [choices, disabled, onChange])
 
+  const revealed = rightLabel != null || wrongLabel != null
   return (
     <ul role="radiogroup" aria-label={label} className={grid ? styles.choicesGrid : styles.choices}>
       {choices.map((choice, i) => {
         const selected = value != null && value === choice
+        // kit v2 (2026-11-08): the one answer tile every Study screen uses (ui/Tile, the owner's principles)
+        const state = sameAnswer(choice, rightLabel) ? 'right' : sameAnswer(choice, wrongLabel) ? 'wrong' : revealed ? 'quiet' : selected ? 'sel' : 'idle'
         return (
           <li key={`${i}-${choice}`}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              className={`${styles.choice} ${sameAnswer(choice, rightLabel) ? styles.choiceRight : ''} ${sameAnswer(choice, wrongLabel) ? styles.choiceWrong : ''}`}
-              disabled={disabled}
-              ref={(el) => { refs.current[i] = el }}
-              tabIndex={selected || (value == null && i === 0) ? 0 : -1}
-              onClick={() => { if (!disabled) onChange(choice) }}
-              onKeyDown={(e) => onKeyDown(e, i)}
-              data-choice-index={i + 1}
-            >
-              {showKeys && <span className={styles.choiceKey} aria-hidden="true">{i + 1}</span>}
-              <span className={styles.choiceLabel}>{choice}</span>
-              {selected
-                ? <span className={styles.choiceCheck}><UIcon name="check" size={18} /></span>
-                : <span className={styles.choiceGhost} aria-hidden="true" />}
-            </button>
+            <Tile ref={(el) => { refs.current[i] = el }} n={showKeys ? i + 1 : null} i={i} label={choice} state={state}
+              role="radio" checked={selected} disabled={disabled} tabIndex={selected || (value == null && i === 0) ? 0 : -1}
+              onClick={() => { if (!disabled) onChange(choice) }} onKeyDown={(e) => onKeyDown(e, i)} dataIndex={i + 1} />
           </li>
         )
       })}

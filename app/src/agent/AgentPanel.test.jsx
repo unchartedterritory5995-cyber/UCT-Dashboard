@@ -159,15 +159,16 @@ describe('UCT Agent panel', () => {
     expect(host.raw('w1').stored.volume.visible).toBe(false)
   })
 
+  // round 3: Undo is field-scoped — a manual edit to the SAME field is never overwritten (an edit to another field is kept,
+  // and no longer blocks the Undo: agentCore stale protection)
   it('stale undo: a manual edit after the Agent wrote is never overwritten', async () => {
     const host = makeHost([{ ref: 'w1' }])
     render(<AgentPanel host={host} onClose={() => {}} />)
-    type('bars')
+    type('weekly')
     await screen.findByTestId('agent-receipt')
     act(() => host.manual('w1', { tf: '60' }))
     type('undo')
     await screen.findByText(/changed since I made that change/)
-    expect(host.raw('w1').stored.chartType).toBe('bars')
     expect(host.raw('w1').tf).toBe('60')
   })
 

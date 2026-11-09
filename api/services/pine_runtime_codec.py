@@ -293,3 +293,56 @@ def column_digest(
     rows: Optional[int] = None,
 ) -> str:
     return hashlib.sha256(canonical_preimage(engine, columns, refusals, rows)).hexdigest()
+
+
+# ─── W9-T14: the run's `strategy` record on the wire ────────────────────────────
+#
+# W9 design 3.2 / 3.4. Under profile ``backtest`` a job may ask for the run's ``strategy`` record
+# with ``want: ["#strategy"]``. The service (``services/pine_runtime/job.mjs``) writes the run's
+# OWN record (``strategyRecord.js::strategyRecordOf``) as JSON TEXT; its seal
+# (``protocol.mjs::sealRunResults``) checks it with the bundle's ONE shape check
+# (``strategyRecordShapeErrors``) and adds ``strategy_sha256`` = sha256 of the text's UTF-8 bytes.
+# This side verifies the hash over the bytes it RECEIVED and parses them; it holds no second copy
+# of the record's schema. The T3 column digest above is unchanged: it has no field for the record.
+#
+# The four strings below are the JS modules' own declarations, mirrored because this module does
+# no I/O; ``tests/test_pine_strategy_backtest.py`` reads each JS source and fails on any drift.
+
+#: ``protocol.mjs::STRATEGY_WANT``: the ``want`` entry that asks for the record (never a plot key).
+STRATEGY_WANT = "#strategy"
+#: ``strategyRecord.js::STRATEGY_RECORD_SCHEMA``: the record's own version tag.
+STRATEGY_RECORD_SCHEMA = "uct.strategy-record/v1"
+#: ``strategyRecord.js::STRATEGY_WINDOW_HISTORY``: ``meta.runtimeHistory`` of a stored document
+#: whose program holds a strategy broker (the member door stamps it, W9-T11).
+STRATEGY_WINDOW_HISTORY = "strategy-window"
+#: ``broker.js::BROKER_START_GUARD``: a strategy run over a window that is not its history window.
+STRATEGY_START_GUARD = "runtime:strategy-start"
+
+
+def strategy_record_sha256(text: Any) -> str:
+    """sha256 (lowercase hex) of the record text's UTF-8 bytes, exactly as the seal computes it."""
+    return hashlib.sha256(_utf8(text, "strategy")).hexdigest()
+
+
+def _no_constant(name: str) -> Any:
+    raise CodecError(f"the strategy record holds {name}, which is not a JSON number")
+
+
+def decode_strategy_record(text: Any, sha256: Any) -> Dict[str, Any]:
+    """The record a result carries, or ``CodecError``. The hash is checked over the RECEIVED text
+    before it is parsed; NaN / Infinity are refused (JSON has no such number, and the service
+    withholds a record holding one); the record must be an object tagged with this schema."""
+    if not isinstance(sha256, str) or len(sha256) != 64 or not set(sha256) <= _HEX64:
+        raise CodecError("strategy_sha256 must be 64 lowercase hex digits")
+    if strategy_record_sha256(text) != sha256:
+        raise CodecError("the strategy record does not match its strategy_sha256")
+    import json
+    try:
+        rec = json.loads(text, parse_constant=_no_constant)
+    except ValueError as e:
+        raise CodecError(f"the strategy record is not JSON ({e})") from None
+    if not isinstance(rec, dict):
+        raise CodecError("the strategy record is not an object")
+    if rec.get("schema") != STRATEGY_RECORD_SCHEMA:
+        raise CodecError(f"the strategy record is not {STRATEGY_RECORD_SCHEMA}")
+    return rec

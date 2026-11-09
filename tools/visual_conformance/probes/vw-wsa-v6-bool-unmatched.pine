@@ -1,0 +1,25 @@
+//@version=6
+indicator("UCTPROBE_VW_WSA_V6_BOOL_UNMATCHED", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-A3
+// (docs/pine/capture-queue-2026-10-31-wsa-for-bound.md). NEVER COMPILED ON TRADINGVIEW.
+// A Pine 6 `if` / `switch` in VALUE position whose arm value is a `bool`, on bars where no arm
+// matches. A v6 bool is never `na`; the documented value is `false`. Read on the unmatched bars
+// (A01 = 0):
+//   B01  b == false ? 1 : 0    `if` form: 1 if the unmatched value is false
+//   B02  c == false ? 1 : 0    `switch` form, the same test
+// On matched bars (A01 = 1) both equal `close > open` (A02), the control.
+// If MATCHed `false`, flip `V6_BOOL_UNMATCHED_CAPTURED` in `pineRuntimeFrontend.js`.
+// CHART: the row names none (the queue marks it NEEDS_CHART).
+
+b = if close > close[1]
+    close > open
+
+c = switch
+    close > close[1] => close > open
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close > close[1] ? 1 : 0, "A01_matched_CONTROL")
+plot(close > open ? 1 : 0, "A02_arm_value_CONTROL")
+plot(b == false ? 1 : 0, "B01_if_value_is_false")
+plot(c == false ? 1 : 0, "B02_switch_value_is_false")

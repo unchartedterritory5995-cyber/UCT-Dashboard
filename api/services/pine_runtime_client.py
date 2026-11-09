@@ -101,7 +101,7 @@ _JOB_ID = re.compile(r"^[\x20-\x7e]{1,128}$")
 _TICKER = re.compile(r"^[\x21-\x7e]{1,32}$")
 _EXCHANGE = re.compile(r"^[\x20-\x7e]{0,32}$")
 _RESULT_KEYS = frozenset({"job", "status", "columns", "refusals", "digest", "cache", "ms", "instructions",
-                          "warmup"})
+                          "warmup", "strategy", "strategy_sha256"})
 #: W5-T7b `WARMUP_FIELDS`: an ok result's run-wide warm-up, the bars [0, withheldBars) a run off the
 #: listing withheld. Required on ok, refused on withheld (T7b `RESULT_FIELDS`).
 _WARMUP_KEYS = frozenset({"withheldBars"})
@@ -141,6 +141,11 @@ class JobResult:
     #: ``{"withheldBars": k}`` on an ok result (W5-T7b); None on a withheld one. Not in the digest
     #: (the T3 preimage has no field for it), so it is checked by shape and range here.
     warmup: Optional[Mapping[str, int]] = None
+    #: W9-T14: the run's ``strategy`` record (W9 design 3.2), decoded and hash-checked
+    #: (``pine_runtime_codec.decode_strategy_record``), on an ok result of a job that asked for it
+    #: (``want`` names ``codec.STRATEGY_WANT``); None otherwise. When asked for and absent, the
+    #: result carries a refusal keyed ``#strategy`` instead (``refusal_for(codec.STRATEGY_WANT)``).
+    strategy: Optional[Mapping[str, Any]] = None
 
     def run_refusal(self) -> Optional[Refusal]:
         return next((r for r in self.refusals if r.key == "*"), None)
@@ -152,7 +157,7 @@ class JobResult:
             return run
         if self.status != "ok":
             return Refusal("*", INTEGRITY, "the job is withheld with no run-wide reason")
-        if key in self.columns:
+        if key in self.columns or (key == codec.STRATEGY_WANT and self.strategy is not None):
             return None
         own = next((r for r in self.refusals if r.key == key), None)
         if own is not None:
@@ -186,6 +191,10 @@ class Job:
     runtime_inputs: Mapping[str, Any] = field(default_factory=dict)
     newest_bar_is_forming: bool = False      # v1 evaluates closed bars only (ruling Q3)
     history_from_listing: bool = False
+    #: W9-T14: the history window a strategy (broker) run takes, as the CALLER reads it from
+    #: ``bars_window.HISTORY_WINDOW_BARS`` (design 3.4). None sends no window (every job as before;
+    #: a broker run told none refuses ``runtime:strategy-start``). Never defaulted here.
+    history_window_bars: Optional[int] = None
 
 
 class _Refuse(Exception):
@@ -258,9 +267,17 @@ def _inputs_of(raw: Any) -> Dict[str, Any]:
 
 
 def _ctx_of(job: Job) -> Dict[str, Any]:
-    return {"newestBarIsForming": bool(job.newest_bar_is_forming),
-            "historyFromListing": bool(job.history_from_listing),
-            "runtimeInputs": _inputs_of(job.runtime_inputs)}
+    ctx = {"newestBarIsForming": bool(job.newest_bar_is_forming),
+           "historyFromListing": bool(job.history_from_listing),
+           "runtimeInputs": _inputs_of(job.runtime_inputs)}
+    # W9-T14: the window, only when the caller states one (protocol.mjs: an optional positive int), so
+    # every existing request body and cache key is byte-unchanged.
+    w = job.history_window_bars
+    if w is not None:
+        if isinstance(w, bool) or not isinstance(w, int) or w < 1:
+            raise _Refuse(INTEGRITY, "the history window is not a positive whole number of bars")
+        ctx["historyWindowBars"] = w
+    return ctx
 
 
 def result_key(identity: Mapping[str, Any], doc_sha256: str, job: Job, ctx: Mapping[str, Any],
@@ -609,6 +626,8 @@ class PineRuntimeClient:
         run_wide = [x for x in refusals if x.key == "*"]
 
         if r["status"] == "withheld":
+            if "strategy" in r or "strategy_sha256" in r:
+                raise bad("withholds the job and carries a strategy record")
             if "warmup" in r:
                 raise bad("withholds the job and reports a warm-up")
             if r.get("columns") or not run_wide:
@@ -648,14 +667,29 @@ class PineRuntimeClient:
         for key, col in columns.items():
             if any(v == v for v in col[:wb]):
                 raise bad(f"serves output `{key}` with a value inside its own warm-up")
+        # W9-T14: the record rides beside the columns, never as one, and only when asked for
+        strategy = None
+        if "strategy" in r or "strategy_sha256" in r:
+            if codec.STRATEGY_WANT not in job.want:
+                raise bad("serves a strategy record that was not asked for")
+            if codec.STRATEGY_WANT in refused_keys:
+                raise bad("both serves and refuses the strategy record")
+            try:
+                strategy = codec.decode_strategy_record(r.get("strategy"), r.get("strategy_sha256"))
+            except codec.CodecError as e:
+                raise bad(f"carries a strategy record that does not verify ({e})")
+        if codec.STRATEGY_WANT in columns:
+            raise bad("serves the strategy record as a column")
         for key in job.want:
+            if key == codec.STRATEGY_WANT and strategy is not None:
+                continue
             if key not in columns and key not in refused_keys:
                 raise bad(f"neither serves nor refuses output `{key}`")
         if not isinstance(digest, str) or not _HEX64.match(digest) \
                 or digest != self._digest(columns, wire_refusals):
             raise bad("does not match its digest")
         return JobResult(job=job.job, status="ok", columns=columns, refusals=tuple(refusals),
-                         digest=digest, cache=cache, warmup={"withheldBars": wb})
+                         digest=digest, cache=cache, warmup={"withheldBars": wb}, strategy=strategy)
 
     def _digest(self, columns: Mapping[str, Sequence[float]], refusals: List[Dict[str, Any]]) -> str:
         """The T3 digest of what was RECEIVED. The row count is not re-checked here: the decode above

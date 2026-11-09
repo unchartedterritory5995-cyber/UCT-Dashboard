@@ -9,6 +9,7 @@
 // until the member dismisses it — it is announced as an alert, never a toast that
 // slides away before it is read.
 
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
 import { useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './SaveReceipt.module.css'
@@ -61,7 +62,7 @@ export default function SaveReceipt({ receipt, onDismiss, anchorRef = null }) {
         {receipt.items.map((it, i) => (
           <li key={i} className={`${styles.item} ${it.ok ? '' : styles.failed}`} data-ok={it.ok ? 'true' : 'false'} data-kind={it.kind}>
             <span className={styles.mark} aria-hidden="true">{it.ok ? '✓' : '!'}</span>
-            <span>{it.ok ? '' : <span className="sr-only">Not completed: </span>}{it.text}</span>
+            <span>{it.ok ? '' : <span className="sr-only">Not completed: </span>}{withoutGuardIds(it.text)}</span>
           </li>
         ))}
       </ul>
