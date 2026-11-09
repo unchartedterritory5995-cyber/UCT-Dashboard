@@ -234,6 +234,8 @@ describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', (
     overrides = undefined
     __resetRuntimePanePermission()
     expect(served()).toBeUndefined()
+    expect(registry.columnErrors(registry.computeFor(d.definition, ST_BARS, undefined, ST_CTX)).rtcolour1.message)
+      .toMatch(/switched off for you/)
     __permitRuntimePaneForTests()
     setRuntimeKillList([runtimeSourceHash(ST)])
     expect(served()).toBeUndefined()
@@ -317,6 +319,8 @@ describe('⛔ DIV-4 r1 — a reached runtime.error, and a script below v4', () =
     expect(stop && stop.reached).toBe(true)
     expect(cols.rtcolour1).toBeUndefined()
     expect(registry.columnErrors(cols).rtcolour1.guard).toBe(registry.RUNTIME_COLOUR_GUARD)
+    // the member reads the script's own stop, not a run failure
+    expect(registry.columnErrors(cols).rtcolour1.message).toBe(stop.sentence)
   })
   it('a v3 script is not lifted', () => {
     const v3 = [

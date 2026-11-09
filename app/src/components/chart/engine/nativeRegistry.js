@@ -163,7 +163,7 @@ import {
 } from '../indicators'
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
 import { runtimeKillOf, runtimeNotGradedOf } from './runtimeKill'
-import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
+import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
@@ -3186,7 +3186,7 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   // (A runtime DOCUMENT is reached only after the door asked both; this one is an
   // ordinary `ast` document and is not.)
   const notGraded = runtimeNotGradedOf({ source: rc && rc.source })
-  if (!runtimePaneEnabled()) {
+  if (!runtimePaneBuilt()) {
     refuse('scripts drawn bar by bar are not part of this build, so this colour is not drawn')
   } else if (!runtimePanePermitted()) {
     refuse('scripts drawn bar by bar are switched off for you right now, so this colour is not drawn')
