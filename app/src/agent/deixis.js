@@ -58,8 +58,26 @@ export function relationMatch(text) {
   if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
   if (m) return null
   const b = RELATIVE_BARE.exec(s)
-  // its noun IS the chart related ("a macd on the chart above" puts the MACD on that chart), so nothing placed before it counts
-  return b || null
+  if (!b) return null
+  // its noun IS the chart related ("a macd on the chart above" puts the MACD on that chart), so nothing placed before it counts —
+  // ⛔ AUDIT S2-A: except a bare "one", which stands for the nearest noun before it: "delete the line and the one below", "move the
+  // alert to the one below", "the level I drew and the one above" relate a line, an alert, a level — not a chart. "chart / cell /
+  // pane / panel / graph" stays unconditional.
+  if (/\bone\b/i.test(b[0]) && oneStandsForAThing(s.slice(0, b.index))) return null
+  return b
+}
+// the nearest noun before a bare "one": a chart word → a chart; a placed thing (a line, an alert, a level, a drawing, an
+// indicator by its catalog words, an order or a position) → that thing; none → a chart ("the one to the right")
+const ONE_THING = /^(?:orders?|positions?|trades?|tickets?|emas?|smas?|mas|setups?|zones?|supports?|resistances?|signals?|bars?|candles?)$/
+function oneStandsForAThing(before) {
+  const words = String(before || '').toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean)
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i]
+    if (w === 'one' || w === 'ones') continue
+    if (CHARTISH.test(w)) return false
+    if (PLACED.test(w) || ONE_THING.test(w) || isIndicatorWord(w)) return true
+  }
+  return false
 }
 // pl-auto indicator-add-02: "MACD under this chart", "volume beneath this one", "a line above this chart" place an indicator, a pane,
 // a line, a level — not a chart ("the pane left of it" IS a chart: a pane alone is a chart's cell, an indicator's pane is named by

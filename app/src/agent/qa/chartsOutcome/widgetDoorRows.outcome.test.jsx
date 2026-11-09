@@ -251,7 +251,31 @@ describe('the Notebook widget: create a note through its own New control (C3-202
     await m.apply()
     await waitFor(() => expect(posts).toHaveLength(1))
     await waitFor(() => expect(optsOf(m, 'nb').noteId).toBe('n3'))
-    expect(mountedWidgetDoor('nb').read().notes.map(x => x.name)).toEqual(['NVDA held the 21', 'AMD breakout plan', 'Untitled note'])
+    expect(mountedWidgetDoor('nb').read().notes.map(x => x.name)).toEqual(['NVDA held the 21', 'AMD breakout plan', 'Untitled note'])
+  }, 60000)
+  // ⛔ AUDIT S1-C: a create offers no Undo, so "undo" never times out on it (the note stays); S1-A: the door takes ONE operation,
+  // never a list to reconcile
+  it('AUDIT S1-C/S1-A: after a create, "undo" never times out and the note stays; the door ignores a list handed to it', async () => {
+    const m = board([wgt('nb', 'notebook')])
+    const base = globalThis.fetch
+    globalThis.fetch = async (url, init = {}) => {
+      if (String(url) === '/api/j2/notes' && (init.method || 'GET') === 'POST') {
+        data.notes = [...data.notes, { id: 'n3', title: '', folderId: null, createdAt: '2026-11-04T13:00:00Z' }]
+        return new Response(JSON.stringify({ note: { id: 'n3' } }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return base(url, init)
+    }
+    await waitFor(() => expect(mountedWidgetDoor('nb')?.read?.().notes.length).toBe(2))
+    await m.say('make a new note in the notebook', setOption('notebook', 'notes', 'create'))
+    await m.apply()
+    await waitFor(() => expect(optsOf(m, 'nb').noteId).toBe('n3'))
+    const out = await m.say('undo')
+    expect(out).not.toMatch(/did not change/)
+    expect(data.notes.length).toBe(3)
+    const posts0 = data.notes.length
+    mountedWidgetDoor('nb').write('notes', [{ id: null, name: 'x' }])
+    await new Promise(r => setTimeout(r, 30))
+    expect(data.notes.length).toBe(posts0)
   }, 60000)
   it('NEGATIVE: Dismiss creates nothing', async () => {
     const m = board([wgt('nb', 'notebook')])
