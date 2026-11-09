@@ -6,6 +6,8 @@
 // it is older than LIVE_TTL_MS. Failures are never cached: a retry must really
 // retry.
 
+import { prefetchGroupSectors } from './grouping/useGroupMeta'
+
 const LIVE_TTL_MS = 30_000
 const MAX_ENTRIES = 300
 const entries = new Map() // url -> { at, live, data?, promise? }
@@ -32,6 +34,10 @@ export function fetchDrill(url, { live = false } = {}) {
     .then(data => {
       const cur = entries.get(url)
       if (cur && cur.promise === promise) cur.data = data
+      // The scan window's sector mix needs each name's sector; ask for it now
+      // (one fast in-memory lookup server-side) so it is known before the click.
+      const items = Array.isArray(data?.items) ? data.items : null
+      if (items?.length) prefetchGroupSectors(items.map(i => i?.t))
       return data
     })
     .catch(err => {
