@@ -1,0 +1,27 @@
+// HONESTY-SWEEP (2026-11-07) - probe Q-HS6 for the capture lane (W34-I6a review N2).
+// Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, AFTER THE CLOSE. Read the plot values from the chart model.
+// The question: does a wrapped line continue ACROSS a comment-only line? A compile error is the reading.
+//
+//   W01  a switch arm `close > open => close` wrapped onto `      + 1` with a comment-only line between
+//        (close + 1 on up bars if the wrap continues; a compile error, or close alone, says otherwise)
+//   W02  CONTROL: the same arm with no comment line
+//   W03  an ordinary expression `close +` wrapped onto `  1` across a comment-only line (the host lane's
+//        lexer joins it today; this row settles that reading too)
+//@version=6
+indicator("vw-hs6-wrap-comment", overlay = false)
+w1 = switch
+    close > open => close
+      // a comment-only line inside the wrap
+      + 1
+    => open
+plot(w1, "W01")
+w2 = switch
+    close > open => close
+      + 1
+    => open
+plot(w2, "W02")
+w3 = close +
+  // a comment-only line inside the wrap
+  1
+plot(w3, "W03")

@@ -83,6 +83,28 @@ CREATE TABLE IF NOT EXISTS tweet_poll_state (
   total_tweets_seen  INTEGER DEFAULT 0,
   FOREIGN KEY (handle) REFERENCES twitter_accounts(handle) ON DELETE CASCADE
 );
+
+-- Roster-search cursor (tweet_poller search/shadow modes). One row per mode,
+-- deliberately NOT in tweet_poll_state: that table's handle is a foreign key
+-- to twitter_accounts, and a cursor is not an account.
+CREATE TABLE IF NOT EXISTS tweet_search_state (
+  key          TEXT PRIMARY KEY,
+  since_id     TEXT,
+  started_at   INTEGER,
+  updated_at   INTEGER,
+  last_status  TEXT,
+  last_error   TEXT
+);
+
+-- Shadow comparison: when the roster search first saw each tweet. The timeline
+-- side needs no column -- tweets.ingested_at already is its first-seen time.
+CREATE TABLE IF NOT EXISTS tweet_search_shadow (
+  id              TEXT PRIMARY KEY,
+  author_handle   TEXT NOT NULL,
+  created_at      INTEGER NOT NULL,
+  search_seen_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tss_created ON tweet_search_shadow(created_at);
 """
 
 
@@ -321,6 +343,107 @@ def get_poll_state(handle: str) -> Optional[dict]:
     with contextlib.closing(_connect()) as c:
         row = c.execute("SELECT * FROM tweet_poll_state WHERE handle=?", (handle,)).fetchone()
         return dict(row) if row else None
+
+
+# ---- roster-search cursor + shadow log ---------------------------------------
+
+def get_search_state(key: str) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM tweet_search_state WHERE key=?", (key,)).fetchone()
+        return dict(row) if row else None
+
+
+def update_search_state(key: str, *, status: str, since_id: Optional[str] = None,
+                        error: Optional[str] = None) -> None:
+    """since_id=None keeps the stored cursor (a failed poll never moves it)."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO tweet_search_state
+               (key, since_id, started_at, updated_at, last_status, last_error)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(key) DO UPDATE SET
+                 since_id = COALESCE(excluded.since_id, since_id),
+                 updated_at = excluded.updated_at,
+                 last_status = excluded.last_status,
+                 last_error = excluded.last_error
+            """,
+            (key, since_id, now, now, status, error),
+        )
+        c.commit()
+
+
+def record_shadow_seen(tweets: Iterable[dict]) -> int:
+    """First time the roster search saw each tweet. Never overwrites."""
+    now = int(time.time())
+    rows = [(t["id"], t.get("author_handle") or "", int(t.get("created_at") or 0), now)
+            for t in tweets if t.get("id")]
+    if not rows:
+        return 0
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.executemany(
+            "INSERT OR IGNORE INTO tweet_search_shadow "
+            "(id, author_handle, created_at, search_seen_at) VALUES (?, ?, ?, ?)",
+            rows,
+        )
+        c.commit()
+        return cur.rowcount
+
+
+def shadow_report(since_unix: int, settle_seconds: int = 300) -> dict:
+    """Compare the timeline poller (tweets.ingested_at) with the roster search
+    (tweet_search_shadow.search_seen_at) for tweets CREATED in
+    [since_unix, now - settle_seconds], enabled accounts only.
+
+    The settle margin keeps a tweet posted seconds ago, which one side may
+    simply not have polled for yet, out of both 'only' buckets. Handles compare
+    case-insensitively: the roster stores what an admin typed, the API returns
+    the account's canonical casing."""
+    until = int(time.time()) - settle_seconds
+    with contextlib.closing(_connect()) as c:
+        enabled = {r["handle"].lower() for r in
+                   c.execute("SELECT handle FROM twitter_accounts WHERE enabled=1")}
+        tl = {r["id"]: (r["author_handle"], r["ingested_at"]) for r in c.execute(
+            "SELECT id, author_handle, ingested_at FROM tweets "
+            "WHERE created_at BETWEEN ? AND ?", (since_unix, until))}
+        sh = {r["id"]: (r["author_handle"], r["search_seen_at"]) for r in c.execute(
+            "SELECT id, author_handle, search_seen_at FROM tweet_search_shadow "
+            "WHERE created_at BETWEEN ? AND ?", (since_unix, until))}
+    tl = {k: v for k, v in tl.items() if (v[0] or "").lower() in enabled}
+    sh = {k: v for k, v in sh.items() if (v[0] or "").lower() in enabled}
+    both = tl.keys() & sh.keys()
+    only_tl = sorted(tl.keys() - sh.keys())
+    only_sh = sorted(sh.keys() - tl.keys())
+    # Positive lead = the search saw it first, by that many seconds.
+    leads = sorted(tl[i][1] - sh[i][1] for i in both)
+
+    def pct(p):
+        return leads[min(len(leads) - 1, int(p * len(leads)))] if leads else None
+
+    by_handle: dict[str, dict] = {}
+    for i in only_tl:
+        by_handle.setdefault(tl[i][0], {"only_timeline": 0, "only_search": 0})["only_timeline"] += 1
+    for i in only_sh:
+        by_handle.setdefault(sh[i][0], {"only_timeline": 0, "only_search": 0})["only_search"] += 1
+    return {
+        "window": {"from": since_unix, "to": until},
+        "both": len(both),
+        "only_timeline": len(only_tl),
+        "only_search": len(only_sh),
+        "only_timeline_ids": only_tl[:50],
+        "only_search_ids": only_sh[:50],
+        "by_handle": by_handle,
+        "search_lead_seconds": {"p10": pct(0.10), "median": pct(0.50), "p90": pct(0.90),
+                                "n": len(leads)},
+    }
+
+
+def delete_shadow_older_than(days: int) -> int:
+    cutoff = int(time.time()) - days * 86400
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM tweet_search_shadow WHERE created_at < ?", (cutoff,))
+        c.commit()
+        return cur.rowcount
 
 
 # ---- queries ---------------------------------------------------------------

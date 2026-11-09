@@ -7,6 +7,7 @@ import { CHART_SCRIM_EXCLUDE_BOTTOM } from './constants'
 import { modesById } from './registry'
 import { routeToModeId } from './hubRoutes'
 import { FULLSCREEN_SHEET_ATTR } from '../components/mobile/fullscreenSheetAttr'
+import { CHART_TOUCH_ATTR } from '../hooks/useChartTouchTuck'
 
 /**
  * The attribute `MobileChartsApp` stamps on `<html>` for as long as the phone/tablet chart
@@ -132,7 +133,11 @@ function useRootAttrPresent(attr) {
  * Phase 2 device/viewport gating for the hub: where the portrait-chart scrim must stop, and
  * when the hub must not render at all.
  *
- * @returns {{ isChartPortrait: boolean, scrimExcludeBottom: (string|null), hidden: boolean }}
+ * @returns {{ isChartPortrait: boolean, scrimExcludeBottom: (string|null), hidden: boolean,
+ *   touchTucked: boolean }}
+ *
+ * - **`touchTucked`** — true while a finger is on the chart shell's chart and for a short
+ *   idle after it lifts (decision B3; `hooks/useChartTouchTuck.js`). A FADE, not `hidden`.
  *
  * - **`isChartPortrait`** — true on the portrait phone chart shell (master spec §2c): the chart
  *   shell's own attribute present AND the device currently reads coarse-pointer + portrait +
@@ -178,6 +183,10 @@ export default function useHubViewport() {
   const modeId = routeToModeId(location.pathname)
   const hideOnRoute = Boolean(modeId && modesById[modeId]?.hideOnRoute)
 
+  // Decision B3: a finger on the chart shell's chart (CHART_TOUCH_ATTR, written by
+  // `hooks/useChartTouchTuck.js`) tucks the hub until a short idle after it lifts.
+  const chartTouching = useRootAttrPresent(CHART_TOUCH_ATTR)
+
   const isChartPortrait = chartShellPresent && chartPortraitMedia
   const landscapeImmersive = chartShellPresent && landscapeImmersiveMedia
 
@@ -185,5 +194,9 @@ export default function useHubViewport() {
     isChartPortrait,
     scrimExcludeBottom: isChartPortrait ? CHART_SCRIM_EXCLUDE_BOTTOM : null,
     hidden: landscapeImmersive || hideOnRoute || fullscreenSheet,
+    // ⛔ NOT `hidden`: that is the HTML attribute, a hard display:none that also
+    // drops the hub out of the accessibility tree. A tuck is a fade the hub comes
+    // straight back from, so it is its own field and HubShell styles it.
+    touchTucked: chartShellPresent && chartTouching,
   }
 }

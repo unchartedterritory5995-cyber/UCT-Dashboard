@@ -28,7 +28,9 @@
 .menuDense { padding: 3px; gap: 0; border-radius: 6px; }
 .menuDense .menuTitle {
   font-family: var(--font-sans);
-  font-size: 10px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10). CSS only — this
+     component ships in the Notebook's first-open bytes. */
+  font-size: 11px;
   padding: 2px 7px 3px;
 }
 .menuDense .item {

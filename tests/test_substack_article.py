@@ -11,6 +11,8 @@ author already knew to put in it.
 from __future__ import annotations
 
 import gzip
+import html as html_module
+import json
 import os
 import re
 
@@ -342,3 +344,69 @@ def test_mis_nested_tags_do_not_leak_unclosed_elements():
 def test_unclosed_document_is_closed_off():
     out = sa.convert("<p>dangling")
     assert out.html.endswith("</p>")
+
+
+# -- native video ----------------------------------------------------------------
+# Captured verbatim from the 2026-11-08 Sunday Scans body (API and RSS agree).
+# Substack ships NO <video> here: the placeholder is an empty div holding only an
+# upload id, and its own page builds the player client-side.
+_VIDEO_ID = "8c7b74f6-a344-4bd1-85f2-c8676f9fe804"
+_VIDEO_BLOCK = (
+    '<div class="native-video-embed" data-component-name="VideoPlaceholder" '
+    'data-attrs="{&quot;mediaUploadId&quot;:&quot;' + _VIDEO_ID +
+    '&quot;,&quot;duration&quot;:null}"></div>'
+)
+
+
+def test_native_video_survives_in_the_authors_position():
+    html = sa.convert(f"<p>before</p>{_VIDEO_BLOCK}<p>after</p>").html
+    assert html.index("before") < html.index("<video") < html.index("after")
+
+
+def test_native_video_points_at_the_stable_source_url():
+    """/src mints a fresh 24h Mux token per request, so the stored markup must
+    hold /src itself. A resolved stream.mux.com URL would die a day later."""
+    html = sa.convert(_VIDEO_BLOCK).html
+    assert f'src="https://substack.com/api/v1/video/upload/{_VIDEO_ID}/src"' in html
+    assert "controls" in html and "stream.mux.com" not in html
+
+
+def test_native_video_does_not_preload_the_whole_file():
+    assert 'preload="metadata"' in sa.convert(_VIDEO_BLOCK).html
+
+
+@pytest.mark.parametrize("media_id", [
+    '../../evil',
+    'x" onerror="alert(1)',
+    'https://evil.test/a.mp4',
+    '',
+    None,
+    123,
+])
+def test_a_bad_upload_id_emits_no_player(media_id):
+    """data-attrs is author-controlled text bound for dangerouslySetInnerHTML."""
+    attrs = html_module.escape(json.dumps({"mediaUploadId": media_id}), quote=True)
+    block = f'<div class="native-video-embed" data-attrs="{attrs}"></div><p>ok</p>'
+    out = sa.convert(block).html
+    assert "<video" not in out and "evil" not in out and "onerror" not in out
+    assert "ok" in out
+
+
+def test_unparseable_data_attrs_emit_no_player():
+    out = sa.convert('<div class="native-video-embed" data-attrs="{not json"></div><p>ok</p>').html
+    assert "<video" not in out and "ok" in out
+
+
+def test_an_upload_id_on_any_other_div_emits_no_player():
+    attrs = html_module.escape(json.dumps({"mediaUploadId": _VIDEO_ID}), quote=True)
+    assert "<video" not in sa.convert(f'<div data-attrs="{attrs}"></div>').html
+
+
+def test_a_raw_video_tag_is_still_dropped():
+    """Only the converter's own player may exist; authored tags stay banned."""
+    out = sa.convert('<video src="https://evil.test/a.mp4" autoplay></video><p>ok</p>').html
+    assert "<video" not in out and "evil.test" not in out
+
+
+def test_the_video_change_reconverts_stored_articles():
+    assert sa.CONVERTER_VERSION >= 8

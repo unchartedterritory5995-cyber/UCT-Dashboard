@@ -6018,8 +6018,8 @@
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",
-   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style, plot style, or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
-   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = \"daily\", \"weekly\", \"daily and weekly\", \"intraday\", \"daily and above\" or \"all\" — \"only show it on the daily\" = showOn daily). value = the member's value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
+   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
+   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = \"daily\", \"weekly\", \"daily and weekly\", \"intraday\", \"daily and above\" or \"all\" — \"only show it on the daily\" = showOn daily) | dotSize (small | medium | large — \"medium\" is the default; only an indicator that draws dots, e.g. \"make the RS dots large\" = dotSize large). value = the member's value (a colour name or #hex for colours). output = which line, colour or dot output when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
    "args": {
     "type": "object",
     "properties": {
@@ -6036,7 +6036,8 @@
        "lineStyle",
        "plotStyle",
        "overlap",
-       "showOn"
+       "showOn",
+       "dotSize"
       ]
      },
      "value": {
@@ -6645,7 +6646,7 @@
    "domain": "guide",
    "target": "guide",
    "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\") or for the chart they named (\"the NVDA chart\", \"the left chart\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
    "args": {
     "type": "object",
     "properties": {

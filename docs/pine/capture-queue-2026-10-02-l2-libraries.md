@@ -9,3 +9,11 @@ with the 50 production libraries loaded and has **no capture of its own**:
 |---|---|---|---|---|
 | Q-L2a | `corpus/committed/rolling-vwap__043320bb57.pine` (the corpus file IS the probe; imports `PineCoders/ConditionalAverages/2`) | NYSE:RDDT 1D and AMEX:SPY 5 | whether the 7 plots the runtime lane draws (with the library linked) agree with TradingView bar for bar; the library's `while`-loop export `totalForTimeWhen` and its defaulted parameters are the constructs under test | the member door attach of `rolling-vwap` (runtime state, store loaded) is ungraded until then |
 | Q-L2b | **no probe** — a v6 script importing a v5 library (`boitoki/AwesomeColor/9` from `fx-market-sessions`) | any | not a value question: TradingView compiles each at its own version. Recorded so a reader does not queue it; the wall (`pine:module` / `runtime:library`, "written in Pine v5 and this script in v6") stays refused until a lane compiles a library under its own version's rules | 4 scripts: `fx-market-sessions`, `auto-trendlines-tradingfinder`, `machine-learning-lorentzian-classification__21f5`, `rate-of-change` |
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-L2b | engine-gap | no probe on purpose (the row says so): not a value question, TradingView compiles each script at its own version; the wall stays until a lane compiles a library under its own version's rules |

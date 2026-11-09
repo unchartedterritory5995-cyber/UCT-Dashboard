@@ -23,12 +23,13 @@
 
 import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
   setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue,
-  setInstanceVisibility } from '../engine/instanceControls'
+  setInstanceVisibility, setInstanceDotSize, dotPlotsOf, instanceDotSizeReading } from '../engine/instanceControls'
 import { normalizeVisibility, visibilitySummary, VISIBILITY_PRESETS } from '../engine/instanceTimeframe'
 import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
 import { setPaneSize as setPaneSizeWriter, clearPaneSize, storedPaneSizes } from '../engine/paneSizes'
-import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES, DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE, resolveSignColors, resolvePlotStyle } from '../engine/presentation'
+import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES, DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE, resolveSignColors, resolvePlotStyle,
+  DOT_SIZES, DEFAULT_DOT_SIZE, storedDotSize } from '../engine/presentation'
 import { styleChoicesFor } from '../engine/styleCapability'
 import { paneArrangeArgs } from './agentPanes'
 import { captureIndicatorTemplate, applyIndicatorTemplate } from './indicatorTemplates'
@@ -48,7 +49,10 @@ export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — docs/indicators/AGENT-CONTRACT-P2-2026-10-27.md §8 (I-14)): `setVisibility` — the
 // Inspector's "Show on" (which CHART timeframes the instance draws on), through `setInstanceVisibility`, the writer the
 // settings row uses. Presentation only; per instance; exact Undo like every style op.
-export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility'])
+// ⭐ UCT RS Phase 2a (unit 2a-12): `setDotSize` — the Inspector's / dialog's "Dot size" control, through
+// `setInstanceDotSize`. `{instanceId, size: 'small'|'medium'|'large', plotKey?}`; the instance level unless an
+// output is named; only for a definition that draws dots. Appended, so the earlier ops keep their positions.
+export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'])
 export const PANE_OPS = Object.freeze(['movePane', 'setPaneSize'])
 export const CREATE_OPS = Object.freeze(['duplicate', 'copyFrom'])
 export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs', ...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
@@ -771,6 +775,7 @@ function undoInner(cs, undo, ctx) {
 //   setColor         → `setInputsWith` (the settings rows' colour lane: setInstanceInput /
 //                      setIndicatorInput) or setInstanceCandleColor (the Up/Down swatches)
 //   setDisplayTarget → setInstanceDisplayTarget  (Inspector: Display in; offers = `displayTargetOptions`)
+//   setDotSize       → setInstanceDotSize        (Inspector / dialog: Dot size; offers = `DOT_SIZES` words, 2a-12)
 //   movePane         → movePane / movePaneTo     (Chart Data Arrange: arrows / drag)
 //   setPaneSize      → setPaneSize / clearPaneSize (the pane divider / its reset)
 //   duplicate        → duplicateInstance         (legend popover / Inspector Duplicate)
@@ -857,6 +862,11 @@ export function styleOptionsOf(cs, registry, instanceId) {
     plotStyles: styleChoicesFor(def, inst, view).map((c) => ({ plotKey: c.key, label: c.label, current: c.current, options: [...c.choices] })),
     colors: colorTargetsOf(view, inst, def),
     displayTarget: { current: resolveDisplayTarget(inst, view), options: targets.length ? [{ value: 'auto', label: 'Automatic' }, ...targets] : [] },
+    // ⭐ 2a-12: `null` for a definition that draws no dots; else the instance-level word and the outputs it covers
+    dotSize: dotPlotsOf(def).length
+      ? { current: instanceDotSizeReading(inst, def), options: Object.keys(DOT_SIZES),
+          plots: dotPlotsOf(def).map((p) => ({ plotKey: p.key, label: p.label || p.key, current: storedDotSize(inst, p) || DEFAULT_DOT_SIZE })) }
+      : null,
   }
 }
 
@@ -928,6 +938,26 @@ function writeStyle(view, req, inst, def, registry) {
     const next = setInstanceVisibility(view, id, want, registry)
     if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
     return { ok: true, cs: next, change: { what: 'visibility', before: visibilitySummary(before), after: visibilitySummary(want) } }
+  }
+  if (req.op === 'setDotSize') {
+    // `size`: one of the three words the store takes; `plotKey` (optional) names ONE dot output,
+    // absent = the instance level, as the Dot size control writes it
+    const dots = dotPlotsOf(def)
+    const words = Object.keys(DOT_SIZES)
+    if (!dots.length) return refuse(REASONS.BAD_INPUT, { why: `${nameOfDef(def)} draws no dots to size`, options: [] })
+    if (!words.includes(req.size)) return refuse(REASONS.BAD_INPUT, { value: req.size ?? null, why: `a dot size is ${words.join(', ')}`, options: words })
+    const plot = typeof req.plotKey === 'string' && req.plotKey ? dots.find((p) => p.key === req.plotKey) : null
+    if (req.plotKey !== undefined && req.plotKey !== null && !plot) {
+      return refuse(REASONS.BAD_INPUT, { plotKey: req.plotKey, why: `${nameOfDef(def)} draws no dots on "${req.plotKey}"`, options: dots.map((p) => ({ plotKey: p.key, label: p.label || p.key })) })
+    }
+    // ⭐ U8 #11 (2026-11-07): with no plotKey, `before` is what the Dot size control reads,
+    // 'mixed' while a per-dot size disagrees, so "default dots" after Stress is a real change
+    // (the setter deletes the per-dot sizes) rather than a no-change refusal.
+    const before = plot ? (storedDotSize(inst, { key: plot.key }) || DEFAULT_DOT_SIZE) : instanceDotSizeReading(inst, def)
+    if (before === req.size) return refuse(REASONS.NO_CHANGE)
+    const next = setInstanceDotSize(view, id, req.size, registry, plot ? plot.key : undefined)
+    if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, change: { what: 'dotSize', ...(plot ? { plotKey: plot.key } : {}), before, after: req.size } }
   }
   // setDisplayTarget
   let options = []

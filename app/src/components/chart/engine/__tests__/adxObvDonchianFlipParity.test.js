@@ -134,7 +134,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
-  priceFormat: { type: 'price', precision: 2 },
+  priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
   autoscaleInfoProvider: AUTOSCALE_DEFAULT,
 }
 
@@ -147,7 +147,7 @@ const LWC_LINE_DEFAULTS_RESTATED_PRICE = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
-  priceFormat: { type: 'price', precision: 2 },
+  priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
 }
 
 /** `applyIndScale(key, series, tgt, bandExtra)`'s non-`left` branch, `:6009`. */

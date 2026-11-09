@@ -35,7 +35,7 @@ export default function PractiseSheet({ open, onClose, misses = 0, stale = 0, st
   const start = async (row) => {
     setBusy(row.key)
     setError(null)
-    const body = { ...row.body }
+    const body = { ...row.body, lesson: true }   // a lesson set: each chart shows its ticker (the owner, 2026-11-08)
     if (row.key === 'stale' && staleSkillId) body.skill_id = staleSkillId
     if (row.key === 'trail' && trailSkillId) { body.kind = 'skill'; body.skill_id = trailSkillId }
     try {

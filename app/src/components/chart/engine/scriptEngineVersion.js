@@ -100,7 +100,27 @@
 /** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
 /** 17 = W4-T15 (train): function and statement forms (named/default user args, one-line binding bodies, loop-end values, log.* statements) are served on the runtime lane */
 /** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
-export const SCRIPT_ENGINE_VERSION = 18
+/** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
+/** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
+/** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
+/** 22 = W34-I6a: a `switch` arm that wraps onto a continuation line is served on the runtime lane; an arm mixing wrap and block lines is refused by name */
+/** 23 = W34-I4b: a v1/v2 (or no-pragma) self-reference's bar 0 on a run from the listing is withheld unless both seeds (na, 0) agree, not guessed */
+/** 24 = W34-I4: a v1/v2 self-referencing definition whose every self read is `nz(x[k])` runs as a slot on the runtime lane instead of refusing `pine:state` */
+/** 25 = W34-I6c: v4 per-bar window lengths (highestbars/lowestbars and the series-int family) are served on the runtime lane; v1-v4 bare highestbars/lowestbars give Pine's <=0 offset */
+/** 26 = W6-T7: matrix.* members are served on the runtime lane (gated at the object door) */
+/** 27 = W6-T9: receiver types (overloads by receiver type, chains, members on typed receivers, a record's shallow copy) are served on the runtime lane; the object door keeps master's answer */
+/** 28 = W6-T8: map.* members are served on the runtime lane (gated at the object door) */
+/** 29 = W34-I6b: v6 bool-residue items 1, 2 and 4 are served on the runtime lane; the object door keeps Q-A3 */
+/** 30 = W6-T10: `enum` declarations and `input.enum` are served on the runtime lane; the object door is unchanged */
+/** 31 = W6-T6-N1b: two indirect for-in shapes that served without a capture now refuse by name (Q-W6T6-H); runtime lane only, the object door is unchanged */
+/** 32 = W6-T10-N: v5 enum names footprint/volume_row and capitalised enum names serve per the manual's case-sensitivity; runtime lane only, the object door is unchanged */
+/** 33 = RULING-0927: input.time serves only its T16 default form on the host lane (other forms refuse by name); barstate.isnew stays refused with a sharper reason */
+/** 34 = I6a-N4: a block body at a non-multiple-of-4 indent refuses pine:indent with the manual's reason, on both lanes and the door */
+/** 35 = PT-GAPS: six host-lane engine gaps (L3, L4, L6, G-c, G-d, G-h) fixed per existing captures; G-f and G-i queued as Q-PT6/Q-PT7 */
+/** 36 = HONESTY-SWEEP: the 2026-11-07 honesty sweep (probes vw-hs1..hs7; see docs/pine/evidence/2026-11-07-honesty-sweep) */
+/** 37 = STRAT-COLOR: a `strategy.*` read reaching a plot's presentation (colour) or a drawing step is withheld by name (`pine:strategy-call`); the broker is not simulated */
+/** 38 = DELETE STACK (IDX-DELETE, CHAINED-REMOVAL, UDT-FIELD-CREATES, SILENT-CREATE-GAPS) + STRAT-NOTE: object removals and creates the chart cannot follow are withheld and named; a drawing withheld for a strategy read says why (see the lanes' EVIDENCE) */
+export const SCRIPT_ENGINE_VERSION = 38
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
