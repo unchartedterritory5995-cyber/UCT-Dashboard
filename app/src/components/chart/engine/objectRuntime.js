@@ -45,6 +45,7 @@ const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
+import { writeCell, spanned, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -150,16 +151,6 @@ const NO_PROPS = Object.freeze([])
 /** The most addresses one `table.merge_cells` may span — Pine's own table is at
  *  most 100 × 100 and anything larger is an argument that was never a size. */
 const MAX_MERGE_AREA = 10000
-
-/** ⭐ DIV-3 — what a `table.cell` REPLACE carries over from the cell it replaces:
- *  only the span `table.merge_cells` set (not a `table.cell` property; see the
- *  `case 'cell'` note). Every property the call does not pass is gone. */
-const spanOf = (prior) => {
-  const out = {}
-  if (prior.colspan !== undefined) out.colspan = prior.colspan
-  if (prior.rowspan !== undefined) out.rowspan = prior.rowspan
-  return out
-}
 
 /** Truthiness for a guard column. ⛔ `NaN` IS FALSE, deliberately: a condition
  *  that has not warmed up yet has not fired, and treating an unknown as a fire
@@ -292,6 +283,9 @@ export function beginObjects(program, ctx) {
   const live = new Map()
   /** table instanceId → Map<"col,row", props> — cells are addressed, not listed */
   const cells = new Map()
+  /** ⭐ DIV-3 r1 — the guards a cell write named (`objectCells.writeCell`); each
+   *  withholds the table family whole at the end, by name. */
+  const cellGuards = new Set()
   const regs = new Map((program.regs || []).map((r) => [r.id, null]))
   /** ⭐ C14 — scalars only getters write (`program.nums`), written in op order.
    *  ⛔ Where a getter can be answered exactly is the CONVERTER's ruling
@@ -1759,23 +1753,14 @@ export function beginObjects(program, ctx) {
         // time is gone, because `text` defaults to `""`. `table.cell_set_*()` is
         // the patch you use when that is not what you meant.
         //
-        // ⭐⭐ DIV-3 (2026-11-09) — `cell` IS NOW A REPLACE. Reference
-        // (`pine_v6_reference.json`, `table.cell` remarks[1]): "Each table.cell()
-        // call overwrites all previously defined properties of a cell … the
-        // default value of the 'text' being an empty string, it will overwrite
-        // 'Test Text'". ⚰️ This merged both kinds (`map.get(key) || {}` for a
-        // `cell` too), while the runtime lane already replaced
-        // (`runtime/objectStore.js`, kind `cell`): one script, two drawings.
-        // Measured on the runtime-on vendor harness (336 captures, base
-        // 6891e3fe54): verdicts.json identical before and after, every capture.
-        // Railed in `__tests__/tableCellReplace.test.js`. `cellpatch`
-        // stays a patch — the reason the two kinds were kept distinct.
-        // ⛔ NOT DECIDED, BY NAME: the span `merge_cells` set on a head cell.
-        // The reference lists the properties `table.cell` overwrites and the
-        // span is not one of them, nor does it say a later `table.cell`
-        // un-merges; so the span is carried across the replace, exactly as
-        // before. (The runtime lane drops it — a lane divergence filed, not
-        // settled here.)
+        // ⭐⭐ DIV-3 (2026-11-09) — `cell` IS A REPLACE, `cellpatch` A PATCH, and
+        // the rule is `objectCells.js::writeCell`, the ONE the runtime lane calls
+        // too (reference: `table.cell` remarks[1], quoted there). ⚰️ This lane
+        // merged both kinds and carried a merge's span; the runtime lane replaced
+        // and dropped it: one script, two tables.
+        // ⛔ A `table.cell` on a MERGED HEAD is what the reference does not settle:
+        // the table family is withheld under `MERGED_HEAD_REWRITE` (`withheldBy`),
+        // never drawn with a guessed span. Railed in `tableCellReplace.test.js`.
         //
         // ⚠️ A PATCH TO A CELL NEVER WRITTEN CREATES IT, and the reference does
         // not say whether TradingView agrees — `docs/pine/lwc5-capability-map.md:858`
@@ -1794,9 +1779,9 @@ export function beginObjects(program, ctx) {
           let map = cells.get(inst.id)
           if (!map) { map = new Map(); cells.set(inst.id, map) }
           const key = `${col},${row}`
-          const prior = map.get(key) || {}
-          const cur = op.k === 'cell' ? spanOf(prior) : prior
-          map.set(key, resolveProps(op.props, cur))
+          const wrote = writeCell(map.get(key), op.k, (base) => resolveProps(op.props, base))
+          if (wrote.withhold) cellGuards.add(wrote.withhold)
+          map.set(key, wrote.cell)
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
           // `table.cell` written clean is known again (a patch is only part of it).
           const um = unmeasuredProps(op)
@@ -1866,7 +1851,7 @@ export function beginObjects(program, ctx) {
             }
           }
           const head = `${c0},${r0}`
-          map.set(head, { ...map.get(head), colspan: c1 - c0 + 1, rowspan: r1 - r0 + 1 })
+          map.set(head, spanned(map.get(head), c1 - c0 + 1, r1 - r0 + 1))
           updated += 1
           if (ctx.trace) events.push({ bar, k: 'mergecells', id: inst.id })
           break
@@ -2094,6 +2079,8 @@ export function beginObjects(program, ctx) {
     }
   }
   for (const fam of offListingFams) withheldFams.add(fam)
+  // ⭐ DIV-3 r1 — a `table.cell` rewrote a merged head (`objectCells.js`).
+  if (cellGuards.size) withheldFams.add('table')
   if (withheldFams.has('line')) withheldFams.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
@@ -2146,7 +2133,11 @@ export function beginObjects(program, ctx) {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
-    ...(offListingFams.size ? { withheldBy: { 'objects:off-listing': [...offListingFams] } } : {}),
+    ...(offListingFams.size || cellGuards.size ? { withheldBy: {
+      ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
+      ...Object.fromEntries([...cellGuards].map((g) => [g, ['table']])),
+    } } : {}),
+    ...(cellGuards.has(MERGED_HEAD_REWRITE) ? { withheldWhy: { table: MERGED_HEAD_REWRITE_SENTENCE } } : {}),
     // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
     // vendor harness's window analysis); never drawn — the binder reads `live`.
     ...(offListingFams.size && !stopped ? { offListingLive: [...live.values()]

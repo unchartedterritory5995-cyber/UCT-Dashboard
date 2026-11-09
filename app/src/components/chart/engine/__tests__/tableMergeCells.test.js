@@ -40,7 +40,11 @@ const merge = (c0, r0, c1, r1) => ({
   k: 'mergecells', target: { r: 'reg', id: 't' }, when: null,
   col: K(c0), row: K(r0), col2: K(c1), row2: K(r1),
 })
-const run = (ops) => evaluateObjects(P(ops), { barCount: 2, readNode: () => NaN, readTime: (i) => i })
+// ⭐ DIV-3 r1 — ONE bar: the captured script writes its table under
+// `barstate.islast`, so its `table.cell` + `table.merge_cells` run ONCE. On two
+// bars the second `table.cell(…, 0, 0, …)` would rewrite a merged head, which is
+// withheld by name now (`objectCells.js`, `tableCellReplace.test.js`).
+const run = (ops) => evaluateObjects(P(ops), { barCount: 1, readNode: () => NaN, readTime: (i) => i })
 const cellsOf = (r) => r.live.find((o) => o.family === 'table').cells
   .map((c) => ({ at: `${c.col},${c.row}`, text: c.props.text ?? '', span: c.props.colspan || c.props.rowspan ? [c.props.colspan, c.props.rowspan] : undefined }))
 
