@@ -11,6 +11,7 @@
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
 //   versions   the server's version store switched on (a layout's Version history)
 //   chartSettings  the chart's own settings pref (custom intervals, compared symbols)
+//   teFeed     the TE News feed loaded, on its own /recent route
 //   calendar   a calendar day with reporters and economic events, on the widget's own route
 //   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
 //
@@ -63,6 +64,8 @@ export function givenFor(c) {
   if (/A layout’s version history/.test(c.title || '')) g.versions = true
   // a calendar day with reporters and economic events (pages/charts/widgets/CalendarWidget.jsx reads data.days[day])
   if (/^(Loading a stock from the earnings list|Filtering economic events)$/.test(c.title || '')) g.calendar = true
+  // the TE News feed loaded (lib/tradeExchangeNewsStreamManager.js: GET /recent → { items, epoch, last_seq, first_seq })
+  if (/^(Saving a headline|A headline’s actions: \w+|Back to the live feed)$/.test(c.title || '')) g.teFeed = true
   // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
   // a custom interval to delete, and symbols (one a group's) the Compare panel lists
   if (/^Deleting a custom timeframe$/.test(c.title || '')) g.chartSettings = { header: { customTimeframes: ['45'] } }
@@ -88,6 +91,12 @@ const THEMES = { themes: [
   { name: 'Semiconductors', ticker: 'SMH', theme_id: 101, sector: 'Technology', group_return: ret(2.4), holdings: [{ sym: 'NVDA', name: 'NVIDIA', returns: ret(3.1) }, { sym: 'AMD', name: 'AMD', returns: ret(1.7) }] },
   { name: 'Software', ticker: 'IGV', theme_id: 102, sector: 'Technology', group_return: ret(-0.8), holdings: [{ sym: 'MSFT', name: 'Microsoft', returns: ret(-0.8) }] },
 ] }
+// three headlines in the feed's own item shape (pages/charts/widgets/TradeExchangeNewsReleaseLink.test.jsx `base`), newest first
+const TE_ITEMS = () => [
+  { seq: 3, id: 'teach-3', source: 'TX-Breaking', content: 'NVDA - Nvidia raises full-year guidance', received_at_ms: Date.now() - 60000, category: 'Earnings', tickers: ['NVDA'], mentions: [] },
+  { seq: 2, id: 'teach-2', source: 'TX-Breaking', content: 'AMD - AMD announces new data-center chip', received_at_ms: Date.now() - 120000, category: 'Company News', tickers: ['AMD'], mentions: [] },
+  { seq: 1, id: 'teach-1', source: 'TX-Macro', content: 'US payrolls beat estimates', received_at_ms: Date.now() - 180000, category: 'Macro', tickers: [], mentions: [] },
+]
 // every day of the last two weeks (the widget opens on the last session day, in New York): two reporters before the open, one
 // after, and a high-impact release, in the route's own shape (sym, eps_est; event, time, impact)
 function CALENDAR_DAYS() {
@@ -103,6 +112,7 @@ function CALENDAR_DAYS() {
 export function fixturesFor(g) {
   const routes = []
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  if (g.teFeed) routes.push({ match: '^GET /api/trade-exchange-news/recent', body: { items: TE_ITEMS(), epoch: 'teach', last_seq: 3, first_seq: 1, tickers_provisional: false } })
   if (g.calendar) routes.push({ match: '^GET /api/calendar[?]week=', body: { days: CALENDAR_DAYS() } })
   if (g.versions) routes.push({ match: '^GET /api/artifact-versions/status', body: { enabled: true } })
   // pages/charts/widgets/ScannerResults.jsx: { as_of, results: [{ sym }] } from the preset's own route (SCAN_ENDPOINTS)
