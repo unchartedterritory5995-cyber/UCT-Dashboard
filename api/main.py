@@ -8153,6 +8153,13 @@ async def lifespan(app: FastAPI):
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
+            # returns at once while NOTEBOOK_TWEET_IMPORT_ENABLED is off (read per run).
+            from api.services.journal_two import tweet_capture_sync as _tw_capture_sync
+            _scheduler.add_job(_tw_capture_sync.run_sweep, trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
+                               id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+                               id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
         # -- The Desk -> Substack articles poller -------------------------------
