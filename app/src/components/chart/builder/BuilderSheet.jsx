@@ -3576,7 +3576,7 @@ export default function BuilderSheet({
               verdict on the lane this intent asks it — every output, not plot 1. */}
           <section className={styles.readbackWrap} aria-labelledby="uct-intent-head" data-testid="intent-section">
             <h3 className={styles.sectionHead} id="uct-intent-head">What is it for?</h3>
-            <div role="radiogroup" aria-labelledby="uct-intent-head">
+            <div role="radiogroup" aria-labelledby="uct-intent-head" data-guide="builder.intent">
               {[INTENTS.PLOT, INTENTS.SIGNAL, INTENTS.VALUE].map((it) => (
                 <label className={styles.plotToggle} key={it}>
                   <input
