@@ -42,6 +42,27 @@ export const BROKER_RULES = Object.freeze({
   'B-DEFAULTS': Object.freeze({ capture: 'Q-S1b', what: 'the per-version declaration defaults' }),
   // the values
   'B-VAL': Object.freeze({ capture: 'Q-S1-core', what: 'the strategy.* values and per-trade reads' }),
+  // ── W9-T6: fill timing (`broker.js` tick routine and `endBar`, `vm.js` step order) ──
+  // (The July-2026 defaults, W9-J1, are NOT a rule: every pin fixture's settings read-back must show what
+  // its own source declares, defaults for the rest - a precondition in `evidence_engine.py::resolve_pins`. `backtest_fill_limits_assumption` other than 0 is
+  // refused at build, `ast/strategyBroker.js`: no capture is queued for it.)
+  'B-POC': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close: a market order (entry, close, close_all) placed on bar t fills at t\'s close, after the script ran on t; the script reads that fill from bar t+1' }),
+  'B-POC-PRICE': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close: a price order placed on bar t gets one attempt at t\'s close and fills there only if the close meets its level; otherwise it is live from the next open' }),
+  'B-POC-PYR': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close with pyramiding: a close fill that adds to an open position in the same direction' }),
+  'B-POC-FILLS': Object.freeze({ capture: 'W9-P1b', what: 'process_orders_on_close with calc_on_order_fills: a fill on the closing tick re-runs the script on that bar, from the bar\'s start state' }),
+  'B-FILLS': Object.freeze({ capture: 'W9-P2', what: 'calc_on_order_fills on history: one extra execution on each tick (the open, a level on the path, an extreme) where an order fills; OHLC hold the bar\'s final values; the extra execution is rolled back; orders it places fill from the next tick' }),
+  'B-TICK-HIST': Object.freeze({ capture: 'W9-P3', what: 'calc_on_every_tick on history: a historical bar executes once, on its close, as the default does' }),
+  // ── W9-T7: the exit family and the other order kinds (`broker.js`; design section 4 T7) ──
+  // Each is a rule of its own because each is pinned by its own capture row: pinning Q-S1-core
+  // (B-EXIT-BIND, B-CLOSE) must never also serve a trailing stop or a partial exit.
+  'B-TRAIL': Object.freeze({ capture: 'W9-X1', what: 'strategy.exit trail_price / trail_points + trail_offset: a trailing stop that activates at a level more favorable than the entry and then follows the best price on the intrabar path trail_offset ticks behind' }),
+  'B-EXIT-QTY': Object.freeze({ capture: 'W9-X2', what: 'strategy.exit qty / qty_percent and several exit commands on one trade: each call reserves part of the trade, in call order; a fill closes the reserved part and that exit is done with the trade' }),
+  'B-CLOSE-QTY': Object.freeze({ capture: 'W9-X2', what: 'strategy.close qty / qty_percent: a market order that closes part of the trades with that entry id, oldest first' }),
+  'B-OCA': Object.freeze({ capture: 'W9-X3', what: 'oca_name / oca_type on strategy.entry and strategy.order: a fill cancels (oca.cancel) or reduces by its size (oca.reduce) the other unfilled orders of its group' }),
+  'B-ORDER': Object.freeze({ capture: 'W9-X4', what: 'strategy.order: ignores pyramiding, adds in its direction, and against the position closes its size oldest first without reversing' }),
+  'B-IMMEDIATELY': Object.freeze({ capture: 'W9-X4', what: 'strategy.close / close_all immediately = true: the close fills on the tick it is placed, the bar close' }),
+  'B-STOP-LIMIT': Object.freeze({ capture: 'Q-S1j', what: 'an entry / order with both stop and limit: the stop level, once reached, places a limit order at the limit level' }),
+  'B-EXIT-LEVELS': Object.freeze({ capture: 'Q-S1k', what: 'strategy.exit with both profit and limit (or loss and stop): v5 keeps the price level, v6 the level expected to fill first' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))

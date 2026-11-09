@@ -33,20 +33,21 @@ export const STRATEGY_WINDOW_HISTORY = 'strategy-window'
 /** The fields 3.2 names that no served rule produces yet, and the W9 task that owns each.
  *  W9-T13a-F1 (coordinator ruling, 2026-11-08): T13a computes the report from the record and
  *  serves per-trade profit in the report; equity, run-up and drawdown need a per-bar close or
- *  equity column the record does not carry yet, which is that follow-up's work. */
+ *  equity column the record does not carry yet, which is that follow-up's work.
+ *  W9-T7-F1 (coordinator ruling, 2026-11-08): T7 built the order kinds but not the order log or a
+ *  trade's exit id (the broker keeps no per-order history to log), so both are that follow-up's. */
 export const STRATEGY_RECORD_UNSERVED = Object.freeze({
-  orders: 'W9-T7',
+  orders: 'W9-T7-F1 (order log, exitId)',
   equity: 'W9-T13a-F1',
-  'trades.exitId': 'W9-T7',
+  'trades.exitId': 'W9-T7-F1 (order log, exitId)',
   'trades.profit': 'W9-T13a-F1',
   'trades.commission': 'W9-T5',
   'trades.runUp': 'W9-T13a-F1',
   'trades.drawdown': 'W9-T13a-F1',
   'settings.commission': 'W9-T5',
   'settings.slippage': 'W9-T5',
-  'settings.process_orders_on_close': 'W9-T6',
   'settings.bar_detalization': 'W9-T9',
-  'settings.currency': 'W9-T4',
+  'settings.currency': 'W9-D2 (deferred)',
 })
 
 /** ⭐⭐ RULING D2, ONE AUTHORITY (coordinator, 2026-11-08). The backtest's start date and the
@@ -70,6 +71,11 @@ export function startSentenceOf(startTime) {
 const timeAt = (barTimes, i) => (Array.isArray(barTimes) && Number.isInteger(i) && i >= 0 && i < barTimes.length
   && Number.isFinite(barTimes[i]) ? barTimes[i] : null)
 const dirOf = (d) => (d > 0 ? 'long' : d < 0 ? 'short' : null)
+const QTY_TYPES = new Set(['fixed', 'cash', 'percent_of_equity'])
+const defaultQtyOf = (cfg) => {
+  if (QTY_TYPES.has(cfg.qtyType) && Number.isFinite(cfg.qtyValue)) return { type: cfg.qtyType, value: cfg.qtyValue }
+  return Number.isFinite(cfg.defaultQty) ? { type: 'fixed', value: cfg.defaultQty } : null
+}
 
 /**
  * Build the record of one broker run.
@@ -125,16 +131,21 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     settings: {
       version: Number.isInteger(cfg.version) ? cfg.version : null,
       initial_capital: Number.isFinite(cfg.initialCapital) ? cfg.initialCapital : null,
-      default_qty: Number.isFinite(cfg.defaultQty) ? { type: 'fixed', value: cfg.defaultQty } : null,
+      // W9-T4: the declared-or-defaulted `default_qty_*` (fixed, cash or percent_of_equity), stated ONLY
+      // when the run actually sized an order by it (it asked B-QTY); otherwise null, so the record never
+      // shows a sizing rule the run did not rest on (W9-T4 r1 review P2)
+      default_qty: Array.isArray(rec.rulesUsed) && rec.rulesUsed.includes('B-QTY') ? defaultQtyOf(cfg) : null,
       pyramiding: Number.isInteger(cfg.pyramiding) ? cfg.pyramiding : null,
       margin_long: Number.isFinite(cfg.marginLong) ? cfg.marginLong : null,
       margin_short: Number.isFinite(cfg.marginShort) ? cfg.marginShort : null,
       calc_on_every_tick: cfg.calcOnEveryTick === true,
+      // ⭐⭐ W9-T6 — fill timing, as the declaration set it (each asks its own rule when a run reaches it)
+      process_orders_on_close: cfg.processOrdersOnClose === true,
+      calc_on_order_fills: cfg.calcOnOrderFills === true,
       // which of the above are the version's defaults, not the script's own (B-DEFAULTS)
       defaulted: Object.keys(defaulted).filter((k) => defaulted[k] === true).sort(),
       commission: null,
       slippage: null,
-      process_orders_on_close: null,
       bar_detalization: null,
       currency: null,
     },
