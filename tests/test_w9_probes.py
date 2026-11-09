@@ -39,7 +39,8 @@ EXPECTED = {
     "W9-K4": ["w9-k4-slippage"], "W9-P1": ["w9-p1-on-close"], "W9-P1b": ["w9-p1b-on-close-fills-nv"],
     "W9-P2": ["w9-p2-order-fills-nv"], "W9-P3": ["w9-p3-every-tick-history"], "W9-X1": ["w9-x1-trail"],
     "W9-X2": ["w9-x2-partial"], "W9-X3": ["w9-x3-oca"], "W9-X4": ["w9-x4-order"], "W9-X5": ["w9-x5-cancel"],
-    "W9-R1": ["w9-r1-risk-allow", "w9-r1-risk-ddown"], "W9-R1i": ["w9-r1-risk-intraday"],
+    "W9-R1": ["w9-r1-risk-allow", "w9-r1-risk-ddown"], "W9-R1i": ["w9-r1-risk-intraday"], "W9-R1b": ["w9-r1b-ddown-reach"],
+    "W9-R2": ["w9-r2-intraday-loss"], "W9-R3": ["w9-r3-cons-loss-days"], "W9-R4": ["w9-r4-position-size"],
     "W9-M1": ["w9-m1-magnifier-off", "w9-m1-magnifier-on"], "W9-V1": ["w9-v1-values"], "W9-MK1": ["w9-mk1-markers"],
     "W9-S1": ["s1-broker-core"], "W9-S2": ["w9-s2-sharpe", "w9-s2-sharpe-rf0"], "W9-J1": ["s1-broker-core"],
     "Q-S1o": ["w9-q-s1o-every-tick"], "Q-S1p-live": ["s1-broker-core"], "W9-C0": ["r1-strategy-draws"],
@@ -217,3 +218,22 @@ def test_the_cancel_probe_asks_all_three_cancel_cases():
     # (a): a buy limit ABOVE the market (it fills at the next open if it lives), cancelled on its own bar
     case_a = src.split("if phase == 5", 1)[1].split("if phase ==", 1)[0]
     assert "close * 1.05" in case_a and 'strategy.cancel("A")' in case_a
+
+
+def test_the_risk_probes_call_their_command_in_the_shape_T8_reads():
+    """v6, top level, literal, one call per command; nothing T8 refuses beside a risk call (2026-11-08 r2)."""
+    want = {"w9-r1b-ddown-reach": "strategy.risk.max_drawdown(1500, strategy.cash)",
+            "w9-r2-intraday-loss": "strategy.risk.max_intraday_loss(300, strategy.cash)",
+            "w9-r3-cons-loss-days": "strategy.risk.max_cons_loss_days(2)",
+            "w9-r4-position-size": "strategy.risk.max_position_size(3)"}
+    for name, call in want.items():
+        src = _text(name)
+        code = "\n".join(ln.split("//", 1)[0] for ln in src.splitlines())
+        assert _version(src) == 6 and code.count("strategy.risk.") == 1, name
+        assert re.search(r"^" + re.escape(call) + r"$", src, re.M), name           # column 0: top level
+        head = src.splitlines()[1]
+        for bad in ("process_orders_on_close", "calc_on_order_fills", "commission", "slippage"):
+            assert bad not in head, (name, bad)
+        assert "strategy.order(" not in code and "strategy.cancel" not in code and "trail_" not in code, name
+    rows = {r["key"].split("#", 1)[1]: r for r in ee.parse_doc(ee.World(), QUEUE)["rows"]}
+    assert sorted(map(tuple, rows["W9-R2"]["charts"])) == [("AMEX:SPY", "15"), ("NYSE:RDDT", "1D")]
