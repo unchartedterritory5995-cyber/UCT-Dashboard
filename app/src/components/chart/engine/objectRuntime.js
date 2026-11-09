@@ -1495,12 +1495,12 @@ export function beginObjects(program, ctx) {
       // here. The family is withheld whole once that may be so
       // (`collectorUnknown`, C33's rule — one authority, `finish`), and named.
       if (withheldAt(op)) {
-        // ⛔ `!valueUnknown` is the SECOND line: a bound `withholdRuns` is a graph
-        // column, whose only unknown is the curtain, and `unknownAt` above already
-        // withholds that op. Mutation-proved together (W-C22-DEL r1: dropping either
-        // alone survives, dropping both reds `objectCollectorWithheld.test.jsx`); it
-        // stays so a value kind that can be TAINTED never turns into a skip.
-        if (op.withholdRuns != null && !valueUnknown(op.withholdRuns) && !truthy(value(op.withholdRuns))) continue
+        // ⛔ ONE AUTHORITY FOR "THE MEASURED TERMS ARE UNKNOWN HERE": `unknownAt`
+        // above. `withholdRuns` is a graph column (the validator admits nothing
+        // else, `objectProgram.js`), whose only unknown is the warm-up curtain, and
+        // `unknownAt` reads every node of the op — this one included — and withholds
+        // the op before it reaches here. So a value read here is known.
+        if (op.withholdRuns != null && !truthy(value(op.withholdRuns))) continue
         withheldUnknown += 1
         noteUnknownCreate(op, true)
         if (ctx.trace) events.push({ bar, k: 'withheld', family: op.family, site: op.site })

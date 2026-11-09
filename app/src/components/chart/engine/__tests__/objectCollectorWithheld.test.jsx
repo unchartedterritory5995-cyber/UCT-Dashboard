@@ -115,6 +115,22 @@ describe('⭐ the converter: the guard\'s measured conjuncts ride beside the wit
     expect(op.withholdRuns).toBeUndefined()
   })
 
+  it('⛔ the validator: `withholdRuns` is a GRAPH column only — a value kind that can be tainted is refused', () => {
+    const t = translate(500)
+    const op = lineCreate(t)
+    const withRuns = (runs) => ({ ...t.objects, ops: t.objects.ops.map((o) => (o === op ? { ...o, withholdRuns: runs } : o)) })
+    for (const bad of [{ v: 'const', value: 1 }, { v: 'num', id: 'n0' }, { v: 'unknown' },
+      { v: 'bool', op: 'and', args: [{ v: 'const', value: 1 }, { v: 'unknown' }] }, 1]) {
+      expect(() => assertObjectProgram(withRuns(bad))).toThrow(/withholdRuns must be a graph column/)
+    }
+    // CONTROLS: the unbound form (a tree) and the bound form (a graph column) pass
+    expect(() => assertObjectProgram(withRuns(op.withholdRuns))).not.toThrow()
+    expect(() => assertObjectProgram({ programVersion: 1, regs: [], colls: [], trees: [],
+      ops: [{ k: 'create', family: 'label', site: 's1', into: null, when: null,
+        props: { x: { v: 'bar' }, y: { v: 'const', value: 1 }, text: { v: 'text', node: { t: 'lit', s: 'a' } } },
+        withhold: { v: 'const', value: 1 }, withholdRuns: { v: 'graph', node: 0 } }] })).not.toThrow()
+  })
+
   it('⛔ the validator: `withholdRuns` is legal only beside a `withhold`', () => {
     const t = translate(500)
     const op = lineCreate(t)

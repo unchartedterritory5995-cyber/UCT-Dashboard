@@ -1169,6 +1169,13 @@ export function assertObjectProgram(program) {
     // on a bar ⇒ Pine certainly did not run the step. Only beside a `withhold`.
     if (op.withholdRuns !== undefined) {
       if (op.withhold === undefined) throw new Error(`${where}: withholdRuns is legal only beside a withhold`)
+      // ⛔ A GRAPH COLUMN ONLY (`{v:'tree'}` unbound, `{v:'graph'}` bound): its one
+      // unknown is the curtain, which `objectRuntime.js::unknownAt` withholds. A
+      // value kind that can be TAINTED (a number, a latch, a getter, `unknown`)
+      // would be read as known there and turn a withhold into a skip.
+      if (!isObj(op.withholdRuns) || !['tree', 'graph'].includes(op.withholdRuns.v)) {
+        throw new Error(`${where}: withholdRuns must be a graph column, not ${JSON.stringify(isObj(op.withholdRuns) ? op.withholdRuns.v : op.withholdRuns)}`)
+      }
       assertValueRef(op.withholdRuns, `${where}.withholdRuns`)
     }
     // ⭐⭐ C22 — a PROPERTY's value that reads an unmeasured reduction, with the
