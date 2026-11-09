@@ -14,6 +14,9 @@ describe('safeInternalPath', () => {
   it('rejects protocol-relative, backslash, javascript: and other origins', () => {
     expect(safeInternalPath('//evil.example/x', O)).toBeNull()
     expect(safeInternalPath('/\\evil.example', O)).toBeNull()
+    expect(safeInternalPath('/.//evil.com', O)).toBeNull()
+    expect(safeInternalPath('/a/..//evil.com', O)).toBeNull()
+    expect(safeInternalPath('/	/evil.com', O)).toBeNull()
     expect(safeInternalPath('javascript:alert(1)', O)).toBeNull()
     expect(safeInternalPath('https://evil.example/research/AAPL', O)).toBeNull()
     expect(safeInternalPath('http://app.example.com/x', O)).toBeNull()

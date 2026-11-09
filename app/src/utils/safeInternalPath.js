@@ -12,7 +12,9 @@ export function safeInternalPath(raw, origin) {
     const base = new URL(origin)
     const u = new URL(raw, base)
     if (u.origin !== base.origin) return null
-    return u.pathname + u.search + u.hash
+    const out = u.pathname + u.search + u.hash
+    // Normalisation can yield a protocol-relative path (`/.//evil.com`); refuse it.
+    return /^\/(?!\/)/.test(out) ? out : null
   } catch {
     return null
   }
