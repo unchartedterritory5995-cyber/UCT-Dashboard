@@ -95,6 +95,22 @@ describe('possessive anchor: a plan on a WRONG non-anchor chart is asked about w
   }, 40000)
 })
 
+describe('possessive anchor on a relation UCT cannot place: the click is only the anchor, never applied, never offered', () => {
+  const UNPLACED = [
+    ['make its upper-side neighbour weekly', 'BM'],
+    ["make the chart in this one's column weekly", 'TR'],
+    ["make the selected chart's other neighbour weekly", 'TL'],
+    ['put its corner on weekly', 'BR'],
+  ]
+  it.each(UNPLACED)('"%s" (2x3, clicked %s)', async (t, sel) => {
+    const m = mount(G, sel)
+    p.st.envelopes.push(planOn(sel))
+    await m.say(t)
+    expect(changed(m.board), transcript()).not.toContain(sel)
+    anchorSafe(sel)
+  }, 40000)
+})
+
 describe('negatives: "its" on a THING is no relation — the click is acted on', () => {
   const ACT = [
     'make this one weekly and move the alert to its level',
