@@ -56,6 +56,12 @@
 @media (max-width: 640px) {
   .page { padding: var(--space-lg) var(--space-lg) 48px; }
   .title { font-size: var(--text-xl); }
+}
+
+/* TOUCH (phone + tablet): every link on the page is a finger target, so each one carries the 44 px floor up to
+   1024 px, not only on the phone (tapFloor.test.js; a tablet rendered them at ~20 px). The desktop look is untouched. */
+@media (max-width: 1024px) {
   .lesson { min-height: var(--tap-min); display: inline-flex; align-items: center; margin-top: 0; }
   .toc a { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+  .extLink { min-height: var(--tap-min); display: inline-flex; align-items: center; align-self: flex-start; }
 }
