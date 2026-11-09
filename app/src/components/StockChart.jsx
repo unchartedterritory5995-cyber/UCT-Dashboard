@@ -19850,9 +19850,14 @@ export default function StockChart({
           locked: !!userViewLockedRef.current, lock: userLockedViewRef.current ? { ...userLockedViewRef.current } : null }
       }
     } catch { /* noop */ }
+    const _ps = priceScaleNow()
     return {
       firstMs, lastMs, rightMs, activeRange, atDefaultView, frame,
       indicatorsHidden: !!indicatorsHiddenRef.current,
+      // UCT Agent C1-025: the price scale exactly — the drag pin (priceManualRef/RangeRef) and LWC's own auto flag + visible
+      // range — so auto-scale's Undo can put back precisely what it replaced; priceAuto = no pin and LWC auto-fitting
+      priceAuto: !priceManualRef.current && _ps?.auto !== false,
+      priceScale: _ps,
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
       fullyLoaded: barCount === _fullTarget,
@@ -19886,9 +19891,39 @@ export default function StockChart({
       appliedRangeRef.current = null
     } catch { /* noop */ }
   }
+  // UCT Agent C1-025: the price scale as it is now (null when the chart is gone)
+  const priceScaleNow = () => {
+    try {
+      const ps = mainPriceScale()
+      if (!ps) return null
+      const r = ps.getVisibleRange?.()
+      const pin = priceManualRangeRef.current
+      return { manual: !!priceManualRef.current, pin: pin ? { minValue: pin.minValue, maxValue: pin.maxValue } : null,
+        auto: ps.options?.()?.autoScale !== false, range: r ? { from: r.from, to: r.to } : null, log: ps.options?.()?.mode === 1 }
+    } catch { return null }
+  }
+  // ...and back exactly as priceScaleNow read it (auto-scale's Undo): the pin, then LWC's flag and, when it was not auto-fitting, its range
+  const restoreScaleView = (s) => {
+    try {
+      if (!s) return
+      priceManualRangeRef.current = s.pin ? { ...s.pin } : null
+      priceManualRef.current = !!s.manual
+      const ps = mainPriceScale()
+      if (s.auto || !s.range) ps?.applyOptions({ autoScale: true })
+      else ps?.setVisibleRange({ from: s.range.from, to: s.range.to })   // LWC turns its autoScale off itself
+    } catch { /* disposed */ }
+  }
+  // UCT Agent C1-025: the price axis back on auto, exactly as its own double-click releases a dragged (manual) scale
+  const autoScaleView = () => {
+    try {
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
+      mainPriceScale()?.applyOptions({ autoScale: true })
+    } catch { /* disposed */ }
+  }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, zoom: zoomView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, zoom: zoomView, autoScale: autoScaleView, restoreScale: restoreScaleView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])

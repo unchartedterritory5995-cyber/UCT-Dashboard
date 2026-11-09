@@ -1640,7 +1640,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 9,
    "evidence": {
     "nl": [
      "scale.log: \"log scale\"",
@@ -1648,31 +1648,36 @@
      "scale.log: \"use a logarithmic price scale\"",
      "scale.log: \"make the chart log\"",
      "scale.log: \"turn on log scale\"",
-     "GW-01.symbol-weekly-emas-log-undo"
+     "chart.setScale.auto: \"auto scale this chart\""
     ],
     "routing": [
      "scale.log: \"log scale\"",
      "scale.log: \"switch to log scale\"",
      "scale.log: \"use a logarithmic price scale\"",
      "scale.log: \"make the chart log\"",
-     "scale.log: \"turn on log scale\""
+     "scale.log: \"turn on log scale\"",
+     "chart.setScale.auto: \"auto scale this chart\""
     ],
     "args": [
      "corpus scale.log",
+     "corpus chart.setScale.auto",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "execution": [
      "scale.log (c)",
+     "chart.setScale.auto (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "receipt": [
      "scale.log (c)",
+     "chart.setScale.auto (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "scale.log: undo restores",
+     "chart.setScale.auto: undo restores",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "multiStep": [

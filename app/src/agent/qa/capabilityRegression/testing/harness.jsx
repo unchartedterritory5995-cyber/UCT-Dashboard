@@ -379,7 +379,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
     const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
-      activeRange: null, atDefaultView: false, indicatorsHidden: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
+      activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: false, priceScale: { manual: true, pin: { minValue: 1, maxValue: 2 }, auto: false, range: { from: 0.9, to: 2.1 } }, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
     st.replay = null
     const charts = mounted.h.charts
     const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
@@ -392,6 +392,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         if (op === 'restoreView') Object.assign(v, { activeRange: arg.activeRange, atDefaultView: false, frame: { ...arg } })
         if (op === 'resetView') Object.assign(v, { activeRange: null, atDefaultView: true, frame: { fromRight: 150, toRight: -8, activeRange: null, locked: false, lock: null } })
         if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
+        // C1-025: the axis back on auto; its Undo, the exact scale it replaced
+        if (op === 'autoScale') Object.assign(v, { priceAuto: true, priceScale: { manual: false, pin: null, auto: true, range: { from: 1.2, to: 1.8 } } })
+        if (op === 'restoreScale') Object.assign(v, { priceAuto: !arg.manual && arg.auto, priceScale: JSON.parse(JSON.stringify(arg)) })
         // C1-028: zoom about the right edge (half / twice the bars), as StockChart's zoomView
         if (op === 'zoom') { const w = v.frame.fromRight - v.frame.toRight; v.frame = { ...v.frame, fromRight: v.frame.toRight + (arg.dir === 'in' ? Math.max(10, w / 2) : w * 2), activeRange: null }; v.activeRange = null; v.atDefaultView = false }
         return true

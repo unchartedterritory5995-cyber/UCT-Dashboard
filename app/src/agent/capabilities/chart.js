@@ -259,10 +259,16 @@ export function viewDone(meta, { op, arg }) {
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
   // C1-028: a zoom LANDED only when the window narrowed (in) or widened (out) from the width it had before
   if (op === 'zoom') { const w = frameWidth(meta.frame); return w != null && arg?.width != null && (arg.dir === 'in' ? w < arg.width - 0.5 : w > arg.width + 0.5) }
+  // C1-025: the price scale reads back as auto again; its Undo, as the exact scale it replaced
+  if (op === 'autoScale') return meta.priceAuto === true
+  if (op === 'restoreScale') return sameScale(meta.priceScale, arg)
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
 export const frameWidth = (f) => (f && Number.isFinite(f.fromRight) && Number.isFinite(f.toRight) ? f.fromRight - f.toRight : null)
+// C1-025: the dragged pin and LWC's own auto flag exactly; the range only when LWC is not auto-fitting (auto re-fits to live bars)
+const sameScale = (a, b) => !!a && !!b && !!a.manual === !!b.manual && sameJson(a.pin ?? null, b.pin ?? null) && !!a.auto === !!b.auto
+  && (b.auto || (!!a.range && !!b.range && Math.abs(a.range.from - b.range.from) < 1e-6 && Math.abs(a.range.to - b.range.to) < 1e-6))
 const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
@@ -405,6 +411,7 @@ export const chartKind = {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
       else if ((op === 'applyRange' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if (op === 'autoScale' && item.before.view?.priceScale) p.viewDo = { op: 'restoreScale', arg: item.before.view.priceScale }
       else return null
     }
     return p
@@ -436,7 +443,8 @@ export const chartKind = {
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
     ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null)
-      : item.patch.viewDo.op === 'zoom' ? frameWidth(snap.view?.frame) : !!snap.view?.indicatorsHidden] : [])]),
+      : item.patch.viewDo.op === 'zoom' ? frameWidth(snap.view?.frame) : item.patch.viewDo.op === 'autoScale' ? snap.view?.priceAuto === true
+      : !!snap.view?.indicatorsHidden] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -685,15 +693,25 @@ const CAPABILITIES = [
   },
   {
     name: 'chart.setScale',
-    summary: "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
-    args: { type: 'object', properties: { scale: { type: 'string', enum: ['linear', 'log', 'percent'] } }, required: ['scale'], additionalProperties: false },
+    summary: "Set one chart's price scale: linear (arithmetic), logarithmic, or percent; or auto = fit the price axis to the candles again.",
+    args: { type: 'object', properties: { scale: { type: 'string', enum: ['linear', 'log', 'percent', 'auto'] } }, required: ['scale'], additionalProperties: false },
     fast: ({ core }) => {
       if (/^(log|log scale|logarithmic|logarithmic scale)$/.test(core)) return { scale: 'log' }
       if (/^(linear|linear scale|arithmetic|arithmetic scale|arith)$/.test(core)) return { scale: 'linear' }
       if (/^(percent scale|percentage scale|% scale)$/.test(core)) return { scale: 'percent' }
+      if (/^(auto ?scale|autoscale|auto-scale|auto scaling|auto-scaling)$/.test(core)) return { scale: 'auto' }
       return null
     },
     check(st, { scale }) {
+      // C1-025 (P1 gaps): the price axis back on auto, as its own double-click releases a dragged scale — read back from the view
+      if (scale === 'auto') {
+        if (!st.view) return 'This chart is still loading. Try again in a moment.'
+        // a dragged LOG scale cannot be put back exactly (LWC reads it as prices, writes it as logs), so no inexact Undo: refused
+        const ps = st.view.priceScale
+        return ps?.log && ps.auto === false && st.view.priceAuto !== true
+          ? "This chart is on a log scale with a dragged price axis, and I couldn't put that exact axis back afterwards, so I left it as it is. Double-click the price axis to put it back on auto yourself."
+          : null
+      }
       if (!SCALE_LABEL[scale]) return `“${scale}” is not a price scale.`
       // StockChart forces percent while any "new scale" comparison is on
       // (compareForcesPct) — a receipt must never claim a scale the chart won't show.
@@ -702,10 +720,10 @@ const CAPABILITIES = [
       return null
     },
     // The exact keys StockChart.setScale (the A/L/% toggle) persists.
-    apply: (st, { scale }) => (scaleOf(st.cs) === scale ? st
+    apply: (st, { scale }) => (scale === 'auto' ? (st.view?.priceAuto === true ? st : { ...st, viewDo: { op: 'autoScale' } }) : scaleOf(st.cs) === scale ? st
       : { ...st, cs: set(st.cs, { logScale: scale === 'log', percentScale: scale === 'percent' }) }),
-    describe: (b, a) => (scaleOf(b.cs) === scaleOf(a.cs) ? null : `Changed scale to ${SCALE_LABEL[scaleOf(a.cs)]}`),
-    noop: (b, a) => `Already on a ${SCALE_LABEL[scaleOf(a.cs)].toLowerCase()} scale`,
+    describe: (b, a) => (a.viewDo?.op === 'autoScale' ? "Put this chart's price scale back on auto" : scaleOf(b.cs) === scaleOf(a.cs) ? null : `Changed scale to ${SCALE_LABEL[scaleOf(a.cs)]}`),
+    noop: (b, a, { scale } = {}) => (scale === 'auto' ? "This chart's price scale is already on auto, so nothing changed" : `Already on a ${SCALE_LABEL[scaleOf(a.cs)].toLowerCase()} scale`),
   },
   {
     name: 'chart.applyTheme',

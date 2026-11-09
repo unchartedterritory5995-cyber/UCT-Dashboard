@@ -10401,6 +10401,61 @@
       ]
     },
     {
+      "id": "chart.setScale.auto",
+      "source": "pl-exec P1 gaps (C1-025): the price axis back on auto; done only when the scale reads back as auto; Undo puts back the exact scale it replaced",
+      "capabilities": [
+        "chart.setScale"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chart.setScale"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setScale",
+            "target": "$charts[0]",
+            "args": {
+                "scale": "auto"
+              }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "priceAuto": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "priceAuto": false,
+            "priceScale": {
+              "manual": true,
+              "pin": {
+                "minValue": 1,
+                "maxValue": 2
+              },
+              "auto": false,
+              "range": {
+                "from": 0.9,
+                "to": 2.1
+              }
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "auto scale this chart",
+        "put the price scale back on auto",
+        "auto-scale the chart",
+        "fit the price axis"
+      ]
+    },
+    {
       "id": "chartSetup.resetView",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [

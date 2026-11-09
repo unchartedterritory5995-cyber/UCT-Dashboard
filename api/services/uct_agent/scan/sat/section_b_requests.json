@@ -2296,7 +2296,7 @@
     "name": "chart.setScale",
     "domain": "chart",
     "target": "chart",
-    "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
+    "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent; or auto = fit the price axis to the candles again.",
     "hints": null,
     "args": {
      "type": "object",
@@ -2306,7 +2306,8 @@
        "enum": [
         "linear",
         "log",
-        "percent"
+        "percent",
+        "auto"
        ]
       }
      },
@@ -5418,7 +5419,7 @@
     "name": "chart.setScale",
     "domain": "chart",
     "target": "chart",
-    "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
+    "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent; or auto = fit the price axis to the candles again.",
     "hints": null,
     "args": {
      "type": "object",
@@ -5428,7 +5429,8 @@
        "enum": [
         "linear",
         "log",
-        "percent"
+        "percent",
+        "auto"
        ]
       }
      },
@@ -6859,7 +6861,7 @@
     "name": "chart.setScale",
     "domain": "chart",
     "target": "chart",
-    "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
+    "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent; or auto = fit the price axis to the candles again.",
     "hints": null,
     "args": {
      "type": "object",
@@ -6869,7 +6871,8 @@
        "enum": [
         "linear",
         "log",
-        "percent"
+        "percent",
+        "auto"
        ]
       }
      },
