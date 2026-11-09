@@ -1,0 +1,33 @@
+/* The verdict takeover: the whole screen is the answer for a moment, on the arena's black and gold. */
+.wrap { --c: #2faf68; --c2: #9fe9bd; --cd: rgba(47, 175, 104, .28);
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 24px; overflow: hidden;
+  /* a solid wash, not a live blur of the page: the blur re-rendered the chart under it every frame (heavy on a phone) */
+  background: radial-gradient(70% 60% at 50% 42%, #0d0d10, #030304);
+  font-family: var(--font-sans, 'Instrument Sans', system-ui, sans-serif); color: #f8f7f3; animation: tkIn .28s ease both; }
+.wrap.bad { --c: #df4646; --c2: #ffb3b3; --cd: rgba(223, 70, 70, .28); }
+.rays { position: absolute; left: 50%; top: 42%; width: 130vmax; height: 130vmax; margin: -65vmax 0 0 -65vmax; pointer-events: none; will-change: transform;
+  background: repeating-conic-gradient(from 0deg, var(--cd) 0deg 7deg, transparent 7deg 18deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, .55) 22%, transparent 48%); mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, .55) 22%, transparent 48%);
+  opacity: .42; animation: tkSpin 60s linear infinite; contain: strict; backface-visibility: hidden; }
+.glow { position: absolute; left: 50%; top: 40%; width: 680px; height: 680px; margin: -340px 0 0 -340px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, var(--cd), transparent 62%); filter: blur(10px); }
+.panel { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(560px, 100%); text-align: center; }
+.art { position: relative; display: grid; place-items: center; width: 220px; height: 170px; animation: tkRise .5s cubic-bezier(.2, .9, .2, 1.15) .05s both; }
+.stamp { position: absolute; right: -14px; bottom: -10px; transform: rotate(-8deg) scale(1.2); animation: tkSlam .5s cubic-bezier(.3, 1.6, .5, 1) .25s both; }
+.title { margin: 6px 0 0; font-size: 60px; line-height: 1.02; font-weight: 900; letter-spacing: -.025em; color: var(--c2);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .5), 0 0 34px var(--c), 0 0 80px var(--cd); animation: tkRise .5s cubic-bezier(.2, .9, .2, 1.1) .18s both; }
+.answer { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 0; animation: tkRise .5s ease .32s both; }
+.answer span { font-size: 11.5px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; color: #a39e94; }
+.answer b { font-size: 28px; font-weight: 800; color: #f8f7f3; }
+.sub { margin: 0; max-width: 46ch; font-size: 16px; line-height: 1.5; color: #d9d4c8; animation: tkRise .5s ease .4s both; }
+.sub b { color: #f6e2a0; }
+.xp { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 900; color: #15120a;
+  background: linear-gradient(180deg, #fbefc4, #dcbb5e 60%, #b8922f); box-shadow: 0 3px 0 #7c6220, 0 0 24px rgba(220, 187, 94, .45); animation: tkPop .45s cubic-bezier(.3, 1.6, .5, 1) .55s both; }
+.cta { width: min(440px, 100%); margin-top: 10px; animation: tkRise .5s ease .5s both; }
+@keyframes tkIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tkSpin { to { transform: rotate(360deg); } }
+@keyframes tkRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes tkSlam { 0% { opacity: 0; transform: rotate(-8deg) scale(3); } 100% { opacity: 1; transform: rotate(-8deg) scale(1.2); } }
+@keyframes tkPop { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
+@media (max-width: 640px) { .title { font-size: 40px; } .answer b { font-size: 22px; } .art { width: 180px; height: 140px; } }
+@media (prefers-reduced-motion: reduce) { .wrap, .rays, .art, .stamp, .title, .answer, .sub, .xp, .cta { animation: none !important; } }

@@ -1476,7 +1476,8 @@ def test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES():
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
     block = src.split("key: 'benchmark'", 1)[1].split("options:", 1)[1].split("]],", 1)[0]
     js = re.findall(r"\['([A-Z]+)',", block)
-    assert js == list(rd.RS_LINE_BENCHMARKS), (js, rd.RS_LINE_BENCHMARKS)
+    # ⭐ 3-08: the JS enum is the v4 menu (CUSTOM, "Your symbol", appended by name)
+    assert js == list(rd.RS_LINE_BENCHMARKS_V4), (js, rd.RS_LINE_BENCHMARKS_V4)
     assert len(js) >= 2, "a one-option enum makes this comparison vacuous"
 
 

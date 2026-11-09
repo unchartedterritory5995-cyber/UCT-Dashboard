@@ -27,6 +27,13 @@ START = "[class*=startCard]"
 
 CONFIG = {
   # ── batch 17: the drill after the owner's batch-16 notes ──
+  # ── batch 18: Hard mode, in the product (plan piece 43; the name-enter-stop lab version waits on the levels rulings) ──
+  "b18-hard": {"url": 65, "states": [
+    {"id": "intro", "steps": [("wait", 7)], "parts": {"intro": START, "crowns": "[class*=crownRow]", "hidden": ("nth", "[class*=gem]", 0)}},
+    {"id": "play", "steps": [("click", "role:Start hard mode"), ("wait", 6)], "parts": {"topbar": "[class*=topbar]", "bubble": "[class*=ask]", "chip": "[class*=qLine]", "chart": CHART, "pointer": CHART_RIGHT, "cards": "[data-testid=hard-cards]", "check": "[data-testid=hard-check]"}},
+    {"id": "verdict", "steps": [("click", ("nth", "[data-testid=hard-cards] button", 0)), ("click", "[data-testid=hard-check]"), ("wait", 9)], "parts": {"stamp": "[class*=stamp]", "runon": CHART, "ticker": "[class*=qLine]", "lesson": "details[class*=whyCard]", "cardcolors": "[data-testid=hard-cards]", "next": "[data-testid=hard-next]"}},
+    {"id": "end", "steps": [("click", "[data-testid=hard-next]"), ("wait", 2.5)] + 6 * [("click", ("nth", "[data-testid=hard-cards] button", 0)), ("click", "[data-testid=hard-check]"), ("wait", 8), ("click", "[data-testid=hard-next]"), ("wait", 2.5)] + [("click", ("nth", "[data-testid=hard-cards] button", 0)), ("click", "[data-testid=hard-check]"), ("wait", 8), ("click", "[data-testid=hard-next]"), ("wait", 3.5)], "parts": {"end": START, "crownsEnd": "[class*=crownRow]"}},
+  ]},
   "b17-drill": {"url": "64&set=free", "states": [
     {"id": "ask", "steps": [("wait", 9)], "parts": {"bubble": "[class*=ask]", "facts": "[class*=qLine]", "journey": "[data-testid=progress-strip]", "chart": "[class*=chartBox]", "pointer": ("region", "[class*=chartBox]", 0.55, 0.0, 1.0, 1.0), "cards": "[class*=choices]", "check": "[data-testid=primary-action]"}},
     {"id": "verdict", "steps": [("click", ("nth", "[role=radio]", 0)), ("click", "[data-testid=primary-action]"), ("wait", 4)], "parts": {"takeover": ("region", "[data-testid=reveal-takeover]", 0.0, 0.0, 1.0, 0.42), "answer": "[class*=answer]", "lesson": "[data-testid=reveal-card]", "continue": "[data-testid=primary-action]"}},

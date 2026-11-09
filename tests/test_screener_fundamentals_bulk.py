@@ -648,6 +648,26 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
             "VALUES ('flag_htf', 'flag', ?, 'bbbbbbbbbbbbbbbb', '2026-10-16')",
             (_json.dumps({"all": {"n_scored": 40, "mean_edgeR": 0.2, "med_edge20": 0.01}}),))
 
+    # ── rs_history (UCT RS Phase 2a, unit 2a-06): the seven history-derived
+    # rating columns, read through the builder's own mapping shim from the
+    # `rs_rating_history` side table in a scratch screener.db. Twenty-one
+    # stored sessions so BOTH deltas (5 and 20 sessions back) are non-None and
+    # the key set is the full seven, never a subset. ──
+    from api.services.screener import rs_history
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "srckeys_screener.db"))
+    # Pin moved 2026-11-07 (RS review finding #20, unit U3): the shim now
+    # WITHHOLDS a session more than RS_HISTORY_MAX_LAG_SESSIONS behind the
+    # settled one, and these January sessions read against the real clock were
+    # ten months stale. The build's clock is pinned to the session after the
+    # newest stored one (the normal 04:15 ordering), so the key set is read fresh.
+    monkeypatch.setattr(rs_history, "settled_session",
+                        lambda now=None: _dt.date(2026, 1, 22))
+    for k in range(21):
+        rs_history.store_rows(
+            f"2026-01-{k + 1:02d}",
+            {"AAA": {"ibd": 50 + k, "m1": 1, "m3": 2, "m6": 3, "m12": 4,
+                     "score": 1.1, "bars": 253}})
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -671,6 +691,7 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "opt_flow": set(opt_flow.read_opt_flow_fields(["AAA"])["AAA"]),
         "archive_join": set(archive_join.read_archive_fields(
             ["AAA"], best_ids={"AAA": "bull_flag"})["AAA"]),
+        "rs_history": set(b._read_rs_history_fields(["AAA"])["AAA"]),
     }
 
 
@@ -702,10 +723,13 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # DELIBERATELY, in the same commit, never by accident.
     # 14 -> 17 (2026-08-22, Task A6): pattern_join / darkpool_agg / opt_flow.
     # 17 -> 18 (2026-10-16): archive_join, the display-only trader-archive join.
-    assert len(sets) == 18, (
-        f"_source_key_sets returned {len(sets)} sources, expected 18 — a "
+    # 18 -> 19 (2026-11-06, UCT RS Phase 2a unit 2a-06): rs_history, the seven
+    # history-derived rating columns from the `rs_rating_history` side table.
+    assert len(sets) == 19, (
+        f"_source_key_sets returned {len(sets)} sources, expected 19 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
+    assert "rs_history" in sets, "the 19th source is rs_history, by name"
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():
         assert keys, f"{label} emitted no columns — the derivation is broken"

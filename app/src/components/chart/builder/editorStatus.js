@@ -137,7 +137,9 @@ export const FAMILIES = Object.freeze([
   },
   {
     id: 'drawing',
-    exact: ['pine:drawing'],
+    // HONESTY-SWEEP: a drawing whose style/size/position can be `na`, or is computed by a helper
+    // called with a named argument, is withheld (`pine.js`, `ENUM_NA_SENTENCE` / `ENUM_NAMED_CALL_SENTENCE`).
+    exact: ['pine:drawing', 'pine:enum-na', 'pine:enum-named-call'],
     prefix: ['pine:object-', 'runtime:object'],
     label: 'Lines, labels, boxes and tables',
     why: 'We cannot yet make this drawing exactly the way TradingView does, so it is not drawn.',
@@ -213,11 +215,11 @@ export const FAMILIES = Object.freeze([
   },
   {
     id: 'language',
-    exact: ['pine:statement', 'pine:operator', 'pine:character', 'pine:cycle', 'pine:roundtrip',
+    exact: ['pine:statement', 'pine:indent', 'pine:operator', 'pine:character', 'pine:cycle', 'pine:roundtrip',
       'pine:role-order', 'pine:empty', 'pine:declaration', 'pine:offset-literal', 'pine:chart-only',
       'runtime:statement', 'runtime:expression-statement', 'runtime:switch', 'runtime:block-value',
       'runtime:operator', 'runtime:directive', 'runtime:declaration', 'runtime:version',
-      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state'],
+      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum'],
     prefix: ['runtime:loop'],
     label: 'A Pine construct we do not run yet',
     why: 'This line uses a part of the Pine language we cannot run exactly yet.',

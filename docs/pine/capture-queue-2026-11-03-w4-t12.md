@@ -21,7 +21,7 @@ fill(useA ? p1 : p2, p3, color.new(color.red, 80), "F01_input_choice")
 fill(close > open ? p1 : p2, p3, color.new(color.blue, 80), "F02_series_choice")
 ```
 
-| row | what it settles |
-|---|---|
-| F01 | whether an input-chosen plot id compiles on TradingView, and which band it draws at each setting |
-| F02 | whether a per-bar plot id is accepted at all (if it is a compile error, the refusal is already right) |
+| row | probe | what it settles |
+|---|---|---|
+| F01 | `vw-w4t12-fill-ternary.pine` | whether an input-chosen plot id compiles on TradingView, and which band it draws at each setting |
+| F02 | `vw-w4t12-fill-ternary.pine` | whether a per-bar plot id is accepted at all (if it is a compile error, the refusal is already right) |

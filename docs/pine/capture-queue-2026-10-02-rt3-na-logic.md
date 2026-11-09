@@ -28,7 +28,7 @@ capture: its bools are never `na`.
 | # | capture | settles |
 |---|---|---|
 | Q-NL-a | `rt3-na-logic.pine` as written (v5), NYSE:RDDT **1D**, full history, market closed | v5: `or` / `not` over an na bool and an na number |
-| Q-NL-b | line 1 `//@version=4`, `indicator(` → `study(`, `ta.sma(` → `sma(` | v4 (float truthiness era) |
+| Q-NL-b | `rt3-na-logic.pine` with line 1 `//@version=4`, `indicator(` → `study(`, `ta.sma(` → `sma(` (its file: `rt3-na-logic-v4.pine`), NYSE:RDDT **1D**, full history, market closed | v4 (float truthiness era) |
 
 Read, on bars 0..18 (where `warm` and `w` are `na`): rows `B01`, `B02`, `B06`, `B07`, `B08`, `B09`,
 `B10` are `1` if the `na` operand reads as false and `2` if `na` propagates through the operator;

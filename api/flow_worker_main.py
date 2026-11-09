@@ -2,6 +2,9 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-11-08 (video + YouTube embeds): substack_article.py is statically reachable from this worker but off
+its watch list. The Substack poller runs on web, so this only keeps the rail honest.
+
 Redeploy trigger 2026-10-11: ships the flow_exposure_history.py empty-store fix (a
 stranded file; it rides along with this watched one).
 
@@ -1130,6 +1133,14 @@ def main():
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
+    # OBSERVE ONLY (2026-11-06): see api/services/mem_observe.py. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    # It also logs per-file page-cache residency (MEM_OBSERVE_FILES=0 stops that part). mem_observe.py is NOT
+    # on flow-worker's watch list: a change there alone never redeploys this service; touch this file too.
+    try:
+        from api.services import mem_observe
+        mem_observe.start("flow-worker", mem_observe.FLOW_WORKER_TARGETS)
+    except Exception as e:  # noqa: BLE001 -- observation must never stop the flow-worker booting
+        log.warning("[memobs] not started: %s", type(e).__name__)
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
     # timeout_graceful_shutdown=5 mirrors web/worker: reach lifespan.shutdown ->

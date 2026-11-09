@@ -59,12 +59,15 @@ export default function NoteShareControls({ noteId, noteTitle = '', onMessage })
         className={editorStyles.chromeBtn}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label="Share"
         data-tour="note-share"
         title={publishOn ? 'Share a link to this note or publish it to the web' : 'Share a read-only link to this note'}
         onClick={() => setOpen(true)}
       >
         <UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-        Share
+        {/* Finish batch (iPhone): on a phone the header shows Share's icon; the word is visually hidden there and the
+            name stays "Share" (aria-label). Wider screens show the word, unchanged. */}
+        <span className={editorStyles.phoneIconLabel}>Share</span>
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title={title} ariaLabel={title} maxWidth={460}>
         {open && (

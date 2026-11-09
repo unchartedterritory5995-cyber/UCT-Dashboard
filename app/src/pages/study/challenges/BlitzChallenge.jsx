@@ -5,13 +5,18 @@
 // quick-read facts are measured from the bars on screen. The best score lives on this device.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
-import StudyMark from '../../../components/study/StudyMark'
-import StartCard, { StartButton } from '../../../lab/StartCard'
-import { spot } from '../../../lab/pointers'
-import d5 from '../../../lab/duo.module.css'
+import { calloutLook, hardCallouts } from '../ui/callout'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
+import { HudClock } from '../ui/HudLooks'
+import { AnswerLessonApp } from '../ui/AnswerLooks'
+import { StartArena } from '../ui/StartLooks'
+import HowItPlays from '../ui/HowItPlays'
+import { EndHard } from '../ui/EndLooks'
+import s2 from '../ui/study.module.css'
+import lab from '../../../lab/lab.module.css'
 import ChallengeError from './ChallengeError'
 import ChallengeChart from './ChallengeChart'
-import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, buildBlitzQuestions, fetchRecallPool, fetchSpotPool, scoreAttempt } from './challengeBank'
+import { BLITZ_BEST_KEY, BLITZ_POINTS, BLITZ_SECS, blitzMult, beginRunXp, buildBlitzQuestions, fetchNamedPool, fetchRecallPool, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
 import { comboFeedback, endFeedback, feedbackPrefs, revealFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 
@@ -24,19 +29,24 @@ function Question({ qn, onAnswer, fetcher }) {
   const ann = useMemo(() => {
     if (!n) return null
     if (qn.kind === 'recall' && qn.highlight > 1) return [{ id: 'hl', type: 'rect', points: [{ time: it.bars[Math.max(0, n - qn.highlight)].t, price: Math.max(...it.bars.slice(-qn.highlight).map((b) => b.h)) * 1.004 }, { time: it.bars[n - 1].t, price: Math.min(...it.bars.slice(-qn.highlight).map((b) => b.l)) * 0.996 }], color: '#dcbb5e', lineWidth: 1.5, locked: true }]
-    return spot(it.bars, n - 1, { label: qn.kind === 'fact' && /yesterday/.test(qn.q) ? 'this candle · yesterday is to its left' : 'this candle', id: 'b', halo: false })
+    return null   // the pointer is the callout below (Hard mode's: open space, never over a candle)
   }, [it, n, qn])
+  const phone = useIsPhone()
+  // the owner's rule 4: one designed pointer everywhere (Hard mode's callout); a recall question keeps its highlight box
+  const callouts = useMemo(() => (!n || (qn.kind === 'recall' && qn.highlight > 1) ? [] : hardCallouts({ index: n - 1, label: qn.kind === 'fact' && /yesterday/.test(qn.q) ? 'This candle · yesterday is to its left' : 'This candle' })), [n, qn])
+  const look = useMemo(() => calloutLook(phone), [phone])
   useEffect(() => {
     const k = (e) => { if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return; const i = +e.key - 1; if (i >= 0 && i < qn.choices.length) onAnswer(qn.choices[i]) }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   }, [qn, onAnswer])
+  // Hard mode's design (the owner, 2026-11-08: "Need all the design templates and graphics to be uniform throughout each
+  // section!"): the chart as the hero, the question header, the answer tiles; Blitz answers on the tap, so no Check bar
   return (
     <>
-      <div className={d5.qLine}><span className={d5.qSetup}>{qn.tag}</span><span className={d5.qText}>{qn.q}</span></div>
-      <ChallengeChart id={it.id} bars={it.bars} view={qn.kind === 'recall' ? Math.min(60, n) : Math.min(80, n)} height={300} annotations={ann} fetcher={fetcher} />
-      <div className={`${d5.cards} ${d5.cascade} ${qn.choices.length > 2 ? '' : d5.two}`} data-testid="blitz-choices">
-        {qn.choices.map((c, i) => <button key={c} type="button" className={d5.card} style={{ '--i': i }} onClick={() => onAnswer(c)}><span className={d5.key}>{i + 1}</span>{c}</button>)}
+      <div className={`${lab.chartBox} ${s2.heroChart}`}>
+        <ChallengeChart id={it.id} bars={it.bars} view={qn.kind === 'recall' ? Math.min(60, n) : Math.min(80, n)} height={phone ? 320 : 420} annotations={ann} callouts={callouts} calloutLook={look} fetcher={fetcher} />
       </div>
+      <AnswerLessonApp instant choices={qn.choices} onPick={(i) => onAnswer(qn.choices[i])} eyebrow={<>Blitz · {qn.tag}</>} question={qn.q} detail={null} cardsTestId="blitz-choices" />
     </>
   )
 }
@@ -61,8 +71,10 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
 
   useEffect(() => {
     let on = true
-    Promise.all([fetchSpotPool(undefined, 6, fetcher), fetchRecallPool(undefined, 12, fetcher)])
-      .then(([sp, rc]) => { if (on) setPool(buildBlitzQuestions(sp, rc)) })
+    // a deeper pool (the owner, batch 10: "We will need hundreds if not thousands of examples"): every run draws fresh
+    // charts from the bank; "name it" comes only from charts the detectors verified (fetchNamedPool)
+    Promise.all([fetchSpotPool(undefined, 8, fetcher), fetchRecallPool(undefined, 16, fetcher), fetchNamedPool(20, fetcher).catch(() => [])])
+      .then(([sp, rc, nm]) => { if (on) setPool(buildBlitzQuestions(sp, rc, Date.now(), nm)) })
       .catch((e) => { if (on) { setError(e); setPool([]) } })
     return () => { on = false }
   }, [reload, fetcher])
@@ -101,7 +113,7 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
     setLog((l) => [...l, { tag: qn.tag, q: qn.q, choice, ok, answer: typeof key === 'string' ? key : '', ticker: reveal?.sym || reveal?.ticker || '' }])
   }, [qn, phase, combo, prefs, fetcher])
 
-  const start = () => { setPhase('play'); setLeft(BLITZ_SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0); setLog([]) }
+  const start = () => { beginRunXp(); setPhase('play'); setLeft(BLITZ_SECS); setI(0); setScore(0); setCombo(0); setBest(0); setAnswered(0); setRight(0); setLog([]) }
   const kinds = useMemo(() => { if (!pool) return null; const c = {}; pool.forEach((q) => { c[q.kind] = (c[q.kind] || 0) + 1 }); return c }, [pool])
   const bankLine = pool == null ? 'loading the bank' : pool.length ? `${pool.length} questions in today's pool` : 'no charts in the bank yet'
 
@@ -109,38 +121,38 @@ export default function BlitzChallenge({ profile = null, fetcher = studyFetch, o
 
   if (phase === 'start') {
     return (
-      <StartCard eyebrow="Challenge" title="Blitz" art={<StudyMark mood="fire" size={116} />}
-        lead="Sixty seconds. No hearts. Real charts from the firm's bank and a quick question on each: name the setup, does it fire, which candle name fits, green or red, over yesterday's high. The multiplier climbs with your combo and resets on a miss."
-        button={<StartButton icon="timer" label={pool?.length ? 'Start the clock' : pool == null ? 'Loading the bank' : 'Nothing to play yet'} sub={`60 seconds · no hearts · ${bankLine}`} onClick={() => pool?.length && start()} />}
-        below={<>
-          <details className={d5.whyCard}><summary>How it works</summary>
-            <div className={d5.tutSteps}>
-              <div className={d5.tutStep} style={{ '--i': 0 }}><span className={d5.tutNum}>1</span><b>Read the chart</b><span>The question changes: name the setup, does it fire, which candle name fits, green or red, over yesterday's high. The arrow or the box shows where to look.</span></div>
-              <div className={d5.tutStep} style={{ '--i': 1 }}><span className={d5.tutNum}>2</span><b>Answer instantly</b><span>Tap a card or press its number. The clock never waits and the next chart loads at once.</span></div>
-              <div className={d5.tutStep} style={{ '--i': 2 }}><span className={d5.tutNum}>3</span><b>Build the multiplier</b><span>Every right answer in a row climbs it. One miss resets it to x1.</span><div className={d5.multRow}><i>x2</i><i>x3</i><i>x4</i><i>x5</i></div></div>
-            </div>
-          </details>
-          {kinds ? <span>{Object.entries(kinds).map(([k, v]) => `${v} ${k}`).join(' · ')}</span> : null}
-        </>}>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>Your best</small><b data-testid="blitz-best">{bestEver}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="bolt" size={20} /></span><small>Multiplier up to</small><b>x5</b></div></div></div>
-      </StartCard>
+      <div className={s2.kit}>
+        <StartArena plate="Blitz" title="Blitz" caption="Read the chart, answer, next" testId="blitz-intro" startTestId="blitz-start" hotkey
+          stakes={[{ v: 60, l: 'seconds', icon: 'clock' }, { v: 0, l: 'hearts', icon: 'x' }, { v: 'x5', l: 'top multiplier', icon: 'bolt' }]} ready={!!pool?.length} onStart={() => pool?.length && start()}
+          label={pool?.length ? 'Start the clock' : pool == null ? 'Loading the bank' : 'Nothing to play yet'}
+          reward={<><UIcon name="star" size={22} /><span>Your best <b data-testid="blitz-best">{bestEver}</b> points</span></>}
+          howTo={<HowItPlays mode="blitz" testId="blitz-howto" steps={[
+            { icon: 'eye', title: 'Read the chart', body: 'Each question is a real chart and a quick question: name the setup, does it fire, which candle name fits, green or red.' },
+            { icon: 'play', title: 'Answer at once', body: 'Tap an answer or press its number. The next chart comes straight away; the clock never waits.' },
+            { icon: 'bolt', title: 'Build the multiplier', body: 'Every right answer in a row climbs it, up to x5. A miss resets it to x1.' },
+          ]} />}>
+          <span>{bankLine}{kinds ? ` · ${Object.entries(kinds).map(([k, v]) => `${v} ${k}`).join(' · ')}` : ''}</span>
+        </StartArena>
+      </div>
     )
   }
   if (phase === 'done') {
+    const rows = log.map((r) => ({ name: r.tag, ticker: r.ticker, ok: r.ok, said: r.choice, was: r.answer }))
     return (
-      <StartCard eyebrow="Blitz · time" title={`${score} points`} art={<StudyMark mood={score >= 200 ? 'fire' : 'happy'} size={116} />}
-        lead={score > 0 && score >= bestEver ? 'A new best.' : `Your best stands at ${bestEver}.`}
-        button={<StartButton icon="timer" label="Again" sub="another sixty seconds" onClick={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('start') }} />}
-        below={<button type="button" className={d5.linkBtn} onClick={onClose}>Back to Study</button>}>
-        <div className={d5.gems}><div className={d5.gem}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="star" size={20} /></span><small>Right</small><b data-testid="blitz-right">{right}/{answered}</b></div></div><div className={`${d5.gem} ${d5.ember}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="bolt" size={20} /></span><small>Best combo</small><b>{best}</b></div></div><div className={`${d5.gem} ${d5.green}`}><div className={d5.gemIn}><span className={d5.gemIcon}><UIcon name="sparkle" size={20} /></span><small>Top multiplier</small><b>x{blitzMult(best)}</b></div></div></div>
-        {log.length ? <div className={d5.runLog}>{log.map((r, k) => <div key={k} className={r.ok ? d5.runOk : d5.runBad}><b>{r.ok ? '✓' : '✕'}</b><span>{r.tag} · {r.q}</span><small>{r.ok ? `you said ${r.choice}` : `you said ${r.choice}${r.answer ? `, it was ${r.answer}` : ''}`}{r.ticker ? ` · ${r.ticker}` : ''}</small></div>)}</div> : null}
-      </StartCard>
+      <div className={s2.kit}>
+        <EndHard right={right} total={answered} xp={score} xpLabel="points" results={log.map((r) => r.ok)} log={rows} level={runXp()}
+          unit="right in sixty seconds" doneWord="right" medal={false} showSetups={false} againLabel="Again" testIdPrefix="blitz"
+          onAgain={() => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('start') }} onBack={onClose}>
+          {score > 0 && score >= bestEver ? <><b>A new best.</b> Top multiplier x{blitzMult(best)}.</> : <>Your best stands at <b>{bestEver}</b>. Top multiplier this run x{blitzMult(best)}.</>}
+        </EndHard>
+      </div>
     )
   }
-  if (!qn) return <p className={d5.startLead}>{pool == null ? 'Loading the bank' : 'No charts in the bank yet.'}</p>
+  if (!qn) return <p className={s2.kit}>{pool == null ? 'Loading the bank' : 'No charts in the bank yet.'}</p>
   return (
-    <div className={flash === 'ok' ? d5.flashOk : flash === 'bad' ? d5.flashBad : ''} data-testid="blitz-play">
-      <div className={d5.topbar}><span className={`${d5.clock} ${left <= 10 ? d5.hot : ''}`} style={{ textAlign: 'left', fontSize: 22 }} data-testid="blitz-clock">{left}s</span><div className={d5.blitzMid}><b data-testid="blitz-score">{score}</b><small>points</small></div><span className={`${d5.multi} ${blitzMult(combo) >= 3 ? d5.hotM : ''}`}>x{blitzMult(combo)}{combo ? ` · ${combo} in a row` : ''}</span></div>
+    <div className={`${s2.kit} ${s2.screen}`} data-testid="blitz-play">
+      {flash ? <span className={`${s2.flash} ${flash === 'ok' ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
+      <HudClock left={left} secs={BLITZ_SECS} score={score} combo={combo} mult={blitzMult(combo)} />
       <Question key={qn.item.id + i} qn={qn} onAnswer={answer} fetcher={fetcher} />
     </div>
   )

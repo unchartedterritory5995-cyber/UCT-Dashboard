@@ -1,0 +1,204 @@
+/* The end screen, focus round 3: three versions (EndLooks.jsx), on the Study kit's tokens with fallbacks. */
+.end {
+  --g: var(--k-gold, #dcbb5e); --gb: var(--k-gold-bright, #e9cd77); --ink: var(--k-ink, #f8f7f3); --soft: var(--k-ink-soft, #d9d4c8);
+  --dim: var(--k-ink-dim, #a39e94); --up: var(--k-up, #2faf68); --dn: var(--k-down, #df4646); --line: var(--k-line, #2a2c31);
+  font-family: var(--font-sans, 'Instrument Sans', system-ui, sans-serif); color: var(--ink); font-variant-numeric: tabular-nums;
+  display: flex; flex-direction: column; align-items: center; gap: 18px; width: 100%;
+}
+.end button { font: inherit; }
+
+.actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.primary { display: inline-flex; align-items: center; gap: 8px; height: 56px; padding: 0 30px; border-radius: 16px; border: 0; cursor: pointer; font-size: 16px !important; font-weight: 900 !important; letter-spacing: .14em; text-transform: uppercase; color: #1a1406;
+  background: linear-gradient(180deg, #f1d892, #d4b155 60%, #b8922f); box-shadow: 0 4px 0 #7c6220, 0 12px 28px rgba(220, 187, 94, .22); transition: transform .12s, box-shadow .12s; }
+.primary:active { transform: translateY(4px); box-shadow: 0 0 0 #7c6220; }
+.ghost { height: 56px; padding: 0 22px; border-radius: 16px; border: 1px solid #34363c; background: transparent; color: var(--soft); cursor: pointer; font-size: 15px !important; font-weight: 700 !important; }
+
+/* ── A · Trophy ──────────────────────────────────────────────────────────────────────────────────────────── */
+.trophy { --m1: #f3d9a4; --m2: #b98a4a; --m3: #6e4a1f; --mglow: rgba(205, 140, 70, .45); }
+.t_bronze { --m1: #f0c69a; --m2: #b5703a; --m3: #6a3a17; --mglow: rgba(205, 120, 60, .45); }
+.t_silver { --m1: #ffffff; --m2: #b9c0c9; --m3: #5d6570; --mglow: rgba(200, 210, 225, .45); }
+.t_gold { --m1: #fff1bf; --m2: #dcbb5e; --m3: #8a6f22; --mglow: rgba(220, 187, 94, .55); }
+.t_none { --m1: #6a6a70; --m2: #3a3a3f; --m3: #1c1c20; --mglow: rgba(120, 120, 130, .2); }
+.t_legend { --mglow: rgba(233, 205, 119, .6); }
+.coinStage { position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+.rays { position: absolute; top: -30px; left: 50%; width: 360px; height: 360px; margin-left: -180px; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, var(--mglow) 0 6deg, transparent 6deg 22deg); -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 68%); mask-image: radial-gradient(circle, #000 18%, transparent 68%);
+  opacity: .55; animation: spin 24s linear infinite; }
+.coin { position: relative; width: 170px; height: 170px; border-radius: 50%; overflow: hidden; animation: strike .9s cubic-bezier(.2, .9, .2, 1.15) both;
+  background: radial-gradient(circle at 32% 28%, var(--m1), var(--m2) 46%, var(--m3) 100%);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--m3) 80%, #000), 0 0 0 7px color-mix(in srgb, var(--m1) 50%, transparent), 0 0 50px var(--mglow), 0 18px 34px rgba(0, 0, 0, .6); }
+.coinFace { position: absolute; inset: 14px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: radial-gradient(circle at 40% 30%, color-mix(in srgb, var(--m1) 70%, transparent), color-mix(in srgb, var(--m2) 85%, #000) 70%);
+  box-shadow: inset 0 3px 6px rgba(255, 255, 255, .35), inset 0 -6px 12px rgba(0, 0, 0, .4); }
+.coinFace img { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45)); }
+.coinFace b { font-size: 34px; font-weight: 900; line-height: 1; color: color-mix(in srgb, var(--m3) 85%, #000); text-shadow: 0 1px 0 rgba(255, 255, 255, .45); }
+.coinFace b small { font-size: 18px; opacity: .75; }
+.coinShine { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .55) 48%, transparent 60%); transform: translateX(-120%); animation: shine 3.2s ease-in-out 1s infinite; }
+.ribbon { position: relative; margin-top: -14px; padding: 7px 22px; font-size: 13px; font-weight: 900; letter-spacing: .24em; text-transform: uppercase; color: #15120a;
+  background: linear-gradient(180deg, var(--m1), var(--m2)); clip-path: polygon(0 0, 100% 0, 94% 50%, 100% 100%, 0 100%, 6% 50%); box-shadow: 0 6px 14px rgba(0, 0, 0, .5); }
+.t_none .ribbon { color: var(--soft); }
+.t_legend .ribbon { --m1: #fff1bf; --m2: #dcbb5e; }
+.tTitle { font-size: 44px; font-weight: 900; letter-spacing: -.02em; line-height: 1; margin-top: 4px; }
+.tSub { font-size: 16px; color: var(--soft); text-align: center; }
+.tSub b { color: var(--gb); }
+.tBar { display: flex; gap: 0; border: 1px solid #2c2d33; border-radius: 16px; background: linear-gradient(180deg, #17171a, #101012); overflow: hidden; }
+.tBar span { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; font-size: 13px; color: var(--dim); font-weight: 700; }
+.tBar span + span { border-left: 1px solid #26272c; }
+.tBar b { font-size: 20px; color: var(--ink); font-weight: 900; }
+.tBar span:nth-child(1) svg { color: var(--gb); } .tBar span:nth-child(2) svg { color: #ffb347; } .tBar span:nth-child(3) svg { color: var(--up); }
+.tDots { display: flex; gap: 8px; }
+.tDot { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; animation: pop .4s cubic-bezier(.2, .9, .2, 1.3) backwards; animation-delay: calc(.5s + var(--i) * 80ms); }
+.tDot.ok { background: var(--up); color: #04170b; box-shadow: 0 0 12px rgba(47, 175, 104, .45); }
+.tDot.miss { background: #3a1316; color: #ff9d9d; border: 1px solid rgba(223, 70, 70, .6); }
+
+/* ── B · Report card ─────────────────────────────────────────────────────────────────────────────────────── */
+.report { align-items: stretch; }
+.rHead { display: flex; align-items: center; gap: 22px; }
+.dial { width: 140px; height: 140px; flex: none; }
+.dialTrack { fill: none; stroke: #1f2024; stroke-width: 12; }
+.dialFill { fill: none; stroke: var(--g); stroke-width: 12; stroke-linecap: round; filter: drop-shadow(0 0 8px rgba(220, 187, 94, .5)); transition: stroke-dasharray 1s ease; }
+.dialNum { fill: var(--ink); font-size: 30px; font-weight: 900; text-anchor: middle; font-family: inherit; }
+.dialLbl { fill: var(--dim); font-size: 10.5px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; text-anchor: middle; font-family: inherit; }
+.rEyebrow { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--g); }
+.rTitle { font-size: 36px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; margin-top: 4px; }
+.rSub { font-size: 15px; color: var(--soft); margin-top: 6px; } .rSub b { color: var(--gb); }
+.rCols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; }
+.rBox { border: 1px solid #2a2b31; border-radius: 16px; background: linear-gradient(180deg, #161618, #101012); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.rBoxHead { font-size: 10.5px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.rSet { display: grid; grid-template-columns: 140px 1fr 56px; align-items: center; gap: 10px; font-size: 14px; }
+.rSetName { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rSetBar { height: 8px; border-radius: 999px; background: #232428; overflow: hidden; }
+.rSetBar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9b7a24, #e3c46a); }
+.rSetNum { text-align: right; font-weight: 800; color: var(--soft); font-size: 13px; }
+.rSetNum.ok { color: #8fe3b1; } .rSetNum.miss { color: #ff9d9d; }
+.rFocus { border-color: rgba(220, 187, 94, .4); background: linear-gradient(180deg, #1f1a0b, #120f07); }
+.rFocusName { font-size: 24px; font-weight: 900; color: var(--gb); }
+.rFocusWhy { font-size: 14px; color: var(--soft); line-height: 1.45; }
+.rPractise { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(220, 187, 94, .55); background: rgba(220, 187, 94, .1); color: var(--gb); cursor: pointer; font-size: 14px !important; font-weight: 800 !important; margin-top: auto; }
+.rTimeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rCard { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 12px; border: 1px solid #2a2b31; background: #131315; animation: deal .4s cubic-bezier(.2, .9, .2, 1.08) backwards; animation-delay: calc(var(--i) * 50ms); }
+.rCard.ok { border-color: rgba(47, 175, 104, .45); background: linear-gradient(180deg, rgba(47, 175, 104, .12), #121513); }
+.rCard.miss { border-color: rgba(223, 70, 70, .4); background: linear-gradient(180deg, rgba(223, 70, 70, .1), #151213); }
+.rCardTop { display: flex; justify-content: space-between; align-items: center; color: var(--dim); font-size: 11px; font-weight: 800; }
+.rCard.ok .rCardTop svg { color: var(--up); } .rCard.miss .rCardTop svg { color: var(--dn); }
+.rCard b { font-size: 14px; }
+.rCard em { font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: .08em; color: var(--g); }
+.rCard i { font-style: normal; font-size: 11.5px; color: #ff9d9d; }
+
+/* ── C · Statement ───────────────────────────────────────────────────────────────────────────────────────── */
+.statement { align-items: stretch; gap: 0; border: 1px solid rgba(220, 187, 94, .3); border-radius: 18px; overflow: hidden; background: #0e0e10; box-shadow: 0 0 0 1px #000, 0 18px 40px rgba(0, 0, 0, .45); }
+.sHead { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: linear-gradient(180deg, #19170f, #121008); border-bottom: 1px solid rgba(220, 187, 94, .25); }
+.sBrand { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--gb); }
+.sBrand img { width: 20px; height: 20px; }
+.sDoc { font-size: 12px; color: var(--dim); font-weight: 700; letter-spacing: .04em; }
+.sTop { display: grid; grid-template-columns: 220px 1fr; gap: 18px; align-items: center; padding: 18px; border-bottom: 1px solid #222328; }
+.sLbl { font-size: 10.5px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.sBig { font-size: 52px; font-weight: 900; line-height: 1; margin: 6px 0; }
+.sBig small { font-size: 16px; font-weight: 700; color: var(--dim); }
+.sBig.up { color: #8fe3b1; } .sBig.down { color: #ff9d9d; }
+.sNote { font-size: 13px; color: var(--soft); } .sNote b { color: var(--gb); }
+.curve { width: 100%; height: 120px; }
+.grid { stroke: #1d1e22; stroke-width: 1; }
+.area { fill: rgba(220, 187, 94, .1); }
+.line { fill: none; stroke: var(--g); stroke-width: 2.5; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(220, 187, 94, .5)); }
+.dotUp { fill: var(--up); stroke: #0e0e10; stroke-width: 2; }
+.dotDown { fill: var(--dn); stroke: #0e0e10; stroke-width: 2; }
+.blotter { display: flex; flex-direction: column; padding: 6px 10px 10px; }
+.bRow { display: grid; grid-template-columns: 34px 1.4fr .8fr 1.4fr 90px; gap: 10px; align-items: center; padding: 9px 8px; font-size: 14px; border-bottom: 1px solid #1c1d21; }
+.bRow:first-child { font-size: 10.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.bRow:not(:first-child) { animation: deal .35s ease backwards; animation-delay: calc(var(--i) * 40ms); }
+.bRow span:first-child { color: var(--dim); font-weight: 800; }
+.bTick { font-weight: 800; letter-spacing: .06em; color: var(--g); }
+.bRes { justify-self: end; font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.bRow.ok .bRes { color: #8fe3b1; background: rgba(47, 175, 104, .14); border: 1px solid rgba(47, 175, 104, .4); }
+.bRow.miss .bRes { color: #ff9d9d; background: rgba(223, 70, 70, .12); border: 1px solid rgba(223, 70, 70, .4); }
+.statement .actions { padding: 14px 18px 18px; margin: 0; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes strike { 0% { transform: scale(.3) rotateY(90deg); opacity: 0; } 60% { transform: scale(1.08) rotateY(-10deg); opacity: 1; } 100% { transform: none; } }
+@keyframes shine { 0% { transform: translateX(-120%); } 40%, 100% { transform: translateX(120%); } }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes deal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 640px) {
+  .tTitle { font-size: 34px; } .coin { width: 140px; height: 140px; } .tBar span { padding: 10px 11px; font-size: 11px; } .tBar b { font-size: 16px; }
+  .tDots { gap: 5px; } .tDot { width: 26px; height: 26px; }
+  .rHead { gap: 14px; } .dial { width: 104px; height: 104px; } .rTitle { font-size: 26px; }
+  .rCols { grid-template-columns: 1fr; } .rSet { grid-template-columns: 110px 1fr 48px; }
+  .rTimeline { grid-template-columns: repeat(2, 1fr); }
+  .sTop { grid-template-columns: 1fr; } .sBig { font-size: 42px; }
+  .bRow { grid-template-columns: 22px 1.3fr .8fr 64px; } .bRow span:nth-child(4) { display: none; }
+  .actions { width: 100%; } .primary { flex: 1; justify-content: center; } .ghost { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rays, .coin, .coinShine, .tDot, .rCard, .bRow { animation: none !important; }
+}
+
+/* Round 22 · Hard mode's merged end */
+.hardEnd { max-width: 860px; margin: 0 auto; padding: 18px 0 30px; }
+.hardEnd .rCols, .hardEnd .rTimeline { width: 100%; }
+.legendHint { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+
+/* ── Kit v2 (2026-11-08) · the coin, again (batch 24: the coin Cut; the end screen "a B-") ───────────────────────────
+   A struck coin: a reeded rim (the ridged edge of a real coin), a raised inner face with a bevel, our mark embossed,
+   the score engraved, a 3D flip as it is struck, a glint across it, sparkles round a silver or better coin. The stats
+   are chips in black glass with a coloured top edge, the look every Study end screen now shares (lab duo .gem). */
+.coin { width: 188px; height: 188px; overflow: visible; border-radius: 50%; animation: coinStrike 1.1s cubic-bezier(.2, .9, .2, 1.12) both;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--m2) 92%, #000) 0deg 3deg, color-mix(in srgb, var(--m1) 80%, var(--m2)) 3deg 6deg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--m3) 85%, #000), 0 0 0 4px color-mix(in srgb, var(--m1) 45%, transparent), 0 0 60px var(--mglow), 0 22px 40px rgba(0, 0, 0, .65);
+  transform-style: preserve-3d; }
+.coin::before { content: ''; position: absolute; inset: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, var(--m1) 0%, var(--m2) 42%, var(--m3) 100%);
+  box-shadow: inset 0 3px 3px rgba(255, 255, 255, .55), inset 0 -5px 8px rgba(0, 0, 0, .45), 0 0 0 2px color-mix(in srgb, var(--m3) 70%, #000); }
+.coinFace { inset: 24px; z-index: 1; gap: 0;
+  background: radial-gradient(circle at 42% 30%, color-mix(in srgb, var(--m1) 85%, #fff) 0%, var(--m2) 55%, color-mix(in srgb, var(--m3) 80%, #000) 100%);
+  box-shadow: inset 0 -3px 5px rgba(255, 255, 255, .35), inset 0 4px 10px rgba(0, 0, 0, .45); }
+.coinFace img { width: 54px; height: 54px; filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .5)) drop-shadow(0 -1px 1px rgba(0, 0, 0, .45)); }
+.coinFace b { font-size: 38px; margin-top: 2px; color: color-mix(in srgb, var(--m3) 75%, #000); text-shadow: 0 1px 0 rgba(255, 255, 255, .55), 0 -1px 0 rgba(0, 0, 0, .35); }
+.coinShine { z-index: 2; border-radius: 50%; overflow: hidden; }
+.coinStage::after { content: ''; position: absolute; left: 50%; top: 104px; width: 300px; height: 300px; margin: -150px 0 0 -150px; pointer-events: none;
+  background-image: radial-gradient(circle, var(--m1) 0 1.5px, transparent 2px), radial-gradient(circle, var(--m1) 0 1px, transparent 1.5px), radial-gradient(circle, #fff 0 1.2px, transparent 1.8px);
+  background-size: 90px 90px, 60px 60px, 120px 120px; background-position: 10px 20px, 40px 5px, 70px 60px; opacity: 0; animation: sparkle 2.8s ease-in-out .9s infinite; }
+.t_none .coinStage::after, .t_bronze .coinStage::after { display: none; }
+.ribbon { margin-top: -18px; z-index: 3; padding: 9px 30px; font-size: 14px; box-shadow: 0 8px 18px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .5); }
+.hardEnd .tBar { gap: 10px; border: 0; background: none; border-radius: 0; overflow: visible; flex-wrap: wrap; justify-content: center; }
+.hardEnd .tBar span { flex-direction: column; align-items: center; gap: 2px; min-width: 132px; padding: 14px 16px 12px; border-radius: 16px; border: 1px solid #2c2e34;
+  background: linear-gradient(180deg, #1c1d21, #121316); box-shadow: inset 0 3px 0 var(--g), 0 12px 28px rgba(0, 0, 0, .45); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.hardEnd .tBar span + span { border-left: 1px solid #2c2e34; }
+.hardEnd .tBar span:nth-child(2) { box-shadow: inset 0 3px 0 var(--up), 0 12px 28px rgba(0, 0, 0, .45); }
+.hardEnd .tBar span:nth-child(3) { box-shadow: inset 0 3px 0 #ff9a2e, 0 12px 28px rgba(0, 0, 0, .45); }
+.hardEnd .tBar span b { font-size: 28px; letter-spacing: 0; order: -1; }
+.hardEnd .tBar span svg { display: none; }
+@keyframes coinStrike { 0% { transform: perspective(600px) rotateY(-540deg) scale(.3); opacity: 0; } 60% { transform: perspective(600px) rotateY(20deg) scale(1.08); opacity: 1; } 100% { transform: perspective(600px) rotateY(0) scale(1); } }
+@keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(.95); } 50% { opacity: .9; transform: scale(1.05); } }
+@media (max-width: 640px) { .coin { width: 150px; height: 150px; } .coinFace img { width: 42px; height: 42px; } .coinFace b { font-size: 30px; } .hardEnd .tBar span { min-width: 0; flex: 1 1 40%; } }
+@media (prefers-reduced-motion: reduce) { .coin, .coinStage::after { animation: none; } }
+
+/* a mode's own line under the verdict (Blitz: your best; Boss: the chart that took the heart) */
+.tNote { max-width: 56ch; text-align: center; font-size: 15px; line-height: 1.5; color: var(--soft); }
+.tNote b { color: var(--gb, #f0d78c); }
+
+/* the shine sweeps INSIDE the coin (2026-11-08: on the struck coin, whose overflow shows the rim, the moving shine
+   used to slide out as a grey bar beside it); the frame stays still and clips, the band inside it moves */
+.coin .coinShine { transform: none; animation: none; background: none; overflow: hidden; border-radius: 50%; }
+.coin .coinShine::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .5) 48%, transparent 60%);
+  transform: translateX(-120%); animation: shine 3.2s ease-in-out 1s infinite; }
+@media (prefers-reduced-motion: reduce) { .coin .coinShine::after { animation: none; opacity: 0; } }
+
+/* ── THE ARENA end (2026-11-08, "Use some creativity"; the end screen ranked B-): the coin stands on a lit pedestal under
+   a spotlight, and the run's numbers are the start screen's metal-rimmed crests, each with its icon on a gold coin ── */
+.hardEnd .coinStage { padding-bottom: 26px; }
+.spot { position: absolute; left: 50%; top: -70px; width: 360px; height: 330px; margin-left: -180px; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 242, 196, 0), rgba(246, 226, 160, .16) 70%, rgba(246, 226, 160, .05));
+  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); filter: blur(9px); opacity: 0; animation: endSpot 1s ease .9s forwards; }
+.pedestal { position: absolute; left: 50%; bottom: 4px; width: 280px; height: 54px; margin-left: -140px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 35%, rgba(233, 205, 119, .42), rgba(233, 205, 119, .1) 50%, transparent 72%);
+  box-shadow: 0 18px 30px -10px rgba(0, 0, 0, .8); }
+.pedestal::after { content: ''; position: absolute; inset: 14px 30px; border-radius: 50%; border: 1.5px solid rgba(246, 226, 160, .45); filter: blur(.4px); }
+@keyframes endSpot { to { opacity: 1; } }
+.hardEnd .tBar { gap: 14px; margin-top: 8px; }
+.hardEnd .tBar span { position: relative; padding-top: 24px; overflow: visible; border: 1px solid transparent;
+  background: linear-gradient(180deg, #1d1e22, #111215) padding-box, linear-gradient(160deg, #f6e2a0, #7a5d17 38%, #2c2e34 62%, #c9a443) border-box; }
+.hardEnd .tBar span svg { display: block !important; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 28px; height: 28px; padding: 6px; border-radius: 50%;
+  color: #15120a !important; background: radial-gradient(circle at 35% 30%, #fff2c4, #dcbb5e 55%, #8a6a1c); box-shadow: 0 2px 0 #4d390d, 0 6px 14px rgba(0, 0, 0, .6); }
+@media (prefers-reduced-motion: reduce) { .spot { animation: none; opacity: 1; } }

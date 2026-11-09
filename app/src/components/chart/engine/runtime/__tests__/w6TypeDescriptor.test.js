@@ -107,25 +107,30 @@ describe('⭐ the method form reads the receiver\'s own family (`methodNsOf`)', 
     expect(run(build('var a = array.new_float(0)\na.push(close)\nplot(a.size())\n'))[0]).toEqual([1, 2, 3, 4, 5, 6])
   })
   it('a matrix receiver refuses naming `matrix.*`, a map receiver `map.*` — never an `array.*` member', () => {
-    const m = build('var matrix<float> m = na\nplot(m.rows())\n')
+    // ⭐ W6-T7 serves `matrix.rows`, so the method form is ADMITTED under its own family
+    // (an `na` matrix then stops at run, `w6Matrix.test.js`); `matrix.det` is not held.
+    expect(build('var matrix<float> m = na\nplot(m.rows())\n').ok).toBe(true)
+    const m = build('var matrix<float> m = na\nplot(m.det())\n')
     expect(m.ok).toBe(false)
     expect(m.refusal.guard).toBe('runtime:array')
-    expect(m.refusal.message).toContain('`matrix.rows`')
+    expect(m.refusal.message).toContain('`matrix.det`')
     // ⛔ a map's `get` is NOT `array.get`: answered as an array it would be ADMITTED
+    // ⭐ W6-T8 serves `map.*`: each is ADMITTED under the MAP family, and the `na` map then
+    // stops naming the map member (`array.get` would say "the array is `na`")
     const mp = build('var map<string, float> mp = na\nplot(mp.get("a"))\n')
-    expect(mp.ok).toBe(false)
-    expect(mp.refusal.message).toContain('`map.get`')
+    expect(mp.ok).toBe(true)
+    expect(() => run(mp)).toThrow(/`map\.get`: the map is `na`/)
     const st = build('var map<string, float> mp = na\nmp.put("a", close)\nplot(close)\n')
-    expect(st.ok).toBe(false)
-    expect(st.refusal.message).toContain('`map.put`')
+    expect(st.ok).toBe(true)
+    expect(() => run(st)).toThrow(/`map\.put`: the map is `na`/)
     const pm = build('f(map<string, float> m) => m.size()\nplot(f(na))\n')
-    expect(pm.ok).toBe(false)
-    expect(pm.refusal.message).toContain('`map.size`')
+    expect(pm.ok).toBe(true)
+    expect(() => run(pm)).toThrow(/`map\.size`: the map is `na`/)
   })
   it('an alias of a matrix is a matrix', () => {
-    const b = build('var matrix<float> m = na\nm2 = m\nplot(m2.rows())\n')
+    const b = build('var matrix<float> m = na\nm2 = m\nplot(m2.det())\n')
     expect(b.ok).toBe(false)
-    expect(b.refusal.message).toContain('`matrix.rows`')
+    expect(b.refusal.message).toContain('`matrix.det`')
   })
 })
 

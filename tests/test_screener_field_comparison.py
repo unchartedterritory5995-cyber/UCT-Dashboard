@@ -94,6 +94,11 @@ def test_meta_ships_the_pickable_right_hand_sides():
     meta = F.meta()
     fields = meta["comparable_fields"]
     keys = {f["key"] for f in fields}
-    assert keys == set(F.comparable_keys())
+    # 2026-11-07 (UCT RS review fix U6): meta() hides the RS family's dark columns
+    # (bar-derived while RS_V2_ENABLED is off, rating while RS_HISTORY_ENABLED is off);
+    # comparable_keys() stays whole so a stored spec still validates and runs.
+    assert keys == set(F.comparable_keys()) - set(F.rs_dark_keys())
+    # 2026-11-07 (unit 3-11): the Phase 3 family follows RS_V3 as well.
+    assert set(F.rs_dark_keys(v2_on=True, history_on=True, v3_on=True)) == set()
     assert all(f.get("label") and f.get("category") for f in fields)
     assert set(meta["column_ops"]) == set(F.COL_OPS)

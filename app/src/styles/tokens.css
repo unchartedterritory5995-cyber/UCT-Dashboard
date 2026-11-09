@@ -509,8 +509,9 @@
      ⭐ ASSIGNED BY HOW FAR BACK A SURFACE SITS AND HOW MUCH MOVING DATA IT MUST SUPPRESS, which
      is the table `w4-material-plan.md` D1 specifies:
        coach mark  lightest — it sits on its own dimmed ground; heavy blur there is wasted cost
-       chip        light    — a readout, read WHILE the thumb moves, so it must stay crisp
-       bubble      14px     — set in pass 1, and it is the one surface that also animates
+       chip        none     — B4 (2026-11-07): an opaque --bg-elevated plate, not glass, so the
+                              readout stays crisp over anything; `--hub-blur-chip` retired with it
+       bubble      14px    — set in pass 1, and it is the one surface that also animates
        pad         medium   — the instrument's own surface, the reference the rest is judged by
        actions     medium   — the no-drag door, at rest over live data
        edge tab    heaviest — a 12x36px sliver needs the MOST separation per pixel to read as a
@@ -525,7 +526,6 @@
      control; varying it per surface would make the hub's pieces disagree about how saturated
      the world behind them is, which reads as an inconsistency rather than as depth. */
   --hub-blur-coach: 10px;
-  --hub-blur-chip: 12px;
   --hub-blur-bubble: 14px;
   --hub-blur-surface: 18px;
   --hub-blur-sliver: 24px;
