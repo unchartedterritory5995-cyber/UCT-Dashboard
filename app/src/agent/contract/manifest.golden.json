@@ -6059,6 +6059,45 @@
    "shape": null
   },
   {
+   "name": "chartSetup.setPosition",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Open ONE chart's Position Calculator with an entry, stop and target (the toolbar's Position tool): it sizes the trade from the calculator's account size and risk %. Not saved. Undo puts it back.",
+   "hints": "Prices as the member said them; target null = left empty. Account size / risk %: chart.setSetting positionCalc.*.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "entry": {
+      "type": "number"
+     },
+     "stop": {
+      "type": "number"
+     },
+     "target": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "entry",
+     "stop",
+     "target"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartSetup.setMovingAverages",
    "domain": "chartSetup",
    "target": "chart",

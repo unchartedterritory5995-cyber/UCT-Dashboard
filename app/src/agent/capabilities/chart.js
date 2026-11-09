@@ -281,6 +281,8 @@ export function viewDone(meta, { op, arg }) {
   // C1-025: the price scale reads back as auto again; its Undo, as the exact scale it replaced
   if (op === 'autoScale') return meta.priceAuto === true
   if (op === 'restoreScale') return sameScale(meta.priceScale, arg)
+  // C1-144: the Position Calculator open (or closed) with exactly those three prices
+  if (op === 'setPosition') return !!meta.position && !!meta.position.open === (arg?.open !== false) && samePosition(meta.position, arg)
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
@@ -288,6 +290,7 @@ export const frameWidth = (f) => (f && Number.isFinite(f.fromRight) && Number.is
 // C1-025: the dragged pin and LWC's own auto flag exactly; the range only when LWC is not auto-fitting (auto re-fits to live bars)
 const sameScale = (a, b) => !!a && !!b && !!a.manual === !!b.manual && sameJson(a.pin ?? null, b.pin ?? null) && !!a.auto === !!b.auto
   && (b.auto || (!!a.range && !!b.range && Math.abs(a.range.from - b.range.from) < 1e-6 && Math.abs(a.range.to - b.range.to) < 1e-6))
+const samePosition = (a, b) => ['entry', 'stop', 'target'].every(k => (a?.[k] ?? null) === null ? (b?.[k] ?? null) === null : Number.isFinite(b?.[k]) && Math.abs(a[k] - b[k]) < 1e-9)
 const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
@@ -431,6 +434,8 @@ export const chartKind = {
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
       else if ((op === 'applyRange' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
       else if (op === 'autoScale' && item.before.view?.priceScale) p.viewDo = { op: 'restoreScale', arg: item.before.view.priceScale }
+      // C1-144: the calculator as it was — its three prices, and closed again if it was closed
+      else if (op === 'setPosition' && item.before.view?.position) p.viewDo = { op, arg: { ...item.before.view.position } }
       else return null
     }
     return p
@@ -463,6 +468,7 @@ export const chartKind = {
     // a range's Undo is stale once the member panned or zoomed off it
     ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null)
       : item.patch.viewDo.op === 'zoom' ? frameWidth(snap.view?.frame) : item.patch.viewDo.op === 'autoScale' ? snap.view?.priceAuto === true
+      : item.patch.viewDo.op === 'setPosition' ? JSON.stringify(snap.view?.position ?? null)
       : !!snap.view?.indicatorsHidden] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).

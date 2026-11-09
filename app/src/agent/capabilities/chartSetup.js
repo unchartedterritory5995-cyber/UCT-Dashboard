@@ -332,6 +332,43 @@ export function registerChartSetupCapabilities() {
     noop: (b, a, { hidden } = {}) => (hidden ? 'Indicators are already hidden on this chart' : 'Indicators are already showing on this chart'),
   })
 
+  // ── C1-144 (pl-exec): the Position Calculator's entry / stop / target — the toolbar's Position tool, its three inputs. A VIEW
+  // like the panel itself (nothing is saved; the old Position DRAWING is retired and is never made). Done only when the chart
+  // reads the calculator back open with those prices; Undo puts its prices back, and closes it again if it was closed.
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.setPosition',
+    summary: 'Open ONE chart\'s Position Calculator with an entry, stop and target (the toolbar\'s Position tool): it sizes the trade from the calculator\'s account size and risk %. Not saved. Undo puts it back.',
+    hints: 'Prices as the member said them; target null = left empty. Account size / risk %: chart.setSetting positionCalc.*.',
+    args: { type: 'object', properties: { entry: { type: 'number' }, stop: { type: 'number' }, target: { type: ['number', 'null'] } }, required: ['entry', 'stop', 'target'], additionalProperties: false },
+    check(st, { entry, stop, target }) {
+      if (!st.view) return NOT_READY
+      if (!st.view.position) return 'I can\'t reach the Position Calculator on this chart from here — open it from the chart toolbar (Position).'
+      const prices = [entry, stop, ...(target == null ? [] : [target])]
+      if (!prices.every(Number.isFinite)) return 'The Position Calculator takes prices as numbers.'
+      if (!prices.every(x => x > 0)) return 'Prices in the Position Calculator have to be above zero, so I left it as it was.'
+      if (entry === stop) return 'The entry and the stop are the same price, so there is no risk per share to size from — I left the calculator as it was.'
+      if (target != null && !((stop < entry && entry < target) || (target < entry && entry < stop))) {
+        return 'The entry has to sit between the stop and the target (a long: stop below, target above; a short: the other way round), or the calculator shows the trade as invalid — so I left it as it was.'
+      }
+      return null
+    },
+    apply(st, { entry, stop, target }) {
+      const now = st.view?.position
+      const want = { open: true, entry, stop, target: target ?? null }
+      if (now?.open && now.entry === want.entry && now.stop === want.stop && (now.target ?? null) === want.target) return st
+      return { ...st, viewDo: { op: 'setPosition', arg: want } }
+    },
+    describe(b, a) {
+      const p = a.viewDo?.op === 'setPosition' ? a.viewDo.arg : null
+      if (!p) return null
+      const side = p.target == null ? '' : p.target > p.entry ? ' — a long' : ' — a short'
+      const r = p.target == null ? '' : `, ${(Math.abs(p.target - p.entry) / Math.abs(p.entry - p.stop)).toFixed(2)}R to the target`
+      return `Opened the Position Calculator on this chart: entry ${p.entry}, stop ${p.stop}${p.target == null ? ', no target' : `, target ${p.target}`}${side}${r}. It sizes from its own account size and risk % (not saved)`
+    },
+    noop: () => 'The Position Calculator already shows those prices',
+  })
+
   registerCapability({
     ...chartCommon,
     name: 'chartSetup.setMovingAverages',

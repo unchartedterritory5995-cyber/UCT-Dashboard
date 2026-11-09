@@ -5924,6 +5924,9 @@ export default function StockChart({
   const activeToolRef = useRef(activeTool)
   activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
+  // UCT Agent C1-144: mirrored for getDateMeta (a closure that is not re-created on every render), as activeToolRef is
+  const positionToolRef = useRef(positionTool)
+  positionToolRef.current = positionTool
   const positionPriceLines = useRef([])
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color || UCT_DRAW_GOLD)
   // THE COLOUR FOLLOWS THE USER'S SAVED DEFAULT AND NOTHING ELSE.
@@ -19858,6 +19861,8 @@ export default function StockChart({
       // range — so auto-scale's Undo can put back precisely what it replaced; priceAuto = no pin and LWC auto-fitting
       priceAuto: !priceManualRef.current && _ps?.auto !== false,
       priceScale: _ps,
+      // UCT Agent C1-144: the Position Calculator as the member sees it (open = its toolbar tool is armed; the three prices)
+      position: positionNow(),
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
       fullyLoaded: barCount === _fullTarget,
@@ -19913,6 +19918,20 @@ export default function StockChart({
       else ps?.setVisibleRange({ from: s.range.from, to: s.range.to })   // LWC turns its autoScale off itself
     } catch { /* disposed */ }
   }
+  // UCT Agent C1-144: the Position Calculator (toolbar → Position): open, and its entry / stop / target as numbers (null = empty)
+  const positionNow = () => {
+    const n = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null }
+    const p = positionToolRef.current || {}
+    return { open: activeToolRef.current === 'position', entry: n(p.entry), stop: n(p.stop), target: n(p.target) }
+  }
+  // ...filled as its own three inputs fill it (strings; '' = empty), opened or closed as its toolbar button / × do. Its Undo
+  // is the same call with the calculator as positionNow read it.
+  const setPositionView = (arg) => {
+    if (!arg) return
+    const s = (v) => (Number.isFinite(v) ? String(v) : '')
+    setPositionTool(p => ({ ...p, entry: s(arg.entry), stop: s(arg.stop), target: s(arg.target) }))
+    if (arg.open === false) { if (activeToolRef.current === 'position') setActiveTool(null) } else setActiveTool('position')
+  }
   // UCT Agent C1-025: the price axis back on auto, exactly as its own double-click releases a dragged (manual) scale
   const autoScaleView = () => {
     try {
@@ -19923,7 +19942,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, zoom: zoomView, autoScale: autoScaleView, restoreScale: restoreScaleView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, zoom: zoomView, autoScale: autoScaleView, restoreScale: restoreScaleView, setPosition: setPositionView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
