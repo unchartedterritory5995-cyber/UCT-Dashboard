@@ -20,6 +20,9 @@
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
 // walkthrough they reach (a rule) or by id (an override). A case with no given runs on the plain board.
 
+import { withListRefs } from '../../../agent/guide/listRefs.js'
+import { FIXTURE_WATCHLISTS } from '../fixtureWatchlists.js'
+const FIXTURE_NAMES = FIXTURE_WATCHLISTS.map(l => l.name).sort((a, b) => b.length - a.length)
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const GROUPS = { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' }
 const SCAN = { key: 'highest-volume-1y', name: 'Highest Volume In 1-Year' }
@@ -58,6 +61,8 @@ const NEEDS_ALERTS = (c) => /^(Seeing your alerts|Deleting an alert|Sending Aler
 
 export function givenFor(c) {
   const g = {}
+  // words that name one of the member's own lists ("add NVDA to Momentum"): the harness's fixture lists are on (?watchlists=1)
+  if (withListRefs(c.say || '', FIXTURE_NAMES) !== (c.say || '')) g.lists = true
   if (NEEDS_DRAWING(c)) g.drawing = drawingFor(c)
   if (NEEDS_ALERTS(c)) g.alerts = [{ sym: 'SPY', target_price: 200, direction: 'above' }, { sym: 'NVDA', target_price: 150, direction: 'below' }]
   // every Multi Chart row: the grid's own flyout shows its saved-grid controls only while the board IS a grid
@@ -149,7 +154,7 @@ export function fixturesFor(g) {
 }
 
 /** Harness query flags a given needs (agentHarness.jsx reads them on load). */
-export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : ''].filter(Boolean).join('&')
+export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : '', g.lists ? 'watchlists=1' : ''].filter(Boolean).join('&')
 
 export function boardFor(g) {
   const widgets = BOARDS[g.board || 'plain']

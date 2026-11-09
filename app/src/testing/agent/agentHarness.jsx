@@ -13,6 +13,7 @@
 // with ?say= (default "hide volume") so the REAL VoiceInputButton runs.
 
 import { createRoot } from 'react-dom/client'
+import { FIXTURE_WATCHLISTS } from './fixtureWatchlists'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import '../../index.css'
@@ -100,11 +101,8 @@ let layoutSeq = 100
 const WATCHLISTS = params.get('watchlists') === '1'
 let wlSeq = 0
 const wlRow = (id, name, syms, notes = {}) => ({ id, user_id: 1, name, description: '', is_public: 0, items: syms.map(sym => ({ id: `${id}-i${++wlSeq}`, watchlist_id: id, sym, notes: notes[sym] || '', sort_order: wlSeq })) })
-const WL = WATCHLISTS ? [
-  wlRow('m1', 'Momentum', ['NVDA', 'TSLA', 'META', 'AAPL'], { TSLA: 'earnings 10/22' }),
-  wlRow('s1', 'Swing', ['MSFT']),
-  wlRow('l1', 'Long Term', []),
-] : []
+// the fixture lists live in fixtureWatchlists.js (the guide's routing probe and runner read the same names)
+const WL = WATCHLISTS ? FIXTURE_WATCHLISTS.map(l => wlRow(l.id, l.name, l.syms, l.notes)) : []
 const PREFS = {
   charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }),
   charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: 'AAPL', D: 'MSFT' }),

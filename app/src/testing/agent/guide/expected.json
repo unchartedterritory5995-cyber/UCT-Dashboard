@@ -1590,5 +1590,10 @@
   "feature": "watchlistAction",
   "title": "A saved watchlist look",
   "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: ⚙ → Templates in the widget’s settings panel)"
+ },
+ "C3-085": {
+  "feature": "watchlistAction",
+  "title": "Reordering a list’s columns",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: drag a column’s title onto another in the Charts widget)"
  }
 }

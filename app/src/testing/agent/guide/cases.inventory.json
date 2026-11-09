@@ -1512,6 +1512,12 @@
   "title": "Deleting a watchlist"
  },
  {
+  "id": "C3-076",
+  "say": "show me how to add NVDA to Momentum",
+  "feature": "watchlistAddSymbol",
+  "title": "Adding a ticker to a watchlist"
+ },
+ {
   "id": "C3-077",
   "say": "how do I add to Flagged",
   "feature": "watchlistAction",
@@ -1524,10 +1530,46 @@
   "title": "Flagging a ticker"
  },
  {
+  "id": "C3-079",
+  "say": "show me how to remove NVDA from Momentum",
+  "feature": "watchlistAction",
+  "title": "Removing a ticker from a list"
+ },
+ {
   "id": "C3-082",
-  "say": "show me how to sort my watchlist by RVOL",
+  "say": "how do I sort by a column",
   "feature": "watchlistAction",
   "title": "Sorting a list"
+ },
+ {
+  "id": "C3-083",
+  "say": "how do I show or hide a column",
+  "feature": "watchlistAction",
+  "title": "Choosing a list’s columns"
+ },
+ {
+  "id": "C3-085",
+  "say": "how do I reorder columns by drag",
+  "feature": "watchlistAction",
+  "title": "Reordering a list’s columns"
+ },
+ {
+  "id": "C3-086",
+  "say": "how do I resize a column",
+  "feature": "control",
+  "title": "Resizing a list’s column"
+ },
+ {
+  "id": "C3-087",
+  "say": "how do I reset columns",
+  "feature": "control",
+  "title": "Resetting a list’s columns"
+ },
+ {
+  "id": "C3-088",
+  "say": "how do I write or edit a ticker note",
+  "feature": "watchlistAction",
+  "title": "A note on a ticker"
  },
  {
   "id": "C3-098",

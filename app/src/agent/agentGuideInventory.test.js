@@ -9,6 +9,7 @@
 // right control is judged by hand from the report and in the browser — a probe hit is not VERIFIED. The phrasings are the
 // inventory's own, so this is the TUNING set; the held-out set is agentGuideHeldOut*.test.js.
 import { describe, it, expect, beforeAll } from 'vitest'
+import { FIXTURE_WATCHLISTS } from '../testing/agent/fixtureWatchlists'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -46,7 +47,9 @@ function teachStatus() {
   return m
 }
 
-const route = (q) => getCapability('guide.show').fast({ raw: q, host: { surface: 'charts' } })
+// the member's own lists are the browser harness's fixture lists (testing/agent/fixtureWatchlists.js), read as a store would be
+const LISTS = FIXTURE_WATCHLISTS.map(l => ({ id: l.id, name: l.name, items: l.syms.map(sym => ({ sym })) }))
+const route = (q) => getCapability('guide.show').fast({ raw: q, host: { surface: 'charts', watchlists: { snapshot: () => LISTS } } })
 const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1)
 function probe(q) {
   const got = route(q)
