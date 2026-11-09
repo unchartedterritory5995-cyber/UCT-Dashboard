@@ -11,7 +11,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  /* One gap on all four sides: the window fills the screen less this margin. */
+  padding: 20px;
 }
 
 /* The panel takes programmatic focus on open (tabIndex -1) so the dialog is
@@ -24,8 +25,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 1600px;
-  height: 96vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
