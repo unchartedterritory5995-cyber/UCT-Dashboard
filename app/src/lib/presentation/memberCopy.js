@@ -47,12 +47,13 @@ export function memberSentence(s) {
 
 /** ⭐ THE ONE LIST of guard-id namespaces (`<ns>:<id>`). There is no guard registry in the
  *  engine: ids are string literals across the lanes (`pine:`, `runtime:`, `thinkscript:`, `pcf:`,
- *  ...). Measured 2026-11-08 by grepping every `guard: '<ns>:` literal under app/src; add a
+ *  ...). Measured 2026-11-08 (r4: the drift rail in attachedPineDisclosures.noGuardIds.test.jsx now enforces it) by grepping every `guard: '<ns>:` literal under app/src; add a
  *  namespace HERE when a lane mints a new one. The member rail
  *  (attachedPineDisclosures.noGuardIds.test.jsx) builds its pattern from this same list. */
 export const GUARD_NAMESPACES = Object.freeze([
   'pine', 'runtime', 'strategy', 'enum', 'thinkscript', 'pcf', 'canonicalise', 'objects', 'alert',
   'import', 'other-symbol', 'request', 'let', 'picker', 'budget', 'resolve', 'probe', 'engine', 'bind',
+  'consumer', 'presentation', 'sentence', 'chart', 'lower-tf', 'object', 'scan',
 ])
 
 const NS = GUARD_NAMESPACES.join('|')
@@ -78,5 +79,5 @@ export function withoutGuardIds(s) {
     .replace(LEADING_IN_PAREN, '(')
     .replace(BACKTICKED, '')
     .replace(/\s*\(\s*\)/g, '')
-  return t === s ? s : t.replace(/^\s+/, '')
+  return t === s ? s : t.trim()
 }
