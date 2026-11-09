@@ -66,4 +66,7 @@ Also on this branch (test only): `agentGuideHeldOutRowColumn.test.js` ("the bott
 No. Goldens are unchanged.
 
 ## Suite
-SUITE_PLACEHOLDER (waits for a lock slot from the Lead).
+One locked full suite (`src/agent`, BelowNormal, LOCAL / SIMULATED) at `4fb05f4cef`: `Test Files 1 failed | 272 passed | 5 skipped (278)`, `Tests 3 failed | 9401 passed | 14 skipped (9418)`.
+- **The 3 failures:** the 3 held-out cov-3 misses described above. They failed because the held-out file asserted what it named.
+- **Follow-up commit:** the next commit records them as misses, asserting what each reaches today. The rows themselves are unchanged. Targeted run of that file: 21/21.
+- **No second suite** was run, per the Lead's one-run rule. Every other file passed.
