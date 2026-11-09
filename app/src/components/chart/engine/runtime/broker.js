@@ -324,7 +324,8 @@ export function makeBroker(cfg, data) {
    *  open the other side?): refused, W9-X4. */
   const fillOrder = (o, price, bar, exact) => {
     entries = entries.filter((e) => e !== o)
-    rule('B-ORDER')
+    // B-ORDER was asked when this order was PLACED (`placeOrder`); every fill here is of a placed order,
+    // so it is not asked twice (integration review N1: one ask, mutation-provable)
     if (!open.length || open[0].dir === o.dir) {
       const t = openTrade(o, price, bar, exact, false)
       ocaAfterFill(o, o.qty)

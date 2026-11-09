@@ -146,6 +146,12 @@ pinned) or a named refusal.**
 
 **Two rulings on the merged T6 + T7 tree (coordinator, 2026-11-08):**
 - Several FULL exit commands on one trade keep S1's behaviour (each fills if its level is reached first) while B-EXIT-QTY is unpinned; the reservation reading (a second full exit gets nothing) is taken only once B-EXIT-QTY is pinned. A partial size has no S1 behaviour and always asks B-EXIT-QTY.
+  ⛔ **Pinning B-EXIT-QTY CHANGES what an already-served script does** (a second full exit stops filling),
+  not only what was refused. Its pin landing therefore takes its OWN `SCRIPT_ENGINE_VERSION` bump (rule 7),
+  never batched with a pin that only un-refuses, so the re-translation and the HP-1 digests move for exactly
+  that change (integration review N3, 2026-11-08). The S1 behaviour it replaces is witnessed by capture row
+  Q-S1-core-2x (`w9-q-s1core-two-exits.pine`, the second-called exit reached first), which joins Q-S1-core's
+  fixtures for B-EXIT-BIND (integration review N2).
 - The T7 kinds (trailing stop, partial exit or close, OCA, `strategy.order`, stop-limit, `immediately`) were built on the default timing only: under `process_orders_on_close` they stop by name (W9-P1), under `calc_on_order_fills` (W9-P2). No capture combines the two yet.
 
 Left as they were (named refusals; their capture rows gate T7 per the design): Q-S1d (several orders on
