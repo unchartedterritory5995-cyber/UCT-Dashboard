@@ -1125,12 +1125,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // TradingView's collector may have removed objects this chart still holds
   // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
   // same note.
-  const publishDrops = (instanceId, state, families = null) => {
+  // ⭐ DIV-3 r2 — `why`: family → the member's sentence, for a family the HOST run
+  // withheld whole by a named guard of its own (`objectRuntime.js`, `withheldWhy`:
+  // a `table.cell` on a merged head cell). Said in the same note, never a silent drop.
+  const publishDrops = (instanceId, state, families = null, why = null) => {
     const n = state ? renderDroppedCount(state) : 0
     const fams = Array.isArray(families) ? families : []
-    if (!n && !fams.length && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams))
-    if (n || fams.length) dropsPublished.add(instanceId)
+    const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
+    if (!n && !fams.length && !whyN && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams, why))
+    if (n || fams.length || whyN) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
@@ -1378,7 +1382,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
-      publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null)
+      publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null,
+        built.value.run.withheldWhy || null)
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {

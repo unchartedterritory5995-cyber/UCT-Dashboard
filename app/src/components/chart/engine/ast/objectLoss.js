@@ -476,7 +476,10 @@ export const DRAWING_NOTE_NAME = 'Drawings'
 export function withRenderDrops(note, drops) {
   const n = drops && Number.isInteger(drops.dropped) ? drops.dropped : 0
   const fams = drops && Array.isArray(drops.families) ? drops.families : []
-  if (n <= 0 && !fams.length) return note || null
+  // ⭐ DIV-3 r2 — a family the run withheld whole by a named guard, with its own sentence
+  const why = drops && drops.why && typeof drops.why === 'object'
+    ? Object.keys(drops.why).sort().map((f) => drops.why[f]).filter((t) => typeof t === 'string' && t) : []
+  if (n <= 0 && !fams.length && !why.length) return note || null
   const parts = note ? [note.note] : []
   if (n > 0) {
     const of = drops.held >= n ? drops.held : n
@@ -487,6 +490,7 @@ export function withRenderDrops(note, drops) {
   }
   // ⭐ W-C22-DEL — a family withheld whole, by name (`collectorFamiliesSentence`).
   if (fams.length) parts.push(collectorFamiliesSentence(fams))
+  for (const t of why) parts.push(t)
   return { name: (note && note.name) || DRAWING_NOTE_NAME, note: parts.join(' ') }
 }
 
