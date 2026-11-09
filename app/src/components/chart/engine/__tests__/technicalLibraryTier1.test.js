@@ -155,8 +155,11 @@ describe('3 — seven Technical categories, every row in exactly one, in a fixed
       'Volatility & Bands': 12,
       'Volume & Money Flow': 12,
       VWAP: 2,
-      'Relative Strength': 3,
-      'Levels & Statistics': 1,
+      // ⭐ Review finding U7 (2026-11-06, pulled forward from Phase 2a): `% From MA`
+      // and `52-Week High/Low` are price-LEVEL studies, not relative strength — a
+      // member opening the Relative Strength heading sees the ONE row that is RS.
+      'Relative Strength': 1,
+      'Levels & Statistics': 3,
     })
   })
   it('orderCategories puts the Technical headings first, in order, whatever order they arrive', () => {

@@ -212,10 +212,11 @@ describe(`${DECISION_ID} — the ET-session anchor is PINNED`, () => {
     const def = engineRegistry.getDefinition('vwap')
     expect(def.compute.rev, `${DECISION_ID} was reverted without updating its record`).toBe(2)
     expect(def.version, 'a numbers change must not be filed as a presentation change').toBe(1)
-    // It is the only definition off the shared rev, which is the claim the
-    // registry comment makes and the thing that would rot silently.
+    // Off the shared rev: vwap, and since 2026-11-06 the UCT RS definition `rsLine`
+    // (server lane, migrated through alert_rev_migration.ADDRESS_REVS). Asserted as
+    // the WHOLE set so a third, unmigrated bump still goes red here.
     const offRev = engineRegistry.listDefinitions()
       .filter(d => d.compute.rev !== 1).map(d => d.id)
-    expect(offRev).toEqual(['vwap'])
+    expect(offRev).toEqual(['vwap', 'rsLine'])
   })
 })

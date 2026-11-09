@@ -19,6 +19,9 @@
   overflow: hidden;
 }
 .paneGrow { flex: 1 1 auto; }
+/* The list widget under a Scan Deck rail header takes the rest of the pane. */
+.paneFill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.paneFill > * { flex: 1 1 auto; min-height: 0; }
 
 /* 6px hit area, 2px visible rule on hover — matching the grid's margin so the
    seam sits where a /charts widget gap would. */
@@ -74,3 +77,14 @@
   .board[data-pane='list'] .paneChart { display: none; }
   .board[data-pane='chart'] .paneList { display: none; }
 }
+
+/* Scan Deck (hosted): list and chart are ONE panel. No gap, no second
+   frame: one canvas (the chart's, --drill-canvas from the modal) under both,
+   split by a single hairline that is also the resize handle. */
+.boardHosted { padding: 0; gap: 0; background: var(--drill-canvas, var(--bg)); }
+.boardHosted .pane { background: var(--drill-canvas, var(--bg)); }
+.boardHosted .pane [class*='widgetMerged'] { border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+/* The watchlist emits its own --wl-bg inline; in the drill it follows the chart. */
+.boardHosted .paneList * { --wl-bg: var(--drill-canvas, var(--bg)) !important; }
+.boardHosted .divider { flex-basis: 1px; background: var(--border); overflow: visible; }
+.boardHosted .divider::after { inset: 0 -4px; border-radius: 0; }

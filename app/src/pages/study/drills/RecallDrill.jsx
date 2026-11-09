@@ -17,8 +17,9 @@
  */
 import { useEffect, useRef } from 'react'
 import ChoiceList, { revealLabels } from './ChoiceList'
-import { choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
+import { brandWords, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
+import { lineAnnotations } from '../lineChoices'
 
 const TF = ['True', 'False']
 
@@ -45,7 +46,7 @@ function choicesFor(item) {
  *  it above the choices, before the question. */
 function Quote({ text }) {
   if (!text) return null
-  return <blockquote className={styles.quote} data-testid="prompt-quote">{text}</blockquote>
+  return <blockquote className={styles.quote} data-testid="prompt-quote">{brandWords(text)}</blockquote>
 }
 
 function FillSentence({ sentence, value }) {
@@ -175,4 +176,10 @@ export function choicesOf(item) {
   return kind === 'fill_numeric' || kind === 'fill_text' ? [] : choicesFor(item)
 }
 
-export default { Body, answerFromState, isAnswerable, choicesOf }
+/** "Which line is ...?" items draw their labelled lines on the question and the reveal (lineChoices.js); any other
+ *  recall item draws nothing. */
+export function annotationsFor(state, item, reveal, bars) {
+  return lineAnnotations(item, bars, reveal || null)
+}
+
+export default { Body, answerFromState, isAnswerable, choicesOf, annotationsFor }

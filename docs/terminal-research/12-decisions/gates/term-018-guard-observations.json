@@ -1274,6 +1274,42 @@
         ],
         "note": "web, 06:00 ET daily; registered beside the 03:00 nightly and self-gates on SCREENER_SNAPSHOT_ENABLED (default on). No flag state is asserted here."
       }
+    },
+    {
+      "guard": "api/main.py::_alert_if_rs_history_short::<computed>::warning",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a nightly UCT RS rating-history run that fell short (more than 20% of targets unrated, nothing rated, or the job crashed) raises an operator warning under rs_history_short:{session}, while a full receipt raises nothing. Added 2026-11-06 with the rs_history_nightly job (UCT Relative Strength Phase 2a, unit 2a-04); the job is dark behind RS_HISTORY_ENABLED, read per call.",
+      "predicate": {
+        "file": "api/main.py",
+        "scope": "_alert_if_rs_history_short",
+        "pinned": "if not why:",
+        "mutation": "if why:"
+      },
+      "observed_by": [
+        "tests/test_screener_schedule.py::test_on_it_calls_nightly_job_ONCE_with_defaults_and_alerts_ONCE_on_a_30pct_shortfall",
+        "tests/test_screener_schedule.py::test_a_full_receipt_raises_no_alert",
+        "tests/test_screener_schedule.py::test_the_job_never_raises_and_a_crash_still_alerts_under_todays_key"
+      ],
+      "proof": {
+        "commit": "1f6811b1f",
+        "quote": "mutating `if not why:` -> `if why:` in _alert_if_rs_history_short turns 3 tests red"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "rs_history_nightly"
+          },
+          {
+            "file": "api/main.py",
+            "call": "register_screener_jobs"
+          }
+        ],
+        "note": "web, the 04:15 ET rs_history_nightly cron registered unconditionally in register_screener_jobs; the job function returns before any work unless RS_HISTORY_ENABLED is literally 1 (per call). No flag state is asserted here."
+      }
     }
   ],
   "declared_unobserved": []

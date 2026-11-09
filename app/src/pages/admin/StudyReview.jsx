@@ -783,6 +783,7 @@ export default function StudyReview() {
                     priceLines={priceLines}
                     annotations={annotations}
                     annotationsVisible={!!annotations}
+                    annotationsTextVisible={!!annotations}
                   />
                 </div>
                 <p className={styles.strip}>

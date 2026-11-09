@@ -75,12 +75,41 @@ export function makeTy(kind, { elem = null, key = null, name = null, declaredOnl
  *                              `map<string, float>` → ['string', 'float'])
  * @param {{udtTypes?: {has: Function}, enums?: {has: Function}}} [opts]
  */
+/** ⛔ HONESTY-SWEEP item 5 (2026-11-07) — the WRITTEN number word (`int` / `float`) of a `num`
+ *  descriptor made from a type word. This lane has ONE number type (`num`), so the word rides
+ *  BESIDE the descriptor (a WeakMap on its identity), never in its shape: every `num` stays
+ *  `{kind:'num'}` to every reader and rail. Read only by `collectionNumWordsConflict`. */
+const NUM_WORD = new WeakMap()
+export const numWordOf = (ty) => (ty && typeof ty === 'object' && NUM_WORD.get(ty)) || null
+
+/** Do two COLLECTION types hold numbers of DIFFERENT written words (`array<int>` where
+ *  `array<float>` is declared, or a map's key / value)? Only when both words are known. A
+ *  scalar `int` passed to a `float` is NOT asked here (Pine converts it). */
+export function collectionNumWordsConflict(want, got) {
+  if (!want || !got || want.kind !== got.kind) return false
+  if (want.kind !== 'array' && want.kind !== 'matrix' && want.kind !== 'map') return false
+  const inner = (a, b) => {
+    if (!a || !b) return false
+    if (a.kind === 'num' && b.kind === 'num') {
+      const x = numWordOf(a)
+      const y = numWordOf(b)
+      return !!(x && y && x !== y)
+    }
+    return collectionNumWordsConflict(a, b)
+  }
+  return inner(want.elem || null, got.elem || null) || inner(want.key || null, got.key || null)
+}
+
 export function tyOfTypeWord(word, typeArgs, opts = {}) {
   const w = String(word == null ? '' : word)
   const args = Array.isArray(typeArgs) ? typeArgs : []
   const { udtTypes = null, enums = null } = opts
   switch (w) {
-    case 'float': case 'int': return makeTy('num')
+    case 'float': case 'int': {
+      const t = makeTy('num')
+      NUM_WORD.set(t, w)
+      return t
+    }
     case 'bool': return makeTy('bool')
     case 'string': return makeTy('text')
     case 'color': return makeTy('colour')

@@ -1,0 +1,15 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_T15_LOG_MALFORMED", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row W4-T15-c
+// (docs/pine/capture-queue-2026-11-05-w4-t15-t17.md). NEVER COMPILED ON TRADINGVIEW.
+// `log.info` with a MALFORMED format string (an unclosed `{0`) on every bar. Does TradingView stop
+// the script with a runtime error (then record its text and the bar it names, and whether A00 is
+// drawn), or draw A00 on every bar and only log? Read the Pine Logs pane too.
+// The runtime lane does not evaluate the arguments and draws A00 everywhere.
+// CHART: the row names none (the queue marks it NEEDS_CHART). Inputs at defaults.
+
+log.info("close {0", close)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close, "A01_close_CONTROL")

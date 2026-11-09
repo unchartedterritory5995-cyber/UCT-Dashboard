@@ -1097,11 +1097,17 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
 def call_series(f: Any, bars: list, params: Mapping, *, tf: Optional[str] = None,
                 sym: Optional[str] = None) -> Any:
     """⭐ THE ONE CALL SHAPE for an alert value function or column: a runtime plot takes
-    the timeframe and the symbol (the run reads both), a plot reading another symbol the
-    timeframe (`_symbol_bars`), every other the bars and params alone. The two evaluator
-    lanes and `diagnose` call through here, and the prefill does for a runtime plot, so
-    none can hand a runtime plot a call without the symbol it runs on."""
+    the timeframe and the symbol (the run reads both), a builtin column that reads a
+    BENCHMARK (`alert_rs_series`, `fn.reads_benchmark`) the timeframe and the symbol too
+    (the benchmark is resolved per symbol, at the alert's own timeframe), a plot reading
+    another symbol the timeframe (`_symbol_bars`), every other the bars and params alone.
+    The two evaluator lanes and `diagnose` call through here, and the prefill does for a
+    runtime plot, so none can hand a runtime plot a call without the symbol it runs on."""
     if getattr(f, "runtime_plot", None) is not None:
+        return f(bars, params, tf=tf, sym=sym)
+    # ⭐ 2026-11-06 (RS 2b-04) -- the two-symbol lane. Without tf and sym the column
+    # answers no value (closed lane only), so this branch is what lets it fire at all.
+    if getattr(f, "reads_benchmark", False):
         return f(bars, params, tf=tf, sym=sym)
     if getattr(f, "reads_symbols", None):
         return f(bars, params, tf=tf)
