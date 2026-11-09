@@ -17,6 +17,7 @@ import { unseen8 } from './families/unseen8.mjs'
 import { unseen9 } from './families/unseen9.mjs'
 import { unseen10 } from './families/unseen10.mjs'
 import { unseen11 } from './families/unseen11.mjs'
+import { unseen12 } from './families/unseen12.mjs'
 
 export function publicRequests() {
   const L = []
@@ -112,6 +113,13 @@ export function unseen11Requests() {
   const L = []
   unseen11(L)
   return L.map(r => ({ ...r, set: 'unseen11' }))
+}
+
+/** Batch 12, RELATIONS III (2026-11-09): rows, columns, line ordinals, possessives, placement and "next door", written before any run and without reading deixis.js or #988's tests. */
+export function unseen12Requests() {
+  const L = []
+  unseen12(L)
+  return L.map(r => ({ ...r, set: 'unseen12' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
