@@ -111,6 +111,10 @@ and A1 ("A is good").
 - A10. Total open risk and position size by market condition are guides that vary, not hard caps.
 - A11. Sell some into strength and trail the rest under the rising averages.
 - A12. Plan every trade as Entry, Stop, Trim, Trail, Advance.
+- A13. "I almost never take a loss greater than 3%": the stop usually sits within about 3% of the buy (a loss on
+  the position, not the account). (Confirmed 2026-11-09: "3, yes.")
+- A14. Read a chart in percents: how far a stock is off its highs and how far it is stretched above its averages.
+  (Confirmed 2026-11-09: "3, yes.")
 
 **B. Added**
 - B13. At a 15% drawdown, stop opening new trades and review before trading again. ("13, good.")
@@ -121,8 +125,9 @@ and A1 ("A is good").
   month. ("16 no But a monthly loss limit of 8%." Asked what happens when it is hit: "monthly limit, yes.")
 - B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14). ("17, only
   drawdown rule in terms of %.")
-- B18. A market filter decides when the account trades. ("18, yes there is a market filter for sure yes.") Its
-  definition is still to come from the owner.
+- B18. A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).
+  ("18, yes there is a market filter for sure yes."; asked if it is the app's reading: "2, yes.") What each reading
+  changes is a guide, not a hard cap (A10).
 - B19. Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is **a third at 3R**; ideally
   anywhere from 3R to 6R, and in practice he mostly waits for 5R. ("19 breakeven stop at 2-5R ideally.First trim at
   3-6R ideally." Then: "New trims rules are what I like for hard rule can say trim 1/3 at 3R but I rarely actually
@@ -146,8 +151,7 @@ and A1 ("A is good").
   and long"): Bracco's "The Parabolic Short" (https://unchartedterritoryy.substack.com/p/the-parabolic-short), the
   "parabolic burst", a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days
   of range expansion, two days of rising volume, and a gap up on the climax day; the more boxes checked, the stronger.
-  The post has no parabolic long; the long is taken as the mirror image (a burst down), pending his confirmation.
+  The post has no parabolic long; the long is the mirror image, a burst down (confirmed: "1, yes.").
 - B27. Journal every trade the same day and review the week every weekend, ideally. ("27, ideally yes..")
 
-**Still open:** the market filter's definition (B18); that a parabolic long is the mirror of Bracco's parabolic short
-(B26); whether "I almost never take a loss greater than 3%" and "read charts in percents" belong in A.
+**Still open:** nothing from the 2026-11-09 list. Further account and approach rules may be added below.
