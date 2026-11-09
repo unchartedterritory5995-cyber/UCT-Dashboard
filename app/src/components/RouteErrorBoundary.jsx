@@ -16,7 +16,11 @@ import { subscribePopouts, hasOpenPopouts } from '../lib/popoutRegistry'
 // the board on the other monitor dies with it, so the key stands still for as long as a window is
 // open. With no window open it is exactly the pathname, as it has always been. After the last
 // window closes the key stays until the next navigation, so the close does not remount the page
-// the member is reading. A real error still clears on the next navigation.
+// the member is reading.
+//
+// A held key can equal the path the member goes back to, so the key alone cannot be what clears an
+// error screen. `resetKey` is: any change of pathname clears a caught error, and does nothing at all
+// to a healthy tree (ErrorBoundary only acts on it while it is showing its fallback).
 function useBoundaryKey() {
   const { pathname } = useLocation()
   const windowOpen = useSyncExternalStore(subscribePopouts, hasOpenPopouts)
@@ -37,9 +41,11 @@ function useBoundaryKey() {
 
 export default function RouteErrorBoundary({ children }) {
   const key = useBoundaryKey()
+  const { pathname } = useLocation()
   return (
     <ErrorBoundary
       key={key}
+      resetKey={pathname}
       // A deploy that lands while a tab is open deletes the chunk filenames
       // that tab still believes in, so a lazy import 404s and lands here on an
       // app that is perfectly healthy. Reload once instead of blaming the page;

@@ -50,7 +50,7 @@ async function renderAt(route) {
     </MemoryRouter>,
   )
   await settle()
-  if (route === '/charts') await waitFor(() => expect(screen.getByTestId('workspace')).toBeTruthy(), { timeout: 10000 })
+  if (route.toLowerCase().startsWith('/charts')) await waitFor(() => expect(screen.getByTestId('workspace')).toBeTruthy(), { timeout: 10000 })
   return view
 }
 const go = (to) => act(async () => { navigate(to) })
@@ -65,6 +65,11 @@ describe('ChartsDeskHost', () => {
     await go('/dashboard')
     expect(screen.queryByTestId('workspace'), 'with nothing popped it unmounts as today').toBeNull()
     expect(counters.unmounts).toBe(1)
+  })
+
+  it.each(['/Charts', '/CHARTS', '/charts/', '/Charts/'])('%s is the Charts page: React Router matches it, so the host must too', async (route) => {
+    await renderAt(route)
+    expect(screen.getByTestId('workspace').dataset.hidden, 'a blank page where the workspace used to be').toBe('n')
   })
 
   it('a pop-out open elsewhere does not mount a workspace on a page that never had one', async () => {

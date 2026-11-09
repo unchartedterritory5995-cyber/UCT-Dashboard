@@ -20,7 +20,8 @@ import { importChartsWorkspace } from './chartsWorkspaceImporter'
 
 const ChartsWorkspace = lazy(importChartsWorkspace)
 
-const isChartsPath = (pathname) => pathname === '/charts' || pathname === '/charts/'
+// Case-insensitive because React Router's matching is: /Charts resolves to the /charts route.
+const isChartsPath = (pathname) => /^\/charts\/?$/i.test(pathname)
 
 /** The /charts route element: routing still resolves, and the host owns what shows. */
 export function ChartsRouteSlot() { return null }
