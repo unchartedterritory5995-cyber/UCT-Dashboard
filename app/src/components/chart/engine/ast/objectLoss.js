@@ -234,6 +234,16 @@ export function classifyDropKey(key) {
     const kind = k.slice('guard:'.length)
     return Object.prototype.hasOwnProperty.call(GUARD_KINDS, kind) ? GUARD_KINDS[kind] : UNCLASSIFIED
   }
+  // ⛔ W9-OQ-N2 — `strategy:<op kind>`: a drawing step a broker value reaches, withheld BY NAME
+  // (`guardRefusals` carries `pine:strategy-call` and the word). Its class is the class of the op
+  // it would have been, exactly as for `guard:<kind>`: a withheld create is a missing object, a
+  // withheld delete (only one RUN under a tainted condition) leaves the object Pine deletes.
+  if (k.startsWith('strategy:')) {
+    const kind = k.slice('strategy:'.length)
+    return Object.prototype.hasOwnProperty.call(GUARD_KINDS, kind)
+      ? { cls: GUARD_KINDS[kind].cls, why: `a drawing step a \`strategy.*\` value reaches (${kind}), withheld by name: the broker is not simulated` }
+      : UNCLASSIFIED
+  }
   if (k.startsWith('fn:')) {
     const why = k.slice('fn:'.length)
     return Object.prototype.hasOwnProperty.call(FN_REFUSALS, why) ? FN_REFUSALS[why] : UNCLASSIFIED

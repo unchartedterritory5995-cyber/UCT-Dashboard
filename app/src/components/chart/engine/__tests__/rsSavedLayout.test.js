@@ -46,8 +46,8 @@ const V1_VERSIONED = Object.freeze({ ...V1, defVersion: 1, hidden: false })
 const DEFAULT_LINE_COLOUR = '#6ba3be'
 
 describe('the stored v1 instance {benchmark: QQQ, color: #4ECDC4, lineWidth: 2}', () => {
-  it('is the v4 definition it instantiates: version 4, `color` still declared, `lineColor` not', () => {
-    expect(def.version).toBe(4)
+  it('is the current definition it instantiates: version 5 (round 2), `color` still declared, `lineColor` not', () => {
+    expect(def.version).toBe(5)
     const keys = new Set(def.inputs.map((i) => i.key))
     for (const k of Object.keys(V1.inputs)) expect(keys.has(k), `v1 key "${k}" must still be declared`).toBe(true)
     expect(keys.has('lineColor')).toBe(false)
