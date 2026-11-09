@@ -55,7 +55,7 @@ PLANS = {
     },
     "setup.family3.hve": {
         "entry": "the high-volume close",
-        "stop": "the edge bar's low",
+        "stop": "the edge bar's low (its high on a down close)",
         "trail": None,
         "trim": "the first return to the high-volume close, often weeks later, is the cleanest decision point",
         "source": "uct_hve.py",

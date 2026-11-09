@@ -1,7 +1,8 @@
 /* TRADE STORY: the pieces the kit has no part for (docs/study/GAMES.md §1 rule 1). The replay's stop is the kit's
    (study.module.css .replayPause, the card Hard mode's replay stops on), the levels are the chart key's rows
    (chartKey.module.css), the working is the coach card's numbered steps. Only these are new: three calls in one row
-   instead of two, the position line under the chart, and the trade's calls listed at its end. On the kit's tokens
+   instead of two, the position line under the chart, the trade's calls listed at its end, and the neutral look of a call
+   the plan leaves to the member. On the kit's tokens
    (study.module.css .kit: --k-gold-bright, --k-ink, --k-ink-soft, --k-ink-dim, --k-line, --k-plate, --k-glass, --k-up,
    --k-down) and the colours the takeover and the end screen already wear. */
 
@@ -29,6 +30,13 @@
 
 /* the plan's levels: the chart key's rows, standing on their own under the position line */
 .planKey { margin-top: 0; border-top: 1px solid var(--k-line); border-radius: 16px; }
+/* the post-gap high is drawn dotted on the chart, so its swatch is too */
+.planKey .dot > i { border-top-style: dotted !important; }
+
+/* a call the plan leaves to the member (the first return to the high-volume close, until the owner rules): the gold the
+   key's entry row wears, never the green or red of a verdict */
+.yours { background: rgba(220, 187, 94, .08); border: 1px solid rgba(220, 187, 94, .4); }
+.yours b { color: #e9cd77; }
 
 /* ── the trade, start to finish: each stop with the plan's call, its R, and what was said on a miss ──────────────── */
 .result { scroll-margin-top: 12px; }
@@ -40,6 +48,8 @@
 .callMark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #0c0c0e; }
 .call.ok .callMark { background: var(--k-up); }
 .call.miss .callMark { background: var(--k-down); color: #fff; }
+.call.free { border-color: rgba(220, 187, 94, .4); background: rgba(220, 187, 94, .06); }
+.call.free .callMark { background: var(--k-gold-bright); }
 .callText { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 15px; line-height: 1.35; color: var(--k-ink); }
 .callText small { font-size: 13px; color: var(--k-ink-dim); }
 .callR { font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); white-space: nowrap; }

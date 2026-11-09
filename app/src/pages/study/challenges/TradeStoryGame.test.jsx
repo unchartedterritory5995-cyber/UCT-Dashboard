@@ -31,7 +31,7 @@ vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: { cha
 
 import TradeStoryGame, { GAME } from './TradeStoryGame'
 import { UICON_NAMES } from '../../../components/ui/UIcon'
-import { EMPTY_LINE, FAILED_LINE, TRAIL_RULE } from './games/tradeStory'
+import { EMPTY_LINE, FAILED_LINE, HVC_NOTE, PGH_NOTE, TRAIL_RULE } from './games/tradeStory'
 
 const day = (i) => new Date(Date.UTC(2025, 0, 2) + i * 86400000).toISOString().slice(0, 10)
 const mk = (i, o, h, l, c) => ({ t: day(i), o, h, l, c, v: 1000 })
@@ -52,6 +52,11 @@ const LP_FWD = [
 // a High Volume Edge: no trail named; the stop trades on day 2
 const HV_PLAN = { ...LP_PLAN, skill: 'setup.family3.hve', trail: null, entry_note: 'the high-volume close', stop_note: "the edge bar's low", source: 'uct_hve.py' }
 const HV_FWD = [mk(30, 10, 10.2, 9.7, 9.9), mk(31, 9.8, 9.85, 9.4, 9.45)]
+// the Gap Support chart: 70 quiet days at 10.00 on 1,000 shares, the gap day (3,000 shares), the run, the pullback, the test
+const mkv = (i, o, h, l, c, v) => ({ t: day(i), o, h, l, c, v })
+const GS_VIS = [...Array.from({ length: 70 }, (_, i) => mkv(i, 9.95, 10.05, 9.9, 10.0, 1000)),
+  mkv(70, 10.6, 10.9, 10.55, 10.85, 3000), mkv(71, 10.85, 11.4, 10.8, 11.3, 1500), mkv(72, 11.3, 11.6, 11.2, 11.5, 1500),
+  mkv(73, 11.5, 11.55, 11.0, 11.05, 1200), mkv(74, 11.05, 11.1, 10.6, 10.65, 1200), mkv(75, 10.6, 10.7, 10.1, 10.6, 1400)]
 
 const CHARTS = {
   lp1: { skill: 'setup.family1.launchpad', sym: 'NVDA', plan: LP_PLAN, fwd: LP_FWD, first: 3, lesson: 'Launchpad: the averages pinch together, then price closes out of the cluster. Here the close cleared all three.' },
@@ -64,6 +69,21 @@ const CHARTS = {
   // a Gap Support: its trail is a judgment the bars cannot place, so what is left stays on the plan's stop
   gs1: { skill: 'setup.family3.gap_support', sym: 'META', first: 3, lesson: 'Gap Support: the gap holds and the stock closes over it.', fwd: LP_FWD,
     plan: { ...LP_PLAN, skill: 'setup.family3.gap_support', trail: 'if it drifts sideways at the gap, a tighter stop just under the gap top', entry_note: 'the close, as the gap holds', stop_note: 'the gap top or the day\'s low, whichever is lower' } },
+  // a Gap Support the real detector fires on (games/tradeStory.test.js, checked against uct_gap_support.py): the gap on
+  // day 70, the run's high 11.60 on day 72, the test and entry on day 75; then the post-gap high on day 2, 2R on day 3, 3R
+  // on day 4, the stop on day 6
+  gs2: { skill: 'setup.family3.gap_support', sym: 'META', first: 3, lesson: 'Gap Support: the gap holds and the stock closes over it.', vis: GS_VIS,
+    plan: { skill: 'setup.family3.gap_support', direction: 'bullish', entry: 10.6, stop: 10.05, t1: 11.7, t2: 12.25, enters_intraday: false,
+      entry_note: 'the close, as the gap holds', stop_note: 'the gap top or the day\'s low, whichever is lower', trim_note: PGH_NOTE,
+      trail: 'if it drifts sideways at the gap, a tighter stop just under the gap top', source: 'uct_gap_support.py' },
+    fwd: [mk(76, 10.6, 10.9, 10.4, 10.8), mk(77, 10.8, 11.65, 10.75, 11.5), mk(78, 11.5, 11.8, 11.3, 11.75), mk(79, 11.75, 12.3, 11.6, 12.2),
+      mk(80, 12.2, 12.4, 11.9, 12.0), mk(81, 12.0, 12.1, 9.9, 10.0)] },
+  // a High Volume Edge: day 2 closes over the 10.00 high-volume close, day 4 comes back to it, day 5 hits the stop
+  hv3: { skill: 'setup.family3.hve', sym: 'AMD', plan: { ...HV_PLAN, trim_note: HVC_NOTE }, first: 3, lesson: 'High Volume Edge.',
+    fwd: [mk(30, 10.0, 10.3, 9.9, 9.95), mk(31, 9.95, 10.4, 9.8, 10.3), mk(32, 10.3, 10.6, 10.2, 10.5), mk(33, 10.5, 10.55, 9.98, 10.1), mk(34, 10.1, 10.2, 9.45, 9.5)] },
+  // the same, never back to the stop: the only call is the member's own
+  hv4: { skill: 'setup.family3.hve', sym: 'AMD', plan: { ...HV_PLAN, trim_note: HVC_NOTE }, first: 2, lesson: 'High Volume Edge.',
+    fwd: [mk(30, 10.0, 10.3, 9.9, 10.2), mk(31, 10.2, 10.4, 9.98, 10.3), mk(32, 10.3, 10.6, 10.2, 10.5)] },
 }
 
 function makeFetcher({ posts = [], pools = [], ids = ['lp1', 'hv1'], xpStart = 990, failAttempt = new Set(), failRun = null, poolError = null, stepHangs = false } = {}) {
@@ -75,7 +95,7 @@ function makeFetcher({ posts = [], pools = [], ids = ['lp1', 'hv1'], xpStart = 9
       pools.push(opts.body)
       if (poolError) { const e = poolError(); if (e) throw e }
       return { session_id: 'sess-story', items: ids.map((id) => ({ id, type: 'spot', skill_id: CHARTS[id].skill, prompt_json: { q: 'Does the setup fire on the last bar?', choices: ['Yes', 'No'] },
-        bars: { symbol: id, tf: 'D', bars: VIS }, look: { real: LAST, lookalikes: [] } })) }
+        bars: { symbol: id, tf: 'D', bars: CHARTS[id].vis || VIS }, look: { real: (CHARTS[id].vis || VIS).length - 1, lookalikes: [] } })) }
     }
     if (url === '/api/study/attempts') {
       posts.push({ url, body: opts.body })
@@ -481,5 +501,152 @@ describe('TradeStoryGame', () => {
     await waitFor(() => expect(screen.getByTestId('story-level')).toBeInTheDocument())
     expect(posts.filter((p) => p.url === '/api/study/attempts')).toHaveLength(1)
     expect(posts.filter((p) => p.url === '/api/study/game-runs').map((p) => p.body)).toEqual([{ kind: 'story', run_id: expect.any(String), right: 1, total: 1 }])
+  })
+
+  it('stops at the Gap Support\'s post-gap high before 2R: its line from the start, its row in the key, the working, and the log', async () => {
+    reduce()
+    const posts = []
+    await begin(makeFetcher({ posts, ids: ['gs2'] }))
+    fireEvent.click(tile('Gap Support'))
+    fireEvent.click(screen.getByTestId('story-check'))
+    expect(await screen.findByTestId('story-entry-sub')).toHaveTextContent('META · Bought at 10.60 · stop 10.05 · 5.2% risk')
+    fireEvent.click(screen.getByTestId('story-entry-go'))
+
+    // the post-gap high (11.60, the run's high after the gap) is drawn with the plan's levels, dotted, from the start
+    await waitFor(() => expect(q()).toBe('Price just traded up to the post-gap high, 11.60. What do you do?'))
+    expect(bars()).toBe(76 + 2)
+    expect(screen.getByTestId('story-stop')).toHaveTextContent('The replay stops · Post-gap high')
+    expect(screen.getByTestId('story-stop').getAttribute('data-at')).toBe('pgh')
+    expect(chart().getAttribute('data-lines').split('|')).toEqual(['hard-ENTRY', 'hard-STOP', 'hard-2R', 'hard-3R', 'story-PGH'])
+    expect(chart().getAttribute('data-marks')).toBe('BOUGHT|POST-GAP HIGH')
+    const row = screen.getByTestId('story-plan').querySelector('[data-row="Post-gap high"]')
+    expect(row).toHaveTextContent('11.60')
+    expect(row).toHaveTextContent('The post-gap high is the first place to take some off')
+    expect(row).toHaveTextContent('reached on day 2')
+    expect(screen.getByTestId('story-plan')).not.toHaveTextContent('reached on day 3')
+
+    // Hold is a miss: the plan's call takes the screen, then the working on the plan's prices
+    fireEvent.keyDown(window, { key: '1' })
+    expect(screen.getByTestId('story-miss')).toHaveTextContent('Take some off')
+    expect(screen.getByTestId('story-miss-why')).toHaveTextContent('At the post-gap high the plan takes some off. It names the level, not how much to sell.')
+    fireEvent.click(screen.getByTestId('story-miss-go'))
+    expect(screen.getByTestId('story-step-level-pgh')).toHaveTextContent('The post-gap high: 11.60, the highest price from the gap day through the entry day.')
+    expect(screen.getByTestId('story-step-fill-pgh')).toHaveTextContent('At 11.60: (11.60 − 10.60) ÷ 0.55 = +1.8R.')
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    // then 2R, 3R and the stop, as before
+    await waitFor(() => expect(q()).toBe('2R just traded, at 11.70. What do you do?'))
+    fireEvent.click(screen.getByTestId('story-call-trim')); fireEvent.click(screen.getByTestId('story-go'))
+    await waitFor(() => expect(q()).toBe('3R just traded, at 12.25. What do you do?'))
+    fireEvent.click(screen.getByTestId('story-call-trim')); fireEvent.click(screen.getByTestId('story-go'))
+    await waitFor(() => expect(q()).toBe('Price just traded down through your stop, 10.05. What do you do?'))
+    fireEvent.click(screen.getByTestId('story-call-all'))
+    expect(screen.getByTestId('story-go')).toHaveTextContent('See the trade')
+    fireEvent.click(screen.getByTestId('story-go'))
+
+    await screen.findByTestId('story-result')
+    expect(screen.getByTestId('story-result-title')).toHaveTextContent('3 of 4 calls on the plan.')
+    const rows = within(screen.getByTestId('story-result-calls')).getAllByRole('listitem')
+    expect(rows.map((r) => r.getAttribute('data-ok'))).toEqual(['0', '1', '1', '1'])
+    expect(rows[0]).toHaveTextContent('Post-gap high · Take some off')
+    expect(rows[0]).toHaveTextContent('day 2 · you said hold')
+    expect(rows[0]).toHaveTextContent('+1.8R')
+    expect(screen.getByTestId('story-mine')).toHaveTextContent('Some off at 2R and 3R. The rest out at −1.0R on the stop.')
+    expect(screen.getByTestId('story-plan-exits')).toHaveTextContent('Some off at the post-gap high, 2R and 3R. The rest out at −1.0R on the stop.')
+    fireEvent.click(screen.getByTestId('story-next'))
+
+    await screen.findByTestId('story-done')
+    const log = within(screen.getByTestId('run-log')).getAllByRole('listitem')
+    expect(log).toHaveLength(4)
+    expect(log[0]).toHaveTextContent('Post-gap high · Take some off')
+    expect(log[0]).toHaveTextContent('you said hold')
+    expect(screen.getByTestId('story-right')).toHaveTextContent('3/4')
+    expect(screen.getAllByTestId('story-end-trade')[0]).toHaveTextContent('META · Gap Support: some off at 2R and 3R. The rest out at −1.0R on the stop.')
+    expect(screen.queryByTestId('story-end-yours')).toBeNull()
+    await waitFor(() => expect(posts.filter((p) => p.url === '/api/study/game-runs').map((p) => p.body)).toEqual([{ kind: 'story', run_id: expect.any(String), right: 3, total: 4 }]))
+  }, 15000)
+
+  it('stops at the High Volume Edge\'s first return as the member\'s own call: no score, the plan\'s words and stop, and said at the end (StrictMode)', async () => {
+    reduce()
+    const posts = []
+    render(<StrictMode><TradeStoryGame fetcher={makeFetcher({ posts, ids: ['hv3'] })} onClose={() => {}} /></StrictMode>)
+    const go = screen.getByTestId('story-start')
+    await waitFor(() => expect(go).not.toBeDisabled())
+    fireEvent.click(go)
+    fireEvent.click(tile('High Volume Edge'))
+    fireEvent.click(screen.getByTestId('story-check'))
+    fireEvent.click(await screen.findByTestId('story-entry-go'))
+
+    // day 2 closed over the 10.00 high-volume close; day 4 is back at it
+    await waitFor(() => expect(q()).toBe('Price just came back to the high-volume close, 10.00. What do you do?'))
+    expect(bars()).toBe(N + 4)
+    expect(screen.getByTestId('story-stop')).toHaveTextContent('The replay stops · High-volume close')
+    expect(chart().getAttribute('data-marks')).toBe('BOUGHT|FIRST RETURN')
+    // the high-volume close is the entry line itself: named in the key, never drawn twice
+    expect(chart().getAttribute('data-lines').split('|')).toEqual(['hard-ENTRY', 'hard-STOP', 'hard-2R', 'hard-3R'])
+    const row = screen.getByTestId('story-plan').querySelector('[data-row="High-volume close"]')
+    expect(row).toHaveTextContent('10.00')
+    expect(row).toHaveTextContent('The first return to the high-volume close, often weeks later, is the cleanest decision point. It is the entry line.')
+    expect(row).toHaveTextContent('back on day 4')
+
+    // the member's call: no takeover, neither right nor wrong, the plan's words, its stop, the working
+    fireEvent.keyDown(window, { key: '2' })
+    expect(screen.queryByTestId('story-miss')).toBeNull()
+    expect(screen.getByTestId('story-stop').getAttribute('data-state')).toBe('yours')
+    expect(screen.getByTestId('story-call-trim').getAttribute('data-state')).toBe('sel')
+    expect(screen.getByTestId('story-call-hold').getAttribute('data-state')).toBe('quiet')
+    expect(screen.getByTestId('story-why')).toHaveTextContent("Your call. The plan calls the first return to the high-volume close the cleanest decision point, and leaves the call to you. The stop is still under it, at 9.50, the edge bar's low. You took some off at 0.0R. This one is not scored.")
+    expect(screen.getByTestId('story-step-return')).toHaveTextContent('It closed over it on day 2, and day 4 came back to it.')
+    expect(screen.getByTestId('story-step-call')).toHaveTextContent('The plan calls this the cleanest decision point and leaves the call to you.')
+    fireEvent.keyDown(window, { key: '3' })                                            // a second key moves nothing
+    expect(screen.getByTestId('story-call-trim').getAttribute('data-state')).toBe('sel')
+    expect(screen.getByTestId('story-position-word')).toHaveTextContent('Some off')
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    await waitFor(() => expect(q()).toBe('Price just traded down through your stop, 9.50. What do you do?'))
+    expect(screen.getByTestId('story-stop-where')).toHaveTextContent('You took some off at the high-volume close. The rest is still on.')
+    fireEvent.keyDown(window, { key: '3' })
+    expect(screen.getByTestId('story-stop').getAttribute('data-state')).toBe('ok')
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    await screen.findByTestId('story-result')
+    expect(screen.getByTestId('story-result-title')).toHaveTextContent('On the plan.')
+    const rows = within(screen.getByTestId('story-result-calls')).getAllByRole('listitem')
+    expect(rows.map((r) => r.getAttribute('data-ok'))).toEqual(['free', '1'])
+    expect(rows[0]).toHaveTextContent('High-volume close · Your call')
+    expect(rows[0]).toHaveTextContent('day 4 · the plan leaves this one to you · you said take some off')
+    expect(rows[0]).toHaveTextContent('0.0R')
+    expect(screen.getByTestId('story-mine')).toHaveTextContent('Some off at the high-volume close. The rest out at −1.0R on the stop.')
+    expect(screen.getByTestId('story-plan-exits')).toHaveTextContent('Out at −1.0R on the stop.')
+    fireEvent.keyDown(window, { key: 'Enter' })
+
+    const done = await screen.findByTestId('story-done')
+    expect(screen.getByTestId('story-right')).toHaveTextContent('1/1')
+    expect(within(screen.getByTestId('run-log')).getAllByRole('listitem').map((x) => x.textContent)).toEqual([expect.stringContaining('Stop · Sell the rest')])
+    expect(screen.getByTestId('story-end-yours')).toHaveTextContent('AMD · High Volume Edge: the first return to the high-volume close, day 4, was a decision point the plan leaves to you. You took some off at 0.0R.')
+    await waitFor(() => expect(screen.getByTestId('story-level')).toBeInTheDocument())
+    expect(posts.filter((p) => p.url === '/api/study/game-runs').map((p) => p.body)).toEqual([{ kind: 'story', run_id: expect.any(String), right: 1, total: 1 }])
+    expect(done.textContent).not.toMatch(/[—–]|\bfirm\b|NaN|undefined/i)
+  }, 15000)
+
+  it('a run whose only call was the member\'s own reports nothing and says so', async () => {
+    reduce()
+    const posts = []
+    const fetcher = makeFetcher({ posts, ids: ['hv4'] })
+    await begin(fetcher)
+    fireEvent.click(tile('High Volume Edge'))
+    fireEvent.click(screen.getByTestId('story-check'))
+    fireEvent.click(await screen.findByTestId('story-entry-go'))
+    await waitFor(() => expect(q()).toBe('Price just came back to the high-volume close, 10.00. What do you do?'))
+    fireEvent.click(screen.getByTestId('story-call-hold'))
+    expect(screen.getByTestId('story-go')).toHaveTextContent('Keep playing')
+    fireEvent.click(screen.getByTestId('story-go'))
+    await screen.findByTestId('story-result')
+    expect(screen.getByTestId('story-result-title')).toHaveTextContent('Your call on this one, not scored.')
+    fireEvent.click(screen.getByTestId('story-next'))
+    await screen.findByTestId('story-done')
+    expect(screen.getByTestId('story-right')).toHaveTextContent('0/0')
+    expect(screen.getByTestId('story-end-yours')).toHaveTextContent('was a decision point the plan leaves to you. You held.')
+    expect(fetcher.mock.calls.some(([u]) => u === '/api/study/game-runs')).toBe(false)
   })
 })

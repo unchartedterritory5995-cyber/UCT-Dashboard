@@ -13,12 +13,16 @@
 //
 // THE TRADE is the reveal's plan (api/services/study_trade.py; docs/study/TRADE_PLANS.md): the entry, the stop, the
 // targets at 2R and 3R, drawn on the chart as Hard mode draws them, with the trail's line added once it trails. The replay
-// STOPS only where the plan defines a decision (games/tradeStory.js: 2R, 3R, the stop trading, the trail breaking) and
-// holds there (the run-on is asked for no further than the next stop, so it waits under reduced motion too, and never
-// shows a candle past a decision before it is made). Hold, Take some off, or Sell the rest. A call on the plan flashes and
-// says why; a miss takes over the screen with the plan's call, then "See the working" opens the working on the plan's own
-// prices and the rule it comes from. Between stops nothing is asked. The chart's marks and the plan key only ever show
-// what has already happened.
+// STOPS only where the plan defines a decision (games/tradeStory.js: 2R, 3R, the Gap Support's post-gap high, the High
+// Volume Edge's first return to the high-volume close, the stop trading, the trail breaking) and holds there (the run-on
+// is asked for no further than the next stop, so it waits under reduced motion too, and never shows a candle past a
+// decision before it is made). Hold, Take some off, or Sell the rest. A call on the plan flashes and says why; a miss
+// takes over the screen with the plan's call, then "See the working" opens the working on the plan's own prices and the
+// rule it comes from. Between stops nothing is asked. The chart's marks and the plan key only ever show what has already
+// happened. The post-gap high is a dotted green line from the start (a plan level, like the targets); the high-volume
+// close IS the entry line, so the key names it there. The first return is a call the owner has not ruled on
+// (HVE_RETURN_CALL): until he does, it asks, says the plan's words and its stop, shows the working, and is neither right
+// nor wrong (no flash, no takeover, not in the calls, the log or the XP; the end screen says it was the member's call).
 //
 // THE END of each trade lists every stop with the plan's call and its R, the member's exits beside the plan's, each at its
 // own R: the plan names the levels, not how much to sell at each, so no fraction is invented and no single R is claimed
@@ -39,10 +43,11 @@ import { RUN_ON_MS, hardAnswer, hardRight, idSeed, replayView } from './hardMode
 import { alignTicks, developing, fetchIntraday, showChart } from './replayTicks'
 import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import {
-  ACTIONS, EMPTY_LINE, ENTRY_DETAIL, ENTRY_Q, EXIT_NOTE, FAILED_LINE, NOTHING_TRADED, NOT_SCORED, NO_PLAN, START_LEAD, STORY_KIND,
-  STORY_SOURCE, STORY_TOTAL, STORY_VIEW, STORY_VIEW_PHONE, actionLabel, bankLine, callsOf, entryChoices, entryTitle, exitsOf, exitsText,
-  levelAfter, logRows, namedLine, planExits, planLine, planOk, poolItems, positionLine, positionWord, px, questionOf, rAt, rText, riskPct,
-  runIdOf, stopAt, stopTag, storyKeys, storyOf, storyVerdict, tally, tradeLine, tradeOk, tradeTitle, trailAt, trailMeasured, whyOf, workingOf,
+  ACTIONS, EMPTY_LINE, ENTRY_DETAIL, ENTRY_Q, EXIT_NOTE, FAILED_LINE, GAP_SUPPORT, HVE, HVE_RETURN_CALL, NOTHING_TRADED, NOT_SCORED, NO_PLAN,
+  START_LEAD, STORY_KIND, STORY_SOURCE, STORY_TOTAL, STORY_VIEW, STORY_VIEW_PHONE, actionLabel, bankLine, callsOf, entryChoices,
+  entryTitle, exitsOf, exitsText, freeCalls, isFree, legsOf, levelAfter, logRows, namedLine, planExits, planLine, planOk, poolItems,
+  positionLine, positionWord, postGapHigh, px, questionOf, rAt, rText, riskPct, runIdOf, stopAt, stopTag, storyKeys, storyOf, storyVerdict,
+  tally, tradeLine, tradeOk, tradeTitle, trailAt, trailMeasured, trimNote, whyOf, workingOf, yoursLines,
 } from './games/tradeStory'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { normalizeBars, studyFetch } from '../useStudySession'
@@ -72,11 +77,15 @@ const POOL_URL = '/api/study/spot-setup'
 const GAME_RUNS_URL = '/api/study/game-runs'
 const GOLD_SOFT = '#f6e2a0'   // the line colour Draw it draws the member's own entry in
 const RED = '#ef5350'         // tradeMarks' STOPPED
+const GREEN = '#2faf68'       // tradeMarks' targets: the post-gap high is a place to take some off, like them
+const GOLD = '#dcbb5e'        // tradeMarks' ENTRY: the high-volume close is the entry
 const NONE = []
 const into = (el) => { try { el?.scrollIntoView?.({ block: 'nearest' }) } catch { /* an old engine without options */ } }
 /** An R's colour follows the number printed: green for a plus, red for a minus, plain for a 0.0R. */
 const rTone = (r) => { const t = rText(r); return t.startsWith('+') ? g.up : t.startsWith('−') ? g.down : '' }
 const typing = (e) => !!e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)
+const capFirst = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t)
+const dayOf = (p) => (p.session === 0 ? 'the entry day' : `day ${p.session}`)
 
 /** Under the chart while the trade runs: where the member stands, where the price is in R, and the stop in force. */
 function PositionBar({ word, r, stop }) {
@@ -90,12 +99,14 @@ function PositionBar({ word, r, stop }) {
 }
 
 /** The plan's levels in the chart key's rows (ui/ChartKey's look): each line, its price, why it sits there in the plan's
- *  own words, and a status only once the replay has reached it. */
-function PlanKey({ plan, story, k, name }) {
+ *  own words, and a status only once the replay has reached it. The trim the plan names is a row of its own: the post-gap
+ *  high (the dotted green line) or the high-volume close (the entry line itself). */
+function PlanKey({ plan, story, k, name, gapHigh }) {
   const long = story ? story.long : plan.direction !== 'bearish'
   const pts = story?.points || NONE
-  const at = (id) => pts.find((p) => p.id === id && k >= p.session) || null
-  const day = (p) => (p.session === 0 ? 'the entry day' : `day ${p.session}`)
+  // a level reached so far (a post-gap high on a target's bar is one stop with both)
+  const at = (id) => pts.find((p) => legsOf(p).some((l) => l.id === id) && k >= p.session) || null
+  const day = dayOf
   const t1 = at('t1'), t2 = at('t2'), stopHit = at('stop'), trailHit = at('trail')
   const now = story ? stopAt(story, plan, k) : { kind: 'stop', level: plan.stop, low: null }
   const rows = [
@@ -104,6 +115,19 @@ function PlanKey({ plan, story, k, name }) {
     { tone: 'green', name: '2R', price: px(plan.t1), why: 'the first target, twice the risk', status: t1 ? { ok: true, text: `reached on ${day(t1)}` } : null },
     { tone: 'green', name: '3R', price: px(plan.t2), why: 'the second target, three times the risk', status: t2 ? { ok: true, text: `reached on ${day(t2)}` } : null },
   ]
+  const note = capFirst(trimNote(plan))
+  if (plan.skill === GAP_SUPPORT) {
+    const level = gapHigh?.level
+    const watched = story?.pgh != null
+    const hit = at('pgh')
+    rows.push({ tone: 'green', dot: true, name: 'Post-gap high', price: Number.isFinite(level) ? px(level) : '',
+      why: Number.isFinite(level) && !watched ? `${note}. Here it is not over the entry, so the replay does not stop there.` : note,
+      status: hit ? { ok: true, text: `reached on ${day(hit)}` } : null })
+  } else if (plan.skill === HVE) {
+    const back = at('hvc')
+    rows.push({ tone: 'gold', name: 'High-volume close', price: px(plan.entry), why: `${note}. It is the entry line.`,
+      status: back ? { ok: true, text: `back on ${day(back)}` } : null })
+  }
   if (plan.trail) {
     rows.push({ tone: 'soft', name: 'Trail', price: now.kind === 'trail' ? px(now.level) : '',
       // the plan's own words; a trail the bars cannot place (the Gap Support's) is said, and not applied
@@ -114,7 +138,7 @@ function PlanKey({ plan, story, k, name }) {
     <div className={`${ck.key} ${g.planKey}`} role="list" aria-label="The plan's levels" data-testid="story-plan">
       <span className={ck.head}>The plan · {name}</span>
       {rows.map((r) => (
-        <div key={r.name} role="listitem" className={`${ck.row} ${ck[r.tone]}`}>
+        <div key={r.name} role="listitem" className={`${ck.row} ${ck[r.tone]} ${r.dot ? g.dot : ''}`} data-row={r.name}>
           <i className={ck.swatch} aria-hidden="true" />
           <b className={ck.name}>{r.name}</b>
           <span className={ck.price}>{r.price}</span>
@@ -129,18 +153,22 @@ function PlanKey({ plan, story, k, name }) {
 }
 
 /** THE REPLAY STOPS: the kit's replay card (Hard mode's), with the three calls. After a call the tiles show the plan's,
- *  the why reads under them, and a miss also shows the working; the card brings itself, then its why, into view. */
+ *  the why reads under them, and a miss also shows the working; the card brings itself, then its why, into view. At a
+ *  point the plan leaves to the member the pick is simply marked as theirs, and the plan's words and the working read
+ *  under it, neither right nor wrong. */
 function StopCard({ point, pick, plan, long, inPosition, position, missOpen, last, onPick, onGo }) {
   const box = useRef(null)
   const why = useRef(null)
   const done = pick != null
+  const free = isFree(point)
   useEffect(() => { into(box.current) }, [])
   useEffect(() => { if (done && !missOpen) into(why.current) }, [done, missOpen])
   const w = done ? whyOf(point, pick, plan) : null
-  const stateOf = (a) => (!done ? 'idle' : a === point.answer ? 'right' : a === pick ? 'wrong' : 'quiet')
+  const stateOf = (a) => (!done ? 'idle' : free ? (a === pick ? 'sel' : 'quiet') : a === point.answer ? 'right' : a === pick ? 'wrong' : 'quiet')
   const q = questionOf(point, long, inPosition)
+  const tone = !done ? 'ask' : free ? 'yours' : w.ok ? 'ok' : 'bad'
   return (
-    <section ref={box} className={`${s.replayPause} ${g.stop}`} data-testid="story-stop" data-at={point.id} data-state={!done ? 'ask' : w.ok ? 'ok' : 'bad'} aria-live="polite">
+    <section ref={box} className={`${s.replayPause} ${g.stop}`} data-testid="story-stop" data-at={point.id} data-state={tone} aria-live="polite">
       <div className={s.replayPauseHead}>
         <span className={s.replayPauseTag}>{stopTag(point)}</span>
         <h3 className={s.replayPauseQ} data-testid="story-stop-q">{q}</h3>
@@ -152,7 +180,7 @@ function StopCard({ point, pick, plan, long, inPosition, position, missOpen, las
             onClick={() => onPick(a)} testId={`story-call-${a}`} />
         ))}
       </div>
-      {done && !w.ok ? (
+      {done && w.ok !== true ? (
         <div className={g.working} data-testid="story-working">
           <span className={s.coachLabel}>The working</span>
           <ol className={s.steps}>
@@ -162,7 +190,7 @@ function StopCard({ point, pick, plan, long, inPosition, position, missOpen, las
         </div>
       ) : null}
       {done ? (
-        <div ref={why} className={`${s.replayPauseWhy} ${w.ok ? s.replayPauseOk : s.replayPauseBad}`}>
+        <div ref={why} className={`${s.replayPauseWhy} ${free ? g.yours : w.ok ? s.replayPauseOk : s.replayPauseBad}`}>
           <p data-testid="story-why"><b>{w.title}</b> {w.text}</p>
           <StudyButton kind={w.ok ? 'good' : 'primary'} arrow hotkey={missOpen ? null : 'Enter'} onClick={onGo} className={s.replayPauseGo} testId="story-go">
             {last ? 'See the trade' : 'Keep playing'}
@@ -183,22 +211,25 @@ function TradeResult({ story, picks, name, ticker, boxRef }) {
         <img className={s.coachMark} src={brandMark} alt="" aria-hidden="true" />
         <div className={s.coachTitles}>
           <span className={s.eyebrow}>The trade, start to finish</span>
-          <h3 className={s.coachTitle} data-testid="story-result-title">{tradeTitle(calls)}</h3>
+          <h3 className={s.coachTitle} data-testid="story-result-title">{tradeTitle(calls, freeCalls(story, picks))}</h3>
         </div>
         <span className={s.tag}>{ticker ? <><b>{ticker}</b> · </> : null}{name}</span>
       </header>
       {story.points.length ? (
         <ol className={g.calls} data-testid="story-result-calls">
           {story.points.map((p, i) => {
-            const ok = picks[i] === p.answer
+            // a call the plan leaves to the member is marked as theirs: neither right nor wrong
+            const free = isFree(p)
+            const ok = !free && picks[i] === p.answer
+            const said = actionLabel(picks[i], story.long).toLowerCase()
             return (
-              <li key={p.id} className={`${g.call} ${ok ? g.ok : g.miss}`} data-ok={ok ? '1' : '0'}>
-                <span className={g.callMark} aria-hidden="true"><UIcon name={ok ? 'check' : 'x'} size={14} gold={false} /></span>
+              <li key={p.id} className={`${g.call} ${free ? g.free : ok ? g.ok : g.miss}`} data-ok={free ? 'free' : ok ? '1' : '0'}>
+                <span className={g.callMark} aria-hidden="true"><UIcon name={free ? 'flag' : ok ? 'check' : 'x'} size={14} gold={false} /></span>
                 <span className={g.callText}>
-                  <b>{p.label} · {actionLabel(p.answer, story.long)}</b>
-                  <small>{p.session === 0 ? 'the entry day' : `day ${p.session}`}{ok ? '' : ` · you said ${actionLabel(picks[i], story.long).toLowerCase()}`}</small>
+                  <b>{p.label} · {free ? 'Your call' : actionLabel(p.answer, story.long)}</b>
+                  <small>{dayOf(p)}{free ? ` · the plan leaves this one to you · you said ${said}` : ok ? '' : ` · you said ${said}`}</small>
                 </span>
-                <span className={`${g.callR} ${rTone(p.r)}`}>{rText(p.r)}</span>
+                <span className={`${g.callR} ${rTone(p.r)}`}>{legsOf(p).map((l) => rText(l.r)).join(' · ')}</span>
               </li>
             )
           })}
@@ -248,7 +279,10 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
   }, [])
 
   const plan = entry?.plan || null
-  const story = useMemo(() => (plan ? storyOf(plan, signal, fwd || NONE) : null), [plan, signal, fwd])
+  // the post-gap high a Gap Support plan names, off the chart the member saw (games/tradeStory.postGapHigh)
+  const gapHigh = useMemo(() => (plan?.skill === GAP_SUPPORT ? postGapHigh(bars) : null), [plan, bars])
+  const story = useMemo(() => (plan ? storyOf(plan, signal, fwd || NONE, { pgh: gapHigh?.level ?? null, hveCall: HVE_RETURN_CALL }) : null),
+    [plan, signal, fwd, gapHigh])
   const pts = story?.points || NONE
   const pending = pts.findIndex((_, i) => picks[i] == null)
   const holdIdx = open ? open.i : pending
@@ -273,6 +307,8 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
     const out = [...(tradeAnnotations(story.shown, signal, all) || NONE)]
     const from = trailNow && trailNow.low != null ? all?.[n - 1 + trailNow.low] : null
     if (from) out.push({ id: 'story-TRAIL', type: 'hray', points: [{ time: from.t, price: trailNow.level }], color: GOLD_SOFT, lineWidth: 1.5, lineStyle: 'dashed', showPriceLabel: true })
+    // the post-gap high: a plan level from the start, drawn like the targets (dotted, so it reads apart from them)
+    if (story.pgh != null) out.push({ id: 'story-PGH', type: 'hray', points: [{ time: signal.t, price: story.pgh }], color: GREEN, lineWidth: 1.5, lineStyle: 'dotted', showPriceLabel: true })
     return out.length ? out : null
   }, [stage, story, signal, all, trailNow, n])
   // the action items, on whole days only: a day still growing never carries the mark of what it is about to do
@@ -282,6 +318,13 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
     const out = [...(tradeMarkers(story.shown, whole, n) || NONE)]
     const hit = story.end.kind === 'trail' && k >= story.end.session ? whole[n - 1 + story.end.session] : null
     if (hit) out.push({ time: hit.t, size: 1.4, position: 'belowBar', shape: 'square', color: RED, text: 'TRAIL HIT' })
+    // the trims the plan names, on the bar where they traded
+    for (const p of story.points) {
+      const b = (p.id === 'pgh' || p.id === 'hvc') && p.session >= 1 && k >= p.session ? whole[n - 1 + p.session] : null
+      if (!b) continue
+      out.push(p.id === 'pgh' ? { time: b.t, size: 1.4, position: 'aboveBar', shape: 'circle', color: GREEN, text: 'POST-GAP HIGH' }
+        : { time: b.t, size: 1.4, position: story.long ? 'belowBar' : 'aboveBar', shape: 'circle', color: GOLD, text: 'FIRST RETURN' })
+    }
     return out.length ? out.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
   }, [stage, story, all, n, k])
 
@@ -318,10 +361,14 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
   const decide = useCallback((i, action) => {
     if (!story || i < 0 || i >= story.points.length || called.current.has(i)) return
     called.current.add(i)
+    const free = isFree(story.points[i])
     const ok = action === story.points[i].answer
     setPicks((arr) => { const b = arr.slice(); b[i] = action; return b })
-    setOpen({ i, takeover: !ok })
-    clearTimeout(flashT.current); setFlash(ok ? 'ok' : 'bad'); flashT.current = setTimeout(() => setFlash(null), 700)
+    // a call the plan leaves to the member is neither right nor wrong: no takeover, no flash, the tap's own sound
+    setOpen({ i, takeover: !free && !ok })
+    clearTimeout(flashT.current)
+    if (free) { setFlash(null); tapFeedback(prefs); return }
+    setFlash(ok ? 'ok' : 'bad'); flashT.current = setTimeout(() => setFlash(null), 700)
     revealFeedback(ok, prefs)
   }, [story, prefs])
   const seeWorking = useCallback(() => setOpen((o) => (o ? { ...o, takeover: false } : o)), [])
@@ -397,7 +444,7 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
       ) : null}
       {point && !entryOpen ? (
         <StopCard key={`${due}-${point.id}`} point={point} pick={picks[due] ?? null} plan={plan} long={story.long} inPosition={!before.out}
-          position={positionLine(before)} missOpen={missOpen} last={due === pts.length - 1 && (point.id === 'stop' || point.id === 'trail')}
+          position={positionLine(before)} missOpen={missOpen} last={due === pts.length - 1 && story.end.kind !== 'open'}
           onPick={(a) => decide(due, a)} onGo={keepPlaying} />
       ) : null}
       {stage === 'trade' && !entryOpen && story ? <PositionBar word={positionWord(mine)} r={rAt(plan, nowPx)} stop={stopAt(story, plan, k)} /> : null}
@@ -412,7 +459,7 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
           </div>
         </>
       ) : null}
-      {stage === 'trade' && !entryOpen && plan ? <PlanKey plan={plan} story={story} k={k} name={item.name} /> : null}
+      {stage === 'trade' && !entryOpen && plan ? <PlanKey plan={plan} story={story} k={k} name={item.name} gapHigh={gapHigh} /> : null}
       {stage === 'trade' && !entryOpen && entry && (finished || !entry.named) ? (
         <LessonCard text={entry.lesson} ticker={entry.ticker || null} setup={item.name} skillId={item.skill || null} fired bars={bars}
           setupRule={entry.rule} showReads={false} testId="story-lesson" />
@@ -529,6 +576,7 @@ export default function TradeStoryGame({ profile = null, fetcher = studyFetch, o
             testIdPrefix="story" onAgain={again} onBack={onClose}>
             <span className={g.endLine} data-testid="story-named">{namedLine(t)}</span>
             {trades.map((tr) => <span key={tr.id} className={g.endLine} data-testid="story-end-trade">{tradeLine(tr)}</span>)}
+            {yoursLines(trades).map((l, j) => <span key={`yours-${j}`} className={g.endLine} data-testid="story-end-yours">{l}</span>)}
             {report?.failed ? (
               <span className={g.saved} data-testid="story-not-saved">
                 {report.out ? 'You are signed out, so the XP for your calls did not save.' : 'The XP for your calls did not save. Your score still counts here.'}

@@ -3,10 +3,10 @@
 // copy in the voice (no dashes, never "the firm", never a fraction the plan does not name).
 import { describe, it, expect } from 'vitest'
 import {
-  ACTIONS, ALL, EMPTY_LINE, ENTRY_DETAIL, ENTRY_Q, EXIT_NOTE, FAILED_LINE, HOLD, NOTHING_TRADED, NOT_SCORED, NO_PLAN, PLAN_SKILLS, STORY_SETUPS, STORY_SOURCE, START_LEAD, TRAIL_RULE, TRIM, actionLabel, bankLine,
-  callsOf, entryChoices, entryTitle, eventLine, exitsOf, exitsText, higherLows, levelAfter, logRows, namedLine, planExits, planLine,
-  planOk, poolItems, positionLine, positionWord, px, questionOf, rAt, rText, riskPct, runIdOf, stopAt, stopTag, storyKeys, storyOf,
-  storyVerdict, tally, tradeLine, tradeOk, tradeTitle, trailAt, trailMeasured, whyOf, workingOf,
+  ACTIONS, ALL, EMPTY_LINE, ENTRY_DETAIL, ENTRY_Q, EXIT_NOTE, FAILED_LINE, HOLD, HVC_NOTE, HVE_RETURN_CALL, NOTHING_TRADED, NOT_SCORED, NO_PLAN, PGH_NOTE, PLAN_SKILLS, STORY_SETUPS, STORY_SOURCE, START_LEAD, TRAIL_RULE, TRIM, actionLabel, bankLine,
+  callsOf, entryChoices, entryTitle, eventLine, exitsOf, exitsText, freeCalls, higherLows, hveAnswer, isFree, legsOf, levelAfter, logRows, namedLine, pghLevel, planExits, planLine,
+  planOk, poolItems, positionLine, positionWord, postGapHigh, px, questionOf, rAt, rText, riskPct, runIdOf, stopAt, stopTag, storyKeys, storyOf,
+  storyVerdict, tally, tradeLine, tradeOk, tradeTitle, trailAt, trailMeasured, trimNote, whyOf, workingOf, yoursLines,
 } from './tradeStory'
 
 const bar = (i, o, h, l, c) => ({ t: `2025-03-${String(4 + i).padStart(2, '0')}`, o, h, l, c, v: 1000 })
@@ -174,8 +174,10 @@ describe('the story', () => {
     const H = { ...P, skill: 'setup.family3.hve', trail: null }
     const fwd = [...F.slice(0, 6), bar(7, 11.4, 11.45, 10.6, 10.7), bar(8, 10.6, 10.7, 9.45, 9.5)]
     const st = storyOf(H, S, fwd)
-    expect(st.points.map((p) => [p.id, p.session])).toEqual([['t1', 4], ['t2', 6], ['stop', 8]])
-    expect(st.points[2].r).toBeCloseTo(-1, 10)
+    // day 1 closed 10.20, over the 10.00 high-volume close, and day 3's low came back to 10.00: its first return
+    expect(st.points.map((p) => [p.id, p.session])).toEqual([['hvc', 3], ['t1', 4], ['t2', 6], ['stop', 8]])
+    expect(st.points[0]).toMatchObject({ level: 10, fill: 10, gap: false, r: 0, answer: null, above: 1 })
+    expect(st.points[3].r).toBeCloseTo(-1, 10)
     expect(st.trail).toBe(null)
     expect(stopAt(st, H, 7)).toEqual({ kind: 'stop', level: 9.5, low: null })
   })
@@ -319,6 +321,35 @@ describe('the copy at each stop', () => {
       lines.push(...workingOf(p, P).map((x) => x.text))
     }
     for (const picks of [[TRIM, TRIM, ALL], [HOLD, HOLD, HOLD], [ALL], [TRIM, HOLD, HOLD]]) lines.push(exitsText(exitsOf(st.points, picks), st.end))
+    // the post-gap high (alone, on 2R's bar, opened between them and over both) and the first return to the high-volume
+    // close (long and short, opened past, before and after a ruling), every line they say
+    const SHV = { skill: 'setup.family3.hve', direction: 'bearish', entry: 50, stop: 52, t1: 46, t2: 44, trail: null, enters_intraday: false }
+    const trims = [
+      [GS, storyOf(GS, GSIG, GF, { pgh: 11.6 }).points[0]],
+      [GS, storyOf(GS, GSIG, GF.map((b, i) => (i === 1 ? { ...b, o: 11.62 } : b)), { pgh: 11.6 }).points[0]],
+      [GS, storyOf(GS, GSIG, [GF[0], bar(2, 10.8, 11.75, 10.75, 11.7)], { pgh: 11.6 }).points[0]],
+      [GS, storyOf(GS, GSIG, [GF[0], bar(2, 11.65, 11.75, 11.6, 11.7)], { pgh: 11.6 }).points[0]],
+      [GS, storyOf(GS, GSIG, [GF[0], bar(2, 11.8, 11.9, 11.75, 11.85)], { pgh: 11.6 }).points[0]],
+      ...[null, 'hold', 'trim', 'sell'].flatMap((hveCall) => [
+        [HV, storyOf(HV, HVS, HF, { hveCall }).points[0]],
+        [HV, storyOf(HV, HVS, HF.map((b, i) => (i === 3 ? { ...b, o: 9.9, l: 9.85 } : b)), { hveCall }).points[0]],
+        [SHV, storyOf(SHV, { o: 51.5, h: 52, l: 49.8, c: 50 }, [bar(1, 49.8, 50, 48.9, 49), bar(2, 50.5, 50.8, 50.2, 50.6)], { hveCall }).points[0]],
+      ]),
+    ]
+    for (const [plan, p] of trims) {
+      expect(p.id === 'pgh' || p.id === 'hvc').toBe(true)
+      const long = plan.direction !== 'bearish'
+      for (const inPos of [true, false]) {
+        const qq = questionOf(p, long, inPos)
+        lines.push(qq)
+        for (const s of qq.split(/(?<=[.?])\s+/)) expect(s.split(/\s+/).length).toBeLessThanOrEqual(22)
+      }
+      for (const a of ACTIONS) lines.push(whyOf(p, a, plan).text, whyOf(p, a, plan).title)
+      lines.push(stopTag(p), ...workingOf(p, plan).map((x) => x.text))
+    }
+    const hvSt = storyOf(HV, HVS, HF)
+    for (const a of ACTIONS) lines.push(...yoursLines([{ id: 'h', name: 'High Volume Edge', ticker: 'AMD', long: true, named: true, story: hvSt, picks: [a, ALL] }]))
+    lines.push(tradeTitle({ right: 0, total: 0 }, 1))
     for (const l of lines) {
       expect(l).not.toMatch(/[—–]/)
       expect(l).not.toMatch(/\bfirm\b/i)
@@ -328,6 +359,273 @@ describe('the copy at each stop', () => {
     }
     for (const p of [t1, t2, tr, stop]) {
       for (const s of questionOf(p, true, false).split(/(?<=[.?])\s+/)) expect(s.split(/\s+/).length).toBeLessThanOrEqual(22)
+    }
+  })
+})
+
+// A GAP SUPPORT CHART, checked against the real detector (api/services/pattern_engine/detectors/uct/uct_gap_support.py
+// through study_trade.plan: gap on day 70, entry 10.60, stop 10.05, 2R 11.70, 3R 12.25). Seventy quiet days at 10.00
+// (high 10.05, low 9.90, 1,000 shares); day 70 gaps: it opens 10.60, 6% over the 10.00 close, its low 10.55 over the prior
+// high 10.05, on 3,000 shares against a 1,000 average, and closes 10.85, over 10.05. The run tops at 11.60 on day 72,
+// pulls back, and day 75 (the setup) dips to 10.10, within a quarter of its 0.34 ATR of the gap top 10.05, and closes
+// 10.60 over it. The highest high from the gap day through the entry day: 11.60, day 72.
+const gd = (i) => new Date(Date.UTC(2025, 0, 2) + i * 86400000).toISOString().slice(0, 10)
+const gb = (i, o, h, l, c, v) => ({ t: gd(i), o, h, l, c, v })
+const gsChart = (sigHigh = 10.7, gapVol = 3000) => [
+  ...Array.from({ length: 70 }, (_, i) => gb(i, 9.95, 10.05, 9.9, 10.0, 1000)),
+  gb(70, 10.6, 10.9, 10.55, 10.85, gapVol), gb(71, 10.85, 11.4, 10.8, 11.3, 1500), gb(72, 11.3, 11.6, 11.2, 11.5, 1500),
+  gb(73, 11.5, 11.55, 11.0, 11.05, 1200), gb(74, 11.05, 11.1, 10.6, 10.65, 1200), gb(75, 10.6, sigHigh, 10.1, 10.6, 1400),
+]
+const GS = { skill: 'setup.family3.gap_support', direction: 'bullish', entry: 10.6, stop: 10.05, t1: 11.7, t2: 12.25, enters_intraday: false,
+  trail: 'if it drifts sideways at the gap, a tighter stop just under the gap top', trim_note: PGH_NOTE }
+const GSIG = gsChart()[75]
+// after the setup: up to 11.65 on day 2 (the post-gap high, 11.60), 2R on day 3, 3R on day 4, still open on day 5
+const GF = [bar(1, 10.6, 10.9, 10.4, 10.8), bar(2, 10.8, 11.65, 10.75, 11.5), bar(3, 11.5, 11.8, 11.3, 11.75), bar(4, 11.75, 12.3, 11.6, 12.2),
+  bar(5, 12.2, 12.4, 11.9, 12.0)]
+// A HIGH VOLUME EDGE, long: entry (the high-volume close) 10.00, stop 9.50 (the edge bar's low), 2R 11.00, 3R 11.50. Day 1
+// dips to 9.90 but closes 9.95, never away from it; day 2 closes 10.30 (the first close over it); day 4's low, 9.98, is
+// back at it; day 5 hits the stop.
+const HV = { skill: 'setup.family3.hve', direction: 'bullish', entry: 10, stop: 9.5, t1: 11, t2: 11.5, enters_intraday: false, trail: null, trim_note: HVC_NOTE }
+const HVS = { o: 9.6, h: 10.05, l: 9.5, c: 10 }
+const HF = [bar(1, 10.0, 10.3, 9.9, 9.95), bar(2, 9.95, 10.4, 9.8, 10.3), bar(3, 10.3, 10.6, 10.2, 10.5), bar(4, 10.5, 10.55, 9.98, 10.1),
+  bar(5, 10.1, 10.2, 9.45, 9.5)]
+
+describe('the post-gap high (Gap Support)', () => {
+  it('finds the detector\'s gap and the highest high from the gap day through the entry day', () => {
+    expect(postGapHigh(gsChart())).toEqual({ gap: 70, top: 10.05, level: 11.6, at: 72 })
+    // the test day itself traded over the run (GOOGL 2023-02-07: 108.18 over 107.85): the high on the screen counts
+    expect(postGapHigh(gsChart(11.65))).toEqual({ gap: 70, top: 10.05, level: 11.65, at: 75 })
+    // a gap on 1,900 shares is not twice the 1,000 average: not the detector's gap
+    expect(postGapHigh(gsChart(10.7, 1900))).toBe(null)
+    // a close back into the gap (10.04, under the 10.05 top) fills it
+    const filled = gsChart(); filled[73] = { ...filled[73], c: 10.04 }
+    expect(postGapHigh(filled)).toBe(null)
+    expect(postGapHigh(gsChart().slice(0, 60))).toBe(null)
+    expect(postGapHigh(Array.from({ length: 80 }, (_, i) => gb(i, 9.95, 10.05, 9.9, 10.0, 1000)))).toBe(null)
+    expect(postGapHigh(null)).toBe(null)
+  })
+
+  it('is watched only on a Gap Support plan, and only a cent or more over the entry', () => {
+    expect(pghLevel(GS, 11.6)).toBe(11.6)
+    expect(pghLevel(GS, 10.6)).toBe(null)
+    expect(pghLevel(GS, 10.5)).toBe(null)
+    expect(pghLevel({ ...GS, skill: 'setup.family1.launchpad' }, 11.6)).toBe(null)
+    expect(pghLevel(GS, null)).toBe(null)
+    expect(trimNote(GS)).toBe(PGH_NOTE)
+    expect(trimNote({ ...GS, trim_note: undefined })).toBe(PGH_NOTE)
+    expect(trimNote(HV)).toBe(HVC_NOTE)
+    expect(trimNote(P)).toBe(null)
+  })
+
+  it('asks first when it comes before 2R, takes some off there, and measures it in R', () => {
+    const st = storyOf(GS, GSIG, GF, { pgh: 11.6 })
+    expect(st.pgh).toBe(11.6)
+    expect(st.points.map((p) => [p.id, p.session, p.label, p.answer])).toEqual([['pgh', 2, 'Post-gap high', TRIM], ['t1', 3, '2R', TRIM], ['t2', 4, '3R', TRIM]])
+    const [p] = st.points
+    expect(p).toMatchObject({ level: 11.6, fill: 11.6, gap: false })
+    expect(rText(p.r)).toBe('+1.8R')                                                    // (11.60 − 10.60) ÷ 0.55 = 1.82
+    expect(st.end).toEqual({ session: 5, kind: 'open', r: expect.closeTo(140 / 55, 10) })
+    expect(questionOf(p)).toBe('Price just traded up to the post-gap high, 11.60. What do you do?')
+    expect(stopTag(p)).toBe('The replay stops · Post-gap high')
+    expect(whyOf(p, TRIM, GS)).toEqual({ ok: true, title: 'That is the plan.',
+      text: 'The plan names the post-gap high as the first place to take some off. It names the level, not how much to sell. What is left rides on the stop.' })
+    expect(whyOf(p, HOLD, GS).text).toBe('At the post-gap high the plan takes some off. It names the level, not how much to sell.')
+    expect(whyOf(p, ALL, GS).text).toBe('The post-gap high is a place to take some off, not the exit. The plan takes some off here and lets the rest ride on the stop.')
+    expect(workingOf(p, GS).map((x) => x.text)).toEqual(['Risk a share: 10.60 − 10.05 = 0.55.',
+      'The post-gap high: 11.60, the highest price from the gap day through the entry day.', 'At 11.60: (11.60 − 10.60) ÷ 0.55 = +1.8R.',
+      'At the post-gap high the plan takes some off. It names the level, not how much to sell.'])
+    expect(exitsText(planExits(st), st.end)).toBe('Some off at the post-gap high, 2R and 3R. The rest still open, +2.5R at the last close.')
+    expect(positionLine(exitsOf(st.points, [TRIM]))).toBe('You took some off at the post-gap high. The rest is still on.')
+    expect(exitsText(exitsOf(st.points, [ALL]), st.end)).toBe('Out at the post-gap high, +1.8R.')
+    expect(callsOf(st, [TRIM, HOLD, TRIM])).toEqual({ right: 2, total: 3 })
+    const tr = { id: 'g', name: 'Gap Support', ticker: 'META', long: true, named: true, story: st, picks: [TRIM, TRIM, TRIM] }
+    expect(logRows([tr]).map((r) => r.name)).toEqual(['Post-gap high · Take some off', '2R · Take some off', '3R · Take some off'])
+    expect(tradeLine(tr)).toBe('META · Gap Support: some off at the post-gap high, 2R and 3R. The rest still open, +2.5R at the last close.')
+    expect([...storyKeys(st)].sort((a, b) => a - b)).toEqual([1, 2, 3, 4])
+  })
+
+  it('fills at the open on a day that opened over it', () => {
+    const gapUp = GF.map((b, i) => (i === 1 ? { ...b, o: 11.62 } : b))
+    const [p] = storyOf(GS, GSIG, gapUp, { pgh: 11.6 }).points
+    expect(p).toMatchObject({ id: 'pgh', fill: 11.62, gap: true })
+    expect(rText(p.r)).toBe('+1.9R')                                                    // 1.02 ÷ 0.55 = 1.85
+    expect(eventLine(p)).toBe('It opened over the post-gap high, at 11.62.')
+    expect(whyOf(p, TRIM, GS).text).toContain('It opened past the post-gap high, so the open is the fill: +1.9R.')
+    expect(workingOf(p, GS)[2].text).toBe('It opened at 11.62, past it, so that is the fill: (11.62 − 10.60) ÷ 0.55 = +1.9R.')
+  })
+
+  it('asks once on the bar it shares with 2R, and says both, in the order price reached them', () => {
+    // day 2 reaches 11.60 and 11.70 on one bar
+    const fwd = [GF[0], bar(2, 10.8, 11.75, 10.75, 11.7)]
+    const st = storyOf(GS, GSIG, fwd, { pgh: 11.6 })
+    expect(st.points).toHaveLength(1)
+    const [p] = st.points
+    expect(p).toMatchObject({ id: 'pgh', label: 'Post-gap high and 2R', session: 2, level: 11.6, fill: 11.6, answer: TRIM })
+    expect(legsOf(p).map((l) => [l.id, l.level])).toEqual([['pgh', 11.6], ['t1', 11.7]])
+    expect(questionOf(p)).toBe('The post-gap high and 2R both just traded, at 11.60 and 11.70. What do you do?')
+    expect(stopTag(p)).toBe('The replay stops · Post-gap high and 2R')
+    expect(whyOf(p, TRIM, GS).text).toBe('The post-gap high and 2R both traded: the plan takes some off at each. It names the levels, not how much to sell. What is left rides on the stop.')
+    expect(whyOf(p, ALL, GS).text).toBe('Neither is the exit. The plan takes some off at the post-gap high and 2R and lets the rest ride on the stop.')
+    expect(workingOf(p, GS).map((x) => x.text)).toEqual(['Risk a share: 10.60 − 10.05 = 0.55.',
+      'The post-gap high: 11.60, the highest price from the gap day through the entry day.', 'At 11.60: (11.60 − 10.60) ÷ 0.55 = +1.8R.',
+      '2R: 10.60 + 2 × 0.55 = 11.70.', 'At the post-gap high and 2R the plan takes some off. It names the levels, not how much to sell.'])
+    // Take some off is some at each level; Sell the rest goes at the first one price reached
+    expect(exitsOf(st.points, [TRIM]).exits.map((e) => [e.id, e.part, rText(e.r)])).toEqual([['pgh', 'some', '+1.8R'], ['t1', 'some', '+2.0R']])
+    expect(exitsText(exitsOf(st.points, [TRIM]), st.end)).toBe('Some off at the post-gap high and 2R. The rest still open, +2.0R at the last close.')
+    expect(exitsText(exitsOf(st.points, [ALL]), st.end)).toBe('Out at the post-gap high, +1.8R.')
+    expect(callsOf(st, [TRIM])).toEqual({ right: 1, total: 1 })
+    expect(logRows([{ name: 'Gap Support', ticker: 'META', story: st, picks: [TRIM] }])[0].name).toBe('Post-gap high and 2R · Take some off')
+    // the same price as 2R is still one question (the test day's high, 11.70, is the post-gap high on this chart)
+    expect(storyOf(GS, gsChart(11.7)[75], fwd, { pgh: postGapHigh(gsChart(11.7)).level }).points.map((x) => x.label)).toEqual(['2R and post-gap high'])
+  })
+
+  it('says which one it opened over when the day opened between them, or over both', () => {
+    const between = storyOf(GS, GSIG, [GF[0], bar(2, 11.65, 11.75, 11.6, 11.7)], { pgh: 11.6 }).points[0]
+    expect(eventLine(between)).toBe('It opened over the post-gap high, at 11.65, and 2R just traded, at 11.70.')
+    expect(legsOf(between).map((l) => [l.id, l.fill, l.gap])).toEqual([['pgh', 11.65, true], ['t1', 11.7, false]])
+    expect(whyOf(between, TRIM, GS).text).toContain('It opened past the post-gap high, so the open is the fill: +1.9R.')
+    expect(workingOf(between, GS).map((x) => x.text)[2]).toBe('It opened at 11.65, past it, so that is the fill: (11.65 − 10.60) ÷ 0.55 = +1.9R.')
+    const over = storyOf(GS, GSIG, [GF[0], bar(2, 11.8, 11.9, 11.75, 11.85)], { pgh: 11.6 }).points[0]
+    expect(eventLine(over)).toBe('It opened over the post-gap high and 2R, at 11.80.')
+    expect(rText(over.r)).toBe('+2.2R')
+    expect(workingOf(over, GS).map((x) => x.text)).toContain('It opened at 11.80, past 2R, so that is the fill: (11.80 − 10.60) ÷ 0.55 = +2.2R.')
+  })
+
+  it('joins the target nearest it when 2R and 3R share the bar, and is still asked over 3R', () => {
+    // one bar through 2R (11.70), 3R (12.25) and a post-gap high of 12.30: it joins 3R, after 2R
+    const big = storyOf(GS, GSIG, [GF[0], bar(2, 10.8, 12.4, 10.75, 12.3)], { pgh: 12.3 })
+    expect(big.points.map((p) => [p.id, p.session, p.label])).toEqual([['t1', 2, '2R'], ['pgh', 2, '3R and post-gap high']])
+    expect(legsOf(big.points[1]).map((l) => l.id)).toEqual(['t2', 'pgh'])
+    // over 3R and on a later bar: asked on its own, after 3R
+    const over = storyOf(GS, GSIG, [...GF.slice(0, 4), bar(5, 12.2, 12.45, 12.0, 12.4)], { pgh: 12.4 })
+    expect(over.points.map((p) => [p.id, p.session])).toEqual([['t1', 3], ['t2', 4], ['pgh', 5]])
+    expect(rText(over.points[2].r)).toBe('+3.3R')                                       // 1.80 ÷ 0.55 = 3.27
+  })
+
+  it('is not asked when it never trades, on the bar that hits the stop, or on another setup', () => {
+    expect(storyOf(GS, GSIG, GF.slice(0, 1), { pgh: 11.6 }).points).toEqual([])
+    // day 1 runs to 11.65 but also trades 10.00, under the 10.05 stop: the stop ends the trade first
+    const st = storyOf(GS, GSIG, [bar(1, 10.6, 11.65, 10.0, 10.2)], { pgh: 11.6 })
+    expect(st.points.map((p) => p.id)).toEqual(['stop'])
+    expect(storyOf(GS, GSIG, GF, { pgh: 10.6 }).points.map((p) => p.id)).toEqual(['t1', 't2'])
+    expect(storyOf(GS, GSIG, GF).points.map((p) => p.id)).toEqual(['t1', 't2'])
+    expect(storyOf(P, S, F, { pgh: 10.5 }).points.map((p) => p.id)).toEqual(['t1', 't2', 'trail'])
+  })
+
+  it('is the same story on any first part of the strip', () => {
+    const fwd = [...GF, bar(6, 12.0, 12.1, 9.9, 10.0)]
+    const full = storyOf(GS, GSIG, fwd, { pgh: 11.6 })
+    expect(full.points.map((p) => p.id)).toEqual(['pgh', 't1', 't2', 'stop'])
+    for (let L = 0; L <= fwd.length; L++) expect(storyOf(GS, GSIG, fwd.slice(0, L), { pgh: 11.6 }).points).toEqual(full.points.filter((p) => p.session <= L))
+  })
+})
+
+describe('the first return to the high-volume close (High Volume Edge)', () => {
+  it('waits for a close away from it, then stops on the first later session back at it, before the stop', () => {
+    expect(HVE_RETURN_CALL).toBe(null)
+    const st = storyOf(HV, HVS, HF)
+    expect(st.points.map((p) => [p.id, p.session, p.label, p.answer])).toEqual([['hvc', 4, 'High-volume close', null], ['stop', 5, 'Stop', ALL]])
+    const [p] = st.points
+    expect(p).toMatchObject({ level: 10, fill: 10, gap: false, r: 0, above: 2 })
+    expect(isFree(p)).toBe(true)
+    expect(questionOf(p)).toBe('Price just came back to the high-volume close, 10.00. What do you do?')
+    expect(questionOf(p, true, false)).toBe('Price just came back to the high-volume close, 10.00. You are already out. What would you do here?')
+    expect(stopTag(p)).toBe('The replay stops · High-volume close')
+    // a dip to it on the day after the edge that closes back over it has not left it yet: day 3 is the first return
+    const dip = storyOf(HV, HVS, [bar(1, 10.0, 10.3, 9.9, 10.2), bar(2, 10.2, 10.4, 10.1, 10.3), bar(3, 10.3, 10.35, 9.99, 10.1)])
+    expect(dip.points.map((p) => [p.id, p.session, p.above])).toEqual([['hvc', 3, 1]])
+    // a session back at it that also hits the stop is the stop
+    expect(storyOf(HV, HVS, [...HF.slice(0, 3), bar(4, 10.5, 10.55, 9.45, 9.6)]).points.map((p) => p.id)).toEqual(['stop'])
+    // never back: no stop there
+    expect(storyOf(HV, HVS, HF.slice(0, 3)).points).toEqual([])
+    // on a bar that also reaches 2R, the target is asked first
+    expect(storyOf(HV, HVS, [bar(1, 10, 10.4, 10, 10.3), bar(2, 10.3, 11.1, 9.99, 10.5)]).points.map((p) => [p.id, p.session])).toEqual([['t1', 2], ['hvc', 2]])
+    expect(storyOf({ ...HV, skill: 'setup.family1.launchpad' }, HVS, HF).points.map((p) => p.id)).toEqual(['stop'])
+  })
+
+  it('leaves the call to the member while the owner has not ruled: the plan\'s words, its stop, and no score', () => {
+    const st = storyOf(HV, HVS, HF)
+    const [p] = st.points
+    expect(whyOf(p, HOLD, HV)).toEqual({ ok: null, title: 'Your call.', text: 'The plan calls the first return to the high-volume close the cleanest decision point, and leaves the call to you. The stop is still under it, at 9.50, the edge bar\'s low. You held. This one is not scored.' })
+    expect(whyOf(p, TRIM, HV).text).toContain('You took some off at 0.0R. This one is not scored.')
+    expect(whyOf(p, ALL, HV).text).toContain('You sold the rest at 0.0R.')
+    expect(workingOf(p, HV).map((x) => x.text)).toEqual(['Risk a share: 10.00 − 9.50 = 0.50.', 'The high-volume close: 10.00, the edge day\'s close and the entry.',
+      'It closed over it on day 2, and day 4 came back to it.', 'An exit there: (10.00 − 10.00) ÷ 0.50 = 0.0R.', 'The stop is still 9.50, the edge bar\'s low.',
+      'The plan calls this the cleanest decision point and leaves the call to you.'])
+    // neither right nor wrong: not in the calls, the tally, the log or the XP; said on the end screen
+    expect(callsOf(st, [HOLD, ALL])).toEqual({ right: 1, total: 1 })
+    expect(freeCalls(st, [HOLD, ALL])).toBe(1)
+    expect(tradeTitle(callsOf(st, [HOLD, ALL]), 1)).toBe('On the plan.')
+    expect(tradeTitle(callsOf(st, [HOLD]), 1)).toBe('Your call on this one, not scored.')
+    const tr = { id: 'h', name: 'High Volume Edge', ticker: 'AMD', long: true, named: true, story: st, picks: [TRIM, ALL] }
+    expect(tally([tr])).toEqual({ right: 1, total: 1, named: 1, played: 1, results: [true] })
+    expect(tradeOk(tr)).toBe(true)
+    expect(logRows([tr])).toEqual([{ name: 'Stop · Sell the rest', ticker: 'AMD · High Volume Edge', ok: true, said: null, was: '' }])
+    expect(yoursLines([tr])).toEqual(['AMD · High Volume Edge: the first return to the high-volume close, day 4, was a decision point the plan leaves to you. You took some off at 0.0R.'])
+    expect(yoursLines([{ ...tr, picks: [HOLD, ALL] }])[0]).toMatch(/You held\.$/)
+    expect(yoursLines([{ ...tr, skipped: true }])).toEqual([])
+    // the member's own exits count; the plan makes none there
+    expect(exitsText(exitsOf(st.points, [TRIM, ALL]), st.end)).toBe('Some off at the high-volume close. The rest out at −1.0R on the stop.')
+    expect(exitsText(exitsOf(st.points, [ALL]), st.end)).toBe('Out at the high-volume close, 0.0R.')
+    expect(exitsText(planExits(st), st.end)).toBe('Out at −1.0R on the stop.')
+    expect(tradeLine(tr)).toBe('AMD · High Volume Edge: some off at the high-volume close. The rest out at −1.0R on the stop.')
+  })
+
+  it('fills at the open on a day that opened past it, and mirrors on a short', () => {
+    const p = storyOf(HV, HVS, HF.map((b, i) => (i === 3 ? { ...b, o: 9.9, l: 9.85 } : b))).points[0]
+    expect(p).toMatchObject({ id: 'hvc', fill: 9.9, gap: true })
+    expect(rText(p.r)).toBe('−0.2R')
+    expect(eventLine(p)).toBe('It opened back under the high-volume close, at 9.90.')
+    expect(workingOf(p, HV)[3].text).toBe('It opened at 9.90, past it, so an exit fills there: (9.90 − 10.00) ÷ 0.50 = −0.2R.')
+    // a bearish edge (a short): entry 50.00, stop 52.00 (the edge bar's high); day 1 closes under it, day 2 trades back to 50.10
+    const SH = { skill: 'setup.family3.hve', direction: 'bearish', entry: 50, stop: 52, t1: 46, t2: 44, trail: null, enters_intraday: false }
+    const sp = storyOf(SH, { o: 51.5, h: 52, l: 49.8, c: 50 }, [bar(1, 49.8, 50, 48.9, 49), bar(2, 49, 50.1, 48.8, 49.5)]).points[0]
+    expect(sp).toMatchObject({ id: 'hvc', session: 2, fill: 50, r: 0, above: 1 })
+    expect(whyOf(sp, ALL, SH).text).toBe('The plan calls the first return to the high-volume close the cleanest decision point, and leaves the call to you. The stop is still over it, at 52.00, the edge bar\'s high. You covered the rest at 0.0R. This one is not scored.')
+    expect(workingOf(sp, SH).map((x) => x.text).slice(2, 5)).toEqual(['It closed under it on day 1, and day 2 came back to it.',
+      'An exit there: (50.00 − 50.00) ÷ 2.00 = 0.0R.', 'The stop is still 52.00, the edge bar\'s high.'])
+    const gapped = storyOf(SH, { o: 51.5, h: 52, l: 49.8, c: 50 }, [bar(1, 49.8, 50, 48.9, 49), bar(2, 50.5, 50.8, 50.2, 50.6)]).points[0]
+    expect(eventLine(gapped, false)).toBe('It opened back over the high-volume close, at 50.50.')
+    expect(rText(gapped.r)).toBe('−0.3R')                                               // (50.00 − 50.50) ÷ 2.00 = −0.25
+  })
+
+  it('scores like every other stop once the owner rules, and a sell ruling ends the trade there', () => {
+    expect([hveAnswer('hold'), hveAnswer('trim'), hveAnswer('sell'), hveAnswer('all'), hveAnswer(null)]).toEqual([HOLD, TRIM, ALL, null, null])
+    const hold = storyOf(HV, HVS, HF, { hveCall: 'hold' })
+    const [h] = hold.points
+    expect(h.answer).toBe(HOLD)
+    expect(isFree(h)).toBe(false)
+    expect(whyOf(h, HOLD, HV)).toEqual({ ok: true, title: 'That is the plan.', text: 'At the first return to the high-volume close, the cleanest decision point, the plan holds. The stop stays under it, at 9.50, the edge bar\'s low.' })
+    expect(whyOf(h, TRIM, HV)).toMatchObject({ ok: false, title: 'Not the plan.' })
+    expect(workingOf(h, HV).pop().text).toBe('At the first return the plan holds.')
+    expect(callsOf(hold, [TRIM, ALL])).toEqual({ right: 1, total: 2 })
+    const tr = { id: 'h', name: 'High Volume Edge', ticker: 'AMD', long: true, named: true, story: hold, picks: [TRIM, ALL] }
+    expect(tally([tr])).toMatchObject({ right: 1, total: 2, results: [false, true] })
+    expect(logRows([tr])[0]).toEqual({ name: 'High-volume close · Hold', ticker: 'AMD · High Volume Edge', ok: false, said: 'take some off', was: '' })
+    expect(yoursLines([tr])).toEqual([])
+    const trim = storyOf(HV, HVS, HF, { hveCall: 'trim' })
+    expect(whyOf(trim.points[0], TRIM, HV).text).toBe('At the first return to the high-volume close, the cleanest decision point, the plan takes some off. It names the level, not how much to sell. What is left rides on the stop.')
+    expect(exitsText(planExits(trim), trim.end)).toBe('Some off at the high-volume close. The rest out at −1.0R on the stop.')
+    // sell: the plan is out at the return, so the later stop is not the plan's and the story ends there
+    const sell = storyOf(HV, HVS, HF, { hveCall: 'sell' })
+    expect(sell.points.map((p) => [p.id, p.session, p.answer])).toEqual([['hvc', 4, ALL]])
+    expect(sell.end).toEqual({ session: 4, kind: 'hvc', r: 0 })
+    expect(sell.shown.stoppedSession).toBe(null)
+    expect(whyOf(sell.points[0], ALL, HV).text).toBe('At the first return to the high-volume close, the cleanest decision point, the plan sells the rest. Out at 0.0R.')
+    expect(exitsText(planExits(sell), sell.end)).toBe('Out at the high-volume close, 0.0R.')
+    expect(exitsText(exitsOf(sell.points, [HOLD]), sell.end)).toBe('All of it still held when the plan was out.')
+    // a target on the return's own bar is still asked, before it
+    const both = storyOf(HV, HVS, [bar(1, 10, 10.4, 10, 10.3), bar(2, 10.3, 11.1, 9.99, 10.5), bar(3, 10.5, 11.6, 10.4, 11.5)], { hveCall: 'sell' })
+    expect(both.points.map((p) => [p.id, p.session])).toEqual([['t1', 2], ['hvc', 2]])
+  })
+
+  it('is the same story on any first part of the strip, in both states', () => {
+    for (const hveCall of [null, 'hold', 'sell']) {
+      const full = storyOf(HV, HVS, HF, { hveCall })
+      for (let L = 0; L <= HF.length; L++) {
+        const part = storyOf(HV, HVS, HF.slice(0, L), { hveCall })
+        expect(part.points).toEqual(full.points.filter((p) => p.session <= L))
+      }
     }
   })
 })
