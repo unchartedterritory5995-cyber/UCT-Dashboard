@@ -4,8 +4,8 @@
  *
  * Touch borrows the drawing overlay's tap-tap model: one tap places a dot and
  * a soft halo at the anchor, a second tap MOVES it, never a drag. A HUD chip
- * at the bottom centre of the chart reads "Tap the pivot" and then "Tap Check,
- * or tap again to move". On reveal the accepted region prints as a dashed
+ * at the top of the plot (clear of the dates, the price scale and the legend)
+ * reads "Tap the pivot" and then "Tap Check, or tap again to move". On reveal the accepted region prints as a dashed
  * ring on the same chart. Keyboard: a bar cursor (Left / Right one bar, Home /
  * End, Enter places) with a live region reading the bar under it.
  *

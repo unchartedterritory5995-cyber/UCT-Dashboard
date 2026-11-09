@@ -1,0 +1,24 @@
+//@version=6
+indicator("vw-w6-forin-loopvar-write")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row W6-F1 of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md, whose shapes are W6-BREAKDOWN.md section 6's W6-F1 row
+// (branch docs/pine-w6-breakdown): "reassigning the loop variable".
+// One shape of W6-F1 per file. No licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line
+// (Pine may refuse `:=` on a `for ... in` loop variable; that refusal is the answer).
+// QUESTION: `x := x * 10` inside `for x in a`: does the pass read the reassigned value (V01), and does the
+// list keep its elements (V02)? Our runtime lane refuses it by name: "the body writes the loop variable `x` or
+// through it" (W6-F1). A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+a = array.from(1.0, 2.0, 3.0)
+
+float s = 0.0
+for x in a
+    x := x * 10
+    s += x
+
+plot(s, "V01_sum_of_reassigned_x")
+plot(array.sum(a), "V02_list_sum_after_walk")

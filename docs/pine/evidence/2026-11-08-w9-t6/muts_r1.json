@@ -1,0 +1,61 @@
+[
+ {
+  "mutant": "control-comment",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "SURVIVED"
+ },
+ {
+  "mutant": "drop-B-FILLS-ask (the one site)",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "X7 drop the realtime refusal",
+  "file": "app/src/components/chart/engine/runtime/vm.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "fill-limits accepted again",
+  "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "poc-endBar-off",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "drop-B-POC-ask",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "drop-B-POC-PRICE-ask",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "vm-no-rollback",
+  "file": "app/src/components/chart/engine/runtime/vm.js",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "X4 close attempt skips extra-execution orders: n/a (no stamp exists; equivalent, see EVIDENCE)",
+  "verdict": "NOT RUN"
+ },
+ {
+  "mutant": "resolver-J1-precondition-off",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "resolver-J1-any-row",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "resolver-J1-one-default-dropped",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ }
+]

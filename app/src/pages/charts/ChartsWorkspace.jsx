@@ -61,6 +61,7 @@ import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
+import { COMPARE_OPEN_EVENT } from './compareGroups'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
@@ -1168,6 +1169,8 @@ function ChartsWorkspaceBoard() {
   // Tools → Compare Symbols: the floating panel that overlays other tickers' % on
   // the active chart (auto-opens a chart widget if none exists).
   const [compareOpen, setCompareOpen] = useState(false)
+  // The `uct:compare-open` detail that opened it ({tab: 'rotation', sym, group}, unit 3-09), or null.
+  const [compareIntent, setCompareIntent] = useState(null)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
@@ -1196,9 +1199,13 @@ function ChartsWorkspaceBoard() {
   const floatNewWidgetRef = useRef(null)
   const applyThemeAllRef = useRef(null)
   const applyThemeAllWidgetsRef = useRef(null)
+  // ⭐ `canOpenCompare` (UCT RS 3-09): this workspace mounts the Compare Symbols
+  // panel and opens it on a `uct:compare-open` event, on desktop only (the phone
+  // shell mounts no panel and ignores the event). A chart widget reads it and
+  // offers a readout row's "Open the rotation map" only where it is true.
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme) }),
-    [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
+    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), canOpenCompare: !isMobile }),
+    [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
   // ── TERM-021 read-new: the Watchlist column layout rides the board document ──
@@ -1920,6 +1927,23 @@ function ChartsWorkspaceBoard() {
     if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart', undefined, { instant: true })
     setCompareOpen(true)
   }, [layout, handleAddWidget])
+
+  // UCT RS Phase 3, unit 3-12: a `uct:compare-open` window event (unit 3-09's "see the rotation"
+  // link) opens the panel, on the tab it names. The panel listens too, for an open while it is up.
+  // Desktop only: the phone shell mounts no Compare panel, so the event is ignored there.
+  const openCompareRef = useRef(openCompare)
+  openCompareRef.current = openCompare
+  const isMobileRef = useRef(isMobile)
+  isMobileRef.current = isMobile
+  useEffect(() => {
+    const onOpen = (e) => {
+      if (isMobileRef.current) return
+      setCompareIntent(e?.detail || null)
+      openCompareRef.current()
+    }
+    window.addEventListener(COMPARE_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(COMPARE_OPEN_EVENT, onOpen)
+  }, [])
 
   // Tools → Replay Mode. Auto-adds a chart if none exists (like openCompare), then opens
   // the dialog. `startReplay` sets the shared cutoff + switches every chart to the chosen
@@ -3918,7 +3942,8 @@ function ChartsWorkspaceBoard() {
           <CompareSymbolsPanel
             chartApiById={chartApiByIdRef}
             activeChartRef={activeChartRef}
-            onClose={() => setCompareOpen(false)}
+            initialIntent={compareIntent}
+            onClose={() => { setCompareOpen(false); setCompareIntent(null) }}
           />
         )}
         {replayOpen && (

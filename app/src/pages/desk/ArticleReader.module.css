@@ -164,6 +164,11 @@
   border: 1px solid var(--border); background: #000;
   cursor: zoom-in;
 }
+.body :global(.uctArticleVideo) {
+  display: block; width: 100%; height: auto; aspect-ratio: 16 / 9;
+  margin: 1.6em 0; border-radius: 10px;
+  border: 1px solid var(--border); background: #000;
+}
 .body :global(figure) { margin: 0; }
 .body :global(figcaption) {
   font-size: var(--text-xs); color: var(--text-muted);
@@ -451,6 +456,7 @@
     max-width: 100% !important;
     break-inside: avoid;
   }
+  :global(body.uct-print-article) .body :global(.uctArticleVideo) { display: none; }
   :global(body.uct-print-article) .head { break-after: avoid; }
   /* A heading must carry its section onto the page with it, not strand at the
      bottom of one; figures keep their caption; no widowed single lines. */

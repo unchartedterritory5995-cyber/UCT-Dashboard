@@ -211,6 +211,27 @@
   flex-direction: column;
 }
 
+/* ── Decision B3 · the bottom inset under the joystick hub (phone) ──────────
+ *
+ * The hub's pad sits fixed at `bottom: safe-area + 68px`, 84 px tall
+ * (hub/HubRoot.jsx), and its pill runs beside it at the same height
+ * (hub/HubChip.jsx). The bottom toolbar below is 1 + 5 + 44 + max(5px, safe-area)
+ * px tall (`.toolbar`), so the hub reaches 102 + safe-area - max(5px, safe-area)
+ * px up into the chart: over the time axis, the newest bars and the last pane's
+ * price-axis value. While the hub is on screen (html[data-hub-engaged], written by
+ * HubRoot) the chart stops above it, with 4 px to spare, so the value a member
+ * reads last is never under the pill. The floating buttons also tuck while the
+ * chart is touched (hooks/useChartTouchTuck.js); this inset is for the resting read.
+ *
+ * Phone only (≤640 px): the tablet shell docks its companion panel instead, and a
+ * member without the hub keeps every pixel. Rail: chartBottomInset.test.js, which
+ * derives the overlap from the hub's and the toolbar's own declarations. */
+@media (max-width: 640px) {
+  :global(html[data-hub-engaged]) .shell:not(.tabletShell) .paneWrap {
+    padding-bottom: calc(106px + env(safe-area-inset-bottom, 0px) - max(5px, env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 /* ── Bottom toolbar ────────────────────────────────────────────────────── */
 
 .toolbar {
@@ -344,7 +365,8 @@
 
 .sectionLabel {
   padding: 12px 16px 6px;
-  font-size: 10.5px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10.5). */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -480,7 +502,13 @@
   -webkit-tap-highlight-color: transparent;
   transition: background var(--duration-fast) var(--ease-out);
 }
-.switchOn { background: var(--gain); }
+/* ⭐ THE MUTED GOLD TRACK (owner-delegated decision B5, 2026-11-07), the same
+   switch as desktop Chart Settings' `.toggle`: on is a `--ut-gold-dim` fill and a
+   `--ut-gold` knob edge; off stays neutral. It was `--gain`, and green means money
+   going up, never "on". The tint is LAYERED over the neutral track rather than
+   replacing it: `--ut-gold-dim` alone is 8% gold, which on this sheet would paint
+   the ON track darker than the OFF one. */
+.switchOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--bg-hover); }
 
 .knob {
   width: 24px;
@@ -489,9 +517,13 @@
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   transform: translateX(0);
-  transition: transform var(--duration-fast) var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
-.switchOn .knob { transform: translateX(18px); }
+/* The edge is an inset ring, so the knob keeps its 24 px box and its throw. */
+.switchOn .knob {
+  transform: translateX(18px);
+  box-shadow: inset 0 0 0 2px var(--ut-gold), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
 
 /* ── Symbol search sheet (fullscreen) ──────────────────────────────────── */
 
@@ -989,6 +1021,7 @@
   max-width: 70%;
 }
 .chipOpt {
+  position: relative;
   min-height: 38px;
   padding: 0 12px;
   border: 1px solid var(--border);
@@ -1002,25 +1035,190 @@
   -webkit-tap-highlight-color: transparent;
 }
 .chipOpt:active { background: var(--bg-hover); }
+/* ⭐ A SELECTED ENUM CHIP IS NEUTRAL (owner-delegated decision B7, 2026-11-07):
+   `--text-bright` text, a 1 px border one step brighter than the resting chip's,
+   and the `--bg-hover` fill. Gold is rationed to ONE look-here element per
+   surface, and on the study editor that is the matched preset, so only
+   `.chipPresetOn` (below) wears it. */
 .chipOptOn {
+  color: var(--text-bright);
+  border-color: var(--text-muted);
+  background: var(--bg-hover);
+}
+/* The preset row's one gold chip (the matched preset, or "Custom" when none). */
+.chipPresetOn {
   color: var(--ut-gold);
   border-color: var(--ut-gold);
   background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
 }
 
+/* ⭐ A5b (UCT RS Phase 2a visual): a chip's VISUAL height stays 38px and its HIT
+   area is 44px — the `::after` reaches 3px past each edge, inside the 8px gap of a
+   stacked block, so two rows of chips never overlap their targets. */
+.chipOpt::after { content: ''; position: absolute; inset: -3px 0; }
+.presetCustom::after { content: none; }
+
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* ⭐ A5c: a swatch is a 44px BUTTON around a 30px circle. The circle is the
+   `::before`, painted from `--sw` (set inline per swatch), so the hit area is the
+   button's own box and neighbours never overlap — 44px buttons sit edge to edge
+   and read as 14px between circles. Selected: the existing ring, a 2px
+   `--text-bright` line outside a 2px surface gap, plus `aria-pressed`. */
 .swatch {
-  width: 30px;
-  height: 30px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: none;
   border-radius: 50%;
-  border: 2px solid transparent;
+  background: none;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.swatchOn { border-color: var(--text-bright); box-shadow: 0 0 0 2px var(--bg-surface); }
+.swatch::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sw, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 14%, transparent);
+}
+.swatchOn::before { box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--text-bright); }
+.swatchesStacked { gap: 0; justify-content: flex-start; margin-left: -7px; }
 
 .removeRow .rowLabel { color: var(--loss); }
+
+/* ── Study editor: groups, help text, dimming, presets (UCT RS Phase 2a, 2a-11) ─
+   One field = .paramField, a column: the .paramRow line (label + control,
+   unchanged above) and, under it, the input's tooltip as always-visible help
+   text — there is no hover on a phone. .paramRow itself keeps its metrics so
+   the MA editor's hand-rolled rows are untouched. Tokens only; the font is
+   Instrument Sans inherited from the sheet. */
+.paramField { display: flex; flex-direction: column; }
+/* ⭐ VA2 — "Save as my default" / "Reset to UCT default" under the study's groups:
+   two neutral chips (44 px tall, the tap floor) on one wrapping line, the note
+   under them as the help text every field carries. */
+.defaultField { padding-top: 8px; }
+.defaultBtns { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 6px; }
+.defaultBtns .chipOpt { min-height: var(--tap-min); }
+.defaultBtns .chipOpt:disabled { opacity: 0.4; }
+.paramTip {
+  padding: 0 16px 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+/* ⭐ UCT RS Phase 3, unit 3-02 — the text box (a `string` input) and its miss
+   line. 44 px tall (the tap floor), 16 px text (iOS zooms on focus below that),
+   and it shrinks before the label does: `min-width: 0` with a 40% cap keeps the
+   label readable on a 360 px phone. A miss marks the border in the warning
+   colour; the sentence under the row stays in the muted help-text voice. */
+.textInput {
+  flex: 0 1 148px;
+  width: 148px;
+  max-width: 48%;
+  min-width: 0;
+  min-height: var(--tap-min);
+  box-sizing: border-box;
+  padding: 0 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-bright);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.textInput::placeholder { color: var(--text-dim); }
+.textInput:focus-visible { outline: none; border-color: var(--ut-gold); }
+.textInput[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
+.textInput:disabled { cursor: default; }
+.paramMiss { margin-top: -4px; }
+
+/* `activeWhen` false: DIMMED, never removed. The row keeps its place and stays
+   readable at reduced opacity so the member learns what to change first; its
+   controls are also `disabled`, so the dim is never the only signal. */
+.paramFieldOff { opacity: 0.4; }
+.paramFieldOff .indName { color: var(--text-muted); }
+.stepBtn:disabled,
+.stepVal:disabled,
+.chipOpt:disabled,
+.swatch:disabled,
+.switch:disabled { cursor: default; }
+.stepBtn:disabled:active,
+.chipOpt:disabled:active { background: none; }
+
+/* Group head: a 44px disclosure row in the .sectionLabel voice, chevron on the
+   right, body unmounted while collapsed. Open reads brighter, never gold —
+   gold is reserved for the one active preset chip. */
+.paramGroup { display: flex; flex-direction: column; }
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  /* 10.5 → 11 px (decision B11, 2026-11-07): the label floor the desktop
+     inspector and editor group heads now share. */
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.groupHead:active { background: var(--bg-hover); }
+.groupHead[aria-expanded="true"] { color: var(--text-bright); }
+.groupHeadIcon { display: flex; align-items: center; color: var(--text-dim); }
+
+/* Preset row: the first row of a study editor whose definition declares
+   presets. The chips reuse .chipOpt; the matched preset is the one gold chip.
+   "Custom" is a state chip (a span), not a control, so it takes no pointer. */
+.presetRow { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.presetCustom { display: inline-flex; align-items: center; cursor: default; }
+
+/* ── Stacked rows (UCT RS Phase 2a visual, A5b / A5c) ────────────────────────
+   A row whose options cannot sit beside the label (the sheet's rule,
+   `chipRowStacks`: more than 3 options or a label over 12 characters, and every
+   colour row) puts the label on its own line and the options under it,
+   left-aligned and wrapping with 8px gaps. One column, no right-ragged chip
+   stack. The label keeps its line (`nowrap`): with the row to itself it never
+   needs two. */
+.paramRowStacked {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+.paramRowStacked > .indName { flex: none; white-space: nowrap; }
+.chipsStacked {
+  justify-content: flex-start;
+  max-width: none;
+  gap: 8px;
+}
+/* The preset's origin line under its chips: 12px, the muted ink. */
+.presetOrigin { font-size: 12px; color: var(--text-muted); }
 
 /* ── Layouts sheet (MobileLayoutsSheet) ─────────────────────────────────────
    The phone's door to the EXISTING workspace/layout system. Rows reuse .row /

@@ -1,0 +1,88 @@
+{
+  "case": "rs_parity_vars",
+  "kind": "rs_parity",
+  "note": "Public-method parity for the UCT RS VARS columns (engineering map 2026-11-08 unit 3-13; plan §12.1; KB 01-methodologies §9), read by tests/test_rs_phase3_parity.py against api/services/relative_strength.vars_columns. The map asks for 'matches the OANDA case study's sign changes on its dates'. The page does NOT publish enough to do that: every VARS reading is in a chart image (Figs. 2-6, TradingView screenshots), the text states no date of a zero-line or moving-average crossing, and no price or VARS series is given as text. `published.sign_changes` is therefore empty and `reproducible` is false, so the sign-change test is a strict xfail with that reason, never a pass. What the page DOES publish as text, and what is checked: the parameters (SPY benchmark, daily bars, ATR 20, lookback 60, 50-bar SMA of VARS) and the four state conditions. The two case studies' dated facts are kept under `case_studies` for the record; they are price facts and undated chart readings, not VARS sign changes, so nothing is asserted on them. To make the sign-change test real, fill `published.sign_changes` (each {date, from_sign, to_sign}) and `price_series` from a source that states them as text, then set `reproducible` to true.",
+  "reference": {
+    "url": "https://www.oanda.com/sg-en/skills-and-insights/education/trading-asset-classes/shares/volatility-adjusted-relative-strength-share-cfd/",
+    "title": "VARS: How to prevent the high-beta trap and find the relevant stocks",
+    "author": "Kelvin Wong (Senior Market Analyst)",
+    "publisher": "OANDA",
+    "published": "2026-01-21",
+    "accessed": "2026-11-07",
+    "transcribed": "Parameters, the formula's structure, the four state conditions, and the dated price facts of the two case studies. No VARS values (none are given as text)."
+  },
+  "published": {
+    "benchmark": "SPY",
+    "timeframe": "daily",
+    "atr_length": 20,
+    "atr_length_alternatives": [
+      14,
+      20
+    ],
+    "lookback": 60,
+    "ma_length": 50,
+    "ma_type": "SMA",
+    "formula": "ShareChg_t = (C_t − C_t−1) / ATR_t (the share's own ATR, per bar); IndexChg_t the same on the benchmark with the benchmark's own ATR; VARS = Σ ShareChg − Σ IndexChg over the lookback",
+    "states": [
+      {
+        "vars_sign": 1,
+        "vs_ma": "above",
+        "reading": "strength likely gaining",
+        "product_code": 1
+      },
+      {
+        "vars_sign": 1,
+        "vs_ma": "below",
+        "reading": "strength fading",
+        "product_code": 2
+      },
+      {
+        "vars_sign": -1,
+        "vs_ma": "above",
+        "reading": "weakness starting to improve",
+        "product_code": 3
+      },
+      {
+        "vars_sign": -1,
+        "vs_ma": "below",
+        "reading": "weakness likely continuing",
+        "product_code": 4
+      }
+    ],
+    "sign_changes": []
+  },
+  "price_series": null,
+  "case_studies": [
+    {
+      "share": "AAPL",
+      "benchmark": "SPY",
+      "figure": "Figs. 3-4",
+      "dated_facts": [
+        "chart as of 2025-01-03",
+        "support 237.27",
+        "prior high 2024-12-26",
+        "price fell 11 % high to low, 2025-01-06 to 2025-01-21"
+      ],
+      "vars_reading": "bearish divergence: a lower VARS high above its 50-bar MA (undated, chart only)"
+    },
+    {
+      "share": "AAPL",
+      "benchmark": "SPY",
+      "figure": "Figs. 5-6",
+      "dated_facts": [
+        "breakout 2025-08-07",
+        "trendline resistance since 2024-12-26",
+        "price rose 26 % low to high, 2025-08-08 to 2025-10-31 (the Fig. 6 caption says 24 %)"
+      ],
+      "vars_reading": "bullish divergence: a higher VARS low above its 50-bar MA (undated, chart only)"
+    }
+  ],
+  "not_published": [
+    "VARS values",
+    "dates of VARS zero-line crossings",
+    "dates of VARS / MA crossings",
+    "price series (share or benchmark)",
+    "ATR values"
+  ],
+  "reproducible": false
+}

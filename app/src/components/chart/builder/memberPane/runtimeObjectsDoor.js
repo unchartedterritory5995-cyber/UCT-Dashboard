@@ -49,6 +49,15 @@ import { strippedForScan } from '../../engine/ast/pine'
 
 /** The value build's refusal that only the drawing build can answer. */
 export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
+/** ⭐ W3W4-D2 — the value build's OTHER refusal that only the drawing build can answer.
+ *  The value build hands every drawing to the host object program (`objectTrees: []`) and
+ *  lowers none of it, so a script that only draws has nothing to plot THERE and refuses
+ *  `runtime:no-output` — whatever the drawing build says. That word is the value build's,
+ *  not the script's: the drawing build (`objectsInRun`) is the one that holds the drawings,
+ *  and its refusal (or its lowered count) is the answer. One predicate for the door and
+ *  the census, so the two cannot drift. */
+export const VALUE_BUILD_NOTHING_GUARD = 'runtime:no-output'
+export const valueBuildDefersToDrawing = (guard) => guard === VALUE_BUILD_DRAWING_GUARD || guard === VALUE_BUILD_NOTHING_GUARD
 
 /**
  * @returns {{probe: object}|{probe: null, why: string|null, guard?: string, valueProbe?: object}}
@@ -65,7 +74,7 @@ export function runtimeOwnObjectsOf({ source, t }) {
   let replaced = null
   if (hostDraws) {
     valueProbe = probeRuntimeProgram(source)
-    refusedForDrawing = !valueProbe.ok && (valueProbe.refusal || {}).guard === VALUE_BUILD_DRAWING_GUARD
+    refusedForDrawing = !valueProbe.ok && valueBuildDefersToDrawing((valueProbe.refusal || {}).guard)
     const hostPartial = !!(gate.loss && gate.loss.verdict !== 'clean')
     // ⭐ WS-E review M1 — `calc_bars_count`: the run takes the chart's last N bars and
     // nothing on the host side does, so a host program would draw over the WHOLE chart

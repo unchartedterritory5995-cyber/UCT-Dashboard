@@ -183,7 +183,7 @@ decide whether a formula can run at all.
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |
 
-## Per-symbol values (138)
+## Per-symbol values (149)
 
 One value per symbol rather than one per bar — a fundamental, a rating, a count.
 `Refreshed` is how often the number behind it moves.
@@ -203,6 +203,7 @@ of these, because drawing today’s number on past bars would invent a history.
 | `avg_body_pct_5` | a number | nightly | the 5-bar body tightness, the average candle body as a percent of its range |
 | `avg_range` | a number | nightly | the average bar range, high minus low, in price rather than percent, over the 20 completed sessions before the newest bar |
 | `avg_volume_30d` | a number | nightly | the 30-day average volume |
+| `base_pivot_px` | a number | nightly | the pivot price the symbol's HEAD base structure's own detection computed (the entry a Flat Base or Base-on-Base names, in dollars); blank when the head structure has no pivot -- never invented |
 | `base_relation_count` | a number | nightly | the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired |
 | `beta` | a number | nightly | the beta |
 | `blended_growth` | a number | nightly | the blended earnings and revenue growth |
@@ -246,6 +247,7 @@ of these, because drawing today’s number on past bars would invent a history.
 | `float_pct` | a number | nightly | the public float as a percentage of shares outstanding |
 | `float_shares` | a number | nightly | the number of shares in the public float |
 | `gap_pct` | a number | nightly | the opening gap percentage |
+| `green_on_red_20` | a number | nightly | the number of the last 20 sessions on which the symbol closed up on a day SPY closed down at least 0.5 % -- bought on the market's red days |
 | `gross_margin` | a number | nightly | the gross margin |
 | `higher_lows_run` | a number | nightly | the run of consecutive higher lows |
 | `hvc_52w` | true or false | nightly | the 52-week high-volume-close flag from the breadth universe |
@@ -267,6 +269,8 @@ of these, because drawing today’s number on past bars would invent a history.
 | `last_report_move_pct` | a number | nightly | the percentage move on the last earnings report |
 | `lower_wick_pct` | a number | nightly | the lower wick as a percentage of the range |
 | `lt_debt_to_capital` | a number | nightly | the long-term debt to total capital ratio |
+| `mansfield` | a number | nightly | the Mansfield relative strength -- the RS line's percentage distance above (positive) or below (negative) its own 200-day average, two decimals |
+| `mansfield_cross_bars_ago` | a number | nightly | the number of sessions since Mansfield relative strength last crossed its zero line in either direction, 0 on the newest session; blank when it has not inside the window |
 | `market_cap` | a number | nightly | the market capitalisation |
 | `narrow_bar` | true or false | nightly | whether the bar is unusually narrow |
 | `net_margin` | a number | nightly | the net margin |
@@ -315,6 +319,13 @@ of these, because drawing today’s number on past bars would invent a history.
 | `roa` | a number | nightly | the return on assets |
 | `roe` | a number | nightly | the return on equity |
 | `roic` | a number | nightly | the return on invested capital |
+| `rs_benchmark_agree` | true or false | nightly | whether the RS line's 20-session slope has the same sign against SPY and against RSP (the equal-weight S&P 500), so the strength is not an artefact of the cap-weighted benchmark |
+| `rs_cross_up_bars_ago` | a number | nightly | the number of sessions since the RS line last crossed above its 21-day EMA, 0 on the newest session; blank when it has not inside the window |
+| `rs_line_above_ma` | true or false | nightly | whether the RS line (the symbol's close over SPY's) closed at or above its 21-day EMA on the newest session |
+| `rs_new_high` | true or false | nightly | whether the RS line (the symbol's close over SPY's) closed at a 52-week high on the newest session; a tie counts |
+| `rs_nh_bars_ago` | a number | nightly | the number of sessions since the RS line last made a 52-week high, 0 on the newest session; blank when it has not inside the window |
+| `rs_nh_before_price` | true or false | nightly | whether the RS line made a 52-week high on the newest session while price itself was still more than 2 % under its own 52-week high -- the line leading price |
+| `rs_nh_red_day` | true or false | nightly | whether the RS line made a 52-week high on a session SPY closed down at least 0.5 % -- strength shown on a red day |
 | `rs_rank` | a number | nightly | the relative-strength rank |
 | `rs_return` | a number | nightly | the relative-strength return |
 | `rsi14` | a number | nightly | the nightly 14-period RSI |

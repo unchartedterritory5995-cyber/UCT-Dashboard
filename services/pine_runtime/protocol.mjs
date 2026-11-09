@@ -40,6 +40,15 @@
 //   digest    T3 `columnDigest({ engine: <this service's identity>, columns: <the decoded wire
 //             columns>, refusals, rows: bars.n })` (design 2.3), computed by the bundle's own
 //             codec over the bytes that are sent, so a caller can verify what it RECEIVED
+//   strategy  (W9-T14, W9 design 3.4) ONLY on an ok result of a job whose `want` names
+//             STRATEGY_WANT ('#strategy'), which only profile `backtest` may ask: the run's
+//             `strategy` record (design 3.2) as JSON TEXT, exactly as the job adapter wrote it, and
+//             checked here by the bundle's ONE shape check (`strategyRecordShapeErrors`). The seal
+//             adds `strategy_sha256` = sha256 of the text's UTF-8 bytes. The T3 digest has no field
+//             for it and is not changed (W5 identity, codec and HP-6 stand), so the record is
+//             verified by its own hash, the way `definition.doc` is: both languages hash the SAME
+//             bytes and no second canonical-JSON emitter has to agree. A job that asks for the record
+//             and gets none carries a refusal keyed '#strategy' instead; never both, never neither.
 // A field outside these sets, a missing one, or a column that does not decode is not a reply:
 // the whole request is refused (500 runtime:server-failed). Nothing is passed through unread.
 import { createHash } from 'node:crypto'
@@ -61,6 +70,14 @@ export const SCHEMA_GUARD = 'runtime:server-schema'
 export const INTEGRITY_GUARD = 'runtime:server-integrity'
 export const ENGINE_GUARD = 'runtime:server-engine-mismatch'
 export const DOC_UNKNOWN_GUARD = 'runtime:server-doc-unknown'
+
+/** W9-T14: the `want` entry that asks for the run's `strategy` record (W9 design 3.4) instead of a
+ *  column. Not a plot key (a plot key starts with a letter), so it can never name an output.
+ *  `api/services/pine_runtime_codec.py` STRATEGY_WANT mirrors it; a rail reads this file. */
+export const STRATEGY_WANT = '#strategy'
+/** W9-T14: the one profile that may ask for the record (design 3.4: "returns the record under
+ *  profile `backtest`"). Any other profile naming STRATEGY_WANT is a schema refusal. */
+export const STRATEGY_PROFILE = 'backtest'
 
 const HEX64 = /^[0-9a-f]{64}$/
 const PRINTABLE = (min, max) => new RegExp(`^[\\x20-\\x7e]{${min},${max}}$`)
@@ -94,6 +111,11 @@ function str(v, path, re) {
 
 function nonNegInt(v, path) {
   if (!Number.isSafeInteger(v) || v < 0) throw bad(path, 'must be a non-negative integer')
+  return v
+}
+
+function posInt(v, path) {
+  if (!Number.isSafeInteger(v) || v < 1) throw bad(path, 'must be a positive integer')
   return v
 }
 
@@ -184,7 +206,7 @@ export function sameIdentity(a, b) {
   return ENGINE_FIELDS.every((k) => String(a[k]) === String(b[k]))
 }
 
-function jobOf(v, path, { tfSet, maxBars }) {
+function jobOf(v, path, { tfSet, maxBars, profile }) {
   closed(v, path, ['job', 'symbol', 'tf', 'bars', 'ctx'], ['want'])
   const job = str(v.job, `${path}.job`, PRINTABLE(1, 128))
   const sym = closed(v.symbol, `${path}.symbol`, ['ticker', 'exchange'])
@@ -194,13 +216,20 @@ function jobOf(v, path, { tfSet, maxBars }) {
   }
   if (typeof v.tf !== 'string' || !tfSet.includes(v.tf)) throw bad(`${path}.tf`, `must be one of ${tfSet.join(', ')}`)
   const bars = barsOf(v.bars, `${path}.bars`, maxBars)
-  const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs'])
+  const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs', 'historyWindowBars'])
   const ctx = {
     newestBarIsForming: bool(c.newestBarIsForming, `${path}.ctx.newestBarIsForming`),
     historyFromListing: bool(c.historyFromListing, `${path}.ctx.historyFromListing`),
     runtimeInputs: Object.hasOwn(c, 'runtimeInputs') ? runtimeInputsOf(c.runtimeInputs, `${path}.ctx.runtimeInputs`) : {},
+    // W9-T11: the history window a strategy (broker) run takes (design 3.4), as the CALLER states it
+    // (the API reads bars_window.HISTORY_WINDOW_BARS). Optional: a job without it is a job as before,
+    // and a broker run told no window refuses `runtime:strategy-start` by name (vm.js).
+    ...(Object.hasOwn(c, 'historyWindowBars') ? { historyWindowBars: posInt(c.historyWindowBars, `${path}.ctx.historyWindowBars`) } : {}),
   }
   const want = Object.hasOwn(v, 'want') ? wantOf(v.want, `${path}.want`) : []
+  if (want.includes(STRATEGY_WANT) && profile !== STRATEGY_PROFILE) {
+    throw bad(`${path}.want`, `names ${JSON.stringify(STRATEGY_WANT)}, which only profile ${JSON.stringify(STRATEGY_PROFILE)} may ask for`)
+  }
   return { job, symbol, tf: v.tf, bars, ctx, want }
 }
 
@@ -249,7 +278,7 @@ function parse(body, { identity, tfSet, maxBars }, docs) {
   }
   const ids = new Set()
   const jobs = raw.jobs.map((j, i) => {
-    const job = jobOf(j, `jobs[${i}]`, { tfSet, maxBars })
+    const job = jobOf(j, `jobs[${i}]`, { tfSet, maxBars, profile: raw.profile })
     if (ids.has(job.job)) throw bad(`jobs[${i}].job`, `repeats ${JSON.stringify(job.job)}`)
     ids.add(job.job)
     return job
@@ -296,7 +325,7 @@ function parse(body, { identity, tfSet, maxBars }, docs) {
 
 /** The closed key sets of one result as the RUNNER returns it, by status (before the seal). */
 export const RUNNER_RESULT_FIELDS = Object.freeze({
-  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms', 'cache']) }),
+  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms', 'cache', 'strategy']) }),
   withheld: Object.freeze({ required: Object.freeze(['job', 'status', 'refusals']), optional: Object.freeze(['ms', 'cache']) }),
 })
 /** W5-INT: the values of a result's `cache` field (design 3.2). */
@@ -304,7 +333,7 @@ export const CACHE_STATES = Object.freeze(['hit', 'miss'])
 /** The closed key sets of one result ON THE WIRE: the runner's, plus the digest the seal adds.
  *  `sealOne` builds each result from these fields only (a rail holds its output to this set). */
 export const RESULT_FIELDS = Object.freeze({
-  ok: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.ok.required, 'digest']), optional: RUNNER_RESULT_FIELDS.ok.optional }),
+  ok: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.ok.required, 'digest']), optional: Object.freeze([...RUNNER_RESULT_FIELDS.ok.optional, 'strategy_sha256']) }),
   withheld: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.withheld.required, 'digest']), optional: RUNNER_RESULT_FIELDS.withheld.optional }),
 })
 export const REFUSAL_FIELDS = Object.freeze(['key', 'guard', 'sentence', 'bar'])
@@ -326,6 +355,34 @@ function refusalsOf(v, path) {
   })
 }
 
+/** W9-T14: the ok result's `strategy` text, checked (see the header), with its sha256; or null when
+ *  the result carries none, which is allowed only when the job did not ask for it or refuses it. */
+function strategyOf(codec, job, r, refusals, path) {
+  const asked = Array.isArray(job.want) && job.want.includes(STRATEGY_WANT)
+  const refused = refusals.some((x) => x.key === STRATEGY_WANT)
+  if (!Object.hasOwn(r, 'strategy')) {
+    if (asked && !refused) throw bad(`${path}.strategy`, 'the job asked for the strategy record and the run neither serves nor refuses it')
+    return null
+  }
+  if (!asked) throw bad(`${path}.strategy`, 'serves a strategy record the job did not ask for')
+  if (refused) throw bad(`${path}.strategy`, 'both serves and refuses the strategy record')
+  const text = r.strategy
+  if (typeof text !== 'string') throw bad(`${path}.strategy`, "must be the record's JSON text")
+  const bytes = Buffer.from(text, 'utf8')
+  if (bytes.toString('utf8') !== text) throw bad(`${path}.strategy`, 'has no UTF-8 form (a lone surrogate), so its hash could not be checked')
+  let rec
+  try { rec = JSON.parse(text) } catch { throw bad(`${path}.strategy`, 'is not JSON') }
+  if (!isPlain(rec)) throw bad(`${path}.strategy`, 'must be a JSON object')
+  if (typeof codec.strategyRecordShapeErrors !== 'function') {
+    throw bad(`${path}.strategy`, "cannot be checked: the bundle exports no strategyRecordShapeErrors")
+  }
+  const errs = codec.strategyRecordShapeErrors(rec)
+  if (!Array.isArray(errs) || errs.length) {
+    throw bad(`${path}.strategy`, `is not a strategy record (${Array.isArray(errs) ? errs.slice(0, 5).join('; ') : 'no answer'})`)
+  }
+  return { text, sha256: createHash('sha256').update(bytes).digest('hex') }
+}
+
 function sealOne(codec, identity, job, r, path) {
   if (!isPlain(r)) throw bad(path, 'must be an object')
   const shape = Object.hasOwn(RUNNER_RESULT_FIELDS, r.status) ? RUNNER_RESULT_FIELDS[r.status] : null
@@ -344,6 +401,7 @@ function sealOne(codec, identity, job, r, path) {
     const n = job.bars.n
     const columns = {}
     for (const [k, text] of Object.entries(r.columns)) {
+      if (k === STRATEGY_WANT) throw bad(`${path}.columns`, `serves the strategy record as a column`)
       if (refusals.some((x) => x.key === k)) throw bad(`${path}.columns`, `both serves and refuses ${JSON.stringify(k)}`)
       const bytes = b64Bytes(text, `${path}.columns.${JSON.stringify(k)}`)
       try {
@@ -361,6 +419,10 @@ function sealOne(codec, identity, job, r, path) {
   }
   out.refusals = refusals
   if (r.status === 'ok') out.warmup = { withheldBars: r.warmup.withheldBars }
+  if (r.status === 'ok') {
+    const record = strategyOf(codec, job, r, refusals, path)
+    if (record !== null) { out.strategy = record.text; out.strategy_sha256 = record.sha256 }
+  }
   out.digest = codec.columnDigest({ engine: identity, columns: decoded, refusals, rows: job.bars.n })
   if (Object.hasOwn(r, 'ms')) out.ms = nonNegInt(r.ms, `${path}.ms`)
   if (Object.hasOwn(r, 'cache')) {
@@ -373,7 +435,8 @@ function sealOne(codec, identity, job, r, path) {
 /**
  * Check what the runner returned for `jobs` against the closed result schema and seal each result
  * with its design 2.3 digest (see the header).
- * @param {{ columnDigest: Function, decodeColumn: Function }} codec  the BUNDLE's T3 codec (loadBundle)
+ * @param {{ columnDigest: Function, decodeColumn: Function, strategyRecordShapeErrors?: Function }} codec
+ *        the BUNDLE's T3 codec and (W9-T14) its strategy record check (loadBundle)
  * @param {object} identity  the service's own engine identity, the one the reply's `engine` names
  * @returns {{ ok: true, results: object[] } | { ok: false, sentence: string }}
  */

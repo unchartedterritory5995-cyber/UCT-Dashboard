@@ -1,0 +1,47 @@
+{
+  "case": "rs_parity_clenow",
+  "kind": "rs_parity",
+  "note": "Public-method parity for the UCT RS QUALITY columns (engineering map 2026-11-08 unit 3-13; plan §12.1; KB 01-methodologies §4), read by tests/test_rs_phase3_parity.py against api/services/relative_strength.clenow_columns. Everything under `published` is transcribed from the reference page (numbers and short facts only); nothing in this file is our own output. The page's worked example is one number chain (a daily exponential-regression slope over a 90-day window, annualised over 260 trading days). It publishes no ticker, no dates, no price series and no R², so the test rebuilds the one series those inputs describe: 90 closes rising exactly 0.05 % a bar (C_k = 100 × 1.0005^k; the 100 start is ours, and the slope of ln C does not depend on it). A pure exponential has R² = 1, so the page's Adjusted Slope equals its annualised slope there. ANNUALISATION: the page uses 260 bars, the product 252 (CLENOW_ANNUALISATION_BARS; the KB notes sources differ, and Quanterlab's re-test uses 252). The page's own convention is checked with the exponent set to 260 for the test; the shipped 252 is checked against the published figure re-based from 260 to 252 bars; and a strict xfail records that the raw 252 figure is NOT within 1 % of 13.88 % (about 3.3 % low), so a change of the exponent cannot slip by.",
+  "reference": {
+    "url": "https://quant-investing.com/blog/how-to-find-stocks-on-the-move-with-a-better-momentum-indicator-exponential-regression",
+    "title": "How to find stocks on the move with a better momentum indicator - exponential regression",
+    "author": "Tim du Toit",
+    "publisher": "Quant Investing",
+    "published": "not shown on the page",
+    "accessed": "2026-11-07",
+    "transcribed": "The worked example's numbers only: window 90 days, daily regression slope 0.05 %, 260 trading days a year, implied one-year increase 13.88 %; and the rule that the Adjusted Slope is the annualised slope multiplied by R²."
+  },
+  "published": {
+    "window_bars": 90,
+    "daily_slope_pct": 0.05,
+    "annualisation_bars": 260,
+    "annual_increase_pct": 13.88,
+    "score_rule": "adjusted slope = annualised exponential-regression slope × R²"
+  },
+  "not_published": [
+    "ticker",
+    "dates",
+    "price series",
+    "regression R²",
+    "adjusted-slope value"
+  ],
+  "product_annualisation_bars": 252,
+  "tolerance_rel": 0.01,
+  "other_sources_checked": [
+    {
+      "url": "https://quanterlab.com/research/clenow-s-stocks-on-the-move-tested-apart-ten-years-after-the-book",
+      "accessed": "2026-11-07",
+      "publishes": "the formula only: OLS of ln P over 90 bars, score = (e^(252·b) − 1) × R²; no worked numbers"
+    },
+    {
+      "url": "https://www.quantconnect.com/forum/discussion/16578/quot-stocks-on-the-move-quot-momentum-strategy-by-cabedovestment/",
+      "accessed": "2026-11-07",
+      "publishes": "90-day annualised exponential regression × R², in words; no formula code, no worked numbers"
+    },
+    {
+      "url": "https://www.followingthetrend.com/stocks-on-the-move/",
+      "accessed": "2026-11-07",
+      "publishes": "no formula and no worked numbers (reader comments only)"
+    }
+  ]
+}

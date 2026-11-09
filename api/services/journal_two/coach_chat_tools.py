@@ -2068,6 +2068,38 @@ _TOOLS_UNGATED["trader_archive_rhymes"] = {
 }
 
 
+# ── UCT Relative Strength read tools (unit 4-07) — chat AND voice, DARK by flag ──
+#
+# ONE implementation (api/services/rs_read_tools.py); the voice twins are registered in
+# voice_tool_impls.py and chat reaches them THROUGH the voice registry (`_voice_delegate`),
+# so the two surfaces can never diverge. Gated by RS_COMPASS_TOOLS_ENABLED, read PER CALL
+# by the registry below (hidden while off) and again by voice dispatch (a call that raced
+# a flip is refused). The description and schema are rs_read_tools' constants.
+
+def _rs_tools_enabled() -> bool:
+    from api.services import voice_tool_impls as _vti
+    return _vti._rs_tools_gate()
+
+
+def _rs_tool_entry(name: str, description: str, properties: dict, required: list) -> dict:
+    return {"name": name, "description": description, "requires_confirm": False,
+            "executor": _voice_delegate(name),
+            "input_schema": {"type": "object", "properties": dict(properties), "required": list(required)}}
+
+
+def _rs_tool_entries() -> dict:
+    from api.services import rs_read_tools as _rs_rt
+    return {
+        "get_rs_reading": _rs_tool_entry("get_rs_reading", _rs_rt.READING_DESCRIPTION,
+                                         _rs_rt.READING_PARAMETERS, ["ticker"]),
+        "explain_rs": _rs_tool_entry("explain_rs", _rs_rt.EXPLAIN_DESCRIPTION,
+                                     _rs_rt.EXPLAIN_PARAMETERS, ["term"]),
+    }
+
+
+_TOOLS_UNGATED.update(_rs_tool_entries())
+
+
 class _GatedToolRegistry(dict):
     """TOOLS, with some entries visible only while their gate is ON — checked
     on EVERY access, so a flip changes what the next request sees with no
@@ -2137,4 +2169,6 @@ TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enable
                                              "trader_archive_search": _archive_tool_enabled,
                                              "trader_archive_ticker": _archive_tool_enabled,
                                              "trader_archive_setup": _archive_tool_enabled,
-                                             "trader_archive_rhymes": _archive_tool_enabled})
+                                             "trader_archive_rhymes": _archive_tool_enabled,
+                                             "get_rs_reading": _rs_tools_enabled,
+                                             "explain_rs": _rs_tools_enabled})

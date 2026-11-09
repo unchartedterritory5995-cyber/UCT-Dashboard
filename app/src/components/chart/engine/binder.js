@@ -60,10 +60,11 @@ import {
   bindingKey,
   lineStyleValue,
   OHLC_POOL_KEYS,
+  plotActiveFor,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID } from './placement'
+import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
@@ -103,6 +104,7 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
+import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
@@ -133,6 +135,16 @@ function rthFrameBars(fbars) {
 
 /** Projection memo: frame column set → (chart bars → projected set). */
 const _projMemo = new WeakMap()
+
+/** ⭐ UCT RS design round (2026-11-08) — is this band switched on for the
+ *  binding's instance? A fill that declares no `activeWhen` always is; one that
+ *  does reads the inputs' condition grammar through the SAME evaluator a plot's
+ *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
+ *  default), so a band and a guide can never disagree about one switch. */
+function fillActiveFor(fillSpec, b) {
+  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+  return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
+}
 
 /** A STATIC fill's colour and opacity -- `fillPaint.staticFillOf`, the one
  *  authority both band paths share (the per-bar half is `bandColoursFor`).
@@ -2065,6 +2077,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // Chart Theme is chosen, so a signed histogram that stores no colour of its
       // own follows the theme for free — one palette, not a second one.
       candles: (ctx.cs && ctx.cs.candles) || null,
+      // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
+      // value that row drops (a v4 Reading under a v3 server) is not drawn.
+      serverDeclares,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
@@ -2158,14 +2173,33 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // scale, the guides and the data. Both walk `bind` in the same order, so
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
-    for (const b of bind) {
+    // ⭐ A4 — EVERY PLACEMENT IS RESOLVED BEFORE ANY SERIES IS TOUCHED, because one
+    // answer now depends on the others: a pane's axis hides only when every tenant
+    // on it asks (`placement.applyAxisTenancy`), and a tenant's `priceScaleId` is
+    // part of the series options built just below. `resolvePlacement` is pure, so
+    // resolving early changes no call the renderer sees; the orphans still happen
+    // in the loop, in the order they always did.
+    //
+    // ⛔ IDENTITY WITHOUT A HIDDEN ASK: tenancy returns every answer it does not
+    // change as the same object, so a chart with no `placement.axis: 'hidden'`
+    // definition binds exactly as before. And it is wrapped like every other
+    // placement call — if it throws, the per-instance answers stand.
+    const resolved = bind.map((b) => (
+      (b.plot && b.plot.hidden === true) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
+    ))
+    const tenancy = attempt(() => applyAxisTenancy(resolved.map((r) => (r && r.ok ? r.value : null)), ctx))
+    const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
+      ? tenancy.value
+      : resolved.map((r) => (r && r.ok ? r.value : null))
+    for (let bi = 0; bi < bind.length; bi++) {
+      const b = bind[bi]
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
       // series. A series this binding was carrying goes back to the renderer.
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
-      const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
-      if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
+      const placementValue = settled[bi]
+      if (!placementValue) { orphan(b); continue }
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placementValue
       // ⭐ A series on the CANDLES' OWN AXIS ('right' in the price pane) takes the chart's
       // axis format (`ctx.mainPriceFormat`, StockChart's `priceFormat` prop). The library
       // formats an axis with the series on it added FIRST, and an MA is usually added
@@ -2396,7 +2430,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // guides use, and it detaches here for the same reason.
       let fill = (b.from && b.from.fill) || null
       const fillSpec = b.plot && b.plot.fill
-      const fillWith = fillSpec && typeof fillSpec.with === 'string' ? fillSpec.with : null
+      // ⭐ UCT RS design round (2026-11-08) — `fill.activeWhen`: a band the member
+      // switches (the RS line's "Shade vs average"). Off ⇒ exactly the no-fill
+      // path below: the primitive comes off, the columns are untouched.
+      const fillWith = fillSpec && typeof fillSpec.with === 'string' && fillActiveFor(fillSpec, b) ? fillSpec.with : null
       if (fill && (b.source !== 'same' || !fillWith)) {
         attempt(() => series.detachPrimitive(fill.primitive))
         fill = null
@@ -2460,7 +2497,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const kept = new Map()
         for (const hp of ((b.def && b.def.plots) || [])) {
           if (!hp || hp.hidden !== true) continue
-          const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
+          const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
           const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
           const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))
