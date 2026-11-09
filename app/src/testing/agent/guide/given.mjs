@@ -11,6 +11,7 @@
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
 //   versions   the server's version store switched on (a layout's Version history)
 //   chartSettings  the chart's own settings pref (custom intervals, compared symbols)
+//   calendar   a calendar day with reporters and economic events, on the widget's own route
 //   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
@@ -60,6 +61,8 @@ export function givenFor(c) {
   // a layout's Version history shows only while the server's version store says it is on (components/artifactHistory
   // ArtifactHistory.jsx probeArtifactVersions: GET /api/artifact-versions/status → { enabled })
   if (/A layout’s version history/.test(c.title || '')) g.versions = true
+  // a calendar day with reporters and economic events (pages/charts/widgets/CalendarWidget.jsx reads data.days[day])
+  if (/^(Loading a stock from the earnings list|Filtering economic events)$/.test(c.title || '')) g.calendar = true
   // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
   // a custom interval to delete, and symbols (one a group's) the Compare panel lists
   if (/^Deleting a custom timeframe$/.test(c.title || '')) g.chartSettings = { header: { customTimeframes: ['45'] } }
@@ -85,10 +88,22 @@ const THEMES = { themes: [
   { name: 'Semiconductors', ticker: 'SMH', theme_id: 101, sector: 'Technology', group_return: ret(2.4), holdings: [{ sym: 'NVDA', name: 'NVIDIA', returns: ret(3.1) }, { sym: 'AMD', name: 'AMD', returns: ret(1.7) }] },
   { name: 'Software', ticker: 'IGV', theme_id: 102, sector: 'Technology', group_return: ret(-0.8), holdings: [{ sym: 'MSFT', name: 'Microsoft', returns: ret(-0.8) }] },
 ] }
+// every day of the last two weeks (the widget opens on the last session day, in New York): two reporters before the open, one
+// after, and a high-impact release, in the route's own shape (sym, eps_est; event, time, impact)
+function CALENDAR_DAYS() {
+  const days = {}
+  for (let i = 0; i < 15; i++) {
+    const d = new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    days[d] = { bmo: [{ sym: 'NVDA', eps_est: 0.75 }, { sym: 'AMD', eps_est: 0.92 }], amc: [{ sym: 'MSFT', eps_est: 3.1 }], tbd: [],
+      econ: [{ time: '08:30', event: 'Nonfarm Payrolls', impact: 'high', estimate: '150K', prior: '142K' }, { time: '10:00', event: 'ISM Services', impact: 'medium' }], fed: [] }
+  }
+  return days
+}
 /** The rig's fixture routes a given needs (lib.mjs: matched on "METHOD /path" before the harness answers). */
 export function fixturesFor(g) {
   const routes = []
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  if (g.calendar) routes.push({ match: '^GET /api/calendar[?]week=', body: { days: CALENDAR_DAYS() } })
   if (g.versions) routes.push({ match: '^GET /api/artifact-versions/status', body: { enabled: true } })
   // pages/charts/widgets/ScannerResults.jsx: { as_of, results: [{ sym }] } from the preset's own route (SCAN_ENDPOINTS)
   if (g.scan) routes.push({ match: '^GET /api/scans/' + SCAN.key, body: { as_of: '2026-11-07T15:00:00-05:00', results: [{ sym: 'NVDA' }, { sym: 'AMD' }, { sym: 'MSFT' }] } })
