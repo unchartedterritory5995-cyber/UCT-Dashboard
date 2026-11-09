@@ -48,3 +48,30 @@ forming-bar half of Q-S1p, which need a session in progress.
 `r1-strategy-draws-rddt-1d-2026-10-02` and `r1-strategy-draws-indicator-rddt-1d-2026-10-02` are R1's
 strategy / indicator pair. They witness C50/R1 (a strategy draws its plots like an indicator) and
 were graded in S1 (triage doc, section S1); they read no broker value.
+
+## Not capture questions (queue dispositions, 2026-11-08)
+
+Disposed of by the 2026-11-08 capture-queue hygiene pass (`fix/pine-capture-queue-hygiene`): the W9 design
+(`docs/pine/W9-STRATEGY-DESIGN.md` 5.2 B) re-specifies each of these rows with a generated `w9-*` probe under the
+same row id, and those rows are the captures. **Not disposed:** Q-S1-core and Q-S1n (their probe is the W9 rows'
+own `s1-broker-core.pine`), Q-S1d (the three `vw-s1-q-s1d-*` shapes: a close and a reversal on one bar, two
+same-direction entries, two stops at one price; the W9 probe asks only opposite entries on one bar) and Q-S1k
+(`vw-s1-q-s1k-*`: profit and limit both given, fractional ticks, an all-`na` modify; the W9 probes ask only
+`profit`/`loss` ticks). Those six files ask questions no W9 probe asks, so they stay until a lane folds them
+into `w9_probes.py` or disposes of them with a reason.
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-S1a | superseded | W9 design 5.2 B re-specifies Q-S1a with generated probes; `capture-queue-2026-11-05-w9.md` Q-S1a (`w9-q-s1a-size-v4/v6/v5pct/v5cash/v2.pine`, NYSE:RDDT 1D) asks the same per-version default sizing and adds v2. The vw-s1 files were never captured |
+| Q-S1b | superseded | the same per-version capital defaults are `capture-queue-2026-11-05-w9.md` Q-S1b (`w9-q-s1b-defaults-v4/v5/v6.pine`), which also reads pyramiding and the reversal |
+| Q-S1c | superseded | this row never had a probe; `capture-queue-2026-11-05-w9.md` Q-S1c is its probe (`w9-q-s1c-tie.pine`) |
+| Q-S1e | superseded | an exit already past its level when placed: `capture-queue-2026-11-05-w9.md` Q-S1e (`w9-q-s1e-live-past.pine`), a history capture |
+| Q-S1f | superseded | a reversal against an exit with no from_entry: `capture-queue-2026-11-05-w9.md` Q-S1f (`w9-q-s1f-reversal-exit.pine`) |
+| Q-S1g | superseded | a price entry at the pyramiding limit, cancelled or kept: `capture-queue-2026-11-05-w9.md` Q-S1g (`w9-q-s1g-pyr-limit.pine`) |
+| Q-S1h | superseded | the FIFO split: `capture-queue-2026-11-05-w9.md` Q-S1h (`w9-q-s1h-fifo.pine`) |
+| Q-S1i | superseded | margin call, deferred by the W9 design: `capture-queue-2026-11-05-w9.md` Q-S1i (`w9-q-s1i-funds.pine`, NYSE:RDDT 1D) is the row; this SPY copy is not taken |
+| Q-S1j | superseded | stop-limit: `capture-queue-2026-11-05-w9.md` Q-S1j (`w9-q-s1j-stop-limit.pine`) |
+| Q-S1l | superseded | off-grid fill rounding: `capture-queue-2026-11-05-w9.md` Q-S1l (`w9-q-s1l-off-grid.pine`), which also plots the price in mintick units |
+| Q-S1m | superseded | an out-of-range trade index: `capture-queue-2026-11-05-w9.md` Q-S1m (`w9-q-s1m-index.pine`) |
+| Q-S1o | superseded | realtime ticks on AMEX:SPY 5: `capture-queue-2026-11-05-w9.md` Q-S1o (`w9-q-s1o-every-tick.pine`, section D, live) |
+| Q-S1p | superseded | split in `capture-queue-2026-11-05-w9.md`: the v5 `when` half is Q-S1p (`w9-q-s1p-when.pine`, history), the forming-bar half is Q-S1p-live (`s1-broker-core.pine` on AMEX:SPY 5, live) |
