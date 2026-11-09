@@ -1,0 +1,25 @@
+{
+  "suite": "pytest",
+  "collected": 5202,
+  "passed": 5180,
+  "failed": 11,
+  "errored": 0,
+  "skipped": 11,
+  "wall_s": 811.88,
+  "failed_files": [
+    "tests/test_a12_s6_consistency_rail.py",
+    "tests/test_a8_taxonomy.py",
+    "tests/test_account_tombstones.py",
+    "tests/test_address_space.py",
+    "tests/test_alert_erasure.py",
+    "tests/test_alert_taxonomy_indicator_condition_projection.py",
+    "tests/test_alert_taxonomy_indicator_condition_schema.py",
+    "tests/test_alert_taxonomy_position_risk_schema.py",
+    "tests/test_alert_taxonomy_price_level_projection.py",
+    "tests/test_async_routes_do_not_block.py",
+    "tests/test_auth_surface_reads.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "11 failed, 5180 passed, 11 skipped, 1 xfailed, 72 warnings in 811.88s (0:13:31)",
+  "ok": true
+}

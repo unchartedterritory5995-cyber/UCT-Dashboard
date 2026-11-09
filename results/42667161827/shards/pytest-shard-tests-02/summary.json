@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 3130,
+  "passed": 3090,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 36,
+  "wall_s": 611.26,
+  "failed_files": [
+    "tests/test_bars_ordinal_census.py",
+    "tests/test_breadth_library_serve.py",
+    "tests/test_breadth_pipeline_current.py",
+    "tests/test_breadth_sampler.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 3090 passed, 36 skipped, 7532 warnings in 611.26s (0:10:11)",
+  "ok": true
+}
