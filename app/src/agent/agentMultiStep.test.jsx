@@ -224,3 +224,22 @@ describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', ()
     expect(p.turns()).toBe(0)
   }, 60000)
 })
+
+// GO bar: per-step targeting on a board of several — each step's own chart, checked per step
+describe('GO bar: each step on its own chart (FOUR)', () => {
+  it('"switch the top right chart to AMD, then put a MACD under the price on the bottom left chart": each step lands on its own chart only', async () => {
+    const { say, board } = mount('FOUR')
+    const text = 'switch the top right chart to AMD, then put a MACD under the price on the bottom left chart'
+    // the plan a correct planner sends (each op on the chart its clause names); the screens must keep each op on its own chart
+    p.st.envelopes.push((body) => p.env('apply', [
+      { action: 'chart.setSymbol', target: body.context.charts.find(c => c.label === 'Chart (c1)').ref, args: { symbol: 'AMD' } },
+      { action: 'indicator.add', target: (body.context.indicatorEdits || []).find(x => x.chart === 'Chart (c2)').ref, args: { defId: 'macd', inputs: null } },
+    ]))
+    const out = await say(text)
+    const ind = (id) => (board.state.widgets.find(x => x.id === id).opts?.settings?.indicatorInstances || []).filter(i => !i.deleted).map(i => i.defId)
+    expect(board.state.groupSyms['N:c1'], out).toBe('AMD')
+    expect(board.state.groupSyms.A).toBe('SPY')
+    expect(ind('c2'), out).toEqual(['macd'])
+    expect(['c0', 'c1', 'c3'].flatMap(ind)).toEqual([])
+  }, 60000)
+})
