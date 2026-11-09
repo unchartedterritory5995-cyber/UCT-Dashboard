@@ -46,6 +46,15 @@ saved. Its account size and risk % stay `chart.setSetting positionCalc.*`.
   Neither the NL-1 core nor chartSetup grows; adding it to chartSetup pushed indicator templates past the budget in capreg.
   Words: the calculator named, a trade said by its entry / stop / target, or "size a long / this trade". The catalog goes
   from 160 to 161 actions. The NL-1 parity fixture is regenerated (pytest `test_agent_eval_run` owed to CI).
+- **New routing flag `wordsOnly`** (Lead-approved, on `positionCalc`): a niche group is sent only when its words name it, or
+  when a reroute asks for it. It never fills a request nothing recognised, nor a knowledge-only one. Without it, the one
+  extra group displaced the playbook group from knowledge-only messages (18 `agentKnowledgeCompare` failures in the full
+  suite) and agent.undo from "scratch that". A rail in `agentRouting.test.jsx` checks that the group stays out of six
+  unrecognised or knowledge-only messages and is sent by its own words or a reroute.
+- **SAT-1 captured requests regenerated** (`UPDATE_SAT1_REQUESTS=1`, `api/services/uct_agent/scan/sat/section_b_requests.json`).
+  Reviewed diff: +120 lines, and every one is the new group's entry `{ id: positionCalc, title }` in the list of groups NOT
+  sent, across 30 captured requests. No request's manifest, actions or messages changed. `agentScreener`'s manifest count is
+  now 155 (+ chartSetup.setPosition).
 
 ## C1-144 behaviour
 

@@ -204,3 +204,23 @@ describe('release audit: every registered action is reachable through routing', 
     // M2: + indicator.add / remove / show / hide; M3: + draft / previewDraft / saveDraft / undoDraft
   })
 })
+
+// Lead 2026-11-09: a WORDS-ONLY group (a niche action: the Position Calculator) is sent only when the words name it. It never
+// fills a message nothing recognised, nor a knowledge-only one, so adding one never displaces what those requests pack.
+describe('words-only groups never fill an unrecognised or knowledge-only request', () => {
+  const opts = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
+  const wordsOnly = GROUPS.filter(g => g.wordsOnly)
+  const sentOf = (msg, extra = []) => new Set(routeManifest(FULL, msg, opts, extra).manifest.map(c => groupOfAction(c.name)))
+  it('the flag is declared (the Position Calculator group)', () => {
+    expect(wordsOnly.map(g => g.id)).toContain('positionCalc')
+  })
+  it.each(['zzz unrelated', 'scratch that', 'what is an EP setup', 'how does the team think about patience', 'go back to how it was before', 'hmm'])
+  ('"%s": no words-only group is in the request', (msg) => {
+    const sent = sentOf(msg)
+    for (const g of wordsOnly) expect(sent.has(g.id), `${g.id} for "${msg}"`).toBe(false)
+  })
+  it('named by its own words, or asked for by a reroute, it is sent', () => {
+    expect(sentOf('set up the position calculator with entry 50, stop 48 and target 58').has('positionCalc')).toBe(true)
+    expect(sentOf('zzz unrelated', ['positionCalc']).has('positionCalc')).toBe(true)
+  })
+})

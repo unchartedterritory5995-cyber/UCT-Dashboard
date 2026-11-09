@@ -11311,6 +11311,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11622,6 +11626,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11929,6 +11937,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -12246,6 +12258,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -12552,6 +12568,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -12863,6 +12883,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -13170,6 +13194,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -13748,6 +13776,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -14058,6 +14090,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -14364,6 +14400,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -14935,6 +14975,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -15242,6 +15286,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -15820,6 +15868,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -16388,6 +16440,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -16960,6 +17016,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17267,6 +17327,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -17845,6 +17909,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -18152,6 +18220,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -18469,6 +18541,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -18782,6 +18858,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -19099,6 +19179,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -19406,6 +19490,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -19717,6 +19805,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -20023,6 +20115,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -20332,6 +20428,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -20901,6 +21001,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -21474,6 +21578,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -22042,6 +22150,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",
@@ -22614,6 +22726,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -22920,6 +23036,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "positionCalc",
+      "title": "The Position Calculator on one chart (entry / stop / target)"
      },
      {
       "id": "guide",

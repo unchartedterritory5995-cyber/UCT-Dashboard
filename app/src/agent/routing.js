@@ -294,7 +294,7 @@ export const GROUPS = [
   // C1-144 (pl-exec): the Position Calculator — its OWN one-action group (by action name), so the chartSetup group keeps its
   // size and still packs beside the others a request names (capreg routing: "add the Swing Setup indicator template …"). Declared AFTER the undo group: when nothing is
   // recognised and the fill is one short, an equal-size Undo is packed first ("scratch that"); this one rides on its own words
-  { id: 'positionCalc', title: 'The Position Calculator on one chart (entry / stop / target)', domains: [], actions: ['chartSetup.setPosition'], fillLast: true,
+  { id: 'positionCalc', title: 'The Position Calculator on one chart (entry / stop / target)', domains: [], actions: ['chartSetup.setPosition'], fillLast: true, wordsOnly: true,
     // named, a trade said by its entry / stop / target, or "size a long / this trade"
     words: [/\b(?:position (?:calc\w*|siz\w*)|risk calc\w*)\b|\bentry\b.*\bstop\b|\bstop\b.*\btarget\b|\bsiz(?:e|ing) (?:a|the|this|my) (?:long|short|trade|position)\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
@@ -435,7 +435,10 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...GROUPS.map(g => g.id)]
+  // `wordsOnly` (Lead 2026-11-09): a NICHE group is sent only when the words name it — never as filler for a message nothing
+  // recognised (or a knowledge-only one), so adding one never displaces what such a request packs
+  const filler = GROUPS.filter(g => !g.wordsOnly || hits.has(g.id)).map(g => g.id)
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...filler]
   const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
 }
