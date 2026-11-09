@@ -171,7 +171,8 @@ const withPath = (opts, f, value) => {
   return { ...(opts || {}), [head]: withPath(opts?.[head], { path: rest.join('.') }, value) }
 }
 const valueOf = (f, w, doors) => {
-  const v = f.door ? doors?.[w.id]?.[f.key] : atPath(w.opts, f)
+  // a row may read its value off the opts its write changes (its value function: the Scanner shows a scan or its picker)
+  const v = f.door ? doors?.[w.id]?.[f.key] : f.value ? f.value(w.opts) : atPath(w.opts, f)
   return v === undefined ? (f.default ?? null) : v
 }
 /** A control's choices right now, as { value, label }: the registry's, or the mounted widget's own. */
@@ -1204,7 +1205,8 @@ export function registerBoardCapabilities() {
       const door = doorFor(env, t)
       if ((f.door || f.from === 'door') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
-      return coerced(st, t, f, value, env).why || null
+      const c = coerced(st, t, f, value, env)
+      return c.why || f.valueWhy?.(t.opts, c.value, st.doors?.[t.id]) || null
     },
     apply(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)

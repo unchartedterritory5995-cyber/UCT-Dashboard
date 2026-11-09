@@ -11,6 +11,7 @@ import { WIDGET_HELD_OUT, LIST_HELD_OUT } from './agentExecHeldOut.test.js'
 import { WIDGET_TUNE, LIST_TUNE, WIDGET_TUNE2, JOURNAL_TUNE } from './agentExecTune.js'
 import { NAME_HELD_OUT, DOOR_HELD_OUT, JOURNAL_HELD_OUT } from './agentExecHeldOut2.test.js'
 import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from './agentExecHeldOut7.test.js'
+import { PRESET_HELD_OUT, SCAN_BACK_HELD_OUT, FOLLOW_HELD_OUT } from './agentScanFilterHeldOut.test.js'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const w = (id, type, x, y, opts = {}) => ({ id, type, x, y, w: 2, h: 4, color: 'N', opts })
@@ -69,6 +70,9 @@ const PINNED = {
   'journal held-out2 v1': { model: '4/4', action: '4/4' }, 'journal held-out2 v2': { model: '4/4', action: '4/4' },
   // round 7 (C3-138): measured once on the held-out set, after the change
   'search held-out7 v1': { model: '3/3', action: '3/3', list: '3/3' }, 'search held-out7 v2': { model: '3/3', action: '3/3', list: '3/3' },
+  // round 8 family 2, measured once after the change. The two C3-108 misses are this board's: its Scanner shows the picker (no
+  // scan open), so 'back to the picker' is rightly not offered there (the row's `when`); over a Scanner showing a scan it is
+  'scanfilter held-out8 v1': { model: '6/6', action: '4/6', list: '4/6' }, 'scanfilter held-out8 v2': { model: '6/6', action: '4/6', list: '4/6' },
 }
 describe('reach of the first model call', () => {
   beforeEach(() => {})
@@ -77,7 +81,9 @@ describe('reach of the first model call', () => {
     ['name held-out2', NAME_HELD_OUT, widgetWant], ['door held-out2', DOOR_HELD_OUT, widgetWant], ['journal held-out2', JOURNAL_HELD_OUT, journalWant],
     ['widget tune2', WIDGET_TUNE2, widgetWant], ['journal tune2', JOURNAL_TUNE, journalWant],
     // round 7: C3-138, the News widget's search box (its rows carry their widget type)
-    ['search held-out7', [...SEARCH_HELD_OUT, ...SEARCH_CLEAR_HELD_OUT].map(c => ({ ...c, type: 'tradeExchangeNews', key: 'search' })), widgetWant]]
+    ['search held-out7', [...SEARCH_HELD_OUT, ...SEARCH_CLEAR_HELD_OUT].map(c => ({ ...c, type: 'tradeExchangeNews', key: 'search' })), widgetWant],
+    // round 8 family 2: a News preset, a Scanner back to its picker, the Market Map following its list
+    ['scanfilter held-out8', [...PRESET_HELD_OUT.map(c => ({ ...c, type: 'tradeExchangeNews' })), ...SCAN_BACK_HELD_OUT.map(c => ({ ...c, type: 'scanner' })), ...FOLLOW_HELD_OUT.map(c => ({ ...c, type: 'scatter' }))], widgetWant]]
   // EXEC_REACH_ONLY=tune while tuning: the held-out numbers are read once, at the end
   const only = globalThis.process?.env?.EXEC_REACH_ONLY || ''
   for (const [name, cases, want] of SETS.filter(([n]) => !only || n.includes(only))) {
