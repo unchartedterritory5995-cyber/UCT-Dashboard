@@ -154,6 +154,58 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
   })
 })
 
+describe('⛔ N1 — the skip is claimed only where it is certain', () => {
+  // `or` lowers to `||` (`pine.js` boolean operators): a measured term of an `||` proves
+  // nothing about whether the step ran, so it is NEVER split into `withholdRuns`
+  const orScript = [
+    '//@version=5', `indicator(${Q}w${Q}, overlay=true)`,
+    'var float[] w = array.new_float()', 'if close > open', '    w.unshift(high)',
+    'if high > high[1]', '    w.unshift(low)', 'if w.size() > 3', '    w.pop()',
+    'if w.size() >= 2 or close > close[1]', '    line.new(bar_index - 1, w.get(1), bar_index, w.get(1))',
+    'plot(close)', ''].join(LF)
+
+  it('an `<ambiguous> or x` guard carries NO `withholdRuns`, and is withheld on EVERY ambiguous bar (hand-run)', () => {
+    const t = translatePine(orScript)
+    const op = lineCreate(t)
+    expect(op.withhold).toBeTruthy()
+    expect(op.withholdRuns).toBeUndefined()
+    const rows = byHand()
+    const ambiguous = rows.filter((r) => r.ambiguous).map((r) => r.i)
+    // the bars a split over `||` would have skipped: ambiguous, with the measured term false
+    expect(rows.filter((r) => r.ambiguous && !r.measured).length).toBeGreaterThan(5)
+    const r = run(t, { trace: true })
+    const lineWithheld = r.events.filter((e) => e.k === 'withheld' && e.family === 'line').map((e) => e.bar)
+    expect(lineWithheld).toEqual(ambiguous)
+  })
+
+  // a hand-built program (the validator's own shape): one create withheld on every bar,
+  // its measured conjunct a GRAPH column (the only form `withholdRuns` takes once bound)
+  const prog = () => ({
+    programVersion: 1, regs: [], colls: [], trees: [],
+    ops: [{ k: 'create', family: 'label', site: 's1', into: null, when: null,
+      props: { x: { v: 'bar' }, y: { v: 'const', value: 1 }, text: { v: 'text', node: { t: 'lit', s: 'a' } } },
+      withhold: { v: 'const', value: 1 }, withholdRuns: { v: 'graph', node: 0 } }],
+  })
+  /** `col` is the measured conjunct's value on every bar; `unknown`, whether this run can say it. */
+  const runProg = (col, unknown) => evaluateObjects(prog(), {
+    barCount: 6, readNode: () => col, readTime: () => 0, readUnknown: unknown ? (n) => n === 0 : undefined,
+  })
+
+  it('⛔ a measured conjunct whose value is UNKNOWN (it reads 0 here, the curtain says unknown) is withheld, never skipped', () => {
+    expect(() => assertObjectProgram(prog())).not.toThrow()
+    const r = runProg(0, true)
+    expect(r.stats.withheldUnknown).toBe(6)
+    expect(r.live).toEqual([])
+  })
+
+  it('⛔ CONTROLS: a KNOWN false measured conjunct is skipped (nothing withheld); a known true one is withheld', () => {
+    const no = runProg(0, false)
+    expect(no.stats.withheldUnknown).toBeUndefined()
+    expect(no.live).toEqual([])
+    expect(runProg(1, false).stats.withheldUnknown).toBe(6)
+  })
+})
+
 describe('⭐ the member is told, by name', () => {
   it('the sentence names the families and says why; it joins a document note and stands alone', () => {
     const s = collectorFamiliesSentence(['line', 'linefill'])
