@@ -4,9 +4,9 @@
 // UpdateReadyToast.test.jsx). position: fixed, so it moves nothing on viewport-locked pages.
 import { useEffect, useSyncExternalStore } from 'react'
 import { subscribePopouts, hasOpenPopouts } from '../lib/popoutRegistry'
-import { getClientBuildId, createBuildWatcher, fetchHealthSafe } from '../lib/buildVersion'
+import { acquireBuildWatch } from '../lib/buildWatch'
 import {
-  subscribeUpdateRequired, isUpdateAnnounced, announceUpdateRequired, reloadNow,
+  subscribeUpdateRequired, isUpdateAnnounced, reloadNow,
 } from '../lib/reloadGuard'
 import styles from './UpdateReadyToast.module.css'
 
@@ -17,15 +17,8 @@ export default function UpdateReadyToast({ watch = true }) {
   const announced = useSyncExternalStore(subscribeUpdateRequired, isUpdateAnnounced)
   const popouts = useSyncExternalStore(subscribePopouts, hasOpenPopouts)
 
-  useEffect(() => {
-    if (!watch) return undefined
-    const w = createBuildWatcher({
-      fetchHealth: fetchHealthSafe,
-      clientId: getClientBuildId(document),
-      onNewBuild: announceUpdateRequired,
-    })
-    return () => w.stop()
-  }, [watch])
+  // The watcher is a page-level singleton (lib/buildWatch.js): this leaf only holds a reference.
+  useEffect(() => (watch ? acquireBuildWatch() : undefined), [watch])
 
   if (!announced) return null
   return (
