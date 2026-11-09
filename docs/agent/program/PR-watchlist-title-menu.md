@@ -88,7 +88,8 @@ Tag lists, prebuilt lists, scans and a host's own title (`pickTitleSlot`) get no
     - Local hash on master: `1aa5e8aa…`.
     - Local hash with this PR: `1512207b…`.
     - Pinned: `88504f4a…`.
-  - Re-baselining it, or giving it a record command, is for the test's owner or AUDIT to decide.
+  - **AUDIT ruling (2026-11-09): leave it alone.** It is a PRE-EXISTING master red, like the three `src/pages/command`
+    reds. Re-baselining it here would launder other teams' unreviewed drift into this PR.
 
 ## Notebook bytes
 master `5a812ece93` 2,252,608 B → this head 2,252,608 B. **Delta 0**, verdict PASS.
@@ -98,7 +99,15 @@ One locked run at `8fd718fe29`, on a quiet machine. Paths: `src/agent`, `src/pag
 - Result: `Test Files 3 failed | 387 passed | 5 skipped (395)`, `Tests 4 failed | 10664 passed | 6 skipped (10674)`.
 - Three of the failures are the same three `src/pages/command` failures every recent suite here shows (keyListenerCensus ×2, shortcutRegistry DrillPlayer ×1).
   - The census does not count JSX `onKeyDown`, and this PR adds no raw key listener.
-- The fourth is the `Watchlists.entitykeys` golden, explained above.
+- The fourth is the `Watchlists.entitykeys` golden: a **pre-existing master red**, left alone per AUDIT.
+  - Pinned `88504f4a…`, master `1aa5e8aa…`, this PR `1512207b…`.
+
+### Pre-existing master reds (not this PR's)
+| Test | Why |
+|---|---|
+| `src/pages/command/keyListenerCensus` (2 tests) | red on master |
+| `src/pages/command/shortcutRegistry` DrillPlayer (1 test) | red on master |
+| `src/pages/Watchlists.entitykeys` golden sha (1 test) | red on master: pinned `88504f4a…`, master `1aa5e8aa…`, this PR `1512207b…`. The PR's render change is by design (⋯ and the title anchor). Left alone per AUDIT. |
 - Every title-menu test passes.
 
 ## After this PR is in production
