@@ -16,7 +16,9 @@
   gap: 0;
   height: 64px;
   padding: 0 8px 0 0;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
   flex-shrink: 0;
   min-width: 0;
   background: var(--drill-canvas, var(--bg));
@@ -85,16 +87,14 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .spark rect + rect { fill: color-mix(in srgb, var(--text-muted) 45%, transparent); }
 .spark rect[data-now] { fill: var(--ut-gold); }
 .spark rect[data-hover] { fill: var(--text-bright); }
-.tileMix { flex: 1 1 auto; max-width: 620px; min-width: 260px; flex-shrink: 1; gap: 6px; }
-.mixHover { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.mixHover b { color: var(--text-bright); font-weight: 700; }
-.mixBar { display: flex; flex-shrink: 0; gap: 2px; height: 8px; border-radius: 3px; overflow: hidden; }
-.mixBar i { flex-basis: 0; min-width: 3px; transition: opacity .12s; }
-.mixBar i[data-dim] { opacity: .3; }
-.mixKey { display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--text); overflow: hidden; }
-.mixKey > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.mixKey i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-.mixKey b { color: var(--text-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
+.tileMix { flex: 1 1 auto; max-width: 820px; min-width: 300px; flex-shrink: 1; }
+.mixGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 26px; row-gap: 7px; }
+.mixRow { display: grid; grid-template-columns: minmax(0, auto) minmax(30px, 1fr) 22px; align-items: center; gap: 9px; font-size: 12px; cursor: default; }
+.mixName { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.mixName i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.mixTrack { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text-muted) 18%, transparent); overflow: hidden; }
+.mixTrack b { display: block; height: 100%; border-radius: 3px; }
+.mixCount { text-align: right; color: var(--text-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
 .up { color: var(--gain); }
 .dn { color: var(--loss); }
 
@@ -241,7 +241,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 
 /* Phone: the list + date on one line, the reading under it. */
 @media (max-width: 640px) {
-  .header { height: auto; flex-wrap: wrap; padding: 6px 8px; row-gap: 6px; }
+  .header { height: auto; flex-wrap: wrap; padding: 6px 8px; row-gap: 6px; border-radius: 0; border-width: 0 0 1px; }
   .identity { flex-direction: row; align-items: center; gap: 8px; min-width: 0; padding: 0; border-right: 0; }
   .tile { order: 3; flex-basis: 100%; padding: 0; border-right: 0; }
   .tileLbl { display: none; }

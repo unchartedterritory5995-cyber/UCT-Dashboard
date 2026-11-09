@@ -381,6 +381,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           </div>
         </ScanHeader>
 
+        <div className={styles.panel}>
         {popNotice && <div className={styles.notice}>{popNotice}</div>}
 
         {/* TERM-093 instrument: admins only, renders nothing while its flag is unset. */}
@@ -438,6 +439,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
             ))}
           </DrillSourceContext.Provider>
         </WorkspaceContext.Provider>
+        </div>
       </div>
     </div>
   )

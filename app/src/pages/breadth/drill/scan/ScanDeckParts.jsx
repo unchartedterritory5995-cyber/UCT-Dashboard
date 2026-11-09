@@ -36,7 +36,7 @@ export function ScanHeader({
 
       <CountHistory count={count} ctx={ctx} />
 
-      <SectorMix sectors={summary?.sectors} total={count} />
+      <SectorMix sectors={summary?.sectors} />
 
       <div className={styles.headEnd}>
         {children}
@@ -126,36 +126,29 @@ function CountHistory({ count, ctx }) {
 }
 
 // ── Sector mix ───────────────────────────────────────────────────────────────
-// Where the list's stocks come from: one bar split by sector (largest first, in
-// the same colours as the list's Sector sections), the top three named under it.
-// Hover a segment for its name and count.
-function SectorMix({ sectors, total }) {
-  const [hover, setHover] = useState(null)
+// Where the list's stocks come from, as a tiny leaderboard (owner pick, concept
+// C): the six largest sectors in three columns, each with a bar scaled to the
+// largest and its count. Colours match the list's Sector sections.
+function SectorMix({ sectors }) {
   const list = (sectors || []).filter(s => s.count > 0)
   if (!list.length) return null
-  const n = list.reduce((a, s) => a + s.count, 0) || total || 1
-  const colorOf = (s, i) => (s.key === UNCLASSIFIED ? 'color-mix(in srgb, var(--text-muted) 40%, transparent)' : GROUP_HUES[i % GROUP_HUES.length])
-  const pct = (c) => Math.round((c / n) * 100)
-  const named = list.filter(s => s.key !== UNCLASSIFIED).slice(0, 3)
-  const h = hover != null ? list[hover] : null
+  const n = list.reduce((a, s) => a + s.count, 0) || 1
+  const top = list.slice(0, 6)
+  const max = top[0].count || 1
+  const colorOf = (s, i) => (s.key === UNCLASSIFIED ? 'var(--text-muted)' : GROUP_HUES[i % GROUP_HUES.length])
+  const rest = list.length - top.length
   return (
-    <div className={`${styles.tile} ${styles.tileMix}`}>
-      <span className={styles.tileHead}>
-        <span className={styles.tileLbl}>Sector mix</span>
-        <span className={styles.mixHover}>{h ? <><b>{h.key}</b> {h.count} {h.count === 1 ? 'stock' : 'stocks'} · {pct(h.count)}%</> : null}</span>
-      </span>
-      <span className={styles.mixBar} role="img" onMouseLeave={() => setHover(null)}
-        aria-label={'Sector mix: ' + list.map(s => `${s.key} ${pct(s.count)}%`).join(', ')}>
-        {list.map((s, i) => (
-          <i key={s.key} onMouseEnter={() => setHover(i)} data-dim={hover != null && hover !== i ? true : undefined}
-            style={{ flexGrow: s.count, background: colorOf(s, i) }} />
+    <div className={`${styles.tile} ${styles.tileMix}`} role="group"
+      aria-label={'Sector mix: ' + list.map(s => `${s.key} ${s.count}`).join(', ')}>
+      <span className={styles.mixGrid}>
+        {top.map((s, i) => (
+          <span key={s.key} className={styles.mixRow}
+            title={`${s.key}: ${s.count} of ${n} stocks (${Math.round((s.count / n) * 100)}%)${i === top.length - 1 && rest > 0 ? ` · ${rest} more ${rest === 1 ? 'sector' : 'sectors'} not shown` : ''}`}>
+            <span className={styles.mixName}><i style={{ background: colorOf(s, i) }} />{s.key}</span>
+            <span className={styles.mixTrack}><b style={{ width: `${(s.count / max) * 100}%`, background: colorOf(s, i) }} /></span>
+            <span className={styles.mixCount}>{s.count}</span>
+          </span>
         ))}
-      </span>
-      <span className={styles.mixKey}>
-        {named.map(s => (
-          <span key={s.key}><i style={{ background: colorOf(s, list.indexOf(s)) }} />{s.key} <b>{pct(s.count)}%</b></span>
-        ))}
-        {list.length > named.length && <span className={styles.muted}>+{list.length - named.length} more</span>}
       </span>
     </div>
   )
