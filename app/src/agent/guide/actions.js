@@ -186,30 +186,6 @@ export const WATCHLIST_ACTIONS = [
   { id: 'pick', label: 'Loading a ticker from a list', re: /\b(load|open|click|view|chart)\b.*\b(tickers?|symbols?|stocks?|rows?)\b/, steps: onRow('a ticker in the list', 'Click a ticker: it loads on the charts linked to this list.') },
 ]
 
-// ── the Watchlists PAGE (pages/Watchlists.jsx): a list's right-click menu and its header buttons ──
-// Anchors: `watchlists.page` (the page) and `watchlist.listName` (a list's name) are the attribute-only patch in
-// docs/agent/program/TEACH-WATCHLISTS-PAGE.patch; the menu is the page's own `watchlist.rowMenu`, its rows found by their labels.
-const WL_PAGE = 'watchlists.page'
-const LIST_NAME = { within: WL_PAGE, guide: 'watchlist.listName' }
-const listMenu = (label, name, say) => [
-  { target: LIST_NAME, name: 'a list’s name', text: 'Right-click the name of one of your lists.', waitFor: { within: 'watchlist.rowMenu', label } },
-  { target: { within: 'watchlist.rowMenu', label }, name, text: say, endsOnClick: true },
-]
-const header = (title, name, say) => [{ target: { within: WL_PAGE, attr: 'title', value: title }, name, text: say, altText: 'This is on your own lists only: open one of your lists here.' }]
-export const WATCHLIST_PAGE_ACTIONS = [
-  { id: 'rename', label: 'Renaming a list', re: /\brenam\w*\b/, steps: listMenu('Rename', 'Rename', 'Click Rename, type the new name and press Enter.') },
-  { id: 'copy', label: 'Copying a list to the clipboard', re: /\b(copy|clipboard)\b/, steps: listMenu('Copy list to clipboard', 'Copy list to clipboard', 'Click this to copy the list’s tickers to your clipboard.') },
-  { id: 'excel', label: 'Exporting a list to Excel', re: /\b(excel|xlsx|spreadsheet)\b/, steps: listMenu('Export Excel', 'Export Excel', 'Click Export Excel to download the list as a spreadsheet.') },
-  { id: 'csv', label: 'Exporting a list as CSV', re: /\b(export|download|csv)\b/, steps: listMenu('Export CSV', 'Export CSV', 'Click Export CSV to download the list.') },
-  { id: 'import', label: 'Importing tickers into a list', re: /\b(import|paste|bulk)\b/, steps: listMenu('Import tickers', 'Import tickers', 'Click Import tickers and paste them in: one per line, or separated by commas.') },
-  { id: 'history', label: 'A list’s version history', re: /\b(version|history|restore|older)\b/, steps: listMenu('Version history', 'Version history', 'Click Version history. Pick a version, and Restore brings it back.') },
-  { id: 'starred', label: 'Removing the starred tickers from a list', re: /\b(remove|clear|delete)\b.*\b(starred|stars)\b/, steps: [
-    { target: LIST_NAME, name: 'a list’s name', text: 'Right-click the name of one of your lists.', waitFor: { within: 'watchlist.rowMenu', lead: 'Remove starred' } },
-    { target: { within: 'watchlist.rowMenu', lead: 'Remove starred' }, name: 'Remove starred', text: 'Click Remove starred to take every starred ticker off this list.', endsOnClick: true },
-  ] },
-  { id: 'share', label: 'Sharing a list with the community', re: /\b(share|public|community|publish)\b/, steps: header('Share with community', 'Share with community', 'Click this to share the list with the community. Click again to make it private.') },
-]
-
 // ── the layout bar (pages/charts/LayoutDock.jsx) ──
 const LAYOUT_TAB = { within: 'workspace.layouts', attr: 'data-layout-pin' }
 const layoutItem = (id) => ({ within: 'workspace.layoutMenu', attr: 'data-menu-id', value: id })
@@ -433,9 +409,6 @@ export const ACTION_FAMILIES = [
   { id: 'indicatorManage', slot: 'indAct', slots: ['ind', 'indAct'], rows: INDICATOR_ACTIONS, when: needsAny(INDICATOR_WORDS), control: 'the chart’s settings gear', title: '{indAct.label}', topic: 'indicators', caps: [], explain: 'Chart settings → Indicators lists what is on the chart, with its settings, templates, pane order and Create Indicator.' },
   { id: 'layoutAction', slot: 'layoutAct', rows: LAYOUT_ACTIONS, when: needsAny(LAYOUT_WORDS), control: 'your layouts bar', title: '{layoutAct.label}', topic: 'layouts', caps: [], explain: 'Right-click a layout on the bar for its menu: rename, duplicate, version history and close.' },
   { id: 'tabAction', slot: 'tabAct', rows: TAB_ACTIONS, when: needsAny(TAB_WORDS), control: 'the tabs', title: '{tabAct.label}', topic: 'widgets', caps: [], explain: 'A tab sits in the strip above its chart or widget: click to switch, double-click to rename, and its × closes it.' },
-  // ⭐ cov-4 (8): the Watchlists PAGE's own list controls (a list's header and right-click menu), which pick mode hides in the
-  // Charts widget. Surface 'watchlists': offered from Charts only behind the member's Yes (capabilities/guide.js pageWalkOffer)
-  { id: 'watchlistPage', surface: 'watchlists', slot: 'wlPageAct', rows: WATCHLIST_PAGE_ACTIONS, when: needsAny(LIST_WORDS), control: 'the list’s name on the Watchlists page', title: '{wlPageAct.label}', topic: 'watchlists', caps: [], explain: 'On the Watchlists page, right-click a list’s name for its menu: rename, copy, export, import, version history and remove starred. Share and delete are in the list’s header.' },
   { id: 'watchlistAction', slot: 'listAct', rows: WATCHLIST_ACTIONS, when: needsAny(LIST_WORDS), except: /\bearnings\b/, control: 'the Widgets menu', title: '{listAct.label}', topic: 'watchlists', caps: [], explain: 'A Watchlist widget holds the list. Click a ticker to load it, click a column title to sort, and right-click a ticker for its menu.' },
   { id: 'alertAction', slot: 'alertAct', rows: ALERT_ACTIONS, control: 'the bell on the chart’s toolbar', title: '{alertAct.label}', topic: 'alerts', caps: [], explain: 'The bell on the chart’s toolbar opens Indicator alerts: the form, and the alerts already set for this symbol.' },
   { id: 'widgetAction', slot: 'widgetAct', rows: WIDGET_ACTIONS, control: 'the Widgets menu', title: '{widgetAct.label}', topic: 'widgets', caps: [], explain: 'That control is inside its widget. Add the widget from Widgets ▾ if it isn’t on your board.' },

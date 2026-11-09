@@ -53,10 +53,8 @@ import { nlm1Rewrite, createReferents } from './nlm1/followups'   // NLM-1 D2/D3
 import { planCreatedReference } from './nlm1/plans'                 // NLM-1 D2 (same two keys), on Track A's bindCreated
 import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupOps'   // NLM-1 D2/D3.1 (same two keys)
 import { isStepPlan, prepareStepPlan, snapshotInstances, resolveResultRefs, readBackStepPlan } from './nlm1/stepPlans'   // NLM-1 step plans (same two keys)
-import { doItForMe, pageWalkOffer, showFeature } from './capabilities/guide'
+import { doItForMe } from './capabilities/guide'
 import { endForNewRequest } from './guide/guideStore'
-import { goToPageWalk, takePageWalk } from './guide/pageWalk'
-import { guideFeature } from './guide/registry'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
@@ -642,17 +640,6 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // the chart's opener re-checks it, and /converse enforces it server-side.
   const createIndicator = useCreateIndicatorAccess(useContext(AuthContext))
   const capCtx = useMemo(() => ({ surface, createIndicator }), [surface, createIndicator])
-  // pl-teach cov-4 (8): a walkthrough the member said Yes to on another page starts here, once (guide/pageWalk.js)
-  useEffect(() => {
-    // taken in the timer, not the effect: a remount before it fires (StrictMode, a fast re-render) leaves it for the next one
-    const t = setTimeout(() => {
-      const walk = takePageWalk(surface)
-      if (!walk) return
-      const said = showFeature(guideFeature(walk.feature), host, walk.detail)
-      if (said) push({ role: 'agent', text: said })
-    }, 400)
-    return () => clearTimeout(t)
-  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   // INDICATORS M2 — the member's OWN saved definition ids (server rows), read fresh by the
   // Indicators permission check at plan, apply and Undo.
   const { rows: ownedDefinitionRows } = useUserDefinitions()
@@ -1861,12 +1848,6 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (!p || p.kind !== 'target') return
     pendingRef.current = null
     push({ role: 'member', text: label })
-    if (p.guidePage) {
-      // Yes: the walkthrough waits for the page's own panel (guide/pageWalk.js), then the page changes; anything else stays put
-      const went = ref === 'guidePage:yes' && goToPageWalk(p.guidePage, host)
-      push({ role: 'outcome', text: went ? 'Opening the Watchlists page: the walkthrough starts there.' : 'OK, staying here. Nothing changed.' })
-      return
-    }
     if (!p.draft && p.epoch !== epochOf(host)) {
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
@@ -2203,14 +2184,6 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ PHASE 2 — DO IT FOR ME: "now do it for me" right after a walkthrough runs that feature's EXISTING capability
       // on the chart it showed (agent/capabilities/guide.doItForMe) — asked first when a value is needed (which
       // timeframe?), then planned, checked, receipted and undoable like any other request. Never with a proposal waiting.
-      // pl-teach cov-4 (8): a how-to whose control is only on another page asks before any page change (teaching only)
-      const pageWalk = answering || memRef || pendingRef.current ? null : pageWalkOffer(text, host, surface)
-      if (pageWalk) {
-        pendingRef.current = { kind: 'target', guidePage: pageWalk.walk, draft: true, path: 'fast', member: text, voice }
-        push({ role: 'question', text: pageWalk.ask.text, choices: pageWalk.ask.choices, local: true })
-        record({ member: text, outcome: pageWalk.ask.text, outcomeData: { kind: 'guide-page-ask' }, telemetry: { path: 'fast', clarified: true, voice } })
-        return
-      }
       const guideDo = answering || memRef || pendingRef.current ? null : doItForMe(text, host)
       if (guideDo?.say) {
         push({ role: 'agent', text: guideDo.say })

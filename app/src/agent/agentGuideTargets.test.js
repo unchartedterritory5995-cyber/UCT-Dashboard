@@ -9,7 +9,6 @@ import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { allCapabilityNames, getCapability } from './capabilities'
 import { GUIDE_FEATURES, guideFeatures, matchFeature } from './guide/registry'
-import { PAGE_PATHS, pageReady } from './guide/pageWalk'
 import { TOPICS } from './discovery'
 import { TOOLS } from '../components/chart/ChartToolbar'
 import { menuGroups } from '../widgets/registry'
@@ -55,8 +54,7 @@ function targetsOf(f) {
 
 describe('every walkthrough points at a real control', () => {
   // the named-control catalog has its own rail, which also reads each control's accessible name (agentGuideControls.test.js)
-  // a page walkthrough waiting for its page's anchors (guide/pageWalk.js pageReady) is checked against the patch instead, below
-  for (const f of GUIDE_FEATURES.filter(x => x.id !== 'control' && (!PAGE_PATHS[x.surface] || pageReady(x.surface)))) {
+  for (const f of GUIDE_FEATURES.filter(x => x.id !== 'control')) {
     it(`${f.id}: each target is rendered by the product`, () => {
       for (let t of targetsOf(f)) {
         if (typeof t === 'object' && t.widgetType) {
@@ -138,18 +136,4 @@ describe('the registry is not a second source of truth', () => {
     ['how do I draw a trendline', 'drawing'],
     ['where are the chart settings', 'settings'],
   ])('%s → %s', (q, id) => { expect(matchFeature(q)?.id).toBe(id) })
-})
-
-describe('a page walkthrough waiting for its page (guide/pageWalk.js)', () => {
-  it('the Watchlists page walkthrough points only at anchors the page renders, or that its unapplied patch adds', () => {
-    const patch = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'docs', 'agent', 'program', 'TEACH-WATCHLISTS-PAGE.patch'), 'utf8')
-    // the anchors the patch ADDS (its + lines that carry a data-guide)
-    const added = patch.split(/\r?\n/).filter(l => l.startsWith('+') && l.includes('data-guide')).join(' ')
-    const f = GUIDE_FEATURES.find(x => x.id === 'watchlistPage')
-    for (const t of targetsOf(f)) {
-      for (const id of [t.within, t.guide].filter(Boolean)) {
-        expect(source.includes(`data-guide="${id}"`) || added.includes(id), id).toBe(true)
-      }
-    }
-  })
 })
