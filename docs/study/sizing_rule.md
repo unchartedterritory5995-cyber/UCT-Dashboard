@@ -117,12 +117,17 @@ and A1 ("A is good").
 - B14. Size comes back one rung of the ladder each time the account recovers half of the drawdown; full size again
   once the account is back within 5% of its peak. ("14, good except full size okat at 5% drawdown again on the way up.")
 - B15. No daily loss limit. ("15, no.")
-- B16. No weekly loss limit; a monthly loss limit of 8%. ("16 no But a monthly loss limit of 8%.")
+- B16. No weekly loss limit; a monthly loss limit of 8%: at 8% down in a month, no new trades for the rest of the
+  month. ("16 no But a monthly loss limit of 8%." Asked what happens when it is hit: "monthly limit, yes.")
+- B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14). ("17, only
+  drawdown rule in terms of %.")
 - B18. A market filter decides when the account trades. ("18, yes there is a market filter for sure yes.") Its
   definition is still to come from the owner.
-- B19. Move the stop to breakeven at 2R to 5R, ideally; the first trim at 3R to 6R, ideally. ("19 breakeven stop at
-  2-5R ideally.First trim at 3-6R ideally.") This replaces the setup plans' "take some off at 2R and 3R" in what the
-  courses teach as ours; the setup review (TRADE_PLANS.md) follows it.
+- B19. Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is **a third at 3R**; ideally
+  anywhere from 3R to 6R, and in practice he mostly waits for 5R. ("19 breakeven stop at 2-5R ideally.First trim at
+  3-6R ideally." Then: "New trims rules are what I like for hard rule can say trim 1/3 at 3R but I rarely actually
+  do that and mostly wait for 5R.") This replaces the setup plans' "take some off at 2R and 3R" in what the courses
+  teach as ours; the setup review (TRADE_PLANS.md) follows it.
 - B20. A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is
   the new stop. ("gap against stop use 30 minute rules (let first 30 minute low of gap down day define new stop.")
 - B21. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.
@@ -136,8 +141,13 @@ and A1 ("A is good").
   rules, premium paid is stop.")
 - B26. The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only
   below the 200-day, never above it unless it is a parabolic short. ("SHort I will only do if below the 200SMA. No
-  longs below 200SMA (unless parabolic long) no shorts above 200SMA unless parabolic short.")
+  longs below 200SMA (unless parabolic long) no shorts above 200SMA unless parabolic short.") A hard rule ("200SMA is
+  hardened rule yes"). **Parabolic**, as he directed ("read bracco's substack post to determine a parabolic short
+  and long"): Bracco's "The Parabolic Short" (https://unchartedterritoryy.substack.com/p/the-parabolic-short), the
+  "parabolic burst", a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days
+  of range expansion, two days of rising volume, and a gap up on the climax day; the more boxes checked, the stronger.
+  The post has no parabolic long; the long is taken as the mirror image (a burst down), pending his confirmation.
+- B27. Journal every trade the same day and review the week every weekend, ideally. ("27, ideally yes..")
 
-**Still open (asked 2026-11-09):** a losing-streak rule (17); the market filter's definition (18); what happens when
-the monthly 8% limit is hit; what counts as parabolic (B26); journaling and review (27); whether "I almost never take a
-loss greater than 3%" and "read charts in percents" belong in A.
+**Still open:** the market filter's definition (B18); that a parabolic long is the mirror of Bracco's parabolic short
+(B26); whether "I almost never take a loss greater than 3%" and "read charts in percents" belong in A.
