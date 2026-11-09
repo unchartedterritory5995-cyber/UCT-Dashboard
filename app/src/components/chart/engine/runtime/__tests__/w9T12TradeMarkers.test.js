@@ -17,7 +17,7 @@ import {
   publishTradeMarkers, tradeMarkersFor, onTradeMarkersChange, resetTradeMarkers,
   markersWithheldWith, joinMarkersToState, MARKER_WITHHELD_GUARD,
 } from '../tradeMarkers.js'
-import { strategyRecordOf, withStrategyRecord, strategyRecordShapeErrors, STRATEGY_WINDOW_HISTORY } from '../strategyRecord.js'
+import { strategyRecordOf, withStrategyRecord, strategyRecordShapeErrors, STRATEGY_WINDOW_HISTORY, STRATEGY_RECORD_UNSERVED } from '../strategyRecord.js'
 import { UNPINNED_GUARD, BROKER_RULE_IDS, PRESENTATION_RULES, MARKER_RULE as RULES_MARKER_RULE } from '../brokerRules.js'
 import RESOLVED from '../brokerPins.resolved.json'
 import { toRenderState } from '../../objectRenderState.js'
@@ -106,7 +106,9 @@ describe('W9-T12 2 — the member door refuses by name until W9-MK1 is pinned', 
     expect(out.status).toBe('refused')
     expect(out.guard).toBe(MARKER_UNRECORDED_GUARD)
     expect(out.fields).toEqual(['orders', 'trades.exitId'])
-    expect(out.owners).toEqual(['W9-T7', 'W9-T7'])
+    // the owners are the record's own (`STRATEGY_RECORD_UNSERVED`), never restated here
+    expect(out.owners).toEqual([STRATEGY_RECORD_UNSERVED.orders, STRATEGY_RECORD_UNSERVED['trades.exitId']])
+    expect(out.owners.every((o) => /^W9-T7/.test(o))).toBe(true)
   })
 
   it('MK-LOOK is a presentation rule, read from the one table in brokerRules.js, never a broker rule', () => {
