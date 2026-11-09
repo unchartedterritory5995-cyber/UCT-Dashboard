@@ -2727,7 +2727,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.",
-    "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ].",
+    "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ]. groupType + groupName = a whole Compare-panel group (theme / sector / industry and its name; null for none).",
     "args": {
      "type": "object",
      "properties": {
@@ -2745,12 +2745,32 @@
       },
       "clear": {
        "type": "boolean"
+      },
+      "groupType": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "theme",
+        "sector",
+        "industry",
+        null
+       ]
+      },
+      "groupName": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
       "add",
       "remove",
-      "clear"
+      "clear",
+      "groupType",
+      "groupName"
      ],
      "additionalProperties": false
     },
@@ -5850,7 +5870,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.",
-    "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ].",
+    "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ]. groupType + groupName = a whole Compare-panel group (theme / sector / industry and its name; null for none).",
     "args": {
      "type": "object",
      "properties": {
@@ -5868,12 +5888,32 @@
       },
       "clear": {
        "type": "boolean"
+      },
+      "groupType": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "theme",
+        "sector",
+        "industry",
+        null
+       ]
+      },
+      "groupName": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
       "add",
       "remove",
-      "clear"
+      "clear",
+      "groupType",
+      "groupName"
      ],
      "additionalProperties": false
     },
@@ -7292,7 +7332,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.",
-    "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ].",
+    "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ]. groupType + groupName = a whole Compare-panel group (theme / sector / industry and its name; null for none).",
     "args": {
      "type": "object",
      "properties": {
@@ -7310,12 +7350,32 @@
       },
       "clear": {
        "type": "boolean"
+      },
+      "groupType": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "theme",
+        "sector",
+        "industry",
+        null
+       ]
+      },
+      "groupName": {
+       "type": [
+        "string",
+        "null"
+       ]
       }
      },
      "required": [
       "add",
       "remove",
-      "clear"
+      "clear",
+      "groupType",
+      "groupName"
      ],
      "additionalProperties": false
     },

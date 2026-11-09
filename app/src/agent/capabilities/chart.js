@@ -42,6 +42,7 @@ import { chartTemplateSettings } from '../../components/chart/chartTemplateApply
 import { keepIndicatorState } from '../../components/chart/indicatorPreservation'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
+import { fetchGroupList, fetchGroupMembers } from '../../pages/charts/compareGroups'
 import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
@@ -134,7 +135,7 @@ export const sessionOf = (cs, tf) => (isIntraday(tf)
 export const extWindowOpen = () => { const s = getExtSessionCached()?.session; return s === 'pre' || s === 'post' }
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 /** chart.compare's resulting list: clear, then removals, then additions (the panel's own entry shape). */
-function comparisonsAfter(st, { add, remove, clear }) {
+function comparisonsAfter(st, { add, remove, clear }, members = null) {
   let list = clear ? [] : (Array.isArray(st.cs?.comparisonSymbols) ? [...st.cs.comparisonSymbols] : [])
   const drop = new Set((remove || []).map(x => String(x).trim().toUpperCase()))
   list = list.filter(x => !drop.has(String(x.sym).toUpperCase()))
@@ -143,8 +144,26 @@ function comparisonsAfter(st, { add, remove, clear }) {
     if (!sym || list.some(x => x.sym === sym)) continue
     list = [...list, { sym, enabled: true, color: pickComparisonColor(list.length, list.map(x => x.color)), scaleMode: 'new' }]
   }
+  // C1-035: a whole group, exactly as the panel's addGroup — members not compared yet (never the chart's own symbol), each
+  // tagged with the group, colours picked past every colour in use
+  if (members?.symbols?.length) {
+    const base = String(st.symbol || '').toUpperCase()
+    const used = new Set(list.map(x => String(x.color).toLowerCase()))
+    let idx = list.length
+    for (const sym of members.symbols) {
+      if (sym === base || list.some(x => x.sym === sym)) continue
+      const color = pickComparisonColor(idx++, used)
+      used.add(String(color).toLowerCase())
+      list = [...list, { sym, enabled: true, color, scaleMode: 'new', group: members.name }]
+    }
+  }
   return list
 }
+/** The group an op names (groupType + groupName), or null. */
+const groupOf = (a) => (a?.groupType && String(a?.groupName || '').trim() ? { type: a.groupType, name: String(a.groupName).trim() } : null)
+const groupKey = (g) => (g?.type && g?.name ? `${String(g.type).toLowerCase()}:${String(g.name).trim().toLowerCase()}` : null)
+const GROUP_WORD = { theme: 'theme', sector: 'sector', industry: 'industry' }
+const GROUP_PLURAL = { theme: 'Themes', sector: 'Sectors', industry: 'Industries' }
 
 // ── chart.setSetting helpers (generated from the product's descriptor table) ──
 // ⛔ THE STATE THE CHART ACTUALLY DRAWS FROM. Two rows do not live in the settings blob (the descriptor's `store`):
@@ -982,19 +1001,42 @@ const CAPABILITIES = [
     // clear also leaves "Group only", and (as the open panel does) a percent scale is switched off.
     name: 'chart.compare',
     summary: 'Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.',
-    hints: 'add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. "Compare NVDA against QQQ on this chart" = target the NVDA chart, add [QQQ].',
+    hints: 'add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. "Compare NVDA against QQQ on this chart" = target the NVDA chart, add [QQQ]. groupType + groupName = a whole Compare-panel group (theme / sector / industry and its name; null for none).',
     args: { type: 'object', properties: {
       add: { type: 'array', items: { type: 'string' } }, remove: { type: 'array', items: { type: 'string' } }, clear: { type: 'boolean' },
-    }, required: ['add', 'remove', 'clear'], additionalProperties: false },
+      groupType: { type: ['string', 'null'], enum: ['theme', 'sector', 'industry', null] }, groupName: { type: ['string', 'null'] },
+    }, required: ['add', 'remove', 'clear', 'groupType', 'groupName'], additionalProperties: false },
+    absentAsNull: ['groupType', 'groupName'],
     // (`trusted`: tickers UCT itself showed — a screen's rows, Gate C "compare it to the others" — are
     // not looked up again, exactly as chart.setSymbol; anything the member or the model typed still is)
     async prepare(ops) {
       const syms = ops.filter(o => !o.trusted).flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
-      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+      const out = syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+      // C1-035: a group is the panel's own: its exact name from the panel's group list, then its members (server-side, as the panel)
+      const groups = {}
+      for (const g of ops.map(o => groupOf(o.args)).filter(Boolean)) {
+        const key = groupKey(g)
+        if (key in groups) continue
+        const type = String(g.type).toLowerCase()
+        const list = await fetchGroupList(type)
+        const hit = list.find(x => String(x.name).trim().toLowerCase() === String(g.name).trim().toLowerCase())
+        if (!hit) { groups[key] = { missing: true, names: list.map(x => x.name) }; continue }
+        const m = await fetchGroupMembers(type, hit.name)
+        groups[key] = m?.symbols?.length ? { name: hit.name, symbols: m.symbols } : { failed: true, name: hit.name }
+      }
+      return Object.keys(groups).length ? { ...out, compareGroups: groups } : out
     },
-    check(st, { add, remove, clear }, env) {
+    check(st, args, env) {
+      const { add, remove, clear } = args
+      const group = groupOf(args)
       const list = (add || []).map(x => String(x || '').trim().toUpperCase())
-      if (!clear && !list.length && !(remove || []).length) return 'Which symbols should I compare?'
+      if (group) {
+        const g = env?.compareGroups?.[groupKey(group)]
+        const kind = GROUP_WORD[String(group.type).toLowerCase()] || 'group'
+        if (!g || g.failed) return `I couldn't load the ${g?.name || group.name} ${kind} just now, so nothing changed. Try again in a moment.`
+        if (g.missing) return `UCT has no ${kind} “${group.name}”.${g.names.length ? ` ${GROUP_PLURAL[kind]} include ${g.names.slice(0, 6).join(', ')}.` : ''}`
+      }
+      if (!clear && !list.length && !(remove || []).length && !group) return 'Which symbols should I compare?'
       const odd = list.find(x => !/^[A-Z0-9.$:^_\-/]{1,24}$/.test(x))
       if (odd) return `“${odd}” doesn't look like a ticker.`
       if (list.includes(String(st.symbol || '').toUpperCase())) return `The chart already shows ${st.symbol} — compare it against a different symbol.`
@@ -1003,24 +1045,30 @@ const CAPABILITIES = [
       // ⛔ F5: the product's published ceiling (chartCeilings.MAX_COMPARISONS), counted on the RESULT —
       // after removals and duplicates. Never blocks a change that leaves fewer than the chart has now.
       const cur = Array.isArray(st.cs?.comparisonSymbols) ? st.cs.comparisonSymbols.length : 0
-      const after = comparisonsAfter(st, { add, remove, clear }).length
+      const after = comparisonsAfter(st, { add, remove, clear }, group ? env?.compareGroups?.[groupKey(group)] : null).length
       if (after > MAX_COMPARISONS && after > cur) return `A chart can compare at most ${MAX_COMPARISONS} symbols — this one would have ${after}. Remove some first.`
       return null
     },
-    apply(st, { add, remove, clear }) {
-      const list = comparisonsAfter(st, { add, remove, clear })
+    apply(st, args, env) {
+      const { add, remove, clear } = args
+      const group = groupOf(args)
+      const list = comparisonsAfter(st, { add, remove, clear }, group ? env?.compareGroups?.[groupKey(group)] : null)
       const next = { ...st.cs, comparisonSymbols: list, preset: 'custom' }
       if (clear) next.compareHideBase = false
       if (list.length && next.percentScale) { next.percentScale = false; next.logScale = false }
       return sameJson(next.comparisonSymbols, st.cs?.comparisonSymbols ?? []) && !clear ? st : { ...st, cs: next }
     },
-    describe(b, a) {
+    describe(b, a, args) {
       const was = (b.cs?.comparisonSymbols || []).map(x => x.sym), now = (a.cs?.comparisonSymbols || []).map(x => x.sym)
       if (sameJson(was, now)) return null
-      return now.length ? `Comparing ${a.symbol || 'this chart'} with ${now.join(', ')}` : 'Removed every comparison from this chart'
+      const grp = groupOf(args)
+      const g = grp ? (a.cs?.comparisonSymbols || []).find(x => x.group && String(x.group).toLowerCase() === grp.name.toLowerCase())?.group : null
+      const of = g ? ` (the ${g} ${GROUP_WORD[String(grp.type).toLowerCase()] || 'group'})` : ''
+      return now.length ? `Comparing ${a.symbol || 'this chart'} with ${now.join(', ')}${of}` : 'Removed every comparison from this chart'
     },
     // ⛔ F5: the no-op says what was asked — "remove QQQ" when QQQ isn't compared is not "already there"
-    noop: (b, a, args) => ((args?.add || []).length ? 'Those comparisons are already there'
+    noop: (b, a, args) => (groupOf(args) ? `Every member of the ${groupOf(args).name} ${GROUP_WORD[String(args.groupType).toLowerCase()] || 'group'} is already compared on this chart`
+      : (args?.add || []).length ? 'Those comparisons are already there'
       : (args?.remove || []).length ? 'None of those is being compared on this chart' : 'This chart has no comparisons'),
   },
   {
