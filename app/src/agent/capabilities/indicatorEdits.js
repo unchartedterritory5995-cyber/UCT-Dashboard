@@ -512,6 +512,31 @@ export function defIdOfWords(words) {
   return hits.length === 1 ? hits[0].defId : null
 }
 
+// ── C1-104 (pl-exec): "toggle X" — the chart's indicator chords (Ctrl+I / Ctrl+O / Ctrl+B / Alt+U → StockChart
+// toggleIndicatorById: VISIBILITY, never a delete) said in words, as a family over EVERY indicator, not the four chords:
+// shown → hidden (kept), hidden → shown, absent → added. A trailing "on" / "off" is the member's own direction ("off"
+// on a hidden one is the honest "already hidden"; "off" on an absent one is not claimed). ⛔ Decided on the chart's real
+// state, so only where the chart is certain with no chart words at all: a ONE-chart board. Anywhere else (or two of that
+// indicator on the chart) it is not claimed here: the model, which sees each indicator's `hidden`, plans it or asks.
+const TOGGLE_WORDS = /^(?:please )?(?:toggle|flip)(?: the| my)? (.+?)(?: indicator| study)?(?: (on|off))?$/
+/** The one op "toggle X" is on this board — { action, args } — or null (not claimed). */
+export function toggleOp(lower, host) {
+  const m = TOGGLE_WORDS.exec(String(lower || ''))
+  const defId = m ? defIdOfWords(m[1]) : null
+  if (!defId) return null
+  let charts = []
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  if (charts.length !== 1 || !charts[0]?.cs) return null
+  const mine = rowsOf(charts[0].cs).filter(r => r.defId === defId)
+  if (mine.length > 1) return null
+  const state = !mine.length ? 'absent' : mine[0].hidden ? 'hidden' : 'shown'
+  const off = m[2] ? m[2] === 'off' : state === 'shown'
+  const __target = refOf(charts[0].ref)
+  if (off) return state === 'absent' ? null : { action: 'indicator.hide', args: { instance: mine[0].instanceId, __target } }
+  return state === 'absent' ? { action: 'indicator.add', args: { defId, inputs: null, __target } } : { action: 'indicator.show', args: { instance: mine[0].instanceId, __target } }
+}
+const toggleFor = (action) => ({ lower, host }) => { const t = toggleOp(lower, host); return t && t.action === action ? t.args : null }
+
 /**
  * ⭐ acceptance 2026-10-29 — a model's indicator.add whose `defId` is not a catalog id but NAMES one exactly the way the
  * member's own words would ("ema" + period 9, "EMA 20", "rsi", "Relative Strength Index") → the canonical built-in, read
@@ -776,6 +801,9 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ Phase 2 — "add another 20 EMA" / "a second RSI" / "RSI again": the member's explicit copy (agent/duplicates.js
     // reuses an identical one otherwise).
     fast: ({ lower, raw, host }) => {
+      // C1-104: "toggle RSI" on a chart without one = the chord's add
+      const toggled = toggleFor('indicator.add')({ lower, host })
+      if (toggled) return toggled
       // PACKAGE 3: "apply it" right after the Agent SAVED an indicator (no draft active) = add that saved definition
       const saved = savedReferent(host, raw)
       if (saved) return { defId: saved.defId, inputs: null, __target: refOf(saved.chart), __explicit: true }
@@ -911,6 +939,8 @@ export function registerIndicatorEditCapabilities() {
       summary: `${visible ? 'Show' : 'Hide'} ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.`,
       hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
       args: { type: 'object', properties: { instance: { type: 'string' } }, required: ['instance'], additionalProperties: false },
+      // C1-104: "toggle the MACD" / "toggle bb" — the chord's hide / show, from the chart's real state
+      fast: toggleFor(name),
       check(st, { instance }) {
         const t = targetOf(st, instance)
         if (!t.ok) return refusalSentence(t, { chart: st.chart })
