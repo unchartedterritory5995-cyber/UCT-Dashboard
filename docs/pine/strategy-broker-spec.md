@@ -291,7 +291,8 @@ applies to the order"), else `comment`.
 `.exit_comment`, all read off the log. Refused by name: an exit id TradingView generates (above, W9-V1); an order without a
 comment (R6 returns `na` only "if there is no entry with this `trade_num`", so whether a missing comment reads `na` or `""`
 is not stated, W9-V1); the exit comment of a reversed trade (whether the reversing entry's comment is it is not stated,
-W9-V1); a computed comment (not kept).
+W9-V1, the ONE rule `strategyRecord.js::exitLabelUnstated`, which the report's exit signal and the marker label ask too:
+r1, review N1); a computed comment (not kept).
 
 **The label a fill shows** (`strategyRecord.js::orderLabelOf`, read by the markers (T12) and the report's trade list
 (T13a/T13b)): the order's comment, else its id (R6, every command's `comment`: "the Strategy Tester and the chart show this

@@ -18,6 +18,7 @@ import { execute } from '../vm.js'
 import { BROKER_OPS, ORDER_COMMENT_PARAMS } from '../broker.js'
 import { strategyRecordOf, strategyRecordShapeErrors, exitIdOf, STRATEGY_RECORD_UNSERVED } from '../strategyRecord.js'
 import { strategyReportOf, REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD } from '../brokerReport.js'
+import { tradeMarkersOf, MARKER_UNLABELLED_GUARD } from '../tradeMarkers.js'
 
 const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' }
 const T0 = 1700000000
@@ -379,5 +380,38 @@ describe('W9-T7-F1 a text read is TEXT to the front end', () => {
       + '    strategy.exit("x", "L", profit = 300)\n'
       + 'plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_id(0) + "/" + strategy.closedtrades.entry_id(0) == "x/L" ? 1 : 0) : -1)\n')
     expect(cols[0].slice(1, 5)).toEqual([-1, -1, 1, 1])
+  })
+})
+
+describe('W9-T7-F1 r1 (review N1, one fact two answers): a reversed trade\'s exit label refuses on EVERY surface', () => {
+  const REV = `${V5}if bar_index == 1\n    strategy.entry("L", strategy.long, qty = 1)\nif bar_index == 4\n`
+    + '    strategy.entry("S", strategy.short, qty = 1, comment = "flip")\n'
+  const READ = 'plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_comment(0) == "flip" ? 1 : 0) : -1)\n'
+  const surfaces = (src) => {
+    const { rec } = served(`${src}plot(strategy.position_size)\n`)
+    return { rec, report: strategyReportOf(rec, { isPinned: ALL }), markers: tradeMarkersOf(rec, { isPinned: ALL }) }
+  }
+
+  it('exit_comment refuses W9-V1; the report\'s exit signal refuses W9-V1; the markers refuse whole, naming the fill', () => {
+    const err = refusedAt(`${REV}${READ}`, 'W9-V1')
+    expect(err.message).toMatch(/reversing entry/)
+    const { report, markers } = surfaces(REV)
+    const x = report.trades.rows[0].exitSignal
+    expect([x.status, x.guard, x.row]).toEqual(['refused', REPORT_UNSTATED_GUARD, 'W9-V1'])
+    expect(x.sentence).not.toMatch(/flip/)
+    // the reversing entry's OWN entry signal is its comment (stated)
+    expect(report.trades.rows[1].entrySignal).toEqual({ status: 'served', value: 'flip' })
+    expect(markers.guard).toBe(MARKER_UNLABELLED_GUARD)
+    expect(markers.fills).toEqual(['trade 1 exit (order 2, a reversing entry)'])
+  })
+
+  it('⛔ CONTROL — an exit command\'s comment is served on all three', () => {
+    const SRC = `${V5}if bar_index == 1\n    strategy.entry("L", strategy.long, qty = 1)\n    strategy.exit("x", "L", profit = 300, comment = "tp")\n`
+    const { cols } = served(`${SRC}plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_comment(0) == "tp" ? 1 : 0) : -1)\n`)
+    expect(cols[0].slice(2, 5)).toEqual([-1, 1, 1])
+    const { report, markers } = surfaces(SRC)
+    expect(report.trades.rows[0].exitSignal).toEqual({ status: 'served', value: 'tp' })
+    expect(markers.status).toBe('ok')
+    expect(markers.markers.filter((m) => m.role === 'exit').map((m) => m.label)).toEqual(['tp'])
   })
 })

@@ -43,7 +43,7 @@
 
 import { pinned } from './brokerPins.js'
 import { UNPINNED_GUARD, MARKER_RULE, PRESENTATION_RULES } from './brokerRules.js'
-import { STRATEGY_WINDOW_HISTORY, runtimeStrategyOf, strategyRecordShapeErrors, exitIdOf, orderLabelOf } from './strategyRecord.js'
+import { STRATEGY_WINDOW_HISTORY, runtimeStrategyOf, strategyRecordShapeErrors, exitIdOf, orderLabelOf, exitLabelUnstated } from './strategyRecord.js'
 import { toRenderState } from '../objectRenderState.js'
 
 /** The presentation rule the markers rest on, and the capture row that pins it (design 5.2),
@@ -166,7 +166,7 @@ export function tradeMarkersOf(record, opts = {}) {
     const id = role === 'entry' ? order.id : exitIdOf(order)
     const label = orderLabelOf(order, role)
     if (label === null) {
-      unlabelled.push(`trade ${t.n} ${role} (order ${order.n}, ${order.commentRecorded ? 'no stated name' : 'a computed comment'})`)
+      unlabelled.push(`trade ${t.n} ${role} (order ${order.n}, ${!order.commentRecorded ? 'a computed comment' : exitLabelUnstated(order, role) ? 'a reversing entry' : 'no stated name'})`)
       return
     }
     // one marker per order fill (MK-H-FILL): a fill closing or opening several trades is one marker

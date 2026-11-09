@@ -27,7 +27,7 @@
 
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf, RISK_RULES } from './brokerRules.js'
-import { exitIdOf } from './strategyRecord.js'
+import { exitIdOf, exitLabelUnstated, EXIT_LABEL_ROW } from './strategyRecord.js'
 
 export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 export const BROKER_START_GUARD = 'runtime:strategy-start'
@@ -1828,9 +1828,9 @@ export function makeBroker(cfg, data) {
         const r = rowOf(tradeAt(closed, a[0], fn).xid)
         // the exit of a reversed trade is the reversing ENTRY's fill: whether that entry's comment is the closed
         // trade's exit comment is not stated (R6 `strategy.entry` `comment` speaks of "the filled order")
-        if (r && r.kind === 'entry') {
+        if (exitLabelUnstated(r, 'exit')) {
           throw new BrokerRefusal(`\`${fn}\` reads a trade a reversing entry closed, and whether that entry's comment is the `
-            + "closed trade's exit comment is not stated", 'W9-V1')
+            + "closed trade's exit comment is not stated", EXIT_LABEL_ROW)
         }
         return commentOfRow(r, fn)
       }

@@ -86,6 +86,15 @@ export const ORDER_END_REASONS = Object.freeze({
 export function exitIdOf(row) {
   return row && (row.kind === 'exit' || row.kind === 'order') && typeof row.id === 'string' ? row.id : null
 }
+/** ⭐⭐ W9-T7-F1 r1 (review N1, one fact two answers) — ONE AUTHORITY: the exit of a REVERSED trade is the
+ *  reversing ENTRY's fill, and whether that entry's comment (or id) is what the closed trade's exit shows is not
+ *  stated (R6 `strategy.entry` speaks of "the filled order" and of an ENTRY id only). Refused by name (W9-V1) on
+ *  every surface until W9-V1 witnesses it: `strategy.closedtrades.exit_comment` (`broker.js`), the report's exit
+ *  signal and the marker's label (`orderLabelOf`). */
+export const EXIT_LABEL_ROW = 'W9-V1'
+export function exitLabelUnstated(order, role) {
+  return role === 'exit' && !!order && order.kind === 'entry'
+}
 /** ⭐⭐ ONE AUTHORITY: the text the Strategy Tester and the chart show for an order's fill. R6, every order
  *  command's `comment`: "If the value is not an empty string, the Strategy Tester and the chart show this text
  *  for the order instead of" its id (for `strategy.close`, "instead of the automatically generated exit
@@ -94,6 +103,7 @@ export function exitIdOf(row) {
  *  comment on an exit TradingView names itself. The markers (T12) and the report's trade list (T13a) read it. */
 export function orderLabelOf(order, role) {
   if (!order || order.commentRecorded !== true) return null
+  if (exitLabelUnstated(order, role)) return null
   if (typeof order.comment === 'string') return order.comment
   const id = role === 'entry' ? order.id : exitIdOf(order)
   return typeof id === 'string' ? id : null

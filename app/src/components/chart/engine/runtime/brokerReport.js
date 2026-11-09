@@ -35,7 +35,7 @@
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD, commissionRulesOf } from './brokerRules.js'
 import { BROKER_UNSETTLED_GUARD } from './broker.js'
-import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf, orderLabelOf } from './strategyRecord.js'
+import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf, orderLabelOf, exitLabelUnstated, EXIT_LABEL_ROW } from './strategyRecord.js'
 
 export const STRATEGY_REPORT_SCHEMA = 'uct.strategy-report/v1'
 /** No source we hold states the metric's formula exactly, and no capture has witnessed it. */
@@ -291,7 +291,12 @@ export function strategyReportOf(rec, opts = {}) {
           sentence: `${what} is not shown: the script computes this order's comment, and the backtest record keeps only a `
             + 'comment written as text.' })
       }
-      return refusal({ guard: REPORT_UNSTATED_GUARD, row: 'W9-V1',
+      if (exitLabelUnstated(o, role)) {
+        return refusal({ guard: REPORT_UNSTATED_GUARD, row: EXIT_LABEL_ROW,
+          sentence: `${what} is not shown: this trade was closed by the order that reversed the position, and what `
+            + 'TradingView shows for that exit has not yet been checked against TradingView.' })
+      }
+      return refusal({ guard: REPORT_UNSTATED_GUARD, row: EXIT_LABEL_ROW,
         sentence: `${what} is not shown: TradingView names this kind of exit itself, and that name has not yet been `
           + 'checked against TradingView.' })
     }

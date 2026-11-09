@@ -394,3 +394,33 @@ describe('W9-T13b the mount is dark behind VITE_PINE_STRATEGY_BROKER_ENABLED', (
     expect(importers('AttachedStrategyReports')).toEqual(['ChartPane.jsx'])
   })
 })
+
+describe('W9-T7-F1 r1 (review N1) a reversed trade\'s exit signal: the plain refusal, never the reversing entry\'s comment', () => {
+  // trade 1 long L, closed on bar 6 by the reversing short entry S (comment "flip"), which opens trade 2
+  const rev = () => {
+    const trades = [tr('L', 'long', 1, [1, 10], [6, 12]), tr('S', 'short', 1, [6, 12], null)]
+    const orders = orderLogFor(trades, { entryComments: [null, 'flip'] })
+    // the broker logs a reversal as ONE row: the entry S, which closed trade 1 and opened trade 2
+    const s = orders.find((o) => o.kind === 'entry' && o.id === 'S')
+    const c = orders.find((o) => o.kind === 'close')
+    s.closed = c.closed
+    const log = orders.filter((o) => o !== c).map((o, i) => ({ ...o, n: i + 1 }))
+    return strategyRecordOf({ summary: { record: { trades, orders: log, rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
+      decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 1, defaulted: {} },
+      barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true })
+  }
+  const SENT = "Trade 1's exit signal is not shown: this trade was closed by the order that reversed the position, and what "
+    + 'TradingView shows for that exit has not yet been checked against TradingView.'
+
+  it('the panel shows the plain sentence in that cell; the reversing entry\'s own entry signal is served', () => {
+    const report = strategyReportOf(rev(), { isPinned: ALL })
+    expect(report.trades.rows[0].exitSignal).toMatchObject({ status: 'refused', guard: REPORT_UNSTATED_GUARD, row: 'W9-V1', sentence: SENT })
+    expect(report.trades.rows[1].entrySignal).toEqual({ status: 'served', value: 'flip' })
+    render(<StrategyReportPanel report={report} />)
+    clickTab('List of trades')
+    const cells = (n) => [...screen.getByTestId(`strategy-report-trade-${n}`).children].map((c) => c.textContent)
+    expect(cells(1)[6]).toBe(SENT)
+    expect(cells(1)[6]).not.toMatch(/flip|W9-V1|runtime:/)
+    expect(cells(2)[3]).toBe('flip')
+  })
+})

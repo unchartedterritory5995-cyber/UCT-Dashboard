@@ -48,8 +48,6 @@ MUTANTS = [
     ('M15 a computed comment reads as none', B, '    if (!r.commentRecorded) {\n      throw new BrokerRefusal(`\\`${fn}\\` reads a comment the script computes',
      '    if (false) {\n      throw new BrokerRefusal(`\\`${fn}\\` reads a comment the script computes'),
     ('M16 exit_id reads the row id, not the exit id', B, '    const id = asExit ? exitIdOf(r) : r.id\n', '    const id = r.id || \'\'\n'),
-    ('M17 a reversal\'s exit comment is served', B, "        if (r && r.kind === 'entry') {\n          throw new BrokerRefusal(`\\`${fn}\\` reads a trade a reversing entry",
-     "        if (false) {\n          throw new BrokerRefusal(`\\`${fn}\\` reads a trade a reversing entry"),
     ('M18 the log reads opened from oid of nothing', B, '      add(opened, t.oid, i)\n', ''),
     # ── the record (strategyRecord.js) ──
     ('M19 a reversing entry\'s id is an exit id', REC, "(row.kind === 'exit' || row.kind === 'order')",
@@ -68,6 +66,11 @@ MUTANTS = [
     ('M30 report: signals ignore the log', REP, "      const label = orderLabelOf(o, role)\n", "      const label = role === 'entry' ? t.entryId : (t.exitId || null)\n"),
     # ── the front end ──
     ('M31 a computed comment is lowered', SB, "    if (ORDER_COMMENT_PARAMS.includes(p) && node.type !== 'string') return { type: 'name', name: 'na', tok: node.tok }\n", ''),
+    # ── r1 (review N1): a reversed trade's exit label refuses on every surface ──
+    ('M32 r1: the reversal rule never fires', REC, "  return role === 'exit' && !!order && order.kind === 'entry'\n", "  return false\n"),
+    ('M33 r1: the label rule ignores the reversal rule', REC, "  if (exitLabelUnstated(order, role)) return null\n", ''),
+    ('M34 r1: exit_comment ignores the reversal rule', B, "        if (exitLabelUnstated(r, 'exit')) {", "        if (false) {"),
+    ('M35 r1: the report gives the generic sentence for a reversal', REP, "      if (exitLabelUnstated(o, role)) {", "      if (false) {"),
 ]
 
 

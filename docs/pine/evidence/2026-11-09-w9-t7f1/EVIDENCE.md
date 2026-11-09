@@ -65,3 +65,21 @@ text read TEXT to `exprTypeIn` changed nothing measurable (equality, `+`, `str.l
 identically without it), so it was removed rather than kept unprovable. Unrailed and stated: the `nothing-to-close`
 end of a market close (a close that meets no open trade of its id when it fills) is kept so a filled row always closed
 something, but no reachable run is known to take it (no other order fills between a close's placement and its tick).
+
+## r1 (review GO-WITH-NOTES @c130ebabc2, `dsk/reviews/W9-T7-F1.md`)
+
+- **N1 (one fact, two answers).** On a reversal (`strategy.entry("S", ..., comment = "flip")` against an open long),
+  `strategy.closedtrades.exit_comment(0)` refused while the report's exit signal and the markers served "flip". Ruling:
+  refuse consistently. ONE rule now, `strategyRecord.js::exitLabelUnstated` (an EXIT label taken from an ENTRY row, row
+  `EXIT_LABEL_ROW` = W9-V1): `orderLabelOf` returns null for it, so the report's `exitSignal` refuses
+  (`runtime:strategy-report-unstated`, W9-V1, a plain sentence the panel shows in that cell) and the markers refuse whole
+  (`runtime:strategy-markers-unlabelled`, the fill named "a reversing entry"); `broker.js` `exit_comment` asks the same
+  function. The reversing entry's own ENTRY signal ("flip") is stated and stays served. Rails: `w9T7F1OrderLog` "r1 ... on
+  EVERY surface" (a real run: the value, the report, the markers) with a control (an exit command's comment served on all
+  three), and `strategyReportPanel` "r1" (the cell's text, no comment, no id, no guard).
+- Mutants: M17 was replaced by M34 (its anchor is the shared rule now); M32-M35 added (the rule never fires; the label
+  rule, `exit_comment` and the report each ignoring it). M32-M35 4 of 4 killed (`muts.json`, round r1, beside r0's 31 of 31 at `c130ebabc2`). The full 34-mutant rerun was
+stopped by the session's low-memory guard after M2 (files restored from the runner's copy, `cmp` clean), so only the r1
+mutants were rerun; r0's mutants touch code r1 did not change, except M17, whose code r1 replaced (M34 covers it).
+Suites at r1 (Node 20): w9T7F1OrderLog, w9T12TradeMarkers, w9T12MarkersDoor, w9T13aBrokerReport, w9T13aReportParity,
+strategyReportPanel, w9T13bReportWire, w9T11Record, w9T14ServerRecord, serverBundle.rail: 10 files, 206/206.
