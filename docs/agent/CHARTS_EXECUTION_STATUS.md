@@ -1,6 +1,6 @@
 # Charts execution status
 
-> exec-p1-gaps (pl-exec, 2026-11-09): C1-007, C1-025 †, C1-035, C1-036, C1-038, C1-051, C1-064, C1-070, C1-072, C1-076 and C1-080 raised to VERIFIED by agentP1Gaps.test.jsx and agentP1GapsSettings.test.jsx (held-out phrasings in agentP1GapsHeldOut.test.js, committed first). LOCAL / SIMULATED (BROWSER-MOCK-MODEL). The counts below are not recomputed.
+> exec-p1-gaps (pl-exec, 2026-11-09): C1-007, C1-025 †, C1-035, C1-036, C1-038, C1-051, C1-064, C1-070, C1-072, C1-076, C1-080, C1-094 and C1-104 raised to VERIFIED by agentP1Gaps.test.jsx, agentP1GapsSettings.test.jsx and agentP1GapsPanes.test.jsx (held-out phrasings in agentP1GapsHeldOut.test.js, committed first). LOCAL / SIMULATED (BROWSER-MOCK-MODEL). The counts below are not recomputed.
 
 > Round 4-8 rows (2026-11-09) imported from agent/pl/exec-gen-1 into agent/pl/r8-integration: a row is raised here ONLY when every
 > test its evidence names exists on this branch (71 rows; the Multi Chart rows C3-042..C3-060 are not, and keep their state).
@@ -399,7 +399,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-091 | Volume | Volume colours, MA, label, bar style | IMPLEMENTED / UNVERIFIED | agentChartSettingsW1B.test.jsx | pass 4/4 | panel, partial |
 | C1-092 | Volume | Overlay indicator on volume | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-093 | Panes | Move a pane | VERIFIED | agentIndicatorsP2: E4 | pass 1/1 | panel, scripted model |
-| C1-094 | Panes | Resize a pane | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx | pass 19/19 | panel, partial |
+| C1-094 | Panes | Resize a pane | VERIFIED | agentP1GapsPanes.test.jsx | pass 15/15 | panel, scripted model |
 | C1-095 | Panes | Collapse a pane | NOT ON /CHARTS | none | n/a | n/a |
 | C1-096 | Crosshair | Copy price at the cursor | NOT ON /CHARTS | none | n/a | n/a |
 | C1-097 | Legend | Hide/show an indicator from chip | VERIFIED | c:indicator.hide; c:indicator.show | pass 9/9 | panel, scripted model |
@@ -409,7 +409,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-101 | Legend | Add alert from chip | VERIFIED | c:indicatorAlert.threshold | pass 5/5 | panel, scripted model |
 | C1-102 | Legend | Delete indicator from chip | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |
 | C1-103 | Legend | Hide all indicators (Alt+Shift+I) | VERIFIED † | c:chartSetup.setIndicatorsHidden; agentChartViewControls: hides, reads back | pass 6/6 | panel, scripted model |
-| C1-104 | Legend | Toggle RSI/MACD/BB/VWAP chord | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
+| C1-104 | Legend | Toggle RSI/MACD/BB/VWAP chord | VERIFIED | agentP1GapsPanes.test.jsx | pass 15/15 | panel, no model (one-chart board) |
 | C1-105 | Legend | Toggle moving averages (Ctrl+M) | VERIFIED | c:chartSetup.setMovingAverages; agentChartViewControls: through the panel: every moving average | pass 6/6 | panel, scripted model |
 | C1-106 | Measure | Measure on the chart | VERIFIED | drawingFamily: measure: the right symbol; drawingFamily: it persists in the store | pass 2/2 | panel, scripted model |
 | C1-107 | Measure | Bars & Time | VERIFIED | drawingFamily: dateRange: the right symbol | pass 1/1 | panel, scripted model |
