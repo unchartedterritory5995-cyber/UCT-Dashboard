@@ -5,7 +5,9 @@ strategy("W9_P1B_ON_CLOSE_FILLS_NV", overlay = false, default_qty_type = strateg
 // Row W9-P1b on NYSE:RDDT 1D. Settles: process_orders_on_close with calc_on_order_fills: does L1's fill AT THE CLOSE re-run the bar, and does the add that re-run places fill at that close or at the next open (no varip)
 // Capture with tools/vendor_harness/tv_capture.js (gradeMethod set; settings read back). Never the CSV, never exportData().
 // No varip (rule 11 refuses it in broker mode). The re-run is witnessed by L2: placed only once a position is open.
-// X02 - X01 and X03 against the bars' prices are the answer; W9-P1b's varip twin is held (superseded).
+// X02 == X01: the re-run's add filled at L1's own close. X02 == X01 + 1 with X03 at that bar's CLOSE: no re-run (POC fills at the close);
+// X02 == X01 + 1 with X03 at that bar's OPEN: a re-run whose add waited for the open. A bar whose open equals its close cannot tell those two apart.
+// W9-P1b's varip twin is held (superseded).
 
 fast = ta.sma(close, 5)
 slow = ta.sma(close, 20)

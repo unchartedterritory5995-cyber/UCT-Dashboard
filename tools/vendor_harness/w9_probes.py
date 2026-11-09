@@ -302,12 +302,16 @@ if dn
                "re-run the bar, and does the add that re-run places fill at that close or at the next open (no varip)", pyr_add,
                decl=FIXED1 + ", pyramiding = 2, process_orders_on_close = true, calc_on_order_fills = true", extras=pyr_add_x,
                notes=["No varip (rule 11 refuses it in broker mode). The re-run is witnessed by L2: placed only once a position is open.",
-                      "X02 - X01 and X03 against the bars' prices are the answer; W9-P1b's varip twin is held (superseded)."]))
+                      "X02 == X01: the re-run's add filled at L1's own close. X02 == X01 + 1 with X03 at that bar's CLOSE: no re-run (POC fills at the close);",
+                      "X02 == X01 + 1 with X03 at that bar's OPEN: a re-run whose add waited for the open. A bar whose open equals its close cannot tell those two apart.",
+                      "W9-P1b's varip twin is held (superseded)."]))
     s.append(P("p2-order-fills-nv", "W9-P2", "calc_on_order_fills on history: does L1's fill tick run an extra execution, and "
                "where does the add it places fill: on L1's bar (the next path tick) or at the next open (no varip)", pyr_add,
                decl=FIXED1 + ", pyramiding = 2, calc_on_order_fills = true", extras=pyr_add_x,
                notes=["No varip (rule 11 refuses it in broker mode). The extra execution is witnessed by L2: placed only once a position is open.",
-                      "X02 == X01 means an extra execution ran on L1's fill tick; X02 == X01 + 1 means it did not. W9-P2's varip twin is held."]))
+                      "X02 == X01: an extra execution ran on L1's fill tick and its add filled on L1's bar (B-FILLS as served: from the next tick).",
+                      "X02 == X01 + 1 (X03 at that bar's open) says only that the add did not fill on L1's bar: either no extra execution ran, or one ran",
+                      "and its add waited for the next open. This probe cannot tell those two apart; either one refutes B-FILLS as served. W9-P2's varip twin is held."]))
     s.append(P("p3-every-tick-history", "W9-P3", "calc_on_every_tick on history", LONGS, decl=FIXED1 + ", calc_on_every_tick = true"))
     s.append(P("x1-trail", "W9-X1", "a trailing exit", '''{SC}
 if up
@@ -339,16 +343,16 @@ if dn
     strategy.order("O2", strategy.short, qty = 2)''', decl=FIXED1,
                extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na")]))
     # 2026-11-08 capture-queue hygiene: B-CANCEL had no capture row (brokerRules.js `capture: null`). Three cases,
-    # each in its own 60-bar phase so no two share a bar: (a) cancel an unfilled entry; (b) cancel an unfilled
+    # each in its own 60-bar phase so no two share a bar: (a) cancel an entry that would surely fill, on its own bar; (b) cancel an unfilled
     # strategy.order and re-place its id later WITHOUT re-calling its exit (is the exit released, or does it bind
     # the new order?); (c) cancel_all on the bar a bracket is bound to an open trade, beside an unfilled entry.
     s.append(P("x5-cancel", "W9-X5", "strategy.cancel / cancel_all: an unfilled entry; an unfilled strategy.order and the exit "
                "waiting on it (released or kept); an open trade's bracket and an unfilled entry under cancel_all", '''phase = bar_index % 60
-// (a) strategy.cancel(id) on an unfilled strategy.entry
+// (a) strategy.cancel(id) on an unfilled strategy.entry: a buy limit ABOVE the market, which fills at the next open if it lives,
+//     cancelled on the bar it is placed, so "no A trade" can only mean the cancel
 if phase == 5
-    strategy.entry("A", strategy.long, limit = math.round_to_mintick(close * 0.9), comment = "ea")
+    strategy.entry("A", strategy.long, limit = math.round_to_mintick(close * 1.05), comment = "ea")
     strategy.exit("XA", "A", profit = 400, loss = 300, comment = "xa")
-if phase == 6
     strategy.cancel("A")
 // (b) strategy.cancel(id) on an unfilled strategy.order; the same id re-placed later, its exit NOT called again
 if phase == 20

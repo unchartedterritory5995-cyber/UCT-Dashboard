@@ -214,3 +214,6 @@ def test_the_cancel_probe_asks_all_three_cancel_cases():
     assert src.count("strategy.cancel(") == 2 and src.count("strategy.cancel_all(") == 1
     assert 'strategy.order("O"' in src and src.count('strategy.exit("XO"') == 1     # exit called once, never again
     assert _version(_text("w9-x5-cancel")) == 6
+    # (a): a buy limit ABOVE the market (it fills at the next open if it lives), cancelled on its own bar
+    case_a = src.split("if phase == 5", 1)[1].split("if phase ==", 1)[0]
+    assert "close * 1.05" in case_a and 'strategy.cancel("A")' in case_a

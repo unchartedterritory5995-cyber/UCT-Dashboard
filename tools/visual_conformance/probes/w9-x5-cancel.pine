@@ -8,11 +8,11 @@ strategy("W9_X5_CANCEL", overlay = false, default_qty_type = strategy.fixed, def
 // Both brackets are 50 ticks wide, so a live one fills on its first bar: `flat` cannot be a bracket that was merely not reached.
 
 phase = bar_index % 60
-// (a) strategy.cancel(id) on an unfilled strategy.entry
+// (a) strategy.cancel(id) on an unfilled strategy.entry: a buy limit ABOVE the market, which fills at the next open if it lives,
+//     cancelled on the bar it is placed, so "no A trade" can only mean the cancel
 if phase == 5
-    strategy.entry("A", strategy.long, limit = math.round_to_mintick(close * 0.9), comment = "ea")
+    strategy.entry("A", strategy.long, limit = math.round_to_mintick(close * 1.05), comment = "ea")
     strategy.exit("XA", "A", profit = 400, loss = 300, comment = "xa")
-if phase == 6
     strategy.cancel("A")
 // (b) strategy.cancel(id) on an unfilled strategy.order; the same id re-placed later, its exit NOT called again
 if phase == 20

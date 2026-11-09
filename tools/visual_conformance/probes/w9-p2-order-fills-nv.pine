@@ -5,7 +5,9 @@ strategy("W9_P2_ORDER_FILLS_NV", overlay = false, default_qty_type = strategy.fi
 // Row W9-P2 on NYSE:RDDT 1D. Settles: calc_on_order_fills on history: does L1's fill tick run an extra execution, and where does the add it places fill: on L1's bar (the next path tick) or at the next open (no varip)
 // Capture with tools/vendor_harness/tv_capture.js (gradeMethod set; settings read back). Never the CSV, never exportData().
 // No varip (rule 11 refuses it in broker mode). The extra execution is witnessed by L2: placed only once a position is open.
-// X02 == X01 means an extra execution ran on L1's fill tick; X02 == X01 + 1 means it did not. W9-P2's varip twin is held.
+// X02 == X01: an extra execution ran on L1's fill tick and its add filled on L1's bar (B-FILLS as served: from the next tick).
+// X02 == X01 + 1 (X03 at that bar's open) says only that the add did not fill on L1's bar: either no extra execution ran, or one ran
+// and its add waited for the next open. This probe cannot tell those two apart; either one refutes B-FILLS as served. W9-P2's varip twin is held.
 
 fast = ta.sma(close, 5)
 slow = ta.sma(close, 20)

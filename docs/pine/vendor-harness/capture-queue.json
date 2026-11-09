@@ -79,19 +79,19 @@
   }
  },
  "counts": {
-  "targets": 289,
+  "targets": 293,
   "byStatus": {
    "CAPTURED": 78,
-   "NEEDS_CHART": 45,
+   "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 164
+   "QUEUED": 174
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
-    "NEEDS_CHART": 43,
+    "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 131
+    "QUEUED": 141
    },
    "W1": {
     "QUEUED": 6
@@ -112,9 +112,9 @@
   "byPriorityBand": {
    "0": {
     "CAPTURED": 61,
-    "NEEDS_CHART": 44,
+    "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 149
+    "QUEUED": 159
    },
    "1-2": {
     "CAPTURED": 17,
@@ -217,8 +217,7 @@
     "NEEDS_CHART": 1
    },
    "s1": {
-    "NEEDS_CHART": 6,
-    "QUEUED": 2
+    "QUEUED": 12
    },
    "time-anchors": {
     "CAPTURED": 10
@@ -298,14 +297,14 @@
   "rowsNeedingProbe": 4,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
-  "rowsNotCaptureQuestions": 46,
+  "rowsNotCaptureQuestions": 42,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
    "by-design": 2,
    "closed": 2,
    "engine-gap": 12,
    "ruling": 4,
-   "superseded": 15,
+   "superseded": 11,
    "withheld-ledger": 10
   },
   "rowsNamingUnreadableCharts": 0
@@ -7687,7 +7686,7 @@
   },
   {
    "id": "vw-s1-q-s1d-close-reverse@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1d-close-reverse.pine",
    "sourceKind": "probe",
@@ -7698,8 +7697,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -7729,7 +7728,7 @@
   },
   {
    "id": "vw-s1-q-s1d-two-entries@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1d-two-entries.pine",
    "sourceKind": "probe",
@@ -7740,8 +7739,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -7771,7 +7770,7 @@
   },
   {
    "id": "vw-s1-q-s1d-two-stops@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1d-two-stops.pine",
    "sourceKind": "probe",
@@ -7782,8 +7781,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -7812,8 +7811,176 @@
    ]
   },
   {
+   "id": "vw-s1-q-s1e-stop-past@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-s1-q-s1e-stop-past.pine",
+   "sourceKind": "probe",
+   "sha256": "c80d0953c72a17b74e790236c02974ed8ecb3d8aed12a2ab1c2108919f9b3a4d",
+   "bytes": 884,
+   "stem": "vw-s1-q-s1e-stop-past",
+   "captureStem": "vw-s1-q-s1e-stop-past",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "section",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "s1"
+   ],
+   "oldestDoc": "2026-10-05",
+   "rows": [
+    "capture-queue-2026-10-05-s1#Q-S1e"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-s1-q-s1g-blocked-stop-entry@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-s1-q-s1g-blocked-stop-entry.pine",
+   "sourceKind": "probe",
+   "sha256": "a6af0c4fc6851204851fc971b5a446cd32417b66cca6f1e3d9d6c3bcb4036840",
+   "bytes": 1099,
+   "stem": "vw-s1-q-s1g-blocked-stop-entry",
+   "captureStem": "vw-s1-q-s1g-blocked-stop-entry",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "section",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "s1"
+   ],
+   "oldestDoc": "2026-10-05",
+   "rows": [
+    "capture-queue-2026-10-05-s1#Q-S1g"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-s1-q-s1h-fifo-exit@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-s1-q-s1h-fifo-exit.pine",
+   "sourceKind": "probe",
+   "sha256": "250794b47c70bacb83033a96804d97ae6387b4f174a8f0d68a0b9d6cd883e9cb",
+   "bytes": 1112,
+   "stem": "vw-s1-q-s1h-fifo-exit",
+   "captureStem": "vw-s1-q-s1h-fifo-exit",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "section",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "s1"
+   ],
+   "oldestDoc": "2026-10-05",
+   "rows": [
+    "capture-queue-2026-10-05-s1#Q-S1h"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-s1-q-s1j-stop-limit@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-s1-q-s1j-stop-limit.pine",
+   "sourceKind": "probe",
+   "sha256": "ea7ac33072bdc703e4879bfad60fb5a2d6b6a2513f73e846eb8a2c7fa478e61c",
+   "bytes": 847,
+   "stem": "vw-s1-q-s1j-stop-limit",
+   "captureStem": "vw-s1-q-s1j-stop-limit",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "section",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "s1"
+   ],
+   "oldestDoc": "2026-10-05",
+   "rows": [
+    "capture-queue-2026-10-05-s1#Q-S1j"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-s1-q-s1k-fractional-profit@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1k-fractional-profit.pine",
    "sourceKind": "probe",
@@ -7824,8 +7991,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -7855,7 +8022,7 @@
   },
   {
    "id": "vw-s1-q-s1k-na-modify@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1k-na-modify.pine",
    "sourceKind": "probe",
@@ -7866,8 +8033,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -7897,7 +8064,7 @@
   },
   {
    "id": "vw-s1-q-s1k-profit-and-limit@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1k-profit-and-limit.pine",
    "sourceKind": "probe",
@@ -7908,8 +8075,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -11635,8 +11802,8 @@
    "evidence": [],
    "source": "tools/visual_conformance/probes/w9-p1b-on-close-fills-nv.pine",
    "sourceKind": "probe",
-   "sha256": "b304af4ebce0aa808a494e550ccbba336757c9d748770253b2e5aa2bcbd894b9",
-   "bytes": 4573,
+   "sha256": "32ea0699aaf04303019e99fea1ee5a0954f2d4dfc509081e3d2a7fedcd45a5a3",
+   "bytes": 4803,
    "stem": "w9-p1b-on-close-fills-nv",
    "captureStem": "w9-p1b-on-close-fills-nv",
    "symbol": "NYSE:RDDT",
@@ -11677,8 +11844,8 @@
    "evidence": [],
    "source": "tools/visual_conformance/probes/w9-p2-order-fills-nv.pine",
    "sourceKind": "probe",
-   "sha256": "2555693a5754b1706e50f1edabb0db0d48a4cc7ca7597c701e1f98eb1ebf10d6",
-   "bytes": 4563,
+   "sha256": "1c0089076a934f87a5a579095957c3c00f9c338e2f66983fb1b521b688c0bca7",
+   "bytes": 4849,
    "stem": "w9-p2-order-fills-nv",
    "captureStem": "w9-p2-order-fills-nv",
    "symbol": "NYSE:RDDT",
@@ -13147,8 +13314,8 @@
    "evidence": [],
    "source": "tools/visual_conformance/probes/w9-x5-cancel.pine",
    "sourceKind": "probe",
-   "sha256": "738c9c7c95649e3cc854f71df41441f888b24d44bc371eb2b42294709af7d6fd",
-   "bytes": 5445,
+   "sha256": "8ced18783dc718eeb3f38589319a2e888937b5fa140f00a95b6c5b0c4b090d5a",
+   "bytes": 5588,
    "stem": "w9-x5-cancel",
    "captureStem": "w9-x5-cancel",
    "symbol": "NYSE:RDDT",
@@ -14118,131 +14285,91 @@
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1a",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 29,
+   "line": 32,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "W9 design 5.2 B re-specifies Q-S1a with generated probes; capture-queue-2026-11-05-w9.md Q-S1a (w9-q-s1a-size-v4/v6/v5pct/v5cash/v2.pine, NYSE:RDDT 1D) asks the same per-version default sizing and adds v2. The vw-s1 files were never captured",
-   "dispositionLine": 65,
+   "dispositionLine": 72,
    "text": "Q-S1a | `vw-s1-q-s1a-v4.pine`, `vw-s1-q-s1a-v6.pine`, `vw-s1-q-s1a-v5pct.pine`, `vw-s1-q-s1a-v5cash.pine` (one file per run): `strategy(\"q\", overlay=false)` then one market `strategy.entry(\"L\", strategy.long)` on `bar_index == 50` and `strategy.close(\"L\")` on 80; rows `strategy.position_size`, `strategy.opentrades.size(0)` when open. Run it **four times**: header `//@version=4` (no size declared),"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1b",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 30,
+   "line": 33,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "the same per-version capital defaults are capture-queue-2026-11-05-w9.md Q-S1b (w9-q-s1b-defaults-v4/v5/v6.pine), which also reads pyramiding and the reversal",
-   "dispositionLine": 66,
+   "dispositionLine": 73,
    "text": "Q-S1b | `vw-s1-q-s1b-v4.pine`, `vw-s1-q-s1b-v5.pine`, `vw-s1-q-s1b-v6.pine` (one file per run): `strategy(\"q\")` with no properties, rows `strategy.initial_capital`, `strategy.equity` on bar 0, three times: `//@version=4`, `=5`, `=6` | the two numbers | the per-version defaults (100000 / 1000000 / 100000)"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1c",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 31,
+   "line": 34,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "this row never had a probe; capture-queue-2026-11-05-w9.md Q-S1c is its probe (w9-q-s1c-tie.pine)",
-   "dispositionLine": 67,
+   "dispositionLine": 74,
    "text": "Q-S1c | find a bar with `open - low == high - open` (`plot(open - low == high - open ? 1 : 0)` on SPY 1D and RDDT 1D first, pick one), place `strategy.entry(\"L\", strategy.long, limit = <bar's low>)` and `strategy.exit(\"x\", \"L\", limit = <bar's high>)` the bar before | trades CSV: does the entry and the exit both fill on that bar? | the path on a tie"
-  },
-  {
-   "key": "capture-queue-2026-10-05-s1#Q-S1e",
-   "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 33,
-   "docWave": "s1",
-   "disposition": "superseded",
-   "reason": "an exit already past its level when placed: capture-queue-2026-11-05-w9.md Q-S1e (w9-q-s1e-live-past.pine), a history capture",
-   "dispositionLine": 68,
-   "text": "Q-S1e | `vw-s1-q-s1e-stop-past.pine`: `strategy.entry(\"L\", strategy.long)` with `strategy.exit(\"x\", \"L\", stop = close * 1.02)` on the same bar (a stop ABOVE the market for a long, already past at activation) | the exit's fill bar and price | an exit live past its level"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1f",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 34,
+   "line": 37,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "a reversal against an exit with no from_entry: capture-queue-2026-11-05-w9.md Q-S1f (w9-q-s1f-reversal-exit.pine)",
-   "dispositionLine": 69,
+   "dispositionLine": 75,
    "text": "Q-S1f | `vw-s1-q-s1f-exit-no-from.pine`: an exit with NO `from_entry` (`strategy.exit(\"x\", loss = 500)`) called on one bar only, then a reversal `strategy.entry(\"S\", strategy.short)` a few bars later | does `x` fill against the short trade? (trades CSV) | does a reversal end it"
-  },
-  {
-   "key": "capture-queue-2026-10-05-s1#Q-S1g",
-   "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 35,
-   "docWave": "s1",
-   "disposition": "superseded",
-   "reason": "a price entry at the pyramiding limit, cancelled or kept: capture-queue-2026-11-05-w9.md Q-S1g (w9-q-s1g-pyr-limit.pine)",
-   "dispositionLine": 70,
-   "text": "Q-S1g | `vw-s1-q-s1g-blocked-stop-entry.pine`: `pyramiding = 1`; an open long, then `strategy.entry(\"L2\", strategy.long, stop = close * 1.01)` | does L2 ever fill after the first trade closes? | blocked price entry: cancelled or kept"
-  },
-  {
-   "key": "capture-queue-2026-10-05-s1#Q-S1h",
-   "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 36,
-   "docWave": "s1",
-   "disposition": "superseded",
-   "reason": "the FIFO split: capture-queue-2026-11-05-w9.md Q-S1h (w9-q-s1h-fifo.pine)",
-   "dispositionLine": 71,
-   "text": "Q-S1h | `vw-s1-q-s1h-fifo-exit.pine`: `pyramiding = 2`, \"A\" then \"B\" entries of 5 and 10, `strategy.exit(\"x\", \"B\", stop = ...)` | trades CSV split | the FIFO split (the manual's own example)"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1i",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 37,
+   "line": 40,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "margin call, deferred by the W9 design: capture-queue-2026-11-05-w9.md Q-S1i (w9-q-s1i-funds.pine, NYSE:RDDT 1D) is the row; this SPY copy is not taken",
-   "dispositionLine": 72,
+   "dispositionLine": 76,
    "text": "Q-S1i | `vw-s1-q-s1i-funds.pine` (AMEX:SPY 1D): v6 defaults, `strategy.entry(\"L\", strategy.long, qty = 5000)` on SPY | trades CSV: rejected? margin-call rows? | insufficient funds / margin call"
-  },
-  {
-   "key": "capture-queue-2026-10-05-s1#Q-S1j",
-   "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 38,
-   "docWave": "s1",
-   "disposition": "superseded",
-   "reason": "stop-limit: capture-queue-2026-11-05-w9.md Q-S1j (w9-q-s1j-stop-limit.pine)",
-   "dispositionLine": 73,
-   "text": "Q-S1j | `vw-s1-q-s1j-stop-limit.pine`: `strategy.entry(\"L\", strategy.long, stop = high + 1, limit = high)` | fill bar and price | stop-limit"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1l",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 40,
+   "line": 43,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "off-grid fill rounding: capture-queue-2026-11-05-w9.md Q-S1l (w9-q-s1l-off-grid.pine), which also plots the price in mintick units",
-   "dispositionLine": 74,
+   "dispositionLine": 77,
    "text": "Q-S1l | `vw-s1-q-s1l-off-grid-stop.pine`: `strategy.exit(\"x\", \"L\", stop = close * 0.97)` (an off-grid level) | the fill price in the trades CSV, to every decimal | is an off-grid fill rounded to the tick"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1m",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 41,
+   "line": 44,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "an out-of-range trade index: capture-queue-2026-11-05-w9.md Q-S1m (w9-q-s1m-index.pine)",
-   "dispositionLine": 75,
+   "dispositionLine": 78,
    "text": "Q-S1m | `vw-s1-q-s1m-index.pine`: `plot(strategy.opentrades.entry_price(5))` with one trade open | the row | out-of-range index"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1o",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 43,
+   "line": 46,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "realtime ticks on AMEX:SPY 5: capture-queue-2026-11-05-w9.md Q-S1o (w9-q-s1o-every-tick.pine, section D, live)",
-   "dispositionLine": 76,
+   "dispositionLine": 79,
    "text": "Q-S1o | `vw-s1-core-every-tick.pine`: Q-S1-core with `calc_on_every_tick = true`, during RTH on SPY 5 | the forming bar's rows | realtime ticks"
   },
   {
    "key": "capture-queue-2026-10-05-s1#Q-S1p",
    "doc": "docs/pine/capture-queue-2026-10-05-s1.md",
-   "line": 44,
+   "line": 47,
    "docWave": "s1",
    "disposition": "superseded",
    "reason": "split in capture-queue-2026-11-05-w9.md: the v5 when half is Q-S1p (w9-q-s1p-when.pine, history), the forming-bar half is Q-S1p-live (s1-broker-core.pine on AMEX:SPY 5, live)",
-   "dispositionLine": 77,
+   "dispositionLine": 80,
    "text": "Q-S1p | `vw-s1-core-when.pine` (NYSE:RDDT 1D): Q-S1-core's v5 `when` form (`strategy.entry(\"L\", strategy.long, when = up)`), and Q-S1-core during RTH on SPY 5: the rows on the **forming** bar | `when` placed / not placed; forming-bar rows `na` or a value | B-WHEN on v5; B-EXEC on a forming bar"
   },
   {

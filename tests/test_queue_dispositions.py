@@ -132,10 +132,10 @@ COMMITTED = {
     # PR #937 (reviewed): a measure-pair of our own two doors, not a TradingView reading.
     "capture-queue-2026-11-06-w6-t6": {"object door": "engine-gap"},
     # 2026-11-08 capture-queue hygiene (fix/pine-capture-queue-hygiene): S1's rows the W9 design re-specifies with
-    # generated w9-* probes under the same row id. Q-S1d and Q-S1k are NOT here: their S1 shapes ask more.
+    # generated w9-* probes under the same row id. NOT here (review r1, dsk/reviews/QUEUE-HYGIENE.md): Q-S1d, Q-S1e,
+    # Q-S1g, Q-S1h, Q-S1j, Q-S1k, whose S1 shapes reach refusals or served cases no W9 probe reaches.
     "capture-queue-2026-10-05-s1": {r: "superseded" for r in (
-        "Q-S1a", "Q-S1b", "Q-S1c", "Q-S1e", "Q-S1f", "Q-S1g", "Q-S1h", "Q-S1i", "Q-S1j", "Q-S1l", "Q-S1m", "Q-S1o",
-        "Q-S1p")},
+        "Q-S1a", "Q-S1b", "Q-S1c", "Q-S1f", "Q-S1i", "Q-S1l", "Q-S1m", "Q-S1o", "Q-S1p")},
     # the `varip` twins of W9-P1b / W9-P2 (rule 11 refuses `varip` in broker mode); the -nv probes replace them
     "capture-queue-2026-11-05-w9": {"W9-P1b varip": "superseded", "W9-P2 varip": "superseded"},
 }
@@ -154,11 +154,12 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
     # by PT-GAPS; L2 left this list in PR #937, its capture already queued as vw-pt-request-arm)
     q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
     needing = {r["key"] for r in q["rowsNeedingProbe"]}
-    # the S1 shapes no W9 probe asks stay queued (NEEDS_CHART), and their W9 replacements are targets
+    # the S1 shapes no W9 probe asks stay QUEUED (their table's chart, NYSE:RDDT 1D, is stated in the section lead)
     by = {t["id"]: t["status"] for t in q["targets"]}
     for stem in ("vw-s1-q-s1d-close-reverse", "vw-s1-q-s1d-two-entries", "vw-s1-q-s1d-two-stops",
-                 "vw-s1-q-s1k-fractional-profit", "vw-s1-q-s1k-na-modify", "vw-s1-q-s1k-profit-and-limit"):
-        assert f"{stem}@NYSE:RDDT@D" in by, stem
+                 "vw-s1-q-s1k-fractional-profit", "vw-s1-q-s1k-na-modify", "vw-s1-q-s1k-profit-and-limit",
+                 "vw-s1-q-s1e-stop-past", "vw-s1-q-s1g-blocked-stop-entry", "vw-s1-q-s1h-fifo-exit", "vw-s1-q-s1j-stop-limit"):
+        assert by.get(f"{stem}@NYSE:RDDT@D") == "QUEUED", stem
     assert not any(t.startswith(("vw-s1-q-s1a-", "vw-s1-q-s1b-", "vw-s1-core-")) for t in by)
     assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "QUEUED"
     assert not any(t.startswith(("w9-p1b-on-close-fills@", "w9-p2-order-fills@")) for t in by)
