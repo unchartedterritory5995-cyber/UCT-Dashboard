@@ -291,7 +291,7 @@ export const GUIDE_FEATURES = [
   },
   {
     id: 'goToDate', terms: ['go to date', 'time navigator'], control: 'the date box on the chart', title: 'Going to a date', topic: 'charts',
-    words: [/\b(go|jump|scroll|navigate|get) (back )?to (a |an |the |this |that )?(specific |particular |certain )?(date|day)\b/, /\bgo back to\b.*\b\d{4}\b/, /\btime navigator\b/],
+    words: [/\b(go|jump|scroll|navigate|get) (back )?to (a |an |the |this |that )?(specific |particular |certain )?(date|day|year)\b/, /\b(go|jump|scroll|navigate|get) (back )?to (a year like )?(19|20)\d\d\b/, /\bgo back to\b.*\b\d{4}\b/, /\btime navigator\b/],
     caps: ['chart.goToDate'],
     explain: 'The date box on the chart’s header jumps the chart to a date: type it and press Enter. Its arrows step one bar at a time, and the calendar picks a date or a year.',
     steps: [
