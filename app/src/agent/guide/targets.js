@@ -19,6 +19,7 @@
 //   { label: '…' }                            the on-screen label with exactly these words (a settings section, a row)
 //   { cursor: 'row-resize' }                  the element the chart library itself marks with this cursor: a pane divider,
 //                                             which it draws and which carries no attribute of ours
+//   { named: '…' }                            …narrowed to the ones NAMED these words, from the first word ("RSI", not "Stoch RSI")
 //   { text: '…' }                             …narrowed to the ones whose visible text holds these words, in any form
 //                                             (a per-indicator row: "RSI"), for controls that only exist per instance
 // and any target may add { on: true }: the control must be in its selected state (a tab selected, a toggle pressed, a
@@ -46,7 +47,39 @@ export const isOn = (el) => STATE_ATTRS.some(k => el?.getAttribute?.(k) === 'tru
 /** The control is there but greyed out. */
 export const isDisabled = (el) => !!el && (el.disabled === true || el.getAttribute?.('aria-disabled') === 'true')
 
-const hasWords = (el, words) => String(el.textContent || '').toLowerCase().includes(String(words).toLowerCase())
+// the words on their own: "EMA 20" is not "EMA 200", "DEMA 20" or "TEMA 20". A chip's text runs its value into its name
+// ("EMA 2099.54"), so its accessible name is read as well
+function holds(text, words) {
+  const t = String(text || '').toLowerCase()
+  const w = String(words).toLowerCase()
+  for (let i = t.indexOf(w); i >= 0; i = t.indexOf(w, i + 1)) {
+    const before = i === 0 ? '' : t[i - 1]
+    if (/[a-z0-9]/.test(before)) continue
+    if (!/\d$/.test(w) || !/\d/.test(t[i + w.length] || '')) return true
+  }
+  return false
+}
+const hasWords = (el, words) => holds(el.getAttribute?.('aria-label'), words) || holds(el.textContent, words)
+// the control is NAMED these words, from its first word: "RSI" is not the "Stochastic RSI" row, nor "ATR" the "ATR Bands" chip
+function isNamed(el, words) {
+  const name = String(el.getAttribute?.('aria-label') || el.textContent || '').replace(/ options$/, '').trim().toLowerCase()
+  const w = String(words).toLowerCase()
+  if (!name.startsWith(w)) return false
+  const next = name.slice(w.length)
+  if (/\d$/.test(w) && /^\d/.test(next)) return false
+  return next === '' || /^[^a-z0-9]*$/.test(next) || /^\s*\(?\d/.test(next)
+}
+// the divider along the top of the pane whose legend names these words: the last one above that legend
+function dividerAbove(lines, box, words) {
+  const cell = box.closest?.('[data-widget-id]') || box
+  for (const chip of cell.querySelectorAll('[data-guide="chart.chip"]')) {
+    if (!isNamed(chip, words)) continue
+    const y = chip.getBoundingClientRect().top
+    const above = lines.filter(l => l.getBoundingClientRect().top <= y).sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top)
+    if (above.length) return above.slice(0, 1)
+  }
+  return []
+}
 // what a target's own narrowing leaves inside one box
 function inside(box, t) {
   const sel = t.aria ? `[aria-label="${esc(t.aria)}"]`
@@ -59,8 +92,12 @@ function inside(box, t) {
     const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
     return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => own(el) === want)
   }
-  if (t.cursor) return [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
+  if (t.cursor) {
+    const lines = [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
+    return t.above ? dividerAbove(lines, box, t.above) : lines
+  }
   const els = sel ? [...box.querySelectorAll(sel)] : [box]
+  if (t.named) return els.filter(el => isNamed(el, t.named))
   return t.text ? els.filter(el => hasWords(el, t.text)) : els
 }
 const pick = (els, t) => visible(t.on ? els.filter(isOn) : els)
@@ -101,7 +138,8 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   const id = String(typeof target === 'object' ? target.id : target)
   const on = typeof target === 'object' && target.on
   const words = typeof target === 'object' ? target.text : null
-  const said = (els) => (words ? els.filter(el => hasWords(el, words)) : els)
+  const exactly = typeof target === 'object' ? target.named : null
+  const said = (els) => (exactly ? els.filter(el => isNamed(el, exactly)) : words ? els.filter(el => hasWords(el, words)) : els)
   const sel = `[data-guide="${esc(id)}"]`
   // ⭐ PHASE 3: a widget header's own controls (`widget.*` — the link dot) are scoped to the chart talked about, too
   if (id.startsWith('chart.') || id.startsWith('widget.')) {
