@@ -151,6 +151,16 @@ const NO_PROPS = Object.freeze([])
  *  most 100 × 100 and anything larger is an argument that was never a size. */
 const MAX_MERGE_AREA = 10000
 
+/** ⭐ DIV-3 — what a `table.cell` REPLACE carries over from the cell it replaces:
+ *  only the span `table.merge_cells` set (not a `table.cell` property; see the
+ *  `case 'cell'` note). Every property the call does not pass is gone. */
+const spanOf = (prior) => {
+  const out = {}
+  if (prior.colspan !== undefined) out.colspan = prior.colspan
+  if (prior.rowspan !== undefined) out.rowspan = prior.rowspan
+  return out
+}
+
 /** Truthiness for a guard column. ⛔ `NaN` IS FALSE, deliberately: a condition
  *  that has not warmed up yet has not fired, and treating an unknown as a fire
  *  is how an object appears on bar 0 of every chart. */
@@ -1749,16 +1759,23 @@ export function beginObjects(program, ctx) {
         // time is gone, because `text` defaults to `""`. `table.cell_set_*()` is
         // the patch you use when that is not what you meant.
         //
-        // ⚠️⚠️ AND THIS RUNTIME MERGES BOTH, WHICH IS A FOURTH FIDELITY GAP.
-        // `map.get(key) || {}` below makes `cell` a patch too, so today the two
-        // kinds behave identically and no test in the repo can tell them apart.
-        // That is PRE-EXISTING and is not fixed in this change: turning `cell`
-        // into a true replace changes what every already-imported script draws
-        // and needs its own evidence. ⛔ The kinds stay distinct anyway — the
-        // day `cell` becomes a replace is the day a `cell_set_text` modelled as
-        // a `cell` would wipe the colours off the row it was only asked to
-        // relabel, and a shared kind would make that a one-line silent
-        // regression instead of a decision.
+        // ⭐⭐ DIV-3 (2026-11-09) — `cell` IS NOW A REPLACE. Reference
+        // (`pine_v6_reference.json`, `table.cell` remarks[1]): "Each table.cell()
+        // call overwrites all previously defined properties of a cell … the
+        // default value of the 'text' being an empty string, it will overwrite
+        // 'Test Text'". ⚰️ This merged both kinds (`map.get(key) || {}` for a
+        // `cell` too), while the runtime lane already replaced
+        // (`runtime/objectStore.js`, kind `cell`): one script, two drawings.
+        // Measured on the runtime-on vendor harness (336 captures, base
+        // 6891e3fe54): verdicts.json identical before and after, every capture.
+        // Railed in `__tests__/tableCellReplace.test.js`. `cellpatch`
+        // stays a patch — the reason the two kinds were kept distinct.
+        // ⛔ NOT DECIDED, BY NAME: the span `merge_cells` set on a head cell.
+        // The reference lists the properties `table.cell` overwrites and the
+        // span is not one of them, nor does it say a later `table.cell`
+        // un-merges; so the span is carried across the replace, exactly as
+        // before. (The runtime lane drops it — a lane divergence filed, not
+        // settled here.)
         //
         // ⚠️ A PATCH TO A CELL NEVER WRITTEN CREATES IT, and the reference does
         // not say whether TradingView agrees — `docs/pine/lwc5-capability-map.md:858`
@@ -1777,7 +1794,8 @@ export function beginObjects(program, ctx) {
           let map = cells.get(inst.id)
           if (!map) { map = new Map(); cells.set(inst.id, map) }
           const key = `${col},${row}`
-          const cur = map.get(key) || {}
+          const prior = map.get(key) || {}
+          const cur = op.k === 'cell' ? spanOf(prior) : prior
           map.set(key, resolveProps(op.props, cur))
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
           // `table.cell` written clean is known again (a patch is only part of it).
