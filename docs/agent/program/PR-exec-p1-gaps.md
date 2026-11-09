@@ -42,9 +42,10 @@ saved. Its account size and risk % stay `chart.setSetting positionCalc.*`.
   - C1-025: +58;
   - C1-144: +740 (the new action `chartSetup.setPosition`, in the lazy Agent chunk, not first-open);
   - every other row: 0.
-- Routing: `chartSetup.setPosition` is in the chartSetup group, so the NL-1 core does not grow. The group's title gains
-  "the Position Calculator (entry / stop / target)", plus one word rule: the calculator named, a trade said by its
-  entry / stop / target, or "size a long / this trade".
+- Routing: `chartSetup.setPosition` has its OWN one-action group, `positionCalc` (by action name, declared after `undo`).
+  Neither the NL-1 core nor chartSetup grows; adding it to chartSetup pushed indicator templates past the budget in capreg.
+  Words: the calculator named, a trade said by its entry / stop / target, or "size a long / this trade". The catalog goes
+  from 160 to 161 actions. The NL-1 parity fixture is regenerated (pytest `test_agent_eval_run` owed to CI).
 
 ## C1-144 behaviour
 
@@ -58,8 +59,6 @@ saved. Its account size and risk % stay `chart.setSetting positionCalc.*`.
   - a chart without the hook.
 - **No-op:** if the calculator already shows those prices, the receipt says so and the chart is not asked.
 
-## Still owed
+## Status
 
-- C1-144: regenerate capreg coverage and run the mutation checks on the C1-144 rail. Both are held while the #988 locked
-  suite runs.
-- One locked full suite on this branch, after C1-144 (cleared by the Lead).
+- C1-144 is complete: capreg corpus case and coverage, plus the mutation checks (6 mutants, every one caught).

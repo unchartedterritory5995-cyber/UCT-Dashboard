@@ -1,6 +1,6 @@
 # Charts execution status
 
-> exec-p1-gaps (pl-exec, 2026-11-09): C1-007, C1-025 †, C1-035, C1-036, C1-038, C1-051, C1-064, C1-070, C1-072, C1-076, C1-080, C1-094 and C1-104 raised to VERIFIED by agentP1Gaps.test.jsx, agentP1GapsSettings.test.jsx and agentP1GapsPanes.test.jsx (held-out phrasings in agentP1GapsHeldOut.test.js, committed first). LOCAL / SIMULATED (BROWSER-MOCK-MODEL). The counts below are not recomputed.
+> exec-p1-gaps (pl-exec, 2026-11-09): C1-007, C1-025 †, C1-035, C1-036, C1-038, C1-051, C1-064, C1-070, C1-072, C1-076, C1-080, C1-094, C1-104 and C1-144 † raised to VERIFIED by agentP1Gaps.test.jsx, agentP1GapsSettings.test.jsx agentP1GapsPanes.test.jsx and agentP1GapsPosition.test.jsx (held-out phrasings in agentP1GapsHeldOut.test.js, committed first). LOCAL / SIMULATED (BROWSER-MOCK-MODEL). The counts below are not recomputed.
 
 > Round 4-8 rows (2026-11-09) imported from agent/pl/exec-gen-1 into agent/pl/r8-integration: a row is raised here ONLY when every
 > test its evidence names exists on this branch (71 rows; the Multi Chart rows C3-042..C3-060 are not, and keep their state).
@@ -449,7 +449,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-141 | Drawing | Cup curve | VERIFIED | drawingFamily: cup: the right symbol | pass 1/1 | panel, scripted model |
 | C1-142 | Drawing | Anchored VWAP | VERIFIED | c:drawing.avwap | pass 5/5 | panel, scripted model |
 | C1-143 | Drawing | Text note | VERIFIED | c:drawing.text | pass 5/5 | panel, scripted model |
-| C1-144 | Drawing | Position calculator | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-144 | Drawing | Position calculator | VERIFIED † | agentP1GapsPosition.test.jsx | pass 21/21 | panel, scripted model |
 | C1-145 | Drawing | Eraser | VERIFIED | c:drawing.remove | pass 5/5 | panel, scripted model |
 | C1-146 | Drawing | Delete selected (Del, button) | VERIFIED | c:drawing.remove; drawings.outcome: one visible drawing goes at once | pass 6/6 | panel, scripted model |
 | C1-147 | Drawing | Recolour | VERIFIED | c:drawing.style | pass 4/4 | panel, scripted model |
