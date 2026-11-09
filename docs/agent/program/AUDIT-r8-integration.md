@@ -116,7 +116,27 @@ L2044 (a step whose ops target the layouts kind re-reads the starting point). Ra
 
 AUDIT's held-out probes are AUDIT's own; none were written here.
 
-## (3b) New behaviour after this packet's first review: a layout step inside a multi-step request (AUDIT (d), 7a165efb6d)
+## (3c) unseen9 fixes on this branch since (3b): each with its rail and its fails-first count
+
+Every rail below was committed BEFORE its change and failed on the code it was written against. SIMULATED (scripted plans
+through the real panel). All the changes are in `app/src/agent/deixis.js` unless a file is named.
+
+| Fix | Rail (commit, fails first) | Change (commit) | What it does |
+|---|---|---|---|
+| **(d) REVERTED** | `agentMultiStep.test.jsx` "(d) … refused whole as exclusive" (02ed4cf561) | 02ed4cf561 | 7a165efb6d's send() / aim() change took saves and every other exclusive op off the save-last / keep-and-report path (CI 42613499464: agentSaveLast 6/15). Reverted. `useAgent.js` and `compound.js` are byte-identical to 334b4f2778 again. "open my Swing layout, then make it weekly" is refused whole, as designed, and the rail pins that (exact reason, nothing opens, 0 model calls). agentSaveLast 15/15, its file unchanged. **This supersedes (3b).** |
+| Relation family, #988 | `agentDiagonalChart.test.jsx` faeb29a075 (19/21 fail on master 25f049554f) + 78e43d3a09 (66/89 fail on ceb0db2654) | ceb0db2654, e6747451e0 (merged: bdcd96c1a7, c61c13b6d5) | Covers diagonal, opposite-corner and across-from, including the pre-noun modifier form, plus unplaceable relations. The click is the anchor, never the target. |
+| Counted relation, #988 | `agentCountedRelation.test.jsx` 240e8b8209 (116/120 fail on e6747451e0) | b8b09034af (merged: 397ee18903) | Counts are two, three, second or next-but-one, in any of the four directions. The walk goes from the anchor, and an overshoot asks. An ask never offers the anchor (resolveDeictic relation ask; screenDeicticOps "Did you mean" choices). |
+| Counted / plural / "all but", r8 | `agentRelationCounts.test.jsx` 63224830fb (10/11 fail on 567fae456d) | 7e3e9bb6a6 | "the chart two to the left" walks two cells. Before, with a plan on the click, it ADDED RSI to the click. "both charts to the right of this one" means every chart on that side: `{ refs }` from resolveDeictic, accepted by screenDeicticOps. "every chart except X" / "all but X" set X aside (`exceptAll`); before, even "except" asked "Did you mean Chart (t1)?". |
+| Ordinal row / column, r8 | `agentOrdinalRowCol.test.jsx` 1610666c09 (8/14 fail) | 567fae456d | `ordinalChart`'s middle branch reads a row word (top / upper / bottom / lower) or a column word (left / right column or side) first. The middle of that line is the chart meant when the line holds an odd number, 3 or more; otherwise it asks. The guide's namedChart uses the same function. |
+
+The #988 head (b8b09034af) is merged into this branch at 397ee18903. Its 3 deixis.js conflicts were resolved keeping both sides:
+- #988's RELATIVE_BARE and relationCount;
+- r8's plural (lineFrom / relationPlural);
+- the plural `{ refs }` before #988's anchor-free ask.
+
+Combined targeted run (diagonal, counted, relation counts, ordinal, agentSaveLast, relative and relation rails): 363/363.
+
+## (3b) New behaviour after this packet's first review: a layout step inside a multi-step request (AUDIT (d), 7a165efb6d). SUPERSEDED: reverted in 02ed4cf561, see (3c)
 
 **Before:** "open my Swing layout, then make it weekly" was read by the instant reader as ONE plan:
 `layout.open` + `chart.setTimeframe`. Opening a layout is `exclusive`, so the executor refused the whole plan with "Opening a
