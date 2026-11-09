@@ -236,6 +236,9 @@ def test_attempt_scores_server_side_and_reveals_after(paid_client, store):
         last = paid_client.post("/api/study/attempts", json={"item_id": iid, "answer": "x",
                                                              "session_id": today["session_id"]}).json()
     assert last["progress"]["streak"] == 1 and last["progress"]["daily_done"] is True
+    # the first finished set earns its trophy, once (award_badge had never been called before 2026-11-08)
+    assert "first_set" in last["progress"]["badges_new"]
+    assert [b["badge_id"] for b in paid_client.get("/api/study/profile").json()["badges"]].count("first_set") == 1
     assert paid_client.get("/api/study/today").json()["finished_at"]
 
 
@@ -510,3 +513,16 @@ def test_an_attempt_posted_in_the_drills_choice_shape_scores_right(paid_client, 
     assert ok["correct"] is True and ok["score"] == 1.0
     bad = paid_client.post("/api/study/attempts", json={"item_id": "si_spot2", "answer": {"choice": "yes"}}).json()
     assert bad["correct"] is False
+
+
+def test_a_lesson_set_shows_each_charts_ticker_and_a_challenge_set_does_not(paid_client, store):
+    """The owner, 2026-11-08 ("Yes"): the lesson's question card shows the ticker before answering. Today's lesson and a
+    practise set marked `lesson` carry it; a challenge's skill set (Hard mode, Boss, Blitz) never does."""
+    _seed(store)
+    today = paid_client.get("/api/study/today").json()["items"]
+    charts = [i for i in today if i.get("has_chart")]
+    assert charts and all(i.get("ticker") for i in charts)
+    practise = paid_client.post("/api/study/sessions", json={"kind": "free", "lesson": True}).json()["items"]
+    assert all(i.get("ticker") for i in practise if i.get("has_chart"))
+    challenge = paid_client.post("/api/study/sessions", json={"kind": "free"}).json()["items"]
+    assert challenge and all("ticker" not in i for i in challenge)

@@ -8291,6 +8291,9 @@ async def lifespan(app: FastAPI):
                 id="study_gen_detections", max_instances=1, replace_existing=True)
             threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
                              name="study-weekly-close-catchup").start()
+            # the Hard / Spot the Setup pool sweep, warmed once after boot so no member waits on it (study_jobs)
+            threading.Thread(target=_study_jobs.job_warm_hard_pool, daemon=True,
+                             name="study-hard-pool-warm").start()
             print("[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, "
                   "detections 02:30 ET weekdays; weekly-close catch-up on boot)")
         except Exception as e:

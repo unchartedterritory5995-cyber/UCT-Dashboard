@@ -456,3 +456,100 @@
 @media (prefers-reduced-motion: reduce) {
   .kit *, .kit *::before, .kit *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ROUND 22 · the trade in the lesson card (the owner, batch 22: "Entry, Stop, Trim, Trail, Advance") */
+.legs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.leg { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--k-line); background: linear-gradient(180deg, #17181b, #111214); }
+.leg small { font-size: 10.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--k-ink-dim); }
+.leg b { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); }
+.leg span { font-size: 12.5px; line-height: 1.35; color: var(--k-ink-dim); }
+.leg_gold { border-color: rgba(220, 187, 94, .45); } .leg_gold b { color: var(--k-gold-bright); }
+.leg_down { border-color: rgba(223, 70, 70, .4); } .leg_down b { color: #ff9d9d; }
+.leg_up { border-color: rgba(47, 175, 104, .45); } .leg_up b { color: #8fe3b1; }
+.tradeLine { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: var(--k-ink-soft); }
+.tradeLine b { color: var(--k-ink); }
+@media (max-width: 640px) { .legs { grid-template-columns: 1fr 1fr; } .leg b { font-size: 19px; } }
+/* kit v2 · the lesson reads by its message (the owner, batch 24: "easier to read while getting a really good message across") */
+.takeaway { margin: 0; padding: 14px 16px; border-radius: 14px; font-size: 18px; line-height: 1.5; font-weight: 600; color: var(--k-ink);
+  background: linear-gradient(90deg, rgba(220, 187, 94, .12), rgba(220, 187, 94, .02)); border: 1px solid rgba(220, 187, 94, .3); }
+.coach .leadList li, .coach .leadList li:first-child { font-size: 16.5px; font-weight: 500; line-height: 1.6; color: var(--k-ink-soft); }
+.coach .steps li { color: var(--k-ink-soft); }
+/* kit v2 · the trade review on its own (the drills' answer card) */
+.tradeReview { display: grid; gap: 12px; margin: 14px 0 6px; }
+.tradeReview .coachBlock { padding-top: 12px; }
+
+/* THE VERDICT BAND (2026-11-08, the owner on the verdict line: "Decent, Can be a bit cooler"): the verdict lands on a band
+   in its own colour with a lit edge, the title glows, and one light crosses the band as it lands (calm: once, rule 18) */
+.prompt.promptOk, .prompt.promptBad { position: relative; overflow: hidden; padding: 14px 18px 14px 16px; border-radius: 18px; animation: bandIn .45s var(--k-ease) both; }
+.prompt.promptOk { background: linear-gradient(100deg, rgba(47, 175, 104, .24), rgba(47, 175, 104, .07) 55%, rgba(47, 175, 104, .02)); border: 1px solid rgba(47, 175, 104, .42);
+  box-shadow: inset 4px 0 0 #2faf68, 0 0 44px rgba(47, 175, 104, .16); }
+.prompt.promptBad { background: linear-gradient(100deg, rgba(223, 70, 70, .24), rgba(223, 70, 70, .07) 55%, rgba(223, 70, 70, .02)); border: 1px solid rgba(223, 70, 70, .42);
+  box-shadow: inset 4px 0 0 #df4646, 0 0 44px rgba(223, 70, 70, .16); }
+.prompt.promptOk::after, .prompt.promptBad::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .16) 46%, transparent 60%); transform: translateX(-110%); animation: bandSweep 1.1s ease .25s 1 forwards; }
+.promptOk .promptTitle { font-size: 31px; text-shadow: 0 0 22px rgba(47, 175, 104, .55); }
+.promptBad .promptTitle { font-size: 31px; text-shadow: 0 0 22px rgba(223, 70, 70, .5); }
+.promptOk .promptSub, .promptBad .promptSub { color: var(--k-ink-soft); }
+@keyframes bandIn { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes bandSweep { to { transform: translateX(110%); } }
+@media (max-width: 640px) { .promptOk .promptTitle, .promptBad .promptTitle { font-size: 23px; } .prompt.promptOk, .prompt.promptBad { padding: 12px 12px 12px 12px; } }
+@media (prefers-reduced-motion: reduce) { .prompt.promptOk::after, .prompt.promptBad::after { animation: none; display: none; } .prompt.promptOk, .prompt.promptBad { animation: none; } }
+
+/* THE ARENA: the chart's targeting frame (gold corner brackets), on every game's hero chart, as on the lesson's */
+.heroChart { position: relative; scroll-margin-top: 60px; }   /* room for the status line when the review brings it into view */
+.heroChart::after { content: ''; position: absolute; inset: -7px; z-index: 4; pointer-events: none;
+  --b: #e9cd77;
+  background:
+    linear-gradient(var(--b), var(--b)) left top / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left top / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) right top / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right top / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) left bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left bottom / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) right bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right bottom / 2px 26px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(233, 205, 119, .55)); }
+
+/* Draw it: the two line chips under the chart (entry gold, stop red); the active one is the line a tap places */
+.drawChips { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.drawChip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; border-radius: 14px; cursor: pointer; font: inherit; color: inherit; text-align: left;
+  border: 1px solid #2c2e34; background: linear-gradient(180deg, #1b1c20, #121316); box-shadow: inset 4px 0 0 #e3c46a; transition: box-shadow .2s, border-color .2s; }
+.drawChip small { font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: #e9cd77; }
+.drawChip b { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: #f8f7f3; }
+.drawChip em { font-style: normal; font-size: 11.5px; color: #a39e94; }
+.drawChipStop { box-shadow: inset 4px 0 0 #ef6a5a; }
+.drawChipStop small { color: #ff9a8c; }
+.drawChipOn { border-color: rgba(233, 205, 119, .7); box-shadow: inset 4px 0 0 #e3c46a, 0 0 0 1px rgba(233, 205, 119, .5), 0 0 22px rgba(233, 205, 119, .25); }
+.drawChipOn.drawChipStop { border-color: rgba(239, 106, 90, .7); box-shadow: inset 4px 0 0 #ef6a5a, 0 0 0 1px rgba(239, 106, 90, .5), 0 0 22px rgba(239, 106, 90, .22); }
+.drawFail { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; color: #ffc2c2; background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .35); }
+.drawFail button { padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(255, 194, 194, .5); background: none; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
+
+/* the replay clock (ReplayClock.jsx): the session and the close just drawn, steady at the top centre of the chart */
+.replayClock { position: absolute; left: 50%; top: 9px; transform: translateX(-50%); z-index: 5; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 8px;
+  padding: 6px 11px 6px 10px; border-radius: 10px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(28, 26, 20, .92), rgba(14, 14, 16, .92));
+  border: 1px solid rgba(233, 205, 119, .45); box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  font-variant-numeric: tabular-nums; }
+.replayClock b { font-size: 17px; font-weight: 800; color: #f6e2a0; letter-spacing: .01em; min-width: 5.4em; }
+.replayDay { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: #a39e94; }
+/* a phone: the ticker and its name fill the identity row, so the clock sits just under it, in the plot's top-left corner
+   (the price legend is hidden on a phone, so that corner is free) */
+@media (max-width: 640px) { .replayClock { left: 10px; top: 58px; transform: none; padding: 4px 8px; gap: 6px; } .replayClock b { font-size: 14px; min-width: 4.9em; } .replayDay { font-size: 10px; letter-spacing: .12em; } }
+
+/* the replay stops and asks (ReplayPause.jsx): a card right under the chart, the plan's question, the shared tiles */
+.replayPause { margin-top: 12px; padding: 16px 18px 18px; border-radius: 16px; display: grid; gap: 12px;
+  background: linear-gradient(180deg, rgba(30, 27, 18, .96), rgba(14, 14, 16, .96));
+  border: 1px solid rgba(233, 205, 119, .5); box-shadow: 0 14px 40px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 240, 200, .06); }
+.replayPauseHead { display: grid; gap: 4px; }
+.replayPauseTag { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #e9cd77; }
+.replayPauseQ { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 800; color: #f8f7f3; letter-spacing: -.01em; }
+.replayPauseTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.replayPauseWhy { display: flex; align-items: center; gap: 14px; justify-content: space-between; padding: 12px 14px; border-radius: 12px; }
+.replayPauseWhy p { margin: 0; flex: 1; min-width: 0; font-size: 15px; line-height: 1.45; color: #e7e3d8; }
+.replayPauseGo { flex: none; white-space: nowrap; }
+.replayPauseOk { background: rgba(47, 175, 104, .12); border: 1px solid rgba(47, 175, 104, .45); }
+.replayPauseOk b { color: #9fe9bd; }
+.replayPauseBad { background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .45); }
+.replayPauseBad b { color: #ffb3b3; }
+@media (max-width: 640px) {
+  .replayPause { padding: 12px 12px 14px; gap: 10px; }
+  .replayPauseQ { font-size: 17px; }
+  .replayPauseTiles { grid-template-columns: 1fr; gap: 8px; }
+  .replayPauseWhy { flex-direction: column; align-items: stretch; }
+}

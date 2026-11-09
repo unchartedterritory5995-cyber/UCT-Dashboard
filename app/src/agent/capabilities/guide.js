@@ -18,6 +18,7 @@ import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } fro
 import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
+import { namedChart, namesAChart } from '../guide/namedChart'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -52,7 +53,10 @@ export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
   const steps = stepsFor(f, words)
   const needsChart = steps.some(s => scoped(s.target))
-  const chart = needsChart ? guideChart(host) : null
+  // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
+  const asked = needsChart ? namedChart(words, chartsOf(host)) : null
+  if (asked?.say) return asked.say
+  const chart = needsChart ? asked?.chart || guideChart(host) : null
   if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
   // ⭐ Multi Chart: a cell has no "more timeframes" menu or drawing strip, so a chart step past the first goes unless it is there
@@ -73,7 +77,8 @@ export function showFeature(f, host, words = '') {
   startGuide({ ...f, title: titleFor(f, words) }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
-  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
+  const note = asked?.note ? `${asked.note} ` : ''
+  return `${note}I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
 }
 
 /**
@@ -169,7 +174,7 @@ export function registerGuideCapabilities() {
     ...common,
     name: 'guide.show',
     summary: 'SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for "where do I…", "show me how to…", "how do I…" questions, never to do the thing.',
-    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
+    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2") or for the chart they named ("the NVDA chart", "the left chart"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
     args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS }, detail: { type: ['string', 'null'] } }, required: ['feature', 'detail'], additionalProperties: false },
     absentAsNull: ['detail'],
     fast: ({ raw, host }) => {
@@ -177,7 +182,8 @@ export function registerGuideCapabilities() {
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
       const f = matchFeature(q, null, here)
-      if (f) return f.slots ? { feature: f.id, detail: q } : { feature: f.id }
+      // the words travel when they choose something: a family's row, or the chart they name
+      if (f) return f.slots || namesAChart(q, chartsOf(host)) ? { feature: f.id, detail: q } : { feature: f.id }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
       const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
       return charts?.everyPage ? { feature: charts.id } : null

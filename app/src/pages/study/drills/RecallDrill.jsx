@@ -17,7 +17,7 @@
  */
 import { useEffect, useRef } from 'react'
 import ChoiceList, { revealLabels } from './ChoiceList'
-import { choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
+import { brandWords, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
 import { lineAnnotations } from '../lineChoices'
 
@@ -46,7 +46,7 @@ function choicesFor(item) {
  *  it above the choices, before the question. */
 function Quote({ text }) {
   if (!text) return null
-  return <blockquote className={styles.quote} data-testid="prompt-quote">{text}</blockquote>
+  return <blockquote className={styles.quote} data-testid="prompt-quote">{brandWords(text)}</blockquote>
 }
 
 function FillSentence({ sentence, value }) {

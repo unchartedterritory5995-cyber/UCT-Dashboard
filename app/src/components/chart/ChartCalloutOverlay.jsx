@@ -32,6 +32,15 @@ function roundRectPath(ctx, x, y, w, h, r) {
 export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callouts, color = '#ffffff', bottomFrac = 0.82, look = null }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
+  // Study (2026-11-08, the owner: the choosable candles should show it, "slightly animated"; and "no throbbing gold"): with
+  // `look.fadeIn`, a new set of callouts arrives with one soft fade and lift, once, never a pulse; off under reduced motion
+  const fadeKey = look?.fadeIn ? JSON.stringify((callouts || []).map((c) => [c.index ?? c.time, c.text])) : null
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!fadeKey || !el || typeof el.animate !== 'function') return
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2, .9, .2, 1)' })
+  }, [fadeKey])
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
   const trackedRef = useRef(null)
