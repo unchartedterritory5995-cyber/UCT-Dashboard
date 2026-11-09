@@ -480,7 +480,12 @@ def prices(monkeypatch):
 
     monkeypatch.setattr(tweet_price, "price_at_post", fake)
     monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: True)
-    monkeypatch.setattr(tweet_price, "start_refresh", lambda symbol: box.setdefault("refreshed", []).append(symbol))
+
+    def fake_start(symbol, wait_until=None):
+        box.setdefault("refreshed", []).append(symbol)
+        box["start_wait_until"] = wait_until
+
+    monkeypatch.setattr(tweet_price, "start_refresh", fake_start)
     return box
 
 
@@ -495,6 +500,25 @@ def test_start_price_refreshes_asks_once_per_recent_ticker(prices, monkeypatch):
     }
     tw._start_price_refreshes(posts, None)
     assert prices["refreshed"] == ["AAPL"]
+
+
+def test_starting_refreshes_stops_when_the_budget_is_spent(prices, monkeypatch):
+    from api.services.journal_two import tweet_capture as tw, tweet_price
+    monkeypatch.setattr(tweet_price, "awaits_refresh", lambda posted_at: True)
+    posts = {"1": {"tickers": ["AAPL"], "text": "$AAPL up", "postedAt": 100}}
+    tw._start_price_refreshes(posts, None, tw.time.monotonic() - 1)
+    assert "refreshed" not in prices
+
+
+def test_the_starts_and_the_reads_share_one_limit(notebook, store, prices, monkeypatch):
+    from api.services.journal_two import tweet_capture as tc, tweet_price
+    monkeypatch.setattr(tweet_price, "awaits_refresh", lambda posted_at: True)
+    _seed_post(store, "790")
+    before = tc.time.monotonic()
+    tc.save(UID, _note(), ["790"])
+    assert prices["refreshed"] == ["NVDA"]
+    assert prices["start_wait_until"] == prices["wait_until"]
+    assert prices["wait_until"] - before <= tc.PRICE_REFRESH_BUDGET_S + 1
 
 
 @pytest.fixture
