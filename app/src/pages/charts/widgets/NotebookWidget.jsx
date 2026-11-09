@@ -257,7 +257,8 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
   useWidgetDoor(() => ({
     options: () => ({ note: notes.map(n => ({ value: n.id, label: n.title?.trim() || 'Untitled note' })) }),
     read: () => ({ notes: notes.map(n => ({ id: n.id, name: n.title?.trim() || 'Untitled note' })) }),
-    write: (key, v) => { if (key === 'notes' && Array.isArray(v) && v.some(x => x && !x.id)) newNoteRef.current?.() },
+    // ONE operation, as its own New control (AUDIT S1-A: never a reconcile of the list it is handed)
+    write: (key, v) => { if (key === 'notes' && v && v.op === 'create') newNoteRef.current?.() },
   }))
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])

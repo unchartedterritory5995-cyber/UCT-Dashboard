@@ -1094,13 +1094,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         if (v == null) setOpenTheme(null)
         else if (v !== openTheme) toggleTheme(v)
       } else if (key === 'themeSet') selectSet(v)
-      else if (key === 'themeSets' && themeSetsEnabled && Array.isArray(v)) {
-        // the set menu's own Rename (renameSet) and Delete (deleteSet; a deleted active set falls back to Default, as its menu does)
-        for (const x of sets) {
-          const next = v.find(n => n.id === x.id)
-          if (!next) { deleteSet(x.id).then(() => { if (x.id === themeSetId) selectSet(null) }).catch(() => {}) }
-          else if (next.name && next.name !== x.name) renameSet(x.id, next.name)
-        }
+      else if (key === 'themeSets' && themeSetsEnabled && v && typeof v === 'object' && !Array.isArray(v)) {
+        // ONE operation, as the set menu's own control does it — Delete (deleteSet; a deleted active set falls back to Default,
+        // as its menu does) or Rename (renameSet). AUDIT S1-A: never a reconcile of the whole list (a set made since stays).
+        const x = sets.find(s => s.id === v.id)
+        if (!x) return
+        if (v.op === 'delete') deleteSet(x.id).then(() => { if (x.id === themeSetId) selectSet(null) }).catch(() => {})
+        else if (v.op === 'rename' && v.name && v.name !== x.name) renameSet(x.id, v.name)
       }
     },
     capture: () => (filteredThemes.length > 0 ? { kind: 'themes', capture: doorCapture(), label: themesCaptureLabel } : null),
