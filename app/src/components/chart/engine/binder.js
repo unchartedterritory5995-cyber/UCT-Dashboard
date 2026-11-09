@@ -90,6 +90,7 @@ import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
 import { runtimeStrategyOf } from './runtime/strategyRecord.js'
+import { isStrategyWindowDefinition } from './strategyWindow'
 import { chartThemeOf } from './objectTheme'
 
 import {
@@ -1911,8 +1912,34 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // every document that reads none (one property read).
       const lowerTf = ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null
       const lowerSig = frame ? '' : lowerTfSignature(def, lowerTf)
+      // ⭐⭐ W9-T11-F1 — THE CHART LANE'S STRATEGY WINDOW (design 3.4, "The chart"). A strategy
+      // document (stamped `strategy-window`, possible only with the broker gate on) is handed the
+      // window the caller holds, `ctx.historyWindowBars`: the server's `bars_window` value, read once
+      // per tab through `GET /api/pine/history-window` (`strategyWindow.js`), never a literal here.
+      // The runtime decides the rest (`runtimeColumns.js::computeStrategyWindow`, `vm.js`): bars
+      // from the listing that fit the window run; anything else refuses by name (more bars than
+      // the window → the cut window is off the listing → Q-S1n; no window → `runtime:strategy-start`).
+      // A served run therefore always starts at the listing bar, so a new bar never slides it.
+      // ⛔ Only the chart's OWN series: a framed instance's bars are not what the window describes.
+      // ⛔ Every other document is handed nothing, so an indicator's ctx and memo key are unchanged.
+      // ⛔ The value is forwarded as held: what is not a window is the VM's to refuse by name
+      // (`vm.js`, `runtime:strategy-start`), one author, never a second check here.
+      const ownStrategy = !frame && isStrategyWindowDefinition(def)
+      const strategyWindow = ownStrategy && ctx.historyWindowBars != null ? ctx.historyWindowBars : null
+      // ⭐ r1 (review N3) — THE WINDOW HAS BEEN ASKED FOR AND NOT ANSWERED YET
+      // (`ctx.historyWindowPending`, `useStrategyHistoryWindow`). The run is HELD, not refused: no
+      // columns, no record, no notice, so first paint never flashes `runtime:strategy-start`. When
+      // the answer lands the caller re-syncs and the run computes; when the ask FAILS, pending is
+      // false with no window, and the run refuses by name.
+      if (ownStrategy && strategyWindow === null && ctx.historyWindowPending === true) {
+        computeMemo.delete(inst.instanceId)
+        noteRuntimeErrorStop(inst.instanceId, null)
+        runCols.set(inst.instanceId, null)
+        continue
+      }
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
+        + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       const memo = computeMemo.get(inst.instanceId)
@@ -1963,6 +1990,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
             // not the series the caller described.
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
+            // ⭐⭐ W9-T11-F1 — a strategy run's window (see `strategyWindow` above)
+            ...(strategyWindow !== null ? { historyWindowBars: strategyWindow } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the

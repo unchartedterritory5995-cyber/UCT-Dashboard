@@ -223,16 +223,21 @@ describe('W9-T4 what the sizing hypothesis does not reach refuses by name (Q-S1a
   })
   const SIZE_DECLS = ['default_qty_type = strategy.cash, default_qty_value = 10000',
     'default_qty_type = strategy.percent_of_equity, default_qty_value = 10']
-  for (const [what, mc, says] of [
-    ['a fractional symbol (mincontract 0.001)', 0.001, /minimum contract is 0\.001 \(a fractional symbol/],
-    ['a symbol whose minimum contract the run was not told', null, /minimum contract is not known to this run/],
+  for (const [what, mc, says, fractional] of [
+    ['a fractional symbol (mincontract 0.001)', 0.001, /minimum contract is 0\.001, not 1 \(a fractional symbol/, true],
+    ['a symbol whose minimum contract the run was not told', null, /minimum contract is not known to this run/, true],
+    // W9-T4-F1 (review r1 note): a lot of MORE than one unit is not "fractional"
+    ['a lot-sized symbol (mincontract 100)', 100, /minimum contract is 100, not 1 \(this symbol trades in lots of 100 units/,
+      false],
   ]) {
     it(`r1 P1: ${what} is never floored to whole units`, () => {
       for (const d of SIZE_DECLS) {
         const e = stop(`//@version=5\nstrategy("t", ${d})\nif bar_index == 3\n    strategy.entry("L", strategy.long)\n`
           + 'plot(strategy.position_size)\n', UP, { minContract: mc })
         expect(e.message).toMatch(says)
-        expect(e.message).toMatch(/such as a cryptocurrency/)
+        expect(e.message).toMatch(/Q-S1a/)
+        if (fractional) expect(e.message).toMatch(/such as a cryptocurrency/)
+        else expect(e.message).not.toMatch(/fractional|cryptocurrency/)
       }
     })
   }
@@ -272,8 +277,10 @@ describe('W9-T4 r1 P3: the point value divides the money (direct broker, pointva
   })
 })
 
-describe('W9-T4 r1 P1: no product source states the minimum contract yet', () => {
-  it('RAIL: `minContract` is named in vm.js (read from ctx) and broker.js only', () => {
+describe('W9-T4 r1 P1 / W9-T4-F1: one product source states the minimum contract', () => {
+  // W9-T4-F1: `runtimeColumns.js` now names it ONCE, derived from the symbol's witnessed row
+  // (`minContractLock.test.js` holds the rest of the lock: no caller, wire or route can state it)
+  it('RAIL: `minContract` is named in vm.js (read from ctx), broker.js and runtimeColumns.js only', () => {
     const root = path.resolve(__dirname, '../../..')
     const hits = []
     const walk = (d) => {
@@ -285,7 +292,7 @@ describe('W9-T4 r1 P1: no product source states the minimum contract yet', () =>
       }
     }
     walk(root)
-    expect(hits.sort()).toEqual(['broker.js', 'vm.js'])
+    expect(hits.sort()).toEqual(['broker.js', 'runtimeColumns.js', 'vm.js'])
     expect(fs.readFileSync(path.resolve(__dirname, '../vm.js'), 'utf8')).toMatch(/minContract: ctx\.minContract/)
   })
 })
