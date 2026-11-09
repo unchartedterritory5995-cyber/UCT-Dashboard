@@ -117,7 +117,9 @@ window.fetch = async (input, init) => {
   }
   if (url.includes('/api/auth/preferences') || url.includes('/api/charts')) {
     if (method !== 'GET') BLOCKED.push(`${method} ${url}`)
-    return json({})
+    // ?theme=uct:slate stands in for the member's app theme.
+    const appTheme = new URLSearchParams(window.location.search).get('theme')
+    return json(appTheme && url.includes('/api/auth/preferences') ? { theme: appTheme } : {})
   }
   if (url.includes('/api/breadth/industries')) {
     const out = { industries: {}, sectors: {}, themes: {} }
