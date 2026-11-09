@@ -221,9 +221,6 @@ function aim(ops, charts, host) {
     const kind = cap ? getTargetKind(cap.target) : null
     if (!kind) return null
     const list = kind.list(host) || []
-    // AUDIT (d): the saved layouts ("open my Swing layout" as a step) are ONE entry for the whole account, never one per
-    // chart: the op takes that entry once (only the layouts library; every other kind is aimed per chart as before)
-    if (cap.target === 'layouts' && list.length === 1 && chartRefOf(kind, list[0]) == null) { out.push({ ...o, target: list[0].ref }); continue }
     for (const ref of charts) {
       const snap = list.find(s => chartRefOf(kind, s) === ref)
       if (!snap) return null

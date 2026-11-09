@@ -252,24 +252,20 @@ describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', ()
     } finally { _setCompoundWallMs(60000) }
     expect(p.turns()).toBe(0)
   }, 60000)
-  // AUDIT (d): a step that opens a layout itself is the member's own request, not a changed premise (the run re-reads its
-  // starting point after it): both steps run on the opened layout, and Undo takes back exactly what ran
-  it('(3)(4) "open my Swing layout, then make it weekly": both steps run (the opened layout is no changed premise); Undo takes back exactly the steps that ran', async () => {
+  // AUDIT (d), pinned as designed: opening a layout is EXCLUSIVE, so "open my Swing layout, then make it weekly" is refused whole
+  // with the reason ("do it in two steps") and nothing runs. Whether a layout open followed by edits should run is the owner's
+  // product decision (7a165efb6d's send() / aim() change was reverted). afb72ee305's premise re-read (a run's own layouts step is
+  // no changed premise) is pinned by agentWorkspaceComposeP3's "New layout" flow.
+  it('(d) "open my Swing layout, then make it weekly": refused whole as exclusive, with the reason; nothing opens, nothing changes', async () => {
     const MAIN = [{ id: 'c0', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: { settings: bareSettings() } }]
     const SWING = [{ id: 's0', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: { settings: bareSettings() } }]
     const m = p.mount(MAIN, { A: 'SPY' }, { decorate: label, layouts: { entries: [{ id: 1, name: 'Main' }, { id: 2, name: 'Swing' }], active: 1, boards: { 1: MAIN, 2: SWING } } })
     const out = await m.say('open my Swing layout, then make it weekly')
-    const lib = m.board.state.layouts
-    expect(lib.activeId, out).toBe(2)
-    expect(out).not.toMatch(/the board changed while I was working/)
-    expect(m.board.state.widgets.map(x => x.id)).toEqual(['s0'])
-    expect(m.board.state.widgets[0].opts?.tf, out).toBe('W')
-    expect(out).not.toMatch(/stopped at/)
-    await m.say('undo')
-    const after = m.board.state
-    // exactly the steps that ran, newest first: the weekly is taken back, and the layout Swing opened is closed again
-    expect({ active: after.layouts.activeId, ids: after.widgets.map(x => x.id) }).toEqual({ active: 1, ids: ['c0'] })
-    expect(after.layouts.boards[2].find(x => x.id === 's0').opts?.tf ?? 'D').toBe('D')
+    expect(out).toContain('Opening a layout replaces the whole board, so do it in two steps: open the layout first, then ask for the changes.')
+    expect(m.board.state.layouts.activeId).toBe(1)
+    expect(m.board.state.widgets.map(x => x.id)).toEqual(['c0'])
+    expect(m.board.state.widgets[0].opts?.tf || 'D').toBe('D')
+    expect(m.board.state.layouts.boards[2][0].opts?.tf || 'D').toBe('D')
     expect(p.turns()).toBe(0)
   }, 60000)
 })
