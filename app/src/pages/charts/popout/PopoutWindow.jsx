@@ -2,6 +2,24 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { registerPopout } from '../../../lib/popoutRegistry'
 
+// How long a page that started to unload may still be running before it is
+// treated as having stayed (a cancelled "Leave site?"). A page that really is
+// leaving but slow to commit reaching this is harmless: the board docks, and its
+// desk record goes only after the save lands.
+const OPENER_STAYED_MS = 5000
+
+let appClosing = false
+
+/**
+ * The whole app is going away (desktop quit, a forced reload), so a window closing
+ * now is part of that and not the member closing it. Stops the close from docking
+ * the board, which would delete the record the next launch needs.
+ */
+export function markAppClosing() { appClosing = true }
+
+/** Tests only. */
+export function __resetAppClosingForTests() { appClosing = false }
+
 /**
  * Renders `children` into a real, separate browser window the user can drag to
  * another monitor.
@@ -85,7 +103,7 @@ export default function PopoutWindow({
 
     let done = false
     const finish = () => {
-      if (done) return
+      if (done || appClosing) return
       done = true
       onCloseRef.current?.()
     }
@@ -97,7 +115,22 @@ export default function PopoutWindow({
 
     // A popped window with no opener is an orphan the user can't get rid of
     // through the app, so it goes when the main tab does.
-    const closeOrphan = () => { try { win.close() } catch { /* already gone */ } }
+    //
+    // ⛔ `done` is set BEFORE close(): close() runs the popup's beforeunload (above)
+    // synchronously, and that must not read as the member closing the window. The
+    // board is carried through the unload by its desk record, not by docking.
+    let stayedTimer = null
+    const closeOrphan = () => {
+      done = true
+      try { win.close() } catch { /* already gone */ }
+      // beforeunload can be cancelled ("Leave site?" answered Stay). The window is
+      // gone either way, so a page still running afterwards takes the board back.
+      if (stayedTimer) clearTimeout(stayedTimer)
+      stayedTimer = setTimeout(() => {
+        done = false
+        finish()
+      }, OPENER_STAYED_MS)
+    }
     window.addEventListener('beforeunload', closeOrphan)
 
     setContainer(mount)
@@ -107,6 +140,7 @@ export default function PopoutWindow({
       unregister()
       clearInterval(poll)
       clearTimeout(fitTimer)
+      if (stayedTimer) clearTimeout(stayedTimer)
       window.removeEventListener('beforeunload', closeOrphan)
       stopSyncing()
       stopForwardingKeys()
