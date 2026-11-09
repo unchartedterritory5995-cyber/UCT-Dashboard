@@ -103,8 +103,10 @@ const INSTRUMENT = `(() => {
   window.requestAnimationFrame = (cb) => { if (!fromGuide()) return oRaf(cb); const id = oRaf((t) => { I.raf.delete(id); I.log.push(['raf', performance.now()]); cb(t) }); I.raf.set(id, 1); return id }
   window.cancelAnimationFrame = (id) => { I.raf.delete(id); return oCaf(id) }
   const oSI = window.setInterval.bind(window), oCI = window.clearInterval.bind(window)
-  window.setInterval = (fn, ms, ...a) => { if (typeof fn !== 'function' || !fromGuide()) return oSI(fn, ms, ...a); const id = oSI(() => { I.log.push(['interval', performance.now()]); fn(...a) }, ms); I.iv.set(id, ms); return id }
+  window.setInterval = (fn, ms, ...a) => { if (typeof fn !== 'function' || !fromGuide()) return oSI(fn, ms, ...a); const at = ((new Error().stack || '').split('\\n').find(l => G.test(l)) || '').replace(/^.*\\/src\\//, '').replace(/[?][^:]*/, '').slice(0, 80); const id = oSI(() => { I.log.push(['interval', performance.now(), id]); fn(...a) }, ms); I.iv.set(id, ms + 'ms ' + at); return id }
   window.clearInterval = (id) => { I.iv.delete(id); return oCI(id) }
+  const oCT = window.clearTimeout.bind(window)
+  window.clearTimeout = (id) => { I.iv.delete(id); return oCT(id) }
   const ORO = window.ResizeObserver
   window.ResizeObserver = class extends ORO {
     constructor(cb) { const g = fromGuide(); super((e, o) => { if (g) I.log.push(['ro', performance.now()]); cb(e, o) }); this.__g = g; this.__n = new Set() }
@@ -195,15 +197,29 @@ async function runCase(ctx, c) {
     const m = await p.b.evaluate(MEASURE(T.sel))
     ev.static = { ...m, edgeOutsidePx: edges(m), centreDistPx: m.ring && m.target ? +Math.hypot((m.ring.left + m.ring.right - m.target.left - m.target.right) / 2, (m.ring.top + m.ring.bottom - m.target.top - m.target.bottom) / 2).toFixed(2) : null, widgetVsRing: m.ring && m.widget ? { left: +(m.widget.left - m.ring.left).toFixed(2), top: +(m.widget.top - m.ring.top).toFixed(2), right: +(m.ring.right - m.widget.right).toFixed(2), bottom: +(m.ring.bottom - m.widget.bottom).toFixed(2) } : null }
     if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
+    if (T.drag && m.target && !c.stop) {
+      const f = c.zoom / 100
+      await p.b.evaluate(SAMPLER(T.sel))
+      const t0 = await p.b.evaluate('performance.now()')
+      for (let i = 1; i <= 24; i++) { await p.b.send('Emulation.setDeviceMetricsOverride', { width: Math.round((w - i * 8) / f), height: Math.round(h / f), deviceScaleFactor: f, mobile: false }); await sleep(30) }
+      const t1 = await p.b.evaluate('performance.now()')
+      await sleep(800)
+      const samples = await p.b.evaluate('(window.__geo.on = false, window.__geo.s)')
+      ev.reflow = { what: 'window narrowed 192 px in 24 steps (the board reflows, the corner moves)', durationMs: Math.round(t1 - t0), ...analyse(samples.filter(x => x[0] >= t0), t1) }
+      await p.b.send('Emulation.setDeviceMetricsOverride', { width: Math.round(w / f), height: Math.round(h / f), deviceScaleFactor: f, mobile: false }); await sleep(900)
+      const m2 = await p.b.evaluate(MEASURE(T.sel)); if (m2.target) Object.assign(m, { target: m2.target, ring: m2.ring })
+    }
     if (c.stop && m.target) {
       const sx = (m.target.left + m.target.right) / 2, sy = (m.target.top + m.target.bottom) / 2
       const send = (type, x, y, buttons) => p.b.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 })
       ev.liveDuring = await p.b.evaluate(LIVE)
       const tEnd = await p.b.evaluate('performance.now()')
+      let tFrom = tEnd
       if (c.stop === 'drag') {
         await send('mouseMoved', sx, sy, 0); await sleep(100); await send('mousePressed', sx, sy, 1)
         for (let i = 1; i <= 20; i++) { await send('mouseMoved', sx - i * 3, sy - i * 2, 1); await sleep(16) }
         await send('mouseReleased', sx - 60, sy - 40, 0)
+        tFrom = await p.b.evaluate('performance.now()')
       }
       if (c.stop === 'done') { if (!(await p.button('Done', '[data-testid="guide-card"]'))) throw new Error('no Done on the card') }
       if (c.stop === 'exit') { const at = await p.box('[aria-label="Exit the guide"]'); if (at) await p.b.click(at.x, at.y); else if (!(await p.button('Exit', '[data-testid="guide-card"]'))) throw new Error('no Exit on the card') }
@@ -212,9 +228,10 @@ async function runCase(ctx, c) {
       await sleep(2100)
       const log = await p.b.evaluate('window.__geoI.log.slice()')
       const count = (from) => { const o = {}; for (const [k, t] of log) if (t >= from) o[k] = (o[k] || 0) + 1; return o }
+      const ivFiring = [...new Set(log.filter(x => x[0] === 'interval' && x[1] >= tFrom + 1100).map(x => x[2]))]
       ev.stopCheck = { how: c.stop, card2s: await p.b.evaluate(`(document.querySelector('[data-testid="guide-card"]')?.textContent || '').slice(0, 160)`), ringAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-ring"]') && getComputedStyle(document.querySelector('[data-testid="guide-ring"]')).opacity !== '0'`),
         cardAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-card"]')`),
-        callbacksFromEnd: count(tEnd), callbacksAfter150ms: count(tEnd + 150), callbacksLastSecond: count(tEnd + 1100), live2sAfter: await p.b.evaluate(LIVE) }
+        measuredFrom: c.stop === 'drag' ? 'the release' : 'the end action', callbacksFromEnd: count(tFrom), callbacksAfter150ms: count(tFrom + 150), callbacksLastSecond: count(tFrom + 1100), intervalIdsStillFiring: ivFiring, live2sAfter: await p.b.evaluate(LIVE) }
       if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
     } else if (T.drag && m.target) {
       // a continuous drag of the corner: press, move in small steps (one per ~16 ms), release; every frame sampled in the page
@@ -270,7 +287,7 @@ for (const c of list) {
   rows.push(ev)
   if (ev.stopCheck) say(`STOP ${c.id} from-end ${JSON.stringify(ev.stopCheck.callbacksFromEnd)} after150 ${JSON.stringify(ev.stopCheck.callbacksAfter150ms)} live ${JSON.stringify(ev.stopCheck.live2sAfter)}`)
   const e = ev.static?.edgeOutsidePx
-  say(`${ev.crash ? 'CRASH' : 'OK'} ${c.id}${ev.crash ? ` ${ev.crash.slice(0, 200)}` : ` edges(out px) L${e?.left} T${e?.top} R${e?.right} B${e?.bottom} centre ${ev.static?.centreDistPx}${ev.drag ? ` drag centre max ${ev.drag.centreDistPx.max} p95 ${ev.drag.centreDistPx.p95} lag max ${ev.drag.lagMs.max}ms p95 ${ev.drag.lagMs.p95}ms settle ${ev.drag.settleAfterReleaseMs}` : ''}${ev.scrollTrack ? ` scroll centre max ${ev.scrollTrack.centreDistPx.max} settle ${ev.scrollTrack.settleMs}` : c.scroll ? " no scroller" : ""}`}`)
+  say(`${ev.crash ? 'CRASH' : 'OK'} ${c.id}${ev.crash ? ` ${ev.crash.slice(0, 200)}` : ` edges(out px) L${e?.left} T${e?.top} R${e?.right} B${e?.bottom} centre ${ev.static?.centreDistPx}${ev.drag ? ` drag centre max ${ev.drag.centreDistPx.max} p95 ${ev.drag.centreDistPx.p95} (ring gone at ${ev.drag.ringGoneAtMs}ms) lag max ${ev.drag.lagMs.max}ms p95 ${ev.drag.lagMs.p95}ms settle ${ev.drag.settleAfterReleaseMs}` : ''}${ev.reflow ? ` reflow centre max ${ev.reflow.centreDistPx.max} p95 ${ev.reflow.centreDistPx.p95} lag max ${ev.reflow.lagMs.max}ms settle ${ev.reflow.settleAfterReleaseMs}` : ''}${ev.scrollTrack ? ` scroll centre max ${ev.scrollTrack.centreDistPx.max} settle ${ev.scrollTrack.settleMs}` : c.scroll ? " no scroller" : ""}`}`)
   writeFileSync(join(A.out, 'results.geometry.json'), JSON.stringify({ MODE, label: A.label, pad: PAD, rows }, null, 1))
 }
 R.close?.()
