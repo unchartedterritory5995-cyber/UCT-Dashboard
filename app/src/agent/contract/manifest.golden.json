@@ -5956,6 +5956,38 @@
    "shape": null
   },
   {
+   "name": "chartSetup.zoom",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Zoom ONE chart in (fewer bars, closer) or out (more bars) on its time axis, as its +/- keys do. A view change: every bar stays on the chart. Undo puts the previous view back.",
+   "hints": "direction = in | out. For a named span use chartSetup.setRange; to start over, chartSetup.resetView.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "in",
+       "out"
+      ]
+     }
+    },
+    "required": [
+     "direction"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartSetup.resetView",
    "domain": "chartSetup",
    "target": "chart",

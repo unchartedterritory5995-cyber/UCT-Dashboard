@@ -280,6 +280,32 @@ export function registerChartSetupCapabilities() {
     noop: (b, a, { range } = {}) => `Already showing ${rangeOf(range)?.[0] || 'that range'}`,
   })
 
+  // C1-028 (owner 2026-11-10): zoom ONE chart in or out, as its own +/- keys do (StockChart zoom, about the newest visible bar).
+  // A VIEW. Done only when the window read back from the time scale narrowed / widened; at a limit nothing changes and it says
+  // so. Undo puts the previous window back (restoreView).
+  const ZOOM_MIN_BARS = 10
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.zoom',
+    summary: 'Zoom ONE chart in (fewer bars, closer) or out (more bars) on its time axis, as its +/- keys do. A view change: every bar stays on the chart. Undo puts the previous view back.',
+    hints: 'direction = in | out. For a named span use chartSetup.setRange; to start over, chartSetup.resetView.',
+    args: { type: 'object', properties: { direction: { type: 'string', enum: ['in', 'out'] } }, required: ['direction'], additionalProperties: false },
+    check(st, { direction }) {
+      if (!['in', 'out'].includes(direction)) return 'Say zoom in or zoom out.'
+      return st.view?.frame ? null : NOT_READY
+    },
+    apply(st, { direction }) {
+      const f = st.view?.frame
+      const width = f ? f.fromRight - f.toRight : null
+      if (width == null) return st
+      if (direction === 'in' && width <= ZOOM_MIN_BARS) return st                                     // as close as it goes
+      if (direction === 'out' && Number.isFinite(f.bars) && f.fromRight >= f.bars - 1) return st     // every bar already shown
+      return { ...st, viewDo: { op: 'zoom', arg: { dir: direction, width } } }
+    },
+    describe: (b, a) => (a.viewDo?.op === 'zoom' ? `Zoomed ${a.viewDo.arg.dir} on this chart (view only; every bar is still there)` : null),
+    noop: (b, a, { direction } = {}) => (direction === 'out' ? 'This chart is already fully zoomed out, so nothing changed' : 'This chart is already zoomed in as close as it goes, so nothing changed'),
+  })
+
   registerCapability({
     ...chartCommon,
     name: 'chartSetup.resetView',

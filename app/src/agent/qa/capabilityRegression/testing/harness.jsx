@@ -392,6 +392,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         if (op === 'restoreView') Object.assign(v, { activeRange: arg.activeRange, atDefaultView: false, frame: { ...arg } })
         if (op === 'resetView') Object.assign(v, { activeRange: null, atDefaultView: true, frame: { fromRight: 150, toRight: -8, activeRange: null, locked: false, lock: null } })
         if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
+        // C1-028: zoom about the right edge (half / twice the bars), as StockChart's zoomView
+        if (op === 'zoom') { const w = v.frame.fromRight - v.frame.toRight; v.frame = { ...v.frame, fromRight: v.frame.toRight + (arg.dir === 'in' ? Math.max(10, w / 2) : w * 2), activeRange: null }; v.activeRange = null; v.atDefaultView = false }
         return true
       },
       setReplay: (iso) => { st.replay = iso ?? null; return true } }

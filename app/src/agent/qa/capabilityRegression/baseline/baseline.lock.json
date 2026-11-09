@@ -4097,6 +4097,31 @@
     }
    }
   },
+  "chartSetup.zoom": {
+   "digest": "8b1b1180e997ab43",
+   "phrasings": {
+    "zoom in on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "zoom the chart in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "zoom in a bit": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get closer on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.resetView": {
    "digest": "14e9a2078df07e9e",
    "phrasings": {

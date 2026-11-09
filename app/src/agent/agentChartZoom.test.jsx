@@ -78,6 +78,9 @@ describe('C1-028: zoom one chart, read back from its window', () => {
   it('NEGATIVE a zoom the chart does not carry out is never claimed', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
     const v = withView(h, { land: false })
+    const realNow = Date.now
+    let t = realNow()
+    vi.spyOn(Date, 'now').mockImplementation(() => { t += 2000; return t })       // the 10s read-back wait passes at once
     p.st.envelopes.push(op('chartSetup.zoom', { direction: 'in' }))
     const out = await say('zoom in on this chart')
     expect(width(v)).toBe(125)

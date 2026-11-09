@@ -56,7 +56,7 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), zoom in / out, Reset view, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
@@ -77,6 +77,8 @@ export const GROUPS = [
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
       /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
+      // C1-028 (owner 2026-11-10): zoom one chart in / out
+      /\bzoom(?:ed|ing)? (?:the |this |my )?(?:chart )?(?:in|out)\b|\b(?:get|move|zoom) closer\b|\bpull (?:the chart |it )?back\b/,
       /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.

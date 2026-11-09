@@ -19846,7 +19846,7 @@ export default function StockChart({
         // What a range button replaces, for restoreView: the window counted from the newest bar (a range that loads deep
         // history prepends bars, so plain logical indexes would point elsewhere) and the view lock it overwrites.
         const lastIdx = bars.length - 1
-        frame = { fromRight: lastIdx - cur.from, toRight: lastIdx - cur.to, activeRange,
+        frame = { fromRight: lastIdx - cur.from, toRight: lastIdx - cur.to, activeRange, bars: bars.length,
           locked: !!userViewLockedRef.current, lock: userLockedViewRef.current ? { ...userLockedViewRef.current } : null }
       }
     } catch { /* noop */ }
@@ -19872,9 +19872,23 @@ export default function StockChart({
       userViewLockedRef.current = !!f.locked; userLockedViewRef.current = f.lock ? { ...f.lock } : null; persistViewLock()
     } catch { /* noop */ }
   }
+  // UCT Agent C1-028: zoom the time axis in (half the bars) or out (twice the bars, at most every bar), keeping the right edge, as
+  // the chart's own +/- zoom keeps the newest visible bar. The Agent reads the result back from getDateMeta's frame.
+  const zoomView = ({ dir } = {}) => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const bars = filteredBarsRef.current
+      const cur = ts?.getVisibleLogicalRange()
+      if (!ts || !bars?.length || !cur) return
+      const width = cur.to - cur.from
+      const next = dir === 'in' ? Math.max(10, width / 2) : Math.min(bars.length - 1 + Math.max(0, cur.to - (bars.length - 1)), width * 2)
+      ts.setVisibleLogicalRange({ from: cur.to - next, to: cur.to })
+      appliedRangeRef.current = null
+    } catch { /* noop */ }
+  }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, zoom: zoomView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])

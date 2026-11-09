@@ -10346,6 +10346,61 @@
       ]
     },
     {
+      "id": "chartSetup.zoom",
+      "source": "pl-exec owner-0910 (C1-028): zoom one chart in or out; done only when the window read back narrowed / widened; Undo restores it",
+      "capabilities": [
+        "chartSetup.zoom"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.zoom"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.zoom",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "in"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "frame": {
+            "fromRight": 56,
+            "toRight": -8,
+            "activeRange": null,
+            "locked": false,
+            "lock": null
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "frame": {
+              "fromRight": 120,
+              "toRight": -8,
+              "activeRange": null,
+              "locked": false,
+              "lock": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "zoom in on this chart",
+        "zoom the chart in",
+        "zoom in a bit",
+        "get closer on this chart"
+      ]
+    },
+    {
       "id": "chartSetup.resetView",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [

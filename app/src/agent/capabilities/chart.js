@@ -257,9 +257,12 @@ export function viewDone(meta, { op, arg }) {
   if (op === 'applyRange') return meta.activeRange === arg
   if (op === 'resetView') return meta.atDefaultView === true
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
+  // C1-028: a zoom LANDED only when the window narrowed (in) or widened (out) from the width it had before
+  if (op === 'zoom') { const w = frameWidth(meta.frame); return w != null && arg?.width != null && (arg.dir === 'in' ? w < arg.width - 0.5 : w > arg.width + 0.5) }
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
+export const frameWidth = (f) => (f && Number.isFinite(f.fromRight) && Number.isFinite(f.toRight) ? f.fromRight - f.toRight : null)
 const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
@@ -401,7 +404,7 @@ export const chartKind = {
     if ('viewDo' in item.patch) {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
-      else if (op === 'applyRange' && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if ((op === 'applyRange' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
       else return null
     }
     return p
@@ -432,7 +435,8 @@ export const chartKind = {
     ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
-    ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null) : !!snap.view?.indicatorsHidden] : [])]),
+    ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null)
+      : item.patch.viewDo.op === 'zoom' ? frameWidth(snap.view?.frame) : !!snap.view?.indicatorsHidden] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
