@@ -100,7 +100,7 @@ const INSTRUMENT = `(() => {
   if (window.__geoI) return true
   Error.stackTraceLimit = 60
   const G = /\\/src\\/agent\\/guide\\//
-  const I = window.__geoI = { log: [], ro: new Set(), ls: new Map(), iv: new Map(), raf: new Map() }
+  const I = window.__geoI = { log: [], ro: new Set(), mo: new Set(), ls: new Map(), iv: new Map(), raf: new Map() }
   const fromGuide = () => G.test(new Error().stack || '')
   const oRaf = window.requestAnimationFrame.bind(window), oCaf = window.cancelAnimationFrame.bind(window)
   window.requestAnimationFrame = (cb) => { if (!fromGuide()) return oRaf(cb); const id = oRaf((t) => { I.raf.delete(id); I.log.push(['raf', performance.now()]); cb(t) }); I.raf.set(id, 1); return id }
@@ -116,6 +116,12 @@ const INSTRUMENT = `(() => {
     observe(t, o) { if (this.__g) { this.__n.add(t); I.ro.add(this) } return super.observe(t, o) }
     unobserve(t) { this.__n.delete(t); if (!this.__n.size) I.ro.delete(this); return super.unobserve(t) }
     disconnect() { this.__n.clear(); I.ro.delete(this); return super.disconnect() }
+  }
+  const OMO = window.MutationObserver
+  window.MutationObserver = class extends OMO {
+    constructor(cb) { const g = fromGuide(); super((m, o) => { if (g) I.log.push(['mo', performance.now()]); cb(m, o) }); this.__g = g }
+    observe(t, o) { if (this.__g) I.mo.add(this); return super.observe(t, o) }
+    disconnect() { I.mo.delete(this); return super.disconnect() }
   }
   const TYPES = /^(scroll|resize|pointermove|pointerdown|pointerup|pointercancel|mousemove|mousedown|mouseup|keydown|keyup|wheel)$/
   const oAdd = EventTarget.prototype.addEventListener, oRem = EventTarget.prototype.removeEventListener
@@ -136,7 +142,7 @@ const INSTRUMENT = `(() => {
   return true
 })()`
 const LIVE = `(() => { const I = window.__geoI; let ls = 0; const types = {}; for (const [t, per] of I.ls) for (const [k, m] of per) { ls += m.size; if (m.size) types[k + '@' + (t === window ? 'window' : t === document ? 'document' : t.nodeName || '?')] = m.size }
-  return { listeners: ls, listenerTypes: types, resizeObserversObserving: I.ro.size, pendingRaf: I.raf.size, intervals: [...I.iv.values()] } })()`
+  return { listeners: ls, listenerTypes: types, resizeObserversObserving: I.ro.size, mutationObserversObserving: I.mo.size, pendingRaf: I.raf.size, intervals: [...I.iv.values()] } })()`
 function analyse(samples, tRelease) {
   // per frame: the distance between the ring's centre and the target's centre (independent of the ring's shape: a padded box on
   // master, a circle on a handle after the fix), and how long ago the target's centre was where the ring's centre is now
@@ -260,12 +266,13 @@ async function runCase(ctx, c) {
       await send('mousePressed', sx, sy, 1); await sleep(60)
       const N = Number(A['drag-steps']), dx = -Math.min(160, m.target.left * 0.25), dy = -Math.min(120, m.target.top * 0.2)
       const tStart = await p.b.evaluate('performance.now()')
-      for (let i = 1; i <= N; i++) { const k = i / N; await send('mouseMoved', sx + dx * k, sy + dy * k, 1); await sleep(16) }
+      let tShot = null
+      for (let i = 1; i <= N; i++) { const k = i / N; await send('mouseMoved', sx + dx * k, sy + dy * k, 1); await sleep(16); if (i === Math.floor(N / 2) && ctx.shots) { tShot = await p.b.evaluate('performance.now()'); await p.shot(join(ctx.shots, `${c.id}-mid-drag-measured.png`)).catch(() => {}) } }
       const tRelease = await p.b.evaluate('performance.now()')
       await send('mouseReleased', sx + dx, sy + dy, 0)
       await sleep(1200)
       const samples = await p.b.evaluate('(window.__geo.on = false, window.__geo.s)')
-      ev.drag = { steps: N, movedPx: [Math.round(dx), Math.round(dy)], durationMs: Math.round(tRelease - tStart), ...analyse(samples.filter(s => s[0] >= tStart), tRelease) }
+      ev.drag = { shotAtMs: tShot ? Math.round(tShot - tStart) : null, steps: N, movedPx: [Math.round(dx), Math.round(dy)], durationMs: Math.round(tRelease - tStart), ...analyse(samples.filter(s => s[0] >= tStart), tRelease) }
       { const gone = samples.find(x => x[0] >= tStart && !x[1]); ev.drag.ringGoneAtMs = gone ? Math.round(gone[0] - tStart) : null; const back = gone ? samples.find(x => x[0] > gone[0] && x[1]) : null; ev.drag.ringBackAtMs = back ? Math.round(back[0] - tStart) : null }
       ev.drag.cardAfter = await p.b.evaluate(`(document.querySelector('[data-testid="guide-card"]')?.textContent || '').slice(0, 200)`)
       ev.drag.agentSaid = (await p.last()).slice(-260)
