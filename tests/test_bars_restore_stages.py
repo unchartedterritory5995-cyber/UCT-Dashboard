@@ -162,12 +162,18 @@ def test_a_finished_download_is_not_fetched_again(data, tmp_path, monkeypatch):
     assert client.ranges == []
 
 
-def test_a_finished_extract_is_not_redone(data, tmp_path, monkeypatch):
+def _small_db(tmp_path, rows=1):
     src = tmp_path / "x.db"
     c = sqlite3.connect(src)
     c.execute("CREATE TABLE ohlcv (ticker TEXT)")
+    c.executemany("INSERT INTO ohlcv VALUES (?)", [("T",)] * rows)
     c.commit()
     c.close()
+    return src
+
+
+def test_a_finished_extract_is_not_redone(data, tmp_path, monkeypatch):
+    src = _small_db(tmp_path)
     _stage(data).mkdir(parents=True)
     (_stage(data) / "bars.db").write_bytes(src.read_bytes())
     client = Client(b"")
@@ -179,39 +185,68 @@ def test_a_finished_extract_is_not_redone(data, tmp_path, monkeypatch):
 def test_the_tarball_is_freed_after_extract(data, tmp_path, monkeypatch):
     """Tarball plus database at once is what can fill the volume."""
     seen = {}
-    real = data_sync._verify_snapshot_db
+    real = br._is_complete_database
 
     def spy(path):
         seen["tar_present"] = (_stage(data) / "snapshot.tar.gz").exists()
         return real(path)
 
-    monkeypatch.setattr(data_sync, "_verify_snapshot_db", spy)
+    monkeypatch.setattr(br, "_is_complete_database", spy)
     _use(monkeypatch, Client(_snapshot(tmp_path)))
     assert br._install_snapshot(TS)
     assert seen["tar_present"] is False
 
 
-def test_verification_is_remembered(data, tmp_path, monkeypatch):
-    """integrity_check on 39 GB is the longest stage."""
-    src = tmp_path / "x.db"
-    c = sqlite3.connect(src)
-    c.execute("CREATE TABLE ohlcv (ticker TEXT)")
-    c.commit()
-    c.close()
-    _stage(data).mkdir(parents=True)
-    (_stage(data) / "bars.db").write_bytes(src.read_bytes())
-    (_stage(data) / "verified").write_text("")
+def test_install_does_not_run_the_full_integrity_scan(data, tmp_path, monkeypatch):
+    """Measured 2026-11-08: on the 40 GB file this outlived every redeploy gap,
+    so the restore could never finish. The snapshot passed the same scan before
+    upload, and the uploader repeats it before anything ships again."""
 
     def explode(_path):
-        raise AssertionError("must not verify twice")
+        raise AssertionError("no full scan at install")
 
     monkeypatch.setattr(data_sync, "_verify_snapshot_db", explode)
-    _use(monkeypatch, Client(b""))
+    _use(monkeypatch, Client(_snapshot(tmp_path)))
     assert br._install_snapshot(TS)
+    assert _rows(data) == 50
+
+
+def test_a_truncated_database_is_refused(data, tmp_path, monkeypatch):
+    src = _small_db(tmp_path, rows=5000)
+    bytes_ = src.read_bytes()
+    _stage(data).mkdir(parents=True)
+    (_stage(data) / "bars.db").write_bytes(bytes_[:len(bytes_) - 4096])
+    _use(monkeypatch, Client(b""))
+    assert not br._install_snapshot(TS)
+    assert not (data / "bars.db").exists()
+
+
+def test_a_database_with_no_bars_is_refused(data, tmp_path, monkeypatch):
+    src = _small_db(tmp_path, rows=0)
+    _stage(data).mkdir(parents=True)
+    (_stage(data) / "bars.db").write_bytes(src.read_bytes())
+    _use(monkeypatch, Client(b""))
+    assert not br._install_snapshot(TS)
+
+
+def test_garbage_in_the_stage_is_refused(data, monkeypatch):
+    _stage(data).mkdir(parents=True)
+    (_stage(data) / "bars.db").write_bytes(b"NOT SQLITE" * 500)
+    _use(monkeypatch, Client(b""))
+    assert not br._install_snapshot(TS)
+
+
+def test_a_gzip_checksum_failure_is_refused(data, tmp_path, monkeypatch):
+    """Transport corruption is what the upload-side scan cannot cover."""
+    blob = bytearray(_snapshot(tmp_path))
+    blob[-8] ^= 0xFF  # the gzip CRC32 trailer
+    _use(monkeypatch, Client(bytes(blob)))
+    assert not br._install_snapshot(TS)
+    assert not (data / "bars.db").exists()
 
 
 def test_a_corrupt_database_is_refused_and_its_stage_dropped(data, tmp_path, monkeypatch):
-    monkeypatch.setattr(data_sync, "_verify_snapshot_db", lambda _p: False)
+    monkeypatch.setattr(br, "_is_complete_database", lambda _p: False)
     _use(monkeypatch, Client(_snapshot(tmp_path)))
     assert not br._install_snapshot(TS)
     assert not (data / "bars.db").exists()
