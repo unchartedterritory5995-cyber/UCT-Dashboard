@@ -443,7 +443,7 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
       expect(o.notes.some((n) => /other symbol XAUUSD: refused \(other-symbol:bare\)/.test(n)), id).toBe(true)
       const v = graded(id)
       // ⭐ OZ RE-PIN (2026-11-09): nothing of either is drawn, now withheld BY NAME
-      // (the creates the refused symbol reaches are lost: `objects:not-carried`).
+      // (every create the refused symbol reaches is withheld: `objects:not-computable`).
       expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([null, null])
       expect([family(v, 'lines').withheld, family(v, 'labels').withheld]).toEqual([true, true])
     }
