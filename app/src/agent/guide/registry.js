@@ -380,7 +380,7 @@ export const GUIDE_FEATURES = [
     steps: [
       GEAR,
       { target: 'chartSettings.tab.{setting.tab}', name: 'the {setting.tabLabel} tab', text: 'Open {setting.tabLabel}.', waitFor: { id: 'chartSettings.tab.{setting.tab}', on: true } },
-      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.{setting.note}', altText: 'It’s on this tab: scroll down for {setting.label}.' },
+      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.{setting.note}', altText: '{setting.alt}' },
     ],
     doIt: { say: 'Tell me the change — for example “hide the grid” or “make the crosshair dashed”.' },
   },

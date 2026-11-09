@@ -183,7 +183,7 @@ const TABS = { 'price style': 'price', canvas: 'canvas', indicators: 'indicators
 const ONLY_ON = ' Its controls show beside the switch once the line is on.'
 const SETTING_SPOT = {
   showPriceLabels: { where: 'Price labels' }, showMaLabels: { where: 'Moving average labels' },
-  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Bar thickness', note: ' This shows while the chart type is Bars or HLC.' },
+  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Bar thickness', note: ' This shows while the chart type is Bars or HLC.', alt: 'Thin bars shows on this tab only while the chart type is Bars or HLC. Choose Bars under Chart type first, and it appears here.' },
   'crosshair.style': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the line style.' },
   'crosshair.width': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the thickness.' },
   'header.colors.*': { where: 'Title color', note: ' Each info row’s colour is further down this tab.' },
@@ -203,7 +203,8 @@ export function settingRows() {
     const tab = m && TABS[m[1].trim().toLowerCase()]
     if (!tab || tab === 'indicators' || d.agent === 'internal' || !d.label) continue
     const words = [d.label, ...(d.words || [])].map(w => escapeRe(String(w).toLowerCase()))
-    rows.push({ id: d.id, label: d.label, tab, tabLabel: m[1].trim(), where: (m[2] || d.label).trim(), note: '', ...SETTING_SPOT[d.id], re: new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`), len: Math.max(...words.map(w => w.length)) })
+    // `alt`: what is true when the row is not on the tab (a row that shows only in some state says which); else it is further down
+    rows.push({ id: d.id, label: d.label, tab, tabLabel: m[1].trim(), where: (m[2] || d.label).trim(), note: '', alt: `It’s on this tab: scroll down for ${d.label}.`, ...SETTING_SPOT[d.id], re: new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`), len: Math.max(...words.map(w => w.length)) })
   }
   settingCache = rows.sort((a, b) => b.len - a.len)
   return settingCache
