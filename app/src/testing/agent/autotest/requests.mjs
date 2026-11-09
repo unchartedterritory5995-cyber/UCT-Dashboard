@@ -15,6 +15,7 @@ import { unseen6 } from './families/unseen6.mjs'
 import { unseen7 } from './families/unseen7.mjs'
 import { unseen8 } from './families/unseen8.mjs'
 import { unseen9 } from './families/unseen9.mjs'
+import { unseen10 } from './families/unseen10.mjs'
 
 export function publicRequests() {
   const L = []
@@ -96,6 +97,13 @@ export function unseen9Requests() {
   const L = []
   unseen9(L)
   return L.map(r => ({ ...r, set: 'unseen9' }))
+}
+
+/** Batch 10, RELATIONS (2026-11-09), written before any run and without reading deixis.js or #988's tests. */
+export function unseen10Requests() {
+  const L = []
+  unseen10(L)
+  return L.map(r => ({ ...r, set: 'unseen10' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */

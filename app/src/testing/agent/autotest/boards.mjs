@@ -29,6 +29,9 @@ const widgets = () => [chart('w-chart-a', 'A', 0, 0, 8, 20), W('w-flow', 'option
 // 3 x 2: a middle column, so "the middle one" names two charts and "the one below this" is exact. Link colours E-H are dark (an
 // auth flag), so the bottom middle and bottom right share A and B with the top row: SPY and QQQ name two charts each here
 const six = () => [chart('c-tl', 'A', 0, 0, 6, 10), chart('c-tm', 'B', 6, 0, 6, 10), chart('c-tr', 'C', 12, 0, 6, 10), chart('c-bl', 'D', 0, 10, 6, 10), chart('c-bm', 'A', 6, 10, 6, 10), chart('c-br', 'B', 12, 10, 6, 10), WATCH()]
+// 3 x 3: a centre chart with no single opposite; link colours A-D repeat (E-H are dark), so a symbol may name more than one chart
+const nine = () => [['c-tl', 'A', 0, 0], ['c-tm', 'B', 6, 0], ['c-tr', 'C', 12, 0], ['c-ml', 'D', 0, 6], ['c-mm', 'A', 6, 6], ['c-mr', 'B', 12, 6], ['c-bl', 'C', 0, 12], ['c-bm', 'D', 6, 12], ['c-br', 'A', 12, 12]]
+  .map(([id, color, x, y]) => chart(id, color, x, y, 6, 6)).concat([WATCH(18, 0, 18)])
 const one = () => [chart('w-chart-a', 'A', 0, 0, 18, 20), WATCH()]
 const scan = () => [chart('w-chart-a', 'A', 0, 0, 12, 20), { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 0, w: 12, h: 20, opts: {} }]
 
@@ -85,6 +88,13 @@ export const BOARDS = {
     roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TM: { id: 'c-tm', position: 'top-middle', sym: 'QQQ' }, TR: { id: 'c-tr', position: 'top-right', sym: 'NVDA' },
       BL: { id: 'c-bl', position: 'bottom-left', sym: 'TSLA' }, BM: { id: 'c-bm', position: 'bottom-middle', sym: 'SPY' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'QQQ' } },
     browser: { prefs: prefsOf(six(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }), iaCatalog: IA_CATALOG },
+    sim: null,
+  },
+  NINE: {
+    roles: { TL: { id: 'c-tl', position: 'top-left', sym: 'SPY' }, TM: { id: 'c-tm', position: 'top-middle', sym: 'QQQ' }, TR: { id: 'c-tr', position: 'top-right', sym: 'NVDA' },
+      ML: { id: 'c-ml', position: 'middle-left', sym: 'TSLA' }, MM: { id: 'c-mm', position: 'middle-middle', sym: 'SPY' }, MR: { id: 'c-mr', position: 'middle-right', sym: 'QQQ' },
+      BL: { id: 'c-bl', position: 'bottom-left', sym: 'NVDA' }, BM: { id: 'c-bm', position: 'bottom-middle', sym: 'TSLA' }, BR: { id: 'c-br', position: 'bottom-right', sym: 'SPY' } },
+    browser: { prefs: prefsOf(nine(), { A: 'SPY', B: 'QQQ', C: 'NVDA', D: 'TSLA' }), iaCatalog: IA_CATALOG },
     sim: null,
   },
   ONE: {
