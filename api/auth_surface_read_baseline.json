@@ -96,6 +96,12 @@
   },
   {
    "method": "GET",
+   "path": "/api/brand/massive-card-logo.png",
+   "kind": "public",
+   "reason": "Brand image (the UCT logo, 256px) used as the author icon on the Massive Discord cards. Discord fetches an embed's icon_url anonymously, so it must be public; the handler's own docstring says 'Keep it public (no auth) so Discord can load it.' Serves one static file from app/public, no member data."
+  },
+  {
+   "method": "GET",
    "path": "/api/calendar/report.ics",
    "kind": "public",
    "reason": "One earnings report as an 'Add to calendar' event; the handler's own docstring says 'No auth, no token -- it's a single public event the user already sees.'"
@@ -103,6 +109,13 @@
   {
    "method": "GET",
    "path": "/api/catalysts/today-internal",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.catalysts."
+  },
+  {
+   "method": "GET",
+   "path": "/api/catalysts/pending-deals-internal",
    "kind": "inline",
    "marker": "PUSH_SECRET",
    "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.catalysts."
