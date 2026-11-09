@@ -8,8 +8,8 @@ const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
 
 // ── Masthead: the instrument strip (owner pick, header concept 3) ─────────────
 // The list and its day on the left, then small readouts that SHOW rather than
-// label: the count over its last 60 sessions (today in gold), the average move,
-// and where they come from (the sector mix).
+// label: the count over its recent sessions (today in gold), and where the
+// stocks come from (the sector mix).
 export function ScanHeader({
   label, count, live, drillCols, colKey, onPickMetric,
   dateNav, ctx, summary, mode, onMode, modes, onClose, children,
