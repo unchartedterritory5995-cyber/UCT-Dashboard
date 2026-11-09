@@ -3,7 +3,8 @@
 // Found on the real screen (2026-11-08, the RS drafts): the pill sat at the BOTTOM centre of the chart box, which is
 // where the time axis prints its dates, and on an RS item the bottom of the box is the RS pane the member is asked to
 // tap. It now sits at the TOP of the plot, held left of the price scale, wraps on a phone, and carries its own ink on
-// its own plate (the --text-bright token went dark-on-dark on the light theme).
+// its own plate (the --text-bright token went dark-on-dark on the light theme). Kit v2 put the chart's OHLC legend at
+// the top of the desktop plot, so the pill is a compact strip in the band above that legend.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -29,6 +30,17 @@ describe('the tap prompt pill stays off the time axis and the price scale', () =
     expect(all('bottom')).toEqual([])
     expect(all('top').map((v) => parseFloat(v))).toEqual([expect.any(Number)])
     expect(parseFloat(all('top')[0])).toBeLessThanOrEqual(16)
+  })
+
+  it('fits the band above the desktop chart legend (kit v2: the OHLC legend starts 35 px below the box top)', () => {
+    // measured on the real screen at 1440x900 (StockChart .legend in the Study chart box); the pill must end above it
+    const LEGEND_TOP = 35
+    const px = (v) => parseFloat(v)
+    const pad = all('padding').at(-1).split(/\s+/).map(px)
+    const border = px(all('border').at(-1))
+    const height = px(all('top').at(-1)) + pad[0] * 2 + px(all('line-height').at(-1)) + border * 2
+    expect(all('line-height').at(-1)).toMatch(/px$/)
+    expect(height).toBeLessThanOrEqual(LEGEND_TOP - 2)
   })
 
   it('is held left of the price scale and wraps rather than running under it on a phone', () => {

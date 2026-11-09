@@ -231,10 +231,13 @@
    running under the scale on a phone. The top is also clear of the RS pane, which is what an RS tap item points at.
    pointer-events stay off, so a tap through the pill still lands on the chart. The plate is a dark literal, so its ink
    and rim are literals too (a self-contained pair that reads on any chart canvas): the --text-bright token here went
-   dark-on-dark on the light theme. */
+   dark-on-dark on the light theme.
+   Kit v2 (real-screen check, 1440x900): the desktop chart now prints its OHLC legend from 35 px below the box top, so
+   the pill is a compact 26 px strip in the band above it (5 px + 26 px = 31 px) instead of covering the legend's
+   values. The phone hides that legend, so there the pill may wrap to a second line. */
 .hud {
   position: absolute;
-  top: 10px;
+  top: 5px;
   left: 12px;
   right: 72px;
   z-index: 6;
@@ -242,13 +245,14 @@
   width: max-content;
   max-width: calc(100% - 12px - 72px);
   margin: 0 auto;
-  padding: 8px 14px;
+  padding: 3px 12px;
   border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-pill);
   background: rgba(26, 28, 23, 0.94);
   color: #f8f7f3;
-  font-size: var(--text-base);
-  line-height: 1.3;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
   text-align: center;
   white-space: normal;
   pointer-events: none;
