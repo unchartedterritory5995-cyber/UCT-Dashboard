@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { registerPopout } from '../../../lib/popoutRegistry'
 
 /**
  * Renders `children` into a real, separate browser window the user can drag to
@@ -49,6 +50,8 @@ export default function PopoutWindow({
       onBlockedRef.current?.()
       return
     }
+
+    const unregister = registerPopout()
 
     win.document.title = title
     relabelAddressBar(win)
@@ -101,6 +104,7 @@ export default function PopoutWindow({
 
     return () => {
       done = true          // unmount is an intentional close, not a user close
+      unregister()
       clearInterval(poll)
       clearTimeout(fitTimer)
       window.removeEventListener('beforeunload', closeOrphan)

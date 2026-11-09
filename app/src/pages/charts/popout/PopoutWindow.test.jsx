@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import PopoutWindow from './PopoutWindow'
+import { hasOpenPopouts } from '../../../lib/popoutRegistry'
 
 /** A stand-in for the window `window.open` hands back. */
 function makeFakeWindow() {
@@ -49,6 +50,24 @@ describe('PopoutWindow', () => {
     render(<PopoutWindow onBlocked={onBlocked}><p>x</p></PopoutWindow>)
 
     expect(onBlocked).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers an open window and releases it on unmount', () => {
+    const fake = makeFakeWindow()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+
+    const { unmount } = render(<PopoutWindow><p>x</p></PopoutWindow>)
+    expect(hasOpenPopouts()).toBe(true)
+    unmount()
+    expect(hasOpenPopouts()).toBe(false)
+  })
+
+  it('a blocked window.open does not register', () => {
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    const { unmount } = render(<PopoutWindow><p>x</p></PopoutWindow>)
+    expect(hasOpenPopouts()).toBe(false)
+    unmount()
   })
 
   it('calls onClose when the user closes the window', () => {
