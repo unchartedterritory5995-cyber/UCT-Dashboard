@@ -5,7 +5,7 @@ import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import UIcon from '../../../../components/ui/UIcon'
 import {
   fetchRecent, resolveLink, saveTweets, groupByDay, postAge, isPostLink, setPendingFocus,
-  authorInitials, avatarTint, splitCashtags,
+  authorInitials, avatarTint, splitCashtags, discardEmptyNote,
 } from '../../lib/tweetImportHelpers'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
@@ -92,6 +92,18 @@ export default function ImportTweetSheet({
   const live = useRef(true)
   // A save that failed after its note was created retries into THAT note, never a second one.
   const createdNote = useRef(null)
+  const createdNoteHasPosts = useRef(false)
+  const importing = useRef(false)
+
+  // Closing after every attempt failed: the note this sheet made holds nothing, so it goes. A save
+  // still running may yet land in it, so that case keeps the note.
+  useEffect(() => {
+    if (!open) return undefined
+    return () => {
+      const id = createdNote.current
+      if (id && !createdNoteHasPosts.current && !importing.current) discardEmptyNote(id).catch(() => {})
+    }
+  }, [open])
 
   useEffect(() => {
     live.current = true
@@ -119,6 +131,7 @@ export default function ImportTweetSheet({
     setError('')
     setResult(null)
     createdNote.current = null
+    createdNoteHasPosts.current = false
   }, [open, symbol])
 
   useEffect(() => {
@@ -191,6 +204,7 @@ export default function ImportTweetSheet({
     if (!count || saving) return
     const tweetIds = selected
     setSaving(true)
+    importing.current = true
     setError('')
     setResult(null)
     try {
@@ -203,6 +217,7 @@ export default function ImportTweetSheet({
         noteId = createdNote.current
       }
       const out = await saveTweets({ noteId, tweetIds })
+      createdNoteHasPosts.current = true
       // The save ADVANCED the note, on every 200, `stopped` included. Land that revision, or the
       // offline queue reads the member's own write as somebody else's and forks the note.
       await settleNoteWrite(noteId, out)
@@ -222,6 +237,7 @@ export default function ImportTweetSheet({
     } catch (e) {
       setError(e?.detail || e?.message || "Couldn't import those posts. Your note is unchanged.")
     } finally {
+      importing.current = false
       setSaving(false)
     }
   }

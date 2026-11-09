@@ -845,3 +845,16 @@ def test_both_jobs_sit_beside_the_tweet_cleanup_job():
     for minute, job in (("10", "run_sweep"), ("25", "run_confirm")):
         m = re.search(rf"{job},\s*trigger=CronTrigger\(hour=3, minute={minute}, timezone=_ET\),[^)]*max_instances=1", block)
         assert m, job
+
+
+def test_a_removed_post_is_not_offered_as_evidence(notebook, x, clock):
+    from api.services.journal_two import evidence_candidates
+    note_id = _note()
+    _save("7003", note_id)
+    assert len(evidence_candidates.list_candidates(UID, note_id)) == 1
+
+    x["gone"] = {"7003"}
+    _sync().run_sweep()
+    clock["t"] = T0 + timedelta(minutes=15)
+    assert _sync().run_confirm()["removed"] == 1
+    assert evidence_candidates.list_candidates(UID, note_id) == []

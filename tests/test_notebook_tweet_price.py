@@ -149,10 +149,53 @@ def test_choose_symbol_none_without_cashtag():
 
 
 def test_still_comparable_false_after_split(bars):
-    post = et(2026, 11, 6, 11, 0)
-    bars["D"] = [(20261106, 1, 1, 1, 100.0, 1)]
+    post = et(2026, 11, 5, 11, 0)
+    bars["D"] = [(20261105, 95, 110, 90, 100.0, 1)]
     assert tp.still_comparable("NVDA", post, 1000.0) is False
-    assert tp.still_comparable("NVDA", post, 110.0) is True
+    assert tp.still_comparable("NVDA", post, 105.0) is True
+
+
+def test_a_three_for_two_split_is_caught(bars):
+    post = et(2026, 11, 5, 11, 0)
+    bars["D"] = [(20261105, 66, 70, 64, 66.0, 1)]    # restated from a 100-ish session
+    assert tp.still_comparable("NVDA", post, 100.0, "posted", None) is False
+
+
+def test_a_big_real_day_stays_comparable(bars):
+    post = et(2026, 11, 5, 15, 0)
+    bars["D"] = [(20261105, 70, 130, 65, 125.0, 1)]
+    assert tp.still_comparable("NVDA", post, 120.0, "posted", None) is True
+
+
+def test_an_extended_hours_price_may_sit_outside_the_regular_range(bars):
+    post = et(2026, 11, 5, 7, 0)
+    bars["D"] = [(20261105, 100, 110, 100, 105.0, 1)]
+    assert tp.still_comparable("NVDA", post, 92.0, "premarket", None) is True
+    assert tp.still_comparable("NVDA", post, 80.0, "premarket", None) is False
+
+
+def test_a_close_is_checked_against_its_own_session(bars):
+    post = et(2026, 11, 6, 8, 0)
+    bars["D"] = [(20261105, 95, 105, 95, 100.0, 1), (20261106, 60, 70, 55, 62.0, 1)]
+    assert tp.still_comparable("NVDA", post, 100.0, "close", "2026-11-05") is True
+
+
+def test_todays_session_is_always_comparable(bars):
+    post = et(2026, 11, 7, 11, 0)     # the fixture's clock is this day
+    bars["D"] = [(20261107, 10, 11, 9, 10.0, 1)]
+    assert tp.still_comparable("NVDA", post, 500.0, "posted", None) is True
+
+
+def test_a_missing_session_bar_does_not_borrow_an_older_one(bars):
+    post = et(2026, 11, 6, 11, 0)
+    bars["D"] = [(20261105, 10, 11, 9, 10.0, 1)]
+    assert tp.still_comparable("NVDA", post, 500.0, "posted", None) is True
+
+
+def test_a_saturday_bar_never_becomes_a_close(bars):
+    bars["D"] = [(20261106, 1, 1, 1, 610.15, 1), (20261107, 1, 1, 1, 610.09, 1)]
+    p = tp.price_at_post("META", et(2026, 11, 9, 11, 0))
+    assert p == tp.PricePoint("META", 610.15, "close", "2026-11-06")
 
 
 def test_still_comparable_true_without_daily_bar(bars):
