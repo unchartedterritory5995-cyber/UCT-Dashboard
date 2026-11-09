@@ -76,7 +76,10 @@ export function gradeTarget(spec, rec, { roles = {}, before = null, asked = fals
   const push = (name, pass, detail) => C.push({ name, pass: !!pass, detail: pass ? undefined : detail, tag: 'target' })
   const show = `clicked=${rec.clicked} intended=${rec.intended} landed=${rec.landed}${rec.told === undefined ? '' : ` told=${rec.told}`}`
   if (spec.click !== undefined) push(`the real click was on ${spec.click ?? 'no chart'}`, rec.clicked === spec.click, show)
-  if (rec.told !== undefined) push('the panel told the planner the clicked chart', rec.told === rec.clicked, show)
+  // POST-DECISION UPDATE (2026-11-07, owner: the last explicitly named chart keeps bare follow-ups): the panel may tell the planner the
+  // conversation's chart, not the clicked one. So "told" must equal the click only where the click decides; where the words decide,
+  // what lands is the check (below)
+  if (rec.told !== undefined && spec.intended === 'clicked') push('the panel told the planner the clicked chart', rec.told === rec.clicked, show)
   if (spec.intended === 'ask') {
     push('nothing landed: no chart was identified', rec.landed.length === 0, show)
     return C
