@@ -36,6 +36,7 @@ import tarfile
 import tempfile
 import threading
 import time
+import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable, Optional
 
@@ -190,7 +191,10 @@ def _extract(stage: str) -> bool:
                 return False
             with archive.extractfile(member) as src, open(part, "wb") as dst:
                 shutil.copyfileobj(src, dst, _CHUNK)
-    except (tarfile.TarError, OSError, EOFError) as e:
+            # gzip only checks its CRC at the end of the stream, past the member.
+            while archive.fileobj.read(_CHUNK):
+                pass
+    except (tarfile.TarError, OSError, EOFError, zlib.error) as e:
         log.error("[bars-restore] extract failed: %s", e)
         return False
     os.replace(part, db)
@@ -198,13 +202,36 @@ def _extract(stage: str) -> bool:
     return True
 
 
+def _is_complete_database(path: str) -> bool:
+    """Fast proof that this file is a whole database holding bars.
+
+    Deliberately not PRAGMA integrity_check: on the 40 GB file it outlasted every
+    gap between redeploys, so a restore could never finish. That scan already
+    passed before this snapshot was uploaded, the gzip CRC covers the transfer,
+    and the uploader repeats the scan before anything ships to R2 again.
+    """
+    try:
+        conn = sqlite3.connect(path, timeout=10)
+        try:
+            pages = conn.execute("PRAGMA page_count").fetchone()[0]
+            page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+            if pages * page_size != os.path.getsize(path):
+                log.error("[bars-restore] database is not the size its header declares")
+                return False
+            return conn.execute("SELECT 1 FROM ohlcv LIMIT 1").fetchone() is not None
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        log.error("[bars-restore] database check failed: %s", e)
+        return False
+
+
 def _install_snapshot(ts: str) -> bool:
-    """Advance this snapshot through download, extract, verify and install."""
+    """Advance this snapshot through download, extract, check and install."""
     stage = os.path.join(_stage_root(), ts)
     os.makedirs(stage, exist_ok=True)
     db = os.path.join(stage, "bars.db")
     tar = os.path.join(stage, "snapshot.tar.gz")
-    verified = os.path.join(stage, "verified")
 
     if not os.path.exists(db):
         if not os.path.exists(tar) and not _download(ts, stage):
@@ -212,13 +239,10 @@ def _install_snapshot(ts: str) -> bool:
         if not _extract(stage):
             shutil.rmtree(stage, ignore_errors=True)
             return False
-    if not os.path.exists(verified):
-        if not data_sync._verify_snapshot_db(db):
-            log.error("[bars-restore] snapshot %s failed integrity_check", ts)
-            shutil.rmtree(stage, ignore_errors=True)
-            return False
-        with open(verified, "w", encoding="utf8"):
-            pass
+    if not _is_complete_database(db):
+        log.error("[bars-restore] snapshot %s is not a complete database", ts)
+        shutil.rmtree(stage, ignore_errors=True)
+        return False
     os.replace(db, db_path())
     data_sync._write_marker(data_sync._LAST_SYNC_MARKER, ts)
     shutil.rmtree(_stage_root(), ignore_errors=True)
