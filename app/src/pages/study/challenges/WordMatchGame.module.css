@@ -1,0 +1,138 @@
+/* WORD MATCH (WordMatchGame.jsx): only what the Study kit lacks, on the kit's own tokens (study.module.css .kit: --k-gold,
+   --k-ink, --k-line, --k-plate, --k-glass, --k-up, --k-down, --k-ease): the stopwatch that counts up with its pace line,
+   the board of two columns (rows lined up across them on a wide screen, stacked on a phone), the gold lock and the empty
+   slot a matched pair leaves, the break between rounds, the lesson cards inside the kit's takeover, and the end screen's
+   run log as one pair a card. The tiles themselves are the kit's Tile. Ink on the kit's black glass is the literal the
+   Tile and the takeover use (#f8f7f3), never --k-ink: that token follows --text-bright, which turns dark on the light
+   theme while the glass stays black (ui/tileLegibility.test.js records the same defect on the answer tile). */
+
+.play { position: relative; }
+.head h2 { text-wrap: balance; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ── the stopwatch ───────────────────────────────────────────────────────────────────────────────────────────── */
+.watch { position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px 11px; border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--k-line); background: var(--k-glass), var(--k-plate);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); animation: watchIn .36s var(--k-ease) both; }
+.watchIcon { display: inline-flex; flex: none; color: var(--k-gold); }
+.watchMain { display: inline-flex; align-items: baseline; gap: 10px; min-width: 0; }
+.watchMain small { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); }
+.watchMain b { font-size: 28px; line-height: 1; font-weight: 900; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--k-gold-bright);
+  transition: color .25s; }
+.over .watchMain b { color: #ff9d9d; }
+.pop { flex: none; padding: 3px 9px; border-radius: 999px; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; color: #ffd0d0;
+  border: 1px solid color-mix(in srgb, var(--k-down) 55%, transparent); background: color-mix(in srgb, var(--k-down) 18%, transparent);
+  animation: penaltyRise 1.1s ease-out forwards; }
+.watchBest { margin-left: auto; flex: none; font-size: 11.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; color: var(--k-ink-dim); }
+.watchBest b { margin-left: 4px; font-size: 14px; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: #f8f7f3; }
+.pace { position: absolute; left: 0; right: 0; bottom: 0; display: block; height: 3px; background: rgba(255, 255, 255, .05); }
+.pace > i { display: block; height: 100%; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, var(--k-gold-deep), var(--k-gold)); transition: width .12s linear; }
+.over .pace > i { background: linear-gradient(90deg, #7a2a2a, var(--k-down)); }
+
+/* ── the board ───────────────────────────────────────────────────────────────────────────────────────────────── */
+.stage { position: relative; }
+.board { position: relative; }
+/* two columns whose rows line up across them: a long meaning makes its row taller on both sides */
+.cols { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); grid-template-rows: auto repeat(5, auto); grid-auto-flow: column;
+  column-gap: 16px; row-gap: 10px; }
+.col { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; min-width: 0; }
+@supports not (grid-template-rows: subgrid) {
+  .col { display: flex; flex-direction: column; gap: 10px; }
+}
+.colHead { align-self: end; display: flex; align-items: center; gap: 8px; min-height: 18px; padding: 0 4px 2px; font-size: 11px; font-weight: 900;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); transition: color .2s ease; }
+.colHead::before { content: ''; width: 14px; height: 2px; border-radius: 2px; background: currentColor; opacity: .6; }
+.colHead.cue { color: var(--k-gold-bright); }
+
+/* the kit's Tile, sized for a board of ten: a word reads as a word, a meaning as a sentence that wraps cleanly */
+.board .col > button { min-width: 0; min-height: 64px; height: 100%; }
+.termText { display: block; font-size: 18px; font-weight: 800; line-height: 1.22; overflow-wrap: anywhere; }
+.meaningText { display: block; font-size: 15.5px; font-weight: 650; line-height: 1.36; letter-spacing: 0; overflow-wrap: anywhere; hyphens: auto; }
+
+/* a matched pair locks gold for a moment, then leaves an empty slot in its place (nothing moves under a finger) */
+.board .col > .locked { animation: lockPop .5s var(--k-ease) both; }
+.board .col > .gone { opacity: .13; filter: saturate(0); box-shadow: none; transform: scale(.98); border-style: dashed; transition: opacity .35s ease, transform .35s ease, filter .35s ease; }
+
+/* the break between rounds, over the emptied board */
+.banner { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; pointer-events: none; }
+.bannerCard { display: grid; justify-items: center; gap: 6px; padding: 22px 34px 20px; border-radius: 22px; text-align: center;
+  border: 1px solid color-mix(in srgb, var(--k-gold) 45%, transparent);
+  background: radial-gradient(120% 130% at 50% 0%, color-mix(in srgb, var(--k-gold) 14%, transparent), transparent 62%), var(--k-glass), var(--k-plate);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 241, 194, .12); animation: bannerIn .4s var(--k-ease) both; }
+.bannerCard b { font-size: 32px; line-height: 1.05; font-weight: 900; letter-spacing: -.02em; color: var(--k-gold-bright); }
+.bannerCard span { font-size: 22px; font-weight: 850; font-variant-numeric: tabular-nums; color: #f8f7f3; }
+.bannerCard small { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); }
+
+/* ── the lesson inside the takeover (spans: the takeover sets it inside a paragraph) ──────────────────────────────── */
+.lesson { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+.why { display: block; font-size: 17px; line-height: 1.45; color: #f8f7f3; }
+.pairCard { display: grid; gap: 3px; padding: 12px 15px 13px; border-radius: 14px; text-align: left; border: 1px solid var(--k-line); background: rgba(255, 255, 255, .03); }
+.pairCard.truth { border-color: color-mix(in srgb, var(--k-gold) 55%, transparent);
+  background: radial-gradient(130% 140% at 0% 0%, color-mix(in srgb, var(--k-gold) 13%, transparent), transparent 60%), rgba(255, 255, 255, .02);
+  box-shadow: 0 0 26px rgba(220, 187, 94, .12); }
+.pairCard.mixed { border-color: color-mix(in srgb, var(--k-down) 42%, transparent); }
+.cardLabel { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); }
+.truth .cardLabel { color: var(--k-gold-bright); }
+.mixed .cardLabel { color: #ff9d9d; }
+.cardTerm { display: block; font-size: 19px; line-height: 1.25; font-weight: 850; color: #f8f7f3; overflow-wrap: anywhere; }
+.cardMeaning { display: block; font-size: 15px; line-height: 1.42; color: var(--k-ink-soft); overflow-wrap: anywhere; }
+.foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; font-size: 12.5px; line-height: 1.4; color: var(--k-ink-dim); }
+.cost, .from { display: inline-flex; align-items: center; gap: 6px; }
+.cost { font-weight: 800; color: #ff9d9d; }
+.from svg { color: var(--k-gold); }
+
+/* ── a failed draw: the kit's load-failed card with a way back under it ─────────────────────────────────────────── */
+.failed { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 0 26px; }
+
+/* ── the end screen ──────────────────────────────────────────────────────────────────────────────────────────── */
+/* the kit's spinning rays are wider than a phone's column; clip that axis only */
+.end { overflow-x: clip; }
+.end [data-testid='match-time'] { font-variant-numeric: tabular-nums; }
+.endNote { display: block; }
+.endNote + .endNote { margin-top: 6px; }
+.saved { display: block; margin-top: 8px; font-size: 13px; color: var(--k-ink-dim); }
+.signIn { margin-top: 14px; }
+/* the run log (EndHard's): one pair a card, its meaning under its word, and what it was mixed up with */
+.end [data-testid='run-log'] { grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; }
+.end [data-testid='run-log'] > [role='listitem'] { gap: 5px; padding: 12px 14px 13px; text-align: left; }
+.end [data-testid='run-log'] > [role='listitem'] > b { font-size: 15.5px; line-height: 1.3; font-weight: 800; color: #f8f7f3; overflow-wrap: anywhere; }
+.end [data-testid='run-log'] > [role='listitem'] > em { display: block; font-size: 13.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--k-ink-soft); }
+.note { display: flex; flex-direction: column; gap: 4px; }
+.noteMeaning { display: block; line-height: 1.42; overflow-wrap: anywhere; }
+.noteMiss { display: block; font-size: 12px; font-weight: 700; line-height: 1.35; color: #ff9d9d; }
+
+/* ── a phone: the words two to a row above, the meanings one to a row below; nothing scrolls sideways ────────────── */
+@media (max-width: 640px) {
+  .play { gap: 12px; }
+  .watch { min-height: 46px; padding: 7px 12px 10px; gap: 9px; }
+  .watchMain b { font-size: 23px; }
+  .watchMain small { display: none; }
+  .watchBest { font-size: 10.5px; letter-spacing: .12em; }
+  .head h2 { font-size: 20px; }
+  .cols { display: flex; flex-direction: column; gap: 14px; }
+  .col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: none; gap: 8px; }
+  .col.meanings { grid-template-columns: minmax(0, 1fr); }
+  .colHead { grid-column: 1 / -1; }
+  .board .col > button { min-height: 48px; padding: 8px 12px; gap: 10px; border-radius: 14px; }
+  .board .col.meanings > button { min-height: 54px; }
+  /* the fifth word takes the whole row; the end medallion steps aside so a label keeps its room */
+  .board .col.words > button:last-child { grid-column: 1 / -1; }
+  .board .col > button > span:last-child { display: none; }
+  .termText { font-size: 15.5px; }
+  .meaningText { font-size: 14.5px; line-height: 1.34; }
+  .bannerCard { padding: 18px 24px 16px; }
+  .bannerCard b { font-size: 26px; }
+  .why { font-size: 15.5px; }
+  .cardTerm { font-size: 17px; }
+  .cardMeaning { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .watch, .board .col > .locked, .bannerCard { animation: none; }
+  .board .col > .gone, .pace > i, .watchMain b, .colHead { transition: none; }
+  .pop { display: none; }
+}
+
+@keyframes watchIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes lockPop { 0% { transform: scale(1); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
+@keyframes penaltyRise { 0% { opacity: 0; transform: translateY(6px) scale(.9); } 18% { opacity: 1; transform: none; } 70% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes bannerIn { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }

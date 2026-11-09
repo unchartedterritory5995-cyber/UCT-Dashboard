@@ -540,12 +540,17 @@ def test_the_committed_bank_never_prints_a_missing_number():
     """A lesson template that read a fact the scan had not stored printed
     'None%' (seen live 2026-11-04 on three Gap Support items). The grounding
     check cannot catch it (None is not a number), so this reads every
-    committed segment: the bars decide the number or the clause is left out."""
+    committed segment: the bars decide the number or the clause is left out.
+    The English "None of it" (the course units' own words, 2026-11-09) is not a missing value, so it passes; a bare
+    None anywhere else still fails."""
+    leak = re.compile(r"\bNone\b(?!\s+of\b)")
+    assert leak.search("The gap held None% of the range.") and leak.search("Volume was None.")
+    assert not leak.search("None of it stops every loss.")
     bad = []
     for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
         for it in json.loads(path.read_text(encoding="utf-8")):
             for field, text in si.lesson_texts(it):
-                if re.search(r"\bNone\b", text):
+                if leak.search(text):
                     bad.append(f"{path.stem}:{it.get('id')}:{field}")
     assert not bad, bad[:12]
 

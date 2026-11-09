@@ -17,6 +17,20 @@ describe('the end screen, three versions', () => {
     expect(tierOf(5, 8)).toMatchObject({ key: 'silver', next: { name: 'Gold', more: 1 } })
     expect(tierOf(1, 8)).toMatchObject({ key: 'bronze', next: { name: 'Silver', more: 3 } })
     expect(tierOf(0, 8)).toMatchObject({ key: 'none', next: { name: 'Bronze', more: 1 } })
+    // a short run: the next tier can be out of reach, so the hint names the medal the next right answer really lights
+    expect(tierOf(2, 3)).toMatchObject({ key: 'silver', next: { name: 'Legendary', more: 1 } })
+    expect(tierOf(1, 2)).toMatchObject({ key: 'silver', next: { name: 'Legendary', more: 1 } })
+    expect(tierOf(0, 1)).toMatchObject({ key: 'none', next: { name: 'Legendary', more: 1 } })
+    expect(tierOf(1, 3)).toMatchObject({ key: 'bronze', next: { name: 'Silver', more: 1 } })
+    expect(tierOf(2, 4)).toMatchObject({ key: 'silver', next: { name: 'Gold', more: 1 } })
+    expect(tierOf(0, 0)).toMatchObject({ key: 'none', next: { name: 'Bronze', more: 1 } })
+    // every hint, on every run length up to 12: the named tier is the one those extra right answers would earn
+    for (let total = 1; total <= 12; total += 1) {
+      for (let right = 0; right < total; right += 1) {
+        const { next } = tierOf(right, total)
+        expect(tierOf(right + next.more, total).name, `${right} of ${total}`).toBe(next.name)
+      }
+    }
   })
   it('scores every setup in the run, worst first', () => {
     expect(bySetup(log).map((r) => [r.name, r.ok, r.n])).toEqual([['Nothing fired', 0, 1], ['Oops Reversal', 0, 1], ['Bear gap', 1, 2]])

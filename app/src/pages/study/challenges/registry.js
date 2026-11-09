@@ -5,6 +5,7 @@
 // home list a game without loading its code (each body loads when its sheet opens), and ChallengeSheet.test.jsx fails
 // the moment a copy here drifts from the file's own GAME. group 'chart' joins the Challenges deck, 'skill' the Skill games.
 export const GAME_LIST = [
+  { kind: 'daily', title: 'Daily Chart', sub: 'Three real charts a day, the same for every member. Name what fired on each, then share your score.', icon: 'calendar', plate: 'Daily', accent: 'amber', group: 'chart', load: () => import('./DailyChartGame') },
   { kind: 'story', title: 'Trade Story', sub: 'A real setup fires. Take the trade on its own plan, then make the calls as the chart plays out.', icon: 'compass', plate: 'Story', accent: 'green', group: 'chart', load: () => import('./TradeStoryGame') },
   { kind: 'watchlist', title: 'Weekend Watchlist', sub: 'A Sunday scan: eight real charts, tickers hidden. Flag the ones where one of our setups fired on the last candle.', icon: 'bookmark', plate: 'Watchlist', accent: 'gold', group: 'chart', load: () => import('./WatchlistGame') },
   { kind: 'size', title: 'Size It', sub: 'Sixty seconds. Size every trade from its stop, rounded down.', icon: 'scale', plate: 'Size', accent: 'gold', group: 'skill', load: () => import('./SizeItGame') },
@@ -12,6 +13,7 @@ export const GAME_LIST = [
   { kind: 'payoff', title: 'Options Payoff', sub: 'Six positions, three hearts. Price each one at expiry.', icon: 'dollar', plate: 'Payoff', accent: 'gold', group: 'skill', load: () => import('./OptionsPayoffGame') },
   { kind: 'greeks', title: 'Greeks Lab', sub: 'One option, three sliders, five challenges. Watch delta, theta and vega move.', icon: 'sliders', plate: 'Greeks', accent: 'amber', group: 'skill', load: () => import('./GreeksLabGame') },
   { kind: 'tf', title: 'True or False', sub: 'Forty-five seconds of statements from every course. Call each one true or false.', icon: 'check', plate: 'True/False', accent: 'green', group: 'skill', load: () => import('./TrueFalseGame') },
+  { kind: 'match', title: 'Word Match', sub: 'Three rounds of five. Pair each word with its meaning against the clock.', icon: 'link', plate: 'Match', accent: 'amber', group: 'skill', load: () => import('./WordMatchGame') },
   { kind: 'survive', title: 'Survive the Drawdown', sub: 'Five risk sizes, the same 50 trades. See which account survives.', icon: 'equity', plate: 'Survive', accent: 'red', group: 'skill', load: () => import('./SurviveGame') },
 ]
 
