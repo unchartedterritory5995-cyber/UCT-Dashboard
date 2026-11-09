@@ -157,7 +157,10 @@ export function grade(request, ev) {
     const untouched = o.outcome === 'change' ? (o.only ? Object.keys(roles).filter(r => !o.only.includes(r)) : untargetedRoles(request, ev, roles, before))
       : ['read', 'refuse', 'clarify', 'answer'].includes(o.outcome) ? Object.keys(roles) : []
     for (const role of untouched) {
-      const layers = ev.repaints?.[roles[role].id]
+      // a target request grades its LAST sentence (state from ev.beforeLast): its repaints come from the same window, so a chart an earlier
+      // sentence of the flow changed on purpose is not read as a stray repaint (post-run oracle fix, 2026-11-09: sel flow-* cases)
+      const counts = o.target && ev.repaintsLast ? ev.repaintsLast : ev.repaints
+      const layers = counts?.[roles[role].id]
       // (AUDIT gap b) a chart missing from the count was not measured: that is a failed check, never a pass
       if (!layers) { push(`${role} did not repaint`, false, 'not measured: the chart was not in the repaint count', 'repaint'); continue }
       push(`${role} did not repaint`, layers.every(n => n === 0), `clears per layer: ${layers.join(',')}`, 'repaint')

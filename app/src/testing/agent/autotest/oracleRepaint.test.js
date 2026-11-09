@@ -37,4 +37,16 @@ describe('the strict repaint check', () => {
     expect(miss.map(c => c.name)).toEqual(['BL did not repaint', 'BR did not repaint'])
     expect(miss[0].detail).toMatch(/not measured/)
   })
+  // post-run oracle fix (2026-11-09): a target request grades its last sentence, so an earlier sentence's own change is not a stray repaint
+  it('a target request reads the repaints of its last sentence, the window of its state checks', () => {
+    const tr = { ...request, oracle: { ...request.oracle, only: ['TR'], target: { intended: ['TR'], click: null } } }
+    const e = { ...ev({ 'c-tl': [6, 6], 'c-tr': [2, 2], 'c-bl': [0, 0], 'c-br': [0, 0] }), repaintsLast: { 'c-tl': [0, 0], 'c-tr': [2, 2], 'c-bl': [0, 0], 'c-br': [0, 0] } }
+    expect(grade(tr, e).checks.filter(c => c.tag === 'repaint').every(c => c.pass)).toBe(true)
+    const stray = { ...e, repaintsLast: { ...e.repaintsLast, 'c-bl': [0, 3] } }
+    expect(grade(tr, stray).checks.filter(c => c.tag === 'repaint' && !c.pass).map(c => c.name)).toEqual(['BL did not repaint'])
+  })
+  it('a request without a target still reads every sentence', () => {
+    const e = { ...ev({ 'c-tl': [0, 4], 'c-tr': [2, 2], 'c-bl': [0, 0], 'c-br': [0, 0] }), repaintsLast: { 'c-tl': [0, 0], 'c-tr': [2, 2], 'c-bl': [0, 0], 'c-br': [0, 0] } }
+    expect(grade(request, e).checks.filter(c => c.tag === 'repaint' && !c.pass).map(c => c.name)).toEqual(['TL did not repaint'])
+  })
 })

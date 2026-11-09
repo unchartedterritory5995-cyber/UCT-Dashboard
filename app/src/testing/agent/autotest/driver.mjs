@@ -163,8 +163,9 @@ export async function runRequest(ctx, req) {
         ev.beforeLast = await snapshot(p, req.board); ev.clicks = await p.clicks()
         if (ev.prewarm) await readRepaints(p)
         ev.turns.push(await driveTurn(p, ctx, req, t))
-        // every repaint of every chart during the request's own sentences (a click between sentences is the person's, not counted)
-        if (ev.prewarm) { const r = await readRepaints(p); ev.repaints = ev.repaints || {}; for (const [id, l] of Object.entries(r)) ev.repaints[id] = (ev.repaints[id] || l.map(() => 0)).map((n, i) => n + (l[i] || 0)) }
+        // every repaint of every chart during the request's own sentences (a click between sentences is the person's, not counted);
+        // `repaintsLast` is the last sentence alone, the same window as a target request's state checks (ev.beforeLast)
+        if (ev.prewarm) { const r = await readRepaints(p); ev.repaintsLast = r; ev.repaints = ev.repaints || {}; for (const [id, l] of Object.entries(r)) ev.repaints[id] = (ev.repaints[id] || l.map(() => 0)).map((n, i) => n + (l[i] || 0)) }
       }
       if (R.stopped) throw new Error(`STOP: ${R.stopped}`)
     }
