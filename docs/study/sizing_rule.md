@@ -154,4 +154,19 @@ and A1 ("A is good").
   The post has no parabolic long; the long is the mirror image, a burst down (confirmed: "1, yes.").
 - B27. Journal every trade the same day and review the week every weekend, ideally. ("27, ideally yes..")
 
-**Still open:** nothing from the 2026-11-09 list. Further account and approach rules may be added below.
+**C. Approach (second round, 2026-11-09)**
+- C28. No chasing: never buy more than 4% above the buy point. ("28, make it 4%.")
+- C29. Too stretched to buy: skip a long that is more than 10% above its 10-day average. ("29, yes.")
+- C30. No time-of-day rule. ("30, no")
+- C31. Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion
+  trades. ("31, yes unless parabolic or mean reversion.")
+- C32. No news-day rule: Fed and CPI days are traded like any other day. (He declined it as a rule: "not a rule i
+  generally ignore that ...")
+- C33. Time stop: a trade that has done nothing in 10 days is sold, freeing the money. ("33, yes.")
+- C34. A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call. ("34, yes
+  but depends.")
+- C35. We swing trade: days to a few weeks; a winner can be held longer while it keeps working. ("35, yes.")
+- C36. Follow the rules; breaking one is not recommended. (He noted a rule is sometimes bent to get exposure: "kind
+  of but sometimes you have to break rule to get exposure but not recomended.") Taught: don't; if you do, journal why.
+- C37. New traders start at 0.25% risk per trade until 50 journaled trades followed the rules, then size up.
+  ("37 yes")
