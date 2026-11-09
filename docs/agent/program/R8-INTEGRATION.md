@@ -117,6 +117,6 @@ Not moved by this branch: C3-138 / C3-139 (already VERIFIED in rounds 6-7); the 
 
 ## Full suite
 
-Not run yet: the suite lock is held for release runs. One full 4-shard run is owed on this branch when the Lead clears it.
+Full 4-shard vitest at 1368c64e8b, run through agent_suite_lock at BelowNormal (LOCAL native Windows Node v24, BROWSER-MOCK-MODEL / SIMULATED): **9665 passed, 0 failed, 6 skipped** (2358+3 / 3338 / 1889+1 / 2080+2), 04:46-04:59 ET. It replaces the separate r8-errors, r8-drawings and r8-presets reruns. pytest not run (C:\data rule): owed to AUDIT / CI, listed above.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
