@@ -17,6 +17,9 @@ let appClosing = false
  */
 export function markAppClosing() { appClosing = true }
 
+/** The reload did not happen (the member answered Stay on a Leave site prompt): closes dock boards again. */
+export function clearAppClosing() { appClosing = false }
+
 /** Tests only. */
 export function __resetAppClosingForTests() { appClosing = false }
 

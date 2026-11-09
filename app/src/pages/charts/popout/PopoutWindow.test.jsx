@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import PopoutWindow, { markAppClosing, __resetAppClosingForTests } from './PopoutWindow'
+import PopoutWindow, { markAppClosing, clearAppClosing, __resetAppClosingForTests } from './PopoutWindow'
+import { reloadNow } from '../../../lib/reloadGuard'
 import { hasOpenPopouts } from '../../../lib/popoutRegistry'
 
 /** A stand-in for the window `window.open` hands back. */
@@ -113,6 +114,42 @@ describe('PopoutWindow', () => {
       })
 
       expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('clearAppClosing: after a cancelled reload a close is a user close again', () => {
+      const fake = makeFakeWindow()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      markAppClosing()
+      clearAppClosing()
+      act(() => {
+        fake._fire('beforeunload')
+        fake.closed = true
+        vi.advanceTimersByTime(2000)
+      })
+
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('reloadNow: marks closing, and clears it 5s later when the page stayed (Stay on Leave site)', () => {
+      const fake = makeFakeWindow()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+
+      reloadNow({ reload: () => {} })           // real timers faked by this file's useFakeTimers
+      act(() => { fake._fire('beforeunload'); fake.closed = true; vi.advanceTimersByTime(1000) })
+      expect(onClose).not.toHaveBeenCalled()    // while the reload is pending, no dock
+
+      act(() => { vi.advanceTimersByTime(5000) })  // page still alive: flag cleared
+      const fake2 = makeFakeWindow()
+      openSpy.mockReturnValue(fake2)
+      const onClose2 = vi.fn()
+      render(<PopoutWindow onClose={onClose2}><p>y</p></PopoutWindow>)
+      act(() => { fake2._fire('beforeunload'); fake2.closed = true; vi.advanceTimersByTime(2000) })
+      expect(onClose2).toHaveBeenCalled()       // a close docks again
     })
 
     it('control: without it the same close is reported', () => {

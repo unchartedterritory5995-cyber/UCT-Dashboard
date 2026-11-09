@@ -81,3 +81,21 @@ export function createBuildWatcher({ fetchHealth, clientId, onNewBuild, interval
     },
   }
 }
+
+/**
+ * Reads /api/health with its own 10 second limit. Never throws: any failure resolves null, which the
+ * watcher treats as "no information" and resets its streak.
+ */
+export async function fetchHealthSafe({ fetchImpl = (...a) => fetch(...a), timeoutMs = 10000 } = {}) {
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), timeoutMs)
+  try {
+    const res = await fetchImpl('/api/health', { cache: 'no-store', signal: ctl.signal })
+    if (!res || !res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}

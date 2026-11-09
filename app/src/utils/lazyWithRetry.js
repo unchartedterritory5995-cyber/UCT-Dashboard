@@ -20,6 +20,8 @@
  */
 
 import { lazy } from 'react'
+import UpdateRequiredNotice from '../components/UpdateRequiredNotice'
+import { shouldDeferReload, announceUpdateRequired } from '../lib/reloadGuard'
 
 const RELOAD_FLAG = 'uct.chunk-reload-attempted'
 
@@ -39,6 +41,13 @@ export default function lazyWithRetry(importer) {
     } catch (err) {
       let alreadyTried = false
       try { alreadyTried = !!sessionStorage.getItem(RELOAD_FLAG) } catch {}
+
+      // A reload would close the member's pop-out windows (or this IS one): resolve a stub so the
+      // desk stays mounted, and let the toast ask. No flag is set, so the member's own reload works.
+      if (isChunkLoadError(err) && shouldDeferReload()) {
+        announceUpdateRequired()
+        return { default: UpdateRequiredNotice }
+      }
 
       if (isChunkLoadError(err) && !alreadyTried) {
         try { sessionStorage.setItem(RELOAD_FLAG, String(Date.now())) } catch {}

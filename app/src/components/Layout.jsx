@@ -13,6 +13,7 @@ import { OTHER_TOURS } from '../pages/journal-2-0/components/notebook/onboarding
 import FeedbackWidget from './FeedbackWidget'
 import { registerFirstRunSlot } from './firstRun/firstRunStage'
 import ChartsDeskHost from '../pages/charts/ChartsDeskHost'
+import UpdateReadyToast from './UpdateReadyToast'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
 import HomeHubSection from '../hub/sections/HomeHubSection'
@@ -200,6 +201,9 @@ export default function Layout({ children }) {
                   nothing on the page; the slot itself is empty and has no box at all.
                   components/firstRun/firstRunStage.js; rail Layout.firstRunSlot.test.jsx. */}
               <div ref={registerFirstRunSlot} data-first-run-slot="" />
+              {/* "A new version is ready." position: fixed like the first-run cards, so it moves
+                  nothing; all of its state lives in the leaf (components/UpdateReadyToast.jsx). */}
+              <UpdateReadyToast />
               {/* The Charts workspace, kept mounted while a board is popped out so changing page does
                   not close the windows on the other monitors. Before the Suspense below on purpose:
                   a page that suspends must not take the board with it. A Layout rendering explicit
