@@ -54,6 +54,9 @@ const cases = []
 for (const [t, T] of Object.entries(TARGETS)) for (const [v] of Object.entries(VIEWPORTS)) for (const [b, role] of Object.entries(LAYOUTS)) for (const z of [100, 125])
   cases.push({ id: `${t}-${b}-${v}-z${z}`, target: t, board: b, role, vp: v, zoom: z, scroll: false })
 for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-S-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'S', zoom: 100, scroll: true })
+// tracking must STOP: drag the corner, release, end it at once (Done, Exit, Escape) or take its target away (close the chart), then
+// count the guide's own callbacks over the next 2 s and what is still registered
+for (const how of ['done', 'exit', 'escape', 'unmount']) cases.push({ id: `stop-${how}-TWO-L-z100`, target: 'corner', board: 'TWO', role: 'A', vp: 'L', zoom: 100, scroll: false, stop: how })
 
 // in the page: the ring, and the visible candidate that overlaps it most
 const MEASURE = (sel) => `(() => {
@@ -86,6 +89,49 @@ const SAMPLER = (sel) => `(() => {
 })()`
 
 const PAD = 4
+
+// in the page, installed just before the walkthrough starts: every requestAnimationFrame, ResizeObserver, interval and
+// scroll / resize / pointer / key listener created from a guide module (/src/agent/guide/ in its creation stack) is wrapped, so
+// its callbacks are logged and what is still registered can be counted
+const INSTRUMENT = `(() => {
+  if (window.__geoI) return true
+  Error.stackTraceLimit = 60
+  const G = /\\/src\\/agent\\/guide\\//
+  const I = window.__geoI = { log: [], ro: new Set(), ls: new Map(), iv: new Map(), raf: new Map() }
+  const fromGuide = () => G.test(new Error().stack || '')
+  const oRaf = window.requestAnimationFrame.bind(window), oCaf = window.cancelAnimationFrame.bind(window)
+  window.requestAnimationFrame = (cb) => { if (!fromGuide()) return oRaf(cb); const id = oRaf((t) => { I.raf.delete(id); I.log.push(['raf', performance.now()]); cb(t) }); I.raf.set(id, 1); return id }
+  window.cancelAnimationFrame = (id) => { I.raf.delete(id); return oCaf(id) }
+  const oSI = window.setInterval.bind(window), oCI = window.clearInterval.bind(window)
+  window.setInterval = (fn, ms, ...a) => { if (typeof fn !== 'function' || !fromGuide()) return oSI(fn, ms, ...a); const id = oSI(() => { I.log.push(['interval', performance.now()]); fn(...a) }, ms); I.iv.set(id, ms); return id }
+  window.clearInterval = (id) => { I.iv.delete(id); return oCI(id) }
+  const ORO = window.ResizeObserver
+  window.ResizeObserver = class extends ORO {
+    constructor(cb) { const g = fromGuide(); super((e, o) => { if (g) I.log.push(['ro', performance.now()]); cb(e, o) }); this.__g = g; this.__n = new Set() }
+    observe(t, o) { if (this.__g) { this.__n.add(t); I.ro.add(this) } return super.observe(t, o) }
+    unobserve(t) { this.__n.delete(t); if (!this.__n.size) I.ro.delete(this); return super.unobserve(t) }
+    disconnect() { this.__n.clear(); I.ro.delete(this); return super.disconnect() }
+  }
+  const TYPES = /^(scroll|resize|pointermove|pointerdown|pointerup|pointercancel|mousemove|mousedown|mouseup|keydown|keyup|wheel)$/
+  const oAdd = EventTarget.prototype.addEventListener, oRem = EventTarget.prototype.removeEventListener
+  const k2 = (type, o) => type + '|' + (typeof o === 'boolean' ? o : !!(o && o.capture))
+  EventTarget.prototype.addEventListener = function (type, fn, o) {
+    if (!TYPES.test(type) || typeof fn !== 'function' || !fromGuide()) return oAdd.call(this, type, fn, o)
+    let per = I.ls.get(this); if (!per) { per = new Map(); I.ls.set(this, per) }
+    const k = k2(type, o); let m = per.get(k); if (!m) { m = new Map(); per.set(k, m) }
+    if (m.has(fn)) return
+    const w = function (e) { I.log.push(['ev:' + type, performance.now()]); return fn.call(this, e) }
+    m.set(fn, w); return oAdd.call(this, type, w, o)
+  }
+  EventTarget.prototype.removeEventListener = function (type, fn, o) {
+    const m = I.ls.get(this) && I.ls.get(this).get(k2(type, o)); const w = m && m.get(fn)
+    if (w) { m.delete(fn); return oRem.call(this, type, w, o) }
+    return oRem.call(this, type, fn, o)
+  }
+  return true
+})()`
+const LIVE = `(() => { const I = window.__geoI; let ls = 0; const types = {}; for (const [t, per] of I.ls) for (const [k, m] of per) { ls += m.size; if (m.size) types[k + '@' + (t === window ? 'window' : t === document ? 'document' : t.nodeName || '?')] = m.size }
+  return { listeners: ls, listenerTypes: types, resizeObserversObserving: I.ro.size, pendingRaf: I.raf.size, intervals: [...I.iv.values()] } })()`
 function analyse(samples, tRelease) {
   // per frame: the distance between the ring's centre and the target's centre (independent of the ring's shape: a padded box on
   // master, a circle on a handle after the fix), and how long ago the target's centre was where the ring's centre is now
@@ -103,8 +149,9 @@ function analyse(samples, tRelease) {
   const offs = dur.map(r => r.o), lags = dur.map(r => r.lag).filter(x => x != null)
   let settle = null
   if (tRelease != null) { const after = rows.filter(r => r.ts > tRelease); const k = after.findIndex((r, i) => after.slice(i).every(x => x.o <= 1)); settle = k >= 0 ? +(after[k].ts - tRelease).toFixed(0) : 'never (within the window)' }
-  return { frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), p50: pct(offs, 0.5) },
-    lagMs: { max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
+  const mean = (a) => a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : null
+  return { frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), mean: mean(offs), p50: pct(offs, 0.5) },
+    lagMs: { max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), mean: mean(lags), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
 }
 
 async function runCase(ctx, c) {
@@ -120,6 +167,7 @@ async function runCase(ctx, c) {
     await p.b.waitFor(`window.__baRead().filter(w => w.type === 'chart').every(x => x.sym && x.canvases > 5)`, { timeout: 30000 })
     await p.settle()
     await p.select(B.roles[c.role].id)
+    await p.b.evaluate(INSTRUMENT)
     await p.say(T.say, (body) => scripted({ plan: { ops: [{ action: 'guide.show', target: '$list:guide', args: { feature: T.feature, detail: T.detail || null } }] } }, body, c.board))
     await p.idle(20000)
     if (!(await p.b.waitFor(`!!document.querySelector('[data-testid="guide-ring"]')`, { timeout: 6000 }))) throw new Error('no ring after the request')
@@ -147,7 +195,27 @@ async function runCase(ctx, c) {
     const m = await p.b.evaluate(MEASURE(T.sel))
     ev.static = { ...m, edgeOutsidePx: edges(m), centreDistPx: m.ring && m.target ? +Math.hypot((m.ring.left + m.ring.right - m.target.left - m.target.right) / 2, (m.ring.top + m.ring.bottom - m.target.top - m.target.bottom) / 2).toFixed(2) : null, widgetVsRing: m.ring && m.widget ? { left: +(m.widget.left - m.ring.left).toFixed(2), top: +(m.widget.top - m.ring.top).toFixed(2), right: +(m.ring.right - m.widget.right).toFixed(2), bottom: +(m.ring.bottom - m.widget.bottom).toFixed(2) } : null }
     if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
-    if (T.drag && m.target) {
+    if (c.stop && m.target) {
+      const sx = (m.target.left + m.target.right) / 2, sy = (m.target.top + m.target.bottom) / 2
+      const send = (type, x, y, buttons) => p.b.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 })
+      ev.liveDuring = await p.b.evaluate(LIVE)
+      await send('mouseMoved', sx, sy, 0); await sleep(100); await send('mousePressed', sx, sy, 1)
+      for (let i = 1; i <= 20; i++) { await send('mouseMoved', sx - i * 3, sy - i * 2, 1); await sleep(16) }
+      await send('mouseReleased', sx - 60, sy - 40, 0)
+      ev.liveAfterDrag = await p.b.evaluate(LIVE)
+      const tEnd = await p.b.evaluate('performance.now()')
+      if (c.stop === 'done') { if (!(await p.button('Done', '[data-testid="guide-card"]'))) throw new Error('no Done on the card') }
+      if (c.stop === 'exit') { const at = await p.box('[aria-label="Exit the guide"]'); if (!at) throw new Error('no Exit'); await p.b.click(at.x, at.y) }
+      if (c.stop === 'escape') { await p.b.evaluate('document.activeElement && document.activeElement.blur && document.activeElement.blur()'); await p.b.key('Escape') }
+      if (c.stop === 'unmount') { const at = await p.box(`[data-widget-id=${q(B.roles[c.role].id)}] [aria-label="Close widget"]`); if (!at) throw new Error('no Close widget'); await p.b.click(at.x, at.y) }
+      await sleep(2100)
+      const log = await p.b.evaluate('window.__geoI.log.slice()')
+      const count = (from) => { const o = {}; for (const [k, t] of log) if (t >= from) o[k] = (o[k] || 0) + 1; return o }
+      ev.stopCheck = { how: c.stop, ringAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-ring"]') && getComputedStyle(document.querySelector('[data-testid="guide-ring"]')).opacity !== '0'`),
+        cardAfter: await p.b.evaluate(`!!document.querySelector('[data-testid="guide-card"]')`),
+        callbacksFromEnd: count(tEnd), callbacksAfter150ms: count(tEnd + 150), callbacksLastSecond: count(tEnd + 1100), live2sAfter: await p.b.evaluate(LIVE) }
+      if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
+    } else if (T.drag && m.target) {
       // a continuous drag of the corner: press, move in small steps (one per ~16 ms), release; every frame sampled in the page
       const sx = (m.target.left + m.target.right) / 2, sy = (m.target.top + m.target.bottom) / 2
       const send = (type, x, y, buttons) => p.b.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 })
@@ -165,6 +233,13 @@ async function runCase(ctx, c) {
       const after = await p.b.evaluate(MEASURE(T.sel))
       ev.drag.afterRelease = { edgeOutsidePx: edges(after), handleMoved: after.target ? [+(after.target.left - m.target.left).toFixed(1), +(after.target.top - m.target.top).toFixed(1)] : null }
       if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}-after-drag.png`)).catch(() => {})
+      // the mid-drag picture: a second drag on the same path back, shot at its middle (kept out of the measured pass)
+      if (ctx.shots && after.target) {
+        const bx = (after.target.left + after.target.right) / 2, by = (after.target.top + after.target.bottom) / 2
+        await send('mouseMoved', bx, by, 0); await sleep(150); await send('mousePressed', bx, by, 1); await sleep(60)
+        for (let i = 1; i <= N; i++) { const k = i / N; await send('mouseMoved', bx - dx * k, by - dy * k, 1); await sleep(16); if (i === Math.floor(N / 2)) await p.shot(join(ctx.shots, `${c.id}-mid-drag.png`)).catch(() => {}) }
+        await send('mouseReleased', bx - dx, by - dy, 0); await sleep(600)
+      }
     }
   } catch (e) {
     ev.crash = String(e?.stack || e?.message || e).slice(0, 500)
@@ -189,6 +264,7 @@ for (const c of list) {
   clearTimeout(timer)
   if (/stopped answering|chrome did not come up/.test(ev.crash || '')) { await freeProfile(ctx.profile); ev = await runCase(ctx, c) }
   rows.push(ev)
+  if (ev.stopCheck) say(`STOP ${c.id} from-end ${JSON.stringify(ev.stopCheck.callbacksFromEnd)} after150 ${JSON.stringify(ev.stopCheck.callbacksAfter150ms)} live ${JSON.stringify(ev.stopCheck.live2sAfter)}`)
   const e = ev.static?.edgeOutsidePx
   say(`${ev.crash ? 'CRASH' : 'OK'} ${c.id}${ev.crash ? ` ${ev.crash.slice(0, 200)}` : ` edges(out px) L${e?.left} T${e?.top} R${e?.right} B${e?.bottom} centre ${ev.static?.centreDistPx}${ev.drag ? ` drag centre max ${ev.drag.centreDistPx.max} p95 ${ev.drag.centreDistPx.p95} lag max ${ev.drag.lagMs.max}ms p95 ${ev.drag.lagMs.p95}ms settle ${ev.drag.settleAfterReleaseMs}` : ''}${ev.scrollTrack ? ` scroll centre max ${ev.scrollTrack.centreDistPx.max} settle ${ev.scrollTrack.settleMs}` : c.scroll ? " no scroller" : ""}`}`)
   writeFileSync(join(A.out, 'results.geometry.json'), JSON.stringify({ MODE, label: A.label, pad: PAD, rows }, null, 1))
