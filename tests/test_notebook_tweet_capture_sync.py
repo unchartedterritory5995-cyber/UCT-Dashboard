@@ -63,7 +63,8 @@ def notebook(monkeypatch, tmp_path, store):
         return _png(), "image/png"
 
     monkeypatch.setattr(hotlink_fetch, "download", fake_download)
-    monkeypatch.setattr(tweet_price, "price_at_post", lambda s, p: PricePoint("FAKE", 12.5, "posted", None))
+    monkeypatch.setattr(tweet_price, "price_at_post", lambda s, p, wait_until=None: PricePoint("FAKE", 12.5, "posted", None))
+    monkeypatch.setattr(tweet_price, "start_refresh", lambda symbol: None)
     monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: True)
     monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
     from api.services import auth_db

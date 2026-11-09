@@ -32,6 +32,8 @@ FETCH_MAX_AGE_S = 60 * 86400
 DAILY_MAX_GAP_DAYS = 7
 SPLIT_TOLERANCE = 0.40
 FETCH_BARS_CAP = 5000
+REFRESH_POLL_S = 1.0
+REFRESH_WINDOW_S = 86400
 
 LABELS = ("posted", "premarket", "after_hours", "close")
 
@@ -136,7 +138,28 @@ def _closed_session_key(posted_at: int) -> int:
     return _ymd(d - timedelta(days=1))
 
 
-def price_at_post(symbol: str, posted_at: int) -> Optional[PricePoint]:
+def awaits_refresh(posted_at: int) -> bool:
+    """True when a read that found nothing is worth repeating: a post from the last day, on a
+    weekday, inside the hours that have bars. A night or weekend post has no bar to wait for."""
+    posted_at = int(posted_at)
+    return (time.time() - posted_at < REFRESH_WINDOW_S
+            and datetime.fromtimestamp(posted_at, ET).weekday() < 5
+            and _label_for(posted_at) is not None)
+
+
+def start_refresh(symbol: str) -> None:
+    """Ask for `symbol`'s bars so a stale store starts refreshing. Serving a ticker nobody has
+    charted lately answers with what is stored and refreshes behind the answer (5-10 s, measured
+    on production 2026-11-09), so the read that starts it cannot be the read that uses it."""
+    try:
+        _fetch_bars(_norm(symbol), "5", 200)
+    except Exception:
+        log.warning("tweet_price: start_refresh failed", exc_info=True)
+
+
+def price_at_post(symbol: str, posted_at: int, wait_until: Optional[float] = None) -> Optional[PricePoint]:
+    """`wait_until` (a `time.monotonic()` instant, shared across one import) lets a recent post
+    wait for its ticker's refresh. Without it, one read decides."""
     try:
         sym = _norm(symbol)
         posted_at = int(posted_at)
@@ -156,6 +179,10 @@ def price_at_post(symbol: str, posted_at: int) -> Optional[PricePoint]:
             age_days = max(0.0, (time.time() - posted_at) / 86400)
             count = min(FETCH_BARS_CAP, int(age_days * 80) + 200)
             picked = _intraday_pick(_fetch_bars(sym, "5", count), 300, posted_at)
+            while (not picked and wait_until is not None and awaits_refresh(posted_at)
+                   and time.monotonic() < wait_until):
+                time.sleep(REFRESH_POLL_S)
+                picked = _intraday_pick(_fetch_bars(sym, "5", count), 300, posted_at)
         if picked:
             label = _label_for(int(picked[0]))
             if label:
