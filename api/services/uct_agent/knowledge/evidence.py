@@ -175,8 +175,9 @@ def timeout_s() -> float:
 
 def default_call(**kwargs):
     """The paid classifier request (short timeout, no retries). Tests replace `CALL`; nothing here runs with Brain off."""
+    from api.services import call_deadline
     from api.services.engine import _get_anthropic_client
-    client = _get_anthropic_client().with_options(max_retries=0, timeout=timeout_s())
+    client = _get_anthropic_client().with_options(max_retries=0, timeout=call_deadline.cap(timeout_s()))
     return client.messages.create(**kwargs)
 
 

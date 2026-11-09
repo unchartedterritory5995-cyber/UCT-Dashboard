@@ -1,0 +1,37 @@
+// W6-T10 (2026-11-06) — probe W6-E1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-06-w6.md
+// Chart: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+// A compile error or a runtime error is itself a reading: record its text and line, then comment that
+// row out and capture the rest.
+//
+//   T01-T03  str.tostring of an enum field: the title, or the field name? (a titled field, an untitled one,
+//            and two fields sharing one title)
+//   E01      two fields sharing one title compared with == (members, so 0 expected; confirms the rail)
+//   N01-N04  an na enum value: na(m), m == E.a, which arm a switch on it takes, str.tostring of it
+//   I01      input.enum at its default: the default field (confirms the served shape)
+//   K01      an enum as a map key (put then get)
+//@version=6
+indicator("vw-w6-enum", overlay = false)
+enum E
+    a
+    b = "Bee"
+    c = "Same"
+    d = "Same"
+plot(str.length(str.tostring(E.b)), "T01 tostring titled (3 title, 1 name)")
+plot(str.length(str.tostring(E.a)), "T02 tostring untitled")
+plot(str.tostring(E.c) == str.tostring(E.d) ? 1 : 0, "T03 tostring same title equal")
+plot(E.c == E.d ? 1 : 0, "E01 same-title fields ==")
+E m = na
+plot(na(m) ? 1 : 0, "N01 na(m) of an na enum")
+plot(m == E.a ? 1 : 0, "N02 na enum == E.a")
+nv = switch m
+    E.a => 1
+    E.b => 2
+    => 3
+plot(nv, "N03 switch on an na enum")
+plot(str.length(str.tostring(m)), "N04 tostring of an na enum")
+sel = input.enum(E.b, "Pick")
+plot(sel == E.b ? 1 : 0, "I01 input.enum default")
+mp = map.new<E, float>()
+mp.put(E.b, 2.5)
+plot(mp.get(E.b), "K01 map key get")

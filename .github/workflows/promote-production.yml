@@ -83,6 +83,15 @@ permissions:
 
 jobs:
   promote:
+    # A CANCELLED gate is not a verdict: master pushes landed close together, the queued gate was
+    # superseded, and the next gate covers this commit (promotion_gate.decide lets a later green run
+    # supersede a cancelled one). Skip the whole job so GitHub records "skipped" and sends no failure
+    # email; until 2026-11-08 every pile-up mailed the owner a "failed" promotion with nothing wrong.
+    # ⛔ ONLY `cancelled`. A failure, timeout or anything else still runs the job and fails loudly in
+    # the step below. A job-level skip, never an `exit 0` in that step: that step's failure is what
+    # stops every later step from running, so softening it would let promotion proceed.
+    # Rail: tests/test_promote_skips_only_cancelled_gates.py.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -214,7 +223,7 @@ jobs:
       # SD-1.3 C2.1 — write down what was promoted, somewhere a human and the NEXT
       # gate run can both read it WITHOUT a token. Session 14 could not read the gate
       # log at all (no `gh` on the operator's box, and the Actions log needs auth), so
-      # the advisory range scan's six states were invisible from outside CI. The record
+      # the range scan's states were invisible from outside CI (it gates since 2026-11-06, PR #896). The record
       # lands on the `deploy-gate-state` orphan branch; its README says why there and
       # nowhere else.
       #

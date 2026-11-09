@@ -39,7 +39,8 @@
 }
 .chip {
   font: inherit;
-  font-size: 12.5px;
+  /* Finish batch: 12.5 px was off the type scale (the Notebook home's "+ NVDA" chips). */
+  font-size: 12px;
   color: var(--text);
   background: var(--surface-2, transparent);
   border: 1px solid var(--border);

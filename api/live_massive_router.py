@@ -43,6 +43,7 @@ from fastapi import APIRouter, Query, Request, HTTPException, Depends
 # already used by darkpool_router / dealer_positioning_router / flow_gap_autofill.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from api.sqlite_one_step import fetch_rows_one_step
+from api.services.mem_observe import bump as _memobs_bump   # OBSERVE ONLY (2026-11-06): would-have counters
 from datetime import date, datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import sqlite3
@@ -2319,6 +2320,8 @@ def _cached_single_flight(cache_dict, key, lock, ttl, compute):
         return hit[1]
     if not lock.acquire(blocking=False):
         if hit is not None:
+            if now - hit[0] > 86400:                   # OBSERVE ONLY (mem_observe): a 24 h eviction would miss here
+                _memobs_bump("lm_single_flight_stale_over24h")
             return hit[1]                              # serve stale; another refreshes
         with lock:                                    # cold first-ever: compute once
             h2 = cache_dict.get(key)
@@ -2903,6 +2906,8 @@ def recent_massive_alerts(
         _fill_lock, _got = _acquire_or_steal_fill(ck)
         if _got:
             _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, _fill_lock)
+        if time.time() - hit[0] > 86400:               # OBSERVE ONLY (mem_observe): a 24 h eviction would miss here
+            _memobs_bump("lm_recent_today_stale_over24h")
         return hit[1]
     # TODAY, cold — kick a fill (lease-aware). NEVER blank the feed once a key has
     # filled once: serve last-good (marked warming) instead of an empty stub. This
@@ -2912,6 +2917,7 @@ def recent_massive_alerts(
         _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, _fill_lock)
     _lg = _recent_last_good.get(ck) if _RECENT_SELFHEAL else None
     if _lg is not None:
+        _memobs_bump("lm_recent_last_good_served")     # OBSERVE ONLY (mem_observe): how often the fallback is used
         _out = dict(_lg)
         _out["warming"] = True   # stale fallback served while the fresh fill runs
         return _out

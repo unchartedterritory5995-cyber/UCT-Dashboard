@@ -1,0 +1,38 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_H4_BLOCK_LOCAL_OFFSETS", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H4
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// A block local `x = close * 2`, read as `x[2]` and `x[3]` inside the block. C05 / D03 witness `x[1]`
+// as the previous RUN's value; does `[k]` count runs for k >= 2 too? Under `close > open` (U*) and
+// `bar_index % 2 == 0` (V*). E* are the chart-bar readings `(close * 2)[k]` on every bar.
+// CHART: the row names none (the queue marks it NEEDS_CHART); vw-call-site-history, whose C05 / D03
+// this extends, was read on NYSE:RDDT 1D from the listing.
+
+up = close > open
+even = bar_index % 2 == 0
+
+float u_x2 = na
+float u_x3 = na
+if up
+    x = close * 2
+    u_x2 := x[2]
+    u_x3 := x[3]
+
+float v_x2 = na
+float v_x3 = na
+if even
+    x = close * 2
+    v_x2 := x[2]
+    v_x3 := x[3]
+
+e = close * 2
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_up_CONTROL")
+plot(e[2], "E01_x2_every_bar")
+plot(e[3], "E02_x3_every_bar")
+plot(u_x2, "U01_x2_in_up_block")
+plot(u_x3, "U02_x3_in_up_block")
+plot(v_x2, "V01_x2_in_even_block")
+plot(v_x3, "V02_x3_in_even_block")

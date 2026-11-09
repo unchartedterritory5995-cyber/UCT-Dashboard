@@ -34,7 +34,8 @@ const BARS = Array.from({ length: N }, (_, i) => ({
   v: 1000 + i * 13,
 }))
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
-const head = (v) => `//@version=${v}\nindicator("t")\n`
+// v4 and below declare with `study(...)`; v5 renamed it `indicator(...)`
+const head = (v) => `//@version=${v}\n${v >= 5 ? 'indicator' : 'study'}("t")\n`
 const X = 'var x = 0.0\nx := close\n'
 /** the per-bar length: 1..7 repeating, a runtime value (`bar_index`) the fold cannot know */
 const LEN = 'bar_index % 7 + 1'
@@ -48,8 +49,8 @@ function run(src, v = 6, extra = {}) {
   const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true })
   return { outs: r.outputs.map((o) => Array.from(o)), program }
 }
-function pureLane(expr) {
-  const t = translatePine(`${head(6)}plot(${expr})\n`)
+function pureLane(expr, v = 6) {
+  const t = translatePine(`${head(v)}plot(${expr})\n`)
   expect(t.ok, JSON.stringify(t.refusal || {})).toBe(true)
   const parsed = parseFormula(t.outputs[0].formula)
   expect(parsed.ok).toBe(true)
@@ -63,11 +64,11 @@ const same = (got, want, label) => {
   }
 }
 /** the reference formula: bar i takes the fixed-length kernel's value at bar i's length */
-const reference = (fn, src, lenOf) => {
+const reference = (fn, src, lenOf, v = 6) => {
   const byK = {}
   for (let i = 0; i < N; i += 1) {
     const K = lenOf(i)
-    if (!byK[K]) byK[K] = pureLane(`${fn}(${src}, ${K})`)
+    if (!byK[K]) byK[K] = pureLane(`${fn}(${src}, ${K})`, v)
   }
   return Array.from({ length: N }, (_, i) => byK[lenOf(i)][i])
 }
@@ -95,7 +96,9 @@ describe('⭐⭐ the qualifier is read from the reference, not typed', () => {
     expect(fs.existsSync(gen)).toBe(true)
     const ref5 = process.env.PINE_V5_REFERENCE
     expect(ref5, 'PINE_V5_REFERENCE must accompany PINE_V6_REFERENCE').toBeTruthy()
-    execFileSync(process.execPath, [gen, '--ref', ref, '--ref5', ref5, '--check'], { stdio: 'pipe' })
+    const ref4 = process.env.PINE_V4_REFERENCE
+    expect(ref4, 'PINE_V4_REFERENCE must accompany PINE_V6_REFERENCE').toBeTruthy()
+    execFileSync(process.execPath, [gen, '--ref', ref, '--ref5', ref5, '--ref4', ref4, '--check'], { stdio: 'pipe' })
   })
 })
 
@@ -179,8 +182,8 @@ describe('v5: served where the v5 reference declares `series int`', () => {
 })
 
 describe('⭐⭐ what it does NOT serve keeps its refusal by name', () => {
-  it('⭐ v4 control: the same script in v4 is refused (no v4 reference section)', () => {
-    const r = refusal(`${X}plot(ta.sma(x, ${LEN}))\n`, 4)
+  it('⭐ v3 control: the same script in v3 is refused (no v3 reference section)', () => {
+    const r = refusal(`${X}plot(sma(x, ${LEN}))\n`, 3)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
   })
 
@@ -256,6 +259,97 @@ describe('⭐ serving it does not leave a refusal in the census counters', () =>
   it('⭐ the probe that found the length unfoldable is not counted as an outcome', () => {
     const b = build(`${X}plot(ta.sma(x, ${LEN}))
 `)
+    expect(b.ok).toBe(true)
+    expect(b.diagnostics.families['runtime:history-dynamic-offset']).toBeUndefined()
+  })
+})
+
+// ─── ⭐⭐ W34-I6c — v4: the v4 reference declares `length (series[integer])` ─────────────────────
+//
+// https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars : `highestbars(source, length)`,
+// `length (series[integer])`; the same for `lowestbars`, `highest`, `lowest`, `sma`, `wma`, `stdev`, `sum`,
+// `dev`, `median`. `ema`/`rma`/`atr` say `integer` (no qualifier) and keep their refusal. v4 names carry no
+// `ta.`/`math.` namespace. REFERENCE tier until capture W4-S1-v4 (capture-queue-2026-11-06-w34-i6c.md).
+const V4_FNS = { 'ta.sma': 'sma', 'ta.wma': 'wma', 'ta.stdev': 'stdev', 'math.sum': 'sum', 'ta.dev': 'dev',
+  'ta.median': 'median', 'ta.highest': 'highest', 'ta.lowest': 'lowest', 'ta.highestbars': 'highestbars',
+  'ta.lowestbars': 'lowestbars' }
+
+describe('⭐⭐ W34-I6c v4: served where the v4 reference declares `series[integer]`', () => {
+  it('the v4 section says `series int` for every served window and `integer` for ema / rma / atr', () => {
+    for (const f of FNS) expect(QUALS.v4Length[V4_FNS[f]], V4_FNS[f]).toBe('series int')
+    for (const f of ['ema', 'rma', 'atr']) expect(QUALS.v4Length[f], f).toBe('integer')
+  })
+  for (const f of FNS) {
+    const f4 = V4_FNS[f]
+    it(`⭐ v4 ${f4}(x, bar_index % 7 + 1) equals the v4 fixed-length kernel at each bar`, () => {
+      const { outs, program } = run(`${X}plot(${f4}(x, ${LEN}))\n`, 4)
+      expect(program.windows.length).toBe(1)
+      expect(program.windows[0].dynamic).toBe(true)
+      same(outs[0], reference(f4, 'close', lenAt, 4), `v4 ${f4}`)
+    })
+  }
+  it('⭐ v4 highestbars(high, len) / lowestbars(low, len) over a PRICE column', () => {
+    same(run(`plot(highestbars(high, ${LEN}))\n`, 4).outs[0], reference('highestbars', 'high', lenAt, 4), 'v4 highestbars(high)')
+    same(run(`plot(lowestbars(low, ${LEN}))\n`, 4).outs[0], reference('lowestbars', 'low', lenAt, 4), 'v4 lowestbars(low)')
+  })
+  it('⭐ the v4 SIGN: a bare v4 `highestbars` / `lowestbars` is the namespaced (non-positive) offset, fixed length too', () => {
+    for (const f4 of ['highestbars', 'lowestbars']) {
+      const { outs } = run(`${X}plot(${f4}(x, 5))
+`, 4)
+      same(outs[0], pureLane(`${f4}(close, 5)`, 4), `v4 fixed ${f4}`)
+      expect(outs[0].every((v) => Number.isNaN(v) || v <= 0), `v4 ${f4} is never positive`).toBe(true)
+    }
+  })
+  it('⭐ the v4 length is read EVERY bar (the varying rail)', () => {
+    const { outs } = run(`plot(highestbars(high, ${LEN}))\n`, 4)
+    const once = reference('highestbars', 'high', () => 1, 4) // a length read once at bar 0 is 1 forever
+    expect(outs[0].some((v, i) => v !== once[i]), 'a per-bar length must differ from a once-read length').toBe(true)
+    // bar 6 has length 7: the offset of the highest high among bars 0..6, as a non-positive offset
+    let best = 0
+    for (let k = 0; k <= 6; k += 1) if (BARS[6 - k].h > BARS[6 - best].h) best = k
+    expect(outs[0][6]).toBe(-best)
+  })
+  it('⭐ the zigzag shape: `highestbars(high, nz(len, 1))`, len from valuewhen, ring = the declared max_bars_back', () => {
+    const body = 'prd = 2\nnewbar = bar_index % 5 == 0\n'
+      + 'len = bar_index - valuewhen(newbar, bar_index, prd - 1) + 1\n'
+      + 'plot(highestbars(high, nz(len, 1)))\nplot(lowestbars(low, nz(len, 1)))\n'
+    const src = `//@version=4\nstudy("t", max_bars_back = 1000)\n${body}`
+    const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+    expect(b.ok, b.refusal && b.refusal.message).toBe(true)
+    const program = lowerIrProgram(b.ir)
+    expect(program.windows.map((w) => [w.span, w.dynamic === true])).toEqual([[1000, true], [1000, true]])
+    const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true })
+    // the 2nd most recent bar with bar_index % 5 == 0; none yet => na => nz => 1
+    const lenOf = (i) => { const prev = Math.floor(i / 5) * 5 - 5; return prev >= 0 ? i - prev + 1 : 1 }
+    same(Array.from(r.outputs[0]), reference('highestbars', 'high', lenOf, 4), 'zigzag highestbars')
+    same(Array.from(r.outputs[1]), reference('lowestbars', 'low', lenOf, 4), 'zigzag lowestbars')
+  })
+  it('⭐ a v4 length past the declared max_bars_back stops the run BY NAME', () => {
+    const src = `//@version=4\nstudy("t", max_bars_back = 10)\nplot(highestbars(high, bar_index > 20 ? 11 : 3))\n`
+    const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+    expect(b.ok, b.refusal && b.refusal.message).toBe(true)
+    const program = lowerIrProgram(b.ir)
+    expect(program.windows[0].span).toBe(10)
+    expect(() => execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true }))
+      .toThrow(/runtime:history-dynamic-offset/)
+  })
+  it('⭐ a v4 length that is `na` (no nz guard) stops the run BY NAME', () => {
+    expect(() => run(`plot(highestbars(high, bar_index > 3 ? na : 2))\n`, 4)).toThrow(/runtime:history-dynamic-offset/)
+  })
+  it('⭐ v4 ema / rma (`integer`, no qualifier) keep their refusal', () => {
+    expect(build(`${X}plot(ema(x, ${LEN}))\n`, 4).ok).toBe(false)
+    expect(build(`${X}plot(rma(x, ${LEN}))\n`, 4).ok).toBe(false)
+  })
+  it('⭐ the live OBJECT door keeps master\'s answer in v4', () => {
+    const r = refusal(`${X}plot(highestbars(x, ${LEN}))\n`, 4, { objectDoor: true })
+    expect(r.guard).toBe('runtime:history-dynamic-offset')
+    expect(build(`plot(highestbars(high, ${LEN}))\n`, 4, { objectDoor: true }).ok).toBe(false)
+  })
+  it('the one-argument v4 form `highestbars(length)` keeps its refusal by name (not served here)', () => {
+    expect(refusal(`plot(highestbars(${LEN}))\n`, 4).guard).toBe('resolve:window')
+  })
+  it('⭐ serving v4 leaves no refusal in the census counters', () => {
+    const b = build(`plot(highestbars(high, ${LEN}))\n`, 4)
     expect(b.ok).toBe(true)
     expect(b.diagnostics.families['runtime:history-dynamic-offset']).toBeUndefined()
   })

@@ -52,13 +52,16 @@ describe('the Agent’s own time for the owner’s four questions', () => {
         await waitFor(() => { expect(box.disabled).toBe(false); expect(document.querySelector('[data-testid=agent-typing]')).toBeNull() }, { timeout: 8000 })
         const n = screen.queryAllByTestId('agent-result').length
         const t = performance.now()
+        performance.clearMeasures()
         fireEvent.change(box, { target: { value: q } })
         fireEvent.keyDown(box, { key: 'Enter' })
         await waitFor(() => expect(screen.queryAllByTestId('agent-result')).toHaveLength(n + 1), { timeout: 8000, interval: 2 })
-        ms.push({ round, q, ms: Math.round(performance.now() - t) })
+        // the Agent's OWN time, send → first output (trace.js turnOutput's User Timing measure): no render, polling or CPU queue
+        const own = performance.getEntriesByType('measure').filter(e => e.name.startsWith('uct-agent:output:'))
+        ms.push({ round, q, ms: Math.round(own.at(-1)?.duration ?? Infinity), wall: Math.round(performance.now() - t) })
       }
     }
-    for (const m of ms) console.log(`[timing] round ${m.round} ${m.ms} ms  ${m.q}`)
+    for (const m of ms) console.log(`[timing] round ${m.round} ${m.ms} ms own, ${m.wall} ms wall  ${m.q}`)
     expect(turns).toBe(0)
     expect(breadth).toHaveLength(8)                                               // one request per question, no duplicates
     expect(breadth.map(b => `${b.universe}:${b.metrics[0]}:${b.side}`)).toEqual([
@@ -66,6 +69,9 @@ describe('the Agent’s own time for the owner’s four questions', () => {
       // the repeat round starts from the remembered subject (Nasdaq A200, below): "US … above" resets it
       'us:pct_above_50sma:null', 'nasdaq:pct_above_50sma:null', 'nasdaq:pct_above_50sma:below', 'nasdaq:pct_above_200sma:below',
     ])
+    // the local fast path, measured on its own (was wall clock incl. render + poll + CPU queue: flaky under load, 3+ runs)
     expect(Math.max(...ms.map(m => m.ms))).toBeLessThan(300)
+    // and a loose wall-clock bound: a no-hang check, not a performance claim
+    expect(Math.max(...ms.map(m => m.wall))).toBeLessThan(2000)
   }, 40000)
 })

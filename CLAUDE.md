@@ -22,10 +22,29 @@
 
 This file provides guidance to Claude Code when working in this repository.
 
-## ⛔ GitHub Actions is BILLED — push discipline (owner, 2026-11-06)
+## ⛔⛔ THIS REPO IS PUBLIC (since 2026-11-08) — everything you push is readable by the internet
 
-This repo is **private**, so every Actions minute costs money. The $300 budget ran out on 11-06, five
+Owner decision: public for free, faster Actions while we build with 0 users. It is NOT open source
+(`LICENSE`: all rights reserved). Only our account can write; the internet can only READ. Team rules:
+**`docs/TEAM-WORKFLOW.md`**.
+
+- **Never commit** keys, tokens, passwords, `.env` files, raw prod logs or pod output (redact emails and
+  `?auth=`/`token=`/`apiKey=` first), member data of any kind, anything from the PRIVATE sibling repos
+  (TSDR ledger, brain DB, agent training data, Discord exports, unpublished Substack), or licensed vendor
+  data dumps. PR text, commit messages and Actions logs are public too.
+- **Guards:** GitHub push protection (blocks known key formats at push time, web-UI commits included) +
+  `.github/workflows/secret-scan.yml` (gitleaks over each push/PR's new commits, advisory,
+  `promotion-gate: no`). A red there means **ROTATE THE KEY FIRST** (vendor -> Railway var -> redeploy),
+  then remove it; deleting the commit does not un-leak it.
+- Workflows from outside contributors' PRs need approval; secrets are never exposed to fork PRs.
+  Never add `pull_request_target` without a security review.
+
+## Push discipline (was "GitHub Actions is BILLED", owner, 2026-11-06)
+
+⚰️ Billed while the repo was private (2026-10-19 → 2026-11-08): the $300 budget ran out on 11-06, five
 days into the month (6,819 runs in 6 days; most were `agent ci` runs on per-commit pushes, ~76 min each).
+Since going public, standard-runner minutes are free — the rules below still stand, because every
+master push is a full deploy gate and a deploy, and wasted runs still cost wall-clock and queue time.
 
 - **Push a branch once per finished, locally tested unit of work.** Never push after every commit to
   "save progress"; a commit can stay local. Run the focused tests locally first: CI confirms, it is not the

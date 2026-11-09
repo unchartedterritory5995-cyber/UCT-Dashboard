@@ -233,7 +233,9 @@ async function runUndoEntry(host, entry) {
   const restores = []
   for (const it of [...entry.items].reverse()) {
     const kind = getTargetKind(it.kind)
-    const patch = kind.undoPatch(it)
+    // a kind may scope its Undo to what the change touched, on the target as it is NOW (chart.js undoPatchNow): newer edits to
+    // anything else are kept, never overwritten
+    const patch = kind.undoPatchNow ? kind.undoPatchNow(it, kind.read(host, it.ref)) : kind.undoPatch(it)
     let res
     try {
       res = await kind.commit(host, it.ref, patch)

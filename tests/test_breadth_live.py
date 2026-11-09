@@ -1272,7 +1272,7 @@ def test_live_drill_enriches_from_the_cached_read(monkeypatch):
     assert out["ok"] is True
     assert len(out["items"]) == m["universe_count"] > 0
     for it in out["items"]:
-        assert set(it) <= {"t", "pct", "c", "vr", "n"}
+        assert set(it) <= {"t", "pct", "c", "vr", "v", "n"}
         assert "atr" not in it and "a50" not in it   # cannot be computed intraday
         assert it["c"] == pytest.approx(prices[it["t"]], abs=0.005)
         assert it["pct"] == pytest.approx(

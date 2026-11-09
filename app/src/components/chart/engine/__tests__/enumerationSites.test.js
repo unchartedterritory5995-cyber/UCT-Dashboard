@@ -3,11 +3,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { ENGINE_OWNED } from '../flipState'
-import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
+import { listIndicators, listEngineIndicators, fieldsForInstance } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
 import { REGISTRY_SIZES } from '../registrySizes'
+import { enumOptionRequiresServer } from '../defSchema'
 import { stripComments, stripPyComments } from './sourceScan'
 // ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
 // This suite measures other things, so its blobs delete them unless they name `overlays`.
@@ -152,11 +153,28 @@ const INDICATOR_IDS = [
   ...engineRegistry.listDefinitions().map(d => d.id),
   ...Object.keys(CHART_DEFAULTS.indicators),
 ]
-const namesIndicators = (src) => INDICATOR_IDS.filter(id => (
-  new RegExp(`['"]${id}['"]`).test(src) ||
-  new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`).test(src) ||
-  new RegExp(`(?<![A-Za-z0-9_$])${id}\\?\\.`).test(src)
-))
+// ⭐ 2026-11-06 (RS 2a-01) — THE THREE PATTERNS ARE COMPILED ONCE PER ID, NOT ONCE
+// PER ID PER FILE. The Python discovery scan reads 2,233 files (42.8M chars), and
+// this used to construct 3 × 54 RegExp objects for every one of them — 361k per
+// run. Measured on this box, SAME found set either way: 4,738 ms as written,
+// 1,899 ms compiled; add `stripPyComments` (2,265 ms) and the scan ran 7-9 s
+// against the suite's 15 s `testTimeout`, which is the "Python-scan timeout" seen
+// under parallel load. The patterns are byte-identical; the pinned found sets
+// below are what prove nothing else moved. No `g` flag, so a compiled pattern
+// carries no `lastIndex` from one file to the next.
+const ID_PATTERNS = INDICATOR_IDS.map(id => [
+  new RegExp(`['"]${id}['"]`),
+  new RegExp(`(?<![A-Za-z0-9_$])${id}\\s*:`),
+  new RegExp(`(?<![A-Za-z0-9_$])${id}\\?\\.`),
+])
+const namesIndicators = (src) => INDICATOR_IDS.filter((id, i) => ID_PATTERNS[i].some(re => re.test(src)))
+// A whole-tree discovery scan's cost scales with the repo, not with the test:
+// 7.7 s (JS, every module under app/src) and 7-9 s (Python, 2,233 files) on a
+// warm box, against the suite-wide 15 s ceiling vite.config.js sets for a 2x
+// cache-state variance. Each scan carries its own budget so a busy box reports
+// what it found instead of a timeout. A hung scan still fails — it just takes a
+// minute to say so.
+const SCAN_TIMEOUT_MS = 60_000
 
 // ─── THE SITES ──────────────────────────────────────────────────────────────
 //
@@ -2100,11 +2118,34 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       return out
     }
 
+    // ⭐ 2026-11-06 (RS 2a-01) — AND SO IS A TEST HARNESS THAT DOES NOT CARRY `.test.`
+    // IN ITS NAME. A module that imports from `vitest` cannot ship (a devDependency
+    // the production bundle never resolves), so it is test infrastructure by the
+    // same rule as the two exemptions in `walk` — derived from the file, not from
+    // its path. Measured: `agent/qa/capabilityRegression/testing/harness.jsx`
+    // (landed on master 2026-11-05 with the agent/pl merges; imported by ten
+    // `.test.` files and nothing else) names `rsi`, `macd` and `movingAverage` as
+    // FIXTURE indicator instances and reaches the four-id floor only through
+    // `envelope:` — the agent protocol's response-envelope key, not the indicator.
+    // ⛔ Every such file that would otherwise trip the floor is PINNED here, so the
+    // exemption cannot quietly swallow a real site: a new one moves this literal.
+    const importsVitest = (src) => /^\s*import\b[^\n]*\bfrom\s+['"]vitest['"]/m.test(src)
     const found = []
+    const harnessesOverFloor = []
     for (const p of walk(SRC_DIR)) {
       const src = stripComments(fs.readFileSync(p, 'utf8'))
-      if (namesIndicators(src).length >= 4) found.push(path.relative(ROOT, p).split(path.sep).join('/'))
+      if (namesIndicators(src).length < 4) continue
+      const rel = path.relative(ROOT, p).split(path.sep).join('/')
+      if (importsVitest(src)) { harnessesOverFloor.push(rel); continue }
+      found.push(rel)
     }
+    expect([...harnessesOverFloor].sort(),
+      'a vitest-importing module names four or more indicator ids. It is test ' +
+      'infrastructure (vitest cannot ship), so it is exempt from the ledger — but the ' +
+      'exemption is a DECISION, not a diff: move this literal and say which file.',
+    ).toEqual([
+      'app/src/agent/qa/capabilityRegression/testing/harness.jsx',
+    ])
     // ⭐⭐ PHASE C TASK 1 — THE NON-MEASUREMENT, ASSERTED. Task 1 ADDS a Python
     // scan; it must not change what THIS one sees. The two assertions below are
     // a subset check in each direction (`found ⊆ ledger`, `keep ⊆ found`) and
@@ -2278,7 +2319,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // describing the phase it was written for.
     expect(LEDGER.filter(s => s.fate === 'B5'), 'B5 retired at Task 12 — nothing may re-open it')
       .toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 
   // ⭐⭐ THE PYTHON HALF OF THE DISCOVERY SCAN — PHASE C TASK 1.
   //
@@ -2417,7 +2458,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(walk(API_DIR).length,
       'the Python walk found almost no files — the walk root is wrong, not the tree')
       .toBeGreaterThan(100)
-  })
+  }, SCAN_TIMEOUT_MS)
 
   // ⭐⭐ THE TWO PYTHON `C` ROWS, SIZED — BECAUSE BOTH HAD PROSE THAT OUTLIVED
   // THEIR SUBJECT, AND THIS LEDGER'S WHOLE JOB IS STOPPING EXACTLY THAT.
@@ -3378,6 +3419,45 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
   })
 })
 
+// ⭐⭐ UCT RS PHASE 3 (unit 3-01) — THE TWO KINDS OF DECLARED INPUT A ROW
+// DELIBERATELY DOES NOT CARRY, EXEMPTED BY RULE AND NEVER BY NAME.
+//   `legacy: true`          still declared (a stored instance carrying it must
+//                           validate) and not rendered. ⭐ 3-14 (d0734f6826):
+//                           UNLESS its `mapsTo` successor is itself gated off.
+//                           The global row has no server answer, so a successor
+//                           that is a `requiresServer` input (or maps to a
+//                           `requiresServer` option) is hidden there, the legacy
+//                           input is the only control a v3 server reads, and it
+//                           RENDERS (rsLine's `showMansfield` for `view`). Stated
+//                           here from the definition's own fields, never by name,
+//                           and never by calling the field model it audits.
+//   `requiresServer: true`  rendered once the LIVE server row declares it. The
+//                           global row has no server answer, so it fails closed;
+//                           the input is reachable from the per-instance form
+//                           the moment the server declares it, and the reach
+//                           rail below proves that with the row's own keys.
+// A name list here would be the enumeration this file exists to retire.
+const successorGatedOnGlobalRow = (input, def) => {
+  const m = input && input.mapsTo
+  if (!m || typeof m !== 'object' || typeof m.key !== 'string' || !def) return false
+  const target = def.inputs.find(i => i && i.key === m.key)
+  if (!target || target.legacy === true) return false
+  if (target.requiresServer === true) return true
+  const option = Array.isArray(target.options)
+    ? target.options.find(o => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' ? o.value : o)) === m.value)
+    : undefined
+  return option !== undefined && enumOptionRequiresServer(option)
+}
+const rowExempt = (input, def = null) => !!input && (input.requiresServer === true
+  || (input.legacy === true && !successorGatedOnGlobalRow(input, def)))
+/** A declaration that declares EVERYTHING a definition could ask for — what a
+ *  fully armed server row answers. */
+const declaresAll = (def) => ({
+  inputs: def.inputs.map(i => i.key),
+  options: Object.fromEntries(def.inputs.filter(i => Array.isArray(i.options))
+    .map(i => [i.key, i.options.map(o => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' ? o.value : o)))])),
+})
+
 describe('adjudication A6 — the settings tab lists nothing the engine owns', () => {
   it('listIndicators() contains no migrated definition, by id or by settings path', () => {
     const rows = listIndicators(mergeChartSettings(null))
@@ -3404,7 +3484,7 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
       expect(row, `${def.id} has no generated row`).toBeTruthy()
-      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.map(i => i.key))
+      expect(row.fields.map(f => f.key), def.id).toEqual(def.inputs.filter(i => !rowExempt(i, def)).map(i => i.key))
     }
   })
 
@@ -3582,7 +3662,19 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
       const reachable = new Set((row ? row.fields : []).map(f => f.key))
-      for (const i of def.inputs) if (!reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
+      // ⭐ 3-01 — a gated input is reachable from the per-instance form once the
+      // server declares it; a legacy input is reachable from nowhere, by design.
+      const armed = new Set(fieldsForInstance(def, null, { declared: declaresAll(def) }).all.map(f => f.key))
+      for (const i of def.inputs) {
+        // ⭐ 3-14: except a legacy input whose successor the global row cannot
+        // show yet. It is the ONLY control that does its job there, so the
+        // global row must reach it.
+        if (i.legacy === true) {
+          if (successorGatedOnGlobalRow(i, def) && !reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
+          continue
+        }
+        if (i.requiresServer === true ? !armed.has(i.key) : !reachable.has(i.key)) gaps.push(`${def.id}.${i.key}`)
+      }
     }
     expect(gaps,
       'a declared input has no control anywhere. That is the state MACD\'s macdColor / ' +
@@ -3591,6 +3683,49 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
     // …and it is not vacuous: the definitions really do declare inputs.
     expect(engineRegistry.listDefinitions().flatMap(d => d.inputs).length,
       'no definition declares an input — the loop above proves nothing').toBeGreaterThan(20)
+  })
+
+  it('⭐ 3-01 — the exemption is a RULE: a legacy input never gets a control, a gated one gets one only when declared', () => {
+    // ⛔ FAILABLE, on a probe rather than the registry (no shipped definition uses
+    // either field yet, so a registry-only check would pass over nothing).
+    const probe = {
+      id: 'probe', compute: { kind: 'server' },
+      inputs: [
+        { key: 'kept', type: 'int', default: 1 },
+        { key: 'old', type: 'bool', default: false, legacy: true },
+        { key: 'dark', type: 'int', default: 2, requiresServer: true },
+      ],
+    }
+    expect(probe.inputs.filter(i => !rowExempt(i)).map(i => i.key)).toEqual(['kept'])
+    const keys = (declared) => fieldsForInstance(probe, null, { declared }).all.map(f => f.key)
+    expect(keys(null)).toEqual(['kept'])
+    expect(keys(declaresAll(probe))).toEqual(['kept', 'dark'])
+    expect(rowExempt({ key: 'x', legacy: 'yes' }), 'only `true` exempts').toBe(false)
+  })
+
+  it('⭐ 3-14 — a legacy input whose successor is gated off is NOT exempt: the global row carries it', () => {
+    // ⛔ FAILABLE on a probe: one legacy input per shape (successor gated as an
+    // INPUT, successor gated as an OPTION, successor ungated, no successor).
+    const probe = {
+      id: 'probe', compute: { kind: 'server' },
+      inputs: [
+        { key: 'kept', type: 'int', default: 1 },
+        { key: 'mode', type: 'enum', default: 'a', requiresServer: true, options: [['a', 'A'], ['b', 'B']] },
+        { key: 'oldMode', type: 'bool', default: false, legacy: true, mapsTo: { when: true, key: 'mode', value: 'b' } },
+        { key: 'look', type: 'enum', default: 'x', options: [['x', 'X'], ['y', 'Y', { requiresServer: true }]] },
+        { key: 'oldLook', type: 'bool', default: false, legacy: true, mapsTo: { when: true, key: 'look', value: 'y' } },
+        { key: 'oldKept', type: 'bool', default: false, legacy: true, mapsTo: { when: true, key: 'kept', value: 2 } },
+        { key: 'retired', type: 'bool', default: false, legacy: true },
+      ],
+    }
+    const expected = probe.inputs.filter(i => !rowExempt(i, probe)).map(i => i.key)
+    expect(expected).toEqual(['kept', 'oldMode', 'look', 'oldLook'])
+    // …and the shared field model, given no declaration, agrees. The rule is
+    // stated twice ON PURPOSE (oracle and implementation); this is where the
+    // two are held to each other on every shape.
+    expect(fieldsForInstance(probe, null, { declared: null }).all.map(f => f.key)).toEqual(expected)
+    // …and without the definition the 3-01 answer stands: legacy is exempt.
+    expect(rowExempt(probe.inputs[2]), 'no def means no successor to wait for').toBe(true)
   })
 
   it('MACD\'s two colours have a control now — the gap B3 measured and could not close', () => {

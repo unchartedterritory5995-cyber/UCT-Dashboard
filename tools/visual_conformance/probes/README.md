@@ -78,6 +78,7 @@ cross-checked against the account's saved-script list.
 | `barstate-full.pine` | `1c367abc1e1548a7886ba6cf623e533f` | 1.0 | ✅ saved + on chart, compiles, 26 plots |
 | `exchange-spelling.pine` | `631d746765c044fa86e7de4ed8004941` | 1.0 | ✅ saved + on chart, compiles, 11 plots (corrected 20:42:17Z, same id) |
 | `UCTPROBE_NS.pine` | (never saved) | — | ⚰️ displaced from the disposable layout; recoverable from `a57b06986` |
+| `i6a-n4-control-8.pine` / `i6a-n4-switch-9.pine` / `i6a-n4-switch-6.pine` / `i6a-n4-if-6.pine` / `i6a-n4-if-tab2.pine` / `i6a-n4-switch-12.pine` | does TradingView compile an opener whose every line beneath is at a non-block indent (a nested `switch` with its arms at 9 or 6, an `if` body at 6, or at a tab plus two spaces), and is two levels of indent (12 under 4) a block? Each file ALONE; a compile failure is an answer. Capture AMEX:SPY 1D. **NOT YET CAPTURED** | I6a-N4 (2026-11-07) · `docs/pine/capture-queue-2026-11-07-i6a-n4.md` |
 
 For all four, the vendor's `_metaInfo.plots` order was compared against the
 committed source's `plot()` order and matched exactly. ⛔ **Derive that roster with a
