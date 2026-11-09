@@ -136,7 +136,8 @@ describe('C1-025: auto-scale one chart\'s price axis', () => {
   }, 40000)
   it.each([['no thanks'], ['what timeframe is this chart on?']])('OFFER "%s" drops it: a later "yes" starts nothing', async (next) => {
     const { say } = await refuseLog()
-    await say(next)
+    const said = await say(next)
+    expect(said, 'a "no" is never taken as the walkthrough').not.toMatch(/can.t see|highlighted it|follow the card|don.t have a walkthrough/i)
     expect(guideStore.peekGuideOffer()).toBe(null)
     const out = await say('yes')
     expect(guideStore.guideState()).toBe(null)
