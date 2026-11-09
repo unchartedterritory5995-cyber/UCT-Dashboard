@@ -80,6 +80,8 @@ export function givenFor(c) {
   // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
   // a custom interval to delete, and symbols (one a group's) the Compare panel lists
   if (/^Deleting a custom timeframe$/.test(c.title || '')) g.chartSettings = { header: { customTimeframes: ['45'] } }
+  // a row that shows only on a bar chart (Thin bars: the chart type is Bars)
+  if (/^Changing Thin bars$/.test(c.title || '')) g.chartSettings = { chartType: 'bars' }
   if (c.feature === 'compareAction' && !/^Comparing a whole group$/.test(c.title || '')) g.chartSettings = { comparisonSymbols: COMPARED }
   // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
