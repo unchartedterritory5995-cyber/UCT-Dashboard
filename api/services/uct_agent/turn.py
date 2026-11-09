@@ -2617,7 +2617,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         if "screener.run" in cap_names and isinstance(env, dict) and not asks_groups:
             hidden_why = scan_refine.refusal_for_text(msg)
             plans_screen = any(isinstance(o, dict) and str(o.get("action") or "").startswith("screener.") for o in env.get("ops") or [])
-            if hidden_why and (plans_screen or hidden_screen_request(msg)):
+            # AUDIT S4-A (2026-11-08): a plan of ONLY widget controls ("filter the options flow to sweeps" with an Options Flow
+            # widget on the board: widget.setOption on its own chips) runs no screen and reads no hidden field, so the screen-shaped
+            # words alone never discard it. A plan with any screener op, or no ops at all, is gated exactly as before.
+            ops_now = [o for o in env.get("ops") or [] if isinstance(o, dict)]
+            widget_only = bool(ops_now) and all(str(o.get("action") or "") == "widget.setOption" for o in ops_now)
+            if hidden_why and (plans_screen or (hidden_screen_request(msg) and not widget_only)):
                 usage["hidden_phrase"] = True
                 env = {**env, "disposition": "answer", "reply": f"I didn't run it: {hidden_why}", "ops": [], "question": None,
                        "research": None, "need_groups": None}
