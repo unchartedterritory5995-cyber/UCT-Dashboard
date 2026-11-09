@@ -24,19 +24,22 @@ function makeLocks(held = []) {
   }
 }
 
+// Existing cases model the no-Web-Locks path; the lock-precondition cases below use real fakes.
+const save = (uid, rec, o = {}) => saveRecord(uid, rec, { locks: null, ...o })
+
 const board = (id, extra = {}) => ({ kind: 'board', id, widgets: [{ id: 'w1', type: 'chart' }], windowName: 'win-' + id, ...extra })
 
 describe('deskStore', () => {
   it('stores a record under uct.desk.v1:<uid>:<id>', () => {
     const storage = makeStorage()
-    expect(saveRecord('u1', board('b1'), { storage, tabId: 't1' })).toBe(true)
+    expect(save('u1', board('b1'), { storage, tabId: 't1' })).toBe(true)
     expect(storage.getItem(`${KEY_PREFIX}u1:b1`)).not.toBeNull()
     expect(KEY_PREFIX).toBe('uct.desk.v1:')
   })
 
   it('a record belonging to user A is invisible to user B', async () => {
     const storage = makeStorage()
-    saveRecord('A', board('b1'), { storage, tabId: 'dead' })
+    save('A', board('b1'), { storage, tabId: 'dead' })
     const locks = makeLocks([])
     expect(await listOrphans('B', { storage, locks, tabId: 'me' })).toEqual([])
     expect((await listOrphans('A', { storage, locks, tabId: 'me' })).map((r) => r.id)).toEqual(['b1'])
@@ -44,8 +47,8 @@ describe('deskStore', () => {
 
   it('lists a record whose owner lock is free, not one whose lock is held', async () => {
     const storage = makeStorage()
-    saveRecord('A', board('free'), { storage, tabId: 'gone' })
-    saveRecord('A', board('live'), { storage, tabId: 'alive' })
+    save('A', board('free'), { storage, tabId: 'gone' })
+    save('A', board('live'), { storage, tabId: 'alive' })
     const locks = makeLocks(['uct.desk.owner:A:alive'])
     const ids = (await listOrphans('A', { storage, locks, tabId: 'me' })).map((r) => r.id)
     expect(ids).toEqual(['free'])
@@ -53,19 +56,19 @@ describe('deskStore', () => {
 
   it("does not treat this page's own records as orphans", async () => {
     const storage = makeStorage()
-    saveRecord('A', board('mine'), { storage, tabId: 'me' })
+    save('A', board('mine'), { storage, tabId: 'me' })
     expect(await listOrphans('A', { storage, locks: makeLocks([]), tabId: 'me' })).toEqual([])
   })
 
   it('nothing is orphaned when navigator.locks is missing', async () => {
     const storage = makeStorage()
-    saveRecord('A', board('b1'), { storage, tabId: 'gone' })
+    save('A', board('b1'), { storage, tabId: 'gone' })
     expect(await listOrphans('A', { storage, locks: null, tabId: 'me' })).toEqual([])
   })
 
   it('a record whose owner lock cannot be determined is not an orphan', async () => {
     const storage = makeStorage()
-    saveRecord('A', board('b1'), { storage, tabId: 'gone' })
+    save('A', board('b1'), { storage, tabId: 'gone' })
     const locks = { query: vi.fn(async () => { throw new Error('boom') }) }
     expect(await listOrphans('A', { storage, locks, tabId: 'me' })).toEqual([])
   })
@@ -79,8 +82,8 @@ describe('deskStore', () => {
 
   it('listOrphans is read-only; only confirmRestored deletes', async () => {
     const storage = makeStorage()
-    saveRecord('A', board('b1'), { storage, tabId: 'gone' })
-    saveRecord('A', board('b2'), { storage, tabId: 'gone' })
+    save('A', board('b1'), { storage, tabId: 'gone' })
+    save('A', board('b2'), { storage, tabId: 'gone' })
     const before = [...storage._m.entries()]
     await listOrphans('A', { storage, locks: makeLocks([]), tabId: 'me' })
     expect([...storage._m.entries()]).toEqual(before)
@@ -97,36 +100,104 @@ describe('deskStore', () => {
 
   it('a storage write failure returns false and does not throw', () => {
     const storage = makeStorage({}, { failSet: true })
-    expect(saveRecord('A', board('b1'), { storage, tabId: 't' })).toBe(false)
+    expect(save('A', board('b1'), { storage, tabId: 't' })).toBe(false)
   })
 
   it('records hold widget config only', () => {
     const storage = makeStorage()
-    saveRecord('A', board('b1', { bars: [1, 2, 3], quotes: { SPY: 1 }, apiKey: 'x' }), { storage, tabId: 't' })
+    save('A', board('b1', { bars: [1, 2, 3], quotes: { SPY: 1 }, apiKey: 'x' }), { storage, tabId: 't' })
     const saved = JSON.parse(storage.getItem(`${KEY_PREFIX}A:b1`))
     expect(Object.keys(saved).sort()).toEqual(['id', 'kind', 'tabId', 'widgets', 'windowName'])
     const w = { kind: 'widget', id: 'k', widgetId: 'w9', windowName: 'n', bars: [1] }
-    saveRecord('A', w, { storage, tabId: 't' })
+    save('A', w, { storage, tabId: 't' })
     expect(Object.keys(JSON.parse(storage.getItem(`${KEY_PREFIX}A:k`))).sort())
       .toEqual(['id', 'kind', 'tabId', 'widgetId', 'windowName'])
   })
 
   it('rejects an unknown kind', () => {
     const storage = makeStorage()
-    expect(saveRecord('A', { kind: 'other', id: 'z' }, { storage, tabId: 't' })).toBe(false)
+    expect(save('A', { kind: 'other', id: 'z' }, { storage, tabId: 't' })).toBe(false)
     expect(storage._m.size).toBe(0)
   })
 
   it('refuses everything when uid is null', async () => {
     const storage = makeStorage({ [`${KEY_PREFIX}A:b1`]: JSON.stringify({ ...board('b1'), tabId: 'gone' }) })
     const locks = makeLocks([])
-    expect(saveRecord(null, board('b2'), { storage, tabId: 't' })).toBe(false)
+    expect(save(null, board('b2'), { storage, tabId: 't' })).toBe(false)
     expect(await listOrphans(null, { storage, locks, tabId: 'me' })).toEqual([])
     confirmRestored(undefined, 'b1', { storage })
     expect(storage.getItem(`${KEY_PREFIX}A:b1`)).not.toBeNull()
     const release = await holdOwnerLock(null, { locks, tabId: 't' })
     expect(locks.request).not.toHaveBeenCalled()
     expect(() => release()).not.toThrow()
+  })
+
+  describe('save needs the granted owner lock', () => {
+    it('save before the lock is granted returns false and writes nothing', () => {
+      const storage = makeStorage()
+      const granted = new Set()
+      expect(saveRecord('A', board('b1'), { storage, locks: makeLocks([]), granted, tabId: 't' })).toBe(false)
+      expect(storage._m.size).toBe(0)
+    })
+
+    it('save after holdOwnerLock is granted succeeds, and fails again after release', async () => {
+      const storage = makeStorage()
+      const granted = new Set()
+      const locks = makeLocks([])
+      const release = await holdOwnerLock('A', { locks, granted, tabId: 't' })
+      expect(saveRecord('A', board('b1'), { storage, locks, granted, tabId: 't' })).toBe(true)
+      release()
+      expect(saveRecord('A', board('b2'), { storage, locks, granted, tabId: 't' })).toBe(false)
+    })
+
+    it('save with locks unavailable succeeds', () => {
+      const storage = makeStorage()
+      expect(saveRecord('A', board('b1'), { storage, locks: null, granted: new Set(), tabId: 't' })).toBe(true)
+    })
+
+    it('a uid other than the granted one returns false', async () => {
+      const storage = makeStorage()
+      const granted = new Set()
+      const locks = makeLocks([])
+      await holdOwnerLock('A', { locks, granted, tabId: 't' })
+      expect(saveRecord('B', board('b1'), { storage, locks, granted, tabId: 't' })).toBe(false)
+      expect(storage._m.size).toBe(0)
+    })
+  })
+
+  describe('default storage that throws', () => {
+    const blockStorage = () => vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+
+    it('saveRecord returns false instead of throwing', () => {
+      const spy = blockStorage()
+      try {
+        expect(saveRecord('A', board('b1'), { locks: null })).toBe(false)
+      } finally { spy.mockRestore() }
+    })
+
+    it('listOrphans resolves [] instead of rejecting', async () => {
+      const spy = blockStorage()
+      try {
+        await expect(listOrphans('A', { locks: makeLocks([]) })).resolves.toEqual([])
+      } finally { spy.mockRestore() }
+    })
+
+    it('confirmRestored does not throw', () => {
+      const spy = blockStorage()
+      try {
+        expect(() => confirmRestored('A', 'b1')).not.toThrow()
+      } finally { spy.mockRestore() }
+    })
+
+    it('uses the real localStorage by default', () => {
+      localStorage.clear()
+      expect(saveRecord('A', board('real'), { locks: null, tabId: 't' })).toBe(true)
+      expect(localStorage.getItem(`${KEY_PREFIX}A:real`)).not.toBeNull()
+      confirmRestored('A', 'real')
+      expect(localStorage.getItem(`${KEY_PREFIX}A:real`)).toBeNull()
+    })
   })
 
   describe('holdOwnerLock', () => {

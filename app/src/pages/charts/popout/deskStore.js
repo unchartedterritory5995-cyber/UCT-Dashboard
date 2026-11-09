@@ -7,8 +7,13 @@
  * is free: that tab is gone. Holds widget config only, never market data.
  *
  * The caller passes the user id (from prefsUser()); a null id refuses every
- * call. `storage`, `locks` and `tabId` options exist for tests; the defaults
- * are the real localStorage and navigator.locks.
+ * call. `storage`, `locks`, `granted` and `tabId` options exist for tests; the
+ * defaults are the real localStorage and navigator.locks, resolved lazily inside
+ * a guard so a blocked or missing storage returns false/[] instead of throwing.
+ *
+ * saveRecord needs this page's owner lock to be GRANTED first (when Web Locks
+ * exists). Otherwise another tab could see the record's tabId with no held lock
+ * and report a live board as an orphan.
  *
  * Where Web Locks is missing, or the owner's lock cannot be determined,
  * nothing is treated as orphaned: restoring over a live board is worse than
@@ -21,9 +26,20 @@ const LOCK_PREFIX = 'uct.desk.owner:'
 // One id per page load. Not crypto.randomUUID: that is secure-context-only.
 const PAGE_TAB_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
-const defaultLocks = () => (typeof navigator !== 'undefined' ? navigator.locks : undefined)
-
 const lockName = (uid, tabId) => `${LOCK_PREFIX}${uid}:${tabId}`
+
+// uids whose owner lock this page currently holds.
+const GRANTED = new Set()
+
+/** navigator.locks, or null when absent or access throws. */
+function resolveLocks(opts) {
+  if ('locks' in opts) return opts.locks || null
+  try {
+    return (typeof navigator !== 'undefined' && navigator.locks) || null
+  } catch {
+    return null
+  }
+}
 
 function pick(record) {
   if (!record || typeof record.id !== 'string' || !record.id) return null
@@ -36,29 +52,37 @@ function pick(record) {
   return null
 }
 
-/** Write one record, stamped with its owner tab. Returns false on refusal or failure. */
-export function saveRecord(uid, record, { storage = localStorage, tabId = PAGE_TAB_ID } = {}) {
+/**
+ * Write one record, stamped with its owner tab. Returns false on refusal or
+ * failure, including when Web Locks exists and this page's owner lock for uid
+ * has not been granted yet.
+ */
+export function saveRecord(uid, record, opts = {}) {
   if (!uid) return false
   const clean = pick(record)
   if (!clean) return false
   try {
-    storage.setItem(`${KEY_PREFIX}${uid}:${clean.id}`, JSON.stringify({ ...clean, tabId }))
+    const locks = resolveLocks(opts)
+    const granted = opts.granted ?? GRANTED
+    if (locks && !granted.has(uid)) return false
+    const store = opts.storage ?? localStorage
+    store.setItem(`${KEY_PREFIX}${uid}:${clean.id}`, JSON.stringify({ ...clean, tabId: opts.tabId ?? PAGE_TAB_ID }))
     return true
   } catch {
     return false
   }
 }
 
-function readRecords(uid, storage) {
+function readRecords(uid, store) {
   const prefix = `${KEY_PREFIX}${uid}:`
   const out = []
   try {
-    for (let i = 0; i < storage.length; i += 1) {
-      const key = storage.key(i)
+    for (let i = 0; i < store.length; i += 1) {
+      const key = store.key(i)
       if (!key || !key.startsWith(prefix)) continue
       try {
         // Rebuilt from the constant (not the enumerated key) so the persistence census can read it.
-        const rec = JSON.parse(storage.getItem(`${KEY_PREFIX}${uid}:${key.slice(prefix.length)}`))
+        const rec = JSON.parse(store.getItem(`${KEY_PREFIX}${uid}:${key.slice(prefix.length)}`))
         if (rec && typeof rec === 'object' && typeof rec.id === 'string') out.push(rec)
       } catch { /* corrupt record: skip, never delete */ }
     }
@@ -69,10 +93,18 @@ function readRecords(uid, storage) {
 }
 
 /** Records whose owner tab is gone. Read-only. */
-export async function listOrphans(uid, { storage = localStorage, locks = defaultLocks(), tabId = PAGE_TAB_ID } = {}) {
+export async function listOrphans(uid, opts = {}) {
   if (!uid) return []
+  const tabId = opts.tabId ?? PAGE_TAB_ID
+  const locks = resolveLocks(opts)
   if (!locks || typeof locks.query !== 'function') return []
-  const records = readRecords(uid, storage)
+  let records
+  try {
+    const store = opts.storage ?? localStorage
+    records = readRecords(uid, store)
+  } catch {
+    return []
+  }
   if (records.length === 0) return []
   let held
   try {
@@ -89,27 +121,32 @@ export async function listOrphans(uid, { storage = localStorage, locks = default
 }
 
 /** The only deleter: call once a record has been restored. */
-export function confirmRestored(uid, id, { storage = localStorage } = {}) {
+export function confirmRestored(uid, id, opts = {}) {
   if (!uid || !id) return
   try {
-    storage.removeItem(`${KEY_PREFIX}${uid}:${id}`)
+    const store = opts.storage ?? localStorage
+    store.removeItem(`${KEY_PREFIX}${uid}:${id}`)
   } catch { /* nothing to do */ }
 }
 
 /**
  * Hold this page's owner lock for the life of the page (or until the returned
  * release is called). Resolves once the lock is granted, or at once with a
- * no-op release if locks are unavailable.
+ * no-op release if locks are unavailable. Granting is what unlocks saveRecord.
  */
-export function holdOwnerLock(uid, { locks = defaultLocks(), tabId = PAGE_TAB_ID } = {}) {
+export function holdOwnerLock(uid, opts = {}) {
   const noop = () => {}
+  const locks = resolveLocks(opts)
   if (!uid || !locks || typeof locks.request !== 'function') return Promise.resolve(noop)
+  const tabId = opts.tabId ?? PAGE_TAB_ID
+  const granted = opts.granted ?? GRANTED
   return new Promise((resolve) => {
     let release = noop
     const held = new Promise((r) => { release = r })
     try {
       Promise.resolve(locks.request(lockName(uid, tabId), () => {
-        resolve(() => release())
+        granted.add(uid)
+        resolve(() => { granted.delete(uid); release() })
         return held
       })).catch(() => resolve(noop))
     } catch {
