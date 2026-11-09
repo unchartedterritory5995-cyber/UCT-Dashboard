@@ -14,7 +14,7 @@ vi.mock('../../hooks/useNoteExcerpts', () => ({
 
 import TweetCard from './TweetCard'
 import { DocumentExcerpt } from '../../lib/documentExcerptNode'
-import { priceLineParts, setPendingFocus, consumePendingFocus } from '../../lib/tweetImport'
+import { priceLineParts, setPendingFocus, consumePendingFocus } from '../../lib/tweetImportHelpers'
 
 // Fri Nov 6 2026, 3:47 PM in New York (EST, so 20:47 UTC).
 const POSTED_AT = Date.UTC(2026, 10, 6, 20, 47) / 1000

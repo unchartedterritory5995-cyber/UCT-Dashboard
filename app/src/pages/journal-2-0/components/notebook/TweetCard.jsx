@@ -1,12 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
-import { formatWeekdayDateTimeEt } from '../../../../lib/presentation/presentationPrimitives'
+import { formatWeekdayDateTimeEt } from '../../../../lib/presentation/presentationDates'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import {
   authorInitials, avatarTint, consumePendingFocus, nowPriceOf, postHref, priceLineParts,
   saveTake, snapshotKey, splitCashtags,
-} from '../../lib/tweetImport'
+} from '../../lib/tweetImportHelpers'
 import { call } from '../../lib/researchCapture'
 import styles from './TweetCard.module.css'
 
@@ -27,7 +27,7 @@ function Avatar({ tweet }) {
     return <img className={styles.avatar} src={tweet.avatarUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
   }
   return (
-    <span className={styles.avatar} style={{ background: avatarTint(tweet.handle) }} aria-hidden="true">
+    <span className={styles.avatar} style={{ borderColor: avatarTint(tweet.handle) }} aria-hidden="true">
       {authorInitials(tweet.name)}
     </span>
   )

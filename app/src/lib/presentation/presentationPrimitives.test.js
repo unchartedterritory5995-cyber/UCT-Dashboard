@@ -40,9 +40,8 @@ import {
   formatTimeEt,
   formatDateTimeEt,
   formatFreshnessAsOf,
-  formatWeekdayDateTimeEt,
-  formatSessionDate,
 } from './presentationPrimitives'
+import { formatWeekdayDateTimeEt, formatSessionDate } from './presentationDates'
 
 describe('formatWeekdayDateTimeEt', () => {
   const plain = (s) => (s === null ? s : s.replace(/ /g, ' '))

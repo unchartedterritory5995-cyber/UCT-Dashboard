@@ -149,7 +149,6 @@ import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { useNoteNavigation } from '../../lib/splitView'
 import { TranscriptInsertHost } from './TranscriptDoors'
-import { TweetInsertHost } from './TweetDoors'
 import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { noteDayOf } from '../../lib/blocks/toolDays'
@@ -187,6 +186,9 @@ const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
 // Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
 // fetched the first time a member opens it, never on note open.
 const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
+// Import a tweet's sheet host. LAZY, and mounted only while its flag is on, so a member without
+// the flag never fetches it (`docs/notebook/perf-budgets.json`).
+const TweetInsertHost = lazyChunk(() => import('./TweetDoors'))
 // Wave 11 lane 11A: the voice-note dialog loads on first use, like writing help.
 const VoiceNoteDialog = lazyChunk(() => import('./VoiceNoteDialog'))
 // Wave 11 lane 11D — the trade-plan canvas board. LAZY: only a canvas note
@@ -6217,7 +6219,11 @@ export default function NoteEditorPage({
       {/* Wave 13 lane 13G-1: the /transcript insert's sheet (renders nothing while its gate is off). */}
       <TranscriptInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} />
       {/* Import a tweet: the /tweet and toolbar sheet (renders nothing while its gate is off). */}
-      <TweetInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} noteTitle={title} />
+      {tweetImportEnabled() && (
+        <Suspense fallback={null}>
+          <TweetInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} noteTitle={title} />
+        </Suspense>
+      )}
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel

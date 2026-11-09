@@ -18,10 +18,9 @@ vi.mock('../../lib/noteCreation', () => ({
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
-import {
-  TWEET_EVENT, consumePendingFocus, groupByDay, isPostLink, postHref, tweetImportEnabled,
-} from '../../lib/tweetImport'
-import { ImportTweetButton, TweetInsertHost } from './TweetDoors'
+import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
+import { consumePendingFocus, groupByDay, isPostLink, postHref } from '../../lib/tweetImportHelpers'
+import TweetInsertHost, { ImportTweetButton } from './TweetDoors'
 
 const NOW = Math.floor(Date.now() / 1000)
 const post = (id, name, handle, kind, text, ageSeconds = 3600) => ({

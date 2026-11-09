@@ -7,7 +7,9 @@ import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 /**
  * Import a tweet -- the two doors, kept SMALL: the sheet (`ImportTweetSheet.jsx`) loads only when
  * a door is used, so the Notebook's first open does not carry it (`docs/notebook/perf-budgets.json`).
- * Both render nothing while `notebook_tweet_import_enabled` is off.
+ * This module loads on demand too: the editor page imports `TweetInsertHost`, its default export,
+ * through `lazyChunk`, only while `notebook_tweet_import_enabled` is on.
+ * Both render nothing while the flag is off.
  */
 const ImportTweetSheet = lazyChunk(() => import('./ImportTweetSheet'))
 
@@ -37,7 +39,7 @@ export function ImportTweetButton({ symbol, notes = null, onSaved, onOpenNote, d
  * server also placed them, as the transcript door's does; the editor's body is the one the next
  * save keeps).
  */
-export function TweetInsertHost({ editor, noteId, ticker, noteTitle }) {
+export default function TweetInsertHost({ editor, noteId, ticker, noteTitle }) {
   const [open, setOpen] = useState(false)
   const enabled = tweetImportEnabled()
   useEffect(() => {

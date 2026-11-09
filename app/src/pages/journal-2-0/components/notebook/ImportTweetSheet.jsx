@@ -6,7 +6,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import {
   fetchRecent, resolveLink, saveTweets, groupByDay, postAge, isPostLink, setPendingFocus,
   authorInitials, avatarTint, splitCashtags,
-} from '../../lib/tweetImport'
+} from '../../lib/tweetImportHelpers'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { TOOLBAR_ICON } from '../../lib/notebookIcons'
@@ -26,7 +26,7 @@ function Avatar({ post }) {
   if (post.avatarUrl && !failed) {
     return <img className={styles.avatar} src={post.avatarUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
   }
-  return <span className={styles.avatar} style={{ background: avatarTint(post.handle), color: '#fff' }} aria-hidden="true">{authorInitials(post.name)}</span>
+  return <span className={styles.avatar} style={{ borderColor: avatarTint(post.handle) }} aria-hidden="true">{authorInitials(post.name)}</span>
 }
 
 /** The post's words, with its cashtags in gold. */

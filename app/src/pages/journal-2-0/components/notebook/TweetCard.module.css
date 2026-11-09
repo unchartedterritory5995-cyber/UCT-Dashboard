@@ -35,12 +35,17 @@
   flex: none;
   width: 32px;
   height: 32px;
+  box-sizing: border-box;
+  /* The author's colour is the ring (set inline); the initials sit on a token surface so they
+     read in every theme, the light one included. */
+  border: 2px solid var(--border-accent);
   border-radius: 50%;
+  background: var(--bg-elevated);
   display: grid;
   place-items: center;
   font-weight: 700;
   font-size: 12px;
-  color: #fff;
+  color: var(--text-bright);
   object-fit: cover;
 }
 
@@ -87,7 +92,7 @@
 
 .rm:hover {
   background: var(--bg-hover);
-  color: var(--ut-red-bright);
+  color: var(--danger-ink);
 }
 
 .ctext {
@@ -108,7 +113,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  background: #0d0e10;
+  background: var(--bg-elevated);
 }
 
 .cimg img {

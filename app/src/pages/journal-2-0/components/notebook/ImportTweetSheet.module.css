@@ -167,7 +167,7 @@
 }
 .ticked {
   background: var(--ut-gold-dim);
-  border-color: #7a6936;
+  border-color: var(--ut-gold);
 }
 .already {
   opacity: 0.6;
@@ -179,7 +179,13 @@
   place-items: center;
   width: 32px;
   height: 32px;
+  box-sizing: border-box;
+  /* The author's colour is the ring (set inline); the initials sit on a token surface so they
+     read in every theme, the light one included. */
+  border: 2px solid var(--border-accent);
   border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-bright);
   font-size: 12px;
   font-weight: 700;
   object-fit: cover;
