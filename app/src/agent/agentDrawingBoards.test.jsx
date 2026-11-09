@@ -56,6 +56,42 @@ describe('Drawing Boards through the panel', () => {
     expect(names()).not.toContain('Earnings')
     expect(u).not.toMatch(/did not change/)
   }, 40000)
+  // ⛔ AUDIT R8-D1 (BLOCKER, data loss): the Undo of a create deletes the board only while it is EMPTY. Created, switched to,
+  // drawn on, then "undo" twice: the first takes back the switch (the drawings stay on the board, archived); the second would
+  // delete the board, so it is refused with the reason and nothing is deleted.
+  it('R8-D1 create a board, switch to it, draw on it, then undo twice: the board and its drawing are kept; Undo says why', async () => {
+    const [w, s] = ONE('SPY')
+    const m = p.mount(w, s)
+    boards()
+    const run = async (c, text) => { p.st.envelopes.length = 0; p.st.envelopes.push(plan(c)); return m.say(text) }
+    await run({ op: 'create', board: null, name: 'Scratch' }, 'make a new drawing board called Scratch')
+    await run({ op: 'switch', board: 'Scratch', name: null }, 'switch to the Scratch drawing board')
+    expect(active()).toBe('Scratch')
+    const scratch = store.listTracings().find(t => store.tracingLabel(t) === 'Scratch').id
+    store.addDrawing('SPY', { type: 'horizontal', points: [{ price: 123 }] })          // the member draws on the new board
+    expect(store.tracingStats(scratch).drawings).toBe(1)
+    await m.say('undo')                                                               // takes back the switch only
+    expect(active()).toBe('Swing')
+    expect(store.tracingStats(scratch).drawings).toBe(1)
+    const WHY = 'The drawing board “Scratch” has drawings on it now'
+    expect(document.body.textContent).not.toContain(WHY)
+    await m.say('undo')                                                               // would delete Scratch and its drawing
+    // (read from the whole transcript: say() cuts at the last "undo", and the refusal itself says "undone")
+    expect(document.body.textContent).toContain('The drawing board “Scratch” has drawings on it now, so Undo won\'t delete it (that would delete those drawings too). Nothing was undone. Delete the board yourself if you mean to.')
+    expect(names()).toEqual(['Swing', 'Earnings', 'Scratch'])
+    expect(store.tracingStats(scratch).drawings).toBe(1)
+    expect(store.peekTracingDrawings(scratch, 'SPY').map(d => d.points?.[0]?.price)).toEqual([123])
+  }, 40000)
+  it('R8-D1 an EMPTY new board is still taken back by Undo (the guard refuses only when it would lose drawings)', async () => {
+    const [w, s] = ONE('SPY')
+    const m = p.mount(w, s)
+    boards()
+    p.st.envelopes.push(plan({ op: 'create', board: null, name: 'Scratch' }))
+    await m.say('make a new drawing board called Scratch')
+    expect(names()).toEqual(['Swing', 'Earnings', 'Scratch'])
+    await m.say('undo')
+    expect(names()).toEqual(['Swing', 'Earnings'])
+  }, 40000)
   it('NEGATIVE: a board that does not exist, an ambiguous part of a name, a taken name, the last board — refused, nothing changes', async () => {
     const [w, s] = ONE('SPY')
     const m = p.mount(w, s)

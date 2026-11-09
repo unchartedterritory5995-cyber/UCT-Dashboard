@@ -229,6 +229,11 @@ async function runUndoEntry(host, entry) {
     if (fpOf(kind, host, cur, it) !== it.afterFp) {
       return { ok: false, lines: [], reason: `${it.label} has changed since I made that change, so undoing it would overwrite your newer edits. Nothing was undone.` }
     }
+    // AUDIT R8-D1: a kind may refuse an Undo that would lose what its fingerprint cannot see (a new Drawing Board that now holds
+    // drawings): asked for EVERY item before anything is restored, so a refusal leaves the whole entry as it is
+    let blocked = null
+    try { blocked = typeof kind.undoBlocked === 'function' ? kind.undoBlocked(host, it) : null } catch { blocked = null }
+    if (blocked) return { ok: false, lines: [], reason: blocked }
   }
   const restores = []
   for (const it of [...entry.items].reverse()) {

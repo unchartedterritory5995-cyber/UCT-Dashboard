@@ -11,7 +11,7 @@
 // A board is named by its name (or "Board N", the panel's own label), exact or a unique part of it; two that fit → refused
 // with both, never a guess.
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
-import { listTracings, getActiveTracingId, setActiveTracing, createTracing, renameTracing, deleteTracing, tracingLabel } from '../../components/chart/drawingsStore'
+import { listTracings, getActiveTracingId, setActiveTracing, createTracing, renameTracing, deleteTracing, tracingLabel, tracingStats } from '../../components/chart/drawingsStore'
 
 const REF = 'drawingBoards'
 const BOARD_WORDS = /\bboards?\b/i                   // the one default board stays out of every request until boards are mentioned
@@ -23,6 +23,9 @@ const snapshot = () => {
   try { activeId = getActiveTracingId() } catch { activeId = null }
   return { ref: REF, boards, activeId }
 }
+// the store's own count of a board's drawings (the active board's live slot, any other board's archive)
+const boardHasDrawings = (id) => { try { return tracingStats(id).drawings > 0 } catch { return true } }
+const notEmptyWhy = (p) => `The drawing board${p.label ? ` “${p.label}”` : ''} has drawings on it now, so Undo won't delete it (that would delete those drawings too). Nothing was undone. Delete the board yourself if you mean to.`
 function pickBoard(boards, raw) {
   const w = norm(raw)
   if (!w) return { why: 'Say which board.' }
@@ -44,9 +47,18 @@ export const drawingBoardKind = {
     if (p.op === 'switch') setActiveTracing(p.id)
     else if (p.op === 'create') p.created = createTracing(p.name ? { name: p.name } : {})
     else if (p.op === 'rename') renameTracing(p.id, p.name)
-    else if (p.op === 'delete') deleteTracing(p.id)
-    else return false
+    else if (p.op === 'delete') {
+      // AUDIT R8-D1: the Undo of a create deletes the board only while the store holds no drawings for it (deleteTracing drops
+      // its archive): checked again at the write, after undoBlocked, so a drawing made in between is never lost
+      if (p.ifEmpty && boardHasDrawings(p.id)) { const e = new Error(notEmptyWhy(p)); e.complete = true; throw e }
+      deleteTracing(p.id)
+    } else return false
     return true
+  },
+  // runtime.undoEntry asks this BEFORE anything of the entry is restored: a reason here refuses the whole Undo
+  undoBlocked(_host, item) {
+    const p = drawingBoardKind.undoPatch(item)
+    return p && p.op === 'delete' && p.ifEmpty && boardHasDrawings(p.id) ? notEmptyWhy(p) : null
   },
   landed(snap, p) {
     if (!snap) return false
@@ -57,11 +69,11 @@ export const drawingBoardKind = {
     if (p.op === 'delete') return !b(p.id)
     return false
   },
-  // switch → switch back; create → delete the new (still empty) board; rename → the old name; delete → none (drawings gone)
+  // switch → switch back; create → delete the new board ONLY while it is still empty; rename → the old name; delete → none
   undoPatch(item) {
     const p = item.patch || {}
     if (p.op === 'switch') return p.was ? { op: 'switch', id: p.was, was: p.id } : null
-    if (p.op === 'create') return p.created ? { op: 'delete', id: p.created } : null
+    if (p.op === 'create') return p.created ? { op: 'delete', id: p.created, ifEmpty: true, label: p.name || null } : null
     if (p.op === 'rename') return { op: 'rename', id: p.id, name: p.was ?? '', was: p.name }
     return null
   },
