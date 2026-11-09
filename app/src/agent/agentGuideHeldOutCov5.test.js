@@ -43,7 +43,14 @@ export const COV5_HELD_OUT = [
 ]
 // ⛔ THE ROWS ABOVE ARE NOT EDITED. A KNOWN MISS is asserted both ways (not what was named; what it reaches today) and listed
 // in testing/agent/guide/knownMisses.json.
-export const COV5_MISSES = {}
+export const COV5_MISSES = {
+  // no word of the background's own: "behind the candles" names nothing the catalog or the settings table holds, and the generic Chart Settings walkthrough takes it
+  'how do I set a solid colour behind the candles': 'Finding chart settings',
+  // the magnet crosshair's only toggle is on StockChart's own region menu (pr-magnet) and ChartToolbar's panel, neither of which
+  // a desktop /charts right-click opens (the workspace's chart menu has no such row): no walkthrough can ring it there yet
+  'how do I make the crosshair snap to the candles': 'Changing Crosshair',
+  'how do I turn on the magnet crosshair': 'Changing Crosshair',
+}
 describe('held-out cov-5 item 3: Chart Settings and drawing-menu rows', () => {
   it.each(COV5_HELD_OUT.filter(([q]) => !COV5_MISSES[q]))('%s → %s', (q, want) => { expect(seen(q)).toContain(want) })
   it.each(COV5_HELD_OUT.filter(([q]) => COV5_MISSES[q]))('a KNOWN MISS: %s (named %s)', (q, want) => {

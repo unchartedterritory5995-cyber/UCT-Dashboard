@@ -198,6 +198,12 @@
   "title": "Changing Gradient background"
  },
  {
+  "id": "C1-049",
+  "say": "how do I solid background colour",
+  "feature": "control",
+  "title": "The chart’s background"
+ },
+ {
   "id": "C1-050",
   "say": "how do I gradient colours",
   "feature": "chartSetting",
@@ -346,6 +352,12 @@
   "say": "how do I restore defaults",
   "feature": "panelAction",
   "title": "Restoring a chart’s defaults"
+ },
+ {
+  "id": "C1-078",
+  "say": "how do I light/dark palette (Shift+T)",
+  "feature": "chartView",
+  "title": "Light or dark chart"
  },
  {
   "id": "C1-079",
@@ -690,6 +702,12 @@
   "title": "A drawing’s Fill"
  },
  {
+  "id": "C1-150",
+  "say": "show me how to make the note bold",
+  "feature": "control",
+  "title": "A drawing’s Bold"
+ },
+ {
   "id": "C1-151",
   "say": "how do I fib levels and fills",
   "feature": "drawingEdit",
@@ -708,6 +726,12 @@
   "title": "A drawing’s Show bars"
  },
  {
+  "id": "C1-154",
+  "say": "show me how to show the price on that line",
+  "feature": "control",
+  "title": "A drawing’s Show price label"
+ },
+ {
   "id": "C1-155",
   "say": "how do I edit anchors",
   "feature": "drawingEdit",
@@ -718,6 +742,12 @@
   "say": "show me how to flatten that line",
   "feature": "control",
   "title": "A drawing’s Make horizontal"
+ },
+ {
+  "id": "C1-157",
+  "say": "show me how to copy that line",
+  "feature": "control",
+  "title": "A drawing’s Duplicate"
  },
  {
   "id": "C1-158",

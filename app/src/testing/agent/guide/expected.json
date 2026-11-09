@@ -152,8 +152,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-049": {
-  "feature": "chartSetting",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "control",
+  "title": "The chart’s background",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (was the matrix’s chartSetting: the solid colour is the Background control on the Canvas tab, which the settings table does not carry)"
  },
  "C1-050": {
   "feature": "chartSetting",
@@ -1553,5 +1554,25 @@
   "feature": "widgetAction",
   "title": "Theme presets",
   "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Theme presets ends on the Themes widget’s sets control, where a set is edited)"
+ },
+ "C1-078": {
+  "feature": "chartView",
+  "title": "Light or dark chart",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Shift+T on the chart switches the light and dark palette)"
+ },
+ "C1-150": {
+  "feature": "control",
+  "title": "A drawing’s Bold",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example reaches Bold, one of the Text Note’s own text-style rows)"
+ },
+ "C1-154": {
+  "feature": "control",
+  "title": "A drawing’s Show price label",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Show price label on a horizontal line’s menu)"
+ },
+ "C1-157": {
+  "feature": "control",
+  "title": "A drawing’s Duplicate",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
  }
 }
