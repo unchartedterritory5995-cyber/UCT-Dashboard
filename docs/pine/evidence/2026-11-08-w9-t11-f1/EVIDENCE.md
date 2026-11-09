@@ -156,3 +156,38 @@ survived, and all 23 others were killed:
 - route:
   - returns a literal;
   - unauthenticated.
+
+## r2 (review GO-WITH-NOTES @2491d183c1)
+- **N5, an ask that never settles fails.** `loadStrategyHistoryWindow` races the request against a
+  `REQUEST_TIMEOUT_MS` (10 s) timer. When the timer wins:
+  - the request is aborted (an `AbortController` signal is passed to fetch);
+  - the ask resolves "no window" and is remembered as a failure, the same as a 401;
+  - the hook therefore goes pending → not pending with no window, and the run refuses
+    `runtime:strategy-start` by name instead of holding forever.
+
+  Rails (fake timers, a fetch that never resolves): still unsettled and not aborted at 9 999 ms;
+  at 10 000 ms it resolves null and the signal is aborted; no request is made inside the failure
+  period; the hook is pending until 10 s, then not pending; the binder then shows the named
+  refusal.
+- **N6, a mounted chart asks again.**
+  - After a failure, the hook re-asks when `FAILURE_RETRY_MS` (60 s) is over, and again after each
+    further failure, with no reload or remount.
+  - A retry is quiet: `pending` stays false, so the named refusal stays on screen until a window
+    lands, never flickering to an empty pane.
+  - Once the window is in hand, nothing more is asked.
+  - Rail (fake timers): a 401, then a 500, then 200. The requests come at 0 s, 60 s and 120 s, and
+    none comes at 59.999 s. The chart takes the window, is never pending after the first answer,
+    and makes no request in the next 180 s.
+
+r2 checks (Node 20, `--maxWorkers=1`):
+- New rail: 25/25.
+- Neighbours: 124 files, 2482 passed, 3 failed. The 3 are the same base failures as before.
+- HP-1 GREEN 166/166 on Node 24.
+
+r2 mutants: the control survived, and all 28 others were killed. These are r1's 22 plus 6 new ones:
+- no timeout;
+- no abort;
+- no signal;
+- no retry;
+- the retry flips back to pending;
+- the retry fires at 0 ms.

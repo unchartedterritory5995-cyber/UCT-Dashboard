@@ -15,7 +15,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, renderHook, waitFor, cleanup } from '@testing-library/react'
+import { render, renderHook, waitFor, cleanup, act } from '@testing-library/react'
 
 vi.mock('../runtime/brokerPins.js', () => ({ pinned: () => true }))
 vi.setConfig({ testTimeout: 120000 })
@@ -30,7 +30,7 @@ import { strategyRecordFor, resetStrategyRecords } from '../strategyReportNotice
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from '../runtimeErrorNotice'
 import AttachedStrategyReports from '../../pane/AttachedStrategyReports'
 import {
-  STRATEGY_WINDOW_URL, FAILURE_RETRY_MS, loadStrategyHistoryWindow, strategyHistoryWindowNow, resetStrategyHistoryWindow,
+  STRATEGY_WINDOW_URL, FAILURE_RETRY_MS, REQUEST_TIMEOUT_MS, loadStrategyHistoryWindow, strategyHistoryWindowNow, resetStrategyHistoryWindow,
   windowOfPayload,
 } from '../strategyWindow'
 import useStrategyHistoryWindow from '../../../../hooks/useStrategyHistoryWindow'
@@ -177,7 +177,8 @@ describe('W9-T11-F1 the window comes from the server, once, and only with the ga
     expect(on.result.current).toEqual({ bars: null, pending: true })
     await waitFor(() => expect(on.result.current).toEqual({ bars: SERVER_WINDOW, pending: false }))
     expect(f).toHaveBeenCalledTimes(1)
-    expect(f.mock.calls[0][1]).toEqual({ credentials: 'include' })
+    expect(f.mock.calls[0][1]).toMatchObject({ credentials: 'include' })
+    expect(f.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
   })
 
   it('the chart hook after a 401: pending, then no window (the named refusal), and a second chart within the period asks nothing', async () => {
@@ -190,6 +191,80 @@ describe('W9-T11-F1 the window comes from the server, once, and only with the ga
     const b = renderHook(() => useStrategyHistoryWindow(true))
     await waitFor(() => expect(b.result.current).toEqual({ bars: null, pending: false }))
     expect(f).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('W9-T11-F1 r2: an ask that never settles fails, and a mounted chart asks again', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  it('r2 (N5): an ask that never settles is aborted after REQUEST_TIMEOUT_MS and counts as a failure', async () => {
+    flags(true)
+    vi.useFakeTimers()
+    let signal = null
+    const hang = vi.fn((url, init) => { signal = init.signal; return new Promise(() => {}) })
+    let settled = 'unsettled'
+    loadStrategyHistoryWindow(hang).then((v) => { settled = v })
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1)
+    expect(settled).toBe('unsettled')
+    expect(signal.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(settled).toBe(null)
+    expect(signal.aborted).toBe(true)
+    // remembered as a failure: no request inside the failure period
+    const g = okFetch(SERVER_WINDOW)
+    expect(await loadStrategyHistoryWindow(g)).toBe(null)
+    expect(g).not.toHaveBeenCalled()
+  })
+
+  it('r2 (N5): the chart is pending while it hangs, then not pending with no window (the named refusal follows)', async () => {
+    flags(true)
+    vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    const h = renderHook(() => useStrategyHistoryWindow(true))
+    expect(h.result.current).toEqual({ bars: null, pending: true })
+    await act(async () => { await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1) })
+    expect(h.result.current).toEqual({ bars: null, pending: true })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(h.result.current).toEqual({ bars: null, pending: false })
+    h.unmount()
+    // what the binder does with that answer
+    vi.useRealTimers()
+    install(SRC, DEF_ID, 'Window strategy')
+    binder.sync(ctxFor([inst()], { bars: makeBars(40), pending: h.result.current.pending }))
+    expect(runtimeErrorNoticeFor('i1')).toMatch(/runtime:strategy-start/)
+  })
+
+  it('r2 (N6): a mounted chart asks again after each failure period, quietly, and takes the window when it lands', async () => {
+    flags(true)
+    vi.useFakeTimers()
+    const answers = [
+      { ok: false, status: 401, json: async () => ({}) },
+      { ok: false, status: 500, json: async () => ({}) },
+      { ok: true, json: async () => ({ historyWindowBars: SERVER_WINDOW }) },
+    ]
+    const f = vi.fn(async () => answers.shift())
+    vi.stubGlobal('fetch', f)
+    const seen = []
+    const h = renderHook(() => { const r = useStrategyHistoryWindow(true); seen.push(r); return r })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(h.result.current).toEqual({ bars: null, pending: false })
+    expect(f).toHaveBeenCalledTimes(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(FAILURE_RETRY_MS - 1) })
+    expect(f).toHaveBeenCalledTimes(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(f).toHaveBeenCalledTimes(2)
+    expect(h.result.current).toEqual({ bars: null, pending: false })
+    await act(async () => { await vi.advanceTimersByTimeAsync(FAILURE_RETRY_MS) })
+    expect(f).toHaveBeenCalledTimes(3)
+    expect(h.result.current).toEqual({ bars: SERVER_WINDOW, pending: false })
+    // quiet: once the first ask failed, the chart was never pending again (no flicker to an empty pane)
+    const firstAnswer = seen.findIndex((r) => !r.pending)
+    expect(firstAnswer).toBeGreaterThan(-1)
+    expect(seen.slice(firstAnswer).every((r) => !r.pending)).toBe(true)
+    // and once the window is in hand nothing more is asked
+    await act(async () => { await vi.advanceTimersByTimeAsync(FAILURE_RETRY_MS * 3) })
+    expect(f).toHaveBeenCalledTimes(3)
+    h.unmount()
   })
 })
 

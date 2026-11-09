@@ -23,6 +23,9 @@
 // ⭐ A FAILURE IS REMEMBERED BRIEFLY (r1, N1): a 401 or a failed request answers "no window" to every
 // ask for `FAILURE_RETRY_MS` without a request, so a signed-out or failing page does not ask on every
 // chart mount; after that the next ask tries again.
+// ⭐ AN ASK THAT NEVER SETTLES IS A FAILURE (r2, review N5): after `REQUEST_TIMEOUT_MS` the request is
+// aborted and the ask resolves "no window", so a stalled connection can never leave a strategy chart
+// pending forever (a silent empty pane); the run refuses `runtime:strategy-start` by name instead.
 
 import { strategyBrokerEnabled } from './strategyBrokerGate'
 import { STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord.js'
@@ -30,6 +33,8 @@ import { STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord.js'
 export const STRATEGY_WINDOW_URL = '/api/pine/history-window'
 /** How long a failed ask answers "no window" without asking again. */
 export const FAILURE_RETRY_MS = 60_000
+/** How long one ask may take before it is aborted and counted as a failure. */
+export const REQUEST_TIMEOUT_MS = 10_000
 
 let _window = null
 let _failedAt = null
@@ -65,11 +70,18 @@ export function loadStrategyHistoryWindow(fetchImpl, now = Date.now) {
   if (_failedAt !== null && now() - _failedAt < FAILURE_RETRY_MS) return Promise.resolve(null)
   if (!_inflight) {
     const f = fetchImpl || (typeof fetch === 'function' ? fetch : null)
-    _inflight = Promise.resolve()
-      .then(() => (f ? f(STRATEGY_WINDOW_URL, { credentials: 'include' }) : null))
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null
+    let timer = null
+    const timedOut = new Promise((resolve) => {
+      timer = setTimeout(() => { if (ctl) ctl.abort(); resolve(null) }, REQUEST_TIMEOUT_MS)
+    })
+    const asked = Promise.resolve()
+      .then(() => (f ? f(STRATEGY_WINDOW_URL, { credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}) }) : null))
       .then((r) => (r && r.ok ? r.json() : null))
       .then(windowOfPayload, () => null)
+    _inflight = Promise.race([asked, timedOut])
       .then((w) => {
+        clearTimeout(timer)
         _inflight = null
         if (w !== null) { _window = w; _failedAt = null } else _failedAt = now()
         return _window
