@@ -40,6 +40,8 @@ from it; `houseSizing.json` becomes a cap layer the Method mentions once.
 - Max position size is a **cap layer**, not the lesson. The app's table (`houseSizing.json`):
   GREEN A+ 25 / A 20 / B 10 · YELLOW 15 / 12 / 6 · ORANGE 8 / 5 / 0 · RED 0. The Method mentions it
   once as "the firm's cap by market condition and grade".
+  **Owner, 2026-11-09, on this table:** *"20 is interesting and can be variable vs hard rule imo"*, *"20 is variable
+  as well essentially"* → a guide that changes with conditions, **never taught as a hard rule**.
 - **Owner's own drawdown ladder, quoted (2026-07-19):** *"I lowered my max sizing to 5% down from
   10% which is down from 20%. After a 6% drawdown I immediately reduce to 10% max. After an 8%
   drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max."*
@@ -53,13 +55,14 @@ from it; `houseSizing.json` becomes a cap layer the Method mentions once.
 
 ## 5. Portfolio layer
 
-- **Total open risk (heat) ≤ 10% of the account.** (App cap.)
+- **Total open risk (heat) ≤ 10% of the account.** (App cap.) **Owner, 2026-11-09:** *"17 is not exactly right but
+  variable as well"* → total open risk is watched and varies; **no fixed 10% cap is taught as our rule**.
 - **5 to 10 positions** for a momentum swing book. Concentration over diversification.
 - ~~Progressive exposure: pilot → half → full, add only after the last step paid.~~ **Struck by the owner,
   2026-11-09:** *"11. is not a rule at all, I do not scale into trade i buy full at one spot with one stop."*
   → **Our rule: buy the full position at one price, with one stop.** No pilot, no adds.
-- **Correlation:** five positions in one theme count as one trade; sector concentration flagged
-  at 40% (the heat tool's rule).
+- ~~Correlation: five positions in one theme count as one trade; sector concentration flagged at 40% (the heat
+  tool's rule).~~ **Struck by the owner, 2026-11-09:** *"19 is wrong essentially."* Not taught as our rule.
 
 ## 6. Management (so the sizing drills can go full circle)
 
