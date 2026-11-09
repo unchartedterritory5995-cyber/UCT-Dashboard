@@ -190,10 +190,13 @@ def _exchange_of(sym: str) -> str:
     ``syminfo.*`` -- ``syminfo.mincontract`` and the broker's minimum contract with it -- from one
     ``{ticker, exchange}``. The SERVICE derives the minimum contract from this (``runtimeColumns.js``,
     ``symbolScope.json::min_contract``); this route never states one. An unreadable or unknown exchange
-    is ``""``: nothing settles, and a cash / percent-of-equity size refuses by name (Q-S1a)."""
+    is ``""``: nothing settles, and a cash / percent-of-equity size refuses by name (Q-S1a).
+    r1 (review N2): CACHE-ONLY (``ticker_meta.peek_exchange``), so the request path never makes a
+    provider call. A cold cache is ``""`` and refuses by name, which is honest; the chart's own
+    ``/api/ticker-meta`` read (or the names prewarmer) fills the cache for the next run."""
     try:
         from api.services import ticker_meta
-        exch = (ticker_meta.get_ticker_meta(sym) or {}).get("exchange")
+        exch = ticker_meta.peek_exchange(sym)
     except Exception:  # noqa: BLE001 -- unknown stays unknown, refused by name downstream
         return ""
     if not isinstance(exch, str) or not runtime_client._EXCHANGE.match(exch.strip()):
