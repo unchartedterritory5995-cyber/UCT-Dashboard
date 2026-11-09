@@ -2,6 +2,8 @@
 
 Base: ship-4. Stack position: 5 of 5. Local only; not pushed. Test tooling and documentation only: no product behaviour change.
 
+Stacking: this slice stacks on teach-ship-4's tested code head `15c5fa00e0`, not on its doc commit, so `PR-teach-ship-4.md` is absent from this slice on purpose. The stack is not broken.
+
 ## Changes
 - **`app/src/testing/agent/guide/teach.mjs`.** It follows each walkthrough in headless Chrome on the agent harness (scripted model). A row passes only when the gold ring sits on the last step's primary control.
   - Region-aware right-clicks: the chart library's own layout, or the drawing layer's own pixels, each accepted only when the product's region menu answers.
