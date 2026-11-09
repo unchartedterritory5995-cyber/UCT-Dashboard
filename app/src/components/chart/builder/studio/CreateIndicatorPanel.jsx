@@ -16,7 +16,7 @@
 // is the STORED blob, and the only write this component makes is Save's, through
 // `onChange` — the chart's own settings writer, exactly as BuilderSheet does.
 
-import { withoutGuardIds } from '../../engine/ast/sentence'
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'

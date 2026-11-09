@@ -36,7 +36,7 @@
 // with the reason, and a member reading one learns what the screener actually
 // holds.
 
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { useMemo, useState } from 'react'
 import UIcon from '../../ui/UIcon'
 import { SETUP_GROUPS } from '../../../constants/setupGroups'

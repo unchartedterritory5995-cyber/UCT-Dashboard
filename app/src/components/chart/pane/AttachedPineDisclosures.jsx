@@ -59,7 +59,7 @@ import { DRAWING_NOTE_NAME, withRenderDrops } from '../engine/ast/objectLoss'
 import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import styles from './AttachedPineDisclosures.module.css'
 
 /** The definitions this chart is actually DRAWING, resolved through the registry.

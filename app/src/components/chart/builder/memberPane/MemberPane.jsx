@@ -40,7 +40,7 @@
 // HANDED, never about pixels. Whether four series actually paint, whether Scale
 // Padding is invisible and scale-setting, and whether the sub-pane is a quarter
 // high are SCREENSHOT questions and are owed against the real chart.
-import { withoutGuardIds } from '../../engine/ast/sentence'
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ChartPane from '../../pane/ChartPane'
 import * as engineRegistry from '../../engine/nativeRegistry'

@@ -48,7 +48,7 @@
 // `closedTable.json`'s own note. Neither is the read-back and neither is written
 // by the model, so the rule at the top of this file is untouched.
 
-import { withoutGuardIds } from '../engine/ast/sentence'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { useCallback, useId, useState } from 'react'
 import { sentenceFor } from '../engine/ast/sentence.js'
 import { truncateBarsForPropose } from './proposeBars.js'
