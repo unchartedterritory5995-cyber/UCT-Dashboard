@@ -101,11 +101,13 @@ export function dayContext(rows, colKey, date, { window = 252, spark = 60, live 
     const equal = hist.filter(v => v === value).length
     pctile = Math.round(((below + equal / 2) / hist.length) * 100)
   }
-  const series = settled.slice(startIdx, startIdx + spark).map(r => num(r[colKey])).reverse()
-  if (live && Number.isFinite(value)) series.push(value)
+  const sparkRows = settled.slice(startIdx, startIdx + spark).reverse()
+  const series = sparkRows.map(r => num(r[colKey]))
+  const seriesDates = sparkRows.map(r => r.date)
+  if (live && Number.isFinite(value)) { series.push(value); seriesDates.push(null) }
   const sorted = [...hist].sort((a, b) => a - b)
   const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
-  return { value, pctile, sample: hist.length, health: num(row.breadth_score), series,
+  return { value, pctile, sample: hist.length, health: num(row.breadth_score), series, seriesDates,
     median, min: sorted.length ? sorted[0] : null, max: sorted.length ? sorted[sorted.length - 1] : null }
 }
 

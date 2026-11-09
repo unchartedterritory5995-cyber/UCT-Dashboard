@@ -1,7 +1,7 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import CompanyLogo from '../../../../components/CompanyLogo'
-import { fmtPct, describeReading } from './scanDeckModel'
+import { fmtPct } from './scanDeckModel'
 import ws from '../../../charts/ChartsWorkspace.module.css'
 import styles from './ScanDeck.module.css'
 
@@ -16,15 +16,8 @@ export function ScanHeader({
   dateNav, ctx, summary, mode, onMode, modes, onClose, children,
 }) {
   const metricId = useId()
-  const reading = describeReading(ctx)
-  const typical = Number.isFinite(ctx?.median) ? Math.round(ctx.median) : null
   const health = Number.isFinite(ctx?.health) ? Math.max(0, Math.min(100, Math.round(ctx.health))) : null
   const theme = summary?.topTheme
-  const countTitle = [
-    reading?.sentence,
-    typical != null ? `Typical day: ${typical.toLocaleString()} stocks` : null,
-    Number.isFinite(ctx?.min) ? `Past year: lowest ${ctx.min.toLocaleString()}, highest ${ctx.max.toLocaleString()}` : null,
-  ].filter(Boolean).join('\n') || undefined
   return (
     <div className={styles.header}>
       <div className={styles.identity}>
@@ -44,14 +37,7 @@ export function ScanHeader({
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
       </div>
 
-      <div className={styles.tile} title={countTitle}>
-        <span className={styles.tileLbl}>Stocks{ctx?.series?.length > 1 ? ` · last ${ctx.series.length} days` : ''}</span>
-        <span className={styles.tileVal}>
-          <b>{Number.isFinite(count) ? count.toLocaleString() : '—'}</b>
-          {reading && <small className={styles.verdict} data-tone={reading.tone}>{reading.label.toLowerCase()}</small>}
-          <Spark series={ctx?.series} />
-        </span>
-      </div>
+      <CountHistory count={count} ctx={ctx} />
 
       <div className={`${styles.tile} ${styles.tileOpt}`}>
         <span className={styles.tileLbl}>Average move</span>
@@ -102,17 +88,71 @@ export function ScanHeader({
   )
 }
 
-// The count over the recent sessions, oldest → today; today's bar in gold.
-function Spark({ series }) {
-  const vals = (series || []).map(v => (Number.isFinite(v) ? v : null))
-  if (vals.filter(v => v != null).length < 2) return null
-  const max = Math.max(...vals.filter(v => v != null), 1)
+// ── Stocks each day ──────────────────────────────────────────────────────────
+// The list's count, one bar per session, oldest on the left and the open day in
+// gold on the right. 1M / 3M / 6M / 1Y picks how far back. Hovering a bar puts
+// THAT day's count and date in the readout, so the chart explains itself.
+const RANGES = [
+  { key: '1M', n: 21, words: 'last month' },
+  { key: '3M', n: 63, words: 'last 3 months' },
+  { key: '6M', n: 126, words: 'last 6 months' },
+  { key: '1Y', n: 252, words: 'last year' },
+]
+const RANGE_LS = 'uct.breadthDrill.sparkRange'
+function readRange() {
+  try { const v = localStorage.getItem(RANGE_LS); return RANGES.some(r => r.key === v) ? v : '3M' } catch { return '3M' }
+}
+const fmtDay = (d) => {
+  if (!d) return 'today'
+  const [y, m, dd] = d.split('-').map(Number)
+  return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function CountHistory({ count, ctx }) {
+  const [range, setRange] = useState(readRange)
+  const [hover, setHover] = useState(null)
+  const r = RANGES.find(x => x.key === range) || RANGES[1]
+  const all = ctx?.series || []
+  const dates = ctx?.seriesDates || []
+  const start = Math.max(0, all.length - r.n)
+  const vals = all.slice(start)
+  const days = dates.slice(start)
+  const last = vals.length - 1
+  const pick = (k) => { setRange(k); setHover(null); try { localStorage.setItem(RANGE_LS, k) } catch { /* private mode */ } }
+
+  const shownVal = hover != null ? vals[hover] : count
+  const shownDay = hover != null && hover !== last ? fmtDay(days[hover]) : (days[last] ? fmtDay(days[last]) : 'today')
+  const finite = vals.filter(Number.isFinite)
+  const max = Math.max(...finite, 1)
   return (
-    <span className={styles.spark} aria-hidden="true">
-      {vals.map((v, i) => (
-        <i key={i} data-now={i === vals.length - 1 || undefined}
-          style={{ height: v == null ? 0 : `${Math.max(6, (v / max) * 100)}%` }} />
-      ))}
-    </span>
+    <div className={`${styles.tile} ${styles.tileCount}`}>
+      <span className={styles.tileHead}>
+        <span className={styles.tileLbl}>Stocks each day · {r.words}</span>
+        <span className={styles.rangeSeg} role="group" aria-label="Chart range">
+          {RANGES.map(x => (
+            <button key={x.key} type="button" aria-pressed={x.key === range} onClick={() => pick(x.key)}>{x.key}</button>
+          ))}
+        </span>
+      </span>
+      <span className={styles.tileVal}>
+        <b>{Number.isFinite(shownVal) ? shownVal.toLocaleString() : '—'}</b>
+        <small className={styles.countDay} data-past={hover != null && hover !== last ? true : undefined}>{shownDay}</small>
+        {finite.length > 1 && (
+          <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 24`} preserveAspectRatio="none"
+            role="img" aria-label={`Stocks on this list each day, ${r.words}`} onMouseLeave={() => setHover(null)}>
+            {vals.map((v, i) => {
+              const h = Number.isFinite(v) ? Math.max(1.5, (v / max) * 24) : 0
+              return (
+                <g key={i} onMouseEnter={() => setHover(i)}>
+                  <rect x={i * 3} y={0} width={3} height={24} fill="transparent" />
+                  <rect x={i * 3 + 0.4} y={24 - h} width={2.2} height={h} rx={0.6}
+                    data-now={i === last || undefined} data-hover={i === hover || undefined} />
+                </g>
+              )
+            })}
+          </svg>
+        )}
+      </span>
+    </div>
   )
 }

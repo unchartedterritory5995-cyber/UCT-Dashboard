@@ -222,7 +222,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   const drillDate = drill?.date || null
   const drillLive = !!drill?.live
   const ctx = useMemo(
-    () => (colKey ? dayContext(rows, colKey, drillDate, { live: drillLive }) : null),
+    () => (colKey ? dayContext(rows, colKey, drillDate, { live: drillLive, spark: 252 }) : null),
     [rows, colKey, drillDate, drillLive],
   )
   const prevTarget = rows && onNavigate ? stepDate(rows, drillDate, drillLive, -1) : null
