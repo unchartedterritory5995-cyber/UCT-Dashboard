@@ -19,7 +19,7 @@ import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
 import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
-import { namedChart, namesAChart } from '../guide/namedChart'
+import { namedChart } from '../guide/namedChart'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -56,7 +56,9 @@ export function showFeature(f, host, words = '') {
   const steps = stepsFor(f, words)
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
-  const asked = needsChart ? namedChart(words, chartsOf(host)) : null
+  let sel = null
+  try { sel = host?.charts?.selected?.() || null } catch { sel = null }
+  const asked = needsChart ? namedChart(words, chartsOf(host), sel) : null
   if (asked?.say) return asked.say
   const chart = needsChart ? asked?.chart || guideChart(host) : null
   if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
@@ -186,8 +188,9 @@ export function registerGuideCapabilities() {
       const f = matchFeature(q, null, here)
       // ⭐ words only a control in a place they did not name fits: never shown straight away, asked about (answer)
       if (!f && here === 'charts' && (readControl(q)?.say || readControl(q, { weak: true }))) return { feature: 'control', detail: q }
-      // the words travel when they choose something: a family's row, or the chart they name
-      if (f) return f.slots || namesAChart(q, chartsOf(host)) ? { feature: f.id, detail: q } : { feature: f.id }
+      // the words ALWAYS travel: `answer` reads the chart they name against the real board (the fast path may not see its charts,
+      // and a named chart dropped here would be walked on the clicked one). A bare "this" names none, so the click stands there.
+      if (f) return { feature: f.id, detail: q }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
       const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
       return charts?.everyPage ? { feature: charts.id } : null
