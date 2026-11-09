@@ -701,6 +701,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // browser: not an exactly-once guarantee.
   const interruptedRef = useRef(null)       // { sig, lines, at } from a mark found at load
   const undoRef = useRef([])                // newest last
+  const noUndoRef = useRef(null)            // AUDIT r8: the newest change had no Undo { line, top } (a plain "undo" says so)
   const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
@@ -1337,6 +1338,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     mark('persist', saved.ok ? 'ok' : saved.reason)
     if (res.undo && saved.ok) {
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
+      noUndoRef.current = null
+    } else if (res.ok && saved.ok && Array.isArray(res.lines) && res.lines.length && (ops || []).some(o => { const c = getCapability(o?.action); return c && !c.query }) && /\bno Undo\b|can'?t be undone|cannot be undone/i.test(res.lines.join(' '))) {
+      // AUDIT (r8 presets / boards): the newest Agent change has NO Undo (a delete): a plain "undo" now must not quietly reach back
+      // to an EARLIER change; it says so (doUndo). Kept until a later change that has an Undo lands.
+      noUndoRef.current = { line: String(res.lines[0]), top: undoRef.current.length ? undoRef.current[undoRef.current.length - 1].id : null }
     }
     if (res.ok) {
       withdrawPending()
@@ -1743,6 +1749,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // the group it describes. `single`: exactly the one entry (the group runner itself).
   const doUndo = useCallback(async (undoId, { member, voice, about = null, rest = false, single = false } = {}) => {
     const stack = undoRef.current
+    // AUDIT (r8): a plain "undo" right after a change that has no Undo says so, and changes NOTHING (never the change before it)
+    const nu = noUndoRef.current
+    if (!undoId && !about && nu && nu.top === (stack.length ? stack[stack.length - 1].id : null)) {
+      const what = nu.line.replace(/\s*\((?:there is )?no Undo\)\s*$/i, '').replace(/[.]+$/, '')
+      const text = `The last change can't be undone: ${what}. Nothing was undone.`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'undo-none', reason: 'irreversible-last' }, telemetry: { path: 'fast', refused: true, voice } })
+      lastUndoRef.current = 'refused'
+      return false
+    }
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
     // OWNER RULING (W2, 11-04: "undo" after "add the 9 and 20 EMAs" took back only one EMA): a PLAIN Undo of the newest
     // change takes back the WHOLE last request when that request committed several changes — the same turn-level group

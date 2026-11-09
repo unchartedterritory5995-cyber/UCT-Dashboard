@@ -219,4 +219,21 @@ describe('C3-140: rename or delete a saved News filter preset', () => {
     expect(names(m)).toEqual(PRESETS.map(p => p.name))
     expect(proposalsNow()).toHaveLength(0)
   }, 60000)
+  // AUDIT (r8 presets): an action that cannot be undone (delete + Apply) is the newest change; a later "undo" must not quietly take
+  // back the EARLIER reversible change (the rename): it says plainly the delete can't be undone, and EVERYTHING stays as it is
+  it('an earlier rename, then delete + Apply, then "undo": the delete is said to have no Undo; NOTHING changes (the rename stays)', async () => {
+    const m = mount({ presets: PRESETS })
+    await waitFor(() => expect(mountedWidgetDoor('tn')?.read?.().presets.length).toBe(3))
+    await m.say('rename my Earnings Watch preset to Earnings Week', presetOp('rename:Earnings Watch=>Earnings Week'))
+    await waitFor(() => expect(names(m)).toEqual(['Earnings Week', 'Macro only', 'Fed search']))
+    await m.say('delete the Fed search preset', presetOp('delete:Fed search'))
+    await m.apply()
+    await waitFor(() => expect(names(m)).toEqual(['Earnings Week', 'Macro only']))
+    const state = JSON.stringify(optsOf(m))
+    await m.say('undo')
+    const said = document.querySelector('[data-testid="agent-transcript"]').textContent
+    expect(said.endsWith('The last change can\'t be undone: The News (right): deleted the filter preset “Fed search”. Nothing was undone.'), said.slice(-300)).toBe(true)
+    expect(JSON.stringify(optsOf(m))).toBe(state)                                  // the FULL widget state, the rename included
+    expect(names(m)).toEqual(['Earnings Week', 'Macro only'])
+  }, 60000)
 })

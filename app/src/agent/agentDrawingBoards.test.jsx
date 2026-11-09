@@ -98,6 +98,24 @@ describe('Drawing Boards through the panel', () => {
     await m.say('undo')
     expect(names()).toEqual(['Swing', 'Earnings'])
   }, 40000)
+  // AUDIT (r8): an earlier reversible change (a rename), then a board delete + Apply (no Undo), then "undo": it says plainly the
+  // delete can't be undone and NOTHING changes — never a quiet take-back of the earlier rename
+  it('an earlier rename, then delete + Apply, then "undo": said to have no Undo; the full board state stays', async () => {
+    const [w, s] = ONE('SPY')
+    const m = p.mount(w, s)
+    boards()
+    const run = async (c, text) => { p.st.envelopes.length = 0; p.st.envelopes.push(plan(c)); return m.say(text) }
+    await run({ op: 'rename', board: 'Swing', name: 'Swing Trades' }, 'rename the Swing drawing board to Swing Trades')
+    await run({ op: 'delete', board: 'Earnings', name: null }, 'delete the Earnings drawing board')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1))
+    await p.idle()
+    const state = JSON.stringify({ boards: store.listTracings(), active: store.getActiveTracingId() })
+    expect(names()).toEqual(['Swing Trades'])
+    await m.say('undo')
+    const said = screen.getByTestId('agent-transcript').textContent
+    expect(said.endsWith('The last change can\'t be undone: Deleted the drawing board “Earnings” and its drawings. Nothing was undone.'), said.slice(-300)).toBe(true)
+    expect(JSON.stringify({ boards: store.listTracings(), active: store.getActiveTracingId() })).toBe(state)
+  }, 40000)
   // AUDIT (c): a part of a name is matched only when it fits ONE board; two that contain it are asked about, naming both
   it('(c) a part of a name: "swing" with boards "Swing 2" and "Long swing" is refused as ambiguous naming both; "earn" fits one and switches', async () => {
     const [w, s] = ONE('SPY')
