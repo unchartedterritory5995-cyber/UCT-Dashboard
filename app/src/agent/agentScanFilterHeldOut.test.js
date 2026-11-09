@@ -16,10 +16,16 @@ export const FOLLOW_HELD_OUT = [
   { row: 'C3-194', text: 'stop the market map following the list', value: false },
 ]
 
+// C3-109 (added before its change, second batch): type into the Scanner's preset list search box
+export const SCAN_SEARCH_HELD_OUT = [
+  { row: 'C3-109', text: 'filter the scan list for gap', value: 'gap' },
+  { row: 'C3-109', text: 'look for volume scans in the scanner picker', value: 'volume' },
+]
+
 import { describe, it, expect } from 'vitest'
 describe('scanner / filter held-out sets are frozen data', () => {
   it('no phrasing appears twice', () => {
-    const all = [...PRESET_HELD_OUT, ...SCAN_BACK_HELD_OUT, ...FOLLOW_HELD_OUT]
+    const all = [...PRESET_HELD_OUT, ...SCAN_BACK_HELD_OUT, ...FOLLOW_HELD_OUT, ...SCAN_SEARCH_HELD_OUT]
     expect(new Set(all.map(c => c.text)).size).toBe(all.length)
   })
 })
