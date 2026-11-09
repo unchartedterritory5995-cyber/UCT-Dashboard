@@ -8,6 +8,7 @@
 //     door:    true = the widget's own writer, not `opts` (its state lives in the widget, or the write is more than one key);
 //              Undo goes back through that writer
 //     inverse: true = a set whose stored members are the ones turned OFF (a hidden list)
+//     shown:   { value: the word on its control } where the two differ (a chip says Calls, opts holds C)
 //     inOpts:  true = a door write whose whole result is in `opts`: Undo needs only those opts
 //     all:     true = an empty set means every member, and a full one is stored empty }
 // A `set` takes "+member" / "-member". agent/settingsLiveness.test.js proves a row the same way as a `live` field: an `opts`
@@ -38,9 +39,9 @@ const OWN = {
   ],
   optionsflow: [
     { key: 'minPremium', type: 'enum', options: [0, 250000, 500000, 1000000], default: 0, path: 'filters.minPrem' },
-    { key: 'callPut', type: 'enum', options: ['all', 'C', 'P'], default: 'all', path: 'filters.cp' },
-    { key: 'printType', type: 'enum', options: ['all', 'SWEEP', 'BLOCK'], default: 'all', path: 'filters.type' },
-    { key: 'direction', type: 'enum', options: ['all', 'BULL', 'BEAR'], default: 'all', path: 'filters.dir' },
+    { key: 'callPut', type: 'enum', options: ['all', 'C', 'P'], shown: { C: 'Calls', P: 'Puts' }, default: 'all', path: 'filters.cp' },
+    { key: 'printType', type: 'enum', options: ['all', 'SWEEP', 'BLOCK'], shown: { SWEEP: 'Sweep', BLOCK: 'Block' }, default: 'all', path: 'filters.type' },
+    { key: 'direction', type: 'enum', options: ['all', 'BULL', 'BEAR'], shown: { BULL: 'Bull', BEAR: 'Bear' }, default: 'all', path: 'filters.dir' },
   ],
   nhnl: [
     { key: 'universe', type: 'enum', from: 'door', path: 'activeUniverse' },

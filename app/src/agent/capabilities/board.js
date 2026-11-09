@@ -173,7 +173,7 @@ const valueOf = (f, w, doors) => {
 /** A control's choices right now, as { value, label }: the registry's, or the mounted widget's own. */
 const choicesOf = (f, door) => {
   const raw = f.from === 'door' ? door?.options?.()?.[f.key] : f.options
-  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: String(o) }))
+  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: f.shown?.[o] ?? String(o) }))
 }
 const says = (f, v, choices) => {
   if (Array.isArray(v)) return v.length ? v.join(', ') : (f.all ? 'all' : 'none')
