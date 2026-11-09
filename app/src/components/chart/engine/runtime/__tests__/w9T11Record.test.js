@@ -71,7 +71,15 @@ describe('W9-T11 the record: schema', () => {
     expect(rec.settings.version).toBe(5)
     expect(rec.settings.defaulted).toEqual(expect.arrayContaining(['pyramiding', 'initialCapital']))
     expect(rec.rulesUsed.length).toBeGreaterThan(3)
-    for (const k of ['orders', 'equity']) expect(rec[k]).toBe(null)
+    expect(rec.equity).toBe(null)
+    // W9-T7-F1: the order log is served (each order that opened or closed a trade, by trade number)
+    expect(rec.orders.map((o) => [o.n, o.kind, o.id, o.from, o.status, o.placedTime, o.fillTime, o.opened, o.closed])).toEqual([
+      [1, 'entry', 'L', null, 'filled', BARS[3].t, BARS[4].t, [1], []],
+      [2, 'close', null, 'L', 'filled', BARS[10].t, BARS[11].t, [], [1]],
+      [3, 'entry', 'L2', null, 'filled', BARS[20].t, BARS[21].t, [2], []],
+    ])
+    // a strategy.close's exit is named by TradingView itself: no stated id (`exitIdOf`)
+    expect(rec.trades.map((t) => t.exitId)).toEqual([null, null])
     expect(rec.unserved).toEqual({ ...STRATEGY_RECORD_UNSERVED })
     expect(cols.p.slice(4, 6)).toEqual([1, 1])
   })
@@ -86,11 +94,18 @@ describe('W9-T11 the record: schema', () => {
   it('the one shape check refuses an unserved field that holds a value, and a broken window', () => {
     gate(true)
     const rec = runtimeStrategyOf(run(doc(SRC), { ...CTX, historyWindowBars: 30 }).cols)
-    expect(strategyRecordShapeErrors({ ...rec, orders: [] })).toContain('orders is unserved and must be null')
+    expect(strategyRecordShapeErrors({ ...rec, equity: [] })).toContain('equity is unserved and must be null')
+    // W9-T7-F1: the order log is checked, not nulled: a trade no order opened is refused
+    expect(strategyRecordShapeErrors({ ...rec, orders: [] })).toContain('trades[0] has no opening order')
     expect(strategyRecordShapeErrors({ ...rec, trades: rec.trades.map((t) => ({ ...t, profit: 1 })) }))
       .toContain('trades.profit is unserved and must be null')
+    // W9-T5: the costs are served now, so their shape is checked (no longer null)
     expect(strategyRecordShapeErrors({ ...rec, settings: { ...rec.settings, commission: 0 } }))
-      .toContain('settings.commission is unserved and must be null')
+      .toContain('settings.commission')
+    expect(strategyRecordShapeErrors({ ...rec, settings: { ...rec.settings, slippage: 1.5 } }))
+      .toContain('settings.slippage')
+    expect(strategyRecordShapeErrors({ ...rec, trades: rec.trades.map((t) => ({ ...t, commission: null })) }))
+      .toContain('trades[0].commission')
     expect(strategyRecordShapeErrors({ ...rec, window: { ...rec.window, bars: 31 } }))
       .toContain('window.bars <= window.historyWindowBars')
     expect(strategyRecordShapeErrors({ ...rec, window: { ...rec.window, historyWindowBars: undefined } }))

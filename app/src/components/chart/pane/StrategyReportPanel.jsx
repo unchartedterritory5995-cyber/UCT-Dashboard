@@ -98,6 +98,12 @@ function MetricsTable({ metrics, keys, caption, testId }) {
   )
 }
 
+/** ⭐ W9-T7-F1 — a fill's signal (its order's comment, else its id), or why it is not shown. */
+function SignalCell({ signal }) {
+  if (signal && signal.status === 'served') return <td>{signal.value}</td>
+  return <td className={styles.refusalCell}><Sentence text={signal && signal.sentence} /></td>
+}
+
 function TradeList({ trades }) {
   if (!trades || trades.status !== 'served') {
     return (
@@ -118,8 +124,10 @@ function TradeList({ trades }) {
             <th scope="col">Trade</th>
             <th scope="col">Direction</th>
             <th scope="col">Size</th>
+            <th scope="col">Entry signal</th>
             <th scope="col">Entry (UTC)</th>
             <th scope="col">Entry price</th>
+            <th scope="col">Exit signal</th>
             <th scope="col">Exit (UTC)</th>
             <th scope="col">Exit price</th>
             <th scope="col">Profit</th>
@@ -131,8 +139,10 @@ function TradeList({ trades }) {
               <th scope="row">{r.n}</th>
               <td>{r.dir === 'short' ? 'Short' : 'Long'}</td>
               <td className={styles.num}>{fmt(r.qty, 0, 6)}</td>
+              <SignalCell signal={r.entrySignal} />
               <td>{formatTime(r.entryTime)}</td>
               <td className={styles.num}>{formatPrice(r.entryPrice)}</td>
+              {r.open ? <td /> : <SignalCell signal={r.exitSignal} />}
               <td>{r.open ? 'Open' : formatTime(r.exitTime)}</td>
               <td className={styles.num}>{r.open ? '' : formatPrice(r.exitPrice)}</td>
               {r.profit && r.profit.status === 'served'

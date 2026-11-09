@@ -5,7 +5,40 @@
 // own labels (header, Widgets menu, tab), so there is no phrase list here. A label that is a chart-surface word ("Volume", the
 // Volume Surge tab) is not a widget's name: those words already mean the chart. Pure: the caller passes the board's types.
 import { WIDGET_REGISTRY } from '../widgets/registry'
-import { widgetControls } from '../widgets/widgetControls'
+import { widgetControls as registryControls } from '../widgets/widgetControls'
+import { COMPANY_TABS, normalizeDock } from '../pages/charts/widgets/chartDock'
+import { COMPANY_INFO, setFeatureOpen } from '../pages/charts/widgets/chartFeatures'
+
+// every control a widget offers: the registry's rows (widgets/widgetControls.js), then the Agent's own over the product's writers
+export const widgetControls = (type) => [...registryControls(type), ...(AGENT_CONTROLS[type] || [])]
+export const allControls = widgetControls
+// ── round 5 (pl-exec, C3-216 / C3-217): a chart widget's Company Info panel, as its own controls set it — the tab strip
+// (ChartDetailDock setTab) and the collapse chevron / edge rail (setFeatureOpen) — both in the chart's opts.dock. Offered only
+// while the chart HAS the panel (Add to Chart owns adding it); written by the product's own dock functions. ──
+const DOCK_WHY = 'This chart has no Company Info panel. Add it from the chart’s Add to Chart menu first.'
+// C3-219 (round 6): the chart's View Holdings button (ViewHoldingsControl), shown only for an ETF or a UCT index ($IDX:)
+const HOLDINGS_WHY = 'This chart isn’t showing an ETF or a UCT index, so it has no View Holdings button.'
+// the words a search box is used with (any widget's `text` control)
+const SEARCH_WORDS = ['search', 'find', 'look', 'lookup', 'query', 'clear']
+export const AGENT_CONTROLS = {
+  // C3-138 (round 7): the News (Trade Exchange) widget's own "Search headlines" box, through its door (its own setQueryRaw)
+  tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS }],
+  // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
+  notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
+  // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
+  watchlist: [{ key: 'source', type: 'enum', options: ['flagged'], path: 'watchKey',
+    write: (opts) => ({ ...(opts || {}), watchKey: 'flagged', watchName: 'Flagged', watchTab: 'mine' }) }],
+  chart: [
+    { key: 'companyTab', type: 'enum', options: COMPANY_TABS.map(t => t.key), default: 'overview', path: 'dock.tab',
+      when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
+      write: (opts, v) => ({ ...(opts || {}), dock: { ...normalizeDock(opts?.dock), tab: v } }) },
+    { key: 'holdingsOpen', type: 'boolean', default: false, door: true,
+      when: (_opts, door) => (door && 'holdingsOpen' in door ? null : HOLDINGS_WHY) },
+    { key: 'companyOpen', type: 'boolean', default: false, path: 'dock.open',
+      when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
+      write: (opts, v) => ({ ...(opts || {}), dock: setFeatureOpen(normalizeDock(opts?.dock), COMPANY_INFO, v) }) },
+  ],
+}
 
 export const normName = (s) => ` ${String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
 // ── Names are compared as WORDS, never as strings: punctuation is a space, a connector (and, or, of, the, vs…) is no word, a plural
@@ -64,7 +97,7 @@ const VOCAB = new Map()
 function controlVocab(type, surfaceWord) {
   if (VOCAB.has(type)) return VOCAB.get(type)
   const own = new Set(widgetNamesOf(type, surfaceWord).flat())
-  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o)))])]
+  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o))), ...Object.values(f.labels || {}), ...Object.values(f.also || {}).flat(), ...(f.words || [])])]
     .flatMap(nameWords).filter(w => w.length >= 2 && !own.has(w)))
   VOCAB.set(type, words)
   return words
@@ -78,7 +111,11 @@ export function controlledWidgetTypes(message, types, surfaceWord) {
 // ── Round 4 (pl-exec): a widget's own LIST of the member's items (a Theme Tracker's theme sets), the one data source for the
 // item control (capabilities/board.js) and for routing: an item named by its own name ("rename my Mine theme set") is about that
 // widget even when the widget is not named. ──
-export const ITEM_LISTS = { themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }] }
+export const ITEM_LISTS = {
+  themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }],
+  // C3-202: the Notebook widget's notes; its New control creates a blank one and opens it
+  notebook: [{ key: 'notes', noun: 'note', nouns: ['note', 'notebook', 'blank', 'new'], ops: ['create'], blank: 'Untitled note' }],
+}
 /** The board's widgets that the message reaches by one of their OWN item names, beside an item word (set, preset, rename, delete). */
 export function itemNamedTypes(message, items) {
   const words = nameWords(message)

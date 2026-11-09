@@ -1514,6 +1514,80 @@ def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
         return None
 
 
+#: (date, tickers-hash) -> {ticker: shares}. A recorded day's volumes never change.
+_DAY_VOL_CACHE: dict = {}
+_DAY_VOL_CACHE_MAX = 64
+
+
+def _day_volumes(date_str: str, tickers: list) -> dict:
+    """Each ticker's raw daily volume on `date_str`, read straight from bars.db.
+
+    ⛔ Not through breadth_live's pack frame: that cache holds ONE key, and a drill
+    read would evict the live breadth frame (a ~40 s reload). One indexed read per
+    chunk of 800 names on the (ticker, tf, ts) primary key is cheap.
+    """
+    try:
+        y, m, d = (int(x) for x in date_str.split("-"))
+    except Exception:
+        return {}
+    ts = y * 10000 + m * 100 + d
+    want = sorted({str(t).upper() for t in tickers if t})
+    if not want:
+        return {}
+    key = (ts, hash(tuple(want)))
+    hit = _DAY_VOL_CACHE.get(key)
+    if hit is not None:
+        return hit
+    from api.services import bars_sqlite
+    conn = bars_sqlite._conn()
+    out: dict = {}
+    for i in range(0, len(want), 800):
+        chunk = want[i:i + 800]
+        qm = ",".join("?" * len(chunk))
+        for tk, vol in conn.execute(
+            f"SELECT ticker, v FROM ohlcv WHERE tf='D' AND ts = ? AND ticker IN ({qm})",
+            [ts, *chunk],
+        ).fetchall():
+            if vol:
+                out[tk] = int(vol)
+    # Only a complete-enough answer is remembered: a cold bars.db after a restart
+    # must not pin a half-empty column for the life of the process.
+    if len(out) >= 0.9 * len(want):
+        if len(_DAY_VOL_CACHE) >= _DAY_VOL_CACHE_MAX:
+            _DAY_VOL_CACHE.pop(next(iter(_DAY_VOL_CACHE)))
+        _DAY_VOL_CACHE[key] = out
+    return out
+
+
+def fill_drill_volumes(date_str: str, items: list) -> list:
+    """Add raw session volume (`v`) to a recorded drill list's items that lack it.
+
+    The stored `*_list` rows carry RVOL (`vr`) but not the shares, so the drill's
+    Vol column showed only dashes on every past day. Never raises; a name with no
+    bar that day simply stays without `v`.
+    """
+    if not isinstance(items, list):
+        return items
+    need = [i.get("t") for i in items if isinstance(i, dict) and i.get("t") and not i.get("v")]
+    if not need:
+        return items
+    try:
+        vols = _day_volumes(date_str, need)
+    except Exception as e:
+        print(f"[breadth_monitor] drill volumes unavailable: {type(e).__name__}: {e}")
+        return items
+    if not vols:
+        return items
+    out = []
+    for it in items:
+        if isinstance(it, dict) and it.get("t") and not it.get("v"):
+            v = vols.get(str(it["t"]).upper())
+            if v:
+                it = {**it, "v": v}
+        out.append(it)
+    return out
+
+
 # Lists that say nothing about a ticker beyond "it exists" — overlap with them is noise.
 _CONTEXT_SKIP_LISTS = frozenset({"universe_list"})
 
