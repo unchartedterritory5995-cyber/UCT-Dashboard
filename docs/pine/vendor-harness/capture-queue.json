@@ -79,19 +79,19 @@
   }
  },
  "counts": {
-  "targets": 293,
+  "targets": 298,
   "byStatus": {
    "CAPTURED": 78,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 174
+   "QUEUED": 179
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 141
+    "QUEUED": 146
    },
    "W1": {
     "QUEUED": 6
@@ -114,7 +114,7 @@
     "CAPTURED": 61,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 159
+    "QUEUED": 164
    },
    "1-2": {
     "CAPTURED": 17,
@@ -273,7 +273,7 @@
    "w9": {
     "CAPTURED": 1,
     "NEEDS_LIVE": 2,
-    "QUEUED": 50
+    "QUEUED": 55
    },
    "wsa-for-bound": {
     "NEEDS_CHART": 2,
@@ -13015,6 +13015,216 @@
    ]
   },
   {
+   "id": "w9-r1b-ddown-reach@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-r1b-ddown-reach.pine",
+   "sourceKind": "probe",
+   "sha256": "b75d89cb64e62878a3d3735b507c1ce2bb1588113b4d9a2b97aabfc284fba754",
+   "bytes": 4422,
+   "stem": "w9-r1b-ddown-reach",
+   "captureStem": "w9-r1b-ddown-reach",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#W9-R1b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "w9-r2-intraday-loss@AMEX:SPY@15",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-r2-intraday-loss.pine",
+   "sourceKind": "probe",
+   "sha256": "9e88cc797971f1654e52160fc5439017ff82529cbcb97c9069fefebfa2a1a84c",
+   "bytes": 4232,
+   "stem": "w9-r2-intraday-loss",
+   "captureStem": "w9-r2-intraday-loss",
+   "symbol": "AMEX:SPY",
+   "tf": "15",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#W9-R2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "w9-r2-intraday-loss@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-r2-intraday-loss.pine",
+   "sourceKind": "probe",
+   "sha256": "9e88cc797971f1654e52160fc5439017ff82529cbcb97c9069fefebfa2a1a84c",
+   "bytes": 4232,
+   "stem": "w9-r2-intraday-loss",
+   "captureStem": "w9-r2-intraday-loss",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#W9-R2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "w9-r3-cons-loss-days@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-r3-cons-loss-days.pine",
+   "sourceKind": "probe",
+   "sha256": "a4899b415fd712c2dff5f9b758145c0a626cf32075620d249c4630aacea9ac14",
+   "bytes": 4074,
+   "stem": "w9-r3-cons-loss-days",
+   "captureStem": "w9-r3-cons-loss-days",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#W9-R3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "w9-r4-position-size@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-r4-position-size.pine",
+   "sourceKind": "probe",
+   "sha256": "a6332e7b58e8834c2102f11e225ae5c7b0df545a04cb94655182acfddcffe71c",
+   "bytes": 4447,
+   "stem": "w9-r4-position-size",
+   "captureStem": "w9-r4-position-size",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#W9-R4"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "w9-s2-sharpe-rf0@NYSE:RDDT@D",
    "status": "QUEUED",
    "evidence": [],
@@ -14519,7 +14729,7 @@
    "docWave": "w9",
    "disposition": "superseded",
    "reason": "varip is refused in broker mode (rule 11), so the run counter can never be graded; W9-P1b now asks the same re-run question with w9-p1b-on-close-fills-nv.pine, witnessed by its orders. Held: retake only if varip is ever served in a strategy",
-   "dispositionLine": 102,
+   "dispositionLine": 106,
    "text": "W9-P1b varip | `w9-p1b-on-close-fills.pine` | NYSE:RDDT 1D | 0 | the run counter | held: superseded by W9-P1b above | none | no"
   },
   {
@@ -14529,7 +14739,7 @@
    "docWave": "w9",
    "disposition": "superseded",
    "reason": "varip is refused in broker mode (rule 11); W9-P2 now asks the same extra-execution question with w9-p2-order-fills-nv.pine. Held: retake only if varip is ever served in a strategy",
-   "dispositionLine": 103,
+   "dispositionLine": 107,
    "text": "W9-P2 varip | `w9-p2-order-fills.pine` | NYSE:RDDT 1D | 0 | the run counter | held: superseded by W9-P2 above | none | no"
   },
   {
@@ -16067,7 +16277,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-05-w9.md",
    "wave": "w9",
-   "rows": 46,
+   "rows": 50,
    "contextTables": 0
   },
   {

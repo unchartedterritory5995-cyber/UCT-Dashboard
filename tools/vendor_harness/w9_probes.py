@@ -396,6 +396,56 @@ if up
     strategy.entry("L", strategy.long)
 if dn
     strategy.close_all()''', decl=FIXED1, chart="AMEX:SPY 15"))
+    # 2026-11-08 r2 (W9-T8 follow-ups, docs/pine/strategy-broker-spec.md "W9-T8"): every risk call v6, top level, literal,
+    # one per command, and nothing T8 refuses beside it (no POC, no order fills, no cost, no T7 kind). Each probe is
+    # sized so its limit IS reached on RDDT, and keeps signalling after, so the capture shows what the halt does.
+    halt_x = [("X01_signal_up", "up ? 1 : 0"), ("X02_signal_dn", "dn ? 1 : 0")]
+    s.append(P("r1b-ddown-reach", "W9-R1b", "strategy.risk.max_drawdown REACHED (cash 1500 on 100 shares): the bar it trips, "
+               "what is closed and cancelled, and that no order fills after", """strategy.risk.max_drawdown(1500, strategy.cash)
+{SC}
+if up
+    strategy.entry("L", strategy.long, comment = "el")
+    strategy.entry("P", strategy.long, limit = math.round_to_mintick(close * 0.9), comment = "ep")
+if dn
+    strategy.close_all(comment = "xall")""", decl="default_qty_type = strategy.fixed, default_qty_value = 100, pyramiding = 2",
+               extras=halt_x + [("X03_equity", "strategy.equity")],
+               notes=["W9-R1's ddown probe (2% of 100,000 on 1 share) can never reach its limit; this one is sized to.",
+                      "After the trip: X01/X02 keep signalling; a fill after it (S06 moving) means no halt. The close's label names the risk close.",
+                      "P is a pending far limit beside each entry: whether the trip cancels it shows as P never filling after."]))
+    s.append(P("r2-intraday-loss", "W9-R2", "strategy.risk.max_intraday_loss REACHED (cash 300 on 100 shares): the trip, the close, "
+               "and whether trading resumes the next day (on 1D: the next bar)", """strategy.risk.max_intraday_loss(300, strategy.cash)
+{SC}
+if up
+    strategy.entry("L", strategy.long, comment = "el")
+if dn
+    strategy.entry("S", strategy.short, comment = "es")""", decl="default_qty_type = strategy.fixed, default_qty_value = 100",
+               chart="NYSE:RDDT 1D and AMEX:SPY 15", extras=halt_x + [("X03_dayofmonth", "dayofmonth")],
+               notes=["Two charts. RDDT 1D: what a DAY is on a daily chart. AMEX:SPY 15: the intraday case the command is named for;",
+                      "that capture waits on the 15-minute depth read on the rig's plan (D4 not decided), as W9-R1i does."]))
+    s.append(P("r3-cons-loss-days", "W9-R3", "strategy.risk.max_cons_loss_days REACHED (2 days): which days count as a loss, the trip, "
+               "and that trading stops for good", """strategy.risk.max_cons_loss_days(2)
+{SC}
+if up
+    strategy.entry("L", strategy.long, comment = "el")
+if dn
+    strategy.entry("S", strategy.short, comment = "es")""", decl="default_qty_type = strategy.fixed, default_qty_value = 100",
+               extras=halt_x + [("X03_equity", "strategy.equity")],
+               notes=["Always in the market (a reversal on each signal), so every bar is a day with a P&L; X03 shows each day's equity."]))
+    s.append(P("r4-position-size", "W9-R4", "strategy.risk.max_position_size 3: an entry that would exceed it is reduced, and one "
+               "that cannot be reduced is not placed", """strategy.risk.max_position_size(3)
+{SC}
+if up
+    strategy.entry("A", strategy.long, qty = 2, comment = "ea")
+if strategy.position_size > 0 and bar_index % 3 == 0
+    strategy.entry("B", strategy.long, qty = 2, comment = "eb")
+if strategy.position_size > 0 and bar_index % 5 == 0
+    strategy.entry("C", strategy.long, qty = 2, comment = "ec")
+if dn
+    strategy.close_all(comment = "xall")""", decl="default_qty_type = strategy.fixed, default_qty_value = 1, pyramiding = 3",
+               extras=[("X01_open0_size", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_open1_size", "strategy.opentrades > 1 ? strategy.opentrades.size(1) : na"),
+                       ("X03_open2_size", "strategy.opentrades > 2 ? strategy.opentrades.size(2) : na")],
+               notes=["A (2) then B (2, reduced to 1?) then C (2, not placed at size 3?): X01-X03 and S03 read the answer."]))
     for state, flag in (("off", "false"), ("on", "true")):
         s.append(P(f"m1-magnifier-{state}", "W9-M1", f"use_bar_magnifier = {flag} (DEFERRED)", '''{SC}
 if up
