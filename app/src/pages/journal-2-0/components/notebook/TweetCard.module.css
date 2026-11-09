@@ -189,7 +189,7 @@
   min-height: 20px;
   padding: 0;
   border: 0;
-  outline: 0;
+  border-radius: 4px;
   resize: none;
   overflow: hidden;
   background: transparent;
@@ -197,6 +197,9 @@
   font: inherit;
   font-size: 14px;
 }
+
+/* The field has no border to recolour, so a ring outside it is the focus cue. */
+.ttext:focus { outline: none; box-shadow: 0 0 0 2px var(--ut-gold); }
 
 .ttext::placeholder { color: var(--text-faint); }
 

@@ -141,6 +141,7 @@ export const SURFACES = Object.freeze({
   // Import a tweet (dark behind notebook_tweet_import_enabled); rail a11y/tweetImport.a11y.test.jsx.
   'components/notebook/ImportTweetSheet.jsx': { recipe: 'import-tweet-sheet' },
   'components/notebook/TweetDoors.jsx': { coveredBy: 'ticker-research-tweet' },
+  'components/notebook/TweetCard.jsx': { recipe: 'tweet-card' },
   'components/notebook/PassedSetups.jsx': { recipe: 'passed-setups' },
   // Wave 13 lane 13D: "what you wrote then", the resurfacing door's read-only version (dark
   // behind awareness_note_resurface_enabled); rail a11y/resurfaceVersion.a11y.test.jsx.

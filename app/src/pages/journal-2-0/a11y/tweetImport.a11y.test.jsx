@@ -3,7 +3,8 @@
 // Import a tweet through 8A's axe harness. The home and research recipes run with the gate OFF,
 // so they never render these controls. Each proves its state rendered before axe runs:
 //   * ticker-research-tweet  -- the workspace with its "Import a tweet" door;
-//   * import-tweet-sheet     -- the sheet: posts, a ticked row, an already-saved row, a warning.
+//   * import-tweet-sheet     -- the sheet: posts, a ticked row, an already-saved row, a warning;
+//   * tweet-card             -- a saved post with its price line and My take, and one that left X.
 import { describe, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { installFetch, Providers } from './fixtures'
@@ -11,6 +12,7 @@ import { axeSurface } from './surface'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import TickerResearchWorkspace from '../components/notebook/TickerResearchWorkspace'
 import ImportTweetSheet from '../components/notebook/ImportTweetSheet'
+import TweetCard from '../components/notebook/TweetCard'
 
 vi.mock('../lib/offline/settleNoteWrite', () => ({ settleNoteWrite: vi.fn(async () => null) }))
 
@@ -53,5 +55,23 @@ describe('Import a tweet (axe)', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: /Alder Street Desk/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
     await screen.findByText('An image could not be copied.')
+  })
+
+  axeSurface('tweet-card', async () => {
+    installFetch([[/^\/api\/snapshot\/NVDA$/, { close: 200 }]])
+    const tweet = {
+      name: 'Alder Street Desk', handle: 'alderstreetdesk', avatarUrl: null, postedAt: NOW - 3600,
+      url: 'https://x.com/alderstreetdesk/status/2', media: [],
+      price: { symbol: 'NVDA', price: 188.2, label: 'posted' },
+    }
+    render(
+      <Providers>
+        <TweetCard excerpt={{ id: 'e1', capturedText: '$NVDA words', annotation: '', tweet }} deleteNode={() => {}} noteId="n1" />
+        <TweetCard excerpt={{ id: 'e2', capturedText: '', annotation: '', tweet: { ...tweet, removed: true, price: null } }} deleteNode={() => {}} noteId="n1" />
+      </Providers>,
+    )
+    await screen.findByText(/since$/)
+    screen.getByText('This post is no longer on X.')
+    if (screen.getAllByLabelText('My take').length !== 2) throw new Error('both My take fields should render')
   })
 })
