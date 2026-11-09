@@ -429,7 +429,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     ]
   }
 
-  useWidgetDoor(() => ({ options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }) }))
+  // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
+  useWidgetDoor(() => ({
+    options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
+    read: () => ({ search: queryRaw }),
+    write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
+  }))
 
   return (
     <div ref={rootRef} className={`${styles.root} ${settings.density === 'compact' ? styles.compact : styles.comfortable}`} style={rootStyle}>

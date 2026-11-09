@@ -351,10 +351,15 @@ export function execute(program, ctx, limits, opts) {
     if (ctx.bars > win) {
       throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
     }
-    // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`, when the CALLER knows it. No product
-    // caller sets it yet (no witnessed source), so a cash / percent-of-equity size refuses by name (Q-S1a).
+    // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`. W9-T4-F1: the one product caller
+    // (`runtimeColumns.js`) derives it from the symbol's witnessed `symbolScope.json::min_contract` row, the
+    // value a script's own `syminfo.mincontract` folds to; no row ⇒ undefined ⇒ a cash / percent-of-equity
+    // size refuses by name (Q-S1a).
     broker = makeBroker(program.broker, {
       series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned, minContract: ctx.minContract,
+      // W9-T8 — `ctx.tradingDays`: each bar's trading day, when the CALLER knows the session and exchange time zone.
+      // No product caller sets it yet, so max_intraday_filled_orders refuses by name (W9-R1i).
+      tradingDays: ctx.tradingDays,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
