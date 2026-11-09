@@ -77,7 +77,7 @@ No other commit touches these files.
 
 ### 1e. Re-pins (all marked)
 
-- In the pieces: f5 re-pinned the manifest golden (+803 compact bytes), the NL-1 parity fixture (+4/-1), the capreg
+- In the pieces: f5 re-pinned the manifest golden (+803 compact bytes; +1,243 after AUDIT (a), 48e0eabce1), the NL-1 parity fixture (+4/-1), the capreg
   contract / coverage / corpus (+1 intent), the route-group count (157 to 158) and the manifest count (151 to 152).
   f4 re-pinned the agentPhase2B pickedChoice test; f1 re-pinned 3 receipt rails.
 - At integration (ecc5f07d99): the golden, SAT-1, NL-1 parity and capreg re-pins were run once. All produced
@@ -115,6 +115,36 @@ The premise check sits beside these: `useAgent.js` L1945 / L1993 (a changed layo
 L2044 (a step whose ops target the layouts kind re-reads the starting point). Rail: L178 "(3) a changed premise".
 
 AUDIT's held-out probes are AUDIT's own; none were written here.
+
+## (3b) New behaviour after this packet's first review: a layout step inside a multi-step request (AUDIT (d), 7a165efb6d)
+
+**Before:** "open my Swing layout, then make it weekly" was read by the instant reader as ONE plan:
+`layout.open` + `chart.setTimeframe`. Opening a layout is `exclusive`, so the executor refused the whole plan with "Opening a
+layout replaces the whole board, so do it in two steps: open the layout first, then ask for the changes." Nothing ran.
+
+**After:** the same sentence runs as two steps.
+1. `layout.open` Swing opens it.
+2. The run re-reads its starting point, because the step's ops target the layouts kind (`useAgent.js` L2044 in
+   `runCompound`, from afb72ee305). The opened layout is therefore not a changed premise.
+3. `chart.setTimeframe` W then lands on Swing's chart.
+4. "undo" takes back exactly the steps that ran: Swing's chart goes back to daily, and Main is open again with its chart.
+
+0 model calls.
+
+**The two code sites:**
+- `app/src/agent/useAgent.js` L2341-2348 (send, right after the fast reading). An instant reading with more than one op, where
+  one op is `exclusive` and not `sequential`, is dropped when `planCompound(text)` reads the sentence as more than one step.
+  The request then runs as those steps. If the sentence does not read as steps, nothing changes and the refusal stands.
+- `app/src/agent/compound.js` L224-226 (`aim()`). A step's op on the **layouts** library takes that library's single entry once.
+  Before, it was aimed per chart and failed with "… doesn't apply to those charts". The rule is restricted to
+  `cap.target === 'layouts'` with exactly one entry that is not a chart's. Every other kind is aimed per chart as before.
+
+**Rail:** `agentMultiStep.test.jsx`, "(3)(4) "open my Swing layout, then make it weekly": both steps run …". It checks:
+the active layout is Swing, its chart is W, there is no "board changed" and no "stopped at", Undo returns to
+`{active: Main, widgets: [c0]}` with Swing's chart back to daily, and 0 turns.
+
+**Verified (SIMULATED):** the targeted integration folders, 5348 passed, 1 skipped; layout / compound / workspace / fast-path /
+NLM-1 suites, 73/73. AUDIT's own probe for this is AUDIT's.
 
 ## (4) New tests that FAIL on a wrong drawingBoard mapping
 

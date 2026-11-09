@@ -4,15 +4,17 @@ Branch `agent/pl/r8-drawings` (local, not pushed). The new capability is in 6651
 LOCAL native Windows Node v24, jsdom, BROWSER-MOCK-MODEL / SIMULATED (scripted model). The Lead approved a new capability on three conditions:
 the byte growth is small, it is stated, and AUDIT reviews it. This packet covers those three points.
 
-## 1. Manifest growth: +803 bytes
+## 1. Manifest growth: +1,243 bytes (was +803 before AUDIT (a))
 
 - New: ONE capability, `drawingBoard.set` {op: switch | create | rename | delete, board, name}, on the kind `drawingBoards`.
   The four board actions share one entry; four separate entries would have grown the manifest about four times as much.
-- Compact manifest (what the model is sent): **+803 bytes**. The new entry is 802 bytes, and 1 byte is the joining comma.
+- Compact manifest (what the model is sent): **+1,243 bytes** (154,341 to 155,584). As first built it was +803 (one 802-byte entry).
+  AUDIT (a) split delete into its own guarded action (48e0eabce1): `drawingBoard.set` is now 732 bytes and
+  `drawingBoard.delete` 509, plus the joining commas.
 - `contract/manifest.golden.json` (pretty-printed): 195,543 to 196,639 bytes (+1,096).
 - The model sees this entry only when the drawings route group is selected. The group's domains gain `drawingBoard` in
   `routing.js`. A request routed elsewhere does not carry it.
-- What to check: is the summary/hints text (about 400 of the 802 bytes) as short as it can be? Is one op-enum capability the
+- What to check: is the summary/hints text (about 400 of drawingBoard.set's 732 bytes) as short as it can be? Is one op-enum capability the
   right shape, compared with a separate entry per op?
 
 ## 2. Context gating: ordinary requests are byte-identical

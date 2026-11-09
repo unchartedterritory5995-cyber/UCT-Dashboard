@@ -60,14 +60,14 @@ When the Agent asks "which chart?", an answer like "2", "the bottom one" or "the
   - `tests/test_uct_agent_contract.py` and the capability-regression baseline lock: they now list the new action.
 - **Tests:** 27 new or updated test files. Held-out phrasings were committed before each change.
 - **Fixtures:** the manifest golden, the NL-1 parity fixture and the capability-regression contract / coverage, re-pinned.
-- **Manifest size:** the manifest sent to the model grows by **803 bytes** (154,341 to 155,144 compact), all of it from the one new action `drawingBoard.set`. Everything else adds no manifest bytes. The Drawing Boards context is only sent when boards come up, so ordinary requests are unchanged.
+- **Manifest size:** the manifest sent to the model grows by **1,243 bytes** (154,341 to 155,584 compact), all of it from the two new Drawing Board actions: `drawingBoard.set` (switch / create / rename, 732 bytes) and `drawingBoard.delete` (509 bytes; its own action so the server always asks first). Everything else adds no manifest bytes. The Drawing Boards context is only sent when boards come up, so ordinary requests are unchanged.
 
 ## Verification
 - **Development (local, scripted model):**
   - Full Agent suite on the integrated branch at 1368c64e8b: **9665 passed, 0 failed, 6 skipped**.
   - Targeted folders were run after each of the six merges, with 0 failures each time.
   - The held-out sets pass.
-  - ship-4's server change went through AUDIT rounds 1–2. The rest of this PR, including the 803-byte manifest growth (`AUDIT-r8-drawings.md`), is for AUDIT to review at this head.
+  - ship-4's server change went through AUDIT rounds 1–2. The rest of this PR, including the 1,243-byte manifest growth (`AUDIT-r8-drawings.md`), is for AUDIT to review at this head.
 - **pytest** (the Options Flow gate, the breadth_current changes, the v2 cost rail, the NL-1 parity fixture reader) runs in Agent CI on this branch. It was not run locally.
 - **Production: not yet verified.** It will be checked after merge (gate, promotion, web deploy, health).
 

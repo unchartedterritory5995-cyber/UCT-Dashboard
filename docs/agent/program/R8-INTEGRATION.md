@@ -55,8 +55,8 @@ length is 152 (`agentScreener.test.jsx`). Both moved only by drawingBoard.set.
 
 ## Combined manifest byte growth
 
-The compact manifest the model is sent grows by **+803 bytes** (154,341 to 155,144), all of it from r8-drawings' one new
-capability `drawingBoard.set`. The golden file (LF) grows from 195,835 to 196,931 bytes (+1,096 pretty-printed). Every other
+The compact manifest the model is sent grows by **+1,243 bytes** (154,341 to 155,584; +803 before AUDIT (a) split off `drawingBoard.delete`, 48e0eabce1), all of it from r8-drawings' two Drawing Board
+actions, `drawingBoard.set` and `drawingBoard.delete`. (At the first integration it was one action: golden file, LF, 195,835 to 196,931 bytes.) Every other
 branch is byte-neutral on the manifest:
 
 - r8-multistep, r8-scanner-filter, r8-indicator-style, r8-errors: no manifest change;
