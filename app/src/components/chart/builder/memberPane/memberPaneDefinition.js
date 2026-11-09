@@ -34,6 +34,7 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
@@ -1853,7 +1854,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // lane cannot prove that of a whole script, so a FALLBACK document computes
     // only on a series that starts at the listing (`runtimeColumns.js`), and is
     // refused by name on any other. The routed case keeps its measured behaviour.
-    ...(routed ? {} : { runtimeHistory: 'listing' }),
+    // ⭐⭐ W9-T11 — A STRATEGY (its program holds a broker, possible only with the broker gate
+    // on) is stamped instead with the window rule (design 3.4): its run takes the most recent
+    // `ctx.historyWindowBars` bars and never R-W's curtain. Every other document is as before.
+    ...(probe.broker === true ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed ? {} : { runtimeHistory: 'listing' }),
     // ⭐⭐ P1 HARDENING — which front end / IR built this document, and what each
     // `compute.outputs` index named when it did (`runtimeColumns.js::runtimeVersionStamp`).
     // Every run re-checks them, so a later engine that orders outputs differently

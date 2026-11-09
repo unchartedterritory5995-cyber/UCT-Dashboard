@@ -5,6 +5,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
+import { getCapability } from './capabilities'
+import { itemsFromTurns } from './present'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -106,6 +108,46 @@ describe('a save as the last step of a plan', () => {
     expect(tfOf(board)).toBe('W')
     expect(transcript()).toMatch(/not this part: You already have a layout named/)
     expect(names(board)).toEqual(['Main'])
+  }, 30000)
+  // a dropped step is an outcome of its own: it reaches the conversation, ahead of the rest, and comes back on a reload
+  const rows = () => p.st.calls.filter(c => c[1] === '/api/agent/record').map(c => c[2])
+  it('the dropped step is recorded as its own row, first; the rest still records as applied', async () => {
+    const { say, click } = open()
+    p.st.envelopes.push(p.env('propose', [weekly, saveAs('Main')]))
+    await say('make this chart weekly and save this layout as Main')
+    if (pendingCards().length) await click('Apply')
+    const kinds = rows().map(r => r.outcomeData?.kind)
+    expect(kinds[0]).toBe('partial')
+    expect(kinds).toContain('applied')
+    expect(rows()[0]).toMatchObject({ outcomeData: { kind: 'partial', actions: ['layout.saveAs'] }, telemetry: { refused: true, actions: ['layout.saveAs'] } })
+    expect(rows()[0].outcome).toMatch(/not this part: You already have a layout named/)
+    expect(itemsFromTurns([{ id: 1, role: 'outcome', text: rows()[0].outcome, data: rows()[0].outcomeData }])[0]).toMatchObject({ role: 'agent', text: rows()[0].outcome })
+  }, 30000)
+  it('a fast-path request keeps one member row: the dropped step carries it, the rest does not repeat it', async () => {
+    const { say } = open()
+    p.st.envelopes.push(p.env('apply', [weekly, saveAs('Main')]))
+    await say('make this chart weekly and save this layout as Main')
+    expect(rows().filter(r => r.member).length).toBeLessThanOrEqual(1)
+  }, 30000)
+  it('a check that THROWS drops that step, in words and on the record; the rest of the request runs', async () => {
+    const real = getCapability('layout.saveAs').check
+    const spy = vi.spyOn(getCapability('layout.saveAs'), 'check').mockImplementation(() => { throw new Error('boom') })
+    const { say, board } = open()
+    p.st.envelopes.push(p.env('propose', [weekly, saveAs('Swing 2')]))
+    await say('make this chart weekly and save this layout as Swing 2')
+    spy.mockRestore()
+    expect(getCapability('layout.saveAs').check).toBe(real)
+    expect(tfOf(board)).toBe('W')
+    expect(transcript()).toMatch(/not this part: I could not check that step/)
+    expect(rows().map(r => r.outcomeData?.kind)).toContain('partial')
+    expect(names(board)).toEqual(['Main'])
+  }, 30000)
+  it('NEGATIVE: a step that can run records no partial row', async () => {
+    const { say, click } = open()
+    p.st.envelopes.push(p.env('propose', [weekly, saveAs('Swing 2')]))
+    await say('make this chart weekly and save this layout as Swing 2')
+    await click('Apply')
+    expect(rows().map(r => r.outcomeData?.kind)).not.toContain('partial')
   }, 30000)
   it('opening a layout and saving stays refused: the rest is itself exclusive', async () => {
     const { say, board } = open({ entries: [{ id: 1, name: 'Main', kind: 'yours', scope: 'user' }, { id: 2, name: 'Other', kind: 'yours', scope: 'user' }] })

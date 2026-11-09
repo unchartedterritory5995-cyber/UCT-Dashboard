@@ -27,7 +27,10 @@ describe('Last value horizontal', () => {
       const p = presentedPlot(plot, as(style))
       expect(p.levelOnly, style).toBeUndefined()
       const o = seriesOptionsForPlot(p, {})
-      if (o && 'lineVisible' in o) expect(o.lineVisible, style).toBe(true)
+      // A DOT plot has no line to show (2026-11-06, `pool.seriesOptionsForPlot`): its
+      // ink is the point markers, and the zero-width line — which the canvas would
+      // otherwise stroke at its previous width — is hidden outright.
+      if (o && 'lineVisible' in o) expect(o.lineVisible, style).toBe(style !== 'dots')
     }
   })
 

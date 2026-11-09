@@ -103,3 +103,35 @@ describe('dev paraphrase floor (tuning set)', () => {
     expect(packed / n).toBeGreaterThanOrEqual(0.97)
   })
 })
+// autotest follow-up: "when did nh/nl last go negative" got Undo offered, and counted as recognised, on the word "last". The
+// undo group's index is its own description, so only its words and vocabulary may name it.
+describe('undo rides on its own words, never on the words of its description', () => {
+  const m = manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const sel = (q, o = {}) => selectGroupsV2(q, { manifest: m, ...o })
+  it.each(['when did nh/nl last go negative', 'when did the market last go up', 'what was the last price', 'last earnings date for NVDA', 'last time new lows outnumbered new highs on nasdaq',
+    'show the last change in breadth', 'when was the last change in nh/nl', 'what changed last', 'MSFT performance over the last 20 days', "what was NVDA's EPS last quarter",
+    'rename my Momentum layout to Momentum Trades', 'move the macd pane above the rsi pane', 'what was your last change',
+    'back out of this layout', 'walk back through the last 5 days', 'what you just changed, explain it', 'what you just added to the chart, show me its settings'])('no signal: %s', (q) => {
+    const s = sel(q)
+    expect(s.undoSignal).toBe(false)
+    expect(s.priority || []).not.toContain('undo')
+    expect(s.scores.undo).toBeUndefined()
+  })
+  it.each(['undo', 'undo that', 'undo the last change', 'undo my last change', 'revert your last change', 'undo everything you just did', 'take that back', 'reverse that',
+    'put it back how it was', 'go back to how it was', 'oops', 'whoops', 'my bad, go back to before', 'ctrl z', 'nah that is wrong, put it the way it was', 'that was wrong, change it back',
+    'your last change was wrong', 'not what i wanted', 'back out the last change', 'back that out', 'walk that back', 'walk back the last change', 'change it back', 'remove what you just added'])('signal, offered and recognised: %s', (q) => {
+    const s = sel(q)
+    expect(s.undoSignal).toBe(true)
+    expect(s.matched).toBe(true)
+    expect(s.priority).toContain('undo')
+    expect(routedNames(q, { v2: true }).names).toContain('agent.undo')
+  })
+  it('a typo of an undo word still counts through its correction; "last" through a correction does not', () => {
+    expect(sel('undoo that', { correct }).undoSignal).toBe(true)
+    expect(sel('whne did nh/nl last go negative', { correct }).undoSignal).toBe(false)
+  })
+  it('a recognised question is not sent Undo; one nothing recognises still gets the fallback fill, undo included, exactly as v1', () => {
+    expect(routedNames('last earnings date for NVDA', { v2: true }).names).not.toContain('agent.undo')
+    expect(routedNames('when did nh/nl last go negative', { v2: true }).names).toContain('breadth.history')
+  })
+})

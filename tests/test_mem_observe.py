@@ -1,7 +1,11 @@
 """mem_observe: the watch-only memory observer must measure correctly and never change or break anything."""
 from __future__ import annotations
 
+import os
+import pathlib
+import shutil
 import sys
+import tempfile
 import threading
 import time
 import types
@@ -119,6 +123,77 @@ def test_the_ws_quiet_counter_sits_only_on_an_existing_history():
 linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="mincore and /proc are Linux-only")
 
 
+# ⛔ POSIX_FADV_DONTNEED cannot evict pages that live in memory-backed or stacked filesystems
+# (tmpfs, ramfs, overlay). GitHub runner image ubuntu26/20261101.64 keeps the pages after
+# fsync + DONTNEED (gates 42403103754 and 42404906058 read 8388608 three times), while
+# .186 evicts them (8 of 8 green). So the eviction tests run in a directory the KERNEL can
+# drop, chosen by an oracle independent of mem_observe: the filesystem type in
+# /proc/self/mountinfo. On a disk-backed filesystem the assertions are unchanged.
+NON_DROPPABLE_FS = {"tmpfs", "ramfs", "overlay"}
+
+
+def _fs_type_from_mountinfo(text, path):
+    """Filesystem type of the longest mount point containing `path` (mountinfo format)."""
+    best, fstype = "", None
+    for line in text.splitlines():
+        parts = line.split(" - ", 1)
+        if len(parts) != 2:
+            continue
+        left, right = parts[0].split(), parts[1].split()
+        if len(left) < 5 or not right:
+            continue
+        mnt = left[4].replace(chr(92) + "040", " ")  # mountinfo escapes a space as backslash-040
+        inside = path == mnt or path.startswith(mnt.rstrip("/") + "/")
+        if inside and len(mnt) >= len(best):
+            best, fstype = mnt, right[0]
+    return fstype
+
+
+def _fs_type(path):
+    with open("/proc/self/mountinfo", encoding="utf-8") as fh:
+        return _fs_type_from_mountinfo(fh.read(), os.path.realpath(path))
+
+
+@pytest.fixture
+def droppable_dir(tmp_path):
+    """A fresh writable directory on a filesystem whose page cache the kernel can drop."""
+    seen = []
+    for cand in (str(tmp_path), os.environ.get("RUNNER_TEMP"), os.environ.get("GITHUB_WORKSPACE"),
+                 os.getcwd(), "/var/tmp"):
+        if not cand or not os.path.isdir(cand):
+            continue
+        fs = _fs_type(cand)
+        seen.append(f"{cand}={fs}")
+        if not fs or fs in NON_DROPPABLE_FS:
+            continue
+        try:
+            d = tempfile.mkdtemp(prefix="memobs-", dir=cand)
+        except OSError:
+            continue
+        try:
+            yield pathlib.Path(d)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        return
+    pytest.skip("no writable disk-backed directory; page-cache eviction is not testable here: " + ", ".join(seen))
+
+
+def test_file_cache_fs_type_reader_reads_mountinfo():
+    """The skip oracle itself: longest mount wins, and a name prefix is not a path prefix."""
+    text = "\n".join([
+        "22 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw",
+        "35 22 0:30 / /tmp rw,nosuid,nodev shared:2 - tmpfs tmpfs rw",
+        "40 22 0:31 / /home/runner/work rw,relatime - overlay overlay rw,lowerdir=/a",
+        "41 22 0:9 / /mnt/my" + chr(92) + "040dir rw - xfs /dev/x rw",
+    ])
+    assert _fs_type_from_mountinfo(text, "/tmp/pytest-of-runner/x") == "tmpfs"
+    assert _fs_type_from_mountinfo(text, "/home/runner/a") == "ext4"
+    assert _fs_type_from_mountinfo(text, "/home/runner/work/repo") == "overlay"
+    assert _fs_type_from_mountinfo(text, "/tmpfoo/x") == "ext4"
+    assert _fs_type_from_mountinfo("", "/x") is None
+    assert _fs_type_from_mountinfo(text, "/mnt/my dir/f") == "xfs"   # mountinfo escapes a space
+
+
 def _drop(path):
     import os
     fd = os.open(path, os.O_RDONLY)
@@ -129,24 +204,85 @@ def _drop(path):
         os.close(fd)
 
 
+_SYS_CACHESTAT = 451   # cachestat(2), Linux >= 6.5; 451 in the unified table (x86_64 and arm64 alike)
+
+
+def _kernel_cached_bytes(path):
+    """Bytes of `path` in the page cache per cachestat(2): the KERNEL'S own count, independent of
+    mem_observe (no mmap, no mincore). None when the syscall is absent."""
+    import ctypes
+    import mmap as _mm
+
+    class _Range(ctypes.Structure):
+        _fields_ = [("off", ctypes.c_uint64), ("len", ctypes.c_uint64)]
+
+    class _Stat(ctypes.Structure):
+        _fields_ = [(n, ctypes.c_uint64) for n in
+                    ("nr_cache", "nr_dirty", "nr_writeback", "nr_evicted", "nr_recently_evicted")]
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.syscall.restype = ctypes.c_long
+    rng, st = _Range(0, 0), _Stat()          # len 0 = to end of file
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        if libc.syscall(ctypes.c_long(_SYS_CACHESTAT), ctypes.c_uint(fd), ctypes.byref(rng),
+                        ctypes.byref(st), ctypes.c_uint(0)) != 0:
+            return None
+    finally:
+        os.close(fd)
+    return st.nr_cache * _mm.PAGESIZE
+
+
+def _measure_between_oracles(path, size):
+    """(kernel_before, mem_observe, kernel_after). Nobody else touches this fresh file, so its residency can
+    only FALL (reclaim) unless the probe itself faults pages in. A correct probe therefore reads
+    before >= probe >= after, and after <= before."""
+    before = _kernel_cached_bytes(path)
+    got = mem_observe._resident_bytes(path, size)
+    after = _kernel_cached_bytes(path)
+    return before, got, after
+
+
+# ⛔ 2026-11-07: POSIX_FADV_DONTNEED is ADVICE. On runner image ubuntu26/20261101.64 (never on .186) the
+# kernel kept every page after fsync + DONTNEED and the old test read (8388608, 8388608, 8388608), failing
+# the master gate 4 times (42353089775/1, 42355528677/1, 42403103754, 42404906058). Whether eviction
+# happened is now asked of the KERNEL (cachestat), not assumed: the probe is checked against the kernel's
+# count in both states, and the "dropped" half is skipped, with the kernel's numbers, only when the kernel
+# provably declined to drop. A probe that reports pages the kernel does not hold (mincore's
+# "everything resident" fallback, a fault-in) still FAILS.
 @linux_only
-def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(tmp_path):
-    f = tmp_path / "hot.bin"
+def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(droppable_dir):
+    f = droppable_dir / "hot.bin"
     f.write_bytes(b"x" * (8 << 20))
     f.read_bytes()
     size = f.stat().st_size
-    hot = mem_observe._resident_bytes(str(f), size)
-    assert hot is not None and 0 < hot <= size
-    _drop(str(f))
-    cold1 = mem_observe._resident_bytes(str(f), size)
-    cold2 = mem_observe._resident_bytes(str(f), size)
-    # measuring must not fault the file in: a second measurement of a dropped file is still (near) empty
-    assert cold1 < size // 4 and cold2 < size // 4, (hot, cold1, cold2)
+    path = str(f)
+    if _kernel_cached_bytes(path) is None:
+        pytest.skip("cachestat(2) unavailable (Linux < 6.5): no kernel oracle to tell eviction from a probe bug")
+
+    k0, hot, k1 = _measure_between_oracles(path, size)
+    assert hot is not None and 0 < hot <= size, (k0, hot, k1)
+    assert k0 >= hot >= k1, ("hot: probe disagrees with the kernel's page-cache count", k0, hot, k1)
+
+    _drop(path)
+    dropped = _kernel_cached_bytes(path)
+    if dropped >= size // 4:
+        pytest.skip(f"kernel kept {dropped} of {size} bytes cached after fsync + POSIX_FADV_DONTNEED "
+                    f"(cachestat); the cold half is untestable on this host. Hot half passed: {(k0, hot, k1)}")
+
+    c0, cold1, c1 = _measure_between_oracles(path, size)
+    _, cold2, c2 = _measure_between_oracles(path, size)
+    detail = {"hot": (k0, hot, k1), "dropped": dropped, "cold1": (c0, cold1, c1), "cold2": cold2, "kernel_end": c2}
+    # the probe reports what the kernel holds, not more (mincore's all-resident fallback would read `size`)
+    assert c0 >= cold1 >= c1, ("cold: probe disagrees with the kernel's page-cache count", detail)
+    # measuring must not fault the file in: the kernel's own count did not rise across two measurements
+    assert c2 <= c0 <= dropped, ("measuring faulted pages in", detail)
+    assert cold1 < size // 4 and cold2 < size // 4, detail
 
 
 @linux_only
-def test_file_cache_reports_top_files_and_deleted_open_files(tmp_path):
-    import os
+def test_file_cache_reports_top_files_and_deleted_open_files(droppable_dir):
+    tmp_path = droppable_dir
     big = tmp_path / "big.db"
     big.write_bytes(b"y" * (4 << 20))
     big.read_bytes()

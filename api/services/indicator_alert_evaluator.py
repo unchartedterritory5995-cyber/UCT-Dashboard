@@ -102,6 +102,14 @@ from api.services.alert_conditions import (  # noqa: F401  (re-exported)
 from api.services import alert_series
 from api.services.bars_window import HISTORY_WINDOW_BARS
 
+# ⭐ 2026-11-06 (RS 2b-05) — THE RS LANE, IMPORTED AT MODULE LEVEL FOR THE SAME
+# REASON `alert_series` IS: `register_rs_series()` is called below BEFORE the
+# partitions and `_CANONICAL_ADDRESS` are derived from `SERIES_FUNCS`, so the
+# eleven `rs_line.*` addresses exist by the time anything enumerates. No cycle:
+# `alert_rs_series` imports `relative_strength`, `rs_benchmarks` and
+# `signature.registry_defs`, none of which import this module.
+from api.services import alert_rs_series
+
 # D2 CP3 — the timeframe label table lives in ONE place: the address book's
 # `axes.timeframe.code_to_label`, sourced from `signature/ledger.py`. Module
 # level, not lazy: `indicator_condition.py` imports `alert_conditions`,
@@ -390,6 +398,22 @@ PRICE_ADDRESSES: tuple[str, ...] = ("close",)
 # `sar` and `close` gave — a key in `INDICATOR_FUNCS` would move the frozen
 # replay grid (`tools/alert_replay.py::build_alert_grid` iterates it in order).
 CROSS_ADDRESSES: tuple[str, ...] = ("ma_cross",)
+# ⭐ 2026-11-06 (RS 2b-05) — THE RS PARTITION: the UCT Relative Strength
+# addresses (`alert_rs_series.RS_SERIES`, base `rs_line`), a TWO-SYMBOL column
+# (`fn.reads_benchmark`) judged on closed daily / weekly bars only. A fifth
+# partition and NOT a member of `EVENT_ADDRESSES`: a rail pins that tuple's
+# base set to `{sar}` (`test_sar_has_no_fixed_threshold_address_and_says_why`),
+# and — the measured reason, a fourth time — a key in `INDICATOR_FUNCS` would
+# move the frozen replay grid (`tools/alert_replay.py::build_alert_grid`).
+#
+# ⛔ REGISTERED HERE, ONCE, BEFORE ANYTHING BELOW IS DERIVED. `alert_series.
+# SERIES_FUNCS` does not carry the RS entries at ITS import (its own comment
+# says why: an entry without its `ALERT_CONDITIONS` row is a `KeyError` on the
+# live catalog). This is the one call that appends them — LAST, idempotently —
+# and it has to precede `_ALL_VALUE_FUNCS`, the partitions and
+# `_CANONICAL_ADDRESS`, every one of which is a snapshot of that table's keys.
+RS_ADDRESSES: tuple[str, ...] = alert_rs_series.RS_ADDRESSES
+alert_rs_series.register_rs_series()
 
 _ALL_VALUE_FUNCS: AddressFuncs = {
     address: _value_of(address) for address in alert_series.SERIES_FUNCS
@@ -405,6 +429,7 @@ INDICATOR_FUNCS: AddressFuncs = {
     address: fn for address, fn in _ALL_VALUE_FUNCS.items()
     if address not in EVENT_ADDRESSES and address not in PRICE_ADDRESSES
     and address not in CROSS_ADDRESSES
+    and address not in RS_ADDRESSES   # 2026-11-06 (RS 2b-05): the 28-wide grid is untouched
 }
 
 # ─── PHASE C TASK 3: EVENT ADDRESSES — A COLUMN THAT IS NOT A LEVEL ──────────
@@ -437,13 +462,44 @@ PRICE_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in PRICE_ADDRESSES}
 # COMPLETED candles only. See `docs/alerts/MA-CROSS-DESIGN.md`.
 CROSS_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in CROSS_ADDRESSES}
 
+# ─── 2026-11-06 (RS 2b-05): THE RS PARTITION — `rs_line.*` ───────────────────
+#
+# Twelve addresses: the line and its average (LEVELS on a ratio scale), the
+# above-average STATE, five EVENT columns ({0, 1, None}) and the Mansfield RS
+# percent with its two signed zero crosses — `alert_rs_series.RS_ADDRESS_SPECS`,
+# engineering map §2.6 — and (2026-11-07, RS 2b-06) the IBD-style RS RATING
+# (1–99, an integer level read from the web pod's nightly `rs_rating_history`
+# side table, daily only). The value functions are the same `_last_non_none`
+# composition every other partition gets, and for an RS column that composition
+# answers `None` BY CONSTRUCTION: called without a timeframe and a symbol (the
+# forming lane's `_value_of`, a right-hand operand's `series_for`) the column is
+# `[None] * len(bars)`. An RS alert is judged on the CLOSED lane and nowhere
+# else — `CLOSED_ONLY_ADDRESSES` below — where `call_series` passes both.
+RS_FUNCS: AddressFuncs = {a: _ALL_VALUE_FUNCS[a] for a in RS_ADDRESSES}
+
 # ⛔ ADDRESSES THAT ARE JUDGED ON THE CLOSED BAR WHATEVER `eval_mode()` SAYS.
 # The rollback lever (`ALERT_EVAL_MODE=forming`) moves every legacy address back
 # to the forming lane, which is what a rollback means for them. An MA-cross alert
 # was BORN with completed-candle confirmation (`confirm: "close"`) and has no
 # forming-lane history to roll back to, so pulling the lever must never make one
 # fire intrabar. `_lane_for` is the one reader.
-CLOSED_ONLY_ADDRESSES: frozenset = frozenset(CROSS_ADDRESSES)
+# ⭐ 2026-11-06 (RS 2b-05) — AND EVERY RS ADDRESS, DERIVED FROM THE COLUMN'S OWN
+# DECLARATION rather than listed: a `reads_benchmark` column answers no value
+# without the timeframe and symbol only the closed lane passes (`call_series`),
+# so there is no forming-lane history for the rollback lever to return it to.
+# 2026-11-07 (RS 2b-06): the derivation is UNCHANGED and still honest for the
+# rating, because `reads_benchmark` is the name `alert_user_series.call_series`
+# gives the (tf, sym) CALL SHAPE — the one thing that decides whether the
+# forming lane can value a column — and not a claim about a second series. The
+# rating reads a side table, not a benchmark (`fn.reads_rating`), but it needs
+# the symbol to name its row, so it declares the shape and lands here by the
+# same rule. A derivation on `fn.timeframes` was considered and rejected: a
+# column may well declare the timeframes it is offered on and still value on
+# the forming lane, so that attribute does not say what this set means.
+CLOSED_ONLY_ADDRESSES: frozenset = frozenset(CROSS_ADDRESSES) | frozenset(
+    address for address in RS_ADDRESSES
+    if getattr(alert_series.SERIES_FUNCS[address], "reads_benchmark", False)
+)
 
 # The vocabularies, named. Read by `alert_catalog`, by `_evaluate_one`, and by
 # `test_sar_has_no_fixed_threshold_address_and_says_why` — which asserts
@@ -459,6 +515,7 @@ THRESHOLD_ADDRESSES: tuple[str, ...] = tuple(INDICATOR_FUNCS)
 # again, so there is now one list and the rails iterate IT.
 ADDRESS_PARTITIONS: tuple[AddressFuncs, ...] = (
     INDICATOR_FUNCS, EVENT_FUNCS, PRICE_FUNCS, CROSS_FUNCS,
+    RS_FUNCS,                      # 2026-11-06 (RS 2b-05): the fifth, appended
 )
 
 # ─── PHASE D TASK 12: THE FOURTH PARTITION, AND WHY IT IS NOT ABOVE ──────────
@@ -488,6 +545,45 @@ ADDRESS_PARTITIONS: tuple[AddressFuncs, ...] = (
 def all_addresses() -> list[str]:
     """Every alertable address, in catalog order. THE one enumeration."""
     return [a for partition in ADDRESS_PARTITIONS for a in partition]
+
+
+# ─── 2026-11-07 (RS fix U1, review #2): THE RS ADDRESSES ARE OFFERED ONLY LIT ──
+#
+# Registration above stays UNCONDITIONAL — a stored row must still resolve,
+# evaluate and diagnose whatever the flags say — but OFFERING an RS alert (the
+# catalog the dropdown reads, the create door's `refusal_for`) follows the flag
+# that lights the RS line it describes: `registry_defs.RS_V2_ENABLED`. The
+# rating additionally needs the nightly job that fills its table,
+# `api.main.rs_history_enabled()`; without it the column is None on every bar
+# and an armed rating alert could never fire. Both are READ here, never set,
+# and read per call (a monkeypatched flag in a test, a flipped env on the pod).
+
+def rs_alerts_offered() -> bool:
+    """`RS_V2_ENABLED`, read off `registry_defs` at call time."""
+    from api.services.signature import registry_defs
+    return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+
+
+def rs_rating_offered() -> bool:
+    """The rating's gate: RS alerts offered AND `RS_HISTORY_ENABLED` (its one
+    reader, `api.main.rs_history_enabled`, imported lazily). Any failure to read
+    it is "not offered" — dark is the safe answer."""
+    if not rs_alerts_offered():
+        return False
+    try:
+        from api.main import rs_history_enabled
+        return bool(rs_history_enabled())
+    except Exception:  # noqa: BLE001 - an unreadable switch is an off switch
+        return False
+
+
+def rs_address_offered(address: Optional[str]) -> bool:
+    """True for every non-RS address; for an RS address, whether its flag(s) are lit."""
+    if address not in RS_ADDRESSES:
+        return True
+    if address == alert_rs_series.RS_RATING_ADDRESS:
+        return rs_rating_offered()
+    return rs_alerts_offered()
 
 
 def value_function(address: str) -> Optional[ValueFn]:
@@ -558,6 +654,23 @@ THRESHOLD_OPERAND: dict[tuple[str, str], dict] = {
     # keeps its verbatim branches (`prev <= 0 < cur` / `prev >= 0 > cur`).
     ("ma_cross", "cross_above"): {"kind": "const", "value": 0.0},
     ("ma_cross", "cross_below"): {"kind": "const", "value": 0.0},
+    # 2026-11-06 (RS 2b-05) — the five RS EVENT columns, the above-average STATE
+    # and the two signed Mansfield crosses are {0, 1, None}; 0.5 is the decoder,
+    # declared exactly as `sar`'s is, so `check_condition` keeps its verbatim
+    # branches and the member types no level.
+    ("rs_line.above", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.crossUp", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.crossDown", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.newHigh", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.newHighBeforePrice", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.newHighRed", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.mansfieldCrossUp", "above"): {"kind": "const", "value": 0.5},
+    ("rs_line.mansfieldCrossDown", "above"): {"kind": "const", "value": 0.5},
+    # Mansfield RS is a percent whose zero is where the RS line sits exactly on
+    # its own long average, so "above zero" / "below zero" are declared STATES
+    # beside the unsigned `cross_zero` rule (which needs no operand at all).
+    ("rs_line.mansfield", "above"): {"kind": "const", "value": 0.0},
+    ("rs_line.mansfield", "below"): {"kind": "const", "value": 0.0},
 }
 
 
@@ -789,6 +902,67 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
         {"value": "cross_above", "label": "Fast MA crosses above slow MA", "needs_threshold": False},
         {"value": "cross_below", "label": "Fast MA crosses below slow MA", "needs_threshold": False},
     ],
+    # ── 2026-11-06 (RS 2b-05): the UCT Relative Strength addresses ──────────
+    # Plan §6.5, engineering map §2.6. Every RS alert is judged on CLOSED daily
+    # or weekly bars (`CLOSED_ONLY_ADDRESSES`); an intraday or monthly create is
+    # refused at the door with the lane's own sentence
+    # (`indicator_alert_service.refusal_for` → `alert_rs_series.timeframe_refusal`).
+    #
+    # The line and its average are LEVELS on a ratio scale (close ÷ benchmark
+    # close; 6 dp on the wire, 4 in the chip): the four level rules, the member
+    # types the ratio, no default (it is symbol-specific, like a price). "RS
+    # line crossed its average" is deliberately NOT offered as a line-vs-line
+    # OPERAND row (`{"kind": "address", "address": "rs_line.ma"}`): the closed
+    # lane's right-hand resolver (`_closed_address_value` → `series_for`, no
+    # timeframe, no symbol) cannot value a benchmark-reading column, so the row
+    # would be an offer that never fires — the `vwap` class, re-opened. The
+    # relation is offered where it CAN fire: the `crossUp` / `crossDown` events.
+    "rs_line.value": _OSCILLATOR_CONDITIONS,
+    "rs_line.ma": _OSCILLATOR_CONDITIONS,
+    # ONE rule each, `above` against the declared 0.5, as the `sar` events are.
+    # `above` on a {0, 1} column is a LEVEL key (`alert_fired_log`): consecutive
+    # event bars notify ONCE and re-arm on the first 0 bar — "RS line made a new
+    # high" fires at the start of a run of new highs, not on every bar of it.
+    "rs_line.above": [
+        {"value": "above", "label": "RS line is above its average", "needs_threshold": False},
+    ],
+    "rs_line.crossUp": [
+        {"value": "above", "label": "RS line crossed above its average this bar", "needs_threshold": False},
+    ],
+    "rs_line.crossDown": [
+        {"value": "above", "label": "RS line crossed below its average this bar", "needs_threshold": False},
+    ],
+    "rs_line.newHigh": [
+        {"value": "above", "label": "RS line made a new high this bar", "needs_threshold": False},
+    ],
+    "rs_line.newHighBeforePrice": [
+        {"value": "above", "label": "RS line made a new high before price this bar", "needs_threshold": False},
+    ],
+    "rs_line.newHighRed": [
+        {"value": "above", "label": "RS line made a new high on a red benchmark day", "needs_threshold": False},
+    ],
+    # Mansfield RS (percent above / below the RS line's own long average): the
+    # unsigned zero cross the line itself expresses, and the two declared
+    # zero-anchored STATES; the signed crosses are the two EVENT addresses.
+    "rs_line.mansfield": [
+        {"value": "cross_zero", "label": "Mansfield RS crossed zero", "needs_threshold": False},
+        {"value": "above", "label": "Mansfield RS is above zero", "needs_threshold": False},
+        {"value": "below", "label": "Mansfield RS is below zero", "needs_threshold": False},
+    ],
+    "rs_line.mansfieldCrossUp": [
+        {"value": "above", "label": "Mansfield RS crossed above zero this bar", "needs_threshold": False},
+    ],
+    "rs_line.mansfieldCrossDown": [
+        {"value": "above", "label": "Mansfield RS crossed below zero this bar", "needs_threshold": False},
+    ],
+    # ── 2026-11-07 (RS 2b-06): the IBD-style RS rating ──────────────────────
+    # A 1–99 integer LEVEL (plan §10.2, map §5 item 8: ONE address with the
+    # four level rules and a default of 90; "crossed 80" is the member typing
+    # 80). Read per session from the nightly `rs_rating_history` side table
+    # (web pod), aligned to the closed DAILY bar by date; a weekly create is
+    # refused at the door with the lane's daily-only sentence
+    # (`alert_rs_series.timeframe_refusal`, per address since 2b-06).
+    "rs_line.rating": _OSCILLATOR_CONDITIONS,
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -835,6 +1009,21 @@ ALERT_LABELS: dict[str, str] = {
     "close": "Price (Close)",
     # ── 2026-11-04: the CROSS address ──
     "ma_cross": "MA Cross",
+    # ── 2026-11-06 (RS 2b-05): the UCT Relative Strength addresses ──
+    "rs_line.value": "RS line",
+    "rs_line.ma": "RS line average",
+    "rs_line.above": "RS line above its average",
+    "rs_line.crossUp": "RS line crossed above its average",
+    "rs_line.crossDown": "RS line crossed below its average",
+    "rs_line.newHigh": "RS line made a new high",
+    "rs_line.newHighBeforePrice": "RS new high before price",
+    "rs_line.newHighRed": "RS new high on a red benchmark day",
+    "rs_line.mansfield": "Mansfield RS",
+    "rs_line.mansfieldCrossUp": "Mansfield RS crossed above zero",
+    "rs_line.mansfieldCrossDown": "Mansfield RS crossed below zero",
+    # 2026-11-07 (RS 2b-06). The notification reads "<sym> RS rating (IBD-style)
+    # cross above 90 — 91" through `_dispatch_delivery`'s one sentence.
+    "rs_line.rating": "RS rating (IBD-style)",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -849,6 +1038,8 @@ ALERT_BASE_LABELS: dict[str, str] = {
     # whole refusal: the base names no level you could threshold, only the two
     # events under it.
     "sar": "Parabolic SAR",
+    # 2026-11-06 (RS 2b-05): the chart definition's own `meta.name` (`rsLine`).
+    "rs_line": "UCT Relative Strength",
 }
 
 _DEFAULT_THRESHOLDS: dict[str, float] = {
@@ -863,6 +1054,10 @@ _DEFAULT_THRESHOLDS: dict[str, float] = {
     # meaningful default without knowing the symbol, and inventing one would put
     # a number in the box that is wrong for every ticker.
     "adx.adx": 25.0,
+    # 2026-11-07 (RS 2b-06): the IBD-style rating is a 1–99 percentile on one
+    # scale for every ticker, and 90 is the line the plan names (§10.2 "RS
+    # Rating crossed 90"); a member who wants 80 types 80.
+    "rs_line.rating": 90.0,
 }
 
 
@@ -932,7 +1127,20 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
     describe = getattr(alert_series.series_function(address), "describe", None)
     if callable(describe):
         try:
-            return describe(params or {})
+            described = describe(params or {})
+            # ⭐ 2026-11-06 (RS 2b-05) — an RS column's `describe` is the chip's
+            # SUFFIX ("vs SPY · EMA(21)", the grammar of the `UCT RS · SPY` chip),
+            # not a whole name the way `ma_cross`'s "EMA(9) vs EMA(20)" is. The
+            # popover row and the notification both print THIS string alone, so
+            # without the plot's label a member would read "SPY vs SPY · 252-bar
+            # above 0.50". Composed here, once, so the two surfaces stay one
+            # spelling (`test_the_notification_and_the_alert_ROW_name_the_
+            # instance_with_ONE_function`). 2026-11-07 (RS 2b-06): a knob-less
+            # RS column (`rs_line.rating`) describes itself as "" and prints
+            # its label alone — the `vwap` rule below, not "RS rating ()".
+            if address in RS_ADDRESSES:
+                return f"{base} ({described})" if described else base
+            return described
         except Exception:  # noqa: BLE001 - a label must never break a surface
             pass
     defaults = alert_series.address_inputs(address)
@@ -1062,7 +1270,13 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
     # dropdown opens on the same option it always did and every option they
     # already knew is where it was. `ADDRESS_PARTITIONS` is that order.
     groups: dict[str, list[str]] = {}
+    # 2026-11-07 (RS fix U1, review #2): an RS address joins the dropdown only
+    # while its flag is lit (`rs_address_offered`); with every flag at its
+    # default the catalog is the pre-RS one, byte for byte.
+    rs_offered = {a: rs_address_offered(a) for a in RS_ADDRESSES}
     for address in all_addresses():
+        if not rs_offered.get(address, True):
+            continue
         groups.setdefault(plot_base(address), []).append(address)
 
     entries = []
@@ -1742,8 +1956,22 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
     params = _parse_params(alert)
     try:
         from api.services import alert_user_series as _aus
-        series = _aus.call_series(series_fn, bars, params, tf=alert.get("tf"),
-                                  sym=alert.get("sym"))
+        if getattr(series_fn, "reads_benchmark", False):
+            # ⭐ 2026-11-07 (RS fix U1, review #10) — AN RS COLUMN IS COMPUTED ON
+            # THE CLOSED WINDOW. Every RS column is causal (a join by bar time,
+            # averages and rolling extremes over prior bars), so `bars[:i + 1]`
+            # gives the same numbers at `i` and `i - 1` as the full window — and,
+            # unlike the full window, its key does not move with the forming
+            # bar's close, so `alert_rs_series`' cross-cycle cache serves it from
+            # one cycle to the next instead of recomputing ~80 ms per symbol a
+            # minute. The forming bars after `i` are padded `None` (no RS value
+            # is ever judged there), so the column stays aligned to `bars`.
+            closed = _aus.call_series(series_fn, bars[:i + 1], params, tf=alert.get("tf"),
+                                      sym=alert.get("sym"))
+            series = list(closed) + [None] * (len(bars) - i - 1)
+        else:
+            series = _aus.call_series(series_fn, bars, params, tf=alert.get("tf"),
+                                      sym=alert.get("sym"))
         if len(series) != len(bars):
             # The identical assertion `alert_series.series_for` makes, kept HERE
             # because resolving the function up front is what lets one call site
@@ -1755,6 +1983,18 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
     except AssertionError:
         # A misaligned column is a BUG in a series function, not a quiet bar.
         raise
+    except alert_rs_series.RsTimeframeRefused as refused:
+        # ⭐ 2026-11-06 (RS 2b-05) — an RS row on a timeframe the lane is not
+        # offered on (written AROUND the door: an operator tool, a legacy row).
+        # A member's create is refused at the door (`refusal_for`); a stored row
+        # is a LOGGED refusal every cycle, as `alert_rs_series` promises — one
+        # line carrying the member sentence, not a traceback a minute. The
+        # silence sweep's `diagnose` carries the same sentence into
+        # `needs_attention`.
+        _logger.warning("[alert-eval] alert %s (%s/%s/%s) refused: %s",
+                        alert.get("id"), alert.get("sym"), address,
+                        alert.get("tf"), refused)
+        return None, False, i
     except Exception:
         _logger.exception(
             "[alert-eval] closed compute failed for alert %s (%s/%s/%s)",
@@ -2196,6 +2436,20 @@ ALERT_VALUE_DECIMALS: dict[str, int] = {
     "atr": 4,
     # A cumulative share count. Controller ruling, Task 2.
     "obv": 0,
+    # 2026-11-06 (RS 2b-05) — the RS line and its average are a RATIO (close ÷
+    # benchmark close): 6 dp on the wire (`alert_rs_series.LINE_DECIMALS`, the
+    # provider's rounding) and 4 in the chip (`nativeRegistry.js` `rsLine`:
+    # `legend: { decimals: 4 }`; `rsMa`: `precision: 4`). Mansfield RS is a
+    # percent at the default 2 and is deliberately NOT listed: a table entry
+    # equal to the default is a line nobody can tell from its absence
+    # (`test_the_python_decimals_table_matches_the_JS_registry`).
+    "rs_line.value": 4,
+    "rs_line.ma": 4,
+    # 2026-11-07 (RS 2b-06) — the IBD-style rating is an INTEGER 1–99
+    # (`rs_history.rating_from_pct`: `max(1, ceil(pct * 99))`); "90 — 91", never
+    # "90.00 — 91.00". No chart plot declares it yet, so the number is this
+    # table's alone.
+    "rs_line.rating": 0,
 }
 
 
@@ -2611,82 +2865,89 @@ def _run_one_cycle() -> dict[str, Any]:
     # alert on a tree where no migration has run.
     from api.services import alert_rev_migration as _rev
 
-    for (sym, tf), alerts_in_group in groups.items():
-        try:
-            # ⛔ THE GROUP'S WINDOW IS THE WIDEST ANY MEMBER DECLARES, NOT THE
-            # FIRST ONE'S. One fetch serves every alert on this (sym, tf), so a
-            # window sized off one member would hand a 500-bar formula the
-            # 400-bar series its neighbour asked for — and the shortfall would
-            # show up as `unresolved_lookback` refusing a tree that the store
-            # could actually have answered.
-            bars, host_bars, runtime_ids = group_bars(sym, tf, alerts_in_group)
-        except Exception:
-            _logger.exception("[alert-eval] fetch failed for %s/%s", sym, tf)
-            summary["errors"] += 1
-            continue
+    # ⭐ 2026-11-06 (RS 2b-05) — ONE RS PASS PER CYCLE. Every benchmark-reading
+    # column evaluated inside this frame reads its benchmark ONCE per (ticker,
+    # tf) and computes once per column family and window
+    # (`alert_rs_series.rs_pass`), however many groups name SPY. Outside the
+    # frame each column call would open a pass of its own. Nothing else about
+    # the loop moves: the body below is the body above, indented.
+    with alert_rs_series.rs_pass():
+        for (sym, tf), alerts_in_group in groups.items():
+            try:
+                # ⛔ THE GROUP'S WINDOW IS THE WIDEST ANY MEMBER DECLARES, NOT THE
+                # FIRST ONE'S. One fetch serves every alert on this (sym, tf), so a
+                # window sized off one member would hand a 500-bar formula the
+                # 400-bar series its neighbour asked for — and the shortfall would
+                # show up as `unresolved_lookback` refusing a tree that the store
+                # could actually have answered.
+                bars, host_bars, runtime_ids = group_bars(sym, tf, alerts_in_group)
+            except Exception:
+                _logger.exception("[alert-eval] fetch failed for %s/%s", sym, tf)
+                summary["errors"] += 1
+                continue
 
-        # ⭐ W5-T13 -- EVERY RUNTIME ALERT OF THIS GROUP IN ONE SERVICE REQUEST (one per
-        # stored definition version), sent before the loop; each one's value is then read
-        # from that answer (`alert_user_series.runtime_cycle_batch`).
-        from api.services import alert_user_series as _aus
-        with _aus.runtime_cycle_batch([a for a in alerts_in_group if id(a) in runtime_ids],
-                                      bars, sym, tf):
-            for alert in alerts_in_group:
-                # a formula reads the window its own group members declare; a runtime
-                # alert the profile window (`group_bars`)
-                bars_of = bars if id(alert) in runtime_ids else host_bars
-                try:
-                    if _rev.consume_if_suppressed(alert, bars=bars_of):
-                        summary["suppressed"] += 1
-                        continue
-                    value, triggered, judged_index = _evaluate_for_cycle(
-                        alert, bars_of)
-                    if value is None:
-                        continue
-                    summary["evaluated"] += 1
-                    if triggered:
-                        summary["triggered"] += 1
-                        # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
-                        # `bar_time`, NULL on every row of `indicator_alert_fires`
-                        # until `dd2da6f7` stamped it.
-                        #
-                        # ⛔ AND THE INDEX COMES OUT OF THE EVALUATION, NOT OUT OF A
-                        # SECOND CALCULATION. `_evaluate_for_cycle` returns the bar
-                        # its own answer is about — `bars[-1]` on the forming lane,
-                        # `closed_bar_index` on the closed one — so the receipt
-                        # cannot name a bar the value did not come from. Recomputing
-                        # `closed_bar_index` here would be two functions agreeing,
-                        # and they would stop agreeing the first time the wall clock
-                        # ticked between them.
-                        bar_time = _fire_bar_time(bars_of, judged_index)
-                        recorded = ias.record_trigger(alert["id"], last_value=value,
-                                                      bar_time=bar_time)
-                        _dispatch_delivery(alert, value, bar_time=bar_time)
-                        # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
-                        # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
-                        # `record_trigger` returns True exactly when a new row landed
-                        # under `UNIQUE(alert_id, fire_key)`, so "one receipt per
-                        # fire" is the SAME decision the fire log already made, not a
-                        # copy of it that can drift. Two consequences, both wanted:
-                        # a level condition keys on its ARMED EPISODE, so "RSI is
-                        # still above 70" accrues ONE receipt for the episode instead
-                        # of one per bar it stays true; and the retry above (a
-                        # released lease re-delivering on a later cycle) returns
-                        # False here, so a second DELIVERY of one fire cannot become
-                        # a second receipt.
-                        #
-                        # ⛔ THIS IS NOT `if record_trigger(...): _dispatch_delivery`
-                        # — the ruling Task 8 measured and refused. The dispatch
-                        # above stays UNCONDITIONAL; only the receipt is gated.
-                        if recorded:
-                            _accrue_ledger_receipt(alert, value, judged_index, bars_of)
-                    else:
-                        ias.record_evaluation(alert["id"], last_value=value)
-                except Exception:
-                    _logger.exception(
-                        "[alert-eval] eval failed for alert %s", alert.get("id"),
-                    )
-                    summary["errors"] += 1
+            # ⭐ W5-T13 -- EVERY RUNTIME ALERT OF THIS GROUP IN ONE SERVICE REQUEST (one per
+            # stored definition version), sent before the loop; each one's value is then read
+            # from that answer (`alert_user_series.runtime_cycle_batch`).
+            from api.services import alert_user_series as _aus
+            with _aus.runtime_cycle_batch([a for a in alerts_in_group if id(a) in runtime_ids],
+                                          bars, sym, tf):
+                for alert in alerts_in_group:
+                    # a formula reads the window its own group members declare; a runtime
+                    # alert the profile window (`group_bars`)
+                    bars_of = bars if id(alert) in runtime_ids else host_bars
+                    try:
+                        if _rev.consume_if_suppressed(alert, bars=bars_of):
+                            summary["suppressed"] += 1
+                            continue
+                        value, triggered, judged_index = _evaluate_for_cycle(
+                            alert, bars_of)
+                        if value is None:
+                            continue
+                        summary["evaluated"] += 1
+                        if triggered:
+                            summary["triggered"] += 1
+                            # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
+                            # `bar_time`, NULL on every row of `indicator_alert_fires`
+                            # until `dd2da6f7` stamped it.
+                            #
+                            # ⛔ AND THE INDEX COMES OUT OF THE EVALUATION, NOT OUT OF A
+                            # SECOND CALCULATION. `_evaluate_for_cycle` returns the bar
+                            # its own answer is about — `bars[-1]` on the forming lane,
+                            # `closed_bar_index` on the closed one — so the receipt
+                            # cannot name a bar the value did not come from. Recomputing
+                            # `closed_bar_index` here would be two functions agreeing,
+                            # and they would stop agreeing the first time the wall clock
+                            # ticked between them.
+                            bar_time = _fire_bar_time(bars_of, judged_index)
+                            recorded = ias.record_trigger(alert["id"], last_value=value,
+                                                          bar_time=bar_time)
+                            _dispatch_delivery(alert, value, bar_time=bar_time)
+                            # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
+                            # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
+                            # `record_trigger` returns True exactly when a new row landed
+                            # under `UNIQUE(alert_id, fire_key)`, so "one receipt per
+                            # fire" is the SAME decision the fire log already made, not a
+                            # copy of it that can drift. Two consequences, both wanted:
+                            # a level condition keys on its ARMED EPISODE, so "RSI is
+                            # still above 70" accrues ONE receipt for the episode instead
+                            # of one per bar it stays true; and the retry above (a
+                            # released lease re-delivering on a later cycle) returns
+                            # False here, so a second DELIVERY of one fire cannot become
+                            # a second receipt.
+                            #
+                            # ⛔ THIS IS NOT `if record_trigger(...): _dispatch_delivery`
+                            # — the ruling Task 8 measured and refused. The dispatch
+                            # above stays UNCONDITIONAL; only the receipt is gated.
+                            if recorded:
+                                _accrue_ledger_receipt(alert, value, judged_index, bars_of)
+                        else:
+                            ias.record_evaluation(alert["id"], last_value=value)
+                    except Exception:
+                        _logger.exception(
+                            "[alert-eval] eval failed for alert %s", alert.get("id"),
+                        )
+                        summary["errors"] += 1
     return summary
 
 

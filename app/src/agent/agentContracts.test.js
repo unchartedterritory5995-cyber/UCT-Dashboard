@@ -103,7 +103,8 @@ describe('product drift — the Agent offers exactly what the product has', () =
     expect(enumOf('widget.addCharts', 'chart_type')).toEqual(ids)
   })
   it('timeframes = timeframes.NATIVE_TFS (setTimeframe and addCharts)', () => {
-    expect(enumOf('chart.setTimeframe', 'timeframe')).toEqual(NATIVE_TFS)
+    // + the timeframe keys' one-rung step (C1-011): next / previous, read against the chart's own timeframe
+    expect(enumOf('chart.setTimeframe', 'timeframe')).toEqual([...NATIVE_TFS, 'next', 'previous'])
     expect(enumOf('widget.addCharts', 'timeframe')).toEqual(NATIVE_TFS)
   })
   it('chart themes = chartThemes.CHART_THEMES; widget types = registry.WORKSPACE_MENU_TYPES', () => {
@@ -122,7 +123,8 @@ describe('product drift — the Agent offers exactly what the product has', () =
 
 describe('knowing ≠ doing', () => {
   it('chart.setSetting offers exactly the descriptor rows classified eligible — nothing else', () => {
-    expect(enumOf('chart.setSetting', 'setting')).toEqual(ELIGIBLE_SETTINGS.map(d => d.id))
+    // + the two LIST settings (execution family L): which fields the Info row and the Bar info strip print
+    expect(enumOf('chart.setSetting', 'setting')).toEqual([...ELIGIBLE_SETTINGS.map(d => d.id), 'header.fields', 'header.barInfo'])
     for (const d of CHART_SETTING_DESCRIPTORS.filter(x => x.agent !== 'eligible')) {
       expect(enumOf('chart.setSetting', 'setting'), d.id).not.toContain(d.id)
     }

@@ -127,7 +127,10 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS' })
   assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', incremental: 'literal:false' })
   assert.deepEqual(b.row, ['t', 'o', 'h', 'l', 'c', 'v'])
-  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol'])
+  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'historyWindowBars'])
+  // W9-T11: both hosts forward the window from their own ctx, never from a literal
+  assert.equal(b.ctx.historyWindowBars, 'expr:ctx.historyWindowBars')
+  assert.equal(s.ctx.historyWindowBars, 'expr:job.ctx.historyWindowBars')
 })
 
 test('HP-7: every declared difference is still a real one (no stale declaration)', () => {

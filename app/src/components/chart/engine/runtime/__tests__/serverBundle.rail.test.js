@@ -29,12 +29,14 @@ const APP = path.resolve(process.cwd())
 const REPO = path.resolve(APP, '..')
 const SERIES = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-deadband-ticks-aapl-1d-2026-09-28.json')
 const MEASURE = path.join(APP, 'scripts', 'measure-pine-runtime.mjs')
+import { STRATEGY_RECORD_SCHEMA, strategyRecordShapeErrors } from '../strategyRecord.js'
+
 const EXPORTS = [
   'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
   'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
-  'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION',
+  'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION', 'STRATEGY_RECORD_SCHEMA',
   'bytesToB64', 'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'encodeColumn', 'resetRuntimeLedgers', 'resetRuntimeSessions',
-  'runtimeVersionRefusal', 'runtimeWarmupOf',
+  'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyRecordShapeErrors',
 ]
 
 let dir, built, text
@@ -83,6 +85,11 @@ describe('server bundle (W5-T1)', () => {
     expect(mod.columnDigest(run)).toBe(columnDigest(run))
     expect([...mod.decodeColumn(new Uint8Array(8), 1)]).toEqual([0])
     expect(mod.runtimeWarmupOf({})).toBe(null)
+    // W9-T14: the strategy record's reader and its ONE shape check, the declaring module's own
+    expect(mod.STRATEGY_RECORD_SCHEMA).toBe(STRATEGY_RECORD_SCHEMA)
+    expect(mod.runtimeStrategyOf({})).toBe(null)
+    expect(mod.strategyRecordShapeErrors(null)).toEqual(strategyRecordShapeErrors(null))
+    expect(mod.strategyRecordShapeErrors({ schema: STRATEGY_RECORD_SCHEMA })).toEqual(strategyRecordShapeErrors({ schema: STRATEGY_RECORD_SCHEMA }))
   })
 
   it('bakes import.meta.env once: no live read remains, and no VITE_* value reaches the closure (W5-T2)', async () => {

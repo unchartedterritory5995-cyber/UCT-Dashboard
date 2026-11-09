@@ -177,3 +177,17 @@ test('caps restate no Python authority: MAX_DOC_BYTES and MAX_JOBS equal the val
   assert.ok(j, 'scan_run.MAX_RUN_SYMBOLS is declared')
   assert.equal(MAX_JOBS, Number(j[1]))
 })
+
+test('W9-T11: ctx.historyWindowBars is optional, a positive integer when present, and absent when not sent', () => {
+  const plain = parse(Buffer.from(JSON.stringify(validRequest())))
+  assert.equal(plain.ok, true)
+  assert.equal('historyWindowBars' in plain.request.jobs[0].ctx, false, 'a job that states no window carries none')
+  const q = validRequest(); q.jobs[0].ctx.historyWindowBars = 4321
+  const r = parse(Buffer.from(JSON.stringify(q)))
+  assert.equal(r.ok, true)
+  assert.equal(r.request.jobs[0].ctx.historyWindowBars, 4321)
+  for (const bad of [0, -1, 1.5, '5000', null, true]) {
+    const b = validRequest(); b.jobs[0].ctx.historyWindowBars = bad
+    refused(b, 400, SCHEMA_GUARD, /historyWindowBars: must be a positive integer/)
+  }
+})

@@ -193,14 +193,61 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
 })
 
 describe('stale protection', () => {
-  it('refuses to undo over a manual edit made after the Agent wrote', async () => {
+  // round 3 (pl-exec): Undo is FIELD-SCOPED. A manual edit to ANOTHER field (the timeframe) after the Agent changed the chart
+  // type no longer blocks the Undo: the type goes back and the member's timeframe stays. A manual edit to the SAME field still
+  // refuses it, and nothing is overwritten.
+  it('undoes over a manual edit to ANOTHER field, keeping that edit', async () => {
     const host = makeHost([{ ref: 'c1' }])
     const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
     host.manual('c1', { tf: '60' })
     const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(true)
+    expect(host.raw('c1').stored?.chartType ?? 'candles').not.toBe('bars')
+    expect(host.raw('c1').tf).toBe('60')
+  })
+  // AUDIT D1 (11-07): a chart still inheriting the seed (null or partial stored blob): the Agent's first write fills in the
+  // defaults; only what IT changed counts as touched (against the EFFECTIVE settings), so a member's edit to another key keeps
+  // the Undo possible, and the edit survives it
+  it.each([
+    ['a partial blob', { chartType: 'candles', grid: { visible: true } }],
+    ['a null blob', null],
+  ])('P1 (%s): the Agent sets bars, the member hides the grid → Undo works, the grid stays hidden', async (_n, stored) => {
+    const host = makeHost([{ ref: 'c1', stored }])
+    const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
+    expect(host.raw('c1').stored.chartType).toBe('bars')
+    const now = host.raw('c1').stored
+    host.manual('c1', { stored: { ...now, grid: { ...(now.grid || {}), visible: false } } })
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok, u.reason).toBe(true)
+    expect(mergeChartSettings(host.raw('c1').stored).chartType).toBe('candles')
+    expect(host.raw('c1').stored.grid.visible).toBe(false)
+  })
+  it('P1 header variant: the Agent adds an Info row field on a partial blob, the member hides the grid → Undo works, the grid stays hidden', async () => {
+    const host = makeHost([{ ref: 'c1', stored: { header: { titleMode: 'ticker' } } }])
+    const res = await commitPlan(host, plan(host, [op('chart.setSetting', { setting: 'header.fields', value: '+dolvol' })]))
+    expect(host.raw('c1').stored.header.fields).toContain('dolvol')
+    const now = host.raw('c1').stored
+    host.manual('c1', { stored: { ...now, grid: { ...(now.grid || {}), visible: false } } })
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok, u.reason).toBe(true)
+    expect(host.raw('c1').stored.header?.fields || []).not.toContain('dolvol')
+    expect(host.raw('c1').stored.grid.visible).toBe(false)
+  })
+  it('P1 the SAME key edited by the member after the Agent (a partial blob) still refuses, nothing overwritten', async () => {
+    const host = makeHost([{ ref: 'c1', stored: { chartType: 'candles' } }])
+    const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
+    host.manual('c1', { stored: { ...host.raw('c1').stored, chartType: 'line' } })
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(false)
+    expect(host.raw('c1').stored.chartType).toBe('line')
+  })
+  it('refuses to undo over a manual edit to the SAME field made after the Agent wrote', async () => {
+    const host = makeHost([{ ref: 'c1' }])
+    const res = await commitPlan(host, plan(host, [op('chart.setTimeframe', { timeframe: 'W' })]))
+    host.manual('c1', { tf: '60' })
+    const u = await undoEntry(host, res.undo)
     expect(u.ok).toBe(false)
     expect(u.reason).toMatch(/changed since/)
-    expect(host.raw('c1').stored.chartType).toBe('bars')
     expect(host.raw('c1').tf).toBe('60')
   })
   it('refuses to commit a plan composed against state that moved underneath it', async () => {

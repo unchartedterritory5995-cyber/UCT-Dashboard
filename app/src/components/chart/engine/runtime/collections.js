@@ -23,9 +23,12 @@
 // `array.from` is the one addition, because it makes a fixture readable in one
 // line; it appears in neither script.
 
+// ⭐ W6-T8 — `map.*` (`maps.js`), merged into this table below
+import { buildMapFns, isMap, MAP_WRITES } from './maps.js'
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
+import { buildMatrixFns, isMatrix, MATRIX_WRITES } from './matrices.js'
 
 export class CollectionError extends Error {
   constructor(message) { super(message); this.name = 'CollectionError' }
@@ -65,6 +68,9 @@ export const kindOf = (v) => {
   if (t0 === 'number' || t0 === 'string') return t0
   if (Array.isArray(v)) return 'array'
   if (isDrawingHandle(v)) return 'drawing'
+  // ⭐ W6-T7 — a matrix is its own kind (`matrices.js`), so `matrix.rows` refuses an
+  // array BY NAME and `array.size` refuses a matrix.
+  if (isMatrix(v)) return 'matrix'
   // ⭐⭐ A RECORD ANSWERS ITS OWN TYPE NAME, which is the same argument as
   // `'drawing'` one type further out. No declared operand kind in any of the
   // four tables is ever a user type name, so every kind check refuses a record
@@ -73,6 +79,8 @@ export const kindOf = (v) => {
   // ⛔ `records.js` explains why this cannot widen by accident: the test is a
   // Symbol, not the shape of the object.
   if (isUdtRecord(v)) return v.type
+  // ⭐ W6-T8 — a map is its own kind, so `array.size(m)` refuses BY NAME
+  if (isMap(v)) return 'map'
   const t = typeof v
   return t === 'number' || t === 'string' ? t : 'other'
 }
@@ -454,6 +462,10 @@ const W19R2_MEMBERS = {
   },
 }
 
+/** ⭐⭐ W6-T8 — the `map.*` members (`maps.js`), in THIS table: one dispatch, one VM op,
+ *  one admitter. */
+const MAP_FNS = buildMapFns({ CollectionError })
+
 /** ⭐⭐ W6-T5 — THE REFERENCE-FORMULA MEMBERS. Each is served only to the extent the
  *  Pine v6 reference entry states its rule (read 2026-11-06 through
  *  `tools/pine_survey/pine_reference_extract.js`; each rail in
@@ -569,6 +581,10 @@ const MASTER_AT_DOOR = {
   'array.stdev': unmeasuredReduction('array.stdev'),
 }
 const doorKeepsMaster = (budget) => !!(budget && budget.unmeasured)
+
+/** ⭐⭐ W6-T7 — the `matrix.*` members (`matrices.js`), in THIS table: one dispatch,
+ *  one VM op, one admitter. */
+const MATRIX_FNS = buildMatrixFns({ CollectionError, isUnfilled })
 
 const W6T5_MEMBERS = {
   'array.reverse': {
@@ -716,7 +732,11 @@ const W6T5_MEMBERS = {
  *  `array.median` / `array.stdev` are not here — master built them, and the door keeps
  *  master's answer at run time instead (`MASTER_AT_DOOR`). */
 export const DOOR_GATED_ARRAY = Object.freeze(new Set([
+  // ⭐ W6-T8 — every `map.*` member: master refused the whole family at the door
+  ...Object.keys(MAP_FNS),
   ...Object.keys(W19R2_MEMBERS),
+  // ⭐ W6-T7 — every `matrix.*` member: master refused the whole family at the door
+  ...Object.keys(MATRIX_FNS),
   ...Object.keys(W6T5_MEMBERS).filter((n) => !Object.prototype.hasOwnProperty.call(MASTER_AT_DOOR, n)),
 ]))
 
@@ -917,6 +937,8 @@ const ARRAY_FNS_RAW = Object.freeze({
     fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); guardSliceWrite(a[0], 'array.clear').length = 0 },
   },
   ...C11_MEMBERS,
+  // ⭐⭐ W6-T8 — `map.*`, see `maps.js`
+  ...MAP_FNS,
   // ⭐⭐ C18 — see `SLICED`. `from` inclusive, `to` exclusive; Pine stops the
   // script on a bound outside the array, and so does this.
   'array.slice': {
@@ -941,6 +963,8 @@ const ARRAY_FNS_RAW = Object.freeze({
   // the reference formula, and the object door keeps master's answer (`MASTER_AT_DOOR`).
   ...W19R2_MEMBERS,
   ...W6T5_MEMBERS,
+  // ⭐⭐ W6-T7 — `matrix.*`, see `matrices.js`
+  ...MATRIX_FNS,
   // ⭐ C35 — not a collection member: a void call the VM dispatches through this
   // table like `array.push`, and the one entry whose only effect is to STOP the
   // run (`PineRuntimeError`). Kept here rather than in a second table so the
@@ -955,14 +979,20 @@ export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS_RAW))
 
 /** Does this call return a collection? The front end's route decision needs it
  *  for the same reason `producesText` exists: a value the columnar lane cannot
- *  hold must not be sent there. */
+ *  hold must not be sent there. ⭐ W6-T7 — an array or a matrix. */
 export const producesArray = (name) => (
-  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'array')
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name)
+  && (ARRAY_FNS_RAW[name].returns === 'array' || ARRAY_FNS_RAW[name].returns === 'matrix'))
 
 /** Does this call return nothing? A void call is a STATEMENT, and using one as
  *  a value is refused rather than silently yielding `na`. */
 export const isVoid = (name) => (
   Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'void')
+
+/** ⭐ W6-T8 — does this call return a MAP? A map is a collection the columnar lane cannot
+ *  hold, for the same reason as an array (`producesArray`). */
+export const producesMap = (name) => (
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'map')
 
 /** The declared operand kind for argument `i` — variadic entries repeat their
  *  single declared kind. */
@@ -991,6 +1021,8 @@ const HANDS_BACK = new Set(['array.get', 'array.first', 'array.last', 'array.pop
 // `writes`, which every reader treats as `size` (fail closed), and the rail
 // `p3WsaReviewFixes.test.js` (L1) goes red until it is classified.
 const ARRAY_WRITES = Object.freeze({
+  // ⭐ W6-T8
+  ...MAP_WRITES,
   'array.push': 'size', 'array.pop': 'size', 'array.shift': 'size', 'array.unshift': 'size',
   'array.remove': 'size', 'array.clear': 'size', 'array.concat': 'size',
   'array.set': 'elements',
@@ -1006,6 +1038,8 @@ const ARRAY_WRITES = Object.freeze({
   'array.lastindexof': 'none', 'array.range': 'none', 'array.abs': 'none', 'array.join': 'none',
   'array.variance': 'none', 'array.covariance': 'none', 'array.percentile_nearest_rank': 'none',
   'array.every': 'none', 'array.some': 'none',
+  // ⭐ W6-T7
+  ...MATRIX_WRITES,
 })
 export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec0]) => {
   const spec = ARRAY_WRITES[name] ? { ...spec0, writes: ARRAY_WRITES[name] } : spec0

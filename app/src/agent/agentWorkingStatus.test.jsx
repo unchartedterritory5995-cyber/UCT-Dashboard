@@ -307,7 +307,8 @@ describe('the panel header during real execution', () => {
     const save = holdSave(h)
     send('change the timeframe to weekly')
     await waitFor(() => expect(save.at()).toBe(1), { timeout: 8000 })
-    expect(screen.queryAllByTestId('agent-receipt')).toHaveLength(0)      // the write is done; its receipt waits for the save
+    // the write is done and read back: its receipt is up, saying so; nothing else about the turn has ended
+    expect(screen.getByTestId('agent-receipt').getAttribute('data-saving')).toBe('true')
     expect(status()).toBe('UCT Agent is working')
     expect(composerLine()).toBe('UCT Agent is working')
     save.finish()
