@@ -254,6 +254,21 @@ test('a layout switch makes the selection STALE — even back on the same layout
   expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])
 }, 45000)
 
+test('MODEL path: a true "this stock" with a chart clicked: a plan on the other chart goes to the clicked one, no question', async () => {
+  mount()
+  await screen.findByTestId('chart-c-left')
+  await click('c-left')
+  turnReply = (body) => {
+    const other = body.context.charts.find(c => !c.selected)
+    return { disposition: 'apply', reply: '', question: null, ops: [{ action: 'chart.setTimeframe', target: other.ref, args: { timeframe: 'W' } }], unsupported_category: null }
+  }
+  await say('could you put this stock on the weekly view please')
+  await waitFor(() => expect(tfOf('c-left')).toBe('W'), { timeout: 15000 })
+  expect(tfOf('c-right')).toBe('D')
+  expect(screen.queryByText(/Did you mean/)).toBeNull()
+  expect(turns).toHaveLength(1)
+}, 45000)
+
 test('MODEL path: the selected chart is in the context, and a plan on ANOTHER chart is never run — asked, then resumed on the pick', async () => {
   mount()
   await screen.findByTestId('chart-c-left')
@@ -263,7 +278,7 @@ test('MODEL path: the selected chart is in the context, and a plan on ANOTHER ch
     const other = body.context.charts.find(c => !c.selected)
     return { disposition: 'apply', reply: '', question: null, ops: [{ action: 'chart.setTimeframe', target: other.ref, args: { timeframe: 'W' } }], unsupported_category: null }
   }
-  await say('could you put this stock on the weekly view please')
+  await say('could you put the stock on the weekly view please')
   await waitFor(() => expect(turns).toHaveLength(1), { timeout: 15000 })
   const sent = turns[0].context.charts
   expect(sent.filter(c => c.selected).map(c => c.label)).toEqual(['Left chart (NVDA)'])

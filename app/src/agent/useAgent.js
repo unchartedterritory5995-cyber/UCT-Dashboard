@@ -25,7 +25,8 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord } from './deixis'
+import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
@@ -58,7 +59,7 @@ import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusa
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
-import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation } from './agentClient'
+import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation, unknownSymbols } from './agentClient'
 import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 import { presentOf, compactViews, itemsFromTurns, chartTarget } from './present'
@@ -584,6 +585,13 @@ const withinSaveWait = (p) => new Promise((resolve) => {
   p.then((v) => { clearTimeout(t); resolve(v) })
 })
 
+// one ticker search for a word in a chart's place: bounded, because it holds the turn. No answer in time is an unread word (the gates ask)
+export const NAME_SEARCH_MS = 1500
+const nameSearch = (word) => new Promise((resolve) => {
+  const t = setTimeout(resolve, NAME_SEARCH_MS)
+  groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
+})
+
 // the server's stage timings (ms only) for the turn trace
 const stagesOf = (data) => { const s = data?.usage?.stages; return s && typeof s === 'object' ? JSON.stringify(s) : null }
 
@@ -866,6 +874,25 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, patchItem, push, record])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
+  // pl-auto symbol-01 (BROWSER-MOCK-MODEL) / AUDIT: a ticker word the member typed NOT in capitals ("pull up nvidia on this one")
+  // is claimed instantly only when UCT's ticker search knows it, as a ticker or as one company's exact name. Otherwise the MODEL
+  // reads the request (it knows "nvidia" is NVDA): never refused unread on an instant path, never charted as the literal word.
+  async function typedSymbolsKnown(ops, said) {
+    const words = (ops || []).filter(o => o?.action === 'chart.setSymbol' && !o.trusted).map(o => String(o.args?.symbol || ''))
+      .filter(sym => sym && !String(said || '').includes(sym))
+    if (!words.length) return true
+    // AUDIT N1: bounded like nameSearch — a slow or silent ticker search never holds the turn; no answer in time is "not known
+    // here", so the MODEL reads the request
+    const lookup = (async () => {
+      const unknown = await unknownSymbols(words)
+      if (!unknown.size) return true
+      const g = await groundSymbols([...unknown])
+      return !g.unknown.size && !g.ambiguous.size
+    })().catch(() => false)
+    let t = null
+    const timeout = new Promise((resolve) => { t = setTimeout(() => resolve(false), NAME_SEARCH_MS) })
+    try { return await Promise.race([lookup, timeout]) } finally { clearTimeout(t) }
+  }
   const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null, onTarget = null, lead = null, binding = null, subset = false, namePart = false, afterCommit = null, more = false }) => {
     // A follow-up step's refusal says what the earlier steps already did (`note`). `lead` (OWNER
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
@@ -2168,7 +2195,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",
       // "show NVDA and AMD side by side", "make the left chart look like the right one" (agent/multiChart.js). The
       // same registry ops through the same execute; anything it can't read with certainty goes on as before.
-      const multi = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
+      const multi0 = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
+      const multi = multi0?.kind === 'ops' && !(await typedSymbolsKnown(multi0.ops, text)) ? null : multi0
       if (multi?.kind === 'say') {
         push({ role: 'agent', text: multi.text })
         record({ member: text, outcome: multi.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
@@ -2212,7 +2240,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
       const subj = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
-      const refText = subj.text
+      // "make this one weekly" with a chart clicked is "this chart"; no model call is needed to say so
+      const refText = selectedChart(host) ? subj.text.replace(/\bthis one\b/gi, 'this chart') : subj.text
       const memNow = withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
       const subjHost = subj.changed ? { ...host, charts: { ...host.charts, selected: () => null } } : host
@@ -2241,7 +2270,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         lastActionsRef.current = follow.ops.map(o => o.action)
         return await execute(follow.ops, { path: 'fast', mode: 'apply', member: text, voice })
       }
-      const fast = fast0
+      let fast = fast0
+      if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
       if (fast?.kind === 'say') {
         push({ role: 'agent', text: fast.text })
         record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
@@ -2800,6 +2830,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
+      // "the nvidia chart": the ticker search says which chart a company's name means, before the gates read the sentence
+      {
+        const nameWord = chartNameWord(text, host?.charts?.list?.() || [])
+        if (nameWord && !lexiconFor(host).words.has(nameWord.toLowerCase())) await nameSearch(nameWord)      // "price" is a word, not a name
+      }
       // Context & Awareness 1B: a deictic request ("this chart", "this stock", "make it weekly") runs
       // only on the chart the member selected — never on a chart the model picked by itself. Nothing
       // executes before the member answers; their pick resumes THIS plan (no second model call).
@@ -2827,6 +2862,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
         : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability })
+      if (deictic?.aim) screened.ops = deictic.aim
+      if (deictic?.refuse) {
+        const said = `I didn't change anything: ${deictic.refuse}`
+        push({ role: 'refusal', text: said })
+        record({ member: null, outcome: said, outcomeData: { kind: 'refused', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
+        return
+      }
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {

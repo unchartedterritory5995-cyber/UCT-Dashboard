@@ -28,14 +28,23 @@ import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapt
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
+// One axis of a position word. The midline is the middle of the area these items cover: three charts across beside a Watchlist
+// rail fill 18 of the 24 columns, and a fixed midline of 12 called the middle one "left". Three clean lines (no item straddling
+// two) have a middle one too, as a Multi Chart grid does.
+function axisWord(w, all, at, size, first, last) {
+  const centre = (o) => o[at] + o[size] / 2
+  const lines = [...new Set(all.map(centre))].sort((a, b) => a - b)
+  if (lines.length === 3) {
+    const of = (c) => all.filter(o => centre(o) === c)
+    const clean = lines.slice(1).every((c, i) => Math.max(...of(lines[i]).map(o => o[at] + o[size])) <= Math.min(...of(c).map(o => o[at])))
+    if (clean) return centre(w) === lines[0] ? first : centre(w) === lines[2] ? last : 'middle'
+  }
+  const mid = (Math.min(...all.map(o => o[at])) + Math.max(...all.map(o => o[at] + o[size]))) / 2
+  if (new Set(all.map(o => centre(o) < mid)).size < 2) return ''
+  return centre(w) < mid ? first : last
+}
 function centreWord(w, all) {
-  const cx = w.x + w.w / 2
-  const cy = w.y + w.h / 2
-  const spreadX = new Set(all.map(o => (o.x + o.w / 2) < 12)).size > 1
-  const spreadY = new Set(all.map(o => (o.y + o.h / 2) < 10)).size > 1
-  const v = spreadY ? (cy < 10 ? 'top' : 'bottom') : ''
-  const h = spreadX ? (cx < 12 ? 'left' : 'right') : ''
-  return [v, h].filter(Boolean).join('-')
+  return [axisWord(w, all, 'y', 'h', 'top', 'bottom'), axisWord(w, all, 'x', 'w', 'left', 'right')].filter(Boolean).join('-')
 }
 // S6 nit: a chart that fills the board's whole HEIGHT is neither top nor bottom (a full-height left
 // chart beside a top-right one is "Left", not "Bottom-left" — its centre sat exactly on the row
@@ -298,6 +307,7 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         // ── arrangement (Batch 5): the board's exact widgets (for exact Undo) and its own
         // pure geometry rules. Nothing here writes; applyBoard below is the one writer.
         raw: all.map(w => JSON.parse(JSON.stringify(w))),
+        groupSyms: widgetOps.groupSyms?.() || {},
         layoutTheme: layout.layoutTheme ?? null,
         grid: widgetOps.grid?.() || null,
         minOf: (w) => widgetOps.minOf?.(w) || { minW: 2, minH: 3 },
@@ -603,6 +613,8 @@ export function buildDrawingSource(charts, store = drawingsStore) {
       if (!sym) continue
       const e = by.get(sym) || { ref: sym, symbol: sym, charts: [], defaults: null, tf: null, history: null }
       e.charts.push(c.label)
+      // the chart this symbol's drawings are seen on: the clicked one when it shows the symbol (charts on one symbol share them)
+      if (c.selected || !e.chartRef) e.chartRef = c.ref
       // the chart's own "drawing defaults" (Chart Settings → Drawings), as the context menu and the
       // toolbar's tools use them (`byTool` = the per-tool half a member saved with "Save as default")
       if (!e.defaults) { const dd = c.cs?.drawingDefaults || {}; e.defaults = { color: dd.color || null, width: dd.width || null, fontSize: dd.fontSize || null, byTool: dd.byTool || null } }
@@ -739,7 +751,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
-    drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
+    drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(layoutSource ? {
