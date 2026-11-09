@@ -72,7 +72,7 @@ _DOMAIN_OF = {
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
-    "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
+    "drawing": "drawing", "drawingBoard": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities
 }

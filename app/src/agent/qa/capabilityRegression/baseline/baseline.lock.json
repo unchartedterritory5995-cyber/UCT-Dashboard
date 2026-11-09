@@ -2582,6 +2582,31 @@
     }
    }
   },
+  "drawingBoard.switch": {
+   "digest": "82a5412e176c705d",
+   "phrasings": {
+    "switch to the Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use my Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go to drawing board Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw on the Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.unlink": {
    "digest": "45fc728841a12ebf",
    "phrasings": {
