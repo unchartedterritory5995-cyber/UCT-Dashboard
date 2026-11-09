@@ -18,6 +18,7 @@ import { unseen9 } from './families/unseen9.mjs'
 import { unseen10 } from './families/unseen10.mjs'
 import { unseen11 } from './families/unseen11.mjs'
 import { unseen12 } from './families/unseen12.mjs'
+import { unseen13 } from './families/unseen13.mjs'
 
 export function publicRequests() {
   const L = []
@@ -120,6 +121,13 @@ export function unseen12Requests() {
   const L = []
   unseen12(L)
   return L.map(r => ({ ...r, set: 'unseen12' }))
+}
+
+/** Batch 13, WATCHLIST (2026-11-09): the Charts watchlist widget and the member's lists, execution and how-to, written before any run and without reading pl-exec's or pl-teach's watchlist code. */
+export function unseen13Requests() {
+  const L = []
+  unseen13(L)
+  return L.map(r => ({ ...r, set: 'unseen13' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
