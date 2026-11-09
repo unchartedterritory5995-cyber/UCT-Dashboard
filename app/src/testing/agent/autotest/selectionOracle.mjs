@@ -32,6 +32,8 @@ export function landedRoles(before, after, print) {
   const count = (s) => Object.fromEntries(Object.entries(s.drawings || {}).map(([k, d]) => [k, d.length]))
   const b = count(before), a = count(after)
   for (const sym of new Set([...Object.keys(b), ...Object.keys(a)])) if ((b[sym] || 0) !== (a[sym] || 0)) for (const r of showing(sym)) out.add(r)
+  // a drawing restyled or moved changes no count: its content changed, so it lands on the charts showing its symbol too
+  for (const sym of Object.keys(a)) if (JSON.stringify(before.drawings?.[sym] ?? null) !== JSON.stringify(after.drawings?.[sym] ?? null)) for (const r of showing(sym)) out.add(r)
   for (const key of ['alerts', 'ialerts']) {
     const had = new Set((before[key] || []).map(x => x.id))
     for (const x of after[key] || []) if (!had.has(x.id)) for (const r of showing(x.sym)) out.add(r)

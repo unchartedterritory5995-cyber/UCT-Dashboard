@@ -108,7 +108,9 @@ export function grade(request, ev) {
   } else {
     // read / refuse / clarify / answer: the board stays exactly as it was
     push('nothing changed', worldPrint(before) === worldPrint(after), `${worldPrint(before).slice(0, 200)} -> ${worldPrint(after).slice(0, 200)}`, 'unchanged')
-    if (o.outcome === 'refuse' || o.outcome === 'clarify') push('no success receipt', !anyReceipt, last.receiptText, 'receipt')
+    // a target case grades its LAST sentence (the earlier ones only build the conversation, and may well have their own receipts)
+    const receiptHere = o.target ? !!last.newReceipt : anyReceipt
+    if (o.outcome === 'refuse' || o.outcome === 'clarify') push('no success receipt', !receiptHere, last.receiptText, 'receipt')
     if (o.outcome === 'clarify') push('it asked', /\?|which/i.test(saidAll), saidAll.slice(0, 200), 'clarify')
     stateChecks('state')
   }

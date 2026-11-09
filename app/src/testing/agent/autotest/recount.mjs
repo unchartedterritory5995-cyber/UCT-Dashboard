@@ -16,7 +16,7 @@ import { join } from 'node:path'
 
 const { values: A } = parseArgs({ options: {
   vitest: { type: 'string' }, acceptance: { type: 'string', multiple: true, default: [] }, autotest: { type: 'string', multiple: true, default: [] }, selection: { type: 'string', multiple: true, default: [] },
-  raises: { type: 'string', default: '' }, retag: { type: 'boolean', default: false }, exclude: { type: 'string', default: '' }, out: { type: 'string', default: '' }, repo: { type: 'string', default: '..' },
+  raises: { type: 'string', default: '' }, source: { type: 'string', default: '' }, retag: { type: 'boolean', default: false }, exclude: { type: 'string', default: '' }, out: { type: 'string', default: '' }, repo: { type: 'string', default: '..' },
 } })
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'))
 const doc = (f) => readFileSync(join(A.repo, 'docs', 'agent', f), 'utf8').split(/\r?\n/)
@@ -85,7 +85,7 @@ for (const p of A.acceptance) for (const s of json(p)) for (const id of s.rows |
 const NOT_EXECUTION = new Set(['unsupported', 'invalid', 'howto'])
 const tagOf = A.retag ? await (async () => {
   const m = await import('./requests.mjs')
-  const all = [...m.publicRequests(), ...m.unseenRequests(), ...(m.unseen2Requests ? m.unseen2Requests() : []), ...(m.unseen3Requests ? m.unseen3Requests() : []), ...(m.unseen4Requests ? m.unseen4Requests() : []), ...(m.unseen5Requests ? m.unseen5Requests() : []), ...(m.unseen6Requests ? m.unseen6Requests() : []), ...(m.unseen7Requests ? m.unseen7Requests() : []), ...(m.followup3Requests ? m.followup3Requests() : [])]
+  const all = [...m.publicRequests(), ...m.unseenRequests(), ...(m.unseen2Requests ? m.unseen2Requests() : []), ...(m.unseen3Requests ? m.unseen3Requests() : []), ...(m.unseen4Requests ? m.unseen4Requests() : []), ...(m.unseen5Requests ? m.unseen5Requests() : []), ...(m.unseen6Requests ? m.unseen6Requests() : []), ...(m.unseen7Requests ? m.unseen7Requests() : []), ...(m.unseen8Requests ? m.unseen8Requests() : []), ...(m.followup3Requests ? m.followup3Requests() : [])]
   return new Map(all.map(r => [r.id, r.inventory]))
 })() : null
 const skippedRows = { notExecution: 0 }
@@ -118,6 +118,8 @@ const out = {
   teaching: { total: Object.keys(teach).length, states: tc },
   tests: { total: V.numTotalTests, passed: V.numPassedTests, failed: V.numFailedTests, skipped: V.numPendingTests, files: V.testResults.length },
 }
+// the coverage ledger (ledger.mjs) reads each row: its area, P0, whether it counted, and the teach document's state
+out.ledger = { source: A.source || '', rows: Object.fromEntries(scope.map(id => [id, { area: rows[id].area, p0: rows[id].pri === 'P0', executed: panel.has(id), browser: browser.includes(id), teach: teach[id] || null }])) }
 const text = JSON.stringify(out, null, 1)
 if (A.out) writeFileSync(A.out, text)
 console.log(JSON.stringify({ execution: { inScope: out.execution.inScope, documentVerified: out.execution.documentVerified, counted: out.execution.reconfirmedOrRaised, raisedByTest: out.execution.raisedByTest.length, raisedByBrowser: out.execution.raisedByBrowser.length, notReproved: Object.keys(unproved).length }, browser: { rows: out.browser.rows, p0: out.browser.p0, p0Total: out.browser.p0Total, failed: browserFailed.length }, panelP0: out.panelP0, teaching: out.teaching, tests: out.tests }, null, 1))
