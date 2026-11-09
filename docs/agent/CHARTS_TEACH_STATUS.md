@@ -10,10 +10,10 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 
 | Part | VERIFIED | ROUTED / BROWSER FAILED | ASSIGNED / NOT REACHED | NO ASSIGNED WALKTHROUGH | NO WALKTHROUGH |
 |---|---|---|---|---|---|
-| C1 | 127 | 3 | 14 | 19 | 12 |
-| C2 | 42 | 6 | 16 | 25 | 12 |
-| C3 | 112 | 14 | 31 | 43 | 23 |
-| All | 281 | 23 | 61 | 87 | 47 |
+| C1 | 129 | 3 | 14 | 17 | 12 |
+| C2 | 44 | 6 | 16 | 23 | 12 |
+| C3 | 117 | 14 | 31 | 38 | 23 |
+| All | 290 | 23 | 61 | 78 | 47 |
 
 - VERIFIED: proved in the browser, as above.
 - ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.
@@ -40,7 +40,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-015 | Chart type | Breadth Line/Candles quick toggle | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-016 | Chart type | Heikin Ashi candles | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-017 | Chart type | Candle colour mode | VERIFIED | chartSetting | Browser 2026-11-09: "how do I candle colour mode" → ring on the last step's control | VERIFIED |
-| C1-018 | Chart type | Thin bars | VERIFIED | chartSetting | Browser 2026-11-09: "how do I thin bars" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C1-018 | Chart type | Thin bars | VERIFIED | chartSetting | Browser 2026-11-09: "how do I thin bars" → ring on the last step's control | VERIFIED |
 | C1-019 | Session | Regular/extended on intraday | VERIFIED | chartView | Browser 2026-11-09: "how do I regular/extended on intraday" → ring on the last step's control | VERIFIED |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | chartView | Browser 2026-11-09: "how do I regular/extended on D/W/M" → ring on the last step's control | VERIFIED |
 | C1-021 | Session | Extended hours from price-axis menu | NO ASSIGNED WALKTHROUGH |  | The words reach chartView; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -89,7 +89,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-064 | Settings | Legend mode | VERIFIED | chartSetting | Browser 2026-11-09: "how do I legend mode" → ring on the last step's control | VERIFIED |
 | C1-065 | Settings | Legend bar-info fields | VERIFIED | control: The legend’s bar values | Browser 2026-11-09: "how do I legend bar-info fields" → ring on the last step's control | VERIFIED |
 | C1-066 | Settings | Info-row fields | ASSIGNED / NOT REACHED | panelAction | Assigned panelAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
-| C1-067 | Settings | Header colours | NO ASSIGNED WALKTHROUGH |  | The words reach chartSetting; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C1-067 | Settings | Header colours | VERIFIED | chartSetting: Changing Header colors | Browser 2026-11-09: "how do I header colours" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C1-068 | Settings | Swing labels on/off and sensitivity | VERIFIED | chartSetting | Browser 2026-11-09: "how do I swing labels on/off and sensitivity" → ring on the last step's control | VERIFIED |
 | C1-069 | Settings | Swing label background, tint, colours | VERIFIED | chartSetting | Browser 2026-11-09: "how do I swing label background, tint, colours" → ring on the last step's control | VERIFIED |
 | C1-070 | Settings | Event markers | VERIFIED | chartSetting | Browser 2026-11-09: "show me how to turn on earnings markers" → ring on the last step's control | VERIFIED |
@@ -185,7 +185,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-160 | Drawing | Save as default | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-161 | Drawing | Reorder (front/back) | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C1-162 | Drawing | Undo/redo a drawing | VERIFIED | drawingEdit | Browser 2026-11-09: "how do I undo/redo a drawing" → ring on the last step's control | VERIFIED |
-| C1-163 | Drawing | Magnet for drawing | VERIFIED | control: The drawing magnet | Browser 2026-11-09: "how do I magnet for drawing" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C1-163 | Drawing | Magnet for drawing | VERIFIED | control: The drawing magnet | Browser 2026-11-09: "how do I magnet for drawing" → ring on the last step's control | VERIFIED |
 | C1-164 | Drawing | Repeat drawing mode | VERIFIED | control: Repeat drawing | Browser 2026-11-09: "how do I repeat drawing mode" → ring on the last step's control | VERIFIED |
 | C1-165 | Drawing | Customise tool favourites | VERIFIED | control: Choosing your drawing tools | Browser 2026-11-09: "how do I customise tool favourites" → ring on the last step's control | VERIFIED |
 | C1-166 | Drawing | Nudge selected with arrows | VERIFIED | control: Nudging a drawing from the keyboard | Browser 2026-11-09: "how do I nudge selected with arrows" → ring on the last step's control | VERIFIED |
@@ -195,7 +195,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-170 | Boards | Delete a board | VERIFIED | control: Drawing boards: Delete | Browser 2026-11-09: "how do I delete a board" → ring on the last step's control | VERIFIED |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | ASSIGNED / NOT REACHED | chartView | Assigned chartView; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | ASSIGNED / NOT REACHED | chartView | Assigned chartView; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
-| C1-173 | Keyboard | Cycle grid layout (Alt+\\) | NO ASSIGNED WALKTHROUGH |  | The words reach chartSetting; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C1-173 | Keyboard | Cycle grid layout (Alt+\\) | VERIFIED | multiChart | Browser 2026-11-09: "show me how to 2x2 grid" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C1-174 | Keyboard | Keyboard help (?) | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C1-175 | Keyboard | Escape to cursor / cancel | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C2-001 | Picker | Open indicator library | VERIFIED | indicators | Browser 2026-11-09: "how do I open indicator library" → ring on the last step's control | VERIFIED |
@@ -208,13 +208,13 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C2-008 | Add | Add a symbol as a data series from search | VERIFIED | indicatorManage | Browser 2026-11-09: "how do I add a symbol as a data series from search" → ring on the last step's control | VERIFIED |
 | C2-009 | Add | Add economic series | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C2-010 | Add | Keyboard chord toggles RSI, MACD, BB, VWAP | VERIFIED | chartView | Browser 2026-11-09: "how do I keyboard chord toggles RSI, MACD, BB, VWAP" → ring on the last step's control | VERIFIED |
-| C2-011 | Add | Enable classic overlay average | NO ASSIGNED WALKTHROUGH |  | The words reach indicators; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C2-011 | Add | Enable classic overlay average | VERIFIED | indicators: Adding MA | Browser 2026-11-09: "show me how to turn on moving average 3" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C2-012 | Add | Add Volume Profile | ASSIGNED / NOT REACHED | indicators | Assigned indicators; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C2-013 | Add | Toggle Chart IQ pattern recognition | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C2-014 | Remove | Delete indicator from legend | VERIFIED | legendChip | Browser 2026-11-09: "how do I delete indicator from legend" → ring on the last step's control | VERIFIED |
 | C2-015 | Remove | Delete from Chart Settings | ASSIGNED / NOT REACHED | indicatorManage | Assigned indicatorManage; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C2-016 | Remove | Delete classic average row | VERIFIED | legendChip | Browser 2026-11-09: "show me how to remove the 9 EMA" → ring on the last step's control | VERIFIED |
-| C2-017 | Remove | Remove an unavailable indicator | NO ASSIGNED WALKTHROUGH |  | The words reach legendChip; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C2-017 | Remove | Remove an unavailable indicator | VERIFIED | legendChip: Removing an indicator | Browser 2026-11-09: "how do I remove an unavailable indicator" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C2-018 | Visibility | Hide indicator | VERIFIED | legendChip | Browser 2026-11-09: "how do I hide indicator" → ring on the last step's control | VERIFIED |
 | C2-019 | Visibility | Show indicator | VERIFIED | legendChip | Browser 2026-11-09: "how do I show indicator" → ring on the last step's control | VERIFIED |
 | C2-020 | Visibility | Hide or show volume | VERIFIED | chartView | Browser 2026-11-09: "how do I hide or show volume" → ring on the last step's control | VERIFIED |
@@ -305,23 +305,23 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-004 | Board | Close a widget | VERIFIED | widgetHeader | Browser 2026-11-09: "how do I close a widget" → ring on the last step's control | VERIFIED |
 | C3-005 | Board | Merge or unmerge widgets (lock board, drop borders) | VERIFIED | widgetMerge | Browser 2026-11-09: "how do I merge or unmerge widgets (lock board, drop borders)" → ring on the last step's control | VERIFIED |
 | C3-006 | Link | Cycle a widget's link colour | VERIFIED | link | Browser 2026-11-09: "how do I cycle a widget's link colour" → ring on the last step's control | VERIFIED |
-| C3-007 | Link | Change a tool panel's colour group | NO ASSIGNED WALKTHROUGH |  | The words reach link; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C3-007 | Link | Change a tool panel's colour group | VERIFIED | link | Browser 2026-11-09: "how do I change a tool panel's colour group" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C3-008 | Float | Float a widget over another | VERIFIED | widgetHeader | Browser 2026-11-09: "how do I float a widget over another" → ring on the last step's control | VERIFIED |
-| C3-009 | Float | Drag or resize a floating widget | NO ASSIGNED WALKTHROUGH |  | The words reach widgetResize; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C3-009 | Float | Drag or resize a floating widget | VERIFIED | widgetResize | Browser 2026-11-09: "how do I drag or resize a floating widget" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C3-010 | Float | Dock a floating widget back into the grid | NO ASSIGNED WALKTHROUGH |  | The words reach chartSetting; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-011 | Float | Move a floating widget into another widget's tabs | NO ASSIGNED WALKTHROUGH |  | The words reach widgetMove; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C3-011 | Float | Move a floating widget into another widget's tabs | VERIFIED | widgetMove | Browser 2026-11-09: "how do I move a floating widget into another widget's tabs" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C3-012 | Popout | Pop a widget into its own window | VERIFIED | widgetHeader | Browser 2026-11-09: "how do I pop a widget into its own window" → ring on the last step's control | VERIFIED |
 | C3-013 | Popout | Pop out the whole layout | ASSIGNED / NOT REACHED | layouts | Assigned layouts; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-014 | Popout | Dock a popped widget or layout back | NO ASSIGNED WALKTHROUGH |  | The words reach layouts; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-015 | Popout | Close a popped widget | NO ASSIGNED WALKTHROUGH |  | The words reach widgetHeader; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C3-015 | Popout | Close a popped widget | VERIFIED | widgetHeader: Widget controls: Close | Browser 2026-11-09: "how do I close a popped widget" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C3-016 | Widget tabs | Add a widget as a tab | VERIFIED | widgetHeader | Browser 2026-11-09: "how do I add a widget as a tab" → ring on the last step's control | VERIFIED |
 | C3-017 | Widget tabs | Switch a widget tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I switch a widget tab" → ring on the last step's control | VERIFIED |
 | C3-018 | Widget tabs | Rename a widget tab | VERIFIED | control: Renaming a widget tab | Browser 2026-11-09: "how do I rename a widget tab" → ring on the last step's control | VERIFIED |
-| C3-019 | Widget tabs | Close a widget tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I close a widget tab" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-019 | Widget tabs | Close a widget tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I close a widget tab" → ring on the last step's control | VERIFIED |
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | chartTab | Browser 2026-11-09: "how do I add a chart tab" → ring on the last step's control | VERIFIED |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I switch a chart tab" → ring on the last step's control | VERIFIED |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | control: Renaming a chart tab | Browser 2026-11-09: "how do I rename a chart tab" → ring on the last step's control | VERIFIED |
-| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 12:17 PM how do I change a chart tab's link colour // UCT Agent 12:17 PM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scroll | ROUTED / BROWSER FAILED |
+| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 2:58 PM how do I change a chart tab's link colour // UCT Agent 2:58 PM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
 | C3-024 | Chart tabs | Close a chart tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I close a chart tab" → ring on the last step's control | VERIFIED |
 | C3-025 | Layout Dock | Open a saved layout | VERIFIED | layouts | Browser 2026-11-09: "how do I open a saved layout" → ring on the last step's control | VERIFIED |
 | C3-026 | Layout Dock | See which layout is open | VERIFIED | layoutAction | Browser 2026-11-09: "how do I see which layout is open" → ring on the last step's control | VERIFIED |
@@ -418,7 +418,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-117 | Scanner | Open an AI Search scan in the builder and edit conditions | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-118 | Scanner | Run or refine a screen from the workspace chat | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-119 | Scanner | Save a screen run from the workspace | NO ASSIGNED WALKTHROUGH |  | The words reach layoutSave; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-120 | Scanner | Send a scan to Journal | ROUTED / BROWSER FAILED | widgetAction | "how do I send a scan to Journal" reaches it; browser: no walkthrough: Harness 12:27 PM how do I send a scan to Journal // UCT Agent 12:27 PM Sending a scan to the Journal isn’t available yet. It will show in the Scanner widget on | ROUTED / BROWSER FAILED |
+| C3-120 | Scanner | Send a scan to Journal | ROUTED / BROWSER FAILED | widgetAction | "how do I send a scan to Journal" reaches it; browser: no walkthrough: Harness 3:08 PM how do I send a scan to Journal // UCT Agent 3:08 PM Sending a scan to the Journal isn’t available yet. It will show in the Scanner widget once | ROUTED / BROWSER FAILED |
 | C3-121 | Volume Surge | Choose what the scanner watches | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-122 | Volume Surge | Create, rename or delete a scope list | ROUTED / BROWSER FAILED | control: Deleting a Volume Surge list | "how do I create, rename or delete a scope list" reaches it; browser: last step shows its fallback: You have no lists of your own here yet. | ROUTED / BROWSER FAILED |
 | C3-123 | Volume Surge | Add a ticker to a scope list | VERIFIED | control: Adding a ticker to a Volume Surge list | Browser 2026-11-09: "how do I add a ticker to a scope list" → ring on the last step's control | VERIFIED |
@@ -473,7 +473,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-172 | Themes | Open a theme or pick a holding | VERIFIED | widgetAction | Browser 2026-11-09: "how do I open a theme or pick a holding" → ring on the last step's control | VERIFIED |
 | C3-173 | Themes | Search themes or tickers | VERIFIED | widgetAction | Browser 2026-11-09: "how do I search themes or tickers" → ring on the last step's control | VERIFIED |
 | C3-174 | Themes | Pick, rename or delete a theme set | VERIFIED | widgetAction | Browser 2026-11-09: "how do I pick, rename or delete a theme set" → ring on the last step's control | VERIFIED |
-| C3-175 | Themes | Edit a set (add, hide, reset, custom theme) | NO ASSIGNED WALKTHROUGH |  | The words reach widgetAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C3-175 | Themes | Edit a set (add, hide, reset, custom theme) | VERIFIED | widgetAction: Theme presets | Browser 2026-11-09: "how do I edit a set (add, hide, reset, custom theme)" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C3-176 | Themes | Add or remove a stock in a theme | NO ASSIGNED WALKTHROUGH |  | The words reach chartThemes; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-177 | Themes | Send the ranking to Journal | VERIFIED | control: Sending Theme Tracker to the Journal | Browser 2026-11-09: "how do I send the ranking to Journal" → ring on the last step's control | VERIFIED |
 | C3-178 | Fundamentals | Switch view | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
@@ -481,8 +481,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-180 | Fundamentals | Change appearance or send to Journal | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | widgetAction | Browser 2026-11-09: "how do I read profile and earnings table" → ring on the last step's control | VERIFIED |
 | C3-182 | Profile | Click a peer ticker | NO ASSIGNED WALKTHROUGH |  | The words reach symbol; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 12:35 PM how do I hide or restore an index // UCT Agent 12:35 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on. | ROUTED / BROWSER FAILED |
-| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 12:35 PM show me how to send index levels to journal // UCT Agent 12:35 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s sw | ROUTED / BROWSER FAILED |
+| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 3:16 PM how do I hide or restore an index // UCT Agent 3:16 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on. | ROUTED / BROWSER FAILED |
+| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 3:16 PM show me how to send index levels to journal // UCT Agent 3:16 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s swit | ROUTED / BROWSER FAILED |
 | C3-185 | Market Context | Read market context | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-186 | Market Context | Send to Journal | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-187 | NH/NL | Add or remove a universe | VERIFIED | widgetAction | Browser 2026-11-09: "show me how to add the Nasdaq 100 to new highs" → ring on the last step's control | VERIFIED |
