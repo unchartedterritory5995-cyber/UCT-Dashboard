@@ -69,6 +69,8 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       commit: (ref, patch) => {
         const w = state.widgets.find(x => x.id === ref)
         if (!w) return false
+        // a test may make a chart's writer refuse one kind of change (state.failChartCommit(patch) → true): a write that fails
+        if (state.failChartCommit?.(patch)) return false
         const opts = { ...w.opts }
         if ('settings' in patch) opts.settings = patch.settings
         if ('tf' in patch) opts.tf = patch.tf
@@ -79,6 +81,8 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       },
     },
     otherWidgets: () => [],
+    // the board-visit count (a layout opened or the board left and re-entered): a test plays a visit through state.boardVisit
+    boardVisit: () => state.boardVisit ?? null,
     // The SERVER's stored board, compared with this tab by the real comparator (host.buildWidgetSync).
     // In sync unless a test plays another tab/device: `state.serverWidgets` (what the server holds
     // instead) or `state.serverUnreadable` (the read fails).

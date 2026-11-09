@@ -29,6 +29,33 @@ Shared targeting core touched: `useAgent.js`, `compound.js`, `fastPath.js`, `cap
 - **"every chart except that one":** an indicator added to every chart but the one set aside (the click for a negated
   pointer, or the charts named after "except") names its targets: no "Which charts should it go on?".
 
+## AUDIT's GO bar (each item a rail in `agentMultiStep.test.jsx`, "GO bar")
+
+Partial failure is **keep-and-report** (AUDIT-confirmed): done steps are kept, no auto-rollback.
+
+1. **Each step is atomic.** A multi-step request runs as steps (compound.js: the fewest clauses that each read as one step);
+   each step is ONE plan through the ordinary planner/runtime, which commits all of it or none of it. Rail: the chart refuses
+   the timeframe write inside "…, then make it weekly and log scale" — the step leaves neither its timeframe nor its scale, and
+   the receipt's "nothing was left changed" holds. A sentence the instant reader takes WHOLE is one plan, atomic as a whole
+   (rail: "nothing was left changed", no partial state).
+2. **The receipt is exact:** "Done n of m steps (“<step>” on <chart>; …), then stopped at “<step k>”: <reason>. Not done: “<k>”, …."
+   — each done step named with its chart(s); nothing after k runs. The steps are checked against `planCompound`'s own reading.
+3. **A dependent later step never runs on a changed premise:** before each step after the first, the run checks the board it
+   started on (the layout epoch and the board-visit count); if another layout or board opened under it, it stops there
+   ("the board changed while I was working"). Each step is also re-read on the LIVE board (compound.js), never replayed.
+4. **Undo:** after a partial run, "undo" takes back exactly the steps that ran, newest first, as ONE entry (the run's Undo
+   entries are grouped on both routings, a stopped run included). After a member edit in between, Undo is field-scoped (the
+   chart kind's `undoPatchNow`): the member's own change (here, log scale turned on by hand) is kept.
+5. **Bounded:**
+   - step-count cap `MAX_STEPS` = 6 per request (a longer plan is refused before anything runs, "UCT does at most 6"); each
+     step at most `maxOps` changes (manifest contract);
+   - wall-clock cap `COMPOUND_WALL_MS` = 60 s: no step STARTS after it (a step under way finishes); rail with the cap forced;
+   - no re-plan loop: the steps are read once, up front; a step that does not read stops the run;
+   - **model calls (AI spend):** an instant multi-step request makes **0** model calls (rail: `p.turns() === 0`). A request the
+     instant readers cannot take goes to the model as ONE request: at most one client reroute (need_groups) and, server-side,
+     at most `UCT_AGENT_MAX_CALLS_PER_REQUEST` = 2 paid calls per request (api/services/uct_agent/budget.py, DEFAULT_MAX_CALLS)
+     under the per-turn dollar cap. No per-step model call exists.
+
 ## Held-out (agentMultiStepHeldOut, committed first in 77a98ad782)
 
 6/6 pass after the change; 2/6 passed before it (q1, u1). **Oracle note:** the held-out file expects `ind: ['ema']` for "add a

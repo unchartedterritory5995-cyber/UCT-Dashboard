@@ -87,7 +87,7 @@ describe('tuning: the owner sequence, per-step receipts, Undo of the whole', () 
     const { say, board } = mount()
     await say('put RSI on it')
     const out = await say('switch to AMD, make it weekly, then add the florbish indicator')
-    expect(out).toMatch(/Done \d of \d steps, then stopped at .*florbish/)
+    expect(out).toMatch(/Done \d of \d steps \(.*on Chart \(c0\)\), then stopped at .*florbish/)
     expect(state(board)).toMatchObject({ symbol: 'AMD', tf: 'W' })
     await say('undo')
     expect(state(board)).toMatchObject({ symbol: 'SPY', tf: 'D', ind: ['rsi'] })
@@ -136,5 +136,91 @@ describe('unseen8: a sequence\'s own ticker, and every chart except the click', 
     const has = (id) => (tw(board, id).opts?.settings?.indicatorInstances || []).some(i => !i.deleted && i.defId === 'rsi')
     expect(out).not.toMatch(/Which charts should it go on/)
     expect([has('l'), has('r'), has('m')], out).toEqual([false, true, true])
+  }, 60000)
+})
+
+// ── AUDIT's GO bar for multi-step plans (round 8). Keep-and-report on a partial failure (AUDIT-confirmed), no auto-rollback.
+// A sentence the instant reader takes WHOLE is ONE plan (atomic as a whole: "nothing was left changed"); a sentence it cannot take
+// whole is a multi-step plan (compound.js): the steps below are read with planCompound, so the receipt is checked against them.
+import { planCompound, MAX_STEPS } from './compound'
+import { makeBoard } from './__fixtures__/board'
+const stepsOf = (text) => {
+  const b = makeBoard([{ id: 'c0', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: { settings: bareSettings() } }], { A: 'SPY' })
+  return planCompound(text, { host: b.host })?.steps?.map(x => x.text) || null
+}
+describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', () => {
+  const SEQ = 'switch to AMD, then put a MACD under the price, then make it weekly and log scale'
+  it('(1)(2) a step that fails partway leaves nothing of itself; the receipt names each done step with its chart; nothing after runs', async () => {
+    const steps = stepsOf(SEQ)
+    expect(steps && steps.length, JSON.stringify(steps)).toBeGreaterThanOrEqual(2)
+    const { say, board } = mount()
+    board.state.failChartCommit = (patch) => 'tf' in patch           // the chart refuses the timeframe write
+    const out = await say(SEQ)
+    const s = state(board)
+    expect(s.tf, out).toBe('D')                                       // the failing step left nothing of itself …
+    expect(s.log).toBe(false)                                         // … neither its timeframe nor its scale
+    const k = steps.findIndex(t => /weekly/.test(t))
+    const done = steps.slice(0, k)
+    expect(out).toContain(`Done ${done.length} of ${steps.length} steps (`)
+    for (const t of done) expect(out).toContain(`“${t}” on Chart (c0)`)
+    expect(out).toContain(`then stopped at “${steps[k]}”`)
+    expect(out).toContain(`Not done: ${steps.slice(k).map(t => `“${t}”`).join(', ')}.`)
+    expect(p.turns()).toBe(0)
+  }, 60000)
+  it('(1) a sentence read WHOLE is one plan: its failure leaves nothing at all ("nothing was left changed")', async () => {
+    const { say, board } = mount()
+    board.state.failChartCommit = (patch) => 'tf' in patch
+    const out = await say('switch to AMD, then add a MACD, then make it weekly')
+    expect(state(board)).toMatchObject({ symbol: 'SPY', tf: 'D', ind: [] })
+    expect(out).toMatch(/nothing was left changed/)
+  }, 60000)
+  it('(3) a changed premise: another board opened under the run — nothing after that step runs', async () => {
+    const steps = stepsOf(SEQ)
+    const { say, board } = mount()
+    board.state.boardVisit = 1
+    board.state.failChartCommit = (patch) => { if (patch.symbol) board.state.boardVisit = 2; return false }   // the first step lands; then another board opens
+    const out = await say(SEQ)
+    expect(out).toMatch(/the board changed while I was working/)
+    expect(state(board).tf).toBe('D')
+    expect(steps.length).toBeGreaterThanOrEqual(2)
+  }, 60000)
+  it('(4) Undo after a partial run takes back exactly the steps that ran, newest first, as ONE entry', async () => {
+    const { say, board } = mount()
+    await say('put RSI on it')
+    board.state.failChartCommit = (patch) => 'tf' in patch
+    await say(SEQ)
+    expect(state(board).symbol).toBe('AMD')
+    expect(state(board).ind).toEqual(expect.arrayContaining(['rsi', 'macd']))
+    board.state.failChartCommit = null
+    await say('undo')
+    expect(state(board)).toMatchObject({ symbol: 'SPY', tf: 'D', ind: ['rsi'] })
+  }, 60000)
+  it('(4) Undo after a member edit in between is field-scoped: the member’s own change is kept', async () => {
+    const { say, board } = mount()
+    await say('switch to AMD then weekly then add a MACD')
+    const w0 = board.state.widgets[0]
+    board.state.widgets = board.state.widgets.map(x => (x.id === w0.id ? { ...x, opts: { ...x.opts, settings: { ...(x.opts.settings || {}), logScale: true } } } : x))
+    await say('undo')
+    const s = state(board)
+    expect(s.log).toBe(true)
+    expect(s).toMatchObject({ symbol: 'SPY', tf: 'D', ind: [] })
+  }, 60000)
+  it('(5) bounded: a plan of more than the step cap is refused before anything runs', () => {
+    const b = makeBoard([{ id: 'c0', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: { settings: bareSettings() } }], { A: 'SPY' })
+    const parts = ['put rsi under the price', 'switch to AMD', 'put a macd under the price', 'make it weekly', 'put an atr under the price', 'log scale', 'put a cci under the price', 'make it monthly']
+    const r = planCompound(parts.join(', then '), { host: b.host })
+    if (r?.steps) expect(r.steps.length).toBeLessThanOrEqual(MAX_STEPS)
+    else expect(r?.say || '', JSON.stringify(r)).toMatch(new RegExp(`at most ${MAX_STEPS}`))
+  })
+  it('(5) bounded: past the wall-clock cap no further step starts; 0 model calls for a multi-step request', async () => {
+    const { _setCompoundWallMs } = await import('./useAgent')
+    const { say, board } = mount()
+    _setCompoundWallMs(-1)
+    try {
+      const out = await say(SEQ)
+      expect(out).toMatch(/time limit/)
+      expect(state(board)).toMatchObject({ tf: 'D' })
+    } finally { _setCompoundWallMs(60000) }
+    expect(p.turns()).toBe(0)
   }, 60000)
 })
