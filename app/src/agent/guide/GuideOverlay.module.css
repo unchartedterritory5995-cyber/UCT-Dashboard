@@ -9,7 +9,13 @@
   border: 2px solid var(--ut-gold, #c9a84c);
   border-radius: 8px;
   box-shadow: 0 0 0 4px var(--ut-gold-glow, rgba(201, 168, 76, 0.25)), 0 0 0 9999px rgba(0, 0, 0, 0.18);
-  transition: top 120ms ease, left 120ms ease, width 120ms ease, height 120ms ease;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  /* placed by a transform each frame it moves (ringGeometry.trackRing): no positional transition, so it never trails a
+     control being dragged. Only its appearing and going fade. */
+  will-change: transform;
+  transition: opacity 80ms ease;
 }
 
 .card {

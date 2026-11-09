@@ -7,7 +7,9 @@
 //   • the ring and the dim are pointer-events: none — the chart, its menus and trading controls work as always
 //   • the card is never placed on the control (placement.placeCard, with the card's measured height), and stays off the
 //     menu or window the control sits in whenever there is room
-//   • the target is re-found every POLL_MS (scrolling, resizing, a panel opening or closing); the ring follows it
+//   • the target is re-found every POLL_MS while a walkthrough runs (a panel opening or closing, a step's result); the RING is
+//     placed by ringGeometry.trackRing: ResizeObserver, scroll and resize events, and a frame loop only while it moves or a drag
+//     is in progress — a transform, no positional transition, so it stays on a control being dragged (GUIDE-OVERLAY-GEOMETRY.md)
 //   • a step's `waitFor` already met is a step already done: it moves on at once (a menu already open, a tab already
 //     selected), including while the walkthrough is running
 //   • a control the member just clicked that then goes away (a menu item, a last click) is the step DONE, not a lost
@@ -40,6 +42,7 @@ import { createPortal } from 'react-dom'
 import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt, escapeOnBoard, SELECTED_DRAWING } from './guideStore'
 import { needsOwnPress, findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
 import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
+import { RING, trackRing } from './ringGeometry'
 import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
 import { layerOpenedSince } from '../../lib/topLayer'
 import styles from './GuideOverlay.module.css'
@@ -56,6 +59,19 @@ const holderRect = (el) => {
 }
 const hasDoIt = (feature) => !!feature?.doIt
 
+// the ring's one write: a transform and a size (no layout property animates), or hidden when nothing of the control shows
+export function applyRing(node, r) {
+  if (!node) return
+  if (!r) { node.style.opacity = '0'; return }
+  node.style.transform = `translate3d(${r.left}px, ${r.top}px, 0)`
+  node.style.width = `${r.width}px`
+  node.style.height = `${r.height}px`
+  node.style.borderRadius = r.round ? '50%' : `${RING.radius}px`
+  node.style.opacity = '1'
+}
+// set once at mount and never changed by a render, so React never writes over the tracker's transform
+const RING_STYLE = { opacity: 0, borderWidth: RING.stroke }
+
 // the menus that close on Escape carry no layer attribute (a plain dropdown is not a layer): which were open at the press
 const MENUS = '[role="menu"],[data-guide$="Menu"]'
 // an armed drawing tool, or a selected drawing (guideStore.SELECTED_DRAWING: desktop and touch)
@@ -71,6 +87,9 @@ export default function GuideOverlay() {
   const { state: st, notice } = useSyncExternalStore(subscribeGuide, guideSnapshot, guideSnapshot)
   // what was found for ONE step (keyed, so a new step never shows the last step's ring)
   const [found, setFound] = useState({ key: null, rect: null, holder: null, why: null, paused: false })
+  // the element the ring is on (one step's), tracked by ringGeometry; the ring node is written to directly
+  const [target, setTarget] = useState({ key: null, el: null })
+  const ringRef = useRef(null)
   const [hint, setHint] = useState(null)   // { key, text } — the step the member tried to Skip past
   const [cardH, setCardH] = useState(undefined)
   const cardRef = useRef(null)
@@ -123,6 +142,7 @@ export default function GuideOverlay() {
         lostSince = null
         if (!shown) { shown = true; reveal(el) }
         if (step.pin) pinWidget(el.closest?.('[data-widget-id]')?.getAttribute('data-widget-id'))
+        setTarget(prev => (prev.key === stepKey && prev.el === el ? prev : { key: stepKey, el }))
         const r = rectOf(el)
         const holder = holderRect(el)
         // the last entry of a list is the fallback; any earlier one is the control itself, in another form
@@ -134,6 +154,7 @@ export default function GuideOverlay() {
       }
       // the member's own click took it away (a menu item, the last click): that step is done, not lost
       if (clicked && Date.now() - clicked < CLICK_MS) { clicked = 0; if (step.endsOnClick) endGuide('done'); else nextStep(); return }
+      setTarget(prev => (prev.el === null ? prev : { key: stepKey, el: null }))
       setFound(prev => (prev.key === stepKey && prev.rect === null && prev.paused === (lostSince != null && Date.now() - lostSince >= LOST_MS) ? prev
         : { key: stepKey, rect: null, holder: null, why: null, paused: lostSince != null && Date.now() - lostSince >= LOST_MS }))
       const now = Date.now()
@@ -179,6 +200,17 @@ export default function GuideOverlay() {
       document.removeEventListener('mousedown', onDown, true)
     }
   }, [st, step, stepKey])
+
+  // ⭐ the ring follows its control frame by frame while it moves (a resize corner being dragged), and stops when still,
+  // when the step changes and when the walkthrough ends: no frame loop or listener outlives the element it tracks
+  const ringEl = target.key === stepKey ? target.el : null
+  const ringOn = !!ringEl && !!rect
+  useEffect(() => {
+    if (!ringEl || !ringOn) return undefined
+    const holder = ringEl.closest?.('[data-widget-id]') || null
+    const tr = trackRing(ringEl, (r) => applyRing(ringRef.current, r), { holder })
+    return () => tr.stop()
+  }, [ringEl, ringOn])
 
   // where the member's pointer is (passive: nothing is consumed), so the card is never placed under it
   const pointerRef = useRef(null)
@@ -282,7 +314,7 @@ export default function GuideOverlay() {
   const onRestart = () => restartGuide(startIndex(st.steps, st))
   return createPortal(
     <>
-      {rect && <div className={styles.ring} data-testid="guide-ring" aria-hidden="true" style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }} />}
+      {rect && <div ref={ringRef} className={styles.ring} data-testid="guide-ring" aria-hidden="true" style={RING_STYLE} />}
       <div
         ref={cardRef}
         className={styles.card}
