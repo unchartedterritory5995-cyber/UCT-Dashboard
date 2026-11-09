@@ -6,6 +6,9 @@
 // it is older than LIVE_TTL_MS. Failures are never cached: a retry must really
 // retry.
 
+/** Fired with a loaded drill list's tickers; useGroupMeta listens. */
+export const DRILL_ITEMS_EVENT = 'uct:breadth-drill-items'
+
 const LIVE_TTL_MS = 30_000
 const MAX_ENTRIES = 300
 const entries = new Map() // url -> { at, live, data?, promise? }
@@ -32,6 +35,13 @@ export function fetchDrill(url, { live = false } = {}) {
     .then(data => {
       const cur = entries.get(url)
       if (cur && cur.promise === promise) cur.data = data
+      // The scan window's sector mix needs each name's sector: announce the list
+      // so useGroupMeta (loaded with the drill window) warms it before the click.
+      // An event, not an import, so this page's chunk graph stays as it was.
+      const items = Array.isArray(data?.items) ? data.items : null
+      if (items?.length && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(DRILL_ITEMS_EVENT, { detail: items.map(i => i?.t) }))
+      }
       return data
     })
     .catch(err => {
