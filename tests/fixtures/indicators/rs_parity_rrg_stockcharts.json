@@ -1,0 +1,1075 @@
+{
+  "case": "rs_parity_rrg_stockcharts",
+  "kind": "rs_parity",
+  "note": "Public-method parity for the UCT RS ROTATION columns (engineering map 2026-11-08 unit 3-13, decision D1, §6), read by tests/test_rs_phase3_parity.py against api/services/relative_strength.rrg_columns (the Terminal's RRG_METHOD: SMA 10 / 5, here on weekly closes). StockCharts publishes no RRG data API and its RS-Ratio / RS-Momentum normalisation is proprietary, so the reference is a PERSON'S READING of the StockCharts RRG for the 11 SPDR sector ETFs on the 12 weekly dates below (132 cells). Until every `stockcharts_quadrant` is filled, the agreement test is a strict xfail ('awaiting owner StockCharts readings'). Once filled, it computes our quadrant for each cell from `weekly_closes` and requires agreement ≥ `agreement_floor` (0.85). If it misses, the failure prints the measured agreement: record that number, mark the test xfail with it, and REOPEN D1 (the Terminal and the chart then switch together to the plan's §7.14 formula, in one unit). The floor is never edited. `weekly_closes` are split- and dividend-adjusted daily closes from Yahoo Finance (yfinance auto_adjust=True, fetched 2026-11-07), the last session of each ISO week keyed by that week's Friday (the app's isoWeekFriday convention). The readings are StockCharts'; nothing in this file is our output.",
+  "instructions": [
+    "Open the StockCharts RRG chart (stockcharts.com, Charts & Tools, RRG Charts). Pick the 'S&P Sector ETFs' universe, or type the 11 tickers in `tickers`.",
+    "Set the BENCHMARK to SPY (StockCharts' sector default is $SPX; SPY is what our side uses).",
+    "Set the timeframe to WEEKLY and the tail length to 12 weeks.",
+    "Move the end date to the LAST date in `dates` (2026-11-06). Each sector's tail then has one dot per date in `dates`, oldest first.",
+    "For every ticker and date, write the quadrant its dot sits in into readings[date][ticker].stockcharts_quadrant: exactly one of 'Leading', 'Weakening', 'Lagging', 'Improving'. Hovering a dot shows its date and both values; above 100 on both = Leading, ratio above and momentum below = Weakening, both below = Lagging, ratio below and momentum above = Improving.",
+    "A dot exactly on a 100 line counts as the upper side (as ours does); mention it in reference.reader_notes.",
+    "Fill reference.reader and reference.read_on (the date you read the chart). Change nothing else, and never `agreement_floor`."
+  ],
+  "reference": {
+    "source": "StockCharts.com Relative Rotation Graph (JdK RS-Ratio / JdK RS-Momentum)",
+    "url": "https://stockcharts.com/freecharts/rrg/",
+    "method_pages": [
+      "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-types/relative-rotation-graphs-rrg-charts",
+      "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/rrg-relative-strength"
+    ],
+    "reader": null,
+    "read_on": null,
+    "reader_notes": null
+  },
+  "agreement_floor": 0.85,
+  "benchmark": "SPY",
+  "timeframe": "weekly",
+  "tickers": [
+    "XLB",
+    "XLC",
+    "XLE",
+    "XLF",
+    "XLI",
+    "XLK",
+    "XLP",
+    "XLRE",
+    "XLU",
+    "XLV",
+    "XLY"
+  ],
+  "dates": [
+    "2026-08-21",
+    "2026-08-28",
+    "2026-09-04",
+    "2026-09-11",
+    "2026-09-18",
+    "2026-09-25",
+    "2026-10-02",
+    "2026-10-09",
+    "2026-10-16",
+    "2026-10-23",
+    "2026-10-30",
+    "2026-11-06"
+  ],
+  "quadrant_names": [
+    "Leading",
+    "Weakening",
+    "Lagging",
+    "Improving"
+  ],
+  "readings": {
+    "2026-08-21": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-08-28": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-09-04": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-09-11": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-09-18": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-09-25": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-10-02": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-10-09": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-10-16": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-10-23": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-10-30": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    },
+    "2026-11-06": {
+      "XLB": {
+        "stockcharts_quadrant": null
+      },
+      "XLC": {
+        "stockcharts_quadrant": null
+      },
+      "XLE": {
+        "stockcharts_quadrant": null
+      },
+      "XLF": {
+        "stockcharts_quadrant": null
+      },
+      "XLI": {
+        "stockcharts_quadrant": null
+      },
+      "XLK": {
+        "stockcharts_quadrant": null
+      },
+      "XLP": {
+        "stockcharts_quadrant": null
+      },
+      "XLRE": {
+        "stockcharts_quadrant": null
+      },
+      "XLU": {
+        "stockcharts_quadrant": null
+      },
+      "XLV": {
+        "stockcharts_quadrant": null
+      },
+      "XLY": {
+        "stockcharts_quadrant": null
+      }
+    }
+  },
+  "weekly_closes": {
+    "source": "Yahoo Finance via yfinance, daily closes adjusted for splits and dividends (auto_adjust=True), last session of each ISO week, keyed by that week's Friday",
+    "fetched": "2026-11-07",
+    "t": [
+      "2026-02-06",
+      "2026-02-13",
+      "2026-02-20",
+      "2026-02-27",
+      "2026-03-06",
+      "2026-03-13",
+      "2026-03-20",
+      "2026-03-27",
+      "2026-04-03",
+      "2026-04-10",
+      "2026-04-17",
+      "2026-04-24",
+      "2026-05-01",
+      "2026-05-08",
+      "2026-05-15",
+      "2026-05-22",
+      "2026-05-29",
+      "2026-06-05",
+      "2026-06-12",
+      "2026-06-19",
+      "2026-06-26",
+      "2026-07-03",
+      "2026-07-10",
+      "2026-07-17",
+      "2026-07-24",
+      "2026-07-31",
+      "2026-08-07",
+      "2026-08-14",
+      "2026-08-21",
+      "2026-08-28",
+      "2026-09-04",
+      "2026-09-11",
+      "2026-09-18",
+      "2026-09-25",
+      "2026-10-02",
+      "2026-10-09",
+      "2026-10-16",
+      "2026-10-23",
+      "2026-10-30",
+      "2026-11-06"
+    ],
+    "last_session": [
+      "2026-02-06",
+      "2026-02-13",
+      "2026-02-20",
+      "2026-02-27",
+      "2026-03-06",
+      "2026-03-13",
+      "2026-03-20",
+      "2026-03-27",
+      "2026-04-02",
+      "2026-04-10",
+      "2026-04-17",
+      "2026-04-24",
+      "2026-05-01",
+      "2026-05-08",
+      "2026-05-15",
+      "2026-05-22",
+      "2026-05-29",
+      "2026-06-05",
+      "2026-06-12",
+      "2026-06-18",
+      "2026-06-26",
+      "2026-07-02",
+      "2026-07-10",
+      "2026-07-17",
+      "2026-07-24",
+      "2026-07-31",
+      "2026-08-07",
+      "2026-08-14",
+      "2026-08-21",
+      "2026-08-28",
+      "2026-09-04",
+      "2026-09-11",
+      "2026-09-18",
+      "2026-09-25",
+      "2026-10-02",
+      "2026-10-09",
+      "2026-10-16",
+      "2026-10-23",
+      "2026-10-30",
+      "2026-11-06"
+    ],
+    "SPY": [
+      685.2676,
+      676.4663,
+      684.0868,
+      680.6735,
+      667.1689,
+      657.1572,
+      645.301,
+      630.894,
+      652.5245,
+      676.0353,
+      706.5607,
+      710.3415,
+      717.0177,
+      733.9022,
+      735.4444,
+      741.8818,
+      752.6671,
+      733.8325,
+      738.0114,
+      744.8903,
+      727.1843,
+      742.9352,
+      753.08,
+      741.4488,
+      737.0996,
+      745.1796,
+      771.3446,
+      774.417,
+      763.8232,
+      767.4443,
+      768.2822,
+      762.3968,
+      761.69,
+      771.35,
+      769.64,
+      778.57,
+      763.25,
+      759.97,
+      755.72,
+      735.29
+    ],
+    "XLB": [
+      50.8569,
+      52.634,
+      52.2885,
+      52.7328,
+      49.2278,
+      48.5663,
+      46.3843,
+      48.5046,
+      49.9921,
+      51.5293,
+      51.45,
+      51.4896,
+      50.9244,
+      51.1624,
+      49.8831,
+      49.8731,
+      50.726,
+      50.2103,
+      51.7475,
+      51.3805,
+      51.3636,
+      51.7717,
+      50.6569,
+      50.2985,
+      51.0252,
+      50.199,
+      52.6179,
+      52.2993,
+      53.2947,
+      52.9364,
+      52.1998,
+      50.7166,
+      49.761,
+      49.8,
+      48.86,
+      49.43,
+      50.92,
+      51.31,
+      52.74,
+      51.95
+    ],
+    "XLC": [
+      114.7143,
+      113.5449,
+      115.7449,
+      116.9836,
+      116.3989,
+      113.4161,
+      111.2162,
+      106.4116,
+      111.0442,
+      113.281,
+      118.4007,
+      114.8616,
+      116.0347,
+      116.2534,
+      115.3985,
+      114.7821,
+      115.0108,
+      111.0144,
+      110.9945,
+      108.8074,
+      105.8312,
+      109.24,
+      111.2733,
+      110.2865,
+      105.9508,
+      107.8844,
+      110.8846,
+      112.579,
+      111.0341,
+      112.6188,
+      111.662,
+      112.2301,
+      110.446,
+      112.96,
+      110.32,
+      110.38,
+      110.32,
+      105.51,
+      99.9,
+      104.79
+    ],
+    "XLE": [
+      52.2152,
+      53.2938,
+      53.8135,
+      54.8333,
+      55.4706,
+      56.5787,
+      58.1574,
+      61.7451,
+      58.4782,
+      56.1983,
+      54.3033,
+      56.1292,
+      58.0834,
+      54.9744,
+      58.6657,
+      58.715,
+      55.5567,
+      56.9187,
+      56.8003,
+      53.0696,
+      53.5219,
+      52.9055,
+      54.7545,
+      57.3392,
+      59.2677,
+      59.1981,
+      57.1602,
+      61.5442,
+      63.264,
+      62.3096,
+      63.6815,
+      64.7551,
+      63.93,
+      62.04,
+      62.82,
+      65.08,
+      68.24,
+      69.33,
+      70.02,
+      61.62
+    ],
+    "XLF": [
+      53.6044,
+      51.0259,
+      51.8557,
+      50.8086,
+      49.9589,
+      48.2992,
+      48.4869,
+      47.4751,
+      49.183,
+      50.4143,
+      52.0627,
+      51.0598,
+      51.5563,
+      50.8811,
+      50.742,
+      51.5761,
+      51.2187,
+      51.9336,
+      52.9663,
+      53.1947,
+      53.3811,
+      55.4238,
+      55.5135,
+      56.0616,
+      56.1114,
+      56.7392,
+      57.3969,
+      57.9549,
+      57.2773,
+      57.8951,
+      57.8951,
+      57.0481,
+      55.663,
+      54.84,
+      53.49,
+      54.73,
+      55.52,
+      55.9,
+      56.51,
+      57.16
+    ],
+    "XLI": [
+      171.8091,
+      172.7913,
+      175.8271,
+      175.7378,
+      168.5948,
+      163.3467,
+      160.3902,
+      158.3836,
+      162.9302,
+      170.6404,
+      172.6202,
+      171.5856,
+      172.073,
+      172.3118,
+      170.521,
+      170.8891,
+      172.2422,
+      173.2868,
+      175.2765,
+      179.9823,
+      180.7143,
+      183.4171,
+      181.4324,
+      178.9291,
+      182.1704,
+      179.358,
+      184.6836,
+      186.0101,
+      179.7669,
+      176.6652,
+      174.8002,
+      171.908,
+      169.295,
+      170.43,
+      169.95,
+      169.25,
+      167.76,
+      164.62,
+      167.4,
+      162.67
+    ],
+    "XLK": [
+      140.6228,
+      139.0584,
+      140.3737,
+      138.2613,
+      136.7966,
+      136.3083,
+      134.8038,
+      129.614,
+      135.6697,
+      142.2841,
+      153.9865,
+      159.8427,
+      161.4888,
+      175.1066,
+      175.8449,
+      179.9651,
+      190.5701,
+      179.8754,
+      184.3648,
+      190.9891,
+      180.8989,
+      180.3795,
+      185.5634,
+      175.3853,
+      175.675,
+      175.1456,
+      187.7509,
+      189.7885,
+      183.0963,
+      185.4736,
+      187.0617,
+      187.4512,
+      189.379,
+      196.27,
+      199.81,
+      198.78,
+      183.47,
+      183.23,
+      179.51,
+      164.74
+    ],
+    "XLP": [
+      86.2778,
+      87.8181,
+      86.2287,
+      88.3086,
+      84.1586,
+      83.1383,
+      79.7535,
+      80.6858,
+      80.7943,
+      81.2679,
+      81.3567,
+      82.1164,
+      83.0438,
+      83.0537,
+      83.5076,
+      83.6654,
+      81.8007,
+      82.3236,
+      84.6718,
+      82.1855,
+      84.1565,
+      84.4347,
+      83.5704,
+      84.6334,
+      83.5803,
+      84.4943,
+      84.5638,
+      85.5275,
+      85.4282,
+      84.8917,
+      84.0274,
+      82.8352,
+      82.259,
+      82.06,
+      80.53,
+      83.43,
+      87.62,
+      88.26,
+      89.42,
+      90.08
+    ],
+    "XLRE": [
+      41.0022,
+      42.4767,
+      42.5353,
+      42.8087,
+      41.881,
+      41.2561,
+      39.6351,
+      39.3314,
+      40.9042,
+      42.0937,
+      43.7256,
+      43.0866,
+      43.5683,
+      43.6567,
+      42.4968,
+      43.8042,
+      43.2439,
+      43.9418,
+      44.5906,
+      43.1161,
+      44.8624,
+      44.3071,
+      44.079,
+      45.0409,
+      45.5665,
+      44.6938,
+      44.6045,
+      44.8921,
+      44.7037,
+      44.1087,
+      43.5633,
+      43.0576,
+      42.175,
+      41.56,
+      40.81,
+      41.61,
+      42.16,
+      42.57,
+      43.17,
+      44.0
+    ],
+    "XLU": [
+      42.4636,
+      45.5492,
+      45.3827,
+      46.7541,
+      45.7843,
+      45.9998,
+      43.7371,
+      44.9701,
+      45.7099,
+      46.3214,
+      45.5323,
+      45.552,
+      45.917,
+      44.1119,
+      43.2735,
+      44.7333,
+      43.816,
+      43.7469,
+      43.9245,
+      44.1514,
+      45.8628,
+      45.426,
+      45.0785,
+      44.8403,
+      45.9521,
+      44.0263,
+      43.2917,
+      43.9866,
+      42.4578,
+      42.4181,
+      42.7655,
+      42.0806,
+      40.8,
+      39.51,
+      39.83,
+      41.41,
+      42.21,
+      42.56,
+      43.43,
+      43.13
+    ],
+    "XLV": [
+      155.7785,
+      155.739,
+      154.8994,
+      158.238,
+      150.8298,
+      147.9555,
+      143.5501,
+      142.0872,
+      145.6081,
+      146.104,
+      147.5818,
+      142.9996,
+      143.9716,
+      142.3153,
+      143.9121,
+      148.6629,
+      148.2463,
+      151.7573,
+      152.5508,
+      148.1769,
+      159.7287,
+      163.1157,
+      160.2268,
+      160.4758,
+      161.9502,
+      161.9303,
+      165.0483,
+      166.7319,
+      173.9543,
+      170.5074,
+      170.7963,
+      164.7296,
+      167.748,
+      170.7,
+      166.18,
+      170.81,
+      176.71,
+      179.28,
+      184.87,
+      184.8
+    ],
+    "XLY": [
+      117.261,
+      115.4622,
+      116.7243,
+      116.138,
+      113.7329,
+      110.1751,
+      107.0743,
+      105.2381,
+      107.6977,
+      112.4179,
+      119.9064,
+      118.1936,
+      118.1339,
+      119.6973,
+      116.0427,
+      118.6816,
+      120.3645,
+      114.3797,
+      116.1124,
+      116.67,
+      114.1187,
+      116.8626,
+      116.9823,
+      115.1863,
+      109.1696,
+      115.8349,
+      119.5966,
+      117.9402,
+      117.7606,
+      116.9524,
+      114.6575,
+      112.7118,
+      110.786,
+      110.56,
+      110.04,
+      112.85,
+      112.46,
+      113.1,
+      115.38,
+      117.58
+    ]
+  }
+}

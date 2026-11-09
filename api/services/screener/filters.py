@@ -61,6 +61,19 @@ def _enum(key, label, category, column, presets, options_column=None,
     return key, spec
 
 
+def _rs_names_enum(key, label, column, names_attr):
+    """An enum over one of the Phase 3 RS text columns (unit 3-11), its options
+    the WRITER's own names in the writer's code order: ``RRG_QUADRANT_NAMES``
+    from `relative_strength`, ``VARS_STATE_NAMES`` from `rs_columns` (which
+    names `vars_columns`' codes). Imported at registry build, never retyped."""
+    from . import rs_columns  # noqa: PLC0415 - one writer, its names
+    names = getattr(rs_columns, names_attr, None)
+    if names is None:
+        names = getattr(rs_columns.rs, names_attr)
+    presets = [{"label": "Any"}] + [{"label": n, "op": "eq", "value": n} for n in names]
+    return _enum(key, label, "relative_strength", column, presets)
+
+
 #: What the `pattern_engine_id` filter screens, said to a member. It is the
 #: engine's verdict, not the base read the row's setup line names.
 PATTERN_ENGINE_DESCRIPTION = (
@@ -695,6 +708,80 @@ FILTERS = dict([
            {"label": "Rising", "op": "eq", "value": "up"},
            {"label": "Flat", "op": "eq", "value": "flat"},
            {"label": "Falling", "op": "eq", "value": "down"}]),
+    # ── relative strength (UCT Relative Strength, Phase 2a unit 2a-08) ──
+    # ⭐ ONE WRITER EACH, AND THE CONTROL SAYS NO MORE THAN THE WRITER DOES. The
+    # ten bar-derived columns are `rs_columns.collect_one` (the builder's
+    # `_step("bars_rs")`): the last bar of the SAME `relative_strength`
+    # columns the chart's rsLine draws, so a scan, a chart dot and an alert
+    # read one answer. The seven rating columns are `_read_rs_history_fields`
+    # over the `rs_rating_history` side table the 04:15 ET job writes — read
+    # by the 03:00 build, so a row carries the rating as of the session
+    # BEFORE its `bars_asof` (snapshot_db's column comment states it).
+    # ⚠️ NULL, never 0, wherever the window is short (252 prior bars for the
+    # 52-week columns, 200 for Mansfield), the benchmark has no bar at the
+    # row's date, a hole sits inside the lookback, or the rating table has no
+    # row for the name (a dark job, a name outside the rated population).
+    # ⭐ A FLAG IS Yes/No OVER A STORED 1/0 — the flag IS the boundary, the
+    # `pattern_engine_*` / `optionable` reasoning, so nothing editorial rides
+    # on a `_bool`. Every age, count, percent and percentile ships BARE
+    # (`_open_range`): no threshold on them is published. The ONE exception is
+    # `rs_rating_ibd`, which carries the 80 / 90 thresholds `rs_rank` already
+    # publishes above (engineering map §2.5 "Controls": "only rs_rating_ibd
+    # may carry Over 80/90 presets (identical to rs_rank's published
+    # thresholds)"). `test_screener_filters.py` derives all of this from the
+    # two writers, never from a list retyped here.
+    # ⚠️ Mansfield is on 200 DAILY bars (`rs_columns.MANSFIELD_LENGTH`), the
+    # curriculum's daily reading of Weinstein's 52-WEEK average — the label
+    # must never say "weekly". It is a PERCENT above or below that average.
+    _bool("rs_new_high", "RS New High (52-week)", "relative_strength", "rs_new_high"),
+    _bool("rs_nh_before_price", "RS New High Before Price", "relative_strength",
+          "rs_nh_before_price"),
+    _bool("rs_nh_red_day", "RS New High on a Red Day", "relative_strength",
+          "rs_nh_red_day"),
+    _open_range("rs_nh_bars_ago", "RS New High Age (bars)", "relative_strength",
+                "rs_nh_bars_ago"),
+    _open_range("green_on_red_20", "Up on Down Days (of 20)", "relative_strength",
+                "green_on_red_20"),
+    _bool("rs_line_above_ma", "RS Line Above 21 EMA", "relative_strength",
+          "rs_line_above_ma"),
+    _open_range("rs_cross_up_bars_ago", "RS Line Cross-Up Age (bars)",
+                "relative_strength", "rs_cross_up_bars_ago"),
+    _open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield", unit="%"),
+    _open_range("mansfield_cross_bars_ago", "Mansfield Cross Age (bars)",
+                "relative_strength", "mansfield_cross_bars_ago"),
+    _bool("rs_benchmark_agree", "RS Agrees vs SPY and RSP", "relative_strength",
+          "rs_benchmark_agree"),
+    _range("rs_rating_ibd", "RS Rating (IBD-style)", "relative_strength", "rs_rating_ibd",
+           [{"label": "Any"},
+            {"label": "Over 80", "op": "gte", "min": 80},
+            {"label": "Over 90", "op": "gte", "min": 90}]),
+    _open_range("rs_rating_chg_5", "RS Rating Change (5 sessions)", "relative_strength",
+                "rs_rating_chg_5"),
+    _open_range("rs_rating_chg_20", "RS Rating Change (20 sessions)", "relative_strength",
+                "rs_rating_chg_20"),
+    _open_range("rs_rating_1m", "1M Return Rank", "relative_strength", "rs_rating_1m"),
+    _open_range("rs_rating_3m", "3M Return Rank", "relative_strength", "rs_rating_3m"),
+    _open_range("rs_rating_6m", "6M Return Rank", "relative_strength", "rs_rating_6m"),
+    _open_range("rs_rating_12m", "12M Return Rank", "relative_strength", "rs_rating_12m"),
+    # ── relative strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
+    # ⭐ THE THIRD FAMILY, ONE WRITER AGAIN: `rs_columns.PHASE3_COLUMNS`, written by
+    # the same `bars_rs` step only while `snapshot_builder.rs_v3_enabled()` is
+    # true, so `meta()` serves them only then (`rs_dark_keys`). The two TEXT
+    # columns are enums whose options ARE the writer's own names
+    # (`relative_strength.RRG_QUADRANT_NAMES`, `rs_columns.VARS_STATE_NAMES`),
+    # read here rather than retyped, so a renamed state cannot leave a control
+    # offering a value no row carries. A list of the values a column can hold is
+    # a definition, not a threshold. `clenow_score` ships BARE (`_open_range`):
+    # it is a FRACTION (0.50 = 50 % a year after the R² discount), so no `%`
+    # unit rides on it, and nobody here has published a "good" score.
+    # ⛔ No starter screens over these yet: `test_screener_saved.py` forbids a
+    # starter on a column the nightly rows leave empty.
+    _rs_names_enum("rrg_quadrant", "Rotation Quadrant vs SPY (weekly)", "rrg_quadrant",
+                   "RRG_QUADRANT_NAMES"),
+    _open_range("clenow_score", "Clenow Trend Score (90 days)", "relative_strength",
+                "clenow_score"),
+    _rs_names_enum("vars_state", "Volatility-Adjusted RS State", "vars_state",
+                   "VARS_STATE_NAMES"),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1023,7 +1110,8 @@ VIEWS = {
     "momentum": {"label": "Momentum", "columns": [
         "ticker", "company", "candle_score", "pct_vs_ema20", "close_cv_pct",
         "avg_body_pct_5", "pole_pct", "adr_pct", "vol_nweek_low",
-        "vol_updown_ratio", "rs_line_trend", "chg_pct_1d"]},
+        "vol_updown_ratio", "rs_line_trend", "rs_rating_ibd", "rs_new_high",
+        "rs_nh_before_price", "chg_pct_1d"]},
     # ⭐ THE THREE VIEWS BELOW EXIST BECAUSE SOMEBODY OPENED THE SCREEN
     # (2026-08-23). Waves 5-6 shipped three whole data families — the pattern
     # engine, dark-pool/options positioning, and the ownership/short block —
@@ -1095,6 +1183,19 @@ VIEWS = {
         "archive_traders_n", "archive_last_call_date", "archive_last_setup",
         "archive_last_r20", "archive_setup", "archive_setup_edge_r",
         "archive_setup_edge_20d", "archive_setup_n"]},
+    # UCT RELATIVE STRENGTH (Phase 2a, 2a-08; Phase 3, 3-11): every one of the twenty RS
+    # columns has its seat HERE, so the family is never filterable-and-
+    # invisible (the rail above this block). The three a trader asks of any
+    # list — the rating, the 52-week RS high and the high-before-price — also
+    # sit in Momentum. `rs_rank` leads so the fast UCT rating and the
+    # IBD-style one read side by side, as the chart chip shows them.
+    "relative_strength": {"label": "Relative Strength", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_ibd",
+        "rs_rating_chg_5", "rs_rating_chg_20", "rs_new_high", "rs_nh_before_price",
+        "rs_nh_red_day", "rs_nh_bars_ago", "green_on_red_20", "rs_line_above_ma",
+        "rs_cross_up_bars_ago", "mansfield", "mansfield_cross_bars_ago",
+        "rs_benchmark_agree", "rs_rating_1m", "rs_rating_3m", "rs_rating_6m",
+        "rs_rating_12m", "rrg_quadrant", "clenow_score", "vars_state"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1129,6 +1230,11 @@ CATEGORIES = [
     # category keeps its position; `pattern_engine_*` joined the existing
     # "pattern" category instead of minting a second pattern group (K5).
     {"key": "flow", "label": "Positioning & Flow"},
+    # UCT Relative Strength (Phase 2a, 2a-08): the seventeen RS columns are one
+    # family with one writer pair, so they get one group rather than being
+    # scattered across Technical and Momentum. Appended for the same reason
+    # `flow` was.
+    {"key": "relative_strength", "label": "Relative Strength"},
 ]
 
 
@@ -1613,6 +1719,104 @@ def _shared_filters(dist):
         return list(built)
 
 
+# ── UCT Relative Strength: shown only while the data behind it fills ─────────
+# Review findings #12 and #14 (2026-11-07). The two RS column families each have
+# one writer, and each writer sits behind its own flag:
+#   * the ten bar-derived columns (`rs_columns.COLUMNS`) are written by the
+#     builder's `bars_rs` step, which follows `registry_defs.RS_V2_ENABLED`;
+#   * the seven rating columns (`snapshot_builder._RS_HISTORY_COLUMNS`) read the
+#     side table the 04:15 ET job writes, which follows
+#     `api.main.rs_history_enabled()`;
+#   * the three Phase 3 columns (`rs_columns.PHASE3_COLUMNS`, unit 3-11) are
+#     written by the same `bars_rs` step only while BOTH RS_V2 and
+#     `snapshot_builder.rs_v3_enabled()` are on (the step itself runs only
+#     under RS_V2).
+# With a flag off its columns are NULL on every row, so a control over them is a
+# filter that returns nothing and a seat in a view is a column of dashes.
+# `meta()` therefore leaves out each family's filters, its view seats (Momentum
+# and Relative Strength), the Relative Strength view itself while V2 is off,
+# and the category once nothing in it is left. FILTERS and VIEWS are NOT
+# changed: a stored spec still validates and runs, and the registry rails keep
+# reading the whole family. Both flags are read per call, read-only.
+
+
+def _rs_v2_on() -> bool:
+    """`registry_defs.RS_V2_ENABLED`, read at call time (tests set the attribute).
+    An unreadable flag is off: the surface stays dark."""
+    try:
+        from api.services.signature import registry_defs  # noqa: PLC0415 - lazy
+        return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _rs_history_on() -> bool:
+    """`api.main.rs_history_enabled()`, the ONE reader of RS_HISTORY_ENABLED.
+
+    ⚠️ Read through `sys.modules`, never imported here: importing `api.main`
+    builds the whole app. The web process that serves `meta()` has it loaded
+    (uvicorn api.main:app); any other caller (a script, a unit test) gets "off",
+    which is the dark answer."""
+    import sys  # noqa: PLC0415
+    main = sys.modules.get("api.main")
+    fn = getattr(main, "rs_history_enabled", None) if main is not None else None
+    if not callable(fn):
+        return False
+    try:
+        return bool(fn())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _rs_v3_on() -> bool:
+    """`snapshot_builder.rs_v3_enabled()`, the ONE reader of RS_V3_ENABLED (the
+    builder's own gate on the Phase 3 columns), read at call time. An
+    unreadable flag is off: the surface stays dark."""
+    try:
+        from . import snapshot_builder  # noqa: PLC0415 - lazy
+        return bool(snapshot_builder.rs_v3_enabled())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
+    """The RS filter keys (each equal to its column) a member is not shown now.
+
+    Derived from the bar writer (`rs_columns.COLUMNS`, `rs_columns.PHASE3_COLUMNS`)
+    and the registry's own category, never from a list retyped here. The Phase 3
+    family needs BOTH flags: its writer runs inside the RS_V2 step."""
+    v2_on = _rs_v2_on() if v2_on is None else v2_on
+    history_on = _rs_history_on() if history_on is None else history_on
+    v3_on = _rs_v3_on() if v3_on is None else v3_on
+    from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
+    family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
+    bars = family & set(rs_columns.COLUMNS)
+    phase3 = family & set(rs_columns.PHASE3_COLUMNS)
+    ratings = family - bars - phase3
+    dark = set()
+    if not v2_on:
+        dark |= bars
+    if not history_on:
+        dark |= ratings
+    if not (v2_on and v3_on):
+        dark |= phase3
+    return frozenset(dark)
+
+
+#: The view that exists only for the RS family; it follows RS_V2_ENABLED.
+RS_VIEW = "relative_strength"
+
+
+def _member_views(dark, v2_on) -> list:
+    out = []
+    for k, v in VIEWS.items():
+        if k == RS_VIEW and not v2_on:
+            continue
+        cols = [c for c in v["columns"] if c not in dark]
+        out.append({"key": k, **v, "columns": cols})
+    return out
+
+
 def meta(user_id=None) -> dict:
     """The whole panel payload.
 
@@ -1661,14 +1865,21 @@ def meta(user_id=None) -> dict:
     _parts["distribution"] = _time.perf_counter() - _t0
     out_filters = _shared_filters(dist)
     _parts["filters"] = _time.perf_counter() - _t0 - _parts["distribution"]
+    # The RS families whose writer is dark leave the payload (see `rs_dark_keys`).
+    rs_v2_on = _rs_v2_on()
+    rs_dark = rs_dark_keys(v2_on=rs_v2_on)
+    if rs_dark:
+        out_filters = [f for f in out_filters if f["key"] not in rs_dark]
     categories = CATEGORIES
+    if not any(f.get("category") == "relative_strength" for f in out_filters):
+        categories = [c for c in CATEGORIES if c["key"] != "relative_strength"]
     if user_id is not None:
         _t1 = _time.perf_counter()
         entry = _my_scans_entry(user_id)
         _parts["my_scans"] = _time.perf_counter() - _t1
         if entry is not None:
             out_filters.append(entry)
-            categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
+            categories = categories + [{"key": "my_scans", "label": "My Scans"}]
         _t1 = _time.perf_counter()
         lists = _my_lists_entry(user_id)
         _parts["my_lists"] = _time.perf_counter() - _t1
@@ -1677,7 +1888,7 @@ def meta(user_id=None) -> dict:
             categories = categories + [{"key": "my_lists", "label": "My Lists"}]
     _log_if_slow("screener-meta", _time.perf_counter() - _t0, _parts)
     return {"filters": out_filters,
-            "views": [{"key": k, **v} for k, v in VIEWS.items()],
+            "views": _member_views(rs_dark, rs_v2_on),
             "categories": categories,
             # The floors, the wording and the vintage the bands were measured
             # on — stated ONCE, beside them, so no surface has to guess at any
@@ -1692,5 +1903,5 @@ def meta(user_id=None) -> dict:
             "comparable_fields": [
                 {"key": k, "label": FILTERS[k]["label"],
                  "category": FILTERS[k]["category"]}
-                for k in comparable_keys()],
+                for k in comparable_keys() if k not in rs_dark],
             "column_ops": dict(COL_OPS)}

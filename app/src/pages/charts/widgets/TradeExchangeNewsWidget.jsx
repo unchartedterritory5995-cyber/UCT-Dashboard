@@ -168,6 +168,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   const newestRef = useRef(0)
   const [flashing, setFlashing] = useState(() => new Set())
   const lastSoundRef = useRef(0)
+  // the pending flash-clear timers: cleared on unmount, so none fires after the widget (or a test's DOM) is gone
+  const flashTimersRef = useRef(new Set())
+  useEffect(() => () => {
+    for (const t of flashTimersRef.current) clearTimeout(t)
+    flashTimersRef.current.clear()
+  }, [])
   useEffect(() => {
     if (feed.status === 'idle' || feed.status === 'connecting') return
     const seen = seenRef.current
@@ -190,11 +196,15 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     if (settings.highlightNew === 'on') {
       setFlashing((prev) => new Set([...prev, ...live.map((it) => it.seq)]))
       const ids = live.map((it) => it.seq)
-      setTimeout(() => setFlashing((prev) => {
-        const next = new Set(prev)
-        for (const id of ids) next.delete(id)
-        return next
-      }), FLASH_MS)
+      const t = setTimeout(() => {
+        flashTimersRef.current.delete(t)
+        setFlashing((prev) => {
+          const next = new Set(prev)
+          for (const id of ids) next.delete(id)
+          return next
+        })
+      }, FLASH_MS)
+      flashTimersRef.current.add(t)
     }
     if (settings.sound === 'on') {
       const claimed = live.filter((it) => claimAnnouncement(it.seq))
@@ -419,7 +429,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     ]
   }
 
-  useWidgetDoor(() => ({ options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }) }))
+  // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
+  useWidgetDoor(() => ({
+    options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
+    read: () => ({ search: queryRaw }),
+    write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
+  }))
 
   return (
     <div ref={rootRef} className={`${styles.root} ${settings.density === 'compact' ? styles.compact : styles.comfortable}`} style={rootStyle}>

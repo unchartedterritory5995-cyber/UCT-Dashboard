@@ -88,7 +88,8 @@ Already closed and not re-openable:
 
 ## 5 · WHAT IS PROPOSED AND NOT BUILT — `COMPLETE` — see PART 2 (Session 14 close-out)
 
-- ⚠️ **Promote the range scan to gating.** Built and shipped **advisory** under SD-1.1 A2.5
+- ✅ **Promoted to gating 2026-11-06 (PR #896)**; see `docs/breadth/range-scan-finding.md`, "Promoted 2026-11-06".
+  Original note: **Promote the range scan to gating.** Built and shipped **advisory** under SD-1.1 A2.5
   (`repo/range-scan`, `docs/breadth/range-scan-finding.md`). It is advisory because a check
   that has never been watched fire must not be able to block. Promotion criterion: **≥ 20
   runs logging `range-scan: EXECUTED … verdict=CLEAN`** — `INCONCLUSIVE`, `NO RANGE`,

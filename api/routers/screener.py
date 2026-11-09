@@ -384,6 +384,27 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         scr_ctrace.record(_ctrace_total_ms, scr_ctrace.pop_stages())
 
 
+def _rs_history_block() -> dict:
+    """The UCT RS rating-history side table's state (engineering map unit 2a-04):
+    `rs_history.status()` -- `table`, `rows`, `sessions`, `latest_session`, `last_run`
+    (the newest receipt, `duration_ms` included) and `backfill` (the marker) -- plus
+    `enabled`, the per-call `RS_HISTORY_ENABLED` read the `rs_history_nightly` job
+    itself uses (ONE reader, `api.main.rs_history_enabled`, so this surface and the
+    job cannot disagree about the switch).
+
+    Read-only and best-effort: a failure answers `{"error": ...}` in THIS block and
+    never costs the freshness endpoint it rides on."""
+    out: dict = {"enabled": False}
+    try:
+        from api.main import rs_history_enabled
+        out["enabled"] = rs_history_enabled()
+        from api.services.screener import rs_history
+        out.update(rs_history.status())
+    except Exception as e:  # noqa: BLE001
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 @router.get("/api/screener/snapshot-status")
 def screener_snapshot_status(user=Depends(require_paid)):
     """Coverage + freshness of the precomputed snapshot.
@@ -423,13 +444,17 @@ def screener_snapshot_status(user=Depends(require_paid)):
     nightly WITH the reason rather than as silence. The whole block is built by
     `query.live_tier_state()` — read the block comment above it before changing
     any of these words.
+
+    `rs_history` is the UCT RS rating-history side table's state plus its flag
+    (`_rs_history_block` below): read-only, best-effort, an `error` key on failure.
     """
     # ⭐ The pre-market sweep's last receipt (spec 2026-10-16 §2), for a user the flag
     # reaches; None otherwise, so a member at `admin` reads the same "off" the scan
     # gives them.
     from api.services.screener import premarket as _pm
     return {**scr_db.status(), "live": scr_query.live_tier_state(),
-            "premarket": _pm.last_receipt() if _pm.served_to(user) else None}
+            "premarket": _pm.last_receipt() if _pm.served_to(user) else None,
+            "rs_history": _rs_history_block()}
 
 
 @router.get("/api/screener/volume-curve")

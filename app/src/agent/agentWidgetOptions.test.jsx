@@ -13,6 +13,7 @@ import { makeBoard } from './__fixtures__/board'
 import { setupPanel, ONE } from './testing/panelHarness'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { widgetControls } from '../widgets/widgetControls'
+import { allControls } from './widgetNames'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { routingV2Active } from './nlm1/flag'
 
@@ -112,7 +113,8 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     // an UNBOUNDED numeric key (no min/max in the registry: nhnl.minPrice, volumescan.minRvol/minMove/minDollarK) is not an option at all
     expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no option “minPrice” — its options are universe, universes\.$/)
     expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos, list\.$/)
-    expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no options I can change here/)
+    // (a chart's options are its Company Info panel's, round 5: the timeframe is chart.setTimeframe's)
+    expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no option “tf” — its options are companyTab, holdingsOpen, companyOpen/)
     // ⛔ declared in the schema, but the mounted widget never reads them back from opts: refused in words, nothing written
     for (const [id, key, value] of [['br', 'tileStyle', 'spark'], ['nh', 'minCount', 5]]) {
       expect(await refuse(host, { widget: id, key, value }), `${id}.${key}`).toMatch(new RegExp(`I can't change “${key}” .*doesn't read a saved value`))
@@ -131,7 +133,7 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     await refreshContext(1500, { groups: ['boardEdit'] })
     const said = buildContext(host, CTX).context.widgetControls[0].controls
     for (const type of WORKSPACE_MENU_TYPES) {
-      if (widgetControls(type).length) expect(said[type], type).toBeTruthy()
+      if (allControls(type).some(f => !f.when?.({}))) expect(said[type], type).toBeTruthy()
       else expect(said[type], type).toBeUndefined()
       for (const f of WIDGET_REGISTRY[type].paramsSchema || []) {
         if (f.live === true) expect(said[type], `${type}.${f.key}`).toContain(`${f.key}(`)
@@ -214,9 +216,21 @@ describe('through the REAL panel with routing v2 on: a control request carries i
     await say('undo')
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 40000)
-  it('⛔ the F-16 screen claim is not widened: "only show calls on the options flow" stays its honest refusal, with no model call, even with the widget on the board', async () => {
+  // round 3 (pl-auto unseen3): with the widget on the board the request is about its chips, not a screen. Which chips the Agent
+  // may set is an open owner decision, so nothing is widened: still refused with no model call, but the words name the widget's
+  // own control, never "use the Screener page". With no Options Flow widget, the F-16 screen refusal is unchanged.
+  it.each([['only show calls on the options flow'], ['only show puts in the options flow']])('⛔ "%s" with the widget on the board: refused about the widget’s own chips, no model call, nothing set', async (t) => {
     const [[chart], syms] = ONE('NVDA')
-    const { say } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
+    const out = await say(t)
+    expect(out).toMatch(/Options Flow widget's filters.*filter chips on the widget itself/)
+    expect(out).not.toMatch(/Screener page/)
+    expect(p.turns()).toBe(0)
+    expect(optsOf(board, 'of')).toEqual({})
+  }, 40000)
+  it('with NO Options Flow widget on the board, the F-16 screen refusal is unchanged', async () => {
+    const [[chart], syms] = ONE('NVDA')
+    const { say } = p.mount([{ ...chart, w: 18 }], syms)
     expect(await say('only show calls on the options flow')).toMatch(/can't screen on options-flow/)
     expect(p.turns()).toBe(0)
   }, 40000)

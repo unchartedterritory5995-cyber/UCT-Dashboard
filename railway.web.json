@@ -15,6 +15,7 @@
     ]
   },
   "deploy": {
+    "numReplicas": 1,
     "drainingSeconds": 30,
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 600,

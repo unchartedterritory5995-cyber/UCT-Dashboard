@@ -1,0 +1,15 @@
+//@version=6
+indicator("vw-w4-series-length")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row W4-S1 of docs/pine/W4-BREAKDOWN.md
+// (`ta.sma` / `ta.highest` / `ta.stdev` with `len = bar_index % 7 + 1`), owed by docs/pine/capture-queue-2026-11-06-w34-i6c.md
+// row W4-S1 (inherited): the v5/v6 reference the v4 rail is graded beside.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a per-bar length: the last `len` bars, and na handling on the first bars. L00 is the control.
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults.
+
+len = bar_index % 7 + 1
+plot(len, "L00_len_CONTROL")
+plot(ta.sma(close, len), "L01_sma")
+plot(ta.highest(high, len), "L02_highest")
+plot(ta.stdev(close, len), "L03_stdev")

@@ -191,6 +191,37 @@ export const SYMBOL_LISTING_FIELDS = Object.freeze(Object.fromEntries(
     .map(([k, v]) => [k, Object.freeze({ ...v.fields })]),
 ))
 
+/** ⭐ W9-T4-F1 — `<our store's exchange string>` → the vendor's `syminfo.mincontract`
+ *  as decimal text, ONLY for an exchange whose `symbolScope.json::min_contract` row
+ *  carries `value`, `witnesses`, `captured`, `how` AND `captures` (the files
+ *  `symbolScopeMinContract.test.js` re-reads). Pine v6 reference, `syminfo.mincontract`:
+ *  "The smallest amount of the current symbol that can be traded. This limit is set by
+ *  the exchange." No row ⇒ unsettled ⇒ refused by name; there is no default.
+ *  Mirrors `ast_bind.py::SYMBOL_MIN_CONTRACT`. */
+const minContractRowOk = (v) => !!v && typeof v === 'object'
+  && typeof v.value === 'number' && Number.isFinite(v.value) && v.value > 0
+  && Array.isArray(v.witnesses) && v.witnesses.length > 0
+  && Array.isArray(v.captures) && v.captures.length > 0
+  && typeof v.captured === 'string' && v.captured !== '' && typeof v.how === 'string' && v.how !== ''
+export const minContractTable = (raw) => Object.freeze(Object.fromEntries(
+  Object.entries(raw || {})
+    .filter(([k, v]) => !k.startsWith('_') && minContractRowOk(v))
+    .map(([k, v]) => [k, String(v.value)]),
+))
+export const SYMBOL_MIN_CONTRACT = minContractTable(SYMBOL_SCOPE && SYMBOL_SCOPE.min_contract)
+
+/** ⭐⭐ W9-T4-F1 — THE MINIMUM CONTRACT A RUN HANDS ITS BROKER, read off the same
+ *  `name -> value` map a script's `syminfo.mincontract` folds from, so the two cannot
+ *  disagree. A positive finite number, or undefined (unsettled: the broker refuses a
+ *  cash / percent-of-equity size by name, Q-S1a). */
+export function minContractOf(consts) {
+  const have = consts && Object.prototype.hasOwnProperty.call(consts, 'syminfo.mincontract')
+    ? consts['syminfo.mincontract'] : undefined
+  if (typeof have !== 'string' || have === '') return undefined
+  const n = Number(have)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
 /** The reason the fold quotes when a symbol-scoped field cannot be resolved for
  *  THIS binding — read off the manifest so the sentence has one owner. */
 const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement) || {})
@@ -210,7 +241,7 @@ const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement)
  *
  *  ⚠️ `tickerid` IS ASSEMBLED, NOT STORED: Pine's is `EXCHANGE:SYMBOL`, so it is
  *  exactly as measured as the exchange half and is gated on the same witness. */
-export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = null) {
+export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = null, minContracts = null) {
   const out = {}
   if (!symbol || typeof symbol !== 'object') return out
   const ticker = typeof symbol.ticker === 'string' ? symbol.ticker.trim() : ''
@@ -250,6 +281,13 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = n
       }
     }
   }
+  // ⭐ W9-T4-F1 — THE MINIMUM CONTRACT, ON ITS OWN WITNESS TABLE. Same key,
+  // independent evidence: a measured tick or listing row is not a measured
+  // minimum contract. An exchange absent from `minContracts` leaves
+  // `syminfo.mincontract` unsettled — refused by name, never defaulted to 1.
+  if (stored && minContracts && Object.prototype.hasOwnProperty.call(minContracts, stored)) {
+    out['syminfo.mincontract'] = minContracts[stored]
+  }
   return out
 }
 
@@ -261,7 +299,8 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = n
  *  fields refuse" is a statement about the DATA rather than about a code path
  *  nobody has ever seen run (`lesson_built_tested_green_and_unreachable`). */
 export const symbolConstants = (symbol) =>
-  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE, SYMBOL_LISTING_FIELDS)
+  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE, SYMBOL_LISTING_FIELDS,
+    SYMBOL_MIN_CONTRACT)
 
 /** Thrown carrying the OPERAND that stopped the fold, never a generic message. */
 export class NotFoldable extends Error {
