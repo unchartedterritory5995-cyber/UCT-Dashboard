@@ -162,7 +162,8 @@ def start_date_of(start_time: Any) -> Optional[str]:
 
 
 def start_sentence_of(start_time: Any) -> str:
-    """``strategyRecord.js::startSentenceOf``: the D2 sentence, in the same words and timezone."""
+    """``strategyRecord.js::startSentenceOf``: the D2 sentence, in the same words and timezone. Stated
+    on EVERY record, from the listing too (W9-T13b r1), so it takes no listing argument."""
     date = start_date_of(start_time)
     if date is None:
         return "this backtest ran over no bars"

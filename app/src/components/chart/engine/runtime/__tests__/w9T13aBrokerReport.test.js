@@ -9,7 +9,7 @@
 //     guard and a member sentence; the harness's report slots are all accounted for.
 //   - PIN BEFORE SERVE (D1): a metric resting on an unpinned rule inherits
 //     `runtime:strategy-unpinned`, naming the rule and its capture row.
-//   - D2: the start sentence, exactly, whenever the window does not reach the listing.
+//   - D2: the start sentence, exactly, on every record, from the listing too (W9-T13b r1).
 //
 // ⛔ PINS: tests pass `isPinned` (a predicate). The committed ledger is read once, unmocked,
 // to show the product default refuses what it does not pin.
@@ -283,9 +283,14 @@ describe('W9-T13a window and run-wide refusals', () => {
     expect(rep.window).toMatchObject({ startTime: T0, startDate: '2024-03-21', fromListing: false, asOfBar: at(39), asOfDate: '2024-04-29' })
   })
 
-  it('D2: a window from the listing carries no start caveat', () => {
-    const rep = strategyReportOf(recordOf([], { fromListing: true }), { isPinned: ALL })
-    expect(rep.window).toMatchObject({ fromListing: true, sentence: null })
+  it('D2 ALWAYS (W9-T13b r1): a window from the listing carries the same sentence (the plan bar limit can move TradingView start)', () => {
+    const rec = recordOf([], { fromListing: true })
+    const rep = strategyReportOf(rec, { isPinned: ALL })
+    expect(rep.window).toMatchObject({ fromListing: true, sentence: 'this backtest starts on 2024-03-21 (UTC); TradingView may start elsewhere' })
+    expect(rec.window.startSentence).toBe(startSentenceOf(T0))
+    // a from-listing record WITHOUT the sentence is not a v1 record
+    const bare = { ...rec, window: { ...rec.window, startSentence: null } }
+    expect(strategyReportOf(bare, { isPinned: ALL }).refusals[0].sentence).toMatch(/window\.startSentence/)
   })
 
   it('D2 ONE AUTHORITY: the report READS the record sentence, never recomputes it', () => {
@@ -302,17 +307,20 @@ describe('W9-T13a window and run-wide refusals', () => {
       { name: 'NYSE 2024-01-02 session, 09:30 ET', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000 },
       // review N3: 00:00-05:59 UTC is the PREVIOUS day in every US zone, so a host-local date is told apart
       { name: 'TSE 2024-03-21 session, 09:00 JST', startTime: Date.UTC(2024, 2, 21, 0, 0) / 1000 },
+      // W9-T13b r1, D2 ALWAYS: a run from the listing states the same sentence
+      { name: 'NYSE 2024-01-02 session, 09:30 ET, from the listing', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000, fromListing: true },
     ].map((c) => {
       const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: [] } },
-        decl: { version: 5, fromListing: false }, barTimes: [c.startTime, c.startTime + DAY],
+        decl: { version: 5, fromListing: c.fromListing === true }, barTimes: [c.startTime, c.startTime + DAY],
         historyWindowBars: 5000, confirmed: true })
       const rep = strategyReportOf(rec, { isPinned: ALL })
       expect(rep.window.sentence).toBe(rec.window.startSentence)
       expect(rep.window.startDate).toBe(rec.window.startDate)
-      return { ...c, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
+      return { ...c, fromListing: rec.window.fromListing, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
     })
     expect(cases[0].reportSentence).toBe('this backtest starts on 2024-03-20 (UTC); TradingView may start elsewhere')
     expect(cases[2].startDate).toBe('2024-03-21')
+    expect(cases[3]).toMatchObject({ fromListing: true, reportSentence: cases[1].reportSentence })
     const text = `${JSON.stringify({ why: 'W9-T13a r1, ruling D2: written by w9T13aBrokerReport.test.js from strategyRecord.js; read by tests/test_pine_strategy_backtest.py', cases }, null, 1)}
 `
     const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../../../tests/fixtures/pine_runtime/w9t13a_start_sentence.json')

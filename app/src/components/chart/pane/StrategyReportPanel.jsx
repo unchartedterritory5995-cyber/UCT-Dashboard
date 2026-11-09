@@ -9,8 +9,8 @@
 //
 // ⛔ RULING D2 — THE START SENTENCE IS ALWAYS VISIBLE. It sits ABOVE the tabs, never inside
 // one, so no tab choice can hide it, and it is the record's own `window.sentence` verbatim
-// (one authority: `strategyRecord.js::startSentenceOf`). A window that reaches the listing
-// carries no sentence by that authority; the stamp still states the start date.
+// (one authority: `strategyRecord.js::startSentenceOf`), which states it on EVERY record, from the
+// listing too (W9-T13b r1: TradingView's plan bar limit can still move its start).
 // ⛔ RULING D8 — A METRIC WE CANNOT COMPUTE SHOWS ITS REFUSAL SENTENCE, in the cell where its
 // number would be. Never a dash, never a blank, never a guessed number.
 // ⛔ NO GUARD ID REACHES THE DOM. A refusal's `guard` (`runtime:strategy-unpinned`, ...) is a
@@ -148,7 +148,7 @@ function TradeList({ trades }) {
   )
 }
 
-/** The stamp: the start date always, the D2 sentence whenever the record carries one, the as-of bar. */
+/** The stamp: the D2 sentence (every v1 record carries one), the start date and the as-of bar. */
 function Stamp({ window: w }) {
   if (!w) return null
   return (

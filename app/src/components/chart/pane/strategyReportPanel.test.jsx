@@ -90,7 +90,8 @@ describe('W9-T13b the fixtures are what they say', () => {
     expect(FIXTURES.badRecord.window).toBe(null)
     expect(servedKeys.every((k) => FIXTURES.productDefault.metrics[k].status === 'refused')).toBe(true)
     expect(FIXTURES.allServed.window.sentence).toBe(START_SENTENCE)
-    expect(FIXTURES.fromListing.window.sentence).toBe(null)
+    expect(FIXTURES.fromListing.window.fromListing).toBe(true)
+    expect(FIXTURES.fromListing.window.sentence).toBe(START_SENTENCE)
   })
 })
 
@@ -215,9 +216,14 @@ describe('W9-T13b ruling D2: the start sentence is always visible', () => {
       .toBe(`Starts 2024-03-21 (UTC) · As of the bar closed ${FIXTURES.allServed.window.asOfDate} (UTC)`)
   })
 
-  it('a window that reaches the listing carries no sentence by its authority; the stamp still dates the start', () => {
+  it('r1, D2 ALWAYS: a run from the listing shows the same sentence on every tab (the plan bar limit can move the TradingView start)', () => {
     render(<StrategyReportPanel report={FIXTURES.fromListing} />)
-    expect(screen.queryByTestId('strategy-report-start-sentence')).toBe(null)
+    for (const t of TABS) {
+      clickTab(t.label)
+      const s = screen.getByTestId('strategy-report-start-sentence')
+      expect(s.textContent).toBe(START_SENTENCE)
+      expect(s.closest('[role="tabpanel"]')).toBe(null)
+    }
     expect(screen.getByTestId('strategy-report-asof').textContent).toMatch(/^Starts 2024-03-21 \(UTC\) · /)
   })
 })
