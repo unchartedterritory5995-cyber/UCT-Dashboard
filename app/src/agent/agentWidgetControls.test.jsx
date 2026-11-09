@@ -13,7 +13,7 @@ import { makeBoard } from './__fixtures__/board'
 import { publishWidgetDoor } from '../pages/charts/widgetDoors'
 import { WIDGET_REGISTRY } from '../widgets/registry'
 import { widgetControls } from '../widgets/widgetControls'
-import { allControls } from './widgetNames'
+import { allControls, CONTROL_LABELS } from './widgetNames'
 import { etToday } from './dateWords'
 import { routeManifestV2 } from './nlm1/routingV2'
 
@@ -89,7 +89,7 @@ describe('a control in opts: the registry validates, the board writer writes, Un
     expect(res.ok).toBe(true)
     expect(state.boardWrites).toBe(1)
     expect(landed(optsOf(state, 'x')), JSON.stringify(optsOf(state, 'x'))).toBe(true)
-    expect(p.lines[0]).toContain(`${key} is now`)
+    expect(p.lines[0]).toContain(`${CONTROL_LABELS[type]?.[key]?.title || key} is now`)
     expect((await undoEntry(host, res.undo)).ok).toBe(true)
     expect(JSON.stringify(state.widgets)).toBe(before)
   })
@@ -105,7 +105,7 @@ describe('a control in opts: the registry validates, the board writer writes, Un
     publish('b', door({}, { options: CHOICES }))
     publish('n', door({ universes: ['S&P 500'] }, { options: { universe: CHOICES.universe, universes: [{ value: 'S&P 500', label: 'S&P 500' }] } }))
     const before = JSON.stringify(state.widgets)
-    expect(await refuse(host, { widget: 'o', key: 'callPut', value: 'strangles' })).toMatch(/“callPut” can be all, C, P — not “strangles”/)
+    expect(await refuse(host, { widget: 'o', key: 'callPut', value: 'strangles' })).toMatch(/“callPut” can be All, Calls, Puts — not “strangles”/)
     expect(await refuse(host, { widget: 'b', key: 'reading', value: 'a20' })).toMatch(/takes \+member or -member/)
     expect(await refuse(host, { widget: 'b', key: 'reading', value: '-z9' })).toMatch(/“z9” isn't one of reading: % Above 20-Day, % Above 50-Day/)
     expect(await refuse(host, { widget: 'n', key: 'universes', value: '-S&P 500' })).toMatch(/keeps at least one/)
@@ -224,10 +224,10 @@ describe('widget.readOptions: how a widget is set, read back', () => {
     publish('t', door({ period: '1w', sortDir: 'desc', openTheme: 'T3', themeSet: null }, { options: { openTheme: many, themeSet: [] } }))
     publish('s', { about: () => 'criteria: Listed Within The Last 1-Year; Price Above $1' })
     const flow = read(host, 'o')
-    expect(flow.split('\n')[0]).toMatch(/lead biggest, .*callPut P, /)
-    expect(flow).toMatch(/lead: tape, biggest, sentiment/)
-    expect(flow).toMatch(/callPut: all, C, P/)
-    expect(flow).toMatch(/minPremium 0,/)
+    expect(flow.split('\n')[0]).toMatch(/lead Biggest, .*callPut Puts, /)
+    expect(flow).toMatch(/lead: Tape, Biggest, Sentiment/)
+    expect(flow).toMatch(/callPut: All, Calls, Puts/)
+    expect(flow).toMatch(/minPremium All,/)
     const th = read(host, 't')
     expect(th).toMatch(/period 1w/)
     expect(th).toMatch(/openTheme Theme 3/)
