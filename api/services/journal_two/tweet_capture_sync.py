@@ -11,7 +11,9 @@ copied images are X's, and they go.
   * The bulk guard: a sweep that misses more than `BULK_MISS_SHARE_PCT` of what it checked, and at
     least `BULK_MISS_MIN`, marks nothing, clears every open mark, and alerts the owner.
   * The outage rule: a pass (sweep or confirm) where nothing resolved out of `OUTAGE_MIN_CHECKED`
-    or more ids changes nothing but those marks, and alerts the owner.
+    or more ids changes nothing but those marks, and alerts the owner. The confirm's own ids are
+    the ones that already missed, so several real deletions look like an outage on their own: it
+    also looks up up to `CONFIRM_CANARIES` unmarked posts, only ever as evidence that X is up.
   * Any `TwitterApiError` makes the pass a no-op; the next night tries again.
   * Each post is one transaction across every member holding it, committed before the next, so a
     crash leaves whole posts removed or untouched. Files are deleted after that commit; a file
@@ -45,6 +47,8 @@ BULK_MISS_SHARE_PCT = 20
 BULK_MISS_MIN = 20
 #: A pass over at least this many ids in which NONE resolved is an outage, not a set of deletions.
 OUTAGE_MIN_CHECKED = 2
+#: How many unmarked posts the confirm looks up beside the marked ones.
+CONFIRM_CANARIES = 5
 
 ALERT_KEY = "notebook_tweet_bulk_miss"
 
@@ -52,6 +56,11 @@ _ACTIVE_IDS_SQL = "SELECT DISTINCT tweet_id FROM j2_note_tweet_captures WHERE re
 _DUE_IDS_SQL = (
     "SELECT DISTINCT tweet_id FROM j2_note_tweet_captures"
     " WHERE removed_at IS NULL AND gone_first_missed_at IS NOT NULL AND gone_first_missed_at <= ?")
+#: Unmarked on every row of the post, newest saved first (the likeliest to still be on X).
+_CANARY_IDS_SQL = (
+    "SELECT tweet_id FROM j2_note_tweet_captures WHERE removed_at IS NULL"
+    " GROUP BY tweet_id HAVING COUNT(gone_first_missed_at) = 0"
+    " ORDER BY MAX(created_at) DESC, tweet_id LIMIT ?")
 _IN_IDS = "tweet_id IN (SELECT value FROM json_each(?))"
 
 
@@ -235,8 +244,9 @@ def run_sweep() -> dict[str, Any]:
 
 
 def run_confirm() -> dict[str, Any]:
-    """Re-check marks at least `CONFIRM_AFTER` old; remove what is still gone. Never raises."""
-    out: dict[str, Any] = {"checked": 0, "resolved": 0, "removed": 0, "failed": 0,
+    """Re-check marks at least `CONFIRM_AFTER` old, plus the canaries; remove what is still gone.
+    Never raises."""
+    out: dict[str, Any] = {"checked": 0, "canaries": 0, "resolved": 0, "removed": 0, "failed": 0,
                            "outage": False, "vendor_error": False}
     if not tweet_capture.enabled():
         return {**out, "skipped": "disabled"}
@@ -245,15 +255,19 @@ def run_confirm() -> dict[str, Any]:
         out["checked"] = len(ids)
         if not ids:
             return out
-        gone = _lookup(ids)
+        canaries = _read_ids(_CANARY_IDS_SQL, (CONFIRM_CANARIES,))
+        out["canaries"] = len(canaries)
+        looked_up = ids + canaries
+        gone = _lookup(looked_up)
         if gone is None:
             out["vendor_error"] = True
             return out
-        if _is_outage(len(gone), len(ids)):
+        if _is_outage(len(gone), len(looked_up)):
             # This pass makes no marks, so there are none of its own to clear.
             out["outage"] = True
-            _alert_owner(len(gone), len(ids), job="confirm")
+            _alert_owner(len(gone), len(looked_up), job="confirm")
             return out
+        # From here only `ids` are acted on: a canary is never marked, cleared or removed.
         resolved = [i for i in ids if i not in gone]
         out["resolved"] = len(resolved)
         conn = get_connection()

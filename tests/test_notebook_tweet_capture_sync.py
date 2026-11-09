@@ -191,6 +191,10 @@ def _sync():
     return tweet_capture_sync
 
 
+def _stamp(moment):
+    return moment.isoformat(timespec="microseconds")
+
+
 # ── the two-miss rule ───────────────────────────────────────────────────────────────────
 
 def test_single_miss_removes_nothing(notebook, x, clock, alerts):
@@ -430,24 +434,105 @@ def test_nothing_resolving_in_sweep_is_an_outage(notebook, x, clock, alerts, cap
 
 
 def test_nothing_resolving_in_confirm_removes_nothing(notebook, x, clock, alerts, caplog):
+    """Every saved post is marked, so there is no canary: two misses still read as an outage."""
     note_id = _note()
     excerpt = _save("7050", note_id)
     _save("7051", note_id)
-    _save("7052", note_id)          # resolves at the sweep, so the sweep is not itself an outage
+    _exec("UPDATE j2_note_tweet_captures SET gone_first_missed_at = ?", _stamp(T0))
     x["gone"] = {"7050", "7051"}
-    assert _sync().run_sweep()["outage"] is False
     before = _rows("SELECT * FROM j2_note_tweet_captures ORDER BY tweet_id")
 
     clock["t"] = T0 + timedelta(minutes=10)
     with caplog.at_level("ERROR", logger="api.services.journal_two.tweet_capture_sync"):
         out = _sync().run_confirm()
 
-    assert out["outage"] is True and out["removed"] == 0 and out["checked"] == 2
+    assert out["outage"] is True and out["removed"] == 0 and out["checked"] == 2 and out["canaries"] == 0
     assert _rows("SELECT * FROM j2_note_tweet_captures ORDER BY tweet_id") == before    # no marks either
     assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?", excerpt["id"])[0]["captured_text"] == WORDS
-    assert len(_rows("SELECT * FROM j2_note_document_pages")) == 3
+    assert len(_rows("SELECT * FROM j2_note_document_pages")) == 2
     assert len(alerts) == 1 and alerts[0][1] == "critical"
     assert any(r.levelname == "ERROR" for r in caplog.records)
+
+
+def test_several_real_deletions_are_removed_when_a_canary_resolves(notebook, x, clock, alerts):
+    """Every marked post missed, which is the ordinary case: the canary is what says X is up."""
+    note_id = _note()
+    a = _save("7060", note_id)
+    b = _save("7061", note_id)
+    _save("7062", note_id)
+    x["gone"] = {"7060", "7061"}
+    _sync().run_sweep()
+    x["calls"].clear()
+
+    clock["t"] = T0 + timedelta(minutes=10)
+    out = _sync().run_confirm()
+
+    assert out["outage"] is False and out["removed"] == 2 and out["checked"] == 2 and out["canaries"] == 1
+    assert len(x["calls"]) == 1 and sorted(x["calls"][0]) == ["7060", "7061", "7062"]
+    for excerpt in (a, b):
+        assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?", excerpt["id"])[0]["captured_text"] == ""
+    assert _capture("7062")["removed_at"] is None
+    assert alerts == []
+
+
+def test_confirm_is_an_outage_when_canaries_miss_too(notebook, x, clock, alerts):
+    note_id = _note()
+    excerpt = _save("7070", note_id)
+    _save("7071", note_id)
+    _save("7072", note_id)
+    x["gone"] = {"7070", "7071"}
+    _sync().run_sweep()
+    before = _rows("SELECT * FROM j2_note_tweet_captures ORDER BY tweet_id")
+
+    x["gone"] = {"7070", "7071", "7072"}
+    clock["t"] = T0 + timedelta(minutes=10)
+    out = _sync().run_confirm()
+
+    assert out["outage"] is True and out["removed"] == 0
+    assert _rows("SELECT * FROM j2_note_tweet_captures ORDER BY tweet_id") == before
+    assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?", excerpt["id"])[0]["captured_text"] == WORDS
+    assert len(alerts) == 1 and "3 of 3" in alerts[0][2]
+
+
+def test_one_marked_post_is_an_outage_when_its_canary_misses_too(notebook, x, clock, alerts):
+    note_id = _note()
+    _save("7073", note_id)
+    _save("7074", note_id)
+    _exec("UPDATE j2_note_tweet_captures SET gone_first_missed_at = ? WHERE tweet_id = '7073'", _stamp(T0))
+    x["gone"] = {"7073", "7074"}
+    clock["t"] = T0 + timedelta(minutes=10)
+    out = _sync().run_confirm()
+    assert out["outage"] is True and out["removed"] == 0 and _capture("7073")["removed_at"] is None
+    assert len(alerts) == 1
+
+
+def test_canaries_are_never_marked_or_removed(notebook, x, clock, alerts):
+    note_id = _note()
+    _save("7080", note_id)              # the marked post
+    gone_canary = _save("7081", note_id)
+    _save("7082", note_id)
+    _seed_rows(8)
+    x["gone"] = {"7080"}
+    _sync().run_sweep()
+    # A mark too young to confirm: neither due, nor free to serve as a canary.
+    _exec("UPDATE j2_note_tweet_captures SET gone_first_missed_at = ? WHERE tweet_id = '90000'",
+          _stamp(T0 + timedelta(minutes=9)))
+    x["calls"].clear()
+
+    # A canary that misses in this pass (7081) is only ever evidence about X.
+    x["gone"] = {"7080", "7081"}
+    clock["t"] = T0 + timedelta(minutes=10)
+    out = _sync().run_confirm()
+
+    assert out["removed"] == 1 and out["canaries"] == 5 and out["resolved"] == 0
+    lookup = x["calls"][0]
+    assert len(lookup) == 6 and len(set(lookup)) == 6 and "7080" in lookup and "90000" not in lookup
+    assert _capture("7080")["removed_at"] is not None
+    for canary in set(lookup) - {"7080"}:
+        row = _rows("SELECT * FROM j2_note_tweet_captures WHERE tweet_id = ?", canary)[0]
+        assert row["gone_first_missed_at"] is None and row["removed_at"] is None, canary
+    assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?",
+                 gone_canary["id"])[0]["captured_text"] == WORDS
 
 
 def test_a_single_post_really_gone_is_still_removed_after_both_checks(notebook, x, clock, alerts):
