@@ -41,7 +41,8 @@ const V3_MENU = ['SPY', 'RSP', 'SECTOR', 'QQQ', 'IWM', 'INDUSTRY']
 const V3_DECLARED = Object.freeze({ inputs: V3_SERVER_INPUTS, options: { benchmark: V3_MENU, maType: ['EMA', 'SMA'] } })
 const V4_DECLARED = Object.freeze({
   inputs: RS.meta.serverInputs,
-  options: { benchmark: [...V3_MENU, 'CUSTOM'], maType: ['EMA', 'SMA'], view: ['ratio', 'mansfield', 'rotation', 'quality', 'vars'] },
+  // rev 5 (Deepvue round 2): the live row's `view` enum names the RS Rating Reading too
+  options: { benchmark: [...V3_MENU, 'CUSTOM'], maType: ['EMA', 'SMA'], view: ['ratio', 'mansfield', 'rotation', 'quality', 'vars', 'rating'] },
 })
 const SHIPPED = ['classic', 'classicWeekly', 'phase', 'trend', 'trendWeekly', 'stress']
 const PHASE3 = ['rotation', 'rotationWeekly', 'quality', 'volAdjusted']
@@ -90,7 +91,7 @@ describe('1 · the server gate', () => {
   it('the inputs, groups and text boxes are the ones the map names', () => {
     const input = (k) => RS.inputs.find((i) => i.key === k)
     expect(input('view')).toMatchObject({ type: 'enum', label: 'Reading', group: 'Simple', default: 'ratio', requiresServer: true })
-    expect(input('view').options.map((o) => o[0])).toEqual(['ratio', 'mansfield', 'rotation', 'quality', 'vars'])
+    expect(input('view').options.map((o) => o[0])).toEqual(['ratio', 'mansfield', 'rotation', 'quality', 'vars', 'rating'])
     expect(input('customBenchmark')).toMatchObject({ type: 'string', group: 'Simple', default: '', requiresServer: true,
       activeWhen: { key: 'benchmark', equals: 'CUSTOM' }, pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
       placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10' })
@@ -98,7 +99,8 @@ describe('1 · the server gate', () => {
       pattern: '^\\d{4}-\\d{2}-\\d{2}$', tooltip: 'Blank uses the benchmark\'s lowest close of the last 20 sessions' })
     expect(RS.meta.groupsCollapsed).toEqual(expect.arrayContaining(['Method', 'Checks']))
     expect(RS.meta.serverInputs.slice(-9)).toEqual(PHASE3_INPUTS)
-    expect(RS).toMatchObject({ version: 4, compute: { kind: 'server', fn: 'rsLine', rev: 4 } })
+    // rev 5 since Deepvue round 2 (the RS Rating Reading); `rsRatingView.test.js` owns the rest of it
+    expect(RS).toMatchObject({ version: 5, compute: { kind: 'server', fn: 'rsLine', rev: 5 } })
     expect(RS.placement).toMatchObject({ target: 'pane', ownScale: true })
   })
 })

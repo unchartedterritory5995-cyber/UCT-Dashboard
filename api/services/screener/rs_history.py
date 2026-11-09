@@ -19,7 +19,10 @@ purpose and the chart shows both with their own ``asof``). The score is ranked
 across the population, ``pct = average_rank / N`` (ties share the mean of their
 positions), and the rating is ``max(1, ceil(pct * 99))``. The components ``m1``,
 ``m3``, ``m6``, ``m12`` are the same percentile of the plain 21/63/126/252-bar
-returns.
+returns, and ``m9`` (Deepvue round 2, 2026-11-08) of the plain 189-bar return: the
+chart's 9M column. ``m9`` is a nullable column added to an existing table by an
+idempotent ``ALTER`` (:func:`ensure_schema`); rows written before it stay null
+until the backfill's ``--fill-column m9`` mode fills them (below).
 
 POPULATION. Default (map §5 question 1): the cap universe minus ETFs. The ranked
 set never contains an ETF - an index fund sits on top of the very stocks it
@@ -72,6 +75,18 @@ when ``RS_HISTORY_ENABLED`` is armed, so the rating is on the chart from day one
     python -m api.services.screener.rs_history --backfill-days 252 --dry-run
     python -m api.services.screener.rs_history --backfill-days 252
 
+FILLING ONE NEW COLUMN (``m9``, round 2). A plain re-run skips every stored
+session, so a column added after the backfill is filled by its own mode, which
+recomputes ONLY that column for the stored sessions and rewrites nothing else::
+
+    python -m api.services.screener.rs_history --backfill-days 252 --fill-column m9 --dry-run
+    python -m api.services.screener.rs_history --backfill-days 252 --fill-column m9
+
+It ranks each session over the tickers that session STORED (the population its
+other columns were ranked over), and it REFUSES, writing nothing, when today's
+bars or split guard would change any stored value of another column for any of
+those sessions (:func:`fill_column`).
+
 Idempotent and resumable: a session that already holds rows (the nightly's, or an
 earlier backfill's) is skipped, and each session commits as it is written, so a
 run that dies is resumed by running it again. Bounded: ``--max-sessions`` writes
@@ -98,6 +113,7 @@ from pathlib import Path
 
 from api.services.rs_weighted_return import (
     IBD_COMPONENTS,
+    IBD_M9_COMPONENT,
     IBD_REQUIRED_TERM,
     IBD_TERMS,
     period_return,
@@ -119,6 +135,15 @@ BACKFILL_MARKER = ".rs_history_backfill_v1"
 #: under the names this module's readers use.
 REQUIRED_TERM = IBD_REQUIRED_TERM
 COMPONENTS = IBD_COMPONENTS
+#: Every component this table STORES, shortest window first: the four above plus
+#: the 9-month one (round 2). The screener and the methodology page read
+#: ``COMPONENTS``; the chart reads all five.
+STORED_COMPONENTS = tuple(sorted(IBD_COMPONENTS + (IBD_M9_COMPONENT,), key=lambda c: c[1]))
+#: The columns a later round ADDED to the table (nullable, by ``ALTER``), each with
+#: its SQL type. A read selects one only when the table already carries it.
+ADDED_COLUMNS = {"m9": "INTEGER"}
+#: The columns ``--fill-column`` may fill (each one a stored component).
+FILLABLE_COLUMNS = ("m9",)
 #: The rating scale's top; the bottom is 1.
 RATING_MAX = 99
 #: Closes read per ticker: the 252-bar term needs 253 closes, plus a margin for a
@@ -145,8 +170,8 @@ BACKFILL_MAX_DAYS = 5 * BACKFILL_DAYS
 BACKFILL_UNKNOWN_SPLITS_FLOOR = 5
 BACKFILL_UNKNOWN_SPLITS_SHARE = 0.01
 
-RATING_COLUMNS = ("ibd", "m1", "m3", "m6", "m12")
-ROW_COLUMNS = ("ibd", "fast", "m1", "m3", "m6", "m12", "score", "bars")
+RATING_COLUMNS = ("ibd", "m1", "m3", "m6", "m9", "m12")
+ROW_COLUMNS = ("ibd", "fast", "m1", "m3", "m6", "m9", "m12", "score", "bars")
 
 _SQL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (
@@ -154,7 +179,7 @@ CREATE TABLE IF NOT EXISTS {TABLE} (
     ticker TEXT NOT NULL,
     ibd INTEGER, fast INTEGER,
     m1 INTEGER, m3 INTEGER, m6 INTEGER, m12 INTEGER,
-    score REAL, bars INTEGER,
+    score REAL, bars INTEGER, m9 INTEGER,
     PRIMARY KEY (session, ticker)
 )"""
 _INDEX_SQL = f"CREATE INDEX IF NOT EXISTS idx_rsh_ticker ON {TABLE}(ticker, session)"
@@ -168,10 +193,34 @@ CREATE TABLE IF NOT EXISTS {RUNS_TABLE} (
 
 
 def ensure_schema(conn) -> None:
-    """Create both tables (idempotent). Called on every write, like ``volume_curve``."""
+    """Create both tables and add any later column (idempotent). Called on every
+    write, like ``volume_curve``.
+
+    A table created before round 2 has no ``m9``: it is added by ``ALTER TABLE
+    ADD COLUMN`` (nullable, so every existing row reads null and nothing is
+    rewritten), once, when ``PRAGMA table_info`` says it is missing. The
+    ``(ticker, session)`` index the rating view's series read walks is created
+    here too (it has been since 2a-03)."""
     conn.execute(_SQL)
+    have = _columns(conn, TABLE)
+    for col, kind in ADDED_COLUMNS.items():
+        if col not in have:
+            conn.execute(f"ALTER TABLE {TABLE} ADD COLUMN {col} {kind}")
     conn.execute(_INDEX_SQL)
     conn.execute(_RUNS_SQL)
+
+
+def _columns(conn, name: str) -> set:
+    """The columns ``name`` carries (``PRAGMA table_info``; empty without the table)."""
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({name})").fetchall()}
+
+
+def _read_columns(conn, wanted=ROW_COLUMNS) -> tuple:
+    """``wanted`` less any ADDED column the table does not carry yet. A read never
+    alters the table (a dark pod keeps no schema), so a pre-round-2 table is read
+    without ``m9`` and the row reports it as None."""
+    have = _columns(conn, TABLE)
+    return tuple(c for c in wanted if c not in ADDED_COLUMNS or c in have)
 
 
 # --------------------------------------------------------------------------- #
@@ -241,8 +290,9 @@ def ibd_score(closes) -> float | None:
 
 
 def plain_returns(closes) -> dict:
-    """``{m1, m3, m6, m12}`` percentage returns over 21/63/126/252 bars, ``None`` when short."""
-    return {label: period_return(closes, n) for label, n in COMPONENTS}
+    """``{m1, m3, m6, m9, m12}`` percentage returns over 21/63/126/189/252 bars,
+    ``None`` when short (``m9`` needs 190 closes)."""
+    return {label: period_return(closes, n) for label, n in STORED_COMPONENTS}
 
 
 def percentile_ranks(values: dict) -> dict:
@@ -305,7 +355,7 @@ def _rank_block(values: dict, ranked_set: set) -> dict:
 
 
 def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> dict:
-    """Pure: ``{TICKER: {ibd, m1, m3, m6, m12, score, bars}}``.
+    """Pure: ``{TICKER: {ibd, m1, m3, m6, m9, m12, score, bars}}``.
 
     * ``score`` is :func:`ibd_score` (``None`` without the 63-day term).
     * ``ibd`` and the components are percentiles across the NON-ETF tickers only;
@@ -335,11 +385,11 @@ def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> di
     stocks = set(scores) - etfs
     ibd = _rank_block(scores, stocks)
     by_component = {label: _rank_block({t: comps[t][label] for t in comps}, stocks)
-                    for label, _n in COMPONENTS}
+                    for label, _n in STORED_COMPONENTS}
     out = {}
     for t in scores:
         row = {"ibd": ibd[t]}
-        for label, _n in COMPONENTS:
+        for label, _n in STORED_COMPONENTS:
             row[label] = by_component[label][t]
         row["score"] = None if scores[t] is None else round(scores[t], 6)
         row["bars"] = bars[t]
@@ -535,11 +585,11 @@ def store_rows(session, ratings: dict, fast_map=None, *, replace: bool = True,
         if not r.get("bars"):
             continue
         rows.append((key, str(t).upper(), r.get("ibd"), _fast_for(fast_map, str(t).upper()),
-                     r.get("m1"), r.get("m3"), r.get("m6"), r.get("m12"),
+                     r.get("m1"), r.get("m3"), r.get("m6"), r.get("m9"), r.get("m12"),
                      r.get("score"), int(r.get("bars") or 0)))
     verb = "INSERT OR REPLACE" if replace else "INSERT OR IGNORE"
-    sql = (f"{verb} INTO {TABLE} (session, ticker, ibd, fast, m1, m3, m6, m12, score, bars) "
-           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sql = (f"{verb} INTO {TABLE} (session, ticker, ibd, fast, m1, m3, m6, m9, m12, score, bars) "
+           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
     def _write(c) -> int:
         ensure_schema(c)
@@ -978,6 +1028,219 @@ def _backfill_sessions(receipt, conn, keys, todo, *, universe, etf_tickers, bars
 
 
 # --------------------------------------------------------------------------- #
+# filling one added column for the stored sessions (round 2: ``m9``)
+# --------------------------------------------------------------------------- #
+
+#: The stored values the fill compares before it writes: every rank column but the
+#: one being filled. ``score`` (a float) and ``fast`` (the hourly rating captured at
+#: write time) are not recomputable ranks and are not compared.
+FILL_COMPARED = ("ibd", "m1", "m3", "m6", "m12")
+#: Mismatch examples kept in the receipt.
+FILL_EXAMPLES = 10
+
+
+def _sessions_missing_column(conn, keys, column: str) -> list:
+    """The stored keys whose rows hold no non-null ``column`` (all of them when the
+    table does not carry the column yet), newest first. One seek per key."""
+    has_col = column in _columns(conn, TABLE)
+    out = []
+    for key in keys:
+        if not conn.execute(f"SELECT 1 FROM {TABLE} WHERE session = ? LIMIT 1", (key,)).fetchone():
+            continue
+        if has_col and conn.execute(f"SELECT 1 FROM {TABLE} WHERE session = ? AND {column} IS NOT NULL "
+                                    "LIMIT 1", (key,)).fetchone():
+            continue
+        out.append(key)
+    return sorted(out, reverse=True)
+
+
+def _stored_rows(conn, key: str) -> dict:
+    """``{TICKER: {ibd, m1, m3, m6, m12}}`` for one stored session (a primary-key range)."""
+    cols = ", ".join(FILL_COMPARED)
+    return {r[0]: dict(zip(FILL_COMPARED, tuple(r)[1:])) for r in conn.execute(
+        f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?", (key,)).fetchall()}
+
+
+def _fill_session(key, stored: dict, series: dict, etfs: set):
+    """Recompute one stored session over the tickers it STORED. Returns
+    ``(ratings, mismatches)``: ``mismatches`` is ``[(kind, ticker, detail)]`` where
+    ``kind`` is ``window`` (no bars window for the session today), ``guard`` (today's
+    split guard skips a ticker the session rated) or ``values`` (a compared rank
+    differs from the stored one)."""
+    ymd = session_ymd(key)
+    closes_by_ticker, suspects, bad = {}, set(), []
+    for t in stored:
+        s = series.get(t)
+        bounds = None if s is None else _window_bounds(s[0], ymd)
+        if bounds is None:
+            bad.append(("window", t, None))
+            continue
+        ts_list, closes, declared = s
+        win = closes[bounds[0]:bounds[1]]
+        if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+            suspects.add(t)
+        closes_by_ticker[t] = win
+    ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
+    for t in sorted(closes_by_ticker):
+        r = ratings.get(t) or {}
+        if not r.get("bars"):
+            bad.append(("guard", t, None))
+            continue
+        diff = {c: (stored[t].get(c), r.get(c)) for c in FILL_COMPARED if stored[t].get(c) != r.get(c)}
+        if diff:
+            bad.append(("values", t, diff))
+    return ratings, bad
+
+
+def fill_column(column: str = "m9", days: int = BACKFILL_DAYS, *, etf_tickers=None, bars_reader=None,
+                now=None, session_fn=None, sessions=None, splits_reader=None, dry_run: bool = False,
+                max_sessions=None, split_fetch_budget=AUTO_BUDGET, log_every: int = 25) -> dict:
+    """Fill ONE added column (:data:`FILLABLE_COLUMNS`) for the sessions already
+    stored in the last ``days``, rewriting nothing else. Never raises.
+
+    * WHICH SESSIONS: every stored session in the span whose rows hold no value of
+      ``column`` yet (a session the nightly wrote after round 2 already does and is
+      skipped), newest first, at most ``max_sessions`` per call. Re-running is
+      resumable and a finished store is ``nothing_to_do``.
+    * WHICH POPULATION: each session is ranked over the tickers it STORED, the set
+      its other columns were ranked over, with today's ETF list, bars and declared
+      splits (the backfill's readers), so the new column is ranked like the rest.
+    * ⛔ IT REFUSES RATHER THAN MIX TWO STORES. Before writing anything, every
+      session is recomputed and each stored ticker checked: a ticker with no bars
+      window today, a ticker today's split guard would now skip, or any compared
+      rank (:data:`FILL_COMPARED`) that would come out different means the store's
+      other columns no longer agree with what the column would be ranked against.
+      The run then writes NOTHING (``reason = would_change_other_values``) and the
+      receipt counts each kind with a few examples. Only a clean check writes.
+    * WHAT IT WRITES: ``UPDATE ... SET <column> = ? WHERE session = ? AND ticker = ?``
+      for the stored rows only, one commit per session. No row is inserted, no other
+      column is touched, no ``fast`` is lost.
+    * ``dry_run`` opens ``screener.db`` read-only, checks exactly as a real run
+      does and writes nothing (no column, no row, no receipt, no split-list memo).
+    """
+    t0 = time.time()
+    receipt = {"ok": False, "dry_run": bool(dry_run), "session": None, "started_at": t0,
+               "finished_at": None, "universe": None, "targets": None, "rated": 0, "rows": 0,
+               "excluded_etfs": None, "short_history": 0, "split_guard": 0, "duration_ms": 0.0,
+               "note": {"source": "fill_column", "column": column, "days": None, "sessions": 0,
+                        "sessions_stored": 0, "sessions_todo": 0, "sessions_filled": 0,
+                        "rows_filled": 0, "mismatches": {"window": 0, "guard": 0, "values": 0},
+                        "examples": []}}
+    record = not dry_run
+    note = receipt["note"]
+    try:
+        if column not in FILLABLE_COLUMNS:
+            note["reason"] = f"column must be one of {', '.join(FILLABLE_COLUMNS)}"
+            return _finish(receipt, t0, record=False)
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            days = 0
+        note["days"] = days
+        if not 1 <= days <= BACKFILL_MAX_DAYS:
+            note["reason"] = f"days must be 1 to {BACKFILL_MAX_DAYS}"
+            return _finish(receipt, t0, record=False)
+        if sessions is None:
+            end = (session_fn or settled_session)(now)
+            if end is None:
+                note["reason"] = "no_session"
+                return _finish(receipt, t0, record=record)
+            sessions = trading_sessions_ending(end, days)
+        keys = sorted({session_key(s) for s in sessions})
+        note["sessions"] = len(keys)
+        receipt["session"] = keys[-1] if keys else None
+        with _backfill_conn(dry_run) as conn:
+            if conn is None or not _table_exists(conn, TABLE):
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            note["sessions_stored"] = len(_stored_sessions(conn, keys))
+            todo = _sessions_missing_column(conn, keys, column)
+            if max_sessions is not None and int(max_sessions) >= 0:
+                todo = todo[:int(max_sessions)]
+            note["sessions_todo"] = len(todo)
+            if not todo:
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            _fill_sessions(receipt, conn, keys, todo, column, etf_tickers=etf_tickers,
+                           bars_reader=bars_reader, splits_reader=splits_reader, dry_run=dry_run,
+                           split_fetch_budget=split_fetch_budget, log_every=log_every)
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] fill %s failed: %s: %s", column, type(e).__name__, e)
+        note["error"] = f"{type(e).__name__}: {e}"[:300]
+    return _finish(receipt, t0, record=record)
+
+
+def _fill_sessions(receipt, conn, keys, todo, column, *, etf_tickers, bars_reader, splits_reader,
+                   dry_run, split_fetch_budget, log_every) -> None:
+    """The body of :func:`fill_column`: read every stored ticker once, CHECK every
+    session, then (a real run with a clean check) write ``column``."""
+    note = receipt["note"]
+    etfs = {str(t).upper() for t in (etf_tickers if etf_tickers is not None else default_etf_tickers())}
+    tickers: set = set()
+    for key in todo:
+        tickers |= {r[0] for r in conn.execute(f"SELECT ticker FROM {TABLE} WHERE session = ?",
+                                               (key,)).fetchall()}
+    receipt["targets"] = len(tickers)
+    receipt["universe"] = len(tickers - etfs)
+    receipt["excluded_etfs"] = len(tickers & etfs)
+    reader = bars_reader or default_bars_reader
+    if splits_reader is None:
+        budget = (0 if dry_run else None) if split_fetch_budget == AUTO_BUDGET else split_fetch_budget
+        splits_reader = default_splits_reader(conn, budget=budget, persist=not dry_run)
+    span = keys.index(todo[0]) - keys.index(todo[-1]) + 1
+    depth = READ_BARS + span + 10
+    end_ymd = session_ymd(todo[0])
+    series: dict = {}
+    for t in sorted(tickers):
+        try:
+            rows = reader(t, depth, end_ymd)
+        except Exception as e:                               # noqa: BLE001
+            log.debug("[rs_history] fill read failed for %s: %s", t, e)
+            rows = None
+        ts_list, closes = closes_from_rows(rows)
+        if ts_list:
+            series[t] = (ts_list, closes, _split_list(splits_reader, t))
+    note["tickers_with_bars"] = len(series)
+    lists = _split_stats(splits_reader)
+    if lists is not None:
+        note["split_lists"] = lists
+    # ── PASS 1: the check. Nothing is written unless every session agrees. ──
+    for key in todo:
+        _ratings, bad = _fill_session(key, _stored_rows(conn, key), series, etfs)
+        for kind, t, detail in bad:
+            note["mismatches"][kind] += 1
+            if len(note["examples"]) < FILL_EXAMPLES:
+                note["examples"].append({"session": key, "ticker": t, "kind": kind,
+                                         **({"stored_vs_now": detail} if detail else {})})
+    if any(note["mismatches"].values()):
+        note["reason"] = "would_change_other_values"
+        log.warning("[rs_history] fill %s wrote nothing: the stored sessions no longer agree with "
+                    "today's bars or split guard (%s)", column, note["mismatches"])
+        return
+    # ── PASS 2: the write (or, dry, the count of what would be written). ──
+    if not dry_run:
+        ensure_schema(conn)                                  # the ALTER, if the column is missing
+    sql = f"UPDATE {TABLE} SET {column} = ? WHERE session = ? AND ticker = ?"
+    for n, key in enumerate(todo, 1):
+        stored = _stored_rows(conn, key)
+        ratings, _bad = _fill_session(key, stored, series, etfs)
+        rows = [(ratings[t].get(column), key, t) for t in stored]
+        filled = sum(1 for v, _k, _t in rows if v is not None)
+        receipt["rated"] += filled
+        if not dry_run:
+            conn.executemany(sql, rows)
+            conn.commit()
+        note["rows_filled"] += filled
+        receipt["rows"] += len(rows)
+        note["sessions_filled"] += 1
+        if log_every and n % log_every == 0:
+            log.info("[rs_history] fill %s %d/%d sessions (newest first), at %s", column, n, len(todo), key)
+    receipt["ok"] = True
+
+
+# --------------------------------------------------------------------------- #
 # reads
 # --------------------------------------------------------------------------- #
 
@@ -1018,7 +1281,7 @@ NARROW_READ_MAX = 200
 
 
 def read_fields(tickers, session=None, failures=None, now=None) -> dict:
-    """``{TICKER: {ibd, fast, m1, m3, m6, m12, score, bars, d5, d20, asof}}`` for the
+    """``{TICKER: {ibd, fast, m1, m3, m6, m9, m12, score, bars, d5, d20, asof}}`` for the
     newest session (or ``session``), the ``opt_flow.read_opt_flow_fields`` shape.
 
     ``d5`` / ``d20`` are ``ibd`` minus the ticker's ``ibd`` in the session 5 and 20
@@ -1050,7 +1313,7 @@ def read_fields(tickers, session=None, failures=None, now=None) -> dict:
                 _note(failures, "missing")
                 return {}
             latest = sess[0]
-            cols = ", ".join(ROW_COLUMNS)
+            cols = ", ".join(_read_columns(conn))
             # A chart asks for one symbol: read its rows by primary key rather than
             # three whole sessions (review finding #30, 2026-11-07). The build's
             # bulk ask keeps the whole-session read.
@@ -1104,16 +1367,57 @@ def _session_age_days(latest_key: str, now=None):
 
 def ticker_history(ticker: str, limit: int = 60) -> list:
     """``[{session, ibd, fast, ...}, ...]`` newest first for one ticker, for the chart
-    provider's rating history. Never raises; ``[]`` without a table."""
-    cols = ", ".join(ROW_COLUMNS)
+    provider's rating history. Never raises; ``[]`` without a table. A table from
+    before round 2 is read without ``m9`` (each row carries ``m9: None``)."""
     try:
         with closing(snapshot_db.connect()) as conn:
+            cols = ", ".join(_read_columns(conn))
             rows = conn.execute(
                 f"SELECT session, {cols} FROM {TABLE} WHERE ticker = ? ORDER BY session DESC LIMIT ?",
                 (str(ticker or "").upper(), int(limit))).fetchall()
     except Exception:                                        # noqa: BLE001
         return []
-    return [dict(r) for r in rows]
+    return [{**{c: None for c in ROW_COLUMNS}, **dict(r)} for r in rows]
+
+
+#: The most sessions one rating-view read returns: ten trading years, past any
+#: chart window the provider asks for (its bars plus the average's warm-up). A
+#: bound, so a caller passing a huge ``limit`` still reads a bounded set.
+SERIES_MAX_SESSIONS = 2520
+
+
+def rating_series(ticker: str, upto=None, limit: int = 300) -> list:
+    """``[(session, ibd), ...]`` OLDEST first: one ticker's stored IBD-style rating
+    for at most ``limit`` sessions ending at ``upto`` (inclusive; ``None`` = the
+    newest). The RS Rating reading's line (round 2).
+
+    ONE BOUNDED, INDEXED READ: ``WHERE ticker = ? AND session <= ? ORDER BY session
+    DESC LIMIT ?`` walks ``idx_rsh_ticker (ticker, session)`` backwards from
+    ``upto`` and stops after ``limit`` entries (the plan is pinned in
+    ``tests/test_rs_rating_view.py``). Read-only: no table means ``[]`` and nothing
+    is created. Never raises. A row whose ``ibd`` is null (rated short) is kept, so
+    the caller sees the gap."""
+    try:
+        n = max(0, min(int(limit or 0), SERIES_MAX_SESSIONS))
+    except (TypeError, ValueError):
+        return []
+    tu = str(ticker or "").strip().upper()
+    if not n or not tu:
+        return []
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, TABLE):
+                return []
+            if upto is None:
+                rows = conn.execute(f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? "
+                                    "ORDER BY session DESC LIMIT ?", (tu, n)).fetchall()
+            else:
+                rows = conn.execute(f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? AND session <= ? "
+                                    "ORDER BY session DESC LIMIT ?", (tu, session_key(upto), n)).fetchall()
+    except Exception as e:                                   # noqa: BLE001 - a read never raises
+        log.warning("[rs_history] rating series read failed for %s: %s", tu, e)
+        return []
+    return [(r[0], None if r[1] is None else int(r[1])) for r in reversed(rows)]
 
 
 def status(data_dir=None) -> dict:
@@ -1162,6 +1466,10 @@ def _parser():
     ap.add_argument("--split-fetch-budget", type=int, default=None, metavar="N",
                     help="provider fetches for declared split lists (default: no limit on a real run, "
                          "0 on a dry run, which reads stored answers and the cache only)")
+    ap.add_argument("--fill-column", default=None, choices=list(FILLABLE_COLUMNS), metavar="COLUMN",
+                    help="fill ONE column added after the backfill (m9) for the sessions already stored "
+                         "in the last N, rewriting nothing else; refuses, writing nothing, when today's "
+                         "bars or split guard would change any other stored value")
     return ap
 
 
@@ -1183,6 +1491,18 @@ def main(argv=None) -> int:
         print("rs_history: --split-fetch-budget must be 0 or more", file=sys.stderr)
         return 2
     budget = AUTO_BUDGET if args.split_fetch_budget is None else args.split_fetch_budget
+    if args.fill_column:
+        receipt = fill_column(args.fill_column, args.backfill_days, dry_run=args.dry_run,
+                              max_sessions=args.max_sessions, split_fetch_budget=budget)
+        note = receipt.get("note") or {}
+        dry = bool(receipt.get("dry_run"))
+        print(f"rs_history fill {args.fill_column}{' (dry run)' if dry else ''}: "
+              f"sessions={note.get('sessions')} stored={note.get('sessions_stored')} "
+              f"todo={note.get('sessions_todo')} {'would_fill' if dry else 'filled'}={note.get('sessions_filled')} "
+              f"rows={note.get('rows_filled')} mismatches={json.dumps(note.get('mismatches'), sort_keys=True)} "
+              f"reason={note.get('reason')} ms={receipt.get('duration_ms')} ok={receipt.get('ok')}", flush=True)
+        print("receipt " + json.dumps(receipt, sort_keys=True, default=str), flush=True)
+        return 0 if receipt.get("ok") else 1
     receipt = backfill(args.backfill_days, dry_run=args.dry_run, max_sessions=args.max_sessions,
                        split_fetch_budget=budget)
     note = receipt.get("note") or {}

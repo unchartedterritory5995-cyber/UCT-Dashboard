@@ -131,7 +131,10 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # purpose, dark behind RS_LISTS_ENABLED: status() gains the read-only `rs_lists` receipt
 # (deb8078927, `_rs_lists_last_run`, which reads rs_lists.last_run() and never raises). The pin is
 # that work's last Screener commit; no other Screener file changed since the Phase 3 pin.
-SCREENER_PIN = "deb8078927724e3007236dea3f041c6350014a26"
+# Re-pinned 2026-11-08 (RS 9M component rank, landed via PR #961): 9c3f881e2c changes rs_history.py on
+# purpose (the 9M component rank in the rating history + a fill-only backfill mode). It is the only
+# Screener file changed since deb8078927 (`git diff --name-only deb8078927...origin/master -- <paths>`).
+SCREENER_PIN = "9c3f881e2c17d05ba37f1317cf1c2ecd942f1bd6"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -180,7 +183,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/snapshot_db.py" in r.stdout.split()  # the file the pinned commit changed (4-01, the rs_lists receipt)
+    assert "api/services/screener/rs_history.py" in r.stdout.split()  # the file the pinned commit changed (the RS 9M component rank)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

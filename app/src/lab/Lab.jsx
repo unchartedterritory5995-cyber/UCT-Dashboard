@@ -66,8 +66,22 @@ import Piece62ChallengeBoss from './pieces/Piece62ChallengeBoss'
 import Piece63ChallengeKicker from './pieces/Piece63ChallengeKicker'
 import Piece64DailyDrill from './pieces/Piece64DailyDrill'
 import Piece65ChallengeHard from './pieces/Piece65ChallengeHard'
+import Piece66StatusLineFocus from './pieces/Piece66StatusLineFocus'
+import Piece67AnswerFocus from './pieces/Piece67AnswerFocus'
+import Piece68EndFocus from './pieces/Piece68EndFocus'
+import Piece69StartFocus from './pieces/Piece69StartFocus'
+import Piece70StationTrail from './pieces/Piece70StationTrail'
+import Piece71DrawIt from './pieces/Piece71DrawIt'
+import Piece72PlainRules from './pieces/Piece72PlainRules'
 
 const PIECES = {
+  72: Piece72PlainRules,
+  71: Piece71DrawIt,
+  70: Piece70StationTrail,
+  69: Piece69StartFocus,
+  68: Piece68EndFocus,
+  67: Piece67AnswerFocus,
+  66: Piece66StatusLineFocus,
   65: Piece65ChallengeHard,
   64: Piece64DailyDrill,
   63: Piece63ChallengeKicker,

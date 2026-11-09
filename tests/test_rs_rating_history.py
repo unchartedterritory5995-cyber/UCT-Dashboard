@@ -228,7 +228,7 @@ def test_split_guard_skips_a_straddled_split_and_writes_no_row(tmp_db):
               if rh.window_split_suspect(ts, c, declared if t == "SPLT" else [])}
     assert marked == {"SPLT"}, "the one detector marks the declared, still-unadjusted split"
     out = rh.compute_ratings({"SPLT": straddle, "OK": clean}, set(), suspects=marked)
-    assert out["SPLT"] == {"ibd": None, "m1": None, "m3": None, "m6": None, "m12": None,
+    assert out["SPLT"] == {"ibd": None, "m1": None, "m3": None, "m6": None, "m9": None, "m12": None,
                            "score": None, "bars": 0, "reason": "unadjusted_split"}
     assert out["OK"]["ibd"] == 99, "the skipped name never enters the distribution"
     assert rh.store_rows("2026-11-05", out) == 1
@@ -386,7 +386,7 @@ def test_read_fields_d5_d20_and_asof(tmp_db, monkeypatch):
     keys = _seed_history()
     failures = {}
     out = rh.read_fields(["aaa", "BBB", "ZZZ"], failures=failures)
-    assert out["AAA"] == {"ibd": 70, "fast": 61, "m1": 1, "m3": 2, "m6": 3, "m12": 4, "score": 1.1,
+    assert out["AAA"] == {"ibd": 70, "fast": 61, "m1": 1, "m3": 2, "m6": 3, "m9": None, "m12": 4, "score": 1.1,
                           "bars": 253, "d5": 5, "d20": 20, "asof": keys[-1]}
     assert out["BBB"]["ibd"] == 10 and out["BBB"]["d5"] is None and out["BBB"]["d20"] is None
     assert out["BBB"]["m12"] is None and out["BBB"]["asof"] == keys[-1]
@@ -617,7 +617,7 @@ def test_ensure_schema_is_idempotent_and_the_table_is_the_declared_one(tmp_db):
         rh.ensure_schema(conn)
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({rh.TABLE})")]
         pk = [r[1] for r in conn.execute(f"PRAGMA table_info({rh.TABLE})") if r[5]]
-    assert cols == ["session", "ticker", "ibd", "fast", "m1", "m3", "m6", "m12", "score", "bars"]
+    assert cols == ["session", "ticker", "ibd", "fast", "m1", "m3", "m6", "m12", "score", "bars", "m9"]
     assert set(pk) == {"session", "ticker"}
 
 

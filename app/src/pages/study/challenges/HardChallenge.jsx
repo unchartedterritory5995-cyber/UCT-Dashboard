@@ -19,46 +19,70 @@
 // own key; the lesson and the ticker come back with the verdict. No hearts. Eight for eight earns Legendary, for this
 // run. Every XP number shown is what the attempts earned.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useCountUp, useRunOnTo } from '../../../lab/fx'   // pure motion (bars running on, a count-up); no styling rides in
+import { useRunOnTicks } from '../../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError from './ChallengeError'
-import { fetchForwardRest, fetchSpotPool, scoreAttempt } from './challengeBank'
-import { yesNo } from './KickerChallenge'
+import { beginRunXp, fetchForwardRest, fetchSpotPool, runXp, scoreAttempt } from './challengeBank'
+import { alignTicks, developing, dueCheck, fetchIntraday, keyDays, replayChecks, showChart } from './replayTicks'
+import { yesNo } from './SpotSetupChallenge'
 import {
   HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, SHORT_SETUPS, culmination, culminationLabel, hardAnswer, hardChoices, hardRight,
-  idSeed, runLength, setupFired, withArticle,
+  idSeed, replayView, runLength, setupFired, tradeOf, withArticle,
 } from './hardMode'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
-import { Medal, ScoreRing } from '../ui/Medal'
-import Hud from '../ui/Hud'
+import { HudCombo } from '../ui/HudLooks'
+import { AnswerLessonApp } from '../ui/AnswerLooks'
+import { EndHard } from '../ui/EndLooks'
+import { StartArena } from '../ui/StartLooks'
+import HowItPlays from '../ui/HowItPlays'
 import Prompt from '../ui/Prompt'
-import Choice, { ChoiceGrid } from '../ui/Choice'
+import VerdictTakeover from '../ui/VerdictTakeover'
 import Stamp from '../ui/Stamp'
-import StudyButton from '../ui/StudyButton'
 import StudyChart from '../ui/StudyChart'
+import ChartKey from '../ui/ChartKey'
+import ReplayClock from '../ui/ReplayClock'
+import ReplayPause from '../ui/ReplayPause'
+import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import LessonCard from '../ui/LessonCard'
-import Stage, { Confetti, Rules, RunLog, StatCard } from '../ui/Stage'
+import { Confetti } from '../ui/Stage'
 import { calloutLook, hardCallouts } from '../ui/callout'
 import s from '../ui/study.module.css'
 
-const RULES = [
-  { icon: 'lock', title: 'No ticker', text: 'The name stays hidden until you answer.' },
-  { icon: 'chart', title: 'Your chart', text: 'Your own averages and your own volume.' },
-  { icon: 'flag', title: 'Name it', text: 'What fired on the last candle, or nothing did.' },
-]
+// The trade drawn on the chart as it runs on (round 23, the owner's rule 3: "they can see it all by looking at the chart
+// the why and the what and where"). For a setup with its plan (the detector's own entry and stop, targets at 2R and 3R):
+// dashed rays from the signal candle for ENTRY, STOP, 2R and 3R, each with its price, and the action items on the bars
+// where they happened: BOUGHT (or SHORTED), 2R HIT, 3R HIT, STOPPED OUT. Without a plan, the line a close must not
+// break. Chips sit a few sessions apart so two never overlap.
+// The chart's gold label at the move's best point: with a plan, the advance from the entry at the trade's own best bar,
+// so the chart and the lesson say the same number; otherwise the culmination measured from the signal close.
+function peakOf(trade, culm, n, k) {
+  if (trade?.kind === 'plan' && trade.bestSessions) {
+    const off = trade.bestSessions - 1
+    if (k <= off) return null
+    const v = trade.advancePct
+    const sess = `${trade.bestSessions} session${trade.bestSessions === 1 ? '' : 's'}`
+    // a short's gain is a fall: said as the price's move, so the chart and the lesson read the same way
+    return { index: n + off, text: trade.long ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}% from entry in ${sess}` : `fell ${Math.abs(v).toFixed(1)}% from entry in ${sess}` }
+  }
+  return culm && k > culm.offset ? { index: n + culm.offset, text: culminationLabel(culm) } : null
+}
 
 function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')      // ask | ok | bad
+  const [takeover, setTakeover] = useState(false) // the verdict holds the whole screen until the member opens the review
+  const chartBox = useRef(null)   // the review brings the chart into view (showChart)
   const [fwd, setFwd] = useState(null)
   const [lesson, setLesson] = useState('')
   const [rule, setRule] = useState(null)
+  const [plan, setPlan] = useState(null)        // the setup's trade plan, from the reveal (api/services/study_trade.py)
   const [ticker, setTicker] = useState('')
   const [fired, setFired] = useState(null)
   const [xp, setXp] = useState(0)
   const [busy, setBusy] = useState(false)   // the attempt is on the wire: Check reads Checking and a second tap posts nothing
   const [restDone, setRestDone] = useState(false)   // the rest of the forward strip has come back (or there was none)
+  const [intraday, setIntraday] = useState(null)    // the forward days' 30-minute bars, when the server stored them
   const shownAt = useRef(0)
   const live = useRef(true)
   useEffect(() => { shownAt.current = performance.now(); live.current = true; return () => { live.current = false } }, [])
@@ -69,16 +93,31 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   const short = SHORT_SETUPS.includes(item.name)
   const culm = useMemo(() => (fired === true ? culmination(bars[n - 1], fwd, short) : null), [fired, fwd, bars, n, short])
   const runN = runLength(fwd?.length || 0, culm, fired === true)
-  const { bars: all, k } = useRunOnTo(bars, fwd, runN, state !== 'ask', { slowMs: RUN_ON_MS })
-  const view = Math.min(90, all?.length || 0)
+  const trade = useMemo(() => tradeOf(item.name, bars[n - 1], fwd, culm, fired, plan), [item.name, bars, n, fwd, culm, fired, plan])
+  // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
+  const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
+  const keys = useMemo(() => (ticks ? keyDays(trade, culm) : null), [ticks, trade, culm])
+  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  const [answered, setAnswered] = useState(() => new Set())
+  const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
+  const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
+  const { bars: all, k, clock } = useRunOnTicks(bars, fwd, runN, state !== 'ask' && !takeover, { slowMs: RUN_ON_MS, ticks, keys, develop: developing, holdAt })
+  const due = dueCheck(checks, k, answered)
+  // the question shows 90 sessions; the replay starts closer (the owner: "the replay starts way too far back"), 40
+  // sessions of history and the signal, and widens as each day arrives so the whole run stays in view
+  const view = state === 'ask' ? Math.min(90, all?.length || 0) : replayView(all?.length || 0, n)
   const look = useMemo(() => calloutLook(phone), [phone])
   const truth = fired === true ? item.name : fired === false ? NOTHING : 'The answer'
   const callouts = useMemo(() => hardCallouts({
     index: n - 1,
-    label: state === 'ask' ? 'Last candle' : truth,
+    label: state === 'ask' ? 'What fired here?' : truth,   // N068: the pointer carries the question to the candle
     tone: state,
-    peak: culm && k > culm.offset ? { index: n + culm.offset, text: culminationLabel(culm) } : null,
-  }), [n, state, truth, culm, k])
+    peak: peakOf(trade, culm, n, k),
+  }), [n, state, truth, culm, k, trade])
+  // round 22: the trade the lesson reviews, drawn on the chart as it runs on (the Kicker's entry and stop on the owner's
+  // rules; for any other setup the line a close must not break)
+  const tradeLines = useMemo(() => (state === 'ask' ? null : tradeAnnotations(trade, bars[n - 1], all)), [state, trade, bars, n, all])
+  const tradeMarks = useMemo(() => (state === 'ask' ? null : tradeMarkers(trade, all, n)), [state, trade, all, n])
   const check = async () => {
     if (pick == null || state !== 'ask' || busy) return
     setBusy(true)
@@ -91,13 +130,14 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
       attempt = await scoreAttempt(item, hardAnswer(picked, item, yes, no), performance.now() - shownAt.current, fetcher)
       right = hardRight(picked, item, attempt.correct)
       wasFired = setupFired(picked, item, attempt.correct, attempt.reveal?.answer)
-      setFwd(attempt.forward); setLesson(attempt.reveal?.lesson || ''); setRule(attempt.reveal?.setup_rule || null)
+      setFwd(attempt.forward); setLesson(attempt.reveal?.lesson || ''); setRule(attempt.reveal?.setup_rule || null); setPlan(attempt.reveal?.trade || null)
       setTicker(attempt.reveal?.sym || attempt.reveal?.ticker || ''); setXp(Number(attempt.progress?.xp_gained || 0))
     } catch { right = false }
     if (!live.current) return
-    setBusy(false); setFired(wasFired); setState(right ? 'ok' : 'bad'); revealFeedback(right, prefs)
+    setBusy(false); setFired(wasFired); setState(right ? 'ok' : 'bad'); setTakeover(true); revealFeedback(right, prefs)
     // the rest of the forward strip, so the run-on can reach the move's culmination
     if (attempt) {
+      fetchIntraday(attempt, fetcher).then((d) => { if (live.current && d) setIntraday(d) })
       fetchForwardRest(attempt, attempt.forward.length, fetcher).then((more) => {
         if (!live.current) return
         if (more.length) setFwd((f) => [...(f || []), ...more])
@@ -117,13 +157,8 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }, [state, choices.length])
   const picked = pick == null ? null : choices[pick]
-  const rightCard = (c) => state === 'bad' && fired != null && ((fired && c === item.name) || (!fired && c === NOTHING))
-  const cardState = (c, i) => {
-    if (state === 'ask') return pick === i ? 'sel' : 'idle'
-    if (pick === i) return state === 'ok' ? 'right' : 'wrong'
-    if (rightCard(c)) return 'right'
-    return 'quiet'
-  }
+  // the tile the verdict lights green: the pick when it was right, else what the bank's key says fired (or nothing)
+  const answerLabel = state === 'ok' ? picked : state === 'bad' && fired != null ? (fired ? item.name : NOTHING) : null
   const last = idx + 1 >= total
   const mood = state === 'ask' ? (pick != null ? 'think' : 'idle') : state === 'ok' ? 'happy' : 'oops'
   const where = ticker || 'this chart'
@@ -138,70 +173,36 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   return (
     <div className={`${s.kit} ${s.screen}`} data-testid="hard-question" data-state={state} data-run={state !== 'ask' && restDone && k >= runN ? 'done' : 'running'}>
       {state !== 'ask' ? <span className={`${s.flash} ${state === 'ok' ? s.ok : s.bad}`} aria-hidden="true" /> : null}
-      {state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} pop /> : null}
-      <Hud mode="hard" step={idx} total={total} results={results} live={state === 'ask'} />
-      <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`}>
+      {state !== 'ask' && takeover ? <VerdictTakeover ok={state === 'ok'} title={headline} sub={detail} stampWord={state === 'ok' && fired === false ? 'Right' : null}
+        label={trade?.kind === 'plan' ? 'See the trade' : 'See why'} onContinue={() => { setTakeover(false); showChart(chartBox.current) }} testId="hard-takeover" /> : null}
+      <HudCombo step={idx} total={total} results={results} live={state === 'ask'} />
+      <div className={`${s.heroChart} ${state === 'bad' ? s.shake : ''}`} ref={chartBox}>
         <StudyChart id={item.id} bars={all} view={view} height={phone ? 340 : 520} chartOpts={HARD_CHART}
-          callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} />
+          callouts={callouts} calloutLook={look} symbol={ticker || null} masked={state === 'ask' || !ticker} annotations={tradeLines} markers={tradeMarks}
+          frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
+        <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="hard-clock" />
       </div>
-      <Prompt mood={mood} tone={state} size={phone ? 40 : 48}
-        title={state === 'ask' ? 'What fired on the last candle?' : headline}
-        sub={state === 'ask' ? <>Your chart, without its name. <b>Name it</b>, or say nothing did.</> : detail}
-        seal={state !== 'ask' ? <Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} inline /> : null} />
-      <ChoiceGrid row testId="hard-cards" label="Your answer">
-        {choices.map((c, i) => (
-          <Choice key={c} pill n={i + 1} i={i} label={c} state={cardState(c, i)} disabled={state !== 'ask'} onClick={() => { setPick(i); tapFeedback(prefs) }} />
-        ))}
-      </ChoiceGrid>
-      <div className={s.actionBar}>
-        {state === 'ask'
-          ? <StudyButton kind="primary" size="xl" arrow wide={phone} hotkey="Enter" busy={busy} disabled={pick == null} onClick={check} testId="hard-check">{busy ? 'Checking' : 'Check'}</StudyButton>
-          : <StudyButton kind={state === 'ok' ? 'good' : 'bad'} size="xl" arrow wide={phone} hotkey="Enter" onClick={() => onDone(state === 'ok', xp, ticker, fired === false ? NOTHING : item.name, picked)} testId="hard-next">{last ? 'See the run' : 'Next'}</StudyButton>}
-      </div>
+      {due ? <ReplayPause key={due.at} check={due} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="hard-pause" /> : null}
+      {state !== 'ask' && trade ? <ChartKey trade={trade} testId="hard-key" /> : null}
+      <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey={!takeover && !due}
+        onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
+        onNext={() => onDone(state === 'ok', xp, ticker, fired === false ? NOTHING : item.name, picked)} nextLabel={last ? 'See the run' : 'Next'}
+        head={<Prompt mood={mood} tone={state} size={phone ? 40 : 48} title={headline} sub={detail}
+          seal={<Stamp ok={state === 'ok'} word={state === 'ok' && fired === false ? 'Right' : null} inline />} />}
+        cardsTestId="hard-cards" checkTestId="hard-check" nextTestId="hard-next" />
       {state !== 'ask' && (lesson || rule) ? (
-        <LessonCard text={lesson} ticker={ticker || null} setup={item.name} fired={fired} bars={bars} setupRule={rule} />
+        <LessonCard text={lesson} ticker={ticker || null} setup={item.name} skillId={item.skill_id || item.skill || null} fired={fired} bars={bars} setupRule={rule} trade={trade} showReads={false} />
       ) : null}
     </div>
   )
 }
 
-const VERDICT_WORD = (right, total) => {
-  const r = total ? right / total : 0
-  if (total > 0 && right === total) return 'Legendary'
-  if (r >= 0.75) return 'Sharp eyes'
-  if (r >= 0.5) return 'Getting there'
-  return 'Tough run'
-}
-
-function bestStreak(results) {
-  let best = 0, run = 0
-  for (const r of results) { run = r ? run + 1 : 0; if (run > best) best = run }
-  return best
-}
-
 function Done({ right, total, xp, log, results, onBack, onAgain }) {
   const perfect = total > 0 && right === total
-  const shown = useCountUp(xp, true, 28)
-  const acc = total ? Math.round((right / total) * 100) : 0
   return (
     <>
       {perfect ? <Confetti /> : null}
-      <Stage full hero legend={perfect} rays={perfect} eyebrow="Hard mode · the run" title={VERDICT_WORD(right, total)} titleClass={perfect ? s.titleMetal : s.titleRun}
-        sub={perfect ? `${total} for ${total} without a ticker. Legendary, for this run.` : `${right} of ${total} named without a ticker.`}
-        art={perfect ? <Medal lit ignite size={112} /> : <ScoreRing value={right} total={total} />} testId="hard-done"
-        actions={<>
-          <StudyButton kind="primary" size="xl" arrow hotkey="Enter" onClick={onAgain} testId="hard-again">Run it again</StudyButton>
-          <StudyButton kind="ghost" onClick={onBack}>Back to Study</StudyButton>
-        </>}>
-        {perfect ? null : <span className={s.legendHint}><Medal size={22} testId="legend-medal" /> {total} for {total} lights the Legendary medal</span>}
-        <div className={s.stats}>
-          <StatCard i={0} icon="star" label="XP earned" value={`+${shown}`} tone="gold" testId="hard-xp" />
-          <StatCard i={1} icon="check" label="Named" value={`${right}/${total}`} tone="green" testId="hard-right" />
-          <StatCard i={2} icon="flame" label="Best streak" value={bestStreak(results)} tone="flame" testId="hard-streak" />
-        </div>
-        <span className={s.accuracy}>{acc}% accuracy</span>
-        <RunLog rows={log} />
-      </Stage>
+      <div className={s.kit}><EndHard right={right} total={total} xp={xp} log={log} results={results} onAgain={onAgain} onBack={onBack} level={runXp()} /></div>
     </>
   )
 }
@@ -225,20 +226,22 @@ export default function HardChallenge({ profile = null, fetcher = studyFetch, on
   }, [reload, fetcher])
   const total = Math.min(HARD_TOTAL, pool?.length || 0)
   const items = useMemo(() => (pool ? pool.slice(0, HARD_TOTAL) : []), [pool, run])   // eslint-disable-line react-hooks/exhaustive-deps
-  const start = () => { setPhase('play'); setI(0); setRight(0); setResults([]); setLog([]); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(HARD_TOTAL), ...p.slice(0, HARD_TOTAL)]) }
+  const start = () => { beginRunXp(); setPhase('play'); setI(0); setRight(0); setResults([]); setLog([]); setXp(0); setRun((r) => r + 1); if (pool) setPool((p) => [...p.slice(HARD_TOTAL), ...p.slice(0, HARD_TOTAL)]) }
   const again = () => { setPool(null); setError(null); setReload((r) => r + 1); setPhase('intro') }
 
   if (error) return <ChallengeError what="the hard-mode charts" error={error} signedOut={signedOut} onRetry={() => { setPool(null); setError(null); setReload((r) => r + 1) }} />
   if (phase === 'intro') {
     const count = total || HARD_TOTAL
     return (
-      <Stage full hero eyebrow={`Challenge · ${count} charts`} title="Hard mode" titleClass={s.titleMetal} art={<Medal size={92} />} testId="hard-intro"
-        actions={<StudyButton kind="primary" size="xl" arrow hotkey="Enter" disabled={!pool?.length} onClick={() => pool?.length && start()} testId="hard-start">
-          {pool == null ? 'Loading the bank' : pool.length ? 'Start' : 'No charts yet'}
-        </StudyButton>}
-        below={<span className={s.reward}><b>{count} for {count}</b> · lights the Legendary medal</span>}>
-        <Rules items={RULES} />
-      </Stage>
+      <div className={s.kit} style={{ padding: '26px 0 34px' }}>
+        <StartArena total={count} ready={!!pool?.length} hotkey onStart={() => pool?.length && start()} testId="hard-intro" startTestId="hard-start"
+          label={pool == null ? 'Loading the bank' : pool.length ? 'Start' : 'No charts yet'}
+          howTo={<HowItPlays mode="hard" testId="hard-howto" steps={[
+            { icon: 'lock', title: 'Read the chart', body: 'A real chart from the UCT bank with the ticker hidden. The last candle is ringed.' },
+            { icon: 'eye', title: 'Name what fired', body: 'Pick the setup that fired on that candle, or Nothing fired. One try each.' },
+            { icon: 'play', title: 'Watch the trade', body: 'The chart runs on with the trade drawn: entry, stop, targets, and a key that says why each level sits there.' },
+          ]} />} />
+      </div>
     )
   }
   if (phase === 'done') return <Done right={right} total={total} xp={xp} log={log} results={results} onBack={onClose} onAgain={again} />

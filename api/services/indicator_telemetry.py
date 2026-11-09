@@ -295,7 +295,7 @@ RS_LEARN_TARGETS = frozenset({"rsLine", "phase", "newHigh", "beforePrice", "redD
 #: The `readout[]` keys of the UCT RS definition whose row opens a card.
 RS_CARD_KINDS = frozenset({"benchmarkName", "ratingSummary", "fastRating", "phase", "mansfield", "rsHigh",
                            "beforePrice", "redDay", "sensitivity", "regime", "checks",
-                           "rotation", "quality", "vars"})
+                           "rotation", "quality", "vars", "ratingView"})
 #: A chart symbol: upper-case letters and digits, with the class / exchange
 #: separators the app's symbols use (`BRK-B`, `BRK.B`, `X:BTCUSD`). Never a word
 #: in lower case, never a space.

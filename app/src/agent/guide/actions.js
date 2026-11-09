@@ -57,8 +57,8 @@ export const CHART_MENU = [
 
 // ── a legend chip's menu (components/chart/legend/chipMenu.js) ──
 const chipItem = (id) => ({ within: 'chart.chipMenu', attr: 'data-menu-id', value: id })
-const chip = (id, name, say, ask = 'Click {ind.say} in the chart’s legend, at the top left.') => [
-  { only: 'ind', target: [{ id: 'chart.chip', text: '{ind.say}' }, { id: 'chart.chip', text: '{ind.name}' }, 'chart.chip'], name: 'the chart’s legend', text: ask, altText: '{ind.say} isn’t on this chart. Add it first, or click another indicator here.', waitFor: chipItem(id) },
+const chip = (id, name, say, ask = 'Click {ind.label} in the chart’s legend, at the top left.') => [
+  { only: 'ind', target: [{ id: 'chart.chip', named: '{ind.label}' }, { id: 'chart.chip', named: '{ind.labelName}' }, 'chart.chip'], name: 'the chart’s legend', text: ask, altText: '{ind.label} isn’t on this chart. Add it first, or click another indicator here.', waitFor: chipItem(id) },
   { unless: 'ind', target: 'chart.chip', name: 'the chart’s legend', text: 'Click the indicator in the chart’s legend, at the top left.', waitFor: chipItem(id) },
   { target: chipItem(id), name, text: say, endsOnClick: true },
 ]
@@ -78,7 +78,11 @@ export const LEGEND_MENU = [
 // ── what is on the chart itself, and the chart's keys (components/chart/keyboardShortcuts.js) ──
 const key = (combo, say) => [{ target: 'chart.plot', name: 'the chart', text: `Click the chart, then press ${combo}. ${say}` }]
 const DIVIDER = { within: 'chart.plot', cursor: 'row-resize' }
-const divider = (say, alt) => [{ target: [DIVIDER, 'chart.plot'], name: 'the line between the panes', text: say, altText: alt }]
+// a pane named: the line along ITS top edge, found from where its own legend sits, never the first line on the chart
+const divider = (say, alt) => [
+  { only: 'ind', target: [{ ...DIVIDER, above: '{ind.label}' }, { ...DIVIDER, above: '{ind.labelName}' }, 'chart.plot'], name: 'the line above {ind.label}', text: say, altText: '{ind.label} has no pane of its own on this chart, so there’s no line to drag for it.' },
+  { unless: 'ind', target: [DIVIDER, 'chart.plot'], name: 'the line between the panes', text: say, altText: alt },
+]
 export const CHART_VIEW = [
   { id: 'paneResize', label: 'Resizing a pane', re: /\b(resiz\w*|drag\w*|bigger|smaller|taller|shorter|height|tall)\b.*\b(panes?|divider|separator|volume)\b|\b(panes?|divider|separator)\b.*\b(resiz\w*|drag\w*|bigger|smaller|taller|shorter|height)\b/, steps: divider('Point at this line until the cursor changes, then drag it up or down. The pane on each side gives way.', 'This chart has only one pane, so there’s no line to drag. Add a pane indicator such as RSI, or put volume in its own pane.') },
   { id: 'range', label: 'Showing a set range', re: /\brange (buttons?|bar)\b|\b(3|6) ?(m|months?)\b.*\b(view|chart|range|history)\b|\b(ytd|year to date|5 years?|five years|one year|1 year|last year)\b/, steps: [{ target: 'chart.range', name: 'the range buttons', text: 'These buttons frame the chart: 3M, 6M, YTD, 1Y, 5Y or Origin. Click one.' }] },
@@ -270,7 +274,7 @@ export const DRAWING_ACTIONS = [
 const IND_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indicators tab', text: 'Open the Indicators tab.', waitFor: { id: 'chartSettings.tab.indicators', on: true } }
 const IND_ROW = { within: 'chartSettings', attr: 'data-row-primary' }
 const indRow = (result) => [
-  { only: 'ind', target: [{ ...IND_ROW, text: '{ind.say}' }, { ...IND_ROW, text: '{ind.name}' }, IND_ROW], name: 'the indicator list', text: 'Click {ind.say} in this list.', altText: '{ind.say} isn’t on this chart. Click another indicator here, or add it first.', waitFor: result },
+  { only: 'ind', target: [{ ...IND_ROW, named: '{ind.label}' }, { ...IND_ROW, named: '{ind.labelName}' }, IND_ROW], name: 'the indicator list', text: 'Click {ind.label} in this list.', altText: '{ind.label} isn’t on this chart. Click another indicator here, or add it first.', waitFor: result },
   { unless: 'ind', target: IND_ROW, name: 'the indicator list', text: 'Click the indicator in this list.', waitFor: result },
 ]
 const inSettings = (guide) => ({ within: 'chartSettings', guide })
@@ -389,7 +393,7 @@ export const ACTION_FAMILIES = [
   { id: 'panelAction', slot: 'panelAct', rows: PANEL_ACTIONS, control: 'that control', title: '{panelAct.label}', topic: 'charts', caps: [], explain: 'That control is on a panel of the chart or the workspace.' },
   { id: 'compareAction', slot: 'compareAct', rows: COMPARE_ACTIONS, when: needsAny(COMPARE_WORDS), control: 'the Tools menu', title: '{compareAct.label}', topic: 'charts', caps: ['chart.compare'], explain: 'Tools ▾ → Compare Symbols overlays other symbols on a chart. Each symbol and group in its list has a scale choice and a remove button.' },
   { id: 'chartMenu', slot: 'menuAct', rows: CHART_MENU, control: 'the chart', title: '{menuAct.label}', topic: 'charts', caps: [], explain: 'Right-click the chart for its menu. What it offers depends on where you click: the price area, the price scale, the volume bars or an indicator’s pane.' },
-  { id: 'chartView', slot: 'viewAct', rows: CHART_VIEW, control: 'the chart', title: '{viewAct.label}', topic: 'charts', caps: [], explain: 'That is on the chart itself, or a key that works once the chart is selected.' },
+  { id: 'chartView', slot: 'viewAct', slots: ['ind', 'viewAct'], rows: CHART_VIEW, control: 'the chart', title: '{viewAct.label}', topic: 'charts', caps: [], explain: 'That is on the chart itself, or a key that works once the chart is selected.' },
   { id: 'legendChip', slot: 'chipAct', slots: ['ind', 'chipAct'], rows: LEGEND_MENU, when: needsAny(INDICATOR_WORDS), control: 'the chart’s legend', title: '{chipAct.label}', topic: 'indicators', caps: [], explain: 'Every indicator in the chart’s legend, at the top left, has a menu: click its name to hide it, move it, edit it, set an alert or delete it.' },
 ]
 

@@ -83,6 +83,15 @@ permissions:
 
 jobs:
   promote:
+    # A CANCELLED gate is not a verdict: master pushes landed close together, the queued gate was
+    # superseded, and the next gate covers this commit (promotion_gate.decide lets a later green run
+    # supersede a cancelled one). Skip the whole job so GitHub records "skipped" and sends no failure
+    # email; until 2026-11-08 every pile-up mailed the owner a "failed" promotion with nothing wrong.
+    # ⛔ ONLY `cancelled`. A failure, timeout or anything else still runs the job and fails loudly in
+    # the step below. A job-level skip, never an `exit 0` in that step: that step's failure is what
+    # stops every later step from running, so softening it would let promotion proceed.
+    # Rail: tests/test_promote_skips_only_cancelled_gates.py.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

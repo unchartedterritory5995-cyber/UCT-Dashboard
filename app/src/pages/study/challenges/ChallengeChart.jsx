@@ -21,7 +21,7 @@ import { studySettingsOverride, widgetSettingsOverride } from '../studyChartLook
 import { tapDayKey } from '../chartTapTime'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 
-export default function ChallengeChart({ id, bars, view = null, height = 320, annotations = null, markers = null, extra = null, onBarTap = null, chartOpts = null, look = 'house', watermark = null, fetcher }) {
+export default function ChallengeChart({ id, bars, view = null, height = 320, annotations = null, callouts = null, calloutLook = null, markers = null, extra = null, onBarTap = null, chartOpts = null, look = 'widget', watermark = null, fetcher, frameEnd = null }) {
   const widget = look === 'widget'
   const houseSettings = useHouseChart(fetcher)
   // a bare chart (`overlays: false`, Hard mode) must switch off the member's OWN averages too: the chart merges
@@ -78,13 +78,18 @@ export default function ChallengeChart({ id, bars, view = null, height = 320, an
         showDrawingTools={false}
         hotkeysActive={false}
         dailyDefaultBars={shown}
-        rightPadBars={phone ? 7 : 4}
+        // the replay (2026-11-08): the frame ends on its newest day and re-frames as each day arrives, `view` wide
+        anchorDate={frameEnd ? String(frameEnd) : null}
+        hideAnchorMarker={!!frameEnd}
+        rightPadBars={phone ? 3 : 2}   // the owner: "a slight gap at the right ... like 1-2 candles space at max"
         settingsOverride={sessionChart.settingsOverride}
         onSettingsPersist={sessionChart.onSettingsPersist}
         annotations={annotations}
         annotationsVisible={!!annotations}
         annotationsTextVisible={!!annotations}
         markers={markers}
+        callouts={callouts && callouts.length ? callouts : null}
+        calloutLook={calloutLook}
         onChartTap={onBarTap ? onChartTap : null}
         {...(extra || {})}
       />

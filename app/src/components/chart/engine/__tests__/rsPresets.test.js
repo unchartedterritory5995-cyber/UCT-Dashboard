@@ -25,7 +25,7 @@ const RS_INFO = '#6ba3be'
 const RS_GOLD = '#c9a84c'
 const RS_NEUTRAL = '#8a8574'
 
-const GLANCE = ['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rotation', 'quality', 'vars', 'rsHigh',
+const GLANCE = ['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rotation', 'quality', 'vars', 'ratingView', 'rsHigh',
   'sensitivity', 'regime', 'checks', 'shortHistory']
 
 /** NVDA against SPY on a daily chart, as the VA1 provider builds it. */
@@ -59,7 +59,7 @@ describe('A1 — the glance list and the detail rows', () => {
     const glance = RS.readout.filter(isGlanceRow)
     expect(glance.map((e) => e.key)).toEqual(GLANCE)
     expect(glance.map((e) => e.label)).toEqual(['Benchmark', 'Rating', 'RS line', 'Mansfield', 'Rotation', 'Quality',
-      'Vol-adjusted', 'Last RS high', 'Agreement', 'Regime', 'Checks', 'History'])
+      'Vol-adjusted', 'RS Rating', 'Last RS high', 'Agreement', 'Regime', 'Checks', 'History'])
     for (const e of glance) expect(e.label.length, e.label).toBeLessThanOrEqual(12)
     // the old "Benchmarks" row is "Agreement", never two rows a letter apart
     expect(RS.readout.some((e) => e.label === 'Benchmarks')).toBe(false)
@@ -269,8 +269,8 @@ describe('A2 — Mansfield view', () => {
 
   it('the zero guide: one solid neutral hlines at 0, active ONLY under Mansfield view', () => {
     const guides = RS.plots.filter((p) => p.style === 'hlines')
-    // v4: one guide per centred reading (Mansfield 0, Rotation 100, VARS 0)
-    expect(guides.map((g) => g.key)).toEqual(['mansfieldZero', 'rotationCentre', 'varsZero'])
+    // v4: one guide per centred reading (Mansfield 0, Rotation 100, VARS 0); rev 5: the RS Rating's 80 / 90
+    expect(guides.map((g) => g.key)).toEqual(['mansfieldZero', 'rotationCentre', 'varsZero', 'ratingGuides'])
     const z = guides[0]
     expect(z).toMatchObject({ key: 'mansfieldZero', levels: [0], role: 'context', color: RS_NEUTRAL, width: 1, lineStyle: 'solid',
       activeWhen: { key: 'view', equals: 'mansfield' } })
@@ -278,7 +278,7 @@ describe('A2 — Mansfield view', () => {
     expect(evalActiveWhen(z.activeWhen, { view: 'ratio' })).toBe(false)
     for (const g of guides) {
       expect(g, g.key).toMatchObject({ role: 'context', color: RS_NEUTRAL, width: 1, lineStyle: 'solid' })
-      for (const view of ['ratio', 'mansfield', 'rotation', 'quality', 'vars']) {
+      for (const view of ['ratio', 'mansfield', 'rotation', 'quality', 'vars', 'rating']) {
         expect(evalActiveWhen(g.activeWhen, { view }), `${g.key} under ${view}`).toBe(g.activeWhen.equals === view)
       }
     }
