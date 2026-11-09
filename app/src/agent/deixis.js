@@ -132,6 +132,19 @@ const SAME_CORNER = new RegExp(`\\bcorner\\s+(?:on|in|along|at)\\s+the\\s+same\\
 const LINE_POS = '(first|second|third|last|middle|cent(?:er|re)|left(?:most)?|right(?:most)?|top(?:most)?|bottom(?:most)?|upper(?:most)?|lower(?:most)?)'
 const LINE_WHICH = '(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)'
 export const LINE_REF = new RegExp(`\\b(?:the\\s+)?${LINE_POS}\\s+(?:chart|one|cell|pane|panel|graph)\\s+(?:in|of|on|along|from)\\s+(?:(this|that)|the|my)\\s+(?:${LINE_WHICH}\\s+)?(row|column)\\b`, 'i')
+// ...and with the line FIRST, as a possessive: "the top row's middle chart", "this column's last one" (same groups as LINE_REF)
+const LINE_REF_POSS = new RegExp(`\\b(?:(this|that)|the|my)\\s+(?:${LINE_WHICH}\\s+)?(row|column)['’]s\\s+${LINE_POS}\\s+(?:chart|one|cell|pane|panel|graph)\\b`, 'i')
+/** A line reference in either order → a match whose groups are LINE_REF's ([1] place, [2] this/that, [3] which line, [4] axis). */
+function lineRefExec(s) {
+  const a = LINE_REF.exec(s)
+  if (a) return a
+  const b = LINE_REF_POSS.exec(s)
+  if (!b) return null
+  const m = [b[0], b[4], b[1], b[2], b[3]]
+  m.index = b.index
+  m.input = b.input
+  return m
+}
 const SAME_BUT = /\bsame\s+(row|column)\s*,?\s*(?:but|and)?\s+(?:the\s+other|a\s+different|another|the\s+opposite)\s+(row|column)\b/i
 const ORD_AT = { first: 0, second: 1, third: 2 }
 /** The chart at `pos` in `line` (sorted along it) → the chart, or null (no such place in that line). */
@@ -163,12 +176,12 @@ function lineOf(charts, axis, { through = null, which = null } = {}) {
 }
 /** An ABSOLUTE line reference ("the last one in the bottom row") → { ref } | { ask } | null (not one). */
 export function absoluteLineChart(text, charts = []) {
-  const m = LINE_REF.exec(String(text || ''))
+  const m = lineRefExec(String(text || ''))
   if (!m || m[2] || !m[3]) return null
   const line = lineOf(charts, m[4].toLowerCase(), { which: m[3] })
   const hit = line ? atPos(line, m[1], m[4].toLowerCase()) : null
-  return hit ? { ref: hit.ref, word: m[1].toLowerCase(), match: m }
-    : { ask: { text: 'Which chart do you mean? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+  return hit ? { ref: hit.ref, word: m[1].toLowerCase(), match: m, line: true }
+    : { ask: { text: 'Which chart do you mean? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m, line: true }
 }
 function walkMatch(s) {
   const at = (m, set) => { if (!m || placesNonChart(s.slice(0, m.index), m[0])) return null; Object.assign(m, set); return m }
@@ -182,7 +195,7 @@ function walkMatch(s) {
   if (m) return at(m, { walk: { dirs: [m[2].toLowerCase()], n: n(m[1]) } })
   m = WALK_H2.exec(s)
   if (m) return at(m, { walk: { dirs: ['left', 'right'], n: n(m[1]) } })
-  m = LINE_REF.exec(s)
+  m = lineRefExec(s)
   if (m && m[2]) return at(m, { line: { axis: m[4].toLowerCase(), pos: m[1] } })
   m = SAME_BUT.exec(s)
   if (m && m[1].toLowerCase() !== m[2].toLowerCase()) return at(m, { sameBut: m[1].toLowerCase() })
@@ -744,7 +757,9 @@ export function chartsNamedBy(text, charts = [], sel = null) {
   // P1: "the second chart", "chart 3", "the middle chart" — only with the word CHART ("the first one" is as often a
   // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
-  if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
+  // ⛔ an ABSOLUTE line place ("the middle one of the top row") names its cell whatever the noun: the row / column words make it
+  // a chart reference, so the click never answers for it (AUDIT GO run 23b99fc0a1, 85/86)
+  if (ord?.ref && (/chart/i.test(ord.match[0]) || ord.line)) named.add(ord.ref)
   // what the chart IS right now (chartQualifier), when that fits exactly one chart ("the empty one", "the one with RSI")
   const q = chartQualifier(s, charts)
   if (q?.hits.length === 1) named.add(q.hits[0].ref)
@@ -827,7 +842,12 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // and the click is EXCLUDED: a plan on the other chart runs, a plan on the click is asked (unless "this" names it too)
   const otherOne = !answered && sel && charts.length === 2 && otherOneIsChart(words) ? charts.find(c => c.ref !== sel)?.ref || null : null
   if (otherOne) named.add(otherOne)
-  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  // ⛔ AUDIT GO run (23b99fc0a1): an ABSOLUTE line place ("the middle one of the top row", "the top row's middle chart") names one
+  // cell with no anchor. Stripping its row / column words (below) must not turn it into a bare command the click answers: the
+  // click counts only when it IS that cell (then it is already named).
+  const absLine = ordinalChart(words, charts)
+  const lineNamed = !!absLine?.line
+  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
