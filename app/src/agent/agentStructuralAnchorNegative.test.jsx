@@ -41,3 +41,17 @@ describe('a relation word on a non-chart noun never withholds the click', () => 
     expect(tfs(m.board), `${t} | ${transcript().slice(-240)}`).toBe('DWDD')
   }, 40000)
 })
+
+// full suite 1e820565ef (agentCompanyNames): a verb particle or a time word is not a relation word — "pull UP … on this one",
+// "switch OVER to …", "the PAST year on this chart", "turn it DOWN": a bare pointer at the click, which is acted on
+const PARTICLES = ['pull up weekly on this one', 'switch over to weekly on this chart', 'show the past year weekly on this chart',
+  'bring up the weekly on this one', 'set it to weekly, i will turn down the noise later', 'at the end of the day make this one weekly']
+describe('a verb particle or a time word is not a relation word', () => {
+  it.each(PARTICLES)('"%s" (c1 clicked): the plan on the click runs there', async (t) => {
+    const m = p.mount(FOUR, SYMS, { decorate: label })
+    p.select('c1')
+    p.st.envelopes.push(planOn('c1'))
+    await m.say(t)
+    expect(tfs(m.board), `${t} | ${transcript().slice(-240)}`).toBe('DWDD')
+  }, 40000)
+})
