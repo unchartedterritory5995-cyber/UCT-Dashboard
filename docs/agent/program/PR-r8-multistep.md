@@ -50,7 +50,11 @@ Partial failure is **keep-and-report** (AUDIT-confirmed): done steps are kept, n
    - step-count cap `MAX_STEPS` = 6 per request (a longer plan is refused before anything runs, "UCT does at most 6"); each
      step at most `maxOps` changes (manifest contract);
    - wall-clock cap `COMPOUND_WALL_MS` = 60 s: no step STARTS after it (a step under way finishes); rail with the cap forced;
-   - no re-plan loop: the steps are read once, up front; a step that does not read stops the run;
+   - **retries: 0** — no step is retried and nothing re-plans: the steps are read once, up front; a step that does not read, or
+     does not land, stops the run (keep-and-report). On the model path the only second call is the one client reroute
+     (need_groups) or one server repair, both inside the server's per-request call cap below;
+   - a partial run never reports full success: "All N steps done." is said only after every step landed; a stop says
+     "Done n of m … Not done: …" (rail: the stopped receipt never matches "All N steps done");
    - **model calls (AI spend):** an instant multi-step request makes **0** model calls (rail: `p.turns() === 0`). A request the
      instant readers cannot take goes to the model as ONE request: at most one client reroute (need_groups) and, server-side,
      at most `UCT_AGENT_MAX_CALLS_PER_REQUEST` = 2 paid calls per request (api/services/uct_agent/budget.py, DEFAULT_MAX_CALLS)

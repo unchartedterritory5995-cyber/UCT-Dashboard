@@ -165,6 +165,7 @@ describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', ()
     for (const t of done) expect(out).toContain(`“${t}” on Chart (c0)`)
     expect(out).toContain(`then stopped at “${steps[k]}”`)
     expect(out).toContain(`Not done: ${steps.slice(k).map(t => `“${t}”`).join(', ')}.`)
+    expect(out, 'a partial run never reports full success').not.toMatch(/All \d+ steps done|Done —[^.]*\.$/)
     expect(p.turns()).toBe(0)
   }, 60000)
   it('(1) a sentence read WHOLE is one plan: its failure leaves nothing at all ("nothing was left changed")', async () => {
