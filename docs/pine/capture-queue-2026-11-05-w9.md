@@ -17,6 +17,8 @@ Rules for every row below:
 - No probe was compiled or run when it was written. A compile refusal by TradingView is a recorded datum, not a retry.
 - The report reader waits on W9-C0 (the first row). Until its path is pinned in `tools/vendor_harness/strategy_report_slots.json`
   every report slot refuses by name.
+- The `live` column (2026-11-08) is the ONE live marker the queue reads (`evidence_engine.row_needs_live`): `yes` only
+  where the row needs a session in progress. Probe names such as `w9-q-s1e-live-past` or `-every-tick-history` say nothing.
 
 ## A. Spike (owner, read-only)
 
@@ -26,65 +28,79 @@ Rules for every row below:
 
 ## B. Rule pins: S1's rows
 
-| row | probe | chart | captures | fields beyond std | settles | gates |
-|---|---|---|---:|---|---|---|
-| Q-S1-core | `s1-broker-core.pine` | NYSE:RDDT 1D | 1 | N02 to N14 | market, bracket, reversal, pyramid, close rules | T1 |
-| Q-S1-core-b | `s1-broker-core-range.pine` | AMEX:SPY 1D | 1 | std, joined on time | the same rules, and method (b) itself | T1 |
-| Q-S1-core-2x | `w9-q-s1core-two-exits.pine` | NYSE:RDDT 1D | 1 | exit id and comment by label; last exit price | two full exits on one trade, the second-called reached first: S1's B-EXIT-BIND (each fills if reached first; served while B-EXIT-QTY is unpinned) against the reference's reservation (B-EXIT-QTY: the first reserves the whole trade). Added 2026-11-08, integration review N2; joins Q-S1-core's fixtures for B-EXIT-BIND | T1, T7 |
-| Q-S1a | `w9-q-s1a-size-v4.pine`, `w9-q-s1a-size-v6.pine`, `w9-q-s1a-size-v5pct.pine`, `w9-q-s1a-size-v5cash.pine`, `w9-q-s1a-size-v2.pine` | NYSE:RDDT 1D | 5 | position size at the fill; equity and close at the signal | default sizing per version | T4 |
-| Q-S1b | `w9-q-s1b-defaults-v4.pine`, `w9-q-s1b-defaults-v5.pine`, `w9-q-s1b-defaults-v6.pine` | NYSE:RDDT 1D | 3 | initial capital; open trades per entry | capital, margin and pyramiding defaults; reversal | T4, T1 |
-| Q-S1c | `w9-q-s1c-tie.pine` | NYSE:RDDT 1D | 1 | trade-0 times | the path on a tie | T1 |
-| Q-S1d | `w9-q-s1d-same-tick.pine` | NYSE:RDDT 1D | 1 | ids by label | two orders on one bar | T1, T7 |
-| Q-S1e | `w9-q-s1e-live-past.pine` | NYSE:RDDT 1D | 1 | std | an exit already past its level | T1 |
-| Q-S1f | `w9-q-s1f-reversal-exit.pine` | NYSE:RDDT 1D | 1 | exit id by label | reversal against an exit with no from_entry | T7 |
-| Q-S1g | `w9-q-s1g-pyr-limit.pine` | NYSE:RDDT 1D | 1 | open trades | a price entry at the limit | T7 |
-| Q-S1h | `w9-q-s1h-fifo.pine` | NYSE:RDDT 1D | 1 | closed trade sizes; entry bar | the FIFO split | T7 |
-| Q-S1i | `w9-q-s1i-funds.pine` | NYSE:RDDT 1D | 1 | exit comment by label | margin call (deferred) | deferred |
-| Q-S1j | `w9-q-s1j-stop-limit.pine` | NYSE:RDDT 1D | 1 | std | stop-limit | T7 |
-| Q-S1k | `w9-q-s1k-exit-levels.pine`, `w9-q-s1k-exit-levels-v6.pine` | NYSE:RDDT 1D | 2 | std | exit levels, v5 and v6 | T7 |
-| Q-S1l | `w9-q-s1l-off-grid.pine` | NYSE:RDDT 1D | 1 | exit price as a full double, and in mintick units | off-grid rounding | T1 |
-| Q-S1m | `w9-q-s1m-index.pine` | NYSE:RDDT 1D | 1 | entry price at index 5; exit price at index 999 | an out-of-range index | T10 |
-| Q-S1p | `w9-q-s1p-when.pine` | NYSE:RDDT 1D | 1 | std | the v5 when argument | T1 |
+| row | probe | chart | captures | fields beyond std | settles | gates | live |
+|---|---|---|---:|---|---|---|---|
+| Q-S1-core | `s1-broker-core.pine` | NYSE:RDDT 1D | 1 | N02 to N14 | market, bracket, reversal, pyramid, close rules | T1 | no |
+| Q-S1-core-b | `s1-broker-core-range.pine` | AMEX:SPY 1D | 1 | std, joined on time | the same rules, and method (b) itself | T1 | no |
+| Q-S1-core-2x | `w9-q-s1core-two-exits.pine` | NYSE:RDDT 1D | 1 | exit id and comment by label; last exit price | two full exits on one trade, the second-called reached first: S1's B-EXIT-BIND (each fills if reached first; served while B-EXIT-QTY is unpinned) against the reference's reservation (B-EXIT-QTY: the first reserves the whole trade). Added 2026-11-08, integration review N2; joins Q-S1-core's fixtures for B-EXIT-BIND | T1, T7 | no |
+| Q-S1a | `w9-q-s1a-size-v4.pine`, `w9-q-s1a-size-v6.pine`, `w9-q-s1a-size-v5pct.pine`, `w9-q-s1a-size-v5cash.pine`, `w9-q-s1a-size-v2.pine` | NYSE:RDDT 1D | 5 | position size at the fill; equity and close at the signal | default sizing per version | T4 | no |
+| Q-S1b | `w9-q-s1b-defaults-v4.pine`, `w9-q-s1b-defaults-v5.pine`, `w9-q-s1b-defaults-v6.pine` | NYSE:RDDT 1D | 3 | initial capital; open trades per entry | capital, margin and pyramiding defaults; reversal | T4, T1 | no |
+| Q-S1c | `w9-q-s1c-tie.pine` | NYSE:RDDT 1D | 1 | trade-0 times | the path on a tie | T1 | no |
+| Q-S1d | `w9-q-s1d-same-tick.pine` | NYSE:RDDT 1D | 1 | ids by label | two orders on one bar | T1, T7 | no |
+| Q-S1e | `w9-q-s1e-live-past.pine` | NYSE:RDDT 1D | 1 | std | an exit already past its level | T1 | no |
+| Q-S1f | `w9-q-s1f-reversal-exit.pine` | NYSE:RDDT 1D | 1 | exit id by label | reversal against an exit with no from_entry | T7 | no |
+| Q-S1g | `w9-q-s1g-pyr-limit.pine` | NYSE:RDDT 1D | 1 | open trades | a price entry at the limit | T7 | no |
+| Q-S1h | `w9-q-s1h-fifo.pine` | NYSE:RDDT 1D | 1 | closed trade sizes; entry bar | the FIFO split | T7 | no |
+| Q-S1i | `w9-q-s1i-funds.pine` | NYSE:RDDT 1D | 1 | exit comment by label | margin call (deferred) | deferred | no |
+| Q-S1j | `w9-q-s1j-stop-limit.pine` | NYSE:RDDT 1D | 1 | std | stop-limit | T7 | no |
+| Q-S1k | `w9-q-s1k-exit-levels.pine`, `w9-q-s1k-exit-levels-v6.pine` | NYSE:RDDT 1D | 2 | std | exit levels, v5 and v6 | T7 | no |
+| Q-S1l | `w9-q-s1l-off-grid.pine` | NYSE:RDDT 1D | 1 | exit price as a full double, and in mintick units | off-grid rounding | T1 | no |
+| Q-S1m | `w9-q-s1m-index.pine` | NYSE:RDDT 1D | 1 | entry price at index 5; exit price at index 999 | an out-of-range index | T10 | no |
+| Q-S1p | `w9-q-s1p-when.pine` | NYSE:RDDT 1D | 1 | std | the v5 when argument | T1 | no |
 
 ## B'. Fact capture (not a pin)
 
-| row | probe | chart | captures | settles |
-|---|---|---|---:|---|
-| Q-S1n | `s1-broker-core.pine` | AMEX:SPY 1D | 2 | whether TradingView starts at its first loaded bar, at two loaded depths. gradeMethod is none; it pins no rule and is never graded MATCH. Its bars are also the source of the method (b) window for every SPY grading variant. |
+| row | probe | chart | captures | settles | live |
+|---|---|---|---:|---|---|
+| Q-S1n | `s1-broker-core.pine` | AMEX:SPY 1D | 2 | whether TradingView starts at its first loaded bar, at two loaded depths. gradeMethod is none; it pins no rule and is never graded MATCH. Its bars are also the source of the method (b) window for every SPY grading variant. | no |
 
 ## C. Rule pins: new W9 rows
 
-| row | probe | chart | captures | fields beyond std | settles | gates |
-|---|---|---|---:|---|---|---|
-| W9-D1 | `w9-d1-v6-defaults.pine`, `w9-d1-margin50.pine` | NYSE:RDDT 1D | 2 | margin liquidation price; initial capital | v6 margin and leverage | T4 |
-| W9-D2 | `w9-d2-currency.pine` | NYSE:RDDT 1D | 1 | initial capital | the account currency | T4 |
-| W9-K1 | `w9-k1-commission-pct.pine` | NYSE:RDDT 1D | 1 | closed trade commission | percent | T5 |
-| W9-K2 | `w9-k2-commission-contract.pine` | NYSE:RDDT 1D | 1 | closed trade commission | per contract | T5 |
-| W9-K3 | `w9-k3-commission-order.pine` | NYSE:RDDT 1D | 1 | closed trade commission | per order | T5 |
-| W9-K4 | `w9-k4-slippage.pine` | NYSE:RDDT 1D | 1 | prices | slippage | T5 |
-| W9-P1 | `w9-p1-on-close.pine` | NYSE:RDDT 1D | 1 | position size on the fill bar and the next; commission | order timing on close, brackets, pyramiding, costs | T6, T5 |
-| W9-P1b | `w9-p1b-on-close-fills.pine` | NYSE:RDDT 1D | 1 | the run counter | re-run order | T6 |
-| W9-P2 | `w9-p2-order-fills.pine` | NYSE:RDDT 1D | 1 | the run counter | calc on order fills | T6 |
-| W9-P3 | `w9-p3-every-tick-history.pine` | NYSE:RDDT 1D | 1 | std | calc on every tick over history | T6 |
-| W9-X1 | `w9-x1-trail.pine` | NYSE:RDDT 1D | 1 | std | trailing exits | T7 |
-| W9-X2 | `w9-x2-partial.pine` | NYSE:RDDT 1D | 1 | closed trade sizes | partial exits | T7 |
-| W9-X3 | `w9-x3-oca.pine` | NYSE:RDDT 1D | 1 | ids by label | OCA groups | T7 |
-| W9-X4 | `w9-x4-order.pine` | NYSE:RDDT 1D | 1 | open trade size | strategy.order, immediately | T7 |
-| W9-R1 | `w9-r1-risk-allow.pine`, `w9-r1-risk-ddown.pine` | NYSE:RDDT 1D | 2 | std | allow entry in; max drawdown | T8 |
-| W9-R1i | `w9-r1-risk-intraday.pine` | AMEX:SPY 15 | 1 | std | the intraday risk functions. Schedulable only after one depth read of the 15-minute history on the rig plan; the method (b) variant is made at capture time. | T8 |
-| W9-M1 | `w9-m1-magnifier-off.pine`, `w9-m1-magnifier-on.pine` | NYSE:RDDT 1D | 2 | settings | bar detalization (deferred) | T9 |
-| W9-V1 | `w9-v1-values.pine` | NYSE:RDDT 1D | 1 | the strategy values outside S1's set; entry name by label | the tail of the read-backs | T10 |
-| W9-MK1 | `w9-mk1-markers.pine` | NYSE:RDDT 1D | 1 | the strategy source's graphics and properties state | marker presentation | T12 |
-| W9-S1 | `s1-broker-core.pine` | NYSE:RDDT 1D | 0 | the report object (rides on Q-S1-core, after W9-C0) | summary formulas | T13a |
-| W9-S2 | `w9-s2-sharpe.pine`, `w9-s2-sharpe-rf0.pine` | NYSE:RDDT 1D | 2 | the report object | Sharpe and Sortino at the default and at zero risk free rate | T13a |
-| W9-J1 | `s1-broker-core.pine` | NYSE:RDDT 1D | 0 | July-2026 defaults, from the settings read-back of Q-S1-core | the defaults | T6 |
+| row | probe | chart | captures | fields beyond std | settles | gates | live |
+|---|---|---|---:|---|---|---|---|
+| W9-D1 | `w9-d1-v6-defaults.pine`, `w9-d1-margin50.pine` | NYSE:RDDT 1D | 2 | margin liquidation price; initial capital | v6 margin and leverage | T4 | no |
+| W9-D2 | `w9-d2-currency.pine` | NYSE:RDDT 1D | 1 | initial capital | the account currency | T4 | no |
+| W9-K1 | `w9-k1-commission-pct.pine` | NYSE:RDDT 1D | 1 | closed trade commission | percent | T5 | no |
+| W9-K2 | `w9-k2-commission-contract.pine` | NYSE:RDDT 1D | 1 | closed trade commission | per contract | T5 | no |
+| W9-K3 | `w9-k3-commission-order.pine` | NYSE:RDDT 1D | 1 | closed trade commission | per order | T5 | no |
+| W9-K4 | `w9-k4-slippage.pine` | NYSE:RDDT 1D | 1 | prices | slippage | T5 | no |
+| W9-P1 | `w9-p1-on-close.pine` | NYSE:RDDT 1D | 1 | position size on the fill bar and the next; commission | order timing on close, brackets, pyramiding, costs | T6, T5 | no |
+| W9-P1b | `w9-p1b-on-close-fills-nv.pine` | NYSE:RDDT 1D | 1 | open trade 0 and 1 entry bar; open trade 1 entry price | re-run order: does a fill at the close re-run the bar, and where does the add that re-run places fill. No `varip` (rule 11 refuses it in broker mode); the re-run is witnessed by its orders. Replaces the `varip` probe 2026-11-08 (row W9-P1b varip, below) | T6 | no |
+| W9-P1b varip | `w9-p1b-on-close-fills.pine` | NYSE:RDDT 1D | 0 | the run counter | held: superseded by W9-P1b above | none | no |
+| W9-P2 | `w9-p2-order-fills-nv.pine` | NYSE:RDDT 1D | 1 | open trade 0 and 1 entry bar; open trade 1 entry price | calc on order fills: an extra execution on a fill tick, and where the add it places fills. No `varip`; replaces the `varip` probe 2026-11-08 (row W9-P2 varip, below) | T6 | no |
+| W9-P2 varip | `w9-p2-order-fills.pine` | NYSE:RDDT 1D | 0 | the run counter | held: superseded by W9-P2 above | none | no |
+| W9-P3 | `w9-p3-every-tick-history.pine` | NYSE:RDDT 1D | 1 | std | calc on every tick over history | T6 | no |
+| W9-X1 | `w9-x1-trail.pine` | NYSE:RDDT 1D | 1 | std | trailing exits | T7 | no |
+| W9-X2 | `w9-x2-partial.pine` | NYSE:RDDT 1D | 1 | closed trade sizes | partial exits | T7 | no |
+| W9-X3 | `w9-x3-oca.pine` | NYSE:RDDT 1D | 1 | ids by label | OCA groups | T7 | no |
+| W9-X4 | `w9-x4-order.pine` | NYSE:RDDT 1D | 1 | open trade size | strategy.order, immediately | T7 | no |
+| W9-X5 | `w9-x5-cancel.pine` | NYSE:RDDT 1D | 1 | exit id and comment by label; open trade 0 size and entry bar | B-CANCEL (added 2026-11-08; `brokerRules.js` still names no capture for it): `strategy.cancel` on an unfilled entry; `strategy.cancel` on an unfilled `strategy.order` whose id is placed again later without its exit called again (is the waiting exit released); `strategy.cancel_all` on the bar a bracket binds an open trade, beside an unfilled entry | T7 | no |
+| W9-R1 | `w9-r1-risk-allow.pine`, `w9-r1-risk-ddown.pine` | NYSE:RDDT 1D | 2 | std | allow entry in; max drawdown | T8 | no |
+| W9-R1i | `w9-r1-risk-intraday.pine` | AMEX:SPY 15 | 1 | std | the intraday risk functions. Schedulable only after one depth read of the 15-minute history on the rig plan; the method (b) variant is made at capture time. | T8 | no |
+| W9-M1 | `w9-m1-magnifier-off.pine`, `w9-m1-magnifier-on.pine` | NYSE:RDDT 1D | 2 | settings | bar detalization (deferred) | T9 | no |
+| W9-V1 | `w9-v1-values.pine` | NYSE:RDDT 1D | 1 | the strategy values outside S1's set; entry name by label | the tail of the read-backs | T10 | no |
+| W9-MK1 | `w9-mk1-markers.pine` | NYSE:RDDT 1D | 1 | the strategy source's graphics and properties state | marker presentation | T12 | no |
+| W9-S1 | `s1-broker-core.pine` | NYSE:RDDT 1D | 0 | the report object (rides on Q-S1-core, after W9-C0) | summary formulas | T13a | no |
+| W9-S2 | `w9-s2-sharpe.pine`, `w9-s2-sharpe-rf0.pine` | NYSE:RDDT 1D | 2 | the report object | Sharpe and Sortino at the default and at zero risk free rate | T13a | no |
+| W9-J1 | `s1-broker-core.pine` | NYSE:RDDT 1D | 0 | July-2026 defaults, from the settings read-back of Q-S1-core | the defaults | T6 | no |
 
 ## D. Live (deferred)
 
-| row | probe | chart | captures |
-|---|---|---|---:|
-| Q-S1o | `w9-q-s1o-every-tick.pine` | AMEX:SPY 5 | 1 |
-| Q-S1p-live | `s1-broker-core.pine` | AMEX:SPY 5 | 1 |
+| row | probe | chart | captures | live |
+|---|---|---|---:|---|
+| Q-S1o | `w9-q-s1o-every-tick.pine` | AMEX:SPY 5 | 1 | yes |
+| Q-S1p-live | `s1-broker-core.pine` | AMEX:SPY 5 | 1 | yes |
+
+## Not capture questions (queue dispositions, 2026-11-08)
+
+The `varip` twins of W9-P1b and W9-P2 are held, not captured: rule 11 refuses `varip` in broker mode, so our side could
+never grade them (`docs/pine/evidence/2026-11-08-w9-t6/EVIDENCE.md`, "a `varip`-free variant"). Their files stay generated,
+byte for byte, so a later ruling can take them back.
+
+| not a capture | disposition | reason |
+|---|---|---|
+| W9-P1b varip | superseded | `varip` is refused in broker mode (rule 11), so the run counter can never be graded; W9-P1b now asks the same re-run question with `w9-p1b-on-close-fills-nv.pine`, witnessed by its orders. Held: retake only if `varip` is ever served in a strategy |
+| W9-P2 varip | superseded | `varip` is refused in broker mode (rule 11); W9-P2 now asks the same extra-execution question with `w9-p2-order-fills-nv.pine`. Held: retake only if `varip` is ever served in a strategy |
 
 ## E. Grading the 70 (not a probe table)
 
