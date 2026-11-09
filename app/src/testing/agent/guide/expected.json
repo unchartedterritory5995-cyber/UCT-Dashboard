@@ -360,12 +360,14 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-119": {
-  "feature": "alertIndicator",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "alertAction",
+  "title": "Pausing an indicator alert",
+  "from": "cov-2 row reviewed by hand 2026-11-09 (was the matrix’s alertIndicator: the form, not the alert’s own control)"
  },
  "C1-120": {
-  "feature": "alertIndicator",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert",
+  "from": "cov-2 row reviewed by hand 2026-11-09 (was the matrix’s alertIndicator: the form, not the alert’s own control)"
  },
  "C1-121": {
   "feature": "drawingEdit",

@@ -56,6 +56,9 @@ export function givenFor(c) {
   // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
+  // a grid filled from a group: Multi Chart's flyout shows Prev/Next, Refresh group and Exit Groups only while one is set
+  // (pages/charts/grid/MultiChartMenu.jsx `mc.state.group`; gridLayouts.js sanitizeGroup keeps id, by, n, name)
+  if (c.feature === 'gridAction' && /^(Stepping through groups|Refreshing a group|Leaving Groups mode)$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, groupsMode: true, group: { id: 'semiconductors', by: 'today', n: 4, name: 'Semiconductors' } }) }
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
   // a per-browser switch the case states itself (a release flag the app reads from localStorage, e.g. widgets/captureRelease.js)
   if (c.ls) g.ls = c.ls

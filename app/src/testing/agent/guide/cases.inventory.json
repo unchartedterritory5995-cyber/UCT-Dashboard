@@ -420,6 +420,18 @@
   "title": "Toggling moving averages"
  },
  {
+  "id": "C1-107",
+  "say": "how do I bars & Time",
+  "feature": "drawing",
+  "title": "Drawing a Bars & Time"
+ },
+ {
+  "id": "C1-109",
+  "say": "how do I price Move",
+  "feature": "drawing",
+  "title": "Drawing a Price Move"
+ },
+ {
   "id": "C1-110",
   "say": "how do I open share popover (Alt+S)",
   "feature": "chartView",
@@ -454,6 +466,18 @@
   "say": "how do I alert at a line's fixed level",
   "feature": "drawingEdit",
   "title": "An alert on a line"
+ },
+ {
+  "id": "C1-119",
+  "say": "how do I pause/resume indicator alert",
+  "feature": "alertAction",
+  "title": "Pausing an indicator alert"
+ },
+ {
+  "id": "C1-120",
+  "say": "how do I delete indicator alert",
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert"
  },
  {
   "id": "C1-121",
@@ -492,10 +516,28 @@
   "title": "Drawing a Trendline"
  },
  {
+  "id": "C1-130",
+  "say": "how do I extended line",
+  "feature": "drawing",
+  "title": "Drawing an Extended Line"
+ },
+ {
   "id": "C1-131",
   "say": "how do I horizontal line",
   "feature": "drawing",
   "title": "Drawing a Horizontal Line"
+ },
+ {
+  "id": "C1-132",
+  "say": "how do I horizontal ray",
+  "feature": "drawing",
+  "title": "Drawing a Horizontal Ray"
+ },
+ {
+  "id": "C1-133",
+  "say": "how do I vertical line",
+  "feature": "drawing",
+  "title": "Drawing a Vertical Line"
  },
  {
   "id": "C1-134",
@@ -516,16 +558,58 @@
   "title": "Drawing a Fibonacci Extension"
  },
  {
+  "id": "C1-139",
+  "say": "how do I pitchfork",
+  "feature": "drawing",
+  "title": "Drawing a Pitchfork"
+ },
+ {
+  "id": "C1-140",
+  "say": "how do I parallel channel",
+  "feature": "drawing",
+  "title": "Drawing a Parallel Channel"
+ },
+ {
   "id": "C1-141",
-  "say": "show me how to draw the cup",
+  "say": "how do I cup curve",
   "feature": "drawing",
   "title": "Drawing a Cup Curve"
+ },
+ {
+  "id": "C1-142",
+  "say": "how do I anchored VWAP",
+  "feature": "drawing",
+  "title": "Drawing an Anchored VWAP"
+ },
+ {
+  "id": "C1-143",
+  "say": "how do I text note",
+  "feature": "drawing",
+  "title": "Drawing a Text Note"
+ },
+ {
+  "id": "C1-144",
+  "say": "how do I position calculator",
+  "feature": "drawing",
+  "title": "Drawing a Position Calculator"
  },
  {
   "id": "C1-145",
   "say": "how do I eraser",
   "feature": "drawingEdit",
   "title": "The eraser"
+ },
+ {
+  "id": "C1-146",
+  "say": "show me how to remove that trendline",
+  "feature": "drawingEdit",
+  "title": "Deleting a drawing"
+ },
+ {
+  "id": "C1-147",
+  "say": "show me how to make that line pink",
+  "feature": "drawingEdit",
+  "title": "Recolouring a drawing"
  },
  {
   "id": "C1-148",
@@ -568,6 +652,12 @@
   "say": "show me how to lock that line",
   "feature": "drawingEdit",
   "title": "Locking a drawing"
+ },
+ {
+  "id": "C1-159",
+  "say": "show me how to hide that fib",
+  "feature": "drawingEdit",
+  "title": "Hiding one drawing"
  },
  {
   "id": "C1-162",
@@ -864,6 +954,12 @@
   "title": "Pausing an indicator alert"
  },
  {
+  "id": "C2-099",
+  "say": "show me how to delete the RSI alert",
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert"
+ },
+ {
   "id": "C2-100",
   "say": "how do I see why an alert cannot fire",
   "feature": "alertAction",
@@ -1074,8 +1170,20 @@
   "title": "Leaving Multi Chart"
  },
  {
+  "id": "C3-045",
+  "say": "show me how to sync the crosshairs",
+  "feature": "gridAction",
+  "title": "Syncing the crosshair"
+ },
+ {
+  "id": "C3-046",
+  "say": "show me how to sync the time range",
+  "feature": "gridAction",
+  "title": "Syncing the time range"
+ },
+ {
   "id": "C3-047",
-  "say": "show me how to show theme groups in the grid",
+  "say": "how do I turn on Groups mode",
   "feature": "gridAction",
   "title": "Groups mode"
  },
@@ -1084,6 +1192,24 @@
   "say": "how do I pick a group for the grid",
   "feature": "gridAction",
   "title": "Picking a group"
+ },
+ {
+  "id": "C3-049",
+  "say": "show me how to next group",
+  "feature": "gridAction",
+  "title": "Stepping through groups"
+ },
+ {
+  "id": "C3-050",
+  "say": "how do I refresh the group",
+  "feature": "gridAction",
+  "title": "Refreshing a group"
+ },
+ {
+  "id": "C3-051",
+  "say": "how do I exit Groups",
+  "feature": "gridAction",
+  "title": "Leaving Groups mode"
  },
  {
   "id": "C3-052",

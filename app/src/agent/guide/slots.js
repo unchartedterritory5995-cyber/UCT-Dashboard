@@ -34,10 +34,10 @@ export const DRAWING_TOOLS = [
   { id: 'pitchfork', label: 'Pitchfork', re: /\bpitch ?forks?\b/, place: 'Click three points on the chart.' },
   { id: 'channel', label: 'Parallel Channel', re: /\b(parallel )?channels?\b/, place: 'Click the two ends of one side, then a third point for its width.' },
   { id: 'cup', label: 'Cup Curve', re: /\bcup\b/, place: 'Click the left rim, the bottom, then the right rim.' },
-  { id: 'avwap', label: 'Anchored VWAP', re: /\banchored vwap\b|\bavwap\b/, place: 'Click the bar to anchor it to.' },
+  { id: 'avwap', label: 'Anchored VWAP', re: /\banchored vwap\b|\bavwap\b|\banchor\w*\b.*\bvwap\b/, place: 'Click the bar to anchor it to.' },
   { id: 'text', label: 'Text Note', re: /\b(text( note)?|notes?|label)\b/, place: 'Click on the chart where the note goes, then type it.' },
   { id: 'measure', label: 'Measure', re: /\bmeasure\b|\bruler\b/, place: 'Click the start, then the end, to read the move.' },
-  { id: 'dateRange', label: 'Bars & Time', re: /\bbars (&|and) time\b|\bdate range\b/, place: 'Click the start, then the end, to count the bars.' },
+  { id: 'dateRange', label: 'Bars & Time', re: /\bbars (&|and) time\b|\bdate range\b|\bcount\w*\b.*\bbars\b|\bhow many bars\b/, place: 'Click the start, then the end, to count the bars.' },
   { id: 'advance', label: 'Price Move', re: /\bprice move\b/, place: 'Click the setup candle, then the candle where the move tops.' },
   { id: 'position', label: 'Position Calculator', re: /\bposition (calculator|size|sizing|tool)\b|\bposition\b/, place: 'Enter your numbers in the panel; the entry, stop and target lines follow them on the chart.' },
 ]
@@ -45,6 +45,7 @@ export const DRAWING_TOOLS = [
 // components/chart/keyboardShortcuts.js: the chord that arms a tool when a narrow chart cannot show its button
 const CHORDS = { trendline: 'Alt+T', horizontal: 'Alt+H', hray: 'Alt+J', vertical: 'Alt+V', rect: 'Alt+R', circle: 'Alt+C', arrow: 'Alt+A', fib: 'Alt+F', fibext: 'Alt+E', pitchfork: 'Alt+Y', avwap: 'Alt+W', text: 'Alt+X', position: 'Alt+P', dateRange: 'Alt+Shift+D' }
 for (const t of DRAWING_TOOLS) {
+  t.a = /^[AEIOU]/.test(t.label) ? 'an' : 'a'
   t.narrow = CHORDS[t.id] ? `Click the chart, then press ${CHORDS[t.id]} to pick it.` : 'Make the chart wider (close a widget beside it, or close me for a moment) to reach it.'
 }
 

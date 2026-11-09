@@ -47,7 +47,7 @@
 // capabilities' argument enum, the fast phrases and the walkthrough all read this list.
 
 import { manifestFor } from '../capabilities'
-import { readIndicator, readWidget, readSetting } from './slots'
+import { readIndicator, readWidget, readSetting, SLOTS } from './slots'
 import { GEAR, TOOLS_MENU, actionFeatures } from './actions'
 import { CONTROL_FEATURE } from './controls'
 
@@ -77,6 +77,10 @@ const rowStep = (result) => [
 ]
 const SWATCH = { within: 'chartSettings', attr: 'data-color-swatch' }
 const FIELD_ROW = { within: 'chartSettings', attr: 'data-field' }
+// ⭐ cov-2: a drawing tool by its own name, which nothing else on Charts is called (components/chart/ChartToolbar.jsx TOOLS)
+export const TOOL_NAMED = /\b(pitch ?forks?|parallel channels?|anchored vwaps?|avwap|vertical lines?|horizontal rays?|extended lines?|position calculator|price move|bars (&|and) time|text notes?|cup curve|fibonacci( retracements?| extensions?)?)\b|\banchor\w*\b.*\bvwap\b|\bcount\w*\b.*\bbars\b.*\b(between|from|since)\b|\bhow many bars\b/
+// a tool named with a verb that places it on the chart ("put an arrow on the chart", "use the measure")
+const PLACED_TOOL = /\b(add|put|place|draw|use|mark|stick|drop)\b.*\b(arrows?|circles?|ellipses?|channels?|measure|ruler)\b/
 // ⭐ cov-1: what else says "change this indicator's settings or look", once the words name an indicator (readIndicator)
 // a colour by its name ("make the RSI purple")
 export const COLOUR_NAME = /\b(red|green|blue|purple|violet|orange|yellow|gold|white|black|gr[ae]y|pink|teal|cyan|aqua|magenta|brown|lime|navy)\b/
@@ -453,7 +457,7 @@ export const GUIDE_FEATURES = [
   },
   {
     id: 'timeframe', terms: ['timeframe', 'timeframes', 'time frame', 'chart timeframe'], control: 'the timeframe control', title: 'Changing the timeframe', topic: 'charts',
-    words: [/\btime ?frames?\b/, /\b(interval|daily|weekly|monthly|hourly|intraday|minute) (chart|view|bars?)\b/, /\b(daily|weekly|monthly) to (daily|weekly|monthly)\b/],
+    words: [/\btime ?frames?\b/, /\b(interval|daily|weekly|monthly|hourly|intraday|minute) (chart|view|bars?)\b/, /\b(daily|weekly|monthly) to (daily|weekly|monthly)\b/, /\b(switch|change|set|put|turn|make)\b.*\bcharts?\b.*\b(to|on|into) (a |the )?(daily|weekly|monthly|hourly|\d+[- ]?(m|min|mins|minutes?|h|hours?))\b/],
     caps: ['chart.setTimeframe'],
     explain: 'The timeframe is how much time each bar covers — 5 minutes, a day, a week. Your favourite timeframes are the buttons along the top of each chart; the arrow beside them opens every timeframe, including custom ones like 45 minutes or 2 days.',
     steps: [
@@ -466,7 +470,7 @@ export const GUIDE_FEATURES = [
     },
   },
   {
-    id: 'indicators', slots: ['ind'], except: /\banchored vwap\b/, terms: ['chart settings indicators'], control: 'the chart’s settings gear', title: 'Adding {ind.say}', titleAny: 'Adding and configuring an indicator', topic: 'indicators',
+    id: 'indicators', slots: ['ind'], except: /\banchored vwap\b|\banchor\w*\b.*\bvwap\b/, terms: ['chart settings indicators'], control: 'the chart’s settings gear', title: 'Adding {ind.say}', titleAny: 'Adding and configuring an indicator', topic: 'indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|vwap|atr|bollinger|studies|study)\b/, MOVING_AVERAGE],
     caps: ['indicator.add'],
     explain: 'Indicators are in Chart settings → Indicators: search for one (RSI, MACD, a moving average…) and add it; click an indicator already on the chart to change its settings, colours and the pane it draws in.',
@@ -539,8 +543,12 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'I can hide every drawing on this symbol for you — say “hide all my drawings” (nothing is deleted, and Undo shows them again).' },
   },
   {
-    id: 'drawing', slots: ['tool'], terms: ['drawing tools', 'drawing tool', 'drawing toolbar'], control: 'the drawing tools', title: 'Drawing a {tool.label}', titleAny: 'Basic drawing tools', topic: 'drawings',
-    words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|rectangles?|fib\w*|annotat\w+)\b/],
+    id: 'drawing', slots: ['tool'], terms: ['drawing tools', 'drawing tool', 'drawing toolbar'], control: 'the drawing tools', title: 'Drawing {tool.a} {tool.label}', titleAny: 'Basic drawing tools', topic: 'drawings',
+    // a formula's own markers ('put a green arrow under the bar when true') are the Formula Builder's, not a drawing
+    except: /\bwhen (it is |it's |its )?(true|false)\b|\bsignal markers?\b|\bformulas?\b/,
+    words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|rectangles?|fib\w*|annotat\w+)\b/, TOOL_NAMED],
+    // ⭐ cov-2: a tool that is not only a drawing (an arrow, a note, a measure) counts with a verb that places it
+    match: (q) => PLACED_TOOL.test(q) && !!SLOTS.tool.read(q),
     caps: ['drawing.addLevel'],
     explain: 'The drawing tools run along the chart’s toolbar: pick one (a trendline, a horizontal line, a rectangle…) and click on the chart to place it. Click a drawing to restyle, lock or delete it.',
     steps: [
