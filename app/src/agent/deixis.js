@@ -37,9 +37,9 @@ const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showi
 // another noun ("under this candle") is no anchor. A bare "this" with no relation word still binds to the click.
 const REL_ANCHOR_NOUN = '(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph|name)'
 const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+[a-z]+\\b(?<!\\b(?:to|on|in|and|then|please|for|with|as|into|onto|now|weekly|daily|monthly|hourly|intraday|instead|too|also|here)))\\b)`
-  + `|it\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
+  + `|it\\b|here\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
   + `|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?\\b)`
-export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
+export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+(?:door\\s+)?to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
 // …and it is about a CHART: the anchor itself names one ("this one", "the selected chart", "the one I clicked"), or the thing
 // meant is named before the relation ("the chart / the one / the ticker / whatever … above it"). "alert above it" and "a line
 // under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
@@ -54,7 +54,7 @@ const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
-const DIAG_WORD = `(?:diagonal(?:ly)?\\s+(?:opposite|across)(?:\\s+(?:from|to))?|across\\s+the\\s+diagonal\\s+(?:from|to)|(?:kitty|catty|cater)[-\\s]?corner(?:ed)?(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:in\\s+the\\s+)?opposite\\s+corner(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:directly\\s+)?across\\s+from|opposite(?:\\s+(?:from|to))?)`
+const DIAG_WORD = `(?:corner\\s+(?:opposite|diagonal(?:ly)?)(?:\\s+(?:from|to))?|(?:in\\s+the\\s+)?far\\s+corner\\s+(?:from|to)|diagonal(?:ly)?\\s+(?:opposite|across)(?:\\s+(?:from|to))?|across\\s+the\\s+diagonal\\s+(?:from|to)|(?:kitty|catty|cater)[-\\s]?corner(?:ed)?(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:in\\s+the\\s+)?opposite\\s+corner(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:directly\\s+)?across\\s+from|opposite(?:\\s+(?:from|to))?)`
 export const DIAGONAL = new RegExp(`\\b${DIAG_WORD}\\s+${REL_ANCHOR}`, 'i')
 // anchorless ("the chart diagonally opposite", "the one in the opposite corner"): the click is the anchor, as RELATIVE_BARE
 const DIAGONAL_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:diagonally|directly)\s+(?:opposite|across)|(?:kitty|catty|cater)[-\s]?corner(?:ed)?|in\s+the\s+opposite\s+corner)\b(?!\s*(?:from|to|of)\b)/i
@@ -64,7 +64,18 @@ const DIAGONAL_PRE = /\b(?:the|that)\s+(?:opposite[-\s]+corner(?:ed)?|diagonal(?
 // AUDIT GO (2): a relation word UCT cannot place on the grid ("facing this one", "on the far side of this chart"), anchored on the
 // click: the click is still only the ANCHOR, so the reference resolves to no chart (asked with the real names), never the click
 const UNPLACED_RELATION = new RegExp(`\\b(?:facing|mirroring|(?:on\\s+)?the\\s+(?:far|other)\\s+side\\s+of|opposite|across|diagonal(?:ly)?|corner(?:ed)?)\\s+(?:(?:from|to|of)\\s+)?${REL_ANCHOR}`, 'i')
-const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph)\b/i.test(s)
+const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph|corner)\b/i.test(s)
+// unseen10: a TWO-AXIS diagonal step ("diagonally up and to the left of this one") and the FAR END of the click's line ("the chart
+// at the far end from this one")
+const DIAG_STEP = new RegExp(`\\bdiagonally\\s+(up|down|above|below)\\s+(?:and\\s+)?(?:to\\s+the\\s+)?(left|right)(?:\\s+of)?\\s+${REL_ANCHOR}`, 'i')
+const FAR_END = new RegExp(`\\b(?:at\\s+)?the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+(?:from|of)\\s+${REL_ANCHOR}`, 'i')
+// AUDIT condition on the STRUCTURAL rule: a CHART reference ("the one / chart / cell / panel … <spatial word> … <anchor>", "both
+// neighbours of this one", "<spatial word> … this one / this chart") with ANY spatial word never resolves to the click; it is only
+// the anchor. A relation word on a non-chart noun (a line, a level, an MA, a price, an alert) is not this rule.
+const SPATIAL_WORD = '(?:left|right|above|below|up|down|over|under|beneath|next\\s+(?:to|door)|beside|adjacent|neighbou?rs?|far|farthest|furthest|end|corner|opposite|diagonal\\w*|across|facing|side|row|column|beyond|past|behind)'
+const STRUCT_CHART = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,3}?(?:chart|one|cell|pane|panel|graph|neighbou?rs?)s?\\b[^.;,]{0,40}?\\b${SPATIAL_WORD}\\b[^.;,]{0,30}?\\b(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
+const STRUCT_NEIGHBOURS = new RegExp(`\\b(?:both|all|either|the|its|my)\\s+(?:two\\s+)?neighbou?rs?\\s+(?:of|to|beside)\\s+(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
+const STRUCT_TAIL = new RegExp(`\\b${SPATIAL_WORD}\\b[^.;,]{0,24}?\\b(?:this|that)\\s+(?:one|chart|cell|pane|panel|graph)\\b`, 'i')
 // AUDIT #988 (belt and braces): a COUNT with a DIRECTION anywhere in the words ("2 spaces left of here", "a couple over to the
 // right", "3 over") is a relation from the click even when its shape is not one UCT can place: the click is its anchor, so it is
 // never applied and never offered (the reference resolves to no chart and is asked about without the anchor)
@@ -73,13 +84,26 @@ const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|a\s+cou
 export function relationMatch(text) {
   const r = relationMatchOf(text)
   if (r) return r
-  const c = COUNT_DIRECTION.exec(String(text || ''))
+  const s = String(text || '')
+  const c = COUNT_DIRECTION.exec(s)
   if (c) { c.unplaced = true; return c }
+  // the STRUCTURAL rule: a spatial word on a CHART reference anchored on the click (not on a non-chart noun: placesNonChart, and a
+  // bare "one" that stands for a thing, S2-B) → a relation UCT may not place: the click is only its anchor
+  const sm = STRUCT_CHART.exec(s) || STRUCT_NEIGHBOURS.exec(s) || STRUCT_TAIL.exec(s)
+  if (sm && !placesNonChart(s.slice(0, sm.index)) && !(/^\s*(?:the|that)\s+one\b/i.test(sm[0]) && oneStandsForAThing(s.slice(0, sm.index)))
+    && !PLACED_IN.test(sm[0]) && !sm[0].toLowerCase().split(/[^a-z0-9%]+/).some(w => w && (PLACED.test(w) || isIndicatorWord(w)))) { sm.unplaced = true; return sm }
   return null
 }
+// a non-chart noun inside the matched span ("the one with the line above it", "the chart where the MA is below this") makes it no
+// chart relation either
+const PLACED_IN = /\b(?:lines?|levels?|indicators?|studies|study|volume|alerts?|labels?|markers?|notes?|drawings?|bands?|overlays?|averages?|ma|ema|sma|50-day|200-day|price|prices|trendlines?|candles?|bars?)\b/i
 function relationMatchOf(text) {
   const s = String(text || '')
   const aboutChart = (x) => !placesNonChart(s.slice(0, x.index)) && (REL_CHART_ANCHOR.test(x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
+  const st = DIAG_STEP.exec(s)
+  if (st && aboutChart(st)) { st.step = { v: /^(up|above)$/i.test(st[1]) ? 'above' : 'below', h: st[2].toLowerCase() }; return st }
+  const fe = FAR_END.exec(s)
+  if (fe && aboutChart(fe)) { fe.farEnd = true; return fe }
   const d = DIAGONAL.exec(s) || DIAGONAL_BARE.exec(s) || DIAGONAL_PRE.exec(s)
   if (d && aboutChart(d)) { d.diagonal = true; return d }
   const m = RELATIVE.exec(s)
@@ -208,6 +232,20 @@ export function relativeChart(text, charts = [], sel = null) {
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
   if (!s) return { hits: [], match: m, ...role, excluded: [] }
   if (m.unplaced) return { hits: [], match: m, ...role, excluded: [] }       // a relation, but no cell UCT can place: asked
+  if (m.step || m.farEnd) {
+    // a two-axis step: one cell vertically, then one horizontally (each a unique neighbour); the far end: the farthest chart in the
+    // click's row, else its column (both, or neither → no chart: asked)
+    let hits = []
+    if (m.step) { const v = sideOf(charts, s, m.step.v); const h = v.length === 1 ? sideOf(charts, v[0], m.step.h) : []; hits = h.length === 1 ? h : [] }
+    else {
+      const far = (dir) => { let at = s, last = null; for (let i = 0; i < charts.length; i++) { const n = sideOf(charts, at, dir); if (n.length !== 1) break; last = at = n[0] } return last }
+      const row = [far('left'), far('right')].filter(Boolean), col = [far('above'), far('below')].filter(Boolean)
+      hits = row.length === 1 && !col.length ? row : col.length === 1 && !row.length ? col : []
+    }
+    if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+    if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+    return { hits, match: m, ...role, excluded: [] }
+  }
   if (m.diagonal) {
     const hits = diagonalOf(charts, s)
     if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
@@ -240,6 +278,8 @@ function relationCount(s, m) {
   const at = (re) => re.exec(scope)
   const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|five|[1-9])\\s+(?:${COUNT_UNIT}\\s+)?(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
     || at(new RegExp(`\\b(second|third)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+    // unseen10: the count with its unit and no noun before it ("the chart two charts below this one")
+    || at(new RegExp(`\\b(two|three|four|five|[2-9])\\s+${COUNT_UNIT}\\s+(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
   if (c) return NUM_WORD[c[1].toLowerCase()] || 1
   return at(new RegExp(`\\bnext[-\\s]but[-\\s]one\\s+${COUNT_NOUN}\\b`, 'i')) ? 2 : 1
 }
