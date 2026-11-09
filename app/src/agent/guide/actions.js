@@ -207,7 +207,12 @@ const ADD_TAB = 'widget.addTab'
 export const TAB_ACTIONS = [
   { id: 'closeChart', label: 'Closing a chart tab', re: /\bclos\w*\b.*\bchart tabs?\b|\bchart tabs?\b.*\bclos\w*\b/, steps: [{ target: ['chart.tabClose', 'chart.addTab'], name: 'the tab’s ×', text: 'Click this ×, then click again to confirm.', altText: 'This chart has no extra tabs to close. This + adds one.' }] },
   { id: 'switchChart', label: 'Switching chart tabs', re: /\bswitch\w*\b.*\bchart tabs?\b|\bchart tabs?\b.*\bswitch\w*\b/, steps: [{ target: ['chart.tabs', 'chart.addTab'], name: 'the chart’s tabs', text: 'Click a tab to switch to it. Double-click one to rename it.', altText: 'This chart has one tab. This + adds another, and the strip of tabs appears above the chart.' }] },
-  { id: 'close', label: 'Closing a widget tab', re: /\bclos\w*\b.*\btabs?\b/, steps: [{ target: ['workspace.widgetTabClose', ADD_TAB], name: 'the tab’s ×', text: 'Select the tab, click its ×, then click again to confirm.', altText: 'This widget has no extra tabs. This + adds one.' }] },
+  // ⭐ cov-4 (7): a widget tab's × shows only on the SELECTED extra tab (WidgetHeader.jsx: `!tab.isMain && active`), so the tab
+  // is selected first; with it already selected, that step is met at once and the walkthrough goes straight to its ×
+  { id: 'close', label: 'Closing a widget tab', re: /\bclos\w*\b.*\btabs?\b/, steps: [
+    { target: [{ within: 'workspace.widgetTabs', attr: 'aria-selected', value: 'false' }, 'workspace.widgetTabClose', ADD_TAB], name: 'the tab', text: 'Click the tab you want to close.', altText: 'This widget has no extra tabs. This + adds one.', waitFor: 'workspace.widgetTabClose' },
+    { target: ['workspace.widgetTabClose', ADD_TAB], name: 'the tab’s ×', text: 'Click its ×, then click again to confirm.', altText: 'This widget has no extra tabs. This + adds one.' },
+  ] },
   { id: 'switch', label: 'Switching widget tabs', re: /\bswitch\w*\b.*\btabs?\b/, steps: [{ target: ['workspace.widgetTabs', ADD_TAB], name: 'the tabs', text: 'Click a tab to switch to it. Double-click one to rename it.', altText: 'This widget has one tab. This + adds another.' }] },
 ]
 
