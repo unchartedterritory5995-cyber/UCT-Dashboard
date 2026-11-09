@@ -1060,15 +1060,7 @@ def _read_bars(sym: str, tf: str, want: int) -> list:
     argument for a sequential universe sweep is that `bars_sqlite` is a local
     SQLite read, exactly as `snapshot_builder._read_daily_bars` does it."""
     from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(sym, tf, want) or []
-    out = []
-    for r in rows:
-        try:
-            out.append({"t": r[0], "o": r[1], "h": r[2], "l": r[3],
-                        "c": r[4], "v": r[5]})
-        except Exception:                                    # pragma: no cover
-            continue
-    return out
+    return bars_sqlite.get_bar_dicts(sym, tf, want)
 
 
 def _scalar_columns(names: Sequence[str]) -> dict:
