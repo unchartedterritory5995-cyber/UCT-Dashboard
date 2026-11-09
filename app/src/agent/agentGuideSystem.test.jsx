@@ -469,3 +469,29 @@ describe('the walkthrough chart loads another symbol from outside', () => {
     expect(guideState()).not.toBeNull()
   })
 })
+
+// pl-auto tut9 (SIX, 3×2): a walkthrough on the top-left chart, then a press on the bottom-middle chart, ends it cleanly
+describe('pressing another chart on a six-chart board ends the walkthrough', () => {
+  const SIX = ['tl', 'tm', 'tr', 'bl', 'bm', 'br']
+  const board = () => dom(SIX.map(id => `<div data-widget-id="${id}" data-widget-type="chart"><button data-guide="chart.timeframe">${id} tf</button><canvas></canvas></div>`).join(''))
+  it.each(SIX.filter(id => id !== 'tl'))('a press on %s ends it: ring and card gone, no notice, nothing restarted', async (id) => {
+    const root = board()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'tl', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }, { target: 'chart.timeframe', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+    fireEvent.pointerDown(root.querySelector(`[data-widget-id="${id}"] canvas`), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(screen.queryByTestId('guide-ring')).toBeNull()
+    expect(notice()).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('a press on its own chart (top-left) does not end it', async () => {
+    const root = board()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'tl', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="tl"] canvas'), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 3))
+    expect(guideState()).not.toBeNull()
+  })
+})
