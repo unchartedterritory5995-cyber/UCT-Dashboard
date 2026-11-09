@@ -17,8 +17,9 @@ import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
 import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
+import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
-import { namedChart, namesAChart } from '../guide/namedChart'
+import { namedChart } from '../guide/namedChart'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -46,7 +47,8 @@ function guideChart(host) {
   try { sel = host?.charts?.selected?.() || null } catch { sel = null }
   return charts.find(c => c.ref === sel) || charts[0]
 }
-const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : !!t?.id && scoped(t.id))
+// '@chart': a control looked for on the chart talked about itself (guide/targets.js)
+const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : t?.within === '@chart' || (!!t?.id && scoped(t.id)))
 
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
@@ -54,7 +56,9 @@ export function showFeature(f, host, words = '') {
   const steps = stepsFor(f, words)
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
-  const asked = needsChart ? namedChart(words, chartsOf(host)) : null
+  let sel = null
+  try { sel = host?.charts?.selected?.() || null } catch { sel = null }
+  const asked = needsChart ? namedChart(words, chartsOf(host), sel) : null
   if (asked?.say) return asked.say
   const chart = needsChart ? asked?.chart || guideChart(host) : null
   if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
@@ -174,7 +178,7 @@ export function registerGuideCapabilities() {
     ...common,
     name: 'guide.show',
     summary: 'SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for "where do I…", "show me how to…", "how do I…" questions, never to do the thing.',
-    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2") or for the chart they named ("the NVDA chart", "the left chart"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
+    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…), and control for any other named control (a widget's button, a list's or a drawing's menu row: detail = the member's words); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2") or for the chart they named ("the NVDA chart", "the left chart"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
     args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS }, detail: { type: ['string', 'null'] } }, required: ['feature', 'detail'], additionalProperties: false },
     absentAsNull: ['detail'],
     fast: ({ raw, host }) => {
@@ -182,8 +186,11 @@ export function registerGuideCapabilities() {
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
       const f = matchFeature(q, null, here)
-      // the words travel when they choose something: a family's row, or the chart they name
-      if (f) return f.slots || namesAChart(q, chartsOf(host)) ? { feature: f.id, detail: q } : { feature: f.id }
+      // ⭐ words only a control in a place they did not name fits: never shown straight away, asked about (answer)
+      if (!f && here === 'charts' && (readControl(q)?.say || readControl(q, { weak: true }))) return { feature: 'control', detail: q }
+      // the words ALWAYS travel: `answer` reads the chart they name against the real board (the fast path may not see its charts,
+      // and a named chart dropped here would be walked on the clicked one). A bare "this" names none, so the click stands there.
+      if (f) return { feature: f.id, detail: q }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
       const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
       return charts?.everyPage ? { feature: charts.id } : null
@@ -194,6 +201,13 @@ export function registerGuideCapabilities() {
       const here = host?.surface || ctx?.surface || 'charts'
       if (f && surfaceOf(f) !== here) return surfaceOf(f) === 'charts' ? `${f.title} is on the Charts page — open Charts and ask me again there.` : `${f.title} is on the ${surfaceOf(f).replace(/^./, ch => ch.toUpperCase())} page — open it and ask me again there.`
       if (f && ctx && !guideFeatures(ctx).includes(f)) return `${f.title} isn’t available on your account here.`
+      // ⭐ the named-control catalog: several controls fit → ask which; a drawing that has no such control → say so
+      if (f?.id === 'control') {
+        const r = readControl(detail) || readControl(detail, { weak: true })
+        if (r?.say) return r.say
+        if (!r?.row) return r?.ask ? askWhich(r.ask) : 'Which control do you mean? Tell me its name, or the widget it’s in.'
+        return showFeature({ ...f, control: r.row.name }, host, detail)
+      }
       return showFeature(f, host, detail)
     },
   })

@@ -343,10 +343,19 @@ export const SHORTCUTS = Object.freeze([
     id: 'agent.guideEscape',
     chord: { keys: ['Escape'], ctrl: false, alt: false, meta: false, shift: false },
     target: 'window', capture: false, inEditable: false, repeat: false,
-    why: 'Escape ends the Agent\'s step-by-step guide, bound only while a walkthrough is on screen. It is the LAST '
-      + 'to hear the key: window bubble, never in a text field, and it stands down when a layer owned the press or '
-      + 'anything handled it, so one press does one thing. The Agent panel keeps its keys to itself, so its message '
-      + 'box ends the guide from its own handler (AgentPanel.jsx).',
+    // Bound only while a walkthrough is on screen. It is the LAST to hear the key (window bubble, never in a text field) and
+    // stands down when a layer owned the press or anything handled it, so one press does one thing. The Agent panel keeps its
+    // keys to itself, so its message box ends the guide from its own handler (AgentPanel.jsx). Kept out of `why`: it ships.
+    why: 'Escape ends the Agent guide; last to hear it, and only when nothing else did.',
+  }),
+  decl({
+    id: 'agent.guideEscapeBoard',
+    chord: { keys: ['Escape'], ctrl: false, alt: false, meta: false, shift: false },
+    target: 'window', capture: true, inEditable: false, repeat: false,
+    // Escape on the board ends the guide even when a board handler then swallows the key (they stop or prevent it with nothing
+    // to cancel). Heard first, it never prevents or stops anything: guideStore.escapeOnBoard() ends the walkthrough only when no
+    // field, menu, dialog, armed drawing tool or selected drawing has the press. Kept out of `why`: it ships.
+    why: 'Board Escape ends the Agent guide; heard first, never stopped.',
   }),
 
   // -- the Notebook (finish program, lane KEYS, 2026-10-07) --------------------
@@ -594,6 +603,12 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
     'Escape matches both, and only this binding answers. The guide listens last, in the window bubble phase, and '
       + 'stands down for a layer that was open at the press, a press something prevented or stopped, and a menu the '
       + 'press closed.')),
+  // pl-teach round 6: the guide's board Escape (window CAPTURE, first to hear it, never prevents or stops it) stands down for
+  // exactly what agent.guideEscape stands down for, read at the press: a field, a layer, an open menu, an armed tool, a drawing
+  ...['agent.guideEscape', 'palette.close', 'video.escape', 'notebook.tourEscape', ...SURFACE_ESCAPES, ...SHEET_ESCAPES].map((id) => ack(['agent.guideEscapeBoard', id], 'layer',
+    'Escape matches both, and only one answers. The guide\'s board binding hears it first and ends the walkthrough only '
+      + 'when no field, layer, menu, armed drawing tool or selected drawing was there at the press; it never prevents or '
+      + 'stops the key, so the other binding acts exactly as before.')),
   ...SURFACE_ESCAPES.map((id) => ack([id, 'palette.close'], 'layer',
     `Escape matches both. ${SURFACE_WHAT[id]} It acts only with no modal layer above it, `
       + 'and the open palette is one, so with the palette over it this binding stands down '

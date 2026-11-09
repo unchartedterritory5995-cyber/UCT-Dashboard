@@ -35,6 +35,18 @@ const hash = (s) => [...String(s)].reduce((h, c) => (Math.imul(h, 31) + c.charCo
 
 // ── universe: REAL names + logos, GENERATED numbers ──────────────────────────
 const UNIVERSE = REAL_UNIVERSE.map(([t, n, sector, industry, theme]) => ({ t, n, sector, industry, theme }))
+// ?big=1 — a universe-sized list (~970 names: the real ones plus generated tickers)
+// for scroll/perf checks. ?lat=MS delays every bars answer, like a real network.
+const QS = new URLSearchParams(window.location.search)
+const BIG = QS.get('big') === '1'
+const BARS_LATENCY_MS = Math.max(0, Number(QS.get('lat')) || 0)
+if (BIG) {
+  const real = UNIVERSE.slice()
+  for (let i = 0; UNIVERSE.length < 970; i++) {
+    const src = real[i % real.length]
+    UNIVERSE.push({ t: `Z${String(i).padStart(3, '0')}`, n: `Synthetic ${i}`, sector: src.sector, industry: src.industry, theme: src.theme })
+  }
+}
 const BY_T = Object.fromEntries(UNIVERSE.map(u => [u.t, u]))
 
 // ── sessions ────────────────────────────────────────────────────────────────
@@ -60,7 +72,7 @@ const COLS = [
 function listFor(drillKey, date) {
   const col = COLS.find(c => c.drillKey === drillKey)
   const r = mul(hash(drillKey + date))
-  const n = col?.n ? col.n[0] + Math.floor(r() * (col.n[1] - col.n[0])) : 30 + Math.floor(r() * 40)
+  const n = BIG && !col?.n ? UNIVERSE.length : col?.n ? col.n[0] + Math.floor(r() * (col.n[1] - col.n[0])) : 30 + Math.floor(r() * 40)
   const pool = [...UNIVERSE].sort(() => r() - 0.5).slice(0, n)
   return pool.map(u => {
     const mag = 4 + Math.pow(r(), 2.2) * 40
@@ -77,7 +89,7 @@ function closeOn(sym, date, fallback) {
 }
 const ROWS = SESSIONS.map(date => {
   const row = { date, breadth_score: 30 + (hash(date) & 63) }
-  for (const c of COLS) row[c.key] = listFor(c.drillKey, date).length
+  for (const c of COLS) row[c.key] = BIG && !c.n ? UNIVERSE.length : listFor(c.drillKey, date).length
   return row
 })
 
@@ -117,7 +129,9 @@ window.fetch = async (input, init) => {
   }
   if (url.includes('/api/auth/preferences') || url.includes('/api/charts')) {
     if (method !== 'GET') BLOCKED.push(`${method} ${url}`)
-    return json({})
+    // ?theme=uct:slate stands in for the member's app theme.
+    const appTheme = new URLSearchParams(window.location.search).get('theme')
+    return json(appTheme && url.includes('/api/auth/preferences') ? { theme: appTheme } : {})
   }
   if (url.includes('/api/breadth/industries')) {
     const out = { industries: {}, sectors: {}, themes: {} }
@@ -157,9 +171,13 @@ window.fetch = async (input, init) => {
     }
     return json({ date, metric: key, also, repeat, lookback_found: prev.length })
   }
+  // The long history the count chart's 6M / 1Y ranges ask for.
+  const hist = /\/api\/breadth-monitor\?days=(\d+)/.exec(url)
+  if (hist) return json({ rows: ROWS.slice(0, Number(hist[1])), days: Number(hist[1]) })
   const bars = /\/api\/bars\/([^?]+)\?tf=([^&]+)/.exec(url)
   if (bars) {
     const sym = decodeURIComponent(bars[1]); const tf = bars[2]
+    if (BARS_LATENCY_MS) await new Promise(res => setTimeout(res, BARS_LATENCY_MS))
     return json({ ticker: sym, tf, bars: tf === 'D' || tf === 'W' ? barsFor(sym, tf) : [] })
   }
   // The member's own lists: an ARRAY (the table filters it). Flag writes are recorded, not sent.
@@ -171,6 +189,9 @@ window.fetch = async (input, init) => {
   // Anything else (live quotes, alerts, news…) answers empty: synthetic only.
   return json({})
 }
+
+// The page holds a 90-session window, like the real Monitor.
+const PAGE_ROWS = ROWS.slice(0, 90)
 
 function makeDrill(colKey, date) {
   const col = COLS.find(c => c.key === colKey)
@@ -191,7 +212,7 @@ function Harness() {
       <AuthProvider>
         {open
           ? <BreadthDrillModal drill={drill} latestDate={SESSIONS[0]} onClose={() => setOpen(false)}
-              rows={ROWS} drillCols={drillCols} onNavigate={onNavigate} />
+              rows={PAGE_ROWS} drillCols={drillCols} onNavigate={onNavigate} />
           : <button onClick={() => setOpen(true)} style={{ margin: 40 }}>Open scan deck</button>}
       </AuthProvider>
     </MemoryRouter>

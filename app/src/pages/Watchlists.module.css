@@ -125,9 +125,6 @@
 /* Hosts that size their columns to the pane (the breadth drill) reserve the
    scrollbar's room always, so the columns fit whether or not the list scrolls. */
 .stableGutter { scrollbar-gutter: stable; }
-/* Number columns right-aligned (the breadth drill), so digits line up for scanning. */
-.numRight .priceCell, .numRight .volCell, .numRight .changeCell, .numRight .metaCell { justify-content: flex-end; text-align: right; }
-.numRight .gridHead > span:not(:nth-child(-n+2)) { justify-content: flex-end; }
 .listBody::-webkit-scrollbar-track { background: transparent; }
 .listBody::-webkit-scrollbar-thumb {
   background: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)));
@@ -701,6 +698,8 @@
    group's own accordion header (the redundant second row); drop the group indent
    so the star hugs the left edge; and don't box the items separately. */
 .pickMode .wlHeader { display: none; }
+/* Rename from the title's list menu: the list's own name field, shown only while it is being edited */
+.pickMode .wlHeader.wlHeaderRenaming { display: flex; }
 .pickMode .wlRow { padding-left: 8px; }   /* keep aligned with the header gridlines */
 .pickMode .wlItems { background: transparent; border-top: none; }
 

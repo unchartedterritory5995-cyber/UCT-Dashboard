@@ -3,8 +3,9 @@ import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
-import { beginPrefsOp, onPrefsUserChange } from '../../lib/prefsSession'
+import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
+import { markDeskHidden } from './deskKeyGate'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
@@ -58,6 +59,7 @@ import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToas
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
+import { saveRecord, listOrphans, confirmRestored, holdOwnerLock } from './popout/deskStore'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
@@ -332,6 +334,8 @@ const WIDGET_DEFAULTS = Object.fromEntries(
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
+const POPOUT_NOT_CRASH_SAFE_MSG = 'This pop-out is not crash-safe: it could not be recorded on this device, so a reload or crash would lose it. Close the window to bring the board back here.'
+const DESK_RECORD_SAVE_MS = 500
 
 // Docking makes room by SPLITTING an existing widget in two: `candidate` keeps the top
 // half, the docked widget takes the bottom half (same column). Returns the adjusted
@@ -478,6 +482,21 @@ function clampWidgetsToRows(widgets) {
     if (y + h > FIXED_ROWS) h = FIXED_ROWS - y  // y ≤ FIXED_ROWS-minH ⇒ h ≥ minH
     return { ...w, x, y, w: cw, h }
   })
+}
+
+// A board coming back from a pop-out. Straight onto an empty board; otherwise each widget keeps its
+// own size and is given a free slot, so it does not land on top of what was built meanwhile.
+function placeReturningWidgets(boardWidgets, returning) {
+  if (!boardWidgets.length) return returning
+  const widgets = [...boardWidgets]
+  for (const w of returning) {
+    // minW/minH come from the type defaults, but w/h must be the widget's
+    // OWN size — spreading the defaults last would resize every docking
+    // widget back to its type's default dimensions.
+    const spec = { ...(WIDGET_DEFAULTS[w.type] || {}), w: w.w, h: w.h }
+    widgets.push({ ...w, ...findPlacement(widgets, spec, COLS.lg, FIXED_ROWS) })
+  }
+  return widgets
 }
 
 function clampOne(w, cols, rows) {
@@ -763,12 +782,19 @@ function DeleteConfirm({ onYes, onCancel }) {
 // preferences through the boot path (the hydration gate and all). The first answer of /me is not a
 // change of member and does not remount. The unmounting board's pending save is dropped by its op.
 const prefsGeneration = () => beginPrefsOp().gen
-export default function ChartsWorkspace() {
+// `hidden`: ChartsDeskHost is keeping this workspace alive behind another page because a board or
+// widget is popped out. A hidden board keeps its pop-outs and its state and does nothing in the main
+// window: no grid, no toolbar, no main-window widgets, no shortcuts (see `boardHidden` below).
+export default function ChartsWorkspace({ hidden = false }) {
   const generation = useSyncExternalStore(onPrefsUserChange, prefsGeneration, prefsGeneration)
-  return <ChartsWorkspaceBoard key={generation} />
+  return <ChartsWorkspaceBoard key={generation} boardHidden={hidden === true} />
 }
 
-function ChartsWorkspaceBoard() {
+// ⛔ Kept out of the hook call's default so the empty list is one stable identity.
+const NO_MAIN_BOARD_WIDGETS = []
+const BOARD_HIDDEN_STYLE = { display: 'none' }
+
+function ChartsWorkspaceBoard({ boardHidden = false }) {
   const isPhonePortrait = useMediaQuery('(max-width: 640px)')
   // A rotated phone (coarse pointer, short landscape viewport) also gets the
   // chart-first shell — TradingView's rotate-to-fullscreen. Without this the
@@ -789,13 +815,16 @@ function ChartsWorkspaceBoard() {
   // mounted for a frame and REMOUNTED the shell, wiping every bit of its state
   // (open sheet, open widget page, pending opens). Discovery journey
   // `rotate-midsheet` caught the sheet vanishing; one MQL cannot have a gap.
-  const isMobile = useMediaQuery(
+  const isMobileViewport = useMediaQuery(
     '(max-width: 640px), '
     + '(pointer: coarse) and (orientation: landscape) and (max-height: 500px), '
     + '(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)',
   )
+  // Hidden behind another page the phone shell must not mount (it would paint over that page and
+  // set html[data-mobile-chart-shell]); the pop-outs keep running from the desktop branch below.
+  const isMobile = isMobileViewport && !boardHidden
   const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
-  const { prefs, setPref, setPrefMerged, loading: prefsLoading } = usePreferences()
+  const { prefs, setPref, setPrefMerged, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
   // Read at WRITE time by the Watchlist-columns fold below (it runs from the autosave, 500 ms
   // after the render that scheduled it), so it must be the latest prefs, not a closure's.
   const prefsRef = useRef(prefs)
@@ -863,7 +892,15 @@ function ChartsWorkspaceBoard() {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [computeRowHeight, merged])
+    // boardHidden: the body is not rendered while hidden, so returning has to measure it again.
+  }, [computeRowHeight, merged, boardHidden])
+
+  // While hidden, keys typed on the page in the main window are not the desk's (deskKeyGate.js).
+  useEffect(() => {
+    if (!boardHidden) return undefined
+    markDeskHidden(true)
+    return () => markDeskHidden(false)
+  }, [boardHidden])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -1101,7 +1138,9 @@ function ChartsWorkspaceBoard() {
       .map(w => w.id),
     [layout.widgets, poppedWidgetIds, floatingWidgetIds],
   )
-  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
+  // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
+  // the widgets back in through the same cap instead of mounting them all at once.
+  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
 
   const widgetCanvasByType = useMemo(() => {
     // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
@@ -1251,14 +1290,37 @@ function ChartsWorkspaceBoard() {
   // `op` is the member the change was made for (captured by scheduleSave): a save that outlived a
   // change of member is dropped, never written into the next member's account.
   const saveOpRef = useRef(null)
+  // ⛔ DESK RECORDS: a popped board's record is the only copy of its widgets, so a docked board's
+  // record goes only with a confirmed save that HOLDS those widgets. A refused save leaves the entry
+  // here, and the next save may be a different board (a layout opened, a version restored): one that
+  // does not hold them leaves the record for the next load to offer.
+  const deskUidRef = useRef(null)
+  const deskOwnerRef = useRef(null)
+  const dockedRecordsRef = useRef(new Map())   // popId -> ids of the widgets that came back
+  const settleDockedRecords = useCallback((saved, savedLayout) => {
+    const onBoard = new Set((savedLayout?.widgets || []).map(w => w.id))
+    const ids = [...dockedRecordsRef.current]
+      .filter(([, widgetIds]) => widgetIds.every(id => onBoard.has(id)))
+      .map(([id]) => id)
+    if (!ids.length) return
+    const uid = deskUidRef.current
+    Promise.resolve(saved).then((result) => {
+      if (result === false) return
+      for (const id of ids) {
+        confirmRestored(uid, id, deskOwnerRef.current)
+        dockedRecordsRef.current.delete(id)
+      }
+    }).catch(() => { /* not confirmed: the record stays */ })
+  }, [])
   const autosaveLayout = useCallback((nextLayout, op = null) => {
     if (op && op.stale()) return false
     if (storedLayoutUnreadableRef.current) return false
     if (boardCommitInFlightRef.current) return false
-    setPref('charts_workspace_layout', serializeLayout(nextLayout))
+    const saved = setPref('charts_workspace_layout', serializeLayout(nextLayout))
     foldWatchlistColumns()
-    return true
-  }, [setPref, foldWatchlistColumns])
+    settleDockedRecords(saved, nextLayout)
+    return saved
+  }, [setPref, foldWatchlistColumns, settleDockedRecords])
   const scheduleSave = useCallback((nextLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     const op = beginPrefsOp()
@@ -1651,6 +1713,7 @@ function ChartsWorkspaceBoard() {
   // ⛔ Declared AFTER applyTfToCharts on purpose (it reads it).
   const deepLinkAppliedRef = useRef(false)
   useEffect(() => {
+    if (boardHidden) { deepLinkAppliedRef.current = false; return }
     if (deepLinkAppliedRef.current || prefsLoading) return
     const link = readChartsLink(typeof window !== 'undefined' ? window.location.search : '')
     deepLinkAppliedRef.current = true
@@ -1663,7 +1726,7 @@ function ChartsWorkspaceBoard() {
       window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest}`)
     } catch { /* history unavailable — lingering params are harmless */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefsLoading])
+  }, [prefsLoading, boardHidden])
 
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
@@ -1855,13 +1918,16 @@ function ChartsWorkspaceBoard() {
   // docs/superpowers/specs/2026-08-30-dashboard-session-cockpit-design.md.
   const ensureWidgetAppliedRef = useRef(false)
   useEffect(() => {
+    // A workspace kept alive behind another page comes back through this door too, so a URL that
+    // arrives on the return is read the same way a fresh mount reads it.
+    if (boardHidden) { ensureWidgetAppliedRef.current = false; return }
     if (ensureWidgetAppliedRef.current || prefsLoading) return
     ensureWidgetAppliedRef.current = true
     const want = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('ensure')
     if (!want) return
     if (layoutRef.current?.widgets?.some(w => w.type === want)) return
     handleAddWidget(want, undefined, { instant: true })
-  }, [prefsLoading, handleAddWidget])
+  }, [prefsLoading, handleAddWidget, boardHidden])
 
 
   // Commit a pending smart-placement add (Place / Enter / click the ghost). Mirrors
@@ -2551,43 +2617,94 @@ function ChartsWorkspaceBoard() {
     })
   }, [scheduleSave])
 
+  // ── Desk records: what keeps a popped board alive across a reload, crash or route change. ──
+  // The id stays the one this mount started with: the workspace is keyed by member, so an instance
+  // only ever moves from "not known yet" to one member, and at unmount prefsUser() may already be
+  // the NEXT member. Reading the ref, never prefsUser(), is what files A's board under A.
+  const deskUid = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser) ?? null
+  deskUidRef.current = deskUid
+  // Owner identity is per MOUNT, not per page: a route change frees this mount's lock, and the
+  // next mount of /charts in this same tab has to see that record as orphaned.
+  if (!deskOwnerRef.current) {
+    deskOwnerRef.current = { tabId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`, granted: new Set() }
+  }
+  const poppedBoardsRef = useRef(new Map())   // popId -> the widgets as they stand now
+  const deskSaveTimerRef = useRef(null)
+  const flushDeskRecordsRef = useRef(null)
+  const notCrashSafeRef = useRef(new Set())   // boards the member has already been told about
+  const saveBoardRecord = useCallback((id, widgets) => {
+    const ok = saveRecord(deskUidRef.current, { kind: 'board', id, widgets, windowName: `uct-board-${id}` }, deskOwnerRef.current)
+    if (ok) notCrashSafeRef.current.delete(id)
+    else if (!notCrashSafeRef.current.has(id)) {
+      notCrashSafeRef.current.add(id)
+      setPopoutNotice(POPOUT_NOT_CRASH_SAFE_MSG)
+    }
+    return ok
+  }, [])
+  flushDeskRecordsRef.current = () => {
+    if (deskSaveTimerRef.current) { clearTimeout(deskSaveTimerRef.current); deskSaveTimerRef.current = null }
+    for (const [id, widgets] of poppedBoardsRef.current) saveBoardRecord(id, widgets)
+  }
+  // The owner lock lives as long as this workspace does. Its release is what makes a record
+  // recoverable, so a route change frees it at once; a page that dies frees it with the page.
+  useEffect(() => {
+    if (!deskUid) return undefined
+    let gone = false
+    let release = null
+    holdOwnerLock(deskUid, deskOwnerRef.current).then((r) => { if (gone) r(); else release = r })
+    const flush = () => flushDeskRecordsRef.current?.()
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      window.removeEventListener('beforeunload', flush)
+      flush()                 // the record, not the unmount, carries the board from here
+      gone = true
+      release?.()
+    }
+  }, [deskUid])
+
   // Deliberately NOT done inside a setLayout updater: React invokes updaters
   // twice under StrictMode, which would queue a second popped board and open a
   // duplicate window.
   const handlePopOutLayout = useCallback(() => {
     const live = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id))
     if (!live.length) return
-    setPoppedLayouts(ls => [...ls, { id: `pl-${Date.now()}`, widgets: live }])
+    const id = `pl-${Date.now()}`
+    // ⛔ BEFORE the save below: the moment that lands, this record is the only copy of these widgets.
+    poppedBoardsRef.current.set(id, live)
+    saveBoardRecord(id, live)
+    setPoppedLayouts(ls => [...ls, { id, widgets: live }])
     // Main goes back to a blank board so another layout can be built and popped
     // onto the next monitor.
     const next = { ...layout, widgets: layout.widgets.filter(w => poppedWidgetIds.includes(w.id)) }
     setLayout(next)
     scheduleSave(next)
-  }, [layout, poppedWidgetIds, scheduleSave])
+  }, [layout, poppedWidgetIds, scheduleSave, saveBoardRecord])
 
   const handleDockLayout = useCallback((popId, returning) => {
     setPoppedLayouts(ls => ls.filter(l => l.id !== popId))
+    // Off the tracked list so nothing writes the record back, and queued for deletion by the save
+    // the updater below schedules. Outside the updater: React runs updaters twice under StrictMode.
+    poppedBoardsRef.current.delete(popId)
+    dockedRecordsRef.current.set(popId, returning.map(w => w.id))
     setLayout(prev => {
-      // Straight back into an empty board. If a new layout has been built here
-      // meanwhile, re-place the returning widgets so they don't land on top of it.
-      let widgets
-      if (!prev.widgets.length) {
-        widgets = returning
-      } else {
-        widgets = [...prev.widgets]
-        for (const w of returning) {
-          // minW/minH come from the type defaults, but w/h must be the widget's
-          // OWN size — spreading the defaults last would resize every docking
-          // widget back to its type's default dimensions.
-          const spec = { ...(WIDGET_DEFAULTS[w.type] || {}), w: w.w, h: w.h }
-          widgets.push({ ...w, ...findPlacement(widgets, spec, COLS.lg, FIXED_ROWS) })
-        }
-      }
-      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+      const next = { ...prev, widgets: clampWidgetsToRows(placeReturningWidgets(prev.widgets, returning)) }
       scheduleSave(next)
       return next
     })
   }, [scheduleSave])
+
+  // Every edit made inside a popped window follows it into the record, debounced like the board's
+  // own save and flushed at the two moments a debounce would lose it (unload and unmount, above).
+  const trackPoppedBoard = useCallback((popId, widgets) => {
+    const tracked = poppedBoardsRef.current
+    if (!tracked.has(popId) || tracked.get(popId) === widgets) return
+    tracked.set(popId, widgets)
+    if (deskSaveTimerRef.current) return
+    deskSaveTimerRef.current = setTimeout(() => {
+      deskSaveTimerRef.current = null
+      flushDeskRecordsRef.current?.()
+    }, DESK_RECORD_SAVE_MS)
+  }, [])
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   // MOB-08 — the grid's `mode` is DEVICE-SCOPED. `isMobile` is already the one
@@ -2699,11 +2816,12 @@ function ChartsWorkspaceBoard() {
   // workspace-level listener names the gesture. Grid cells don't implement
   // capture, so the hint would mislead there.
   const [jwHotkeyMsg, setJwHotkeyMsg] = useJournalToast()
-  const jwHotkeyCtx = useRef({ gridMode })
-  jwHotkeyCtx.current = { gridMode }
+  const jwHotkeyCtx = useRef({ gridMode, boardHidden })
+  jwHotkeyCtx.current = { gridMode, boardHidden }
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (jwHotkeyCtx.current.boardHidden) return
       if (jwHotkeyCtx.current.gridMode) return
       if (activeChartRef.current != null) return
       e.preventDefault()
@@ -2800,6 +2918,91 @@ function ChartsWorkspaceBoard() {
   const autoSaveReady = !prefsLoading && !templatesLoading && boardSeeded
   const shrinkBlocked = !!dockCompare?.shrunk && !userRemovedRef.current
   const autoSaveOk = autoSaveReady && dockAutoSaves && dockDirty && !shrinkBlocked
+
+  // ── Restoring a board a closed page left behind. ──
+  // Offered, never docked by itself, and only once the board has loaded: a dock onto the default
+  // board would be overwritten by the prefs answer, and its save would replace the real board.
+  // Records are read here and deleted only after the save that holds their widgets is confirmed.
+  // ⛔ A failed read is not a loaded board: between SWR's retries nothing is loading and no stored
+  // board is present, so autoSaveReady reads true over the default board. A restore then would
+  // save the default plus the orphan over the member's real board.
+  const deskRestoreReady = autoSaveReady && !prefsReadFailed
+  const offerDeskRestoreRef = useRef(null)
+  const restoringRef = useRef(false)
+  const restoreDeskRecord = useCallback(async (recordId) => {
+    if (restoringRef.current) return
+    restoringRef.current = true
+    try {
+      const uid = deskUidRef.current
+      const owner = deskOwnerRef.current
+      const op = beginPrefsOp()            // the member this restore is for, before its await
+      const rec = (await listOrphans(uid, owner)).find(r => r.id === recordId)
+      if (op.stale()) return               // signed out or switched while reading: not their board
+      if (!rec || !Array.isArray(rec.widgets)) {       // another tab got there first
+        setWorkspaceNotice(null)
+        offerDeskRestoreRef.current?.()
+        return
+      }
+      const current = layoutRef.current
+      const taken = new Set([
+        ...current.widgets.map(w => w.id),
+        ...[...poppedBoardsRef.current.values()].flat().map(w => w.id),
+      ])
+      const adding = rec.widgets.filter(w => {
+        if (!w?.id || taken.has(w.id)) return false
+        taken.add(w.id)
+        return true
+      })
+      const nextCount = current.widgets.length + adding.length
+      if (!boardMayBecome(nextCount, current.widgets.length)) {
+        showWorkspaceNotice(`This popped board could not be restored. ${boardRefusalSentence(nextCount)} It is still kept: close enough widgets, then restore it.`, {
+          persistent: true,
+          action: { label: 'Restore', run: () => restoreDeskRecord(recordId) },
+        })
+        return
+      }
+      if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+      const next = { ...current, widgets: clampWidgetsToRows(placeReturningWidgets(current.widgets, adding)) }
+      layoutRef.current = next
+      setLayout(next)
+      let result = false
+      try { result = await autosaveLayout(next, op) } catch { result = false }
+      if (result === false) {
+        // Not saved, so not restored: a board on screen that is not saved would read as done.
+        const addedIds = new Set(adding.map(w => w.id))
+        setLayout(prev => ({ ...prev, widgets: prev.widgets.filter(w => !addedIds.has(w.id)) }))
+        showWorkspaceNotice('The popped board was not restored because your board could not be saved. It is still kept: reload to try again.', {
+          persistent: true,
+          action: { label: 'Reload', run: () => window.location.reload() },
+        })
+        return
+      }
+      confirmRestored(uid, recordId, owner)
+      showWorkspaceNotice(adding.length
+        ? `Restored ${adding.length} widget${adding.length === 1 ? '' : 's'} to this board.`
+        : 'Those widgets are already on this board.')
+      offerDeskRestoreRef.current?.()
+    } finally {
+      restoringRef.current = false
+    }
+  }, [autosaveLayout, showWorkspaceNotice])
+  offerDeskRestoreRef.current = async () => {
+    const uid = deskUidRef.current
+    const owner = deskOwnerRef.current
+    const orphans = (await listOrphans(uid, owner)).filter(r => r.kind === 'board' && Array.isArray(r.widgets))
+    for (const r of orphans) if (!r.widgets.length) confirmRestored(uid, r.id, owner)   // nothing to bring back
+    const rec = orphans.find(r => r.widgets.length)
+    if (!rec) return
+    const n = rec.widgets.length
+    showWorkspaceNotice(`A popped board (${n} widget${n === 1 ? '' : 's'}) was closed. Restore it to this board?`, {
+      persistent: true,
+      action: { label: 'Restore', run: () => restoreDeskRecord(rec.id) },
+    })
+  }
+  useEffect(() => {
+    if (!deskRestoreReady || !deskUid || isMobile) return
+    offerDeskRestoreRef.current?.()
+  }, [deskRestoreReady, deskUid, isMobile])
 
   const runNamedSave = useCallback(() => {
     namedSaveRef.current?.()
@@ -2986,7 +3189,8 @@ function ChartsWorkspaceBoard() {
   // The host reads the charts through chartApiById (each ChartWidget's own agent
   // adapter) and the visible board below — it never writes prefs itself.
   const agentFlag = useAgentFlag()
-  const agentAllowed = agentFlag && isAdmin
+  // A hidden board is not the page showing: it offers no Agent and registers no page host for it.
+  const agentAllowed = agentFlag && isAdmin && !boardHidden
   // The panel's code is fetched in the background before the first open, so that open slides
   // in on the first click instead of waiting on the download.
   useEffect(() => {
@@ -3213,7 +3417,7 @@ function ChartsWorkspaceBoard() {
     },
   }), [])
   // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
-  useAgentPageHost('charts', agentHost, { owned: true })
+  useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
   // The toolbar names its chart `chartId` or `chartId:tabId`; the host names it `chartId~tabId`. A
@@ -3511,10 +3715,15 @@ function ChartsWorkspaceBoard() {
     onFloat: handleFloatWidget,
   }
 
+  // ⭐ Hidden, everything that belongs to the MAIN window is left out, and the pop-outs below stay
+  // where they are: the two conditional blocks keep the pop-outs at the same place in the tree, so
+  // React never remounts them and never closes a window. The main-window widgets unmount, which is
+  // what stops their charts, streams and key listeners while another page is showing.
   return (
     <ContextChannelsProvider>
     <WorkspaceContext.Provider value={workspaceValue}>
-      <div className={styles.workspace} data-charts-theme={chartsTheme}>
+      <div className={styles.workspace} data-charts-theme={chartsTheme} style={boardHidden ? BOARD_HIDDEN_STYLE : undefined}>
+        {!boardHidden && (<>
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
@@ -3823,6 +4032,7 @@ function ChartsWorkspaceBoard() {
         )}
         {agentAllowed && agentOpen && inRouter && <AgentNavBridge navRef={agentNavRef} />}
         </div>
+        </>)}
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and
@@ -3862,9 +4072,11 @@ function ChartsWorkspaceBoard() {
             merged={merged}
             onClose={(widgets) => handleDockLayout(pl.id, widgets)}
             onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onWidgetsChange={(widgets) => trackPoppedBoard(pl.id, widgets)}
           />
         ))}
 
+        {!boardHidden && (<>
         {popoutNotice && (
           <div className={styles.popoutNotice} role="alert">
             {popoutNotice}
@@ -3964,6 +4176,7 @@ function ChartsWorkspaceBoard() {
           />
         )}
         {noticeHost}
+        </>)}
       </div>
     </WorkspaceContext.Provider>
     </ContextChannelsProvider>

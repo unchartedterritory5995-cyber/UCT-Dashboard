@@ -49,6 +49,7 @@
 import { manifestFor } from '../capabilities'
 import { readIndicator, readWidget, readSetting } from './slots'
 import { GEAR, TOOLS_MENU, actionFeatures } from './actions'
+import { CONTROL_FEATURE } from './controls'
 
 // ── shared openings ──
 const INDICATORS_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indicators tab', text: 'Open the Indicators tab.', waitFor: { id: 'chartSettings.tab.indicators', on: true } }
@@ -78,6 +79,9 @@ const SWATCH = { within: 'chartSettings', attr: 'data-color-swatch' }
 const FIELD_ROW = { within: 'chartSettings', attr: 'data-field' }
 
 export const GUIDE_FEATURES = [
+  // ⭐ the named-control catalog (guide/controls.js): a control the words fully describe, in a place they name, wins over
+  // every broader walkthrough that shares one of its words
+  CONTROL_FEATURE,
   // ⭐ the action families (guide/actions.js): one row per small action, ahead of the features whose words they share
   ...actionFeatures({ legendChip: { also: readIndicator }, indicatorManage: { also: readIndicator }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
   // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)

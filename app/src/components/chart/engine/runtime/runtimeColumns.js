@@ -29,6 +29,7 @@ import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
+import { symbolConstants, minContractOf } from '../ast/bind.js'
 import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 // ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
@@ -1369,6 +1370,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // ⭐⭐ W9-T11 — the window the VM checks a broker run against (`vm.js`, [3.4]): the
       // context's, never a literal
       ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+      // ⭐⭐ W9-T4-F1 — the symbol's `syminfo.mincontract`, from the ONE authority a script's own
+      // `syminfo.mincontract` folds from (`bind.js::symbolConstants`, the witnessed
+      // `symbolScope.json::min_contract` table). DERIVED from the symbol, never read from `ctx`:
+      // no caller can state it, so an unwitnessed exchange stays undefined and a cash /
+      // percent-of-equity size refuses by name (Q-S1a). `minContractLock.test.js` holds this line.
+      minContract: minContractOf(symbolConstants(symbol)),
       // ⭐ UIE PHASE 2 — `opts.limits` is a MEASUREMENT door (the limits census,
       // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
       // chart runs under `DEFAULT_LIMITS`.

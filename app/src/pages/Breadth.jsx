@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react'
+import { lazyDeferrable } from '../utils/lazyWithRetry'
 import { useSearchParams } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -13,6 +14,7 @@ import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
+import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
@@ -54,7 +56,7 @@ import { useBreadthAgentHost } from '../agent/hosts/usePageAgentHosts'
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
 // settings gear and drawing tools. Lazy, so none of it lands in the eager
 // entry chunk.
-const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
+const ChartPane = lazyDeferrable(() => import('../components/chart/pane/ChartPane'))
 
 // Throws on a non-2xx / network / 30 s deadline (jsonFetcher). The bare `r.json()` turned a
 // 402 or 5xx {detail} into a payload with no rows, which read "No data yet. Run python ...".
@@ -368,7 +370,11 @@ function cellClass(col, val, row = null) {
 // this surface is not a lookalike of those widgets, it IS them.
 // Lazy so the breadth bundle does not pull the charts workspace until a cell is
 // actually clicked.
-const BreadthDrillModal = lazy(() => import('./breadth/drill/BreadthDrillModal'))
+// The window's code is fetched ahead of the click (on idle, and on hovering a
+// cell) so opening it never waits on a chunk download.
+const loadDrillModal = () => import('./breadth/drill/BreadthDrillModal')
+const BreadthDrillModal = lazyDeferrable(loadDrillModal)
+function preloadDrillModal() { loadDrillModal().catch(() => {}) }
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
@@ -752,12 +758,8 @@ export default function Breadth() {
   // wrong answer. A pod restart mid-request (every deploy) or one dropped
   // connection told the member the market was quiet. `error` keeps the two
   // states apart and the list offers a retry instead of a lie.
-  const loadDrill = useCallback((url) => {
-    fetch(url)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
+  const loadDrill = useCallback((url, live = false) => {
+    fetchDrill(url, { live })
       .then(data => setDrill(prev => (prev && prev.url === url
         ? { ...prev, items: data.items ?? [], error: null }
         : prev)))
@@ -774,17 +776,21 @@ export default function Breadth() {
     // than painted into the wrong drill.
     // `colKey` + `drillKey` let the scan window rank the day, step to the next
     // session and switch lists without closing.
+    // A list already fetched (the hover started it, or it was open before)
+    // paints on the first frame; otherwise it lands when the request does.
+    const cached = peekDrill(target.url)
     setDrill({ date: target.date, label: col.label, live: target.live,
                colKey: col.key, drillKey: col.drillKey,
                asOf: target.live ? live?.asOf ?? null : null,
-               url: target.url, items: null, error: null })
-    loadDrill(target.url)
+               url: target.url, items: cached ? (cached.items ?? []) : null, error: null })
+    if (!cached) loadDrill(target.url, target.live)
   }, [loadDrill])
 
   const retryDrill = useCallback(() => {
     setDrill(prev => {
       if (!prev?.url) return prev
-      loadDrill(prev.url)
+      forgetDrill(prev.url)
+      loadDrill(prev.url, prev.live)
       return { ...prev, items: null, error: null }
     })
   }, [loadDrill])
@@ -847,6 +853,37 @@ export default function Breadth() {
   // another list on the same session, without closing. Resolves the ROW and the
   // COLUMN and goes through `openDrill`, so live/carried routing stays decided
   // in one place (drillTarget), never re-derived here.
+  // Hovering a cell starts its list (and the window's code) loading, so the
+  // click opens onto rows rather than "Loading…".
+  const prefetchCell = useCallback((row, col) => {
+    preloadDrillModal()
+    const t = drillTarget(row, col, liveBreadth)
+    if (t) prefetchDrill(t.url, { live: t.live })
+  }, [liveBreadth])
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 2500))
+    const cancel = window.cancelIdleCallback || clearTimeout
+    const id = idle(preloadDrillModal)
+    return () => cancel(id)
+  }, [])
+  // While a list is open, the sessions either side of it load in the
+  // background, so stepping a day ( ‹ › or [ ] ) is instant too.
+  const drillUrl = drill?.url || null
+  const drillColKey = drill?.colKey || null
+  const drillDateNow = drill?.date || null
+  const drillIsLive = !!drill?.live
+  useEffect(() => {
+    if (!drillUrl || !drillColKey) return
+    const col = COLS_BY_KEY[drillColKey]
+    if (!col?.drillKey) return
+    const i = drillIsLive ? rows.findIndex(r => r?._live) : rows.findIndex(r => !r?._live && r?.date === drillDateNow)
+    if (i < 0) return
+    for (const j of [i + 1, i - 1]) {
+      const t = rows[j] ? drillTarget(rows[j], col, liveBreadth) : null
+      if (t) prefetchDrill(t.url, { live: t.live })
+    }
+  }, [drillUrl, drillColKey, drillDateNow, drillIsLive, rows, liveBreadth])
+
   const navigateDrill = useCallback(({ colKey, date, live }) => {
     const col = COLS_BY_KEY[colKey]
     if (!col?.drillKey) return
@@ -1397,6 +1434,7 @@ export default function Breadth() {
                                     : isDrillable ? 'Click to see stocks' : undefined
                         }
                         onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
+                        onPointerEnter={isDrillable ? () => prefetchCell(row, col) : undefined}
                         {...(isDrillable ? {
                           'data-drill': '',
                           role: 'button',

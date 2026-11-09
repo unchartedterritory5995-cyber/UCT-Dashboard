@@ -37,8 +37,8 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
-import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt } from './guideStore'
-import { findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
+import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt, escapeOnBoard, SELECTED_DRAWING } from './guideStore'
+import { needsOwnPress, findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
 import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
 import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
 import { layerOpenedSince } from '../../lib/topLayer'
@@ -58,7 +58,14 @@ const hasDoIt = (feature) => !!feature?.doIt
 
 // the menus that close on Escape carry no layer attribute (a plain dropdown is not a layer): which were open at the press
 const MENUS = '[role="menu"],[data-guide$="Menu"]'
+// an armed drawing tool, or a selected drawing (guideStore.SELECTED_DRAWING: desktop and touch)
+const TOOL_OWNS = '[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],' + SELECTED_DRAWING
 const NO_LAYERS_BENEATH = new Set()
+
+// the walkthrough chart's symbol, from its own label (components/chart/pane/ChartIdentityRow.jsx sym-label)
+const symbolOf = (chartRef) => { try { const cell = document.querySelector(`[data-widget-id="${String(chartRef).split("~")[0].replace(/"/g, "")}"]`); return cell?.querySelector("[data-testid=\"sym-label\"]")?.textContent?.trim() || null } catch { return null } }
+// a walkthrough whose OWN steps change the symbol: the symbol search
+const changesSymbol = (feature) => feature?.id === "symbol" || (feature?.steps || []).some(s => s?.target === "chart.symbol")
 
 export default function GuideOverlay() {
   const { state: st, notice } = useSyncExternalStore(subscribeGuide, guideSnapshot, guideSnapshot)
@@ -67,6 +74,8 @@ export default function GuideOverlay() {
   const [hint, setHint] = useState(null)   // { key, text } — the step the member tried to Skip past
   const [cardH, setCardH] = useState(undefined)
   const cardRef = useRef(null)
+  // the symbol each walkthrough started on, per walkthrough id (the owner rule above)
+  const symbolSeen = useRef(new Map())
   const titleId = useId()
   const step = st ? st.steps[st.index] : null
   const stepKey = st ? `${st.id}:${st.index}` : null
@@ -83,14 +92,28 @@ export default function GuideOverlay() {
     // returned to by Back: a `waitFor` still met from last time is not a new event — wait until it has gone once
     // (and a result that is something ENDING has to have begun first)
     let armed = !st.back && !step.waitFor?.not
+    // ⭐ its own control pressed (needsOwnPress): another chart's gear opening Chart Settings is not this chart's step
+    let pressedOwn = false
     const tick = () => {
       if (cancelled) return
+      // ⭐ OWNER RULE (2026-11-07): the walkthrough's chart changed symbol from OUTSIDE the walkthrough (a linked watchlist row
+      // loaded into it, a keyboard jump): the chart it was teaching on is now another chart's content, so it ends cleanly — no
+      // notice, no restart. Read from the chart's own state (its symbol label), never the click; a walkthrough whose own steps
+      // change the symbol (the symbol search) is the exception.
+      if (st.chartRef && !changesSymbol(st.feature)) {
+        const sym = symbolOf(st.chartRef)
+        const seen = symbolSeen.current.get(st.id)
+        if (sym && seen == null) symbolSeen.current.set(st.id, sym)
+        else if (sym && seen && sym !== seen) { endGuide('switched'); return }
+      }
       // the card's real height, so placeCard can keep it off the control whatever the sentence's length
       const h = cardRef.current?.offsetHeight
       if (h) setCardH(h)
       if (step.waitFor) {
         const met = findTarget(step.waitFor, st)
-        if (met && armed) { nextStep(); return }
+        // ⭐ ...and only when another chart on the board has the same control: with one chart there is no other to confuse
+        const others = typeof step.target === 'string' && document.querySelectorAll(`[data-guide="${step.target}"]`).length > 1
+        if (met && armed && (pressedOwn || !needsOwnPress(step) || !others)) { nextStep(); return }
         if (!met) armed = true
       }
       // a list's first entry is the control itself: below the fold of a long window it is scrolled up, not passed over for the fallback
@@ -127,7 +150,20 @@ export default function GuideOverlay() {
     // capture, passive: the guide only notes that the member's click landed on the control; it never touches the event
     const onDown = (e) => {
       const el = findTarget(step.target, st)
-      if (el && el.contains?.(e.target)) clicked = Date.now()
+      if (el && el.contains?.(e.target)) {
+        clicked = Date.now()
+        pressedOwn = true
+        // ⭐ a step with no result to wait for is DONE when the member presses its control, whether or not the control goes
+        // away (a menu that stays open, a toggle): the walkthrough moves on, or ends on its last step — it never leaves its
+        // ring and card up over a thing already done. Not a field (a click there is only the start of typing), not a right-click.
+        const field = e.target?.closest?.('input, textarea, select, [contenteditable="true"]')
+        if (!step.waitFor && !step.endsOnClick && e.button === 0 && !field) {
+          setTimeout(() => {
+            if (cancelled) return   // the step already moved on (its control went away with the click)
+            if (st.index >= st.steps.length - 1) endGuide('done'); else nextStep()
+          }, POLL_MS * 2)
+        }
+      }
       // the step's other way of being done: its control stays on screen, so the click itself is the finish
       const also = step.also ? findTarget(step.also, st) : null
       if (also && also.contains?.(e.target)) setTimeout(() => { if (!cancelled) endGuide('done') }, POLL_MS)
@@ -144,6 +180,47 @@ export default function GuideOverlay() {
     }
   }, [st, step, stepKey])
 
+  // where the member's pointer is (passive: nothing is consumed), so the card is never placed under it
+  const pointerRef = useRef(null)
+  useEffect(() => {
+    const onMove = (e) => { pointerRef.current = { x: e.clientX, y: e.clientY } }
+    window.addEventListener('pointermove', onMove, { capture: true, passive: true })
+    window.addEventListener('pointerdown', onMove, { capture: true, passive: true })
+    return () => { window.removeEventListener('pointermove', onMove, { capture: true }); window.removeEventListener('pointerdown', onMove, { capture: true }) }
+  }, [])
+
+  // ⭐ OWNER DECISION (2026-11-07): pressing ANOTHER chart (a board chart or a Multi Chart cell) switches the chart the member is
+  // working on, so a walkthrough on a chart ENDS there — cleanly (ring, card and notice go; nothing in the workspace changes) and it
+  // does not restart on the chart pressed. A press on the walkthrough's OWN chart (its menus, its controls the steps use), on the
+  // card, on a menu or window outside any board cell, or on a widget that is not a chart (a watchlist row only changes what a linked
+  // chart shows, not which chart the walkthrough is on) does not end it. Passive: the press is only noted.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const onPress = (e) => {
+      const st = guideSnapshot().state
+      if (!st?.chartRef) return
+      const cell = e.target?.closest?.('[data-widget-id]')
+      if (!cell) return
+      const isChart = cell.getAttribute('data-widget-type') === 'chart' || cell.hasAttribute('data-grid-cell-id')
+      if (!isChart) return
+      if (cell.getAttribute('data-widget-id') === String(st.chartRef).split('~')[0]) return
+      endGuide('switched')
+    }
+    document.addEventListener('pointerdown', onPress, { capture: true, passive: true })
+    return () => document.removeEventListener('pointerdown', onPress, { capture: true })
+  }, [])
+
+  // ⭐ a NEW request sent from the Agent's Send button mid-walkthrough ends it (a guide request then starts its own). Passive.
+  // Enter in the message box is the Agent's own key (no raw key listener here: keyListenerCensus) — useAgent calls
+  // guideStore.endForNewRequest when a request starts
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const box = () => document.querySelector('[aria-label="Message UCT Agent"]')
+    const onDown = (e) => { const send = e.target?.closest?.('button[aria-label="Send"]'); if (send && String(box()?.value || '').trim()) endGuide('replaced') }
+    document.addEventListener('pointerdown', onDown, { capture: true, passive: true })
+    return () => { document.removeEventListener('pointerdown', onDown, { capture: true }) }
+  }, [])
+
   // closing the Agent / leaving Charts ends the walkthrough
   useEffect(() => () => endGuide('closed'), [])
 
@@ -155,10 +232,13 @@ export default function GuideOverlay() {
     return registerShortcuts({
       // the window capture phase: a layer that closes from its own listener is already gone by the bubble phase
       // (and a field that closes on its own Escape has lost focus by then: the name box of a new list)
-      'agent.guideEscapeGate': () => { press = { field: isEditableFocus(), layer: layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH), menus: [...document.querySelectorAll(MENUS)] } },
+      // `tool`: an armed drawing tool or a selected drawing had the press (it disarms or deselects on Escape)
+      'agent.guideEscapeGate': () => { press = { field: isEditableFocus(), layer: layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH), menus: [...document.querySelectorAll(MENUS)], tool: !!document.querySelector(TOOL_OWNS) } },
+      // round 6: heard first (window capture), whatever the board's own handlers then do with the key; never prevents or stops it
+      'agent.guideEscapeBoard': () => { if (!isEditableFocus() && !layerOpenedSince(cardRef.current, NO_LAYERS_BENEATH)) escapeOnBoard() },
       'agent.guideEscape': (e) => {
         const { field, layer, menus } = press
-        if (e.defaultPrevented || field || layer) return
+        if (e.defaultPrevented || field || layer || press.tool) return
         // a menu that answered from a React handler has closed by the next task
         setTimeout(() => { if (!e.defaultPrevented && menus.every(m => m.isConnected)) endGuide('exit') }, 0)
       },
@@ -183,7 +263,8 @@ export default function GuideOverlay() {
   const vw = window.innerWidth || 1280
   const vh = window.innerHeight || 800
   const why = found.key === stepKey ? found.why : null
-  const pos = placeCard(rect, { vw, vh, cardH, avoid: found.key === stepKey && found.holder ? [found.holder] : [] })
+  const pt = pointerRef.current
+  const pos = placeCard(rect, { vw, vh, cardH, avoid: found.key === stepKey && found.holder ? [found.holder] : [], pointer: pt ? { top: pt.y - 16, left: pt.x - 16, width: 32, height: 32 } : null })
   const last = st.index === st.steps.length - 1
   const waiting = !!step.waitFor
   const shownHint = hint?.key === stepKey ? hint.text : null
