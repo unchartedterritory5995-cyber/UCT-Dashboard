@@ -27,6 +27,6 @@ BROWSER-MOCK-MODEL / SIMULATED (scripted model). Shared targeting core: not touc
 
 ## Full suite
 
-(to be filled after the full 4-shard run)
+Full 4-shard vitest at 24dfbac979 (LOCAL native Windows Node v24, BROWSER-MOCK-MODEL / SIMULATED): 9321 passed, 0 failed, 6 skipped (2274+3 / 3180 / 2032+1 / 1835+2). pytest not run (C:\data rule): owed to AUDIT / CI.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
