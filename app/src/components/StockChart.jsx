@@ -505,7 +505,8 @@ function chipMenuRowToPopoverRow(it) {
     label: (
       <>
         <span>{it.label}</span>
-        <span style={{ display: 'block', fontSize: 10.5, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
+        {/* a11y 2026-11-08: the refusal reason is 11 px, not 10.5 — no shared text under 11 px. */}
+        <span style={{ display: 'block', fontSize: 11, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
           {it.disabled}
         </span>
       </>
