@@ -609,6 +609,10 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     count: items.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 30,
+    // Measured heights keyed by the ROW, not its position: a grouped list puts a
+    // taller section header where a ticker row used to be, and a position-keyed
+    // cache kept the old 29px height (headers overlapped).
+    getItemKey: (i) => items[i]?.id || items[i]?.sym || i,
     overscan: 12,
     scrollMargin,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
@@ -723,7 +727,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickSubHeader = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -2030,6 +2034,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return merged
   }, [rawMetaData, metaOverride])
 
+  // openFirstGroup (the breadth drill): an accordion that opens on its TOP group,
+  // re-seeded when the grouping changes (Sector → Theme). Like Theme Tracker.
+  const firstGroupKey = openFirstGroup && !multiExpand && scanGroups ? JSON.stringify(Object.keys(scanGroups)) : ''
+  const seededFirstRef = useRef(null)
+  useEffect(() => {
+    if (!firstGroupKey || seededFirstRef.current === firstGroupKey) return
+    seededFirstRef.current = firstGroupKey
+    const top = scanSymbols?.[0] ? String(scanSymbols[0]).toUpperCase() : null
+    setExpandedGroups(top ? new Set([top]) : new Set())
+    // The chart's current stock must not immediately re-open ITS group over the top one.
+    lastAutoExpandRef.current = selectedSym
+  }, [firstGroupKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // When the linked chart's ticker belongs to one of the ranked groups, auto-OPEN that
   // group (accordion) so its row shows + the scroll-to-selected effect brings it into view.
   // PRIMARY: the backend member→group map. FALLBACK: the ticker's own industry/sector (from
@@ -3047,11 +3064,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <ScanRows
               scrollRef={listBodyRef}
               items={scanSortedItems}
-              renderRow={(item) => renderTickerRow({
-                sym: item.sym, name: item.name, isOwner: false, wlId: null,
-                isGroup: !!item.isGroup, isMember: !!item.isMember,
-                expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
-              })}
+              renderRow={(item) => {
+                // A host may draw its own group header (the breadth drill's sections).
+                if (item.isGroup && renderGroupRow) {
+                  const open = expandedGroups.has(item.sym)
+                  return renderGroupRow({ sym: item.sym, expanded: open, onToggle: () => toggleGroupExpand(item.sym) })
+                }
+                const row = renderTickerRow({
+                  sym: item.sym, name: item.name, isOwner: false, wlId: null,
+                  isGroup: !!item.isGroup, isMember: !!item.isMember,
+                  expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
+                })
+                const accent = item.isMember && groupAccent ? groupAccent(String(item.id).split('::')[0]) : null
+                return accent
+                  ? <div style={{ position: 'relative' }}>{row}<span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: accent, pointerEvents: 'none' }} /></div>
+                  : row
+              }}
               emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
               onVisibleChange={handleScanVisible}
               scrollToSym={selectedSym}

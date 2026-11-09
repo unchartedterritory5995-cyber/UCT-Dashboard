@@ -8,6 +8,7 @@ import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
 import { useDrillSource } from './DrillSourceContext'
 import { FilterButton, GroupSwitch, FilterChips } from './scan/ScanFilters'
+import GroupHeader from './scan/GroupHeader'
 import styles from './BreadthDrillList.module.css'
 
 // The breadth cell's constituents, rendered through the REAL watchlist table.
@@ -25,6 +26,9 @@ const pctOf = (r) => r?.pct
 // ⛔ MODULE SCOPE. `drill?.items ?? []` allocates a NEW array whenever items is
 // absent, which is a fresh identity on every render and churns every memo below.
 const NO_ITEMS = []
+// Section colours, in group order (largest group first). Muted so they tag,
+// not shout.
+const GROUP_HUES = ['#7f8fd6', '#c9a84c', '#3fae74', '#c45f9a', '#4fb3b9', '#d98245', '#9a7fe0', '#9fb86a', '#8ea4c8', '#b08968']
 
 // First-run column layout. Sorted by % change desc because that is what a
 // breadth cell IS — the stocks that moved — and it matches the order the
@@ -202,6 +206,25 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
     </div>
   )
 
+  // Section headers (Scan Deck): the group's own-case name, count, average move
+  // and a colour that also edges its rows. Keyed by the UPPERCASE row sym.
+  const groupInfo = useMemo(() => {
+    if (!groups) return null
+    const out = {}
+    groups.forEach((g, i) => {
+      out[String(g.key).toUpperCase()] = { name: g.key, count: g.count, avgPct: g.avgPct, color: GROUP_HUES[i % GROUP_HUES.length] }
+    })
+    return out
+  }, [groups])
+  const renderGroupRow = useCallback(({ sym, expanded, onToggle }) => {
+    const g = groupInfo?.[sym]
+    return (
+      <GroupHeader name={g?.name || sym} count={g?.count ?? 0} total={items.length} avgPct={g?.avgPct}
+        color={g?.color || 'var(--ut-gold)'} expanded={expanded} onToggle={onToggle} />
+    )
+  }, [groupInfo, items.length])
+  const groupAccent = useCallback((sym) => groupInfo?.[sym]?.color || null, [groupInfo])
+
   // In the Scan Deck the window already names the list, so the list's title row
   // carries the scan controls instead: Filters, and how to group.
   const groupValue = viewMode === 'grouped' ? dimension : 'none'
@@ -282,9 +305,13 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             activeRef={activeWatchlistRef}
             widgetKey={widgetId}
             scanGroups={scanGroups}
-            // All industries open at once, each independently collapsible —
-            // seeing which dominate the cohort IS the read.
-            groupExpand="multi"
+            // In the Scan Deck: sections, ONE open at a time, the top one first
+            // (owner pick, like Theme Tracker). Elsewhere: all open, each
+            // independently collapsible.
+            groupExpand={drill?.deckHosted ? 'accordion' : 'multi'}
+            openFirstGroup={!!drill?.deckHosted}
+            renderGroupRow={drill?.deckHosted ? renderGroupRow : null}
+            groupAccent={drill?.deckHosted ? groupAccent : null}
             // ⛔ The drill keeps its OWN column layout, and that is the
             // consistent choice rather than a divergence: ScannerResults already
             // gives every scan its own key, for exactly this reason.

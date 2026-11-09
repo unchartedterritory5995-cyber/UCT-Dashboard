@@ -23,19 +23,21 @@ export function GroupSwitch({ value, onChange }) {
 /** The Filters button; owns the panel's open state. */
 export function FilterButton({ filters, total, shown }) {
   const [open, setOpen] = useState(false)
+  // Where the button sits, read at click time (never during render).
+  const [anchorRect, setAnchorRect] = useState(null)
   const btnRef = useRef(null)
   const n = filters?.count || 0
   return (
     <>
       <button ref={btnRef} type="button" className={styles.filterBtn} aria-expanded={open} aria-haspopup="dialog"
-        data-active={n > 0 || undefined} onClick={() => setOpen(o => !o)} title="Filter this list"
+        data-active={n > 0 || undefined} onClick={() => { setAnchorRect(btnRef.current?.getBoundingClientRect() || null); setOpen(o => !o) }} title="Filter this list"
         aria-label={n > 0 ? `Filters, ${n} applied` : "Filters"}>
         <UIcon name="sliders" size={13} />
         <span>Filters</span>
         {n > 0 && <b className={styles.badge}>{n}</b>}
       </button>
       {open && (
-        <FilterPanel anchor={btnRef.current} filters={filters} total={total} shown={shown}
+        <FilterPanel anchorRect={anchorRect} anchorRef={btnRef} filters={filters} total={total} shown={shown}
           onClose={() => setOpen(false)} />
       )}
     </>
@@ -91,27 +93,27 @@ function OptChips({ opts, onToggle, limit = Infinity }) {
   )
 }
 
-function FilterPanel({ anchor, filters, total, shown, onClose }) {
+function FilterPanel({ anchorRect, anchorRef, filters, total, shown, onClose }) {
   const ref = useRef(null)
   const [industryQ, setIndustryQ] = useState('')
   const m = filters.model
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
     const onDown = (e) => {
-      if (ref.current?.contains(e.target) || anchor?.contains(e.target)) return
+      if (ref.current?.contains(e.target) || anchorRef?.current?.contains(e.target)) return
       onClose()
     }
     window.addEventListener('keydown', onKey, true)
     const t = setTimeout(() => window.addEventListener('mousedown', onDown), 0)
     return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('mousedown', onDown); clearTimeout(t) }
-  }, [onClose, anchor])
+  }, [onClose, anchorRef])
 
   const industries = useMemo(() => {
     const q = industryQ.trim().toLowerCase()
     return q ? m.industry.filter(o => o.on || o.label.toLowerCase().includes(q)) : m.industry
   }, [m.industry, industryQ])
 
-  const r = anchor?.getBoundingClientRect()
+  const r = anchorRect
   const W = 460
   const left = r ? Math.max(8, Math.min(r.left, window.innerWidth - W - 8)) : 40
   const top = r ? r.bottom + 6 : 80
