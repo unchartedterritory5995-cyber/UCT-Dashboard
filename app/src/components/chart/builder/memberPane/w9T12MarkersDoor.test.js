@@ -34,7 +34,7 @@ import { objectRenderDropsFor, resetObjectRenderDrops } from '../../engine/objec
 const NL = String.fromCharCode(10)
 const ID = 'u_w9t12-markers'
 const SRC = ['//@version=5', 'strategy("t")', 'if bar_index == 3', '    strategy.entry("L", strategy.long)',
-  'if bar_index == 8', '    strategy.close("L")', 'plot(strategy.position_size, "pos")', ''].join(NL)
+  'if bar_index == 8', '    strategy.close("L", comment = "out")', 'plot(strategy.position_size, "pos")', ''].join(NL)
 const IND = ['//@version=5', 'indicator("i")', 'var float acc = 0.0', 'acc += close', 'plot(acc, "acc")', ''].join(NL)
 const BARS = Array.from({ length: 30 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100 + i, h: 101.5 + i, l: 99 + i, c: 100.5 + i, v: 1000 }))
 const CTX = { tf: 'D', newestBarIsForming: false, historyFromListing: true, symbol: { ticker: 'RDDT', exchange: 'NYSE' }, historyWindowBars: 30 }
@@ -113,43 +113,42 @@ describe('W9-T12 the markers at the member door', () => {
     m.binder.teardown()
   })
 
-  it('⭐ behind the test pin, a served record (the order log W9-T7 adds, hand-made) reaches the render state', () => {
+  it('⭐ behind the test pin, the RUN\'S OWN record (the order log W9-T7-F1 serves, not hand-made) reaches the render state', () => {
     globalThis.__w9t12LookPinned = true
     const def = build(SRC)
     const cols = computeRuntimeColumns(def, BARS, CTX)
-    const rec = JSON.parse(JSON.stringify(runtimeStrategyOf(cols)))
-    const [t] = rec.trades
+    const t = runtimeStrategyOf(cols).trades[0]
     expect(t.open).toBe(false)
-    t.exitId = 'Close entry(s) order L'
-    rec.orders = [{ id: 'L', status: 'filled', fillTime: t.entryTime, comment: null },
-      { id: 'Close entry(s) order L', status: 'filled', fillTime: t.exitTime, comment: null }]
-    delete rec.unserved.orders
-    delete rec.unserved['trades.exitId']
-    const served = withStrategyRecord({ ...cols }, rec)
-    const m = bind(def, served)
+    expect(t.exitId).toBe(null)   // a strategy.close: TradingView names that exit itself
+    const m = bind(def, cols)
     expect(tradeMarkersFor(m.instanceId).status).toBe('ok')
     const labels = m.layers.filter(Boolean).pop().labels
     expect(labels.map((l) => [l.x, l.y, l.style, l.text])).toEqual([
       [t.entryTime, t.entryPrice, 'arrowup', `L\n+${t.qty}`],
-      [t.exitTime, t.exitPrice, 'arrowdown', `Close entry(s) order L\n-${t.qty}`],
+      [t.exitTime, t.exitPrice, 'arrowdown', `out\n-${t.qty}`],
     ])
+    m.binder.teardown()
+  })
+
+  it('⛔ CONTROL — the same run with a close that carries NO comment refuses by name (its exit has no stated name)', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(SRC.replace('strategy.close("L", comment = "out")', 'strategy.close("L")'))
+    const m = bind(def, computeRuntimeColumns(def, BARS, CTX))
+    const out = tradeMarkersFor(m.instanceId)
+    expect(out.status).toBe('refused')
+    expect(out.guard).toBe('runtime:strategy-markers-unlabelled')
+    expect(m.layers.filter(Boolean).flatMap((s) => s.labels)).toEqual([])
     m.binder.teardown()
   })
 })
 
-/** A strategy run's columns with the order log W9-T7 adds (hand-made), entry comment `c`. */
+/** A strategy run's columns with its own order log (W9-T7-F1), the entry orders' comment set to `c` (one text per
+ *  test, so two runs differ only in a marker's text). */
 function served(def, c = null) {
   const cols = computeRuntimeColumns(def, BARS, CTX)
+  if (c === null) return cols
   const rec = JSON.parse(JSON.stringify(runtimeStrategyOf(cols)))
-  for (const t of rec.trades) t.exitId = t.open ? null : 'XL'
-  const fills = []
-  for (const t of rec.trades) {
-    fills.push({ id: t.entryId, status: 'filled', fillTime: t.entryTime, comment: c })
-    if (!t.open) fills.push({ id: 'XL', status: 'filled', fillTime: t.exitTime, comment: null })
-  }
-  rec.orders = fills
-  delete rec.unserved.orders
-  delete rec.unserved['trades.exitId']
+  for (const o of rec.orders) if (o.kind === 'entry') o.comment = c
   return withStrategyRecord({ ...cols }, rec)
 }
 
@@ -159,7 +158,7 @@ const HOSTED = {
   'var line once': 'var line ln = line.new(0, 100, 5, 120)',
 }
 const hostedSrc = (draw) => ['//@version=5', 'strategy("t", overlay = true)', 'if bar_index == 3',
-  '    strategy.entry("L", strategy.long)', 'if bar_index == 8', '    strategy.close("L")', draw,
+  '    strategy.entry("L", strategy.long)', 'if bar_index == 8', '    strategy.close("L", comment = "out")', draw,
   'plot(strategy.position_size, "pos")', ''].join(NL)
 const drawn = (states) => {
   const s = states.filter(Boolean).pop()
