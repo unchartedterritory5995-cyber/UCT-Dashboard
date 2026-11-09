@@ -10653,7 +10653,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const BOOL_COMPARE = new Set(['==', '!=', '<', '>', '<=', '>='])
   const nameIsBool = (sc, nm) => {
     const { memo } = typeTables()
-    const key = `${sc} ${nm}`
+    const key = `\u0002${sc}\u0000${nm}`
     if (memo.has(key)) return memo.get(key)
     memo.set(key, false)   // a cycle is not a proof
     const ds = declsOf(sc, nm)
@@ -10664,7 +10664,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const fnIsBool = (fn) => {
     const { results, memo } = typeTables()
-    const key = `${fn}`
+    const key = `\u0003${fn}`
     if (memo.has(key)) return memo.get(key)
     memo.set(key, false)   // recursion is not a proof
     const ok = results.get(fn).every((cands) => !!cands && cands.every((toks) => !!toks && provablyBoolToks(toks, fn)))
