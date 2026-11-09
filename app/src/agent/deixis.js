@@ -107,12 +107,101 @@ export function possessiveAnchor(text) {
     .replace(POSS_SIDE, (m, pre, side) => `${pre} its ${side.toLowerCase()}`)
 }
 const FAR_LINE = /\bthe\s+(row|column)\s+from\s+this\s+one\b/i
+// relrefs-steps (#988): a WALK from the click, the click being its anchor whether it is named or not (AUDIT's R3) — N rows up /
+// down ("one row up from this one", "up one row", "a row below"), N over / columns to the left / right ("two over to the left",
+// "one column left of this one"; "two over" alone: whichever side is that deep), the OTHER SIDE of its row / column, and a CORNER
+// on the same side / row / column. Read from where the charts sit (relativeChart): one chart → it; none or several → asked with the
+// real candidates, never the click. Units are grid units only: "two bars to the left", "one pane up" are no walk.
+const MOVE_VERB = /\b(?:move|moving|shift|drag|slide|push|nudge|swap|scroll|pan)\b/i
+// a COUNT, never a pronoun: "a / an / one" only after a chart noun or a verb particle ("the chart one over", "up one row", "the one
+// one over") — not "the top one over", "the next-but-one chart"; 2–4 never inside a hyphenated word
+const N_WORD = '((?<=\\b(?:chart|charts|one|cell|cells|pane|panel|graph|neighbou?r|up|down|it|just|only|exactly|by|is|sits?)\\s)(?:a|an|one)|(?<![-\\w])(?:two|three|four|[1-4]))'
+// the walk's own anchor, when the words name it ("one row up FROM THIS ONE"): part of the walk, not another pointer at the click
+const WALK_FROM = `(?:\\s+(?:(?:away\\s+)?(?:from|of|to|than|as)\\s+)?(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+(?:chart|one))?|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?)(?:\\s+(?:chart|one|cell|pane|panel))?\\b)?`
+const N_OF = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 }
+const GRID_UNIT = '(?:columns?|charts?|cells?|spots?|places?|positions?|slots?|spaces?)'
+const WALK_V1 = new RegExp(`\\b${N_WORD}\\s+rows?\\s+(up|down|higher|lower|above|below)\\b${WALK_FROM}`, 'i')
+const WALK_V2 = new RegExp(`\\b(up|down)\\s+${N_WORD}\\s+rows?\\b${WALK_FROM}`, 'i')
+const WALK_H1 = new RegExp(`\\b${N_WORD}\\s+(?:${GRID_UNIT}\\s+)?(?:over\\s+)?(?:(?:to|on)\\s+the\\s+)?(left|right)\\b(?!\\s+(?:above|below|under|over|beneath)\\b)${WALK_FROM}`, 'i')
+const WALK_H2 = new RegExp(`\\b${N_WORD}\\s+(?:${GRID_UNIT}\\s+)?over\\b${WALK_FROM}`, 'i')
+const OTHER_SIDE = /\b(?:the\s+other\s+side\s+of|across)\s+the\s+(row|column)\b/i
+const SAME_CORNER = new RegExp(`\\bcorner\\s+(?:on|in|along|at)\\s+the\\s+same\\s+(side|row|column)\\b${WALK_FROM}`, 'i')
+// AUDIT probe-16 shapes (#988): "the <ordinal / position> chart in / of / on <a row or column>" and "same <axis> but the other <axis>".
+// "this / that row" is the CLICK's line (a relation: the click is a reference, the target only when the ordinal lands on it);
+// "the top / bottom / left / right / middle / first / last … row" is ABSOLUTE (ordinalChart: no click needed).
+const LINE_POS = '(first|second|third|last|middle|cent(?:er|re)|left(?:most)?|right(?:most)?|top(?:most)?|bottom(?:most)?|upper(?:most)?|lower(?:most)?)'
+const LINE_WHICH = '(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)'
+export const LINE_REF = new RegExp(`\\b(?:the\\s+)?${LINE_POS}\\s+(?:chart|one|cell|pane|panel|graph)\\s+(?:in|of|on|along|from)\\s+(?:(this|that)|the|my)\\s+(?:${LINE_WHICH}\\s+)?(row|column)\\b`, 'i')
+const SAME_BUT = /\bsame\s+(row|column)\s*,?\s*(?:but|and)?\s+(?:the\s+other|a\s+different|another|the\s+opposite)\s+(row|column)\b/i
+const ORD_AT = { first: 0, second: 1, third: 2 }
+/** The chart at `pos` in `line` (sorted along it) → the chart, or null (no such place in that line). */
+function atPos(line, pos, axis) {
+  const p = String(pos).toLowerCase().replace(/most$/, '')
+  const n = line.length
+  if (p in ORD_AT) return line[ORD_AT[p]] || null
+  if (p === 'last') return line[n - 1] || null
+  if (/^(?:middle|cent(?:er|re))$/.test(p)) return n >= 3 && n % 2 === 1 ? line[(n - 1) / 2] : null
+  const start = axis === 'row' ? ['left'] : ['top', 'upper'], end = axis === 'row' ? ['right'] : ['bottom', 'lower']
+  if (start.includes(p)) return line[0] || null
+  if (end.includes(p)) return line[n - 1] || null
+  return null                                                   // "the top chart in a row": no such place
+}
+/** The charts of one row / column, in order along it: the line through `through`, or the absolute one `which` names. */
+function lineOf(charts, axis, { through = null, which = null } = {}) {
+  const all = charts.filter(c => c.cell)
+  const along = (c) => (axis === 'row' ? c.cell.x : c.cell.y)
+  if (through) return all.filter(c => (axis === 'row' ? yOverlap(c, through) : xOverlap(c, through))).sort((a, b) => along(a) - along(b))
+  // the board's lines across the other axis, in order
+  const key = (c) => (axis === 'row' ? c.cell.y : c.cell.x)
+  const keys = [...new Set(all.map(key))].sort((a, b) => a - b)
+  const w = String(which || '').toLowerCase()
+  const i = /^(?:top|upper|first|left)$/.test(w) ? 0 : /^(?:bottom|lower|last|right)$/.test(w) ? keys.length - 1
+    : w in ORD_AT ? ORD_AT[w] : /^(?:middle|cent(?:er|re))$/.test(w) && keys.length % 2 === 1 ? (keys.length - 1) / 2 : -1
+  if ((axis === 'row' && /^(?:left|right)$/.test(w)) || (axis === 'column' && /^(?:top|upper|bottom|lower)$/.test(w))) return null
+  if (i < 0 || i >= keys.length) return null
+  return all.filter(c => key(c) === keys[i]).sort((a, b) => along(a) - along(b))
+}
+/** An ABSOLUTE line reference ("the last one in the bottom row") → { ref } | { ask } | null (not one). */
+export function absoluteLineChart(text, charts = []) {
+  const m = LINE_REF.exec(String(text || ''))
+  if (!m || m[2] || !m[3]) return null
+  const line = lineOf(charts, m[4].toLowerCase(), { which: m[3] })
+  const hit = line ? atPos(line, m[1], m[4].toLowerCase()) : null
+  return hit ? { ref: hit.ref, word: m[1].toLowerCase(), match: m }
+    : { ask: { text: 'Which chart do you mean? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+}
+function walkMatch(s) {
+  const at = (m, set) => { if (!m || placesNonChart(s.slice(0, m.index), m[0])) return null; Object.assign(m, set); return m }
+  const n = (w) => N_OF[String(w).toLowerCase()] || Number(w)
+  const vDir = (w) => (/^(up|higher|above)$/i.test(w) ? 'above' : 'below')
+  let m = WALK_V1.exec(s)
+  if (m) return at(m, { walk: { dirs: [vDir(m[2])], n: n(m[1]) } })
+  m = WALK_V2.exec(s)
+  if (m) return at(m, { walk: { dirs: [vDir(m[1])], n: n(m[2]) } })
+  m = WALK_H1.exec(s)
+  if (m) return at(m, { walk: { dirs: [m[2].toLowerCase()], n: n(m[1]) } })
+  m = WALK_H2.exec(s)
+  if (m) return at(m, { walk: { dirs: ['left', 'right'], n: n(m[1]) } })
+  m = LINE_REF.exec(s)
+  if (m && m[2]) return at(m, { line: { axis: m[4].toLowerCase(), pos: m[1] } })
+  m = SAME_BUT.exec(s)
+  if (m && m[1].toLowerCase() !== m[2].toLowerCase()) return at(m, { sameBut: m[1].toLowerCase() })
+  m = OTHER_SIDE.exec(s)
+  if (m) return at(m, { farLine: m[1].toLowerCase() })
+  m = SAME_CORNER.exec(s)
+  if (m) return at(m, { corner: m[1].toLowerCase() })
+  return null
+}
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
   const s = possessiveAnchor(text)
+  // a MOVE of the click ("move this one up one row", "shift this chart two over") names where it goes, not another chart
+  const moving = MOVE_VERB.test(s)
+  const w = moving ? null : walkMatch(s)
+  if (w) return w
   const r = relationMatchOf(s)
   if (r) return r
-  const c = COUNT_DIRECTION.exec(s)
+  const c = moving ? null : COUNT_DIRECTION.exec(s)
   if (c) { c.unplaced = true; return c }
   // the STRUCTURAL rule: a spatial word on a CHART reference anchored on the click (not on a non-chart noun: placesNonChart, and a
   // bare "one" that stands for a thing, S2-B) → a relation UCT may not place: the click is only its anchor
@@ -263,6 +352,16 @@ function sideOf(charts, s, side) {
 // unseen9 P1: the charts on the click's DIAGONAL (sharing neither a column nor a row with it). One → that chart. Several (a
 // 3×3 grid) → the one at the click's mirror point through the board's centre, when exactly one is there; otherwise all of them,
 // so the caller asks with their names. None (one row of charts) → none: the caller asks, never the click.
+const xOverlap = (a, b) => overlaps(a.cell.x, a.cell.x + a.cell.w, b.cell.x, b.cell.x + b.cell.w)
+const yOverlap = (a, b) => overlaps(a.cell.y, a.cell.y + a.cell.h, b.cell.y, b.cell.y + b.cell.h)
+/** The board's CORNER charts: a chart that touches both a left / right edge and a top / bottom edge of the whole board. */
+function cornersOf(charts) {
+  const all = charts.filter(c => c.cell)
+  if (!all.length) return []
+  const x0 = Math.min(...all.map(c => c.cell.x)), x1 = Math.max(...all.map(c => c.cell.x + c.cell.w))
+  const y0 = Math.min(...all.map(c => c.cell.y)), y1 = Math.max(...all.map(c => c.cell.y + c.cell.h))
+  return all.filter(c => (c.cell.x === x0 || c.cell.x + c.cell.w === x1) && (c.cell.y === y0 || c.cell.y + c.cell.h === y1))
+}
 function diagonalOf(charts, s) {
   const o = charts.filter(c => c.ref !== s.ref && c.cell)
   const diag = o.filter(c => !overlaps(c.cell.x, c.cell.x + c.cell.w, s.cell.x, s.cell.x + s.cell.w) && !overlaps(c.cell.y, c.cell.y + c.cell.h, s.cell.y, s.cell.y + s.cell.h))
@@ -308,6 +407,31 @@ export function relativeChart(text, charts = [], sel = null) {
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
   if (!s) return { hits: [], match: m, ...role, excluded: [] }
   if (m.unplaced) return { hits: [], match: m, ...role, excluded: [] }       // a relation, but no cell UCT can place: asked
+  if (m.walk || m.farLine || m.corner || m.line || m.sameBut) {
+    let hits = []
+    if (m.line) {
+      // the click's own row / column; the ordinal may land on the click (then it is the chart meant)
+      const hit = atPos(lineOf(charts, m.line.axis, { through: s }), m.line.pos, m.line.axis)
+      hits = hit ? [hit] : []
+    } else if (m.sameBut) {
+      hits = charts.filter(c => c.cell && c.ref !== s.ref && (m.sameBut === 'column' ? xOverlap(c, s) && !yOverlap(c, s) : yOverlap(c, s) && !xOverlap(c, s)))
+    } else if (m.walk) {
+      // each direction walked N unique steps; the directions that get there are the candidates
+      for (const dir of m.walk.dirs) {
+        let cur = s
+        for (let i = 0; cur && i < m.walk.n; i++) { const nx = sideOf(charts, cur, dir); cur = nx.length === 1 ? nx[0] : null }
+        if (cur) hits.push(cur)
+      }
+    } else if (m.farLine) {
+      const far = (dir) => { let at = s, last = null; for (let i = 0; i < charts.length; i++) { const nx = sideOf(charts, at, dir); if (nx.length !== 1) break; last = at = nx[0] } return last }
+      hits = (m.farLine === 'row' ? [far('left'), far('right')] : [far('above'), far('below')]).filter(Boolean)
+    } else {
+      hits = cornersOf(charts).filter(c => c.ref !== s.ref && (m.corner !== 'column' && yOverlap(c, s) || m.corner !== 'row' && xOverlap(c, s)))
+    }
+    if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+    if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+    return { hits, match: m, ...role, excluded: [] }
+  }
   if (m.neighbours) {
     // the click's neighbours in its row: "both neighbours / either side" = the SET (plural); an implicit "the chart next door" =
     // the one neighbour, when there is exactly one (else asked)
@@ -567,6 +691,8 @@ const ORD_WORDS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6
 // ("chart 5" is an ordinal only when no unit follows: "the chart 5 min" is a timeframe, never the fifth chart)
 export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last|middle|center|centre)\s+(?:chart|one)\b|\bchart\s+(?:#\s*)?([1-9])\b(?!\s*(?:(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|w|wk|wks|weeks?|mo|months?|x)\b|[%.:/-]))/i
 export function ordinalChart(text, charts = []) {
+  const abs = absoluteLineChart(text, charts)
+  if (abs) return abs
   const m = ORD_RE.exec(String(text || ''))
   if (!m) return null
   // "the second chart to the right of this": a COUNT of a relation from the click, not the board's second chart
