@@ -73,6 +73,7 @@
 // definition the chart is already drawing is never re-installed. A broken edit
 // must not brick a working indicator.
 
+import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
 import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
@@ -2242,7 +2243,7 @@ export default function BuilderSheet({
         onChange(req.settings)
         setValueNote(req.added
           ? 'Added to the chart, and its latest value is shown in the chart header.'
-          : `Added to the chart. ${req.reason}`)
+          : `Added to the chart. ${withoutGuardIds(req.reason)}`)
       } else {
         onChange(next)
       }
@@ -2659,7 +2660,7 @@ export default function BuilderSheet({
             const notice = openRow && openRow.repaint_notice
             return notice && typeof notice.sentence === 'string' ? (
               <p className={styles.pickerNote} role="status" data-testid="repaint-label-notice">
-                {notice.sentence}
+                {withoutGuardIds(notice.sentence)}
               </p>
             ) : null
           })()}
@@ -3611,10 +3612,10 @@ export default function BuilderSheet({
                     <strong>{o.label}</strong>{` is ${o.words}`}
                     {o.selected && (intent === INTENTS.SIGNAL ? ' — the signal' : ' — the value')}
                     {o.verdict.status === GATE_STATUS.REFUSED && !o.verdict.pending && (
-                      <span role="alert">{` — not available: ${o.verdict.reason}`}</span>
+                      <span role="alert">{` — not available: ${withoutGuardIds(o.verdict.reason)}`}</span>
                     )}
                     {o.verdict.status === GATE_STATUS.REFUSED && o.verdict.pending && ' — waiting for data'}
-                    {o.verdict.status === GATE_STATUS.DISCLOSED && ` — note: ${o.verdict.note}`}
+                    {o.verdict.status === GATE_STATUS.DISCLOSED && ` — note: ${withoutGuardIds(o.verdict.note)}`}
                   </li>
                 ))}
               </ul>
@@ -3863,7 +3864,7 @@ export default function BuilderSheet({
               sent. Cancel changes nothing; Remove and save is the explicit act. */}
           {objectLoss && (
             <div className={styles.discardBar} role="alertdialog" data-testid="object-loss-confirm">
-              <span data-testid="object-loss-sentence">{objectLoss.sentence}</span>
+              <span data-testid="object-loss-sentence">{withoutGuardIds(objectLoss.sentence)}</span>
               {objectLoss.reasons.length > 0 && (
                 <span data-testid="object-loss-reason">{` (${objectLoss.reasons.join('; ')}.)`}</span>
               )}

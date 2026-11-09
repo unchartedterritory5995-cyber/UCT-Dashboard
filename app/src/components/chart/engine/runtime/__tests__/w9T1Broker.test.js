@@ -7,7 +7,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { OP, IMPLEMENTED } from '../program.js'
-import { BROKER_RULE_IDS, BROKER_RULES } from '../brokerRules.js'
+import { BROKER_RULE_IDS, BROKER_RULES, PRESENTATION_RULE_IDS, PRESENTATION_RULES, isLedgerRuleId } from '../brokerRules.js'
 import RESOLVED from '../brokerPins.resolved.json'
 
 const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' }
@@ -72,8 +72,19 @@ describe('W9-T1 pinned(): the committed ledger is empty, so nothing serves', () 
     // W9-T5 r1: B-CANCEL's row is W9-X5 (queued on origin/fix/pine-capture-queue-hygiene d1a6cb9fb3)
     expect(err.message).toMatch(/capture row W9-X5/)
   })
-  it('the rule table is the only vocabulary: the ledger can name nothing outside it', () => {
-    for (const r of Object.keys(RESOLVED.rules)) expect(BROKER_RULE_IDS).toContain(r)
+  it('the rule tables are the only vocabulary: the ledger can name nothing outside them', () => {
+    // W9-T12: an emulator rule (BROKER_RULE_IDS) or a presentation rule (PRESENTATION_RULE_IDS)
+    for (const r of Object.keys(RESOLVED.rules)) expect(isLedgerRuleId(r), r).toBe(true)
+    // CONTROL: the check can fail -- an unknown id, a prototype key and a non-string are refused
+    expect(isLedgerRuleId('NO-SUCH-RULE')).toBe(false)
+    expect(isLedgerRuleId('toString')).toBe(false)
+    expect(isLedgerRuleId(undefined)).toBe(false)
+    expect(isLedgerRuleId('B-PATH')).toBe(true)
+    expect(isLedgerRuleId('MK-LOOK')).toBe(true)
+    expect(PRESENTATION_RULE_IDS).toEqual(['MK-LOOK'])
+    expect(PRESENTATION_RULES['MK-LOOK'].capture).toBe('W9-MK1')
+    // a presentation rule is never an emulator rule
+    for (const id of PRESENTATION_RULE_IDS) expect(BROKER_RULE_IDS).not.toContain(id)
     for (const id of BROKER_RULE_IDS) expect(BROKER_RULES[id].what.length).toBeGreaterThan(5)
   })
   it('RAIL: the test-only pin predicate is named in vm.js only (broker.js takes it as data.isPinned)', () => {
