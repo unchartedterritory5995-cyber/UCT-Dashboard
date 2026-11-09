@@ -30,7 +30,7 @@ const rows = areas.map(area => {
   return { area, inScope, p0,
     dExec: count(D, area, r => r.executed), pExec: count(P, area, r => r.executed),
     dP0: count(D, area, r => r.p0 && r.executed), pP0: count(P, area, r => r.p0 && r.executed),
-    dStale: DS ? Object.entries(DS.ledger.rows).filter(([id, r]) => r.area === area && r.p0 && r.executed && !D.ledger.rows[id]?.executed).length : 0,
+    dStale: DS ? Object.entries(DS.ledger.rows).filter(([id, r]) => r.area === area && r.executed && !D.ledger.rows[id]?.executed).length : 0,
     dTeach: count(D, area, r => r.teach === 'VERIFIED'), pTeach: count(P, area, r => r.teach === 'VERIFIED') }
 })
 const tot = (k) => rows.reduce((n, r) => n + r[k], 0)
@@ -45,12 +45,12 @@ const md = [
   '',
   '**Method.** Scripted model (BROWSER-MOCK-MODEL) in a local headless browser on the agent harness with fixture data, plus the `src/agent` vitest suite of the same tree, counted by `recount.mjs`. An execution row counts when every test its inventory evidence cites passed, or when every browser request naming the row passed (one failure takes it out). Refusals, how-to and unsupported requests never count as execution. Walkthrough rows are the VERIFIED rows of that tree\'s own `CHARTS_TEACH_STATUS.md`: the recount cannot re-prove a walkthrough. A request names every row of its family, so browser counts are an upper bound.',
   '',
-  line(['Family (area)', 'In scope', 'Exec D', 'Exec P', 'P0 rows', 'P0 D', 'P0 P', ...(DS ? ['P0 D: covered by test, docs stale (not in P0 D)'] : []), 'Walkthrough D', 'Walkthrough P', 'R']),
+  line(['Family (area)', 'In scope', 'Exec D', 'Exec P', 'P0 rows', 'P0 D', 'P0 P', ...(DS ? ['Exec D: covered by a passing test, docs stale (not in Exec D)'] : []), 'Walkthrough D', 'Walkthrough P', 'R']),
   line(Array(DS ? 11 : 10).fill('---')),
   ...rows.map(r => line([r.area, r.inScope, r.dExec, r.pExec, r.p0, r.dP0, r.pP0, ...(DS ? [r.dStale] : []), r.dTeach, r.pTeach, 'not measured'])),
   line(['**Total**', tot('inScope'), tot('dExec'), tot('pExec'), tot('p0'), tot('dP0'), tot('pP0'), ...(DS ? [tot('dStale')] : []), tot('dTeach'), tot('pTeach'), 'not measured']),
-  ...(DS ? ['', '**P0 rows covered by a passing test on D whose status document is stale** (a separate column, never added to P0 D):', '', line(['Row', 'Area', 'Action', 'Covering test (passed in this run)']), line(Array(4).fill('---')),
-    ...Object.entries(DS.ledger.rows).filter(([id, r]) => r.p0 && r.executed && !D.ledger.rows[id]?.executed).map(([id, r]) => line([id, r.area, RAISES[id]?.action || '', DS.execution.raisedByTest.includes(id) ? `\`${RAISES[id]?.file || ''}\`: ${RAISES[id]?.title || ''}` : 'browser'])) ] : []),
+  ...(DS ? ['', '**Rows covered by a passing test on D whose status document is stale** (its citation names no passing test this reader can match; a separate column, never added to Exec D or P0 D):', '', line(['Row', 'Area', 'P0', 'Action', 'Covering test (passed in this run on D)']), line(Array(5).fill('---')),
+    ...Object.entries(DS.ledger.rows).filter(([id, r]) => r.executed && !D.ledger.rows[id]?.executed).map(([id, r]) => line([id, r.area, r.p0 ? 'P0' : '', RAISES[id]?.action || '', DS.execution.raisedByTest.includes(id) ? `\`${RAISES[id]?.file || ''}\`: ${RAISES[id]?.title || ''}` : 'browser'])) ] : []),
   '',
   `Inputs: D = \`${D.ledger.source}\`; P = \`${P.ledger.source}\`.`,
   '',

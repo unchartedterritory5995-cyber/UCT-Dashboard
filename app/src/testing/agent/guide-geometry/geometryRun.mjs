@@ -8,10 +8,10 @@
 //   static   the ring's rect against the target's getBoundingClientRect, per edge, in CSS px (ring minus target: the overlay pads
 //            by its own `rectOf(el, 4)`, so a clean ring reads 4 px outside on every edge; the report gives the raw number)
 //   drag     (the resize corner) a continuous pointer drag of the corner, the ring and the handle sampled every animation frame
-//            in the page: per-frame offset between the ring and the handle in px, and how long ago the handle was where the ring
+//            in the page: per-frame distance between the ring's centre and the handle's centre in px, and how long ago the handle was where the ring
 //            is now (ms), plus how long after release the ring catches up
 //   scroll   the nearest scrollable ancestor of the target scrolled by 80 px: the same per-frame sampling while it moves
-// Matrix: 2 viewports x 2 boards x zoom 100 / 125 (125 = the zoom a browser applies: devicePixelRatio 1.25 and a CSS viewport
+// The ring is read by its rendered getBoundingClientRect (the fix places it by transform). Matrix: 2 viewports x 2 boards x zoom 100 / 125 (125 = the zoom a browser applies: devicePixelRatio 1.25 and a CSS viewport
 // 1/1.25 the size, set through CDP device metrics), plus a scrolled-container variant. A screenshot per case.
 import { parseArgs } from 'node:util'
 import { join } from 'node:path'
@@ -41,6 +41,7 @@ const q = (s) => JSON.stringify(s)
 // ── the targets: (a) a chart's edge (its boundary, top to bottom), (b) the resize corner, (c) a toolbar button, (d) a menu row,
 //    (e) a widget control. `sel` finds the candidates; the one the ring overlaps most is the target measured
 const TARGETS = {
+  plot: { kind: 'a chart boundary (chart.plot, after arming the trendline tool)', feature: 'drawing', detail: 'trendline', say: 'how do I draw a trendline on this chart', sel: '[data-guide="chart.plot"]', steps: [['clickRinged', '[data-guide="chart.tool.trendline"]'], ['waitRingOn', '[data-guide="chart.plot"]']] },
   edge: { kind: 'a chart boundary (resize edge)', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.e"],[data-guide="workspace.seam"]', steps: [] },
   corner: { kind: 'a chart-resize corner', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.se"]', steps: [['next']], drag: true },
   toolbar: { kind: 'a toolbar button (timeframe)', feature: 'timeframe', say: 'how do I change the timeframe on this chart', sel: '[data-guide="chart.timeframe"]', steps: [] },
@@ -85,25 +86,24 @@ const SAMPLER = (sel) => `(() => {
 })()`
 
 const PAD = 4
-// per-frame analysis: offset = how far each ring edge is from where a clean ring would sit (target padded by PAD), lag = how long
-// ago the target was where the ring is now
 function analyse(samples, tRelease) {
+  // per frame: the distance between the ring's centre and the target's centre (independent of the ring's shape: a padded box on
+  // master, a circle on a handle after the fix), and how long ago the target's centre was where the ring's centre is now
   const fr = samples.filter(s => s[1] && s[2])
-  const want = (t) => [t[0] - PAD, t[1] - PAD, t[2] + PAD, t[3] + PAD]
-  const off = (r, t) => { const w = want(t); return Math.max(...r.map((v, i) => Math.abs(v - w[i]))) }
+  const c = (b) => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]
+  const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1])
   const rows = fr.map(([ts, r, t], i) => {
-    const o = off(r, t)
+    const rc = c(r), o = d(rc, c(t))
     let lag = 0
-    if (o > 1) { lag = null; for (let j = i; j >= 0; j--) if (off(r, fr[j][2]) <= 1) { lag = ts - fr[j][0]; break } }
+    if (o > 1) { lag = null; for (let j = i; j >= 0; j--) if (d(rc, c(fr[j][2])) <= 1) { lag = ts - fr[j][0]; break } }
     return { ts, o, lag, during: tRelease == null || ts <= tRelease }
   })
   const pct = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1) + 0.5))].toFixed(1) }
   const dur = rows.filter(r => r.during)
   const offs = dur.map(r => r.o), lags = dur.map(r => r.lag).filter(x => x != null)
   let settle = null
-  if (tRelease != null) { const after = rows.filter(r => r.ts > tRelease); const firstGood = after.find((r, k) => after.slice(k).every(x => x.o <= 1)); settle = firstGood ? +(firstGood.ts - tRelease).toFixed(0) : 'never (within the window)' }
-  const ringMissing = samples.filter(s => !s[1]).length
-  return { frames: samples.length, framesBoth: fr.length, ringMissingFrames: ringMissing, offsetPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), p50: pct(offs, 0.5) },
+  if (tRelease != null) { const after = rows.filter(r => r.ts > tRelease); const k = after.findIndex((r, i) => after.slice(i).every(x => x.o <= 1)); settle = k >= 0 ? +(after[k].ts - tRelease).toFixed(0) : 'never (within the window)' }
+  return { frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), p50: pct(offs, 0.5) },
     lagMs: { max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
 }
 
@@ -120,13 +120,14 @@ async function runCase(ctx, c) {
     await p.b.waitFor(`window.__baRead().filter(w => w.type === 'chart').every(x => x.sym && x.canvases > 5)`, { timeout: 30000 })
     await p.settle()
     await p.select(B.roles[c.role].id)
-    await p.say(T.say, (body) => scripted({ plan: { ops: [{ action: 'guide.show', target: '$list:guide', args: { feature: T.feature, detail: null } }] } }, body, c.board))
+    await p.say(T.say, (body) => scripted({ plan: { ops: [{ action: 'guide.show', target: '$list:guide', args: { feature: T.feature, detail: T.detail || null } }] } }, body, c.board))
     await p.idle(20000)
     if (!(await p.b.waitFor(`!!document.querySelector('[data-testid="guide-ring"]')`, { timeout: 6000 }))) throw new Error('no ring after the request')
     await sleep(600)
     for (const s of T.steps) {
       if (s[0] === 'next') { await p.button('Next', '[data-testid="guide-card"]'); await sleep(700) }
       if (s[0] === 'clickRinged') { const at = await p.b.evaluate(`(() => { const ring = document.querySelector('[data-testid="guide-ring"]').getBoundingClientRect(); const c = [...document.querySelectorAll(${q(s[1])})].filter(e => e.getBoundingClientRect().width > 0); let b = null, bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left + r.width / 2 - ring.left - ring.width / 2, r.top + r.height / 2 - ring.top - ring.height / 2); if (d < bd) { b = r; bd = d } } return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null })()`); if (!at) throw new Error(`nothing ringed to click: ${s[1]}`); await p.b.click(at.x, at.y); await sleep(800) }
+      if (s[0] === 'waitRingOn') { const ok = await p.b.waitFor(`(() => { const g = document.querySelector('[data-testid="guide-ring"]')?.getBoundingClientRect(); if (!g) return false; return [...document.querySelectorAll(${q(s[1])})].some(e => { const r = e.getBoundingClientRect(); return r.width > 0 && Math.abs((r.left + r.right) / 2 - (g.left + g.right) / 2) < 40 && Math.abs((r.top + r.bottom) / 2 - (g.top + g.bottom) / 2) < 40 }) })()`, { timeout: 5000 }); if (!ok) throw new Error(`the ring never reached ${s[1]}`); await sleep(700) }
       if (s[0] === 'waitSel') { if (!(await p.b.waitFor(`!!document.querySelector(${q(s[1])})`, { timeout: 5000 }))) throw new Error(`never appeared: ${s[1]}`); await sleep(700) }
     }
     if (c.scroll) {
@@ -140,11 +141,11 @@ async function runCase(ctx, c) {
         await sleep(900)
         const samples = await p.b.evaluate('(window.__geo.on = false, window.__geo.s)')
         ev.scrollTrack = analyse(samples.filter(s => s[0] >= t0), null)
-        ev.scrollTrack.settleMs = (() => { const fr = samples.filter(s => s[0] >= t0 && s[1] && s[2]); const ok = (s) => [s[2][0] - PAD, s[2][1] - PAD, s[2][2] + PAD, s[2][3] + PAD].every((v, i) => Math.abs(v - s[1][i]) <= 1); const k = fr.findIndex((s, i) => fr.slice(i).every(ok)); return k >= 0 ? +(fr[k][0] - t0).toFixed(0) : 'never (within 900 ms)' })()
+        ev.scrollTrack.settleMs = (() => { const fr = samples.filter(s => s[0] >= t0 && s[1] && s[2]); const ok = (s) => Math.hypot((s[1][0] + s[1][2] - s[2][0] - s[2][2]) / 2, (s[1][1] + s[1][3] - s[2][1] - s[2][3]) / 2) <= 1; const k = fr.findIndex((s, i) => fr.slice(i).every(ok)); return k >= 0 ? +(fr[k][0] - t0).toFixed(0) : 'never (within 900 ms)' })()
       }
     }
     const m = await p.b.evaluate(MEASURE(T.sel))
-    ev.static = { ...m, edgeOutsidePx: edges(m), widgetVsRing: m.ring && m.widget ? { top: +(m.widget.top - m.ring.top).toFixed(2), bottom: +(m.ring.bottom - m.widget.bottom).toFixed(2) } : null }
+    ev.static = { ...m, edgeOutsidePx: edges(m), centreDistPx: m.ring && m.target ? +Math.hypot((m.ring.left + m.ring.right - m.target.left - m.target.right) / 2, (m.ring.top + m.ring.bottom - m.target.top - m.target.bottom) / 2).toFixed(2) : null, widgetVsRing: m.ring && m.widget ? { left: +(m.widget.left - m.ring.left).toFixed(2), top: +(m.widget.top - m.ring.top).toFixed(2), right: +(m.ring.right - m.widget.right).toFixed(2), bottom: +(m.ring.bottom - m.widget.bottom).toFixed(2) } : null }
     if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
     if (T.drag && m.target) {
       // a continuous drag of the corner: press, move in small steps (one per ~16 ms), release; every frame sampled in the page
@@ -189,7 +190,7 @@ for (const c of list) {
   if (/stopped answering|chrome did not come up/.test(ev.crash || '')) { await freeProfile(ctx.profile); ev = await runCase(ctx, c) }
   rows.push(ev)
   const e = ev.static?.edgeOutsidePx
-  say(`${ev.crash ? 'CRASH' : 'OK'} ${c.id}${ev.crash ? ` ${ev.crash.slice(0, 200)}` : ` edges(out px) L${e?.left} T${e?.top} R${e?.right} B${e?.bottom}${ev.drag ? ` drag offset max ${ev.drag.offsetPx.max} p95 ${ev.drag.offsetPx.p95} lag max ${ev.drag.lagMs.max}ms p95 ${ev.drag.lagMs.p95}ms settle ${ev.drag.settleAfterReleaseMs}` : ''}${ev.scrollTrack ? ` scroll offset max ${ev.scrollTrack.offsetPx.max} settle ${ev.scrollTrack.settleMs}` : c.scroll ? " no scroller" : ""}`}`)
+  say(`${ev.crash ? 'CRASH' : 'OK'} ${c.id}${ev.crash ? ` ${ev.crash.slice(0, 200)}` : ` edges(out px) L${e?.left} T${e?.top} R${e?.right} B${e?.bottom} centre ${ev.static?.centreDistPx}${ev.drag ? ` drag centre max ${ev.drag.centreDistPx.max} p95 ${ev.drag.centreDistPx.p95} lag max ${ev.drag.lagMs.max}ms p95 ${ev.drag.lagMs.p95}ms settle ${ev.drag.settleAfterReleaseMs}` : ''}${ev.scrollTrack ? ` scroll centre max ${ev.scrollTrack.centreDistPx.max} settle ${ev.scrollTrack.settleMs}` : c.scroll ? " no scroller" : ""}`}`)
   writeFileSync(join(A.out, 'results.geometry.json'), JSON.stringify({ MODE, label: A.label, pad: PAD, rows }, null, 1))
 }
 R.close?.()
