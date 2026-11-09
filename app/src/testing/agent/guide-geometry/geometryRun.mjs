@@ -197,6 +197,18 @@ async function runCase(ctx, c) {
     const m = await p.b.evaluate(MEASURE(T.sel))
     ev.static = { ...m, edgeOutsidePx: edges(m), centreDistPx: m.ring && m.target ? +Math.hypot((m.ring.left + m.ring.right - m.target.left - m.target.right) / 2, (m.ring.top + m.ring.bottom - m.target.top - m.target.bottom) / 2).toFixed(2) : null, widgetVsRing: m.ring && m.widget ? { left: +(m.widget.left - m.ring.left).toFixed(2), top: +(m.widget.top - m.ring.top).toFixed(2), right: +(m.ring.right - m.widget.right).toFixed(2), bottom: +(m.ring.bottom - m.widget.bottom).toFixed(2) } : null }
     if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}.png`)).catch(() => {})
+    if (c.target === 'plot' && m.ring && m.target && m.widget) {
+      const fit = (box) => ({ left: +(box.left - m.ring.left).toFixed(1), top: +(box.top - m.ring.top).toFixed(1), right: +(m.ring.right - box.right).toFixed(1), bottom: +(m.ring.bottom - box.bottom).toFixed(1),
+        uncoveredPx: { top: Math.max(0, +(m.ring.top - box.top).toFixed(1)), bottom: Math.max(0, +(box.bottom - m.ring.bottom).toFixed(1)), left: Math.max(0, +(m.ring.left - box.left).toFixed(1)), right: Math.max(0, +(box.right - m.ring.right).toFixed(1)) } })
+      ev.wholeChart = { note: 'ring outside the box per edge (px, positive = ring outside); uncoveredPx = how much of the box the ring leaves out', vsPlot: fit(m.target), vsCell: fit(m.widget) }
+      // one picture per box: the box outlined (cyan) under the ring, nothing else changed
+      for (const [name, box] of [['plot', m.target], ['cell', m.widget]]) {
+        await p.b.evaluate(`(() => { const d = document.createElement('div'); d.id = '__geoBox'; Object.assign(d.style, { position: 'fixed', left: '${box.left}px', top: '${box.top}px', width: '${box.width}px', height: '${box.height}px', outline: '2px dashed #00e5ff', zIndex: 2147483647, pointerEvents: 'none' }); document.body.appendChild(d); return 1 })()`)
+        await sleep(120)
+        if (ctx.shots) await p.shot(join(ctx.shots, `${c.id}-vs-${name}.png`)).catch(() => {})
+        await p.b.evaluate(`document.getElementById('__geoBox')?.remove()`)
+      }
+    }
     if (T.drag && m.target && !c.stop) {
       const f = c.zoom / 100
       await p.b.evaluate(SAMPLER(T.sel))
