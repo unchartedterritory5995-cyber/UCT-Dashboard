@@ -361,7 +361,7 @@ export const GUIDE_FEATURES = [
     // pages/Watchlists.jsx — the + in a list's header
     id: 'watchlistAddSymbol', terms: ['add to a watchlist'], control: 'the + on the list', title: 'Adding a ticker to a watchlist', topic: 'watchlists',
     // ⭐ cov-1: a ticker by its own name counts too ("put NVDA on my watchlist"): one word between the verb and its list
-    words: [/\badd\b.*\b(tickers?|symbols?|stocks?|names?)\b.*\b(watch ?lists?|lists?)\b/, /\b(add|put|stick|throw|save)\s+(?!(an?|the|this|that|another|columns?)\b)[a-z][a-z.]{0,5}\s+(on|to|into|in)\s+(my|a|the|this|that|one of my)\s+((?!(surge|scope|volume)\b)\w+\s+)?(watch ?lists?|lists?)\b/,/\b(watch ?lists?|lists?)\b.*\badd\b.*\b(tickers?|symbols?|stocks?)\b/],
+    words: [/\b(add|put|stick|throw|get)\b.*\b(tickers?|symbols?|stocks?|names?)\b.*\b(on|to|into|in)\b.*\b(watch ?lists?|lists?)\b/, /\b(add|put|stick|throw|save)\s+(?!(an?|the|this|that|another|columns?)\b)[a-z][a-z.]{0,5}\s+(on|to|into|in)\s+(my|a|the|this|that|one of my)\s+((?!(surge|scope|volume)\b)\w+\s+)?(watch ?lists?|lists?)\b/,/\b(watch ?lists?|lists?)\b.*\badd\b.*\b(tickers?|symbols?|stocks?)\b/],
     caps: ['watchlist.show'],
     explain: 'Open a list in a Watchlist widget, click the + in its header and type the ticker. Alt+Q adds the chart’s ticker to a list.',
     steps: [

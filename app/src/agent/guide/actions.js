@@ -169,13 +169,49 @@ const rowMenu = (id, name, say, more = []) => [
 ]
 // a row's render is pinned byte for byte (Watchlists.entitykeys.test.jsx), so these are the row's own attributes
 const HEAD = { widgetType: WL, aria: 'Sort by Symbol' }
+// ⭐ the list's own ⚙ and the panel it opens (pages/watchlist/WatchlistSettingsPanel.jsx, portalled: watchlist.settings)
+const WL_GEAR = { widgetType: WL, guide: 'widget.settings' }
+const inWlSettings = (t) => ({ within: 'watchlist.settings', ...t })
+const openWlSettings = (result) => [...OPEN_LIST, { target: WL_GEAR, name: '⚙', text: 'Click ⚙ in this list’s top bar.', waitFor: result }]
+// the list picker, from a widget showing a list (‹ Lists) or a new widget: a mode step the member takes, highlighted
+const TO_PICKER = [
+  { target: { widgetType: WL, guide: 'watchlist.lists' }, name: '‹ Lists', text: 'Click ‹ Lists on this widget: new lists start in the list picker.', optional: true, waitFor: PICKER },
+  ...onBoard(WL, 'Watchlist', PICKER),
+]
 export const WATCHLIST_ACTIONS = [
+  // ⭐ cov-5 widget teaching: a new list that starts from a saved watchlist look (WatchlistPicker's create form → Template)
+  { id: 'fromTemplate', label: 'Creating a list from a template', re: /\b(new|create|creating|make|making|start|starting|build)\b.*\btemplates?\b|\btemplates?\b.*\b(new|create|make|start)\b.*\b(watch ?)?lists?\b/, steps: [
+    ...TO_PICKER,
+    { target: { within: 'watchlist.picker', aria: 'New watchlist' }, name: '＋ New', text: 'Click ＋ New to start a list.', waitFor: { within: 'watchlist.picker', aria: 'New watchlist name' } },
+    { target: [{ within: 'watchlist.picker', label: 'Template' }, { within: 'watchlist.picker', aria: 'New watchlist name' }], name: 'Template', text: 'Type a name, choose a saved look under Template, then click Create: the new list starts with that look.', altText: 'You have no saved watchlist looks yet, so there’s no Template here. Save one from ⚙ → ＋ Save as Template on a list first.' },
+  ] },
+  // a saved watchlist LOOK (the settings panel's Templates bar): open one, or keep this one
+  { id: 'look', label: 'A saved watchlist look', re: /\btemplates?\b|\b(save|saved|load|apply|use|reuse|keep|my)\b.*\blooks?\b|\blooks?\b.*\b(save|saved|template|again)\b/, steps: [
+    ...openWlSettings(inWlSettings({ attr: 'title', value: 'Open a saved watchlist look' })),
+    { target: [inWlSettings({ attr: 'title', value: 'Open a saved watchlist look' }), inWlSettings({ attr: 'title', value: 'Save the current watchlist look as a reusable template' })], name: 'Templates', text: 'Templates ▾ opens a saved look and applies it to this list. ＋ Save as Template beside it keeps this look under a name.' },
+  ] },
+  // the widget's look: canvas, text, colours, gridlines, tick tint, logos (never a colour TAG on a ticker)
+  { id: 'appearance', label: 'Changing a watchlist’s look', re: /^(?!.*\btags?\b).*\b(colou?rs?|background|canvas|fonts?|text( size)?|bigger|smaller|tint|flash|grid ?lines?|appearance|logos?|look|style|theme)\b/, steps: [
+    ...openWlSettings(inWlSettings({ label: 'Canvas' })),
+    { target: [inWlSettings({ label: 'Canvas' }), inWlSettings({ label: 'Watchlist Settings' })], name: 'Watchlist Settings', text: 'Canvas, text size, text colour, gridlines, tick flash and logos are here. They change this widget only; ↺ Reset puts them back.' },
+  ] },
+  // a ticker's attention facts: the Attention column (a cell's facts are its tooltip; a row's own render is pinned, so the column is rung)
+  { id: 'attention', label: 'A ticker’s attention facts', re: /\battention\b|\bwhy\b.*\b(flagged|highlighted|marked|noted|notable)\b/, steps: [
+    ...OPEN_LIST,
+    { target: HEAD, name: 'the column titles', text: 'Right-click any column title.', waitFor: 'watchlist.colMenu' },
+    { target: { within: 'watchlist.colMenu', label: 'Attention' }, name: 'Attention', text: 'Tick Attention to show its column. Then point at a ticker’s Attention cell: it lists why that ticker needs a look.' },
+  ] },
+  // the order of a list's columns: drag a title onto another (pages/Watchlists.jsx header drag)
+  { id: 'columnOrder', label: 'Reordering a list’s columns', re: /^(?!.*\b(wider|narrower|resiz\w*|widths?|widen)\b).*(\b(move|drag|reorder|re-order|rearrange|order|shuffle|swap)\b.*\bcolumns?\b|\bcolumns?\b.*\b(around|order|to the (left|right)|first|last)\b)/, steps: [
+    ...OPEN_LIST,
+    { target: HEAD, name: 'the column titles', text: 'Drag a column’s title and drop it on another: the column moves there.' },
+  ] },
   { id: 'flagged', label: 'Opening the Flagged list', re: /\b(open|see|view|show|find)\b.*\bflagged\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: 'watchlist.pickFlagged', name: 'Flagged', text: 'Click Flagged to open the tickers you’ve flagged.' }] },
   { id: 'flag', label: 'Flagging a ticker', re: /\b(flag|unflag|star)\b|\b(add|put)\b.*\b(to|on|in|into)\b.*\bflagged\b/, steps: [...OPEN_LIST, { target: { widgetType: WL, attr: 'title', value: 'Add to Flagged (Shift+F)' }, name: 'the star', text: 'Click a row’s star to add it to Flagged, or take it off. With a row selected, Shift+F does the same.' }] },
   { id: 'prebuilt', label: 'Opening a prebuilt list', re: /\b(prebuilt|pre-built|community|uct'?s?) (watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: PICKER, name: 'the list picker', text: 'The tabs at the top of the picker hold My Lists, Prebuilt and Community. Open one and click a list.' }] },
   // ⭐ cov-1: one of the member's own lists, opened in the widget ("show my Momentum list")
   { id: 'openList', label: 'Opening one of your lists', re: /\b(open|load|show|pull up|bring up|switch to|go to)\s+(up\s+)?(one of\s+)?(my|my own|another|other|a different|a saved|one of my)\s+(\w+\s+)?(watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: PICKER, name: 'your lists', text: 'Click one of your lists to open it in this widget. The tabs at the top hold My Lists, Prebuilt and Community.' }] },
-  { id: 'remove', label: 'Removing a ticker from a list', re: /\b(remove|delete|take off|take out|get rid of)\b.*\b(tickers?|symbols?|stocks?|names?|from)\b|\b(take|pull|drop)\b.+\b(off|out of)\b.*\b(watch ?)?lists?\b/, steps: rowMenu('remove', 'Remove from watchlist', 'Click Remove from watchlist.') },
+  { id: 'remove', label: 'Removing a ticker from a list', re: /\b(remove|delete|drop|take off|take out|get rid of)\b.*\b(tickers?|symbols?|stocks?|names?|from)\b|\b(take|pull|drop)\b.+\b(off|out of)\b.*\b(watch ?)?lists?\b/, steps: rowMenu('remove', 'Remove from watchlist', 'Click Remove from watchlist.') },
   { id: 'note', label: 'A note on a ticker', re: /\bnotes?\b/, steps: rowMenu('notes', 'Notes', 'Click Notes: a note box opens under the ticker, and it saves as you type.') },
   { id: 'research', label: 'Research on a ticker', re: /\b(research|ask ai|ai about)\b/, steps: rowMenu('research', 'Full Research', 'Click Full Research, or Ask AI just below it.') },
   { id: 'compare', label: 'Comparing a ticker from the list', re: /\bcompar\w+\b/, steps: rowMenu('compare', 'Compare', 'Click Compare, then pick the other ticker.') },
