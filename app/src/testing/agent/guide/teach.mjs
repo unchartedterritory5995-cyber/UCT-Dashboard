@@ -1,7 +1,7 @@
 // UCT Agent VISUAL TEACHING — the browser runner that proves a walkthrough rings the real control (dev-only, never bundled).
 //
 //   One line (from app/, with the dev server up on 127.0.0.1:5302 — see README in this folder):
-//     node src/testing/agent/guide/teach.mjs [--filter <regex on id or words>] [--out <file.json>]
+//     node src/testing/agent/guide/teach.mjs [--filter <regex on id or words>] [--out <file.json>] [--cases <file.json>]
 //
 // Cases: cases.inventory.json (made by `GUIDE_CASES_OUT=src/testing/agent/guide/cases.inventory.json npx vitest run
 // src/agent/agentGuideInventory`): an inventory row's OWN words, kept only when they reach the walkthrough a person assigned
@@ -22,7 +22,9 @@ import path from 'node:path'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const arg = (name) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : null }
-const CASES = JSON.parse(readFileSync(path.join(HERE, 'cases.inventory.json'), 'utf8'))
+// --cases <file>: another case set of the same shape (a held-out set's own phrasings); the children read it through the env
+const CASES_FILE = process.env.TEACH_CASES_FILE || arg('--cases') || path.join(HERE, 'cases.inventory.json')
+const CASES = JSON.parse(readFileSync(CASES_FILE, 'utf8'))
 
 if (!process.env.TEACH_CASE) {
   // ── the driver: one child per case ──
@@ -31,7 +33,7 @@ if (!process.env.TEACH_CASE) {
   const picked = CASES.map((c, i) => [c, i]).filter(([c]) => !filter || filter.test(c.id) || filter.test(c.say))
   const results = []
   for (const [c, i] of picked) {
-    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, TEACH_CASE: String(i) }, encoding: 'utf8', timeout: 150000 })
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, TEACH_CASE: String(i), TEACH_CASES_FILE: CASES_FILE }, encoding: 'utf8', timeout: 150000 })
     let rec = null
     try { rec = JSON.parse(String(r.stdout).trim().split('\n').filter(l => l.startsWith('{"')).pop()) } catch { rec = null }
     if (!rec) rec = { ...c, pass: false, error: r.error ? String(r.error.message || r.error) : `no result (exit ${r.status}) ${String(r.stderr).slice(-300)}` }
@@ -75,7 +77,7 @@ const STATE = `(async () => {
   const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
   // the ringed control's own parts: a row's handlers sit on one of its cells (a list row's menu is on its symbol cell)
   const kids = el ? [...el.children].slice(0, 8).map(k => k.getBoundingClientRect()).filter(b => b.width > 4 && b.height > 4).map(b => ({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) })) : []
-  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your own lists|Click a list/i.test(step.text), chartRef: st.chartRef || null }
+  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
 
 // ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart

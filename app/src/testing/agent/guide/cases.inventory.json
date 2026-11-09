@@ -714,10 +714,28 @@
   "title": "Seeing what’s on a chart"
  },
  {
+  "id": "C2-024",
+  "say": "show me how to make RSI 7",
+  "feature": "indicatorEdit",
+  "title": "Changing RSI’s settings"
+ },
+ {
   "id": "C2-025",
   "say": "how do I change select setting (MA type, source)",
   "feature": "indicatorEdit",
   "title": "Changing MA’s settings"
+ },
+ {
+  "id": "C2-029",
+  "say": "show me how to calculate this RSI on the weekly",
+  "feature": "indicatorEdit",
+  "title": "Changing RSI’s settings"
+ },
+ {
+  "id": "C2-031",
+  "say": "show me how to make MACD bars blue when rising",
+  "feature": "indicatorColor",
+  "title": "Changing the colour of MACD"
  },
  {
   "id": "C2-039",
@@ -1122,6 +1140,12 @@
   "title": "An alert from a grid chart"
  },
  {
+  "id": "C3-063",
+  "say": "show me how to show my Momentum list",
+  "feature": "watchlistAction",
+  "title": "Opening one of your lists"
+ },
+ {
   "id": "C3-064",
   "say": "how do I open a prebuilt or community list",
   "feature": "watchlistAction",
@@ -1162,6 +1186,12 @@
   "say": "how do I delete a list",
   "feature": "control",
   "title": "Deleting a watchlist"
+ },
+ {
+  "id": "C3-077",
+  "say": "how do I add to Flagged",
+  "feature": "watchlistAction",
+  "title": "Flagging a ticker"
  },
  {
   "id": "C3-078",
@@ -1234,6 +1264,12 @@
   "say": "how do I sort a scan",
   "feature": "widgetAction",
   "title": "Sorting a scan"
+ },
+ {
+  "id": "C3-114",
+  "say": "how do I change scan columns",
+  "feature": "widgetAction",
+  "title": "Choosing a scan’s columns"
  },
  {
   "id": "C3-120",
