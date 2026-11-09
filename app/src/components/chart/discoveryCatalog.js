@@ -748,6 +748,19 @@ export function securityResults(rows, { tf, bars, universes } = {}) {
 }
 
 /**
+ * Is this discovery result a DELISTED security? `securityResults` marks one by
+ * the server's own flag (`delisted: true` / `type: 'delisted'`) as a `security`
+ * whose category is `delisted` and whose capability is UNSUPPORTED with a
+ * `delisted …` reason. Read here, in the module that wrote it, so a surface that
+ * leaves them out (the indicator library) never re-derives the shape.
+ */
+export function isDelistedResult(res) {
+  if (!res || res.kind !== 'security') return false
+  if (res.category === 'delisted') return true
+  return res.capability === CAPABILITY.UNSUPPORTED && /^delisted\b/.test(String(res.capabilityReason || ''))
+}
+
+/**
  * THE TWO NAMES A DISCOVERY RESULT CARRIES ONTO ITS INSTANCE.
  *
  * ⚰️⚰️ BECAUSE COLLAPSING A BREADTH SERIES TO ITS UNIVERSE WAS THE BUG. The

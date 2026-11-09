@@ -1,0 +1,19 @@
+//@version=5
+strategy("vw-s1-q-s1f-exit-no-from", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-S1f of
+// docs/pine/capture-queue-2026-10-05-s1.md (the row implies an open long for the reversal: entered on bar 50). One behaviour, no licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: an exit with no from_entry, called on one bar only, then a reversal short a few bars later: does `x` fill against the short trade?
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults, Strategy properties at the script's own defaults (Properties tab untouched);
+// export the Strategy Tester List of trades as CSV beside the capture (the doc's header).
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+if bar_index == 50
+    strategy.entry("L", strategy.long)
+if bar_index == 52
+    strategy.exit("x", loss = 500)
+if bar_index == 55
+    strategy.entry("S", strategy.short)
+plot(strategy.position_size, "P01_position_size")

@@ -31,6 +31,10 @@ import { resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 export const INDICATOR_OWNED_TOP_KEYS = Object.freeze([
   'indicatorInstances', 'indicators', 'overlays', 'paneOrder', 'paneSizes', 'paneSeriesOrder',
   'volumeOverlayIndicators', 'infoValues',
+  // ⭐ VA2 (UCT RS §17.8) — the member's "Save as my default" inputs, per definition
+  // (`engine/instanceControls.saveInstanceAsDefault`). Owned here so Restore
+  // Defaults, a preset and the Agent's whole-look writes carry it over unchanged.
+  'indicatorDefaults',
 ])
 
 /** The longest prefilled request. A seed is the member's own words, edited and sent

@@ -308,7 +308,8 @@ test('D4: ?study=unit&unit=<id> opens that unit\'s sheet on the trail', () => {
 test('the panel\'s buttons write ?study=today&session=<id> and ?study=practise; Up next writes ?study=unit', () => {
   mockStudy = { '/api/study/map': studyMapFixture(), '/api/study/today': studyTodayFixture() }
   renderSection()
-  fireEvent.click(screen.getByRole('button', { name: "Start today's Study" }))
+  // the home's hero carries today's one button (2026-11-08); the panel keeps the streak, XP today and Up next
+  fireEvent.click(screen.getByTestId('study-start-today'))
   expect(screen.getByTestId('loc').textContent).toContain('study=today')
   expect(screen.getByTestId('loc').textContent).toContain('session=sess-1')
 
@@ -324,7 +325,10 @@ test('the panel\'s buttons write ?study=today&session=<id> and ?study=practise; 
     profile: { xp: 80, streak: 1, last_done_day: '2026-10-17', daily_goal: 50 },
   }
   renderSection()
-  fireEvent.click(screen.getByRole('button', { name: 'Practise' }))
+  // a finished day: the hero's one button reads Practise more and opens the practise sheet
+  const hero = screen.getAllByTestId('study-start-today').at(-1)
+  expect(hero).toHaveTextContent('Practise more')
+  fireEvent.click(hero)
   expect(screen.getAllByTestId('loc').some((el) => el.textContent.includes('study=practise'))).toBe(true)
 })
 

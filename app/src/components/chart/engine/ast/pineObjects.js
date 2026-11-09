@@ -35,6 +35,11 @@
 // decides no legality, so this file's rosters stay the only authority on which
 // members exist.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+// ⭐ W6-T6 — the `for … in` walk rule, one table for both lanes.
+import {
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, REASSIGN_OPS, COLLECTION_MUTATORS,
+  bodyMayWriteList as bodyMayWriteListRule, forInMutationRefusal,
+} from './forInRule.js'
 import { MAX_COLLECTION_CAP } from './objectProgram.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
@@ -42,6 +47,7 @@ import {
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
   barInvariantNames, guardIsBarInvariant, guardIsLastBarOnly, oneExecutionBody, callOwnedSeriesFor,
   oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, literalInit, isMutator,
+  collectionFamilies, familyOfCollection, ELEMENT_METHODS,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -293,12 +299,8 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
 const COLLECTION_CALLS = Object.freeze(new Set(['push', 'unshift', 'set', 'remove', 'clear', 'pop', 'shift']))
-/** ⭐ C11b — every operator that REASSIGNS an existing name (Pine reference). */
-const REASSIGN_OPS = Object.freeze(new Set([':=', '+=', '-=', '*=', '/=', '%=']))
-/** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
- *  pass does not carry leaves a drawing collection diverged. */
-const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
-  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat']))
+// ⭐ C11b `REASSIGN_OPS` and C16 `COLLECTION_MUTATORS` (one this pass does not carry leaves a
+// drawing collection diverged) live in `forInRule.js` (W6-T6), the one table both lanes read.
 
 /**
  * Walk the statement tree and pull out every object operation, with the guard
@@ -380,12 +382,17 @@ export function collectObjectOps(stmts, h) {
    *  previous instances of. Collected over the WHOLE tree before the walk, since
    *  Pine lets a definition sit below its first use inside another function. */
   const defined = new Set()
+  // ⭐ r2 (IDX-DELETE r1 review): the names defined with the `method` KEYWORD —
+  // the only definitions dot syntax can reach. A plain function `cell(t, …) =>`
+  // never shadows `t.cell(…)`, so the shadow checks read THIS set.
+  const definedMethods = new Set()
   const scanDefs = (list) => {
     for (const s2 of list || []) {
       const ts = s2.header || []
       if (ts.length > 1) {
         if (ts[0].kind === 'ident' && ts[0].value === 'method' && ts[1].kind === 'ident') {
           defined.add(String(ts[1].value))
+          definedMethods.add(String(ts[1].value))
         } else if (ts[0].kind === 'ident' && h.isPunct(ts[1], '(')
             && h.findTop(ts, (x) => h.isPunct(x, '=>')) > 0) {
           const bare = splitMethodName(String(ts[0].value))
@@ -397,6 +404,7 @@ export function collectObjectOps(stmts, h) {
   }
   scanDefs(stmts)
   const isDefined = (name) => defined.has(name)
+  const isDefinedMethod = (name) => definedMethods.has(name)
 
   // ── ⭐⭐ USER FUNCTIONS THAT DRAW — inlined at each call site ──────────────
   // See `objectFnInline.js` for the measurement and the Pine semantics. A
@@ -404,7 +412,16 @@ export function collectObjectOps(stmts, h) {
   // it is CALLED, under the call's guards, with its own per-call-site locals.
   const fnDefs = readFunctionDefs(stmts, h)
   const objColls = objectCollections(stmts, h)
-  const drawing = drawingFunctions(fnDefs, objColls)
+  // ⭐ the family each named collection holds, top-level and `type` fields alike
+  const collFams = collectionFamilies(stmts, h)
+  // ⭐ the script's own `type` names (gap (c))
+  const userTypes = new Set()
+  for (const s0 of stmts || []) {
+    const ht = s0.header || []
+    const at = ht[0] && ht[0].value === 'export' ? 1 : 0
+    if (ht[at] && ht[at].kind === 'ident' && ht[at].value === 'type' && ht[at + 1] && ht[at + 1].kind === 'ident') userTypes.add(String(ht[at + 1].value))
+  }
+  const drawing = drawingFunctions(fnDefs, objColls, collFams)
   const drawFns = new Set([...drawing].filter((n) => !fnDefs.get(n).isMethod))
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
   const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
@@ -519,7 +536,7 @@ export function collectObjectOps(stmts, h) {
   const refuseCall = (why, fn, st, detail) => {
     const def = fnDefs.get(fn)
     const effects = why === 'return-type' ? { kinds: {}, families: [], creates: [] }
-      : def ? bodyEffects(def, fnDefs, objColls)
+      : def ? bodyEffects(def, fnDefs, objColls, collFams)
         : { kinds: { delete: 1 }, families: [null], creates: [null] }
     diagnostics.refusedCalls.push({
       why, fn, line: st && st.header && st.header[0] ? st.header[0].line : null,
@@ -1193,6 +1210,16 @@ export function collectObjectOps(stmts, h) {
       const assign = h.findTop(t, (x) => h.isPunct(x, ':=')) >= 0
         ? h.findTop(t, (x) => h.isPunct(x, ':='))
         : h.findTop(t, (x) => h.isPunct(x, '='))
+      // ⭐ gap (c): `p = P.new(box.new(…))` — a drawing created into a user type's
+      // SCALAR field. Its only handle is `p.b`, which this program holds no
+      // register for: named and counted (`refuseFieldCreates`), never silent.
+      // ⛔ It falls through afterwards: the statement still binds `p` for the
+      // statements after it (the block scope below), and no reader emits an op
+      // for a `<UserType>.new` right-hand side.
+      if (assign > 0 && t[assign + 1] && t[assign + 1].kind === 'ident'
+          && userTypes.has(String(nsOf(String(t[assign + 1].value)) || '')) && methodOf(String(t[assign + 1].value)) === 'new') {
+        refuseFieldCreates(t.slice(assign + 2), null)
+      }
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
@@ -1403,6 +1430,12 @@ export function collectObjectOps(stmts, h) {
       if (!word && h.isPunct(t[0], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
         continue
       }
+      // ⭐ THE SAME STATEMENT ON A HISTORY RECEIVER: `l[1].delete()`. ⚰️ It opens
+      // with `l [`, so neither branch above nor the bare-call branch below read
+      // it — the removal vanished with no op and no count (STRAT-COLOR review).
+      if (word && h.isPunct(t[1], '[') && emitPostfix(t, guards, inLoop, st, localScope)) {
+        continue
+      }
 
       // ── a bare call statement ────────────────────────────────────────────
       if (word && h.isPunct(t[1], '(')) {
@@ -1419,7 +1452,11 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_MUTATORS.has(method)) {
             const a = argsOf(t)
             const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
-            if (c && decls.get(c) && decls.get(c).kind === 'coll') loseColl(c, `coll:${method}`, t[0])
+            // ⭐ gap (a): a create written INTO the change (`array.insert(a, i,
+            // box.new(…))`) is not carried with it — named and counted, never
+            // left to vanish with the list's divergence.
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') { loseColl(c, `coll:${method}`, t[0]); refuseFieldCreates(t, c, true) }
+            else if (refuseFieldCreates(t, c)) continue
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -1609,53 +1646,17 @@ export function collectObjectOps(stmts, h) {
   // `clear`, a reassignment, a helper handed the list — no row), a bounded
   // numeric window changed by its body, and a loop variable that takes over a
   // name another statement declared.
-  const ALL_FAMILIES = Object.freeze({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
-  /** ⭐ C48 — the ways a body may change the list it walks that a capture shows
-   *  (`vw-forin-collections`, F03 / F04 / F05). */
-  const FOR_IN_LIVE_WITNESSED = Object.freeze(new Set(['shift', 'push', 'set']))
+  // ⭐ W6-T6 — the snapshot sources and the witnessed mutations (`FOR_IN_LIVE_WITNESSED`) are
+  // ONE table, `forInRule.js`, read by this lane and the runtime lane alike.
+  const ALL_FAMILIES = FOR_IN_SNAPSHOT_SOURCES
   const refuseForIn = (why, t) => {
     diagnostics.forInRefused.push(`${why}@${t[0] && t[0].line !== undefined ? t[0].line : '?'}`)
     return null
   }
-  /** Does this statement list (at any depth, and through any user function it
-   *  calls) change the list `name` — a mutating member, a reassignment, or a
-   *  user function that is handed it or names it? ⭐ C48 — `allowed`: mutating
-   *  members that do not count (the question becomes "by anything ELSE?"). */
-  const bodyMayWriteList = (list, name, allowed = null) => {
-    const seenFns = new Set()
-    let scan = null
-    const scanToks = (toks) => {
-      for (let i = 0; i < toks.length; i += 1) {
-        const tk = toks[i]
-        if (!tk || tk.kind !== 'ident') continue
-        const v = String(tk.value)
-        const nx = toks[i + 1]
-        if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
-        if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && h.isPunct(nx, '(')
-            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) {
-          if (allowed && allowed.has(v.slice(6))) continue
-          return true
-        }
-        const m = splitMethodName(v)
-        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) {
-          if (allowed && allowed.has(m.method)) continue
-          return true
-        }
-        const fn = fnDefs.has(v) ? v : (m && fnDefs.has(m.method) ? m.method : null)
-        if (!fn || !h.isPunct(nx, '(')) continue
-        const close = closeOf(toks, i + 1)
-        const args = close > 0 ? toks.slice(i + 2, close) : toks.slice(i + 2)
-        if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) return true
-        if (!seenFns.has(fn)) {
-          seenFns.add(fn)
-          if (scan(fnDefs.get(fn).body)) return true
-        }
-      }
-      return false
-    }
-    scan = (items) => (items || []).some((s2) => scanToks(s2.header || []) || scan(s2.sub))
-    return scan(list)
-  }
+  /** Does this statement list change the list `name`? (`forInRule.js::bodyMayWriteList`.) */
+  const bodyMayWriteList = (list, name, allowed = null) => bodyMayWriteListRule(list, name, {
+    allowed, isPunct: h.isPunct, isDefined, fnDefs,
+  })
   const mentionsName = (list, name) => (list || []).some((s2) => (s2.header || [])
     .some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name) || mentionsName(s2.sub, name))
   /** `for x in SRC` / `for [i, x] in SRC` → `{kind, idx, elem, src, family}` for
@@ -1708,7 +1709,7 @@ export function collectObjectOps(stmts, h) {
     const liveWalk = !ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)
     if (liveWalk && isWindow) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
     if (liveWalk && bodyMayWriteList(st.sub, src, FOR_IN_LIVE_WITNESSED)) {
-      return refuseForIn(`the body changes \`${src}\`, the list it walks, by more than push / shift / set`, t)
+      return refuseForIn(forInMutationRefusal(src), t)
     }
     if (isWindow) return { kind: 'window', idx, elem, src, family: null }
     if (elemName !== elem) {
@@ -2354,6 +2355,12 @@ export function collectObjectOps(stmts, h) {
     try { node = h.parseWholeExpression(toks) } catch { return false }
     if (!node || node.type !== 'method') return false
     const recv = node.recv
+    // ⭐⭐ A VALUE RECEIVER — `l[1].delete()`, `(up ? a : b).delete()`. See
+    // `emitOnValueReceiver`: the name form with the receiver moved back, or a
+    // refusal by name. ⚰️ Before it, both shapes produced no op and no count.
+    if (recv && (recv.type === 'offset' || recv.type === 'ternary')) {
+      return emitOnValueReceiver(node, toks, guards, inLoop, st, scope)
+    }
     // ⛔ THE ONE RECEIVER `targetRef` CAN ADDRESS. A `name` receiver never
     // reaches here — the parser folds `(b).delete()` back into the dotted name
     // `b.delete`, which is the bare-call branch's business — so this is the
@@ -2390,12 +2397,12 @@ export function collectObjectOps(stmts, h) {
     const asMethod = recv.name === 'array.get'
       ? recv
       : (methodFormCall(recv, receiverNs, isDefined) || {}).node
-    if (!asMethod || asMethod.name !== 'array.get') return false
+    if (!asMethod || asMethod.name !== 'array.get') return refuseChainedElement(node, recv)
     if (!Array.isArray(asMethod.args) || asMethod.args.length !== 2) return false
     const cn = asMethod.args[0] && asMethod.args[0].value
     const collName = cn && cn.type === 'name' ? cn.name : null
     const d = collName ? decls.get(collName) : null
-    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return false
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return refuseChainedElement(node, recv)
     const method = node.name
     if (method.startsWith('get_')) { diagnostics.getters.push(`${d.family}.${method}`); return true }
     if (inLoop) { diagnostics.loopBlocked.push(`${d.family}.${method}`); return true }
@@ -2405,6 +2412,173 @@ export function collectObjectOps(stmts, h) {
     // target and the drawing would address nothing.
     emitMethodOn(d.family, method, { name: null, value: asMethod, tok: toks[0] },
       node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⭐⭐ A DRAWING CREATED STRAIGHT INTO A LIST THIS PROGRAM DOES NOT HOLD —
+   *  `k._box.unshift(box.new(…))`, `array.push(k._box, line.new(…))`,
+   *  `k._box.insert(0, …)` / `.set(i, …)` on a user type's FIELD (or any list
+   *  this pass never declared). ⚰️ Before this every such statement fell through
+   *  each reader with no op and no count: the boxes were simply missing, and the
+   *  member was told nothing.
+   *
+   *  ⛔ WITHHELD BY NAME, WITH A COUNT, NEVER SERVED AS A BARE CREATE. Pine draws
+   *  the object at `box.new`, but its only handle lives in a list this program
+   *  has no register for, so every later step on it (a setter, a `pop().delete()`,
+   *  a `box.delete(k._box.get(0))`) is unaddressable — serving the create would put
+   *  objects on screen that TradingView moves or removes. Coordinator ruling
+   *  2026-11-08: such creates are lost by name (`<family>.new` in `unsupported`,
+   *  one `content:lost` each in the converter, `fieldCreates`), the rest of the
+   *  script keeps serving. A create that ALSO lands in a register (`b = box.new(…)`
+   *  then `k._box.push(b)`) is served by its own statement and never reaches here.
+   *  @returns {boolean} true when the statement named a create and was refused. */
+  function refuseFieldCreates(toks, coll, force = false) {
+    if (!force && coll && decls.get(coll) && decls.get(coll).kind === 'coll') return false
+    const fams = []
+    for (const x of toks || []) {
+      if (!x || x.kind !== 'ident' || x.member) continue
+      const v = String(x.value)
+      const ns = nsOf(v)
+      if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(v) === 'new') fams.push(ns)
+    }
+    if (!fams.length) return false
+    if (!diagnostics.fieldCreates) diagnostics.fieldCreates = []
+    for (const f of fams) {
+      diagnostics.unsupported.push(`${f}.new`)
+      diagnostics.fieldCreates.push(f)
+    }
+    return true
+  }
+
+  /** ⭐⭐ A REMOVAL OR SETTER ON A CHAINED ELEMENT THIS PROGRAM DOES NOT HOLD —
+   *  `k._box.pop().delete()` on a `type` field, `x.shift().delete()` on a list it
+   *  never declared. Pine's reference states the semantics (`array.pop` "removes
+   *  the last element from an array and returns its value"; the `delete` method
+   *  is `box.delete(id)` on it), but the list lives where the object program has
+   *  no register (a user type's field), so it cannot be EXECUTED, only named.
+   *
+   *  ⛔ REFUSED BY NAME, WITH ITS FAMILY: `box.delete` in `unsupported`. The door
+   *  classifies it as a removal (`classifyReaderName`) that reaches only a chart
+   *  that draws that family — so the rest of the script (a table the capture
+   *  matches) is not refused for a box removal no box on screen could feel.
+   *  ⚰️ Before this, the statement fell through every branch with no op and no
+   *  count. A declared object list (`decls`) is never claimed here: its own
+   *  readers answer (`poppedFrom`, `emitMethodForm`'s `array.first`). */
+  function refuseChainedElement(node, recv) {
+    const method = String(node.name || '')
+    if (!(method === 'delete' || method.startsWith('set_'))) return false
+    const name = String((recv && recv.name) || '')
+    let coll = null
+    let m = null
+    if (name.startsWith('array.') || name.startsWith('map.')) {
+      m = name.slice(name.indexOf('.') + 1)
+      const a = recv.args && recv.args[0] && recv.args[0].value
+      if (a && a.type === 'name') coll = a.name
+    } else {
+      const sp = splitMethodName(name)
+      if (sp) { m = sp.method; coll = sp.recv }
+    }
+    if (!coll || !ELEMENT_METHODS.includes(m) || isDefinedMethod(m)) return false
+    const d = decls.get(coll)
+    if (d && d.kind === 'coll') return false
+    const fam = familyOfCollection(coll, collFams)
+    // ⛔ r2 (CHAINED-REMOVAL review, M6): a user `method delete(T)` is what Pine
+    // calls when the ELEMENT is the user's type (`TWA.pop().delete()` on an
+    // `array<TimeWindow>`), so an element of no drawing family is the user's.
+    // On a list the declaration names as drawings, Pine dispatches on the element
+    // type: the built-in — refused by name below, never dropped in silence.
+    if (!fam && isDefinedMethod(method)) return false
+    diagnostics.unsupported.push(`${fam || 'object'}.${method}`)
+    // ⭐ A NAMED family's removal is carried to the converter, which withholds
+    // that family's objects (`removalWithheldFamilies` in `pine.js`).
+    if (method === 'delete' && fam) {
+      if (!diagnostics.chainedRemovals) diagnostics.chainedRemovals = []
+      diagnostics.chainedRemovals.push(fam)
+    }
+    return true
+  }
+
+  /** The drawing family a VALUE receiver holds, read off the declarations —
+   *  `l[1]` → `l`'s family; a ternary → the one family every non-`na` arm names.
+   *  Null when the tokens cannot name exactly one family. */
+  function valueReceiverFamily(v) {
+    if (!v) return null
+    if (v.type === 'name') {
+      const d = decls.get(v.name)
+      return d && d.kind !== 'coll' && OBJECT_NAMESPACES.includes(d.family) ? d.family : null
+    }
+    if (v.type === 'offset') return v.arg && v.arg.type === 'name' ? valueReceiverFamily(v.arg) : null
+    if (v.type === 'ternary') {
+      const arms = [v.yes, v.no].filter((a) => !(a && a.type === 'name' && a.name === 'na'))
+      const fams = arms.map(valueReceiverFamily)
+      return fams.length && fams.every((f) => f && f === fams[0]) ? fams[0] : null
+    }
+    return null
+  }
+
+  /** ⭐⭐ `l[1].delete()` IS `line.delete(l[1])` — A METHOD ON A VALUE RECEIVER.
+   *
+   *  Pine's v6 reference lists the METHOD `delete` with `originalName`
+   *  `line.delete` (label/box/table/linefill/polyline alike) and `thisType`
+   *  `series line`: `id.delete()` IS `<ns>.delete(id)`. The history form is
+   *  witnessed by the reference's own examples (`input.string`, `input.time`):
+   *  `label.delete(l[1])` — `l[1]` is the id the variable held on the previous
+   *  bar. (⚰️ This said "the `line.delete` reference example is
+   *  `line.delete(l[1])`"; there is no such example — review IDX-DELETE.) So the method form is lowered to EXACTLY the name form's op —
+   *  same family (from the declaration, never the method name), same target node,
+   *  same emitter (`emitMethodOn`) — and from there it is served or refused
+   *  wherever the name form is: `l[n]` on a declared handle resolves to
+   *  `{r:'reg', back:n}`; a ternary target does not resolve and is dropped as
+   *  `<k>:target`, the name form's own named drop.
+   *
+   *  ⛔⛔ WHAT THE TOKENS CANNOT NAME A FAMILY FOR IS REFUSED BY NAME, NEVER
+   *  LEFT TO FALL THROUGH. ⚰️ Before this, `l[1].delete()` opened with `l [` and
+   *  no branch read it; `(c ? a : b).delete()` reached `emitPostfix` and was
+   *  answered false. Both emitted no op and no count — the removal vanished and a
+   *  member's chart kept every object the author deleted. A `delete` or `set_*`
+   *  whose family is unknown is `object.<method>` in `unsupported` (classified a
+   *  removal / a lost setter by name, `classifyReaderName`).
+   *
+   *  ⛔⛔ A USER METHOD OF THE SAME NAME IS REFUSED BY NAME (`shadowedDrawingMethod`):
+   *  on a receiver this pass KNOWS is a drawing, which of the two Pine calls is a
+   *  question the tokens cannot settle, so neither is guessed and nothing is
+   *  dropped in silence (ruling, IDX-DELETE review C). On any other receiver the
+   *  script's own method wins and the statement is the inliner's business. */
+  function emitOnValueReceiver(node, toks, guards, inLoop, st, scope) {
+    const method = String(node.name || '')
+    if (!method) return false
+    if (isDefinedMethod(method)) {
+      const sf = valueReceiverFamily(node.recv)
+      return sf ? shadowedDrawingMethod(method, sf) : false
+    }
+    const fam = valueReceiverFamily(node.recv)
+    if (!fam) {
+      if (method === 'delete' || method.startsWith('set_')) {
+        diagnostics.unsupported.push(`object.${method}`)
+        return true
+      }
+      return false
+    }
+    if (method.startsWith('get_')) { diagnostics.getters.push(`${fam}.${method}`); return true }
+    if (inLoop) { diagnostics.loopBlocked.push(`${fam}.${method}`); return true }
+    emitMethodOn(fam, method, { name: null, value: node.recv, tok: toks[0] },
+      node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⛔⛔ A USER `method <m>` SHADOWING A DRAWING METHOD, CALLED ON A DRAWING.
+   *  `method delete(T this) => …` beside `l.delete()` / `l[1].delete()` on a
+   *  declared `line`: Pine dispatches on the receiver's type, but whether a user
+   *  method may also take a built-in type's name is not something this pass can
+   *  settle from the tokens — so it is REFUSED BY NAME as `object.<m>` (a removal
+   *  that reaches, `classifyReaderName`), never dropped. ⚰️ Before this both forms
+   *  fell through every branch with no op and no count (IDX-DELETE review, C).
+   *  @returns {boolean} true when it owned (and refused) the statement. */
+  function shadowedDrawingMethod(method, family) {
+    if (!/^(delete|copy|clear|cell|merge_cells)$|^set_|^cell_set_/.test(method)) return false
+    // ⭐ r2: named with the receiver's family (`table.clear`, `line.delete`), so
+    // `classifyReaderName` rates it as what it is (a table clear removes cells).
+    diagnostics.unsupported.push(`${family || 'object'}.${method}`)
     return true
   }
 
@@ -2422,9 +2596,15 @@ export function collectObjectOps(stmts, h) {
     // is checked BEFORE the declaration lookup so that a shadowing definition
     // takes the statement back even when the receiver is a perfectly good
     // collection, which is exactly the case the corpus writes.
-    if (isDefined(method)) return false
+    if (isDefinedMethod(method)) {
+      const sd = decls.get(recv)
+      return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method, sd.family)
+    }
     const d = decls.get(recv)
-    if (!d) return false
+    // ⭐ gap (b): `m.put(k, label.new(…))` / `map.put(m, k, …)` — a map of drawings
+    // is a list this program does not hold either.
+    if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method) || method === 'put')
+      && refuseFieldCreates(toks, recv)
     const ns = d.kind === 'coll' ? 'array' : d.family
     const args = argsOf(toks)
     // ⛔ THE SPAN GUARD'S ANSWER IS A COUNTED DROP, NOT SILENCE. `argsOf` returns
@@ -2436,6 +2616,7 @@ export function collectObjectOps(stmts, h) {
       if (!COLLECTION_CALLS.has(method)) {
         diagnostics.unsupported.push(`array.${method}`)
         if (COLLECTION_MUTATORS.has(method)) loseColl(recv, `coll:${method}`, toks[0])
+        refuseFieldCreates(toks, recv, true)                     // gap (a), method form
         return true
       }
       if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(recv, `loop:array.${method}`, toks[0]); return true }
@@ -2454,7 +2635,7 @@ export function collectObjectOps(stmts, h) {
     if (!args || !args.length) return
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
-    if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
+    if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') { refuseFieldCreates(toks, collName); return }
     // ⛔⛔ AFTER THE RELEVANCE CHECK, NEVER BEFORE IT — MASTER'S TASK 1, AND THIS
     // MERGE PUT IT BACK THE WRONG WAY ROUND ONCE. `array` is Pine's one generic
     // namespace, so a scratch `array.new_float()` calls the same method spellings
@@ -2797,7 +2978,7 @@ export function collectObjectOps(stmts, h) {
    *  removal whose family the tokens cannot name is `object.delete`, which the
    *  door classifies as a removal (`classifyReaderName`), never as nothing. */
   function loopBodyEffects(def, fnName, st) {
-    const fx = bodyEffects(def, fnDefs, objColls)
+    const fx = bodyEffects(def, fnDefs, objColls, collFams)
     const kinds = { ...(fx.kinds || {}) }
     for (const fam of fx.families || []) {
       const clear = fam === 'table' && (kinds.clear || 0) > 0
