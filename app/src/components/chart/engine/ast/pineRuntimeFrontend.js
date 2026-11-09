@@ -64,7 +64,7 @@ import {
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 // ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
-import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS } from '../runtime/broker.js'
+import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS, BROKER_OPS } from '../runtime/broker.js'
 import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError } from './strategyBroker.js'
 // W9-T1 - the build flag is NOT read here: this module is in the server compute closure, which bakes
 // no VITE_* name (serverBundle.rail, hostNeutralClosure.rail). The member door (memberPaneDefinition.js,
@@ -7996,7 +7996,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const args = node.args || []
           if (BROKER_TRADE_FNS.includes(node.name) && args.length === 1
               && (!args[0].name || args[0].name === 'trade_num')) {
-            return brokerCall(node.name, [lowerExpr(args[0].value, scope)], 'number')
+            // W9-T7-F1: an order id / comment read is TEXT (`BROKER_OPS[...].returns`, the one table)
+            return brokerCall(node.name, [lowerExpr(args[0].value, scope)], BROKER_OPS[node.name].returns)
           }
           note('runtime:strategy-value')
           throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}()\``, locate(node.tok))

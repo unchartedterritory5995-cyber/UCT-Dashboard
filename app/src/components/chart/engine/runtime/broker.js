@@ -27,6 +27,7 @@
 
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf, RISK_RULES } from './brokerRules.js'
+import { exitIdOf } from './strategyRecord.js'
 
 export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 export const BROKER_START_GUARD = 'runtime:strategy-start'
@@ -78,12 +79,14 @@ export const BROKER_OPS = Object.freeze({
   // ⭐⭐ W9-T7 — `oca_*`, `strategy.order`, the exit's `qty` / `qty_percent` / `trail_*`, and the
   // close's `qty` / `qty_percent` / `immediately` are parameters now (each behind its own rule,
   // `brokerRules.js`); `when` stays LAST so `vm.js`'s positional spread needs no special case.
-  'strategy.entry': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'when'], returns: 'void' },
-  'strategy.order': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'when'], returns: 'void' },
-  'strategy.close': { params: ['id', 'qty', 'qty_percent', 'immediately', 'when'], returns: 'void' },
-  'strategy.close_all': { params: ['immediately', 'when'], returns: 'void' },
+  // ⭐⭐ W9-T7-F1 — the `comment*` labels ride too, for the ORDER LOG only (`ORDER_COMMENT_PARAMS`): no fill,
+  // size or price reads them. The front end passes a LITERAL comment and nothing else (`ast/strategyBroker.js`).
+  'strategy.entry': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'comment', 'when'], returns: 'void' },
+  'strategy.order': { params: ['id', 'direction', 'qty', 'limit', 'stop', 'oca_name', 'oca_type', 'comment', 'when'], returns: 'void' },
+  'strategy.close': { params: ['id', 'qty', 'qty_percent', 'immediately', 'comment', 'when'], returns: 'void' },
+  'strategy.close_all': { params: ['immediately', 'comment', 'when'], returns: 'void' },
   'strategy.exit': { params: ['id', 'from_entry', 'qty', 'qty_percent', 'profit', 'limit', 'loss', 'stop',
-    'trail_price', 'trail_points', 'trail_offset', 'when'], returns: 'void' },
+    'trail_price', 'trail_points', 'trail_offset', 'comment', 'comment_profit', 'comment_loss', 'comment_trailing', 'when'], returns: 'void' },
   'strategy.cancel': { params: ['id', 'when'], returns: 'void' },
   'strategy.cancel_all': { params: ['when'], returns: 'void' },
   // ── values ──
@@ -113,7 +116,18 @@ export const BROKER_OPS = Object.freeze({
   // ⭐ W9-T5: the fees a trade paid (R6: "the sum of entry and exit fees paid in the ... trade")
   'strategy.closedtrades.commission': { params: ['trade_num'], returns: 'number' },
   'strategy.opentrades.commission': { params: ['trade_num'], returns: 'number' },
+  // ⭐⭐ W9-T7-F1 — a trade's order ids and comments, read off the ORDER LOG (the one authority the record's
+  // `orders` and `trades.exitId` are built from). TEXT values (`returns: 'string'`, as a drawing op's text).
+  'strategy.opentrades.entry_id': { params: ['trade_num'], returns: 'string' },
+  'strategy.opentrades.entry_comment': { params: ['trade_num'], returns: 'string' },
+  'strategy.closedtrades.entry_id': { params: ['trade_num'], returns: 'string' },
+  'strategy.closedtrades.entry_comment': { params: ['trade_num'], returns: 'string' },
+  'strategy.closedtrades.exit_id': { params: ['trade_num'], returns: 'string' },
+  'strategy.closedtrades.exit_comment': { params: ['trade_num'], returns: 'string' },
 })
+
+/** ⭐ W9-T7-F1 — the order commands' label parameters (`BROKER_OPS`): logged, never read by a fill. */
+export const ORDER_COMMENT_PARAMS = Object.freeze(['comment', 'comment_profit', 'comment_loss', 'comment_trailing'])
 
 /** The values the broker serves (no arguments) — the front end's vocabulary. */
 export const BROKER_VALUE_NAMES = Object.freeze(Object.keys(BROKER_OPS)
@@ -213,6 +227,79 @@ export function makeBroker(cfg, data) {
   let mintick = NaN
   let pointvalue = NaN
   let seq = 0
+
+  // ─── ⭐⭐ W9-T7-F1: THE ORDER LOG ───────────────────────────────────────────
+  /**
+   * One row per order this broker HELD, in the order it placed them: what the script asked, and what
+   * became of it (placed, then filled, cancelled or rejected, and why).
+   *
+   * ⛔⛔ A RECORD OF THIS BROKER'S RUN, NOT A RULE. Every log line writes AFTER the broker decided, asks no
+   * rule and cannot throw (no `rule`, no `needSymbol`): no fill, size, price, refusal or number value reads
+   * the log, so a run with it is the run without it. The only readers are the record (`summary`) and the
+   * TEXT values (`strategy.*trades.entry_id` / `exit_id` / `*_comment`), which read it because it is the one
+   * authority over a trade's order ids and comments.
+   *
+   * Rows (`kind`):
+   *  - `entry` / `order`: one per order object `placeOrder` holds; a modification ([B-MODIFY]) is the same row;
+   *  - `close` / `close_all`: one per market close queued (a second call on one bar is no new order,
+   *    [B-CLOSE]), or filled on its own tick (`immediately`, [B-IMMEDIATELY]). Its `id` is null: TradingView
+   *    names such an exit itself (R6 `comment`: "instead of the automatically generated exit identifier") and
+   *    no text states the name; `from` is the entry id it closes (null for close_all);
+   *  - `exit`: one per exit command AND trade it is bound to ([B-EXIT-BIND]): the bracket (take-profit,
+   *    stop-loss, trailing stop) that command places for that trade. An exit waiting on an unfilled entry
+   *    has no row yet (R6 `strategy.exit`: "the strategy waits and does not create the exit orders until
+   *    after the entry order executes"); nor has one that MAY cover the trade a reversal opened (Q-S1f).
+   *
+   * ⭐ ONE AUTHORITY PER LINK: which trades a row opened or closed is NOT kept on the row. Each trade carries
+   * the row that opened it (`oid`) and each closed trade the row that closed it (`xid`); `summary` derives
+   * the rows' `opened` / `closed` lists from them.
+   */
+  const log = []
+  /** the bar the broker is working on (a command's bar, or the bar whose fills are being walked) */
+  let nowBar = -1
+  /** the row whose fill is closing trades right now (`closeTrade` / `closePart` stamp it as `xid`) */
+  let closingRow = null
+  /** A label as the log keeps it: `undefined` (not passed) and '' are no comment; a text is kept; anything
+   *  else is a comment the front end did not hand over (an expression: `ast/strategyBroker.js` passes only a
+   *  literal), which the log marks unrecorded rather than guess. */
+  const labelOf = (v) => (v === undefined || v === '' ? { text: null, recorded: true }
+    : typeof v === 'string' ? { text: v, recorded: true } : { text: null, recorded: false })
+  const logRow = (fields) => {
+    const r = { n: log.length + 1, ...fields, placedTime: timeOf(nowBar), modifiedTime: null, triggerTime: null,
+      status: 'placed', why: null, endTime: null, fillTime: null, fillPrice: null, fillQty: null, rule: null, leg: null }
+    log.push(r)
+    return r
+  }
+  const rowOf = (n) => (Number.isInteger(n) && n >= 1 && n <= log.length ? log[n - 1] : null)
+  /** a row that ended without a fill: `cancelled` or `rejected`, and why */
+  const endRow = (r, status, why) => {
+    if (!r || r.status !== 'placed') return
+    r.status = status
+    r.why = why
+    r.endTime = timeOf(nowBar)
+  }
+  const logFill = (r, bar, price, qty, leg) => {
+    if (!r) return
+    r.status = 'filled'
+    r.fillTime = timeOf(bar)
+    r.fillPrice = price
+    r.fillQty = qty
+    r.rule = fillRule
+    if (leg) {
+      r.leg = leg
+      // R6 `strategy.exit` `comment_profit` / `_loss` / `_trailing`: "the Strategy Tester and the chart show this text
+      // for the order instead of the specified `id` or `comment`"; `comment`: "The command ignores this value if the
+      // call includes an argument for a `comment_*` parameter that applies to the order."
+      const own = r.legComments ? r.legComments[leg] : undefined
+      if (own) { r.comment = own.text; r.commentRecorded = own.recorded }
+    }
+  }
+  /** close-side bookkeeping around a fill that closes trades: `fn` runs with `closingRow` = row `r` */
+  const closingWith = (r, fn) => {
+    const keep = closingRow
+    closingRow = r ? r.n : null
+    try { return fn() } finally { closingRow = keep }
+  }
 
   /** open trades, oldest first: `{ entryId, dir, qty, price, bar, exact }` */
   const open = []
@@ -344,8 +431,12 @@ export function makeBroker(cfg, data) {
     const exitFee = feeOf(t.qty, price)
     open.splice(i, 1)
     closed.push({ ...t, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact, profit: (price - t.price) * t.dir * t.qty,
-      commission: t.fee + exitFee })
-    for (const x of exits) { x.trades.delete(t); x.maybe.delete(t); x.res.delete(t) }
+      commission: t.fee + exitFee, xid: closingRow })
+    for (const x of exits) {
+      x.trades.delete(t); x.maybe.delete(t); x.res.delete(t)
+      // W9-T7-F1: the bracket an exit placed for this trade goes with it (the row that filled is already `filled`)
+      endRow(x.rows.get(t), 'cancelled', 'trade-closed')
+    }
   }
   /** ⭐ W9-T7 — close `units` of trade `t`: the whole trade, or a split (a closed trade of `units`,
    *  the open one keeps the rest, its entry price, bar and id). [B-EXIT-QTY] [B-CLOSE-QTY] [B-ORDER] */
@@ -355,7 +446,7 @@ export function makeBroker(cfg, data) {
     // (W9-T5: a partial size is a T7 kind, and a T7 kind with a cost refuses at its call, `t7DefaultTimingOnly`,
     // so no fee is ever split here)
     closed.push({ ...t, qty: units, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact,
-      profit: (price - t.price) * t.dir * units, commission: 0 })
+      profit: (price - t.price) * t.dir * units, commission: 0, xid: closingRow })
     t.qty -= units
   }
   /** ⭐ W9-T7 — close `units` of the position, OLDEST trade first ([B-FIFO]; R6 `strategy.close`
@@ -390,6 +481,8 @@ export function makeBroker(cfg, data) {
     if (exits.length) rule('B-EXIT-LIFE')
     // [B-EXIT-LIFE] an exit with no `from_entry` lives until the position closes; one
     // with a `from_entry` lives while it still has a trade or an unfilled entry to exit.
+    // (W9-T7-F1: an exit dropped here has no live bracket left: every trade it was bound to was closed, and
+    // `closeTrade` ended that bracket's row, or it filled)
     if (open.length === 0) exits = exits.filter((x) => !x.all && (x.trades.size > 0 || x.orders.size > 0))
     else exits = exits.filter((x) => x.all || x.trades.size > 0 || x.orders.size > 0)
   }
@@ -433,19 +526,25 @@ export function makeBroker(cfg, data) {
     if (!o.oca) return
     for (const e of entries.slice()) {
       if (e === o || !e.oca || e.oca.name !== o.oca.name || e.oca.type !== o.oca.type) continue
-      if (o.oca.type === 'cancel') dropEntry(e)
-      else { e.qty -= q; if (!(e.qty > 0)) dropEntry(e) }
+      if (o.oca.type === 'cancel') dropEntry(e, 'oca-cancel')
+      else {
+        e.qty -= q
+        if (e.row) e.row.qty = e.qty
+        if (!(e.qty > 0)) dropEntry(e, 'oca-reduce')
+      }
     }
   }
-  const dropEntry = (e) => {
+  const dropEntry = (e, why) => {
     entries = entries.filter((x) => x !== e)
     for (const x of exits) x.orders.delete(e)
+    endRow(e.row, 'cancelled', why)
   }
   /** ⭐ W9-T7 — a new open trade from order `o`, bound to the exits waiting for it. */
   const openTrade = (o, price, bar, exact, reversed) => {
     riskFill(bar)
     // W9-T5: `fee` is the entry fill's fee, paid now (0 with no commission)
-    const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule, fee: feeOf(o.qty, price) }
+    const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule, fee: feeOf(o.qty, price),
+      oid: o.row ? o.row.n : null }
     open.push(t)
     for (const x of exits) {
       if (x.orders.has(o)) { x.orders.delete(o); bindExit(x, t) } else if (x.all) {
@@ -470,6 +569,7 @@ export function makeBroker(cfg, data) {
     // so it is not asked twice (integration review N1: one ask, mutation-provable)
     if (!open.length || open[0].dir === o.dir) {
       const t = openTrade(o, price, bar, exact, false)
+      logFill(o.row, bar, price, o.qty)
       ocaAfterFill(o, o.qty)
       marginCheck(price)
       return t
@@ -481,7 +581,8 @@ export function makeBroker(cfg, data) {
     }
     // it opened no trade, so an exit waiting for this id has nothing to bind
     for (const x of exits) x.orders.delete(o)
-    reduceFifo(o.qty, price, bar, exact, null)
+    logFill(o.row, bar, price, o.qty)
+    closingWith(o.row, () => reduceFifo(o.qty, price, bar, exact, null))
     afterPositionChange()
     ocaAfterFill(o, o.qty)
     return null
@@ -511,19 +612,20 @@ export function makeBroker(cfg, data) {
       // [B-REVERSE] an entry against the position closes it and opens the new size
       rule('B-REVERSE')
       price = entryFillPx(o, price0)
-      for (const t of open.slice()) closeTrade(t, price, bar, exact)
+      closingWith(o.row, () => { for (const t of open.slice()) closeTrade(t, price, bar, exact) })
       reversed = true
     } else if (open.length >= maxEntries) {
       // [B-PYR] at the pyramiding limit a market entry does not execute
       rule('B-PYR')
       if (defaulted.pyramiding) rule('B-DEFAULTS')
-      if (o.type === 'market') return null
+      if (o.type === 'market') { endRow(o.row, 'rejected', 'pyramiding'); return null }
       throw new BrokerRefusal(`a price entry \`${o.id}\` triggered at the pyramiding limit, and whether it is `
         + 'cancelled or kept waiting is not stated', 'Q-S1g')
     }
     if (!reversed) price = entryFillPx(o, price0)
     if (open.length && maxEntries > 1) { rule('B-PYR'); if (defaulted.pyramiding) rule('B-DEFAULTS') }
     const t = openTrade(o, price, bar, exact, reversed)
+    logFill(o.row, bar, price, o.qty)
     if (reversed) afterPositionChange()
     ocaAfterFill(o, o.qty)
     marginCheck(price)
@@ -531,12 +633,42 @@ export function makeBroker(cfg, data) {
   }
 
   // ─── W9-T7: exit binding, reservation and the trailing stop ──────────────────
-  /** The activation level of exit `x`'s trailing stop for trade `t` (NaN = none). */
-  const activationOf = (x, t) => {
+  /** The activation level of exit `x`'s trailing stop for trade `t` (NaN = none). `quiet` (the order log
+   *  only): an unknown tick is NaN, never a refusal. */
+  const activationOf = (x, t, quiet) => {
     if (!x.trail) return NaN
     if (finite(x.trail.price)) return x.trail.price
+    if (quiet && !finite(mintick)) return NaN
     needSymbol()
     return t.price + t.dir * x.trail.points * mintick
+  }
+  /** ⭐ W9-T7-F1 — the bracket row of exit `x` on trade `t`: its levels and size as they stand now. Writes
+   *  the log only (quiet levels: nothing here can refuse). */
+  const logBracket = (x, t) => {
+    const lv = levelsFor(x, t, true)
+    const num = (v) => (finite(v) ? v : null)
+    const want = {
+      qty: x.res.has(t) ? x.res.get(t) : null,
+      qtyPercent: x.qtySpec && x.qtySpec.pct !== undefined ? x.qtySpec.pct : null,
+      legs: {
+        profit: num(lv.tp),
+        loss: num(lv.sl),
+        trailing: x.trail ? { activation: num(activationOf(x, t, true)), offset: x.trail.offset } : null,
+      },
+      comment: x.comment.text,
+      commentRecorded: x.comment.recorded,
+      legComments: x.legComments,
+    }
+    let r = x.rows.get(t)
+    if (!r) {
+      r = logRow({ kind: 'exit', id: x.id, side: t.dir > 0 ? 'sell' : 'buy', type: 'bracket', limit: null, stop: null,
+        from: x.fromEntry === '' ? null : x.fromEntry, oca: null, ...want })
+      x.rows.set(t, r)
+      return
+    }
+    if (r.status !== 'placed') return
+    const sig = (o) => JSON.stringify([o.qty, o.qtyPercent, o.legs, o.comment, o.commentRecorded, o.legComments])
+    if (sig(r) !== sig(want)) { Object.assign(r, want); r.modifiedTime = timeOf(nowBar) }
   }
   /** ⭐⭐ W9-T7 bind exit `x` to trade `t`: check its trailing stop, then reserve its share. */
   const bindExit = (x, t) => {
@@ -555,6 +687,7 @@ export function makeBroker(cfg, data) {
       }
     }
     reserve(x, t)
+    logBracket(x, t)
   }
   /**
    * ⭐⭐ W9-T7 [B-EXIT-QTY] — how much of trade `t` exit `x` may close. R6 `strategy.exit`: "Each call to
@@ -629,11 +762,15 @@ export function makeBroker(cfg, data) {
     return st.best - t.dir * x.trail.offset * mintick
   }
 
-  /** An exit command's two levels for one trade: `{ tp, sl }` (NaN = none). */
-  const levelsFor = (x, t) => {
+  /** An exit command's two levels for one trade: `{ tp, sl }` (NaN = none). `quiet` (the order log only):
+   *  a level that needs an unknown tick is NaN, never a refusal. */
+  const levelsFor = (x, t, quiet) => {
     const lv = (spec, sign) => {
       if (!spec) return NaN
-      const rel = () => { needSymbol(); return t.price + sign * t.dir * spec.ticks * mintick }
+      const rel = () => {
+        if (quiet && !finite(mintick)) return NaN
+        needSymbol(); return t.price + sign * t.dir * spec.ticks * mintick
+      }
       if (spec.both) {
         // ⭐⭐ W9-T7 [B-EXIT-LEVELS] both a price and a tick distance for one leg. HYPOTHESIS by
         // version (Q-S1k, `w9-q-s1k-exit-levels.pine` and `-v6`): R5 `strategy.exit` `profit`: "The
@@ -698,6 +835,7 @@ export function makeBroker(cfg, data) {
       rule('B-STOP-LIMIT')
       lo.o.type = 'limit'
       lo.o.level = lo.o.limit
+      if (lo.o.row) lo.o.row.triggerTime = timeOf(bar)
       return null
     }
     if (lo.kind === 'activate') {
@@ -722,14 +860,18 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`exit \`${lo.x.id}\` reserved ${units} of a trade that now holds ${lo.t.qty}, and what `
         + 'TradingView fills then is not stated', 'W9-X2')
     }
+    const xrow = lo.x.rows.get(lo.t)
+    const leg = lo.leg === 'tp' ? 'profit' : lo.leg === 'sl' ? 'loss' : 'trailing'
     if (units < lo.t.qty) {
       // [B-EXIT-QTY] a partial exit closes its reserved part; that command is done with the trade
       fillRule = lo.leg === 'trail' ? 'B-TRAIL' : 'B-EXIT-QTY'
-      closePart(lo.t, units, price, bar, exact)
+      logFill(xrow, bar, price, units, leg)
+      closingWith(xrow, () => closePart(lo.t, units, price, bar, exact))
       lo.x.trades.delete(lo.t); lo.x.res.delete(lo.t); lo.x.done.add(lo.t)
     } else {
       lo.x.done.add(lo.t)
-      closeTrade(lo.t, price, bar, exact)
+      logFill(xrow, bar, price, units, leg)
+      closingWith(xrow, () => closeTrade(lo.t, price, bar, exact))
     }
     fillRule = keep
     afterPositionChange()
@@ -814,6 +956,7 @@ export function makeBroker(cfg, data) {
    *  ⭐⭐ W9-T6 — a GENERATOR, so a run under calc_on_order_fills can stop at a fill tick, run the script
    *  there (`vm.js`), and resume the walk from that tick. Without it the walk never yields. */
   function* barTicks(bar) {
+    nowBar = bar
     if (bar <= 0) return
     if (entries.length || closes.length || exits.length) rule('B-FILL')
     const o = O[bar]; const h = H[bar]; const l = L[bar]; const c = C[bar]
@@ -932,6 +1075,7 @@ export function makeBroker(cfg, data) {
    *  that close execution placed get their attempt AT the close. `true`: an order filled there and
    *  calc_on_order_fills re-runs the script on this bar ([B-POC-FILLS]). */
   const endBar = (bar) => {
+    nowBar = bar
     if (!poc) return false
     const c = C[bar]
     if (!finite(c)) return false
@@ -948,6 +1092,15 @@ export function makeBroker(cfg, data) {
     orderFees = 0
     // ⭐ W9-T5 [B-SLIPPAGE] a close is a market order that sells a long (fills lower) or buys back a short
     const price = targets.length && slipTicks ? slipped(price0, -targets[0].dir) : price0
+    // W9-T7-F1: the log reads what this close closed AFTER it closed it (the size the trades lost)
+    const held = sum(open, (t) => t.qty)
+    closingWith(cl.row, () => executeCloseOn(cl, targets, price, bar, exact))
+    const units = held - sum(open, (t) => t.qty)
+    if (units > 0) logFill(cl.row, bar, price, units)
+    else endRow(cl.row, 'cancelled', 'nothing-to-close')
+    afterPositionChange()
+  }
+  const executeCloseOn = (cl, targets, price, bar, exact) => {
     if (!cl.spec) {
       requireOldest(targets)
       for (const t of targets) closeTrade(t, price, bar, exact)
@@ -964,7 +1117,6 @@ export function makeBroker(cfg, data) {
       units = Math.round(units)
       if (units > 0) reduceFifo(units, price, bar, exact, targets)
     }
-    afterPositionChange()
   }
   /** [B-MARGIN] the bar's worst price for the position, after its fills. */
   const marginCheckBar = (bar) => {
@@ -1012,7 +1164,7 @@ export function makeBroker(cfg, data) {
   }
   /** `strategy.entry` (kind 'entry') and ⭐ W9-T7 `strategy.order` (kind 'order', [B-ORDER]). */
   const placeOrder = (a, bar, kind) => {
-    const [id0, dirV, qtyV, limV, stpV, ocaN, ocaT, when] = a
+    const [id0, dirV, qtyV, limV, stpV, ocaN, ocaT, cmt, when] = a
     const fn = kind === 'order' ? '`strategy.order`' : '`strategy.entry`'
     rule('B-SIG')
     if (when !== undefined) rule('B-WHEN')
@@ -1064,9 +1216,27 @@ export function makeBroker(cfg, data) {
       }
       rule('B-MODIFY')
       Object.assign(prev, o)
+      // W9-T7-F1: a modification is the same order (its row), as the script now states it
+      if (prev.row) {
+        Object.assign(prev.row, entryRowOf(o, limV, stpV, cmt))
+        prev.row.modifiedTime = timeOf(bar)
+        prev.row.triggerTime = null // a modified stop-limit waits on its stop again (`Object.assign` above)
+      }
       return
     }
+    o.row = logRow({ kind, id, ...entryRowOf(o, limV, stpV, cmt) })
     entries.push(o)
+  }
+  /** W9-T7-F1 — what an entry / order row states of order `o` */
+  const entryRowOf = (o, limV, stpV, cmt) => {
+    const c = labelOf(cmt)
+    return {
+      side: o.dir > 0 ? 'buy' : 'sell', qty: o.qty, qtyPercent: null, type: o.type,
+      limit: o.type === 'limit' || o.type === 'stoplimit' ? limV : null,
+      stop: o.type === 'stop' || o.type === 'stoplimit' ? stpV : null,
+      from: null, oca: o.oca ? { name: o.oca.name, type: o.oca.type } : null,
+      comment: c.text, commentRecorded: c.recorded,
+    }
   }
   /** `strategy.close` / `close_all` size: `null` (all of it), or ⭐ W9-T7 [B-CLOSE-QTY] `{ qty }` /
    *  `{ pct }`. R6 `qty`: "If specified, the command uses this value instead of `qty_percent`". */
@@ -1089,14 +1259,28 @@ export function makeBroker(cfg, data) {
   const closeNow = (cl, bar) => {
     rule('B-IMMEDIATELY')
     t7DefaultTimingOnly('a close with `immediately = true`')
+    cl.row = closeRow(cl)
     const keep = fillRule
     fillRule = 'B-IMMEDIATELY'
     executeClose(cl, C[bar], bar, onTick(C[bar]))
     fillRule = keep
     immediateBar = bar
   }
+  /** W9-T7-F1 — the row of a market close `cl` (`{ kind, id, spec, comment }`), placed now */
+  const closeRow = (cl) => {
+    const targets = cl.kind === 'all' ? open : open.filter((t) => t.entryId === cl.id)
+    const c = labelOf(cl.comment)
+    return logRow({
+      kind: cl.kind === 'all' ? 'close_all' : 'close', id: null,
+      side: targets.length ? (targets[0].dir > 0 ? 'sell' : 'buy') : null,
+      qty: cl.spec && cl.spec.qty !== undefined ? cl.spec.qty : null,
+      qtyPercent: cl.spec && cl.spec.pct !== undefined ? cl.spec.pct : null,
+      type: 'market', limit: null, stop: null, from: cl.kind === 'all' ? null : cl.id, oca: null,
+      comment: c.text, commentRecorded: c.recorded,
+    })
+  }
   const close = (a, bar) => {
-    const [id0, qtyV, pctV, now, when] = a
+    const [id0, qtyV, pctV, now, cmt, when] = a
     rule('B-SIG'); rule('B-CLOSE')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
@@ -1105,25 +1289,33 @@ export function makeBroker(cfg, data) {
     if (spec) { rule('B-CLOSE-QTY'); t7DefaultTimingOnly('a partial `strategy.close`') }
     // [B-CLOSE] no open trade with this id when the command is called: no effect
     if (!open.some((t) => t.entryId === id)) return
-    if (now !== undefined && truthy(now)) { closeNow({ kind: 'id', id, spec }, bar); return }
+    if (now !== undefined && truthy(now)) { closeNow({ kind: 'id', id, spec, comment: cmt }, bar); return }
     const prev = closes.find((c) => c.kind === 'id' && c.id === id)
     if (prev && (spec || prev.spec)) {
       throw new BrokerRefusal(`\`strategy.close\` \`${id}\` was called twice on one bar with a partial size, and whether `
         + 'that is one order or two is not stated', 'W9-X2')
     }
-    if (!prev) closes.push({ kind: 'id', id, spec })
+    if (!prev) {
+      const cl = { kind: 'id', id, spec, comment: cmt }
+      cl.row = closeRow(cl)
+      closes.push(cl)
+    }
   }
   const closeAll = (a, bar) => {
-    const [now, when] = a
+    const [now, cmt, when] = a
     rule('B-SIG'); rule('B-CLOSE')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     if (!open.length) return
-    if (now !== undefined && truthy(now)) { closeNow({ kind: 'all', spec: null }, bar); return }
-    if (!closes.some((c) => c.kind === 'all')) closes.push({ kind: 'all', spec: null })
+    if (now !== undefined && truthy(now)) { closeNow({ kind: 'all', spec: null, comment: cmt }, bar); return }
+    if (!closes.some((c) => c.kind === 'all')) {
+      const cl = { kind: 'all', spec: null, comment: cmt }
+      cl.row = closeRow(cl)
+      closes.push(cl)
+    }
   }
   const exit = (a) => {
-    const [id0, from0, qtyV, pctV, profit, limit, loss, stop, trP, trPts, trOff, when] = a
+    const [id0, from0, qtyV, pctV, profit, limit, loss, stop, trP, trPts, trOff, cmt, cmtP, cmtL, cmtT, when] = a
     rule('B-SIG')
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
@@ -1204,13 +1396,19 @@ export function makeBroker(cfg, data) {
     if (!x) {
       if (!exitDone.has(id)) exitDone.set(id, new Set())
       x = { id, fromEntry: from, tp, sl, trail, qtySpec, all: from === '', trades: new Set(), orders: new Set(),
-        maybe: new Set(), res: new Map(), trailState: new Map(), done: exitDone.get(id) }
+        maybe: new Set(), res: new Map(), trailState: new Map(), done: exitDone.get(id), rows: new Map() }
       exits.push(x)
     }
     x.tp = tp
     x.sl = sl
     x.trail = trail
     x.qtySpec = qtySpec
+    // W9-T7-F1: the labels, for the log (a `comment_*` passed, even empty, overrides `comment` on its leg)
+    x.comment = labelOf(cmt)
+    x.legComments = {}
+    for (const [leg, v] of [['profit', cmtP], ['loss', cmtL], ['trailing', cmtT]]) {
+      if (v !== undefined) x.legComments[leg] = labelOf(v)
+    }
     // [B-EXIT-BIND] the open trades (and unfilled entries) with that id, or every
     // open trade when no `from_entry` is given; a call again confirms a maybe.
     // ⭐ W9-T7: each binding (re)takes this command's reservation ([B-EXIT-QTY]); a trade this exit
@@ -1226,13 +1424,16 @@ export function makeBroker(cfg, data) {
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     const id = idText(id0, '`strategy.cancel`')
-    for (const e of entries.filter((o) => o.id === id)) dropEntry(e)
+    for (const e of entries.filter((o) => o.id === id)) dropEntry(e, 'strategy.cancel')
+    for (const x of exits) if (x.id === id) for (const r of x.rows.values()) endRow(r, 'cancelled', 'strategy.cancel')
     exits = exits.filter((x) => x.id !== id)
   }
   const cancelAll = (a) => {
     rule('B-SIG'); rule('B-CANCEL')
     if (a[0] !== undefined) rule('B-WHEN')
     if (!truthy(a[0])) return
+    for (const e of entries) endRow(e.row, 'cancelled', 'strategy.cancel_all')
+    for (const x of exits) for (const r of x.rows.values()) endRow(r, 'cancelled', 'strategy.cancel_all')
     entries = []
     exits = []
   }
@@ -1265,14 +1466,15 @@ export function makeBroker(cfg, data) {
     // (an exit waiting for this id keeps a reference to an order that never fills, which places nothing: `liveOrders`
     // reads only bound trades, and the exit ends with the position, `afterPositionChange`)
     entries = entries.filter((e) => e !== o)
-    if (!open.length) return null
+    if (!open.length) { endRow(o.row, 'rejected', 'risk-allow-entry-in'); return null }
     // the open position is the other direction's: the allowed one (nothing else opens a trade beside a risk command,
     // `t7DefaultTimingOnly` refuses `strategy.order`)
     const keep = fillRule
     fillRule = RISK_RULES.allow
     const targets = open.slice()
     requireOldest(targets)
-    for (const t of targets) closeTrade(t, price, bar, exact)
+    logFill(o.row, bar, price, sum(targets, (t) => t.qty))
+    closingWith(o.row, () => { for (const t of targets) closeTrade(t, price, bar, exact) })
     fillRule = keep
     afterPositionChange()
     return null
@@ -1511,6 +1713,32 @@ export function makeBroker(cfg, data) {
     }
     return Math.sign(t.profit)
   }
+  /** ⭐ W9-T7-F1 — an order's id as a trade reads it. `asExit`: the id of the order that CLOSED the trade, which R6
+   *  states only for an exit command ("corresponds to an exit ID in the strategy's trades") and strategy.order
+   *  ("an entry or exit ID"); every other closing order's id TradingView generates (`exitIdOf`). */
+  const idOfRow = (r, fn, asExit) => {
+    if (!r) throw new BrokerRefusal(`\`${fn}\` reads a trade with no order in this broker's log`)
+    const id = asExit ? exitIdOf(r) : r.id
+    if (typeof id !== 'string') {
+      throw new BrokerRefusal(`\`${fn}\` reads a trade closed by ${r.kind === 'entry' ? 'a reversing entry' : `\`strategy.${r.kind}\``}, `
+        + 'whose exit id TradingView generates itself, and that text is not stated', 'W9-V1')
+    }
+    return id
+  }
+  /** ⭐ W9-T7-F1 — an order's comment as a trade reads it. No comment: R6 says the function returns `na` only "if
+   *  there is no entry with this `trade_num`", so whether an order without a comment reads `na` or "" is not stated. */
+  const commentOfRow = (r, fn) => {
+    if (!r) throw new BrokerRefusal(`\`${fn}\` reads a trade with no order in this broker's log`)
+    if (!r.commentRecorded) {
+      throw new BrokerRefusal(`\`${fn}\` reads a comment the script computes, and this broker keeps only a comment written `
+        + 'as a text literal')
+    }
+    if (r.comment === null) {
+      throw new BrokerRefusal(`\`${fn}\` reads an order placed without a comment, and whether that reads na or an empty `
+        + 'text is not stated', 'W9-V1')
+    }
+    return r.comment
+  }
   const value = (fn, a, bar) => {
     rule('B-VAL')
     if (immediateBar === bar) {
@@ -1590,12 +1818,29 @@ export function makeBroker(cfg, data) {
         if (costOn && comm.type === 'percent' && !t.exact) exactOpen(`\`${fn}\``)
         return t.fee
       }
+      // ⭐⭐ W9-T7-F1 — a trade's order ids and comments, off the ORDER LOG (the rows the trade carries)
+      case 'strategy.opentrades.entry_id': return idOfRow(rowOf(tradeAt(open, a[0], fn).oid), fn)
+      case 'strategy.closedtrades.entry_id': return idOfRow(rowOf(tradeAt(closed, a[0], fn).oid), fn)
+      case 'strategy.opentrades.entry_comment': return commentOfRow(rowOf(tradeAt(open, a[0], fn).oid), fn)
+      case 'strategy.closedtrades.entry_comment': return commentOfRow(rowOf(tradeAt(closed, a[0], fn).oid), fn)
+      case 'strategy.closedtrades.exit_id': return idOfRow(rowOf(tradeAt(closed, a[0], fn).xid), fn, true)
+      case 'strategy.closedtrades.exit_comment': {
+        const r = rowOf(tradeAt(closed, a[0], fn).xid)
+        // the exit of a reversed trade is the reversing ENTRY's fill: whether that entry's comment is the closed
+        // trade's exit comment is not stated (R6 `strategy.entry` `comment` speaks of "the filled order")
+        if (r && r.kind === 'entry') {
+          throw new BrokerRefusal(`\`${fn}\` reads a trade a reversing entry closed, and whether that entry's comment is the `
+            + "closed trade's exit comment is not stated", 'W9-V1')
+        }
+        return commentOfRow(r, fn)
+      }
       default: throw new BrokerRefusal(`\`${fn}\` is not a value this broker serves`)
     }
   }
 
   /** One broker op on bar `bar`: `args` positional, `undefined` where not passed. */
   const call = (fn, args, bar) => {
+    nowBar = bar
     switch (fn) {
       case '#symbol':
         if (finite(args[0]) && args[0] > 0) mintick = args[0]
@@ -1636,8 +1881,36 @@ export function makeBroker(cfg, data) {
       // when the run never learned one. The report's currency values are price x size x pointvalue.
       symbol: { mintick: finite(mintick) ? mintick : null, pointvalue: finite(pointvalue) ? pointvalue : null },
       rulesUsed: Array.from(okRules).sort(),
+      // ⭐⭐ W9-T7-F1 — the order log (`log`), each row's `opened` / `closed` DERIVED from the trades' own `oid` /
+      // `xid` as indexes into `trades` above (closed first, then open: that list's order)
+      orders: orderRows(),
     },
   })
+  const orderRows = () => {
+    const trades = [...closed, ...open]
+    const opened = new Map()
+    const closedBy = new Map()
+    const add = (m, k, i) => { if (!m.has(k)) m.set(k, []); m.get(k).push(i) }
+    trades.forEach((t, i) => {
+      add(opened, t.oid, i)
+      if (i < closed.length) add(closedBy, t.xid, i)
+    })
+    // one key order for every kind (the record is sealed by the bytes of its JSON text, T14); never NaN (JSON has none)
+    const num = (v) => (finite(v) ? v : null)
+    return log.map((r) => ({
+      n: r.n, kind: r.kind, id: r.id, from: r.from, side: r.side, type: r.type,
+      qty: num(r.qty), qtyPercent: num(r.qtyPercent), limit: num(r.limit), stop: num(r.stop),
+      legs: r.legs ? { ...r.legs, trailing: r.legs.trailing ? { ...r.legs.trailing } : null } : null,
+      oca: r.oca ? { ...r.oca } : null,
+      comment: r.comment, commentRecorded: r.commentRecorded,
+      legComments: r.legComments ? Object.fromEntries(Object.entries(r.legComments).map(([k, v]) => [k, { ...v }])) : null,
+      placedTime: r.placedTime, modifiedTime: r.modifiedTime, triggerTime: r.triggerTime,
+      status: r.status, why: r.why, endTime: r.endTime,
+      fillTime: r.fillTime, fillPrice: num(r.fillPrice), fillQty: num(r.fillQty), rule: r.rule, leg: r.leg,
+      opened: opened.get(r.n) || [],
+      closed: closedBy.get(r.n) || [],
+    }))
+  }
 
   // ⭐⭐ W9-T8 [B-RISK-DDOWN] the whole run rests on staying below the limit: asked once, before the first bar (as
   // B-TICK-HIST is). The peak starts at the initial capital (the equity before any trade).

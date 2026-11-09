@@ -35,7 +35,7 @@
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD, commissionRulesOf } from './brokerRules.js'
 import { BROKER_UNSETTLED_GUARD } from './broker.js'
-import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf } from './strategyRecord.js'
+import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf, orderLabelOf } from './strategyRecord.js'
 
 export const STRATEGY_REPORT_SCHEMA = 'uct.strategy-report/v1'
 /** No source we hold states the metric's formula exactly, and no capture has witnessed it. */
@@ -268,6 +268,33 @@ export function strategyReportOf(rec, opts = {}) {
   if (listMissing.length) trades = unpinnedRefusal('The list of trades', listMissing)
   else {
     const profitMissing = unpinnedOf(rulesFor('money'), isPinned)
+    // ⭐ W9-T7-F1 — each fill's signal (the text the Strategy Tester shows for its order), from the order log by
+    // the log's own link, through the ONE label rule (`orderLabelOf`) the markers read too
+    const log = Array.isArray(rec.orders) ? rec.orders : null
+    const opener = new Map()
+    const closer = new Map()
+    for (const o of log || []) {
+      for (const n of o.opened) opener.set(n, o)
+      for (const n of o.closed) closer.set(n, o)
+    }
+    const signalOf = (t, role) => {
+      const what = `Trade ${t.n}'s ${role} signal`
+      if (!log) {
+        return refusal({ guard: REPORT_UNRECORDED_GUARD, row: null,
+          sentence: `${what} is not shown: the backtest record does not keep a log of its orders.` })
+      }
+      const o = role === 'entry' ? opener.get(t.n) : closer.get(t.n)
+      const label = orderLabelOf(o, role)
+      if (label !== null) return { status: 'served', value: label }
+      if (o && o.commentRecorded !== true) {
+        return refusal({ guard: REPORT_UNRECORDED_GUARD, row: null,
+          sentence: `${what} is not shown: the script computes this order's comment, and the backtest record keeps only a `
+            + 'comment written as text.' })
+      }
+      return refusal({ guard: REPORT_UNSTATED_GUARD, row: 'W9-V1',
+        sentence: `${what} is not shown: TradingView names this kind of exit itself, and that name has not yet been `
+          + 'checked against TradingView.' })
+    }
     const rows = rec.trades.map((t) => {
       let profit
       if (t.open) {
@@ -277,7 +304,8 @@ export function strategyReportOf(rec, opts = {}) {
       else if (pointvalue === null) profit = noSymbol(`Trade ${t.n}'s profit`, 'point value')
       else profit = { status: 'served', value: costOn ? netMoney(t) : pts(t) * pointvalue, pine: 'strategy.closedtrades.profit', source: B_VAL_SOURCE }
       return { n: t.n, entryId: t.entryId, dir: t.dir, qty: t.qty, entryTime: t.entryTime, entryPrice: t.entryPrice,
-        exitTime: t.exitTime, exitPrice: t.exitPrice, open: t.open, profit }
+        exitTime: t.exitTime, exitPrice: t.exitPrice, open: t.open, profit,
+        entrySignal: signalOf(t, 'entry'), exitSignal: t.open ? null : signalOf(t, 'exit') }
     })
     trades = { status: 'served', rows }
   }

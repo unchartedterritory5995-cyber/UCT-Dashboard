@@ -33,10 +33,17 @@
 //
 // ⛔ A MARKER SET IS NEVER SHOWN WITH A FILL MISSING (design rule 1): a record the markers cannot
 // read whole (its shape, a fill after `asOfBar`, a fill with no order in the log) refuses whole.
+//
+// ⭐⭐ W9-T7-F1 — EACH FILL IS FOUND THROUGH THE ORDER LOG'S OWN LINK (`orders[].opened` / `closed`, the
+// trades each order opened or closed), never by matching ids and times. Its label is the order's comment,
+// else its id (R6, every order command's `comment`: "the Strategy Tester and the chart show this text for the
+// order instead of" the id). ⛔ An exit TradingView names itself (`strategy.close`, `close_all`, a reversal:
+// `strategyRecord.js::exitIdOf` is null) with no comment, or an order whose comment the script computes, has
+// no label the record knows: the set refuses whole by name (`MARKER_UNLABELLED_GUARD`), never a guessed name.
 
 import { pinned } from './brokerPins.js'
 import { UNPINNED_GUARD, MARKER_RULE, PRESENTATION_RULES } from './brokerRules.js'
-import { STRATEGY_WINDOW_HISTORY, runtimeStrategyOf, strategyRecordShapeErrors } from './strategyRecord.js'
+import { STRATEGY_WINDOW_HISTORY, runtimeStrategyOf, strategyRecordShapeErrors, exitIdOf, orderLabelOf } from './strategyRecord.js'
 import { toRenderState } from '../objectRenderState.js'
 
 /** The presentation rule the markers rest on, and the capture row that pins it (design 5.2),
@@ -47,8 +54,11 @@ export const MARKER_CAPTURE = PRESENTATION_RULES[MARKER_RULE].capture
 export const MARKER_RECORD_GUARD = 'runtime:strategy-markers-record'
 /** Served markers ride the script's own drawings, and this chart is not showing those yet. */
 export const MARKER_WITHHELD_GUARD = 'runtime:strategy-markers-withheld'
-/** The record does not carry a field every marker needs (the order log, the exit's id). */
+/** The record does not carry a field every marker needs (the order log, the exit's id): a record from an
+ *  engine before W9-T7-F1, which listed both in `unserved`. */
 export const MARKER_UNRECORDED_GUARD = 'runtime:strategy-markers-unrecorded'
+/** ⭐ W9-T7-F1 — a fill whose label the record does not know (a name TradingView makes up, a computed comment). */
+export const MARKER_UNLABELLED_GUARD = 'runtime:strategy-markers-unlabelled'
 export const TRADE_MARKERS_SCHEMA = 'uct.strategy-markers/v1'
 
 /** ⭐ THE LOOK, EVERY PIECE OF IT A HYPOTHESIS W9-MK1 SETTLES. One table, so the capture reader
@@ -93,6 +103,9 @@ export const MARKER_UNRECORDED_SENTENCE = 'Trade markers are not drawn: each mar
   + "that filled, and this backtest does not keep a log of its orders yet. The script's plots are not affected."
 export const MARKER_RECORD_SENTENCE = "Trade markers are not drawn: this backtest's list of trades could not be read "
   + "in full, and markers are never shown with a trade missing. The script's plots are not affected."
+export const MARKER_UNLABELLED_SENTENCE = 'Trade markers are not drawn: each marker is labelled with its order\'s '
+  + 'comment or name, and for at least one fill here that label is not known (a name TradingView gives a closing '
+  + "order itself, or a comment the script computes). The script's plots are not affected."
 
 export const MARKER_WITHHELD_SENTENCE = "Trade markers are not drawn: they are drawn together with the script's "
   + "own drawings, and this chart is not showing those yet. The script's plots are not affected."
@@ -133,30 +146,48 @@ export function tradeMarkersOf(record, opts = {}) {
     return refusal(MARKER_UNRECORDED_GUARD, MARKER_UNRECORDED_SENTENCE,
       { fields: missing, owners: missing.map((k) => unserved[k]) }, asOfBar)
   }
-  const orders = Array.isArray(record.orders) ? record.orders : []
+  // ⭐ W9-T7-F1: the order that opened / closed each trade, by the log's own link
+  const opener = new Map()
+  const closer = new Map()
+  for (const o of record.orders) {
+    for (const n of o.opened) opener.set(n, o)
+    for (const n of o.closed) closer.set(n, o)
+  }
   const fills = new Map()
   const bad = []
-  const addFill = (role, t, id, time, price) => {
-    if (typeof id !== 'string' || !Number.isFinite(price)) { bad.push(`trade ${t.n} ${role}`); return }
+  const unlabelled = []
+  const addFill = (role, t, order, time, price) => {
+    if (!order || order.status !== 'filled' || order.fillTime !== time || !Number.isFinite(price)) {
+      bad.push(`trade ${t.n} ${role} has no filled order`); return
+    }
     if (asOfBar === null || time > asOfBar) { bad.push(`trade ${t.n} ${role} after asOfBar`); return }
-    const key = `${role}|${id}|${time}|${price}|${t.dir}`
+    // the id of this fill: an entry's own; an exit's `exitIdOf` (null when TradingView names it); and the text
+    // shown for it (`orderLabelOf`, the one authority the report's trade list reads too)
+    const id = role === 'entry' ? order.id : exitIdOf(order)
+    const label = orderLabelOf(order, role)
+    if (label === null) {
+      unlabelled.push(`trade ${t.n} ${role} (order ${order.n}, ${order.commentRecorded ? 'no stated name' : 'a computed comment'})`)
+      return
+    }
+    // one marker per order fill (MK-H-FILL): a fill closing or opening several trades is one marker
+    const key = `${role}|${order.n}|${time}|${price}|${t.dir}`
     let f = fills.get(key)
     if (!f) {
-      const order = orders.find((o) => o && o.id === id && o.status === 'filled' && o.fillTime === time)
-      if (!order) { bad.push(`trade ${t.n} ${role} has no filled order ${id}`); return }
-      f = { role, id, time, price, dir: t.dir, side: sideOf(role, t.dir), qty: 0, trades: [],
-        comment: typeof order.comment === 'string' && order.comment !== '' ? order.comment : null }
+      f = { role, id, time, price, dir: t.dir, side: sideOf(role, t.dir), qty: 0, trades: [], comment: order.comment, label }
       fills.set(key, f)
     }
     f.qty += t.qty
     f.trades.push(t.n)
   }
   for (const t of record.trades) {
-    addFill('entry', t, t.entryId, t.entryTime, t.entryPrice)
-    if (!t.open) addFill('exit', t, t.exitId, t.exitTime, t.exitPrice)
+    addFill('entry', t, opener.get(t.n), t.entryTime, t.entryPrice)
+    if (!t.open) addFill('exit', t, closer.get(t.n), t.exitTime, t.exitPrice)
   }
   if (bad.length) {
     return refusal(MARKER_RECORD_GUARD, MARKER_RECORD_SENTENCE, { errors: bad }, asOfBar)
+  }
+  if (unlabelled.length) {
+    return refusal(MARKER_UNLABELLED_GUARD, MARKER_UNLABELLED_SENTENCE, { fills: unlabelled }, asOfBar)
   }
   // fill order: by bar time, an exit before an entry on the same bar (a fill closes before it opens)
   const markers = [...fills.values()].sort((a, b) => (a.time - b.time)
@@ -166,9 +197,10 @@ export function tradeMarkersOf(record, opts = {}) {
     markers: Object.freeze(markers) })
 }
 
-/** One marker's text lines (MK-H-TEXT, MK-H-QTY). */
+/** One marker's text lines (MK-H-TEXT, MK-H-QTY): the fill's label (`strategyRecord.js::orderLabelOf`, its
+ *  comment else its id), then the signed size. */
 export function markerText(m) {
-  return `${m.comment !== null ? m.comment : m.id}\n${m.side === 'buy' ? '+' : '-'}${String(m.qty)}`
+  return `${m.label}\n${m.side === 'buy' ? '+' : '-'}${String(m.qty)}`
 }
 
 /**

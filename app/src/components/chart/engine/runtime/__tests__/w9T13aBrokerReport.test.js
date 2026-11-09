@@ -22,6 +22,7 @@ import {
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
 } from '../brokerReport.js'
 import { strategyRecordOf, strategyRecordShapeErrors } from '../strategyRecord.js'
+import { orderLogFor } from './orderLogFixture.js'
 import { UNPINNED_GUARD, BROKER_RULE_IDS, COMMISSION_RULE, COMMISSION_NET_VALUES } from '../brokerRules.js'
 import { BROKER_UNSETTLED_GUARD, BROKER_OPS, makeBroker } from '../broker.js'
 import { pinned } from '../brokerPins.js'
@@ -41,7 +42,7 @@ const tr = (id, dir, qty, e, x, exact = true) => ({
 })
 const recordOf = (trades, { pointvalue = 1, mintick = 0.01, initialCapital = 100000, fromListing = false,
   rulesUsed = ['B-MARKET', 'B-CLOSE'], defaulted = {} } = {}) => strategyRecordOf({
-  summary: { record: { trades, rulesUsed, symbol: { mintick, pointvalue } } },
+  summary: { record: { trades, orders: orderLogFor(trades), rulesUsed, symbol: { mintick, pointvalue } } },
   decl: { version: 5, initialCapital, defaultQty: 1, pyramiding: 1, fromListing, defaulted },
   barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true,
 })
@@ -317,7 +318,7 @@ describe('W9-T13a window and run-wide refusals', () => {
       // W9-T13b r1, D2 ALWAYS: a run from the listing states the same sentence
       { name: 'NYSE 2024-01-02 session, 09:30 ET, from the listing', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000, fromListing: true },
     ].map((c) => {
-      const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: [] } },
+      const rec = strategyRecordOf({ summary: { record: { trades: [], orders: [], rulesUsed: [] } },
         decl: { version: 5, fromListing: c.fromListing === true }, barTimes: [c.startTime, c.startTime + DAY],
         historyWindowBars: 5000, confirmed: true })
       const rep = strategyReportOf(rec, { isPinned: ALL })

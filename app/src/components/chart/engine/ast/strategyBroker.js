@@ -13,7 +13,7 @@
 // naming the property. Properties that cannot change any broker value (a title,
 // a precision, a comment, an alert message) are read past.
 
-import { BROKER_OPS } from '../runtime/broker.js'
+import { BROKER_OPS, ORDER_COMMENT_PARAMS } from '../runtime/broker.js'
 
 export const STRATEGY_OPTION_GUARD = 'runtime:strategy-option'
 
@@ -339,6 +339,12 @@ export function orderArgsOf(fn, call, version) {
   }
   return spec.params.map((p) => {
     const node = got.get(p === 'direction' && got.has('long') ? 'long' : p)
-    return node === undefined ? null : node
+    if (node === undefined) return null
+    // ⭐⭐ W9-T7-F1 — a `comment*` label rides to the broker for its ORDER LOG only, and only as a LITERAL text:
+    // a computed comment is NOT lowered (lowering it could refuse, or charge the run, for a value no fill reads,
+    // and with the broker on these labels were never evaluated), so it arrives as `na` and the log marks it
+    // unrecorded (`broker.js::labelOf`), never a guessed text. (`na` is the front end's own literal, `naValue`.)
+    if (ORDER_COMMENT_PARAMS.includes(p) && node.type !== 'string') return { type: 'name', name: 'na', tok: node.tok }
+    return node
   })
 }

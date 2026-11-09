@@ -249,3 +249,53 @@ a 2% drawdown is 2,000, more than one share of RDDT can lose, so the capture can
 which is all B-RISK-DDOWN serves. A probe that reaches a limit is needed before any halt can be built.
 
 Evidence: `docs/pine/evidence/2026-11-08-w9-t8/` (census; base `6b75450c5e` against this lane; mutants).
+
+## W9-T7-F1: the order log and a trade's exit id (no new rule)
+
+Coordinator ruling (2026-11-08, `strategyRecord.js` `STRATEGY_RECORD_UNSERVED`): T7 built the order kinds, not a log of
+them. **F1 adds no emulator semantics and no rule.** The broker (`broker.js`, "THE ORDER LOG") now writes down what it
+already does, after it decides: every log line asks no rule and cannot throw, and nothing a fill, a size, a price, a
+refusal or a number value reads comes from the log. The census holds that (every lane byte-identical to the base,
+`docs/pine/evidence/2026-11-09-w9-t7f1/`).
+
+**The rows** (`record.orders`, one per order the broker held, in placement order, `n` from 1):
+`{ n, kind, id, from, side, type, qty, qtyPercent, limit, stop, legs, oca, comment, commentRecorded, legComments,
+placedTime, modifiedTime, triggerTime, status, why, endTime, fillTime, fillPrice, fillQty, rule, leg, opened, closed }`.
+- `kind`: `entry` / `order` (one per order object; a [B-MODIFY] modification is the same row, `modifiedTime`); `close` /
+  `close_all` (one per market close queued, or filled at once under `immediately`); `exit` (one per exit command AND trade
+  it is bound to: the bracket it places for that trade, `type: 'bracket'`, `legs: { profit, loss, trailing }` as the levels
+  stand). An exit waiting on an unfilled entry has no row yet (R6 `strategy.exit`: "the strategy waits and does not create the
+  exit orders until after the entry order executes"); one that MAY cover the trade a reversal opened (Q-S1f) has none.
+- `status`: `placed` (still live at `asOfBar`), `filled`, `cancelled` (`why`: `strategy.cancel`, `strategy.cancel_all`,
+  `oca-cancel`, `oca-reduce`, `trade-closed`, `nothing-to-close`), `rejected` (`why`: `pyramiding`, [B-PYR] "does not
+  execute"; `risk-allow-entry-in`, a forbidden entry with no position to close). `rule`: the fill's rule, as the trade's.
+- `opened` / `closed`: the trade numbers the fill opened / closed. **One authority per link**: the broker stamps each trade
+  with the row that opened it and each closed trade with the row that closed it; the rows' lists are derived from those.
+
+**A trade's `exitId`** (`strategyRecord.js::exitIdOf`, the one rule the record and `strategy.closedtrades.exit_id` share):
+the closing order's id where R6 states it is the exit id: an exit command (`strategy.exit` `id`: "corresponds to an exit ID
+in the strategy's trades after an order fills") and `strategy.order` (`id`: "corresponds to an entry or exit ID"). Every
+other closing order is named by TradingView itself and no text states the name (`strategy.close` / `close_all` `comment`:
+"instead of the automatically generated exit identifier"; a reversing `strategy.entry` id is stated only as an ENTRY id;
+the allow_entry_in close): `exitId` is `null`, and reading it refuses by name (W9-V1).
+
+**Comments.** The front end (`ast/strategyBroker.js` `orderArgsOf`) hands the broker a `comment*` label only as a LITERAL
+text; a computed one is not lowered (with the broker on, labels were never evaluated, and lowering one could refuse or charge
+the run for a value no fill reads): it arrives as `na` and the row says `commentRecorded: false`. `''` is no comment (R6: "If
+the value is not an empty string ..."). An exit's filled leg takes its `comment_profit` / `_loss` / `_trailing` when the call
+passed one (R6 `comment`: "The command ignores this value if the call includes an argument for a `comment_*` parameter that
+applies to the order"), else `comment`.
+
+**The text values** (`BROKER_OPS`, `returns: 'string'`, each asking B-VAL like every per-trade read):
+`strategy.opentrades.entry_id`, `.entry_comment`, `strategy.closedtrades.entry_id`, `.entry_comment`, `.exit_id`,
+`.exit_comment`, all read off the log. Refused by name: an exit id TradingView generates (above, W9-V1); an order without a
+comment (R6 returns `na` only "if there is no entry with this `trade_num`", so whether a missing comment reads `na` or `""`
+is not stated, W9-V1); the exit comment of a reversed trade (whether the reversing entry's comment is it is not stated,
+W9-V1); a computed comment (not kept).
+
+**The label a fill shows** (`strategyRecord.js::orderLabelOf`, read by the markers (T12) and the report's trade list
+(T13a/T13b)): the order's comment, else its id (R6, every command's `comment`: "the Strategy Tester and the chart show this
+text for the order instead of" the id); `null`, and a named refusal, where the record does not know it. The markers still
+refuse first by MK-LOOK (W9-MK1) on the member door.
+
+Evidence: `docs/pine/evidence/2026-11-09-w9-t7f1/`.

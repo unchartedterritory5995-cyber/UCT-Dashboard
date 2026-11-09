@@ -21,6 +21,7 @@ import {
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
 } from '../engine/runtime/brokerReport.js'
 import { strategyRecordOf } from '../engine/runtime/strategyRecord.js'
+import { orderLogFor } from '../engine/runtime/__tests__/orderLogFixture.js'
 import { UNPINNED_GUARD } from '../engine/runtime/brokerRules.js'
 import { BROKER_UNSETTLED_GUARD, BROKER_START_GUARD } from '../engine/runtime/broker.js'
 import { setStrategyRecord, resetStrategyRecords } from '../engine/strategyReportNotice'
@@ -39,7 +40,7 @@ const tr = (id, dir, qty, e, x, exact = true) => ({
   ...(x ? { exit: { time: at(x[0]), price: x[1], rule: 'B-CLOSE' } } : {}),
 })
 const recordOf = (trades, { fromListing = false } = {}) => strategyRecordOf({
-  summary: { record: { trades, rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
+  summary: { record: { trades, orders: orderLogFor(trades), rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
   decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 1, fromListing, defaulted: {} },
   barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true,
 })
@@ -141,7 +142,7 @@ describe('W9-T13b the panel renders the report exactly', () => {
     // the trade list serves (its fills' rules are pinned); each closed profit carries its refusal
     clickTab('List of trades')
     const row1 = screen.getByTestId('strategy-report-trade-1')
-    expect(row1.querySelectorAll('td')[6].textContent).toBe(FIXTURES.mixed.trades.rows[0].profit.sentence)
+    expect(row1.querySelectorAll('td')[8].textContent).toBe(FIXTURES.mixed.trades.rows[0].profit.sentence)
     expect(FIXTURES.mixed.trades.rows[0].profit.sentence).toMatch(/^Trade 1's profit is not shown: /)
   })
 
@@ -151,13 +152,18 @@ describe('W9-T13b the panel renders the report exactly', () => {
     const table = screen.getByTestId('strategy-report-trades')
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 5)
     const cells = (n) => [...screen.getByTestId(`strategy-report-trade-${n}`).children].map((c) => c.textContent)
-    expect(cells(1)).toEqual(['1', 'Long', '2', '2024-03-22 13:30', '10.00', '2024-03-24 13:30', '13.00', '6.00'])
-    expect(cells(2)).toEqual(['2', 'Short', '1', '2024-03-25 13:30', '20.00', '2024-03-27 13:30', '25.00', '-5.00'])
-    expect(cells(5).slice(0, 7)).toEqual(['5', 'Long', '1', '2024-04-03 13:30', '30.00', 'Open', ''])
-    expect(cells(5)[7]).toBe("This open trade's profit is not shown: it is its profit at the last bar's close, "
+    // W9-T7-F1: each fill's signal (its order's comment, else its id); these fixtures close by strategy.close
+    // without a comment, an exit TradingView names itself, so the exit signal says why it is not shown
+    const unnamed = (n) => `Trade ${n}'s exit signal is not shown: TradingView names this kind of exit itself, and that `
+      + 'name has not yet been checked against TradingView.'
+    expect(cells(1)).toEqual(['1', 'Long', '2', 'L1', '2024-03-22 13:30', '10.00', unnamed(1), '2024-03-24 13:30', '13.00', '6.00'])
+    expect(cells(2)).toEqual(['2', 'Short', '1', 'S1', '2024-03-25 13:30', '20.00', unnamed(2), '2024-03-27 13:30', '25.00', '-5.00'])
+    expect(cells(5).slice(0, 9)).toEqual(['5', 'Long', '1', 'L4', '2024-04-03 13:30', '30.00', '', 'Open', ''])
+    expect(cells(5)[9]).toBe("This open trade's profit is not shown: it is its profit at the last bar's close, "
       + 'and the backtest record does not carry that yet.')
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
-      .toEqual(['Trade', 'Direction', 'Size', 'Entry (UTC)', 'Entry price', 'Exit (UTC)', 'Exit price', 'Profit'])
+      .toEqual(['Trade', 'Direction', 'Size', 'Entry signal', 'Entry (UTC)', 'Entry price', 'Exit signal', 'Exit (UTC)',
+        'Exit price', 'Profit'])
   })
 
   it('zero trades: the list says so, and the counts are 0 (no D10 floor)', () => {
