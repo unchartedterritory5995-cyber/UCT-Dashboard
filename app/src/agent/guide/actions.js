@@ -202,7 +202,7 @@ export const WATCHLIST_ACTIONS = [
     { target: { within: 'watchlist.colMenu', label: 'Attention' }, name: 'Attention', text: 'Tick Attention to show its column. Then point at a ticker’s Attention cell: it lists why that ticker needs a look.' },
   ] },
   // the order of a list's columns: drag a title onto another (pages/Watchlists.jsx header drag)
-  { id: 'columnOrder', label: 'Reordering a list’s columns', re: /^(?!.*\b(wider|narrower|resiz\w*|widths?|widen)\b).*(\b(move|drag|reorder|re-order|rearrange|order|shuffle|swap)\b.*\bcolumns?\b|\bcolumns?\b.*\b(around|order|to the (left|right)|first|last)\b)/, steps: [
+  { id: 'columnOrder', label: 'Reordering a list’s columns', re: /^(?!.*\b(wider|narrower|resiz\w*|widths?|widen)\b).*(\b(move|drag|reorder|re-order|rearrange|order|shuffle|swap)\b.*\bcolumns?\b|\bcolumns?\b.*\b(around|order|to the (left|right)|first|last|before|after|next to|ahead of|behind|in front of)\b)/, steps: [
     ...OPEN_LIST,
     { target: HEAD, name: 'the column titles', text: 'Drag a column’s title and drop it on another: the column moves there.' },
   ] },
