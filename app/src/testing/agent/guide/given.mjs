@@ -9,12 +9,14 @@
 //   breadth    Breadth history and its live row, on the widget's own routes (/api/breadth-monitor, …/live)
 //   savedGrids a saved Multi Chart grid in the layout library (the harness's own ?multichart fixture)
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
+//   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
 // walkthrough they reach (a rule) or by id (an override). A case with no given runs on the plain board.
 
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const GROUPS = { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' }
+const SCAN = { key: 'highest-volume-1y', name: 'Highest Volume In 1-Year' }
 const watch = (extra = {}) => ({ id: 'w-watch', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 20, opts: {}, ...extra })
 // one chart and one watchlist fill the board: a widget the walkthrough adds goes through the real Place step
 const PLAIN = [chart('w-chart-a', 'A', 0, 0, 16, 20), watch()]
@@ -22,6 +24,8 @@ const BOARDS = {
   plain: PLAIN,
   // a chart with a second tab of its own, and a watchlist with a second (News) tab: pages/charts/chartTabs.js, widgetTabs.js
   tabs: [chart('w-chart-a', 'A', 0, 0, 16, 20, { chartTabs: [{ id: 'ct-2', tf: 'W' }], activeChartTab: 0 }), watch({ wtabs: [{ id: 'wt-2', type: 'news', opts: {} }], activeWtab: 0 })],
+  // a Scanner widget with a preset scan already open: pages/charts/widgets/ScannerWidget.jsx remembers it in opts.scanKey
+  scan: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-scan', type: 'scanner', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { scanKey: SCAN.key, scanName: SCAN.name } }],
 }
 // pages/charts/grid/gridLayouts.js makeDefaultState: the grid as the app saves it
 const MULTI = { mode: 'grid', layout: '2x2', cells: [['g1', 'SPY'], ['g2', 'QQQ'], ['g3', 'NVDA'], ['g4', 'TSLA']].map(([id, sym]) => ({ id, sym, tf: 'D' })), syncCrosshair: false, syncTimeRange: false, groupsMode: false, group: null }
@@ -49,6 +53,8 @@ export function givenFor(c) {
   if (/Sending News & Catalysts|Filtering catalysts|symbol’s headlines|A headline on the chart/.test(c.title || '')) g.news = true
   if (/Sending Breadth|breadth tiles|Adding or removing a reading/.test(c.title || '')) g.breadth = true
   if (/^(Opening a saved grid|Deleting a saved grid)$/.test(c.title || '')) g.savedGrids = true
+  // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
+  if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
   g.setup = setupScript(g)
@@ -67,6 +73,8 @@ const THEMES = { themes: [
 export function fixturesFor(g) {
   const routes = []
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  // pages/charts/widgets/ScannerResults.jsx: { as_of, results: [{ sym }] } from the preset's own route (SCAN_ENDPOINTS)
+  if (g.scan) routes.push({ match: '^GET /api/scans/' + SCAN.key, body: { as_of: '2026-11-07T15:00:00-05:00', results: [{ sym: 'NVDA' }, { sym: 'AMD' }, { sym: 'MSFT' }] } })
   // hooks/useThemeSets.js: the preset picker shows only when the server says sets are on (C3-174)
   if (g.themes) routes.push({ match: '^GET /api/theme-sets' + '$', body: { enabled: true, sets: [{ id: 1, name: 'My Momentum' }] } })
   // BreadthWidget: rows[] from its history route; hooks/useLiveBreadth.js isLiveRowUsable: { ok, row }

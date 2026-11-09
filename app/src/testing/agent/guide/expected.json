@@ -924,8 +924,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C3-063": {
-  "feature": "watchlists",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "watchlistAction",
+  "title": "Opening one of your lists",
+  "from": "cov-1 row reviewed by hand 2026-11-08 (was the matrix's watchlists: Using watchlists, which rings no list)"
  },
  "C3-064": {
   "feature": "watchlistAction",

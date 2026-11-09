@@ -77,20 +77,31 @@ const rowStep = (result) => [
 ]
 const SWATCH = { within: 'chartSettings', attr: 'data-color-swatch' }
 const FIELD_ROW = { within: 'chartSettings', attr: 'data-field' }
+// ⭐ cov-1: what else says "change this indicator's settings or look", once the words name an indicator (readIndicator)
+// a colour by its name ("make the RSI purple")
+export const COLOUR_NAME = /\b(red|green|blue|purple|violet|orange|yellow|gold|white|black|gr[ae]y|pink|teal|cyan|aqua|magenta|brown|lime|navy)\b/
+// a value it is set to or uses ("set my RSI to 21", "so it uses 9 bars")
+export const SETS_A_VALUE = /\b(set|make|change|switch|put|turn)\b.*\b(to|at)\s+\d+\b|\b(uses?|using)\s+\d+(\s+(bars?|periods?|days?))?\b|\b(make|set)\s+(the |my |this |that )?[a-z]+ \d+\b(?!\s*(m|h|d|w|mins?|minutes?|hours?|hrs?|days?|weeks?|months?|bars?)\b)/
+// where it is worked out ("calculate this RSI on the weekly")
+export const CALC_ON = /\b(calculat|calc|comput|run|work)\w*\b.*\bon\s+(the\s+|a\s+)?(weekly|daily|monthly|hourly|higher|lower|other|another|different|\d+\s*(m|h|min\w*|hour\w*))\b/
+// one part of it by its own name ("the signal line on the MACD", "the upper band"): its settings, not the whole indicator
+export const INDICATOR_PART = /\b(signal|upper|lower|middle|basis|zero|center|centre|overbought|oversold)\s+(lines?|bands?|levels?)\b/
+// how it is drawn ("as a histogram instead of a line")
+export const DRAWN_AS = /\b(as|into)\s+(an?\s+)?(histogram|columns?|area|line|dots?|circles?|steps?)\b|\binstead of\s+(an?\s+)?(histogram|columns?|area|line|bars?)\b/
 
 export const GUIDE_FEATURES = [
   // ⭐ the named-control catalog (guide/controls.js): a control the words fully describe, in a place they name, wins over
   // every broader walkthrough that shares one of its words
   CONTROL_FEATURE,
   // ⭐ the action families (guide/actions.js): one row per small action, ahead of the features whose words they share
-  ...actionFeatures({ legendChip: { also: readIndicator }, indicatorManage: { also: readIndicator }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
+  ...actionFeatures({ legendChip: { also: readIndicator, guard: (q) => !INDICATOR_PART.test(q) },indicatorManage: { also: readIndicator }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
   // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)
   // ── ⭐ GUIDE SYSTEM: the nested, multi-step Charts families ──
   {
     // the Inspector of one indicator (components/chart/ChartSettingsIndicators.jsx), and its colour panel (ChartSettingsModal)
     id: 'indicatorColor', slots: ['ind'], except: /\b(prev|prior|previous)[- ]?day\b|\b(crosshair|grid|watermark|background)\b/, terms: ['indicator colour', 'indicator color'], control: 'the chart’s settings gear', title: 'Changing the colour of {ind.label}', titleAny: 'Changing an indicator’s colour', topic: 'indicators',
     words: [/\bindicators?\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\bindicators?\b/, /\b(line|plot|moving average|average)\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\b(line|plot|moving average|average)\b/],
-    match: (q) => /\b(re)?colou?r\w*\b/.test(q) && !!readIndicator(q),
+    match: (q) => (/\b(re)?colou?r\w*\b/.test(q) || COLOUR_NAME.test(q)) && !!readIndicator(q),
     caps: ['indicatorStyle.set'],
     explain: 'An indicator’s colour is in its own settings: the gear on the chart, the Indicators tab, click the indicator, then click the colour swatch under Appearance.',
     steps: [
@@ -106,7 +117,7 @@ export const GUIDE_FEATURES = [
     // the same Inspector, one field of it
     id: 'indicatorEdit', slots: ['ind', 'field'], terms: ['indicator settings'], control: 'the chart’s settings gear', title: 'Changing {ind.label}’s settings', titleAny: 'Changing an indicator’s settings', topic: 'indicators',
     words: [/\b(change|edit|set|adjust|configure|modify|tweak)\w*\b.*\bindicators?\b/, /\bindicators?\b.*\b(settings?|period|length|style|width|source|inputs?)\b/],
-    match: (q) => /\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) && !!readIndicator(q),
+    match: (q) => (/\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) || SETS_A_VALUE.test(q) || CALC_ON.test(q) || INDICATOR_PART.test(q) || DRAWN_AS.test(q)) && !!readIndicator(q),
     caps: ['indicator.update'],
     explain: 'Every indicator’s own settings are in the chart’s settings: the gear, the Indicators tab, then click the indicator. Its period, source, type, timeframe, pane, visibility and line style are all there.',
     steps: [
@@ -345,7 +356,8 @@ export const GUIDE_FEATURES = [
   {
     // pages/Watchlists.jsx — the + in a list's header
     id: 'watchlistAddSymbol', terms: ['add to a watchlist'], control: 'the + on the list', title: 'Adding a ticker to a watchlist', topic: 'watchlists',
-    words: [/\badd\b.*\b(tickers?|symbols?|stocks?|names?)\b.*\b(watch ?lists?|lists?)\b/, /\b(watch ?lists?|lists?)\b.*\badd\b.*\b(tickers?|symbols?|stocks?)\b/],
+    // ⭐ cov-1: a ticker by its own name counts too ("put NVDA on my watchlist"): one word between the verb and its list
+    words: [/\badd\b.*\b(tickers?|symbols?|stocks?|names?)\b.*\b(watch ?lists?|lists?)\b/, /\b(add|put|stick|throw|save)\s+(?!(an?|the|this|that|another|columns?)\b)[a-z][a-z.]{0,5}\s+(on|to|into|in)\s+(my|a|the|this|that|one of my)\s+((?!(surge|scope|volume)\b)\w+\s+)?(watch ?lists?|lists?)\b/,/\b(watch ?lists?|lists?)\b.*\badd\b.*\b(tickers?|symbols?|stocks?)\b/],
     caps: ['watchlist.show'],
     explain: 'Open a list in a Watchlist widget, click the + in its header and type the ticker. Alt+Q adds the chart’s ticker to a list.',
     steps: [
