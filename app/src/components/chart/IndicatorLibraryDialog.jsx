@@ -564,8 +564,17 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     }
     if (!next) return
     e.preventDefault()
-    next.focus()
-    try { next.scrollIntoView?.({ block: 'nearest' }) } catch { /* jsdom */ }
+    // ⚰️ MEASURED ON THE REAL SCREEN (2026-11-08, 1440×900, "rs"): scrolling the
+    // focused BUTTON into view is not enough. The button is only the title line;
+    // the ring and the description belong to the ROW around it, so ↓ onto a row
+    // whose title had just scrolled into view left its lower half and the bottom
+    // of the ring clipped under the sheet's edge. One more ↓ then hit a button
+    // that was wholly out of view, and the browser's own focus scroll CENTRED it,
+    // jumping the list ~400 px. So: focus without the browser's scroll, then
+    // bring the whole row (or the hint row) into view by the smallest move.
+    try { next.focus({ preventScroll: true }) } catch { next.focus() }
+    const frame = next.closest?.('li, [data-testid="library-search-hint"]') || next
+    try { frame.scrollIntoView?.({ block: 'nearest' }) } catch { /* jsdom */ }
   }, [])
 
   /** One heading and its rows — shared by the indicator half and the discovery half. */

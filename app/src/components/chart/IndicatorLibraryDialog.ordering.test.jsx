@@ -187,6 +187,42 @@ describe('↓ / ↑ / Home / End walk the results', () => {
     expect(document.activeElement).toBe(items[0])
   })
 
+  it('a step scrolls the whole ROW into view (it wears the ring), not just its title button, and never centres', () => {
+    // ⚰️ Measured on the real screen: scrolling only the title button left the
+    // lower half of the row and its ring clipped, and the browser's own focus
+    // scroll then centred the next row (a ~400 px jump).
+    stubFetch(() => [])
+    open()
+    type('rsi')
+    const items = navItems()
+    const scrolled = []
+    const focusOpts = []
+    const proto = window.HTMLElement.prototype
+    const hadScroll = Object.prototype.hasOwnProperty.call(proto, 'scrollIntoView')
+    const prevScroll = proto.scrollIntoView
+    const prevFocus = proto.focus
+    proto.scrollIntoView = function (opts) { scrolled.push([this, opts]) }
+    proto.focus = function (opts) { focusOpts.push(opts); return prevFocus.call(this, opts) }
+    try {
+      box().focus()
+      focusOpts.length = 0
+      fireEvent.keyDown(box(), { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(items[0])
+      expect(focusOpts[0], 'focus() let the browser scroll (it centres a hidden node)').toEqual({ preventScroll: true })
+      const [el, opts] = scrolled[scrolled.length - 1]
+      expect(el.tagName, 'scrolled the title button, not the row that wears the ring').toBe('LI')
+      expect(el.contains(items[0])).toBe(true)
+      expect(opts).toEqual({ block: 'nearest' })
+      fireEvent.keyDown(items[0], { key: 'End' })
+      const hint = scrolled[scrolled.length - 1][0]
+      expect(hint.dataset.testid, 'the hint button did not bring its whole hint row into view').toBe('library-search-hint')
+    } finally {
+      if (hadScroll) proto.scrollIntoView = prevScroll
+      else delete proto.scrollIntoView
+      proto.focus = prevFocus
+    }
+  })
+
   it('the arrows do nothing in the box except ↓ (the caret keeps Home / End / ↑)', () => {
     stubFetch(() => [])
     open()
