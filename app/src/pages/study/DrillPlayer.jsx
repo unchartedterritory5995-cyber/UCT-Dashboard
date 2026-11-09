@@ -49,6 +49,7 @@ import { StartButton } from '../../lab/StartCard'
 import JourneyStrip from './JourneyStrip'
 import RevealTakeover from './RevealTakeover'
 import { barStats } from './drillLook'
+import { barPxFor, chipPlacement } from './pointerFit'
 import { memberSettingsOverride } from './studyChartLook'
 import { setupName } from './challenges/challengeBank'
 import d5 from '../../lab/duo.module.css'
@@ -125,6 +126,20 @@ export default function DrillPlayer({
   const leaveAsked = useRef(false)
   const crosshair = useRef(null)
   const prefs = useMemo(() => feedbackPrefs(profile), [profile])
+  // The chart box's width, so the pointer chip can be placed from the chart's real bar width (pointerFit).
+  const [chartBoxW, setChartBoxW] = useState(0)
+  const chartBoxRo = useRef(null)
+  const chartBoxRef = useCallback((el) => {
+    chartBoxRo.current?.disconnect?.()
+    chartBoxRo.current = null
+    if (!el) return
+    const read = () => setChartBoxW(el.clientWidth || 0)
+    read()
+    if (typeof ResizeObserver !== 'undefined') {
+      chartBoxRo.current = new ResizeObserver(read)
+      chartBoxRo.current.observe(el)
+    }
+  }, [])
 
   useEffect(() => { if (open) pauseOtherAudio() }, [open])
 
@@ -205,12 +220,17 @@ export default function DrillPlayer({
     // a which-line-leads item asks about two RS lines, not a candle: no pointer
     if (isRsPairItem(item)) return null
     const i = baseLen - 1
+    // 2026-11-08 (real-screen review): the chip is anchored from the chart's real bar width so it never runs past
+    // the candle and under the price scale (the window is framed exactly, so the candle sits against the scale).
+    const barPx = barPxFor(chartBoxW, chartBars.length)
+    const chipAt = (label) => chipPlacement({ i, n: chartBars.length, label, barPx }).index
     if (phase === 'reveal' && result) {
       const color = result.correct ? '#2faf68' : '#df4646'
-      return [...spot(chartBars, i, { label: result.correct ? 'you were right' : 'the answer', id: 'pt', color, halo: true }), ...arrowAt(chartBars, i, { id: 'pta', color }), ...rayAt(chartBars[i], 'l', { id: 'ptl', label: '' })]
+      const label = result.correct ? 'you were right' : 'the answer'
+      return [...spot(chartBars, i, { label, id: 'pt', color, halo: true, chipAt: chipAt(label) }), ...arrowAt(chartBars, i, { id: 'pta', color }), ...rayAt(chartBars[i], 'l', { id: 'ptl', label: '' })]
     }
-    return [...spot(chartBars, i, { label: 'this candle', id: 'pt', halo: true }), ...arrowAt(chartBars, i, { id: 'pta' })]
-  }, [chartVisible, chartBars, item?.type, baseLen, phase, result])
+    return [...spot(chartBars, i, { label: 'this candle', id: 'pt', halo: true, chipAt: chipAt('this candle') }), ...arrowAt(chartBars, i, { id: 'pta' })]
+  }, [chartVisible, chartBars, item?.type, baseLen, phase, result, chartBoxW])
   // the facts a trader reads before answering, from the bars in hand (the question's own window, not the forward bars)
   const stats = useMemo(() => (needsChart && chartBars?.length ? barStats(chartBars.slice(0, baseLen || chartBars.length)) : []), [needsChart, chartBars, baseLen])
 
@@ -376,6 +396,7 @@ export default function DrillPlayer({
         ) : (framing && <p className={styles.framing}>{framing}</p>)}
         <div className={`${styles.chartRow} ${needsChart && stats.length > 0 ? styles.chartRowFacts : ''}`}>
         <div
+          ref={chartBoxRef}
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
           aria-hidden={!needsChart}
           data-testid="chart-box"
