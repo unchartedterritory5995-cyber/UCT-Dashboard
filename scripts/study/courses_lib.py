@@ -500,7 +500,9 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         if only_passed and (verify.get(key) or {}).get("status") != "pass":
             continue
         fmt = q.get("format")
-        prompt: dict[str, Any] = {"q": dedash(q.get("q")), "subject": f"{unit}#{key}"}
+        # a vocabulary question names its word in `term`: it becomes the prompt's subject (stripped from what a member
+        # receives) so Word Match can pair the word with its meaning (study_store.game_pool); the id never depends on it
+        prompt: dict[str, Any] = {"q": dedash(q.get("q")), "subject": dedash(q["term"]) if q.get("term") else f"{unit}#{key}"}
         answer: Any = q.get("answer")
         if fmt in ("mcq", "scenario"):
             prompt["kind"] = "mcq"

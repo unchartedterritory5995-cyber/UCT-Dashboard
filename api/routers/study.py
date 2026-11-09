@@ -335,6 +335,8 @@ class SpotSetupIn(BaseModel):
     seed: Optional[str] = None
     # Draw it asks only for charts whose setup has a trade plan (study_trade.plan), so every chart can be scored
     need_plan: bool = False
+    # Daily Chart (docs/study/GAMES.md): the SAME charts for every member on an ET day, so the draw ignores the member
+    shared: bool = False
 
 
 @router.post("/spot-setup", dependencies=_ARMED)
@@ -352,7 +354,9 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     view = max(20, min(250, int(body.view or 90)))
     rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
             and r.get("skill_id") in study_hard.SETUP_RULES]
-    rng = _random.Random(f"{uid}:{_date.today().isoformat()}" + (f":{body.seed[:40]}" if body.seed else ""))
+    day = study_store.et_day_of()
+    rng = _random.Random((f"daily:{day}" if body.shared else f"{uid}:{_date.today().isoformat()}")
+                         + (f":{body.seed[:40]}" if body.seed else ""))
     rng.shuffle(rows)
     by: dict[str, list] = {}
     for r in rows:

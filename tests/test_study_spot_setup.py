@@ -170,6 +170,41 @@ def test_a_seed_gives_a_fresh_draw_and_rounds_reach_24(tmp_path, monkeypatch):
     assert len(draws) > 1
 
 
+def test_a_shared_draw_is_the_same_for_every_member(tmp_path, monkeypatch):
+    """Daily Chart (docs/study/GAMES.md): `shared` draws the same charts for every member on the ET day; without it two
+    members get their own draws."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import study as R
+    from api.services import study_store as ss
+    from api.services import study_spot_setup
+    monkeypatch.setattr(ss, "_DB_PATH", str(tmp_path / "study.db"))
+    monkeypatch.delenv("STUDY_ENABLED", raising=False)
+    ss.init_db()
+    items = []
+    for k in range(30):
+        iid = f"si_{k}"
+        items.append({"id": iid, "type": "spot", "skill_id": "setup.family3.kicker", "difficulty": 3, "bars_ref": f"sb_{iid}", "sym": "X", "asof": "2024-01-02",
+                      "prompt_json": {"q": "fires?", "choices": ["Yes", "No"]}, "answer_json": {"answer": "yes"}, "reveal_json": {},
+                      "source_kind": "detection", "source_ref": f"d:{iid}", "lesson_text": "L"})
+    ss.upsert_items(items)
+    for it in items:
+        ss.upsert_bars(it["bars_ref"], "D", [{"t": 20240101 + d, "o": 1, "h": 1.1, "l": 0.9, "c": 1.0, "v": 10} for d in range(30)], [])
+        ss.approve(it["id"], "owner")
+    monkeypatch.setattr(study_spot_setup, "lookalikes", lambda bars, skill, view=90: {"real": 29, "real_features": {}, "lookalikes": [{"i": 10, "features": {}}]})
+
+    def client_for(uid):
+        app = FastAPI()
+        app.include_router(R.router)
+        app.dependency_overrides[R.require_paid] = lambda: {"id": uid, "email": f"{uid}@t.dev", "role": "member", "plan": "pro"}
+        return TestClient(app)
+    a, b = client_for("u1"), client_for("u2")
+    ids = lambda c, body: [i["id"] for i in c.post("/api/study/spot-setup", json=body).json()["items"]]
+    assert ids(a, {"rounds": 3, "shared": True}) == ids(b, {"rounds": 3, "shared": True})
+    own = {tuple(ids(client_for(f"m{n}"), {"rounds": 3})) for n in range(6)}
+    assert len(own) > 1
+
+
 # ── POST /api/study/draw/score: Draw it, scored against the setup's own plan ──────────────────────────────────────────
 def test_draw_it_scores_both_lines_against_the_plan(tmp_path, monkeypatch):
     from fastapi import FastAPI

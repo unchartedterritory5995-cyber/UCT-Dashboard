@@ -78,6 +78,11 @@ F11 `styles`, F12 `process`, V `vocab.<category>`.
 | `numeric` | `q`, `answer` (a number), `calc`, optional `prefix` / `suffix` | type the number |
 | `scenario` | `story` (2 to 4 short sentences), `q`, `choices` (3 or 4), `answer` | a short story with a decision |
 
+**Vocabulary questions** (track V, and any unit that defines a word): put the word in `"term"`. A "what does X
+mean?" question has the word as `term` and the short meaning as its `answer` (40 characters at most, so it fits a Word
+Match tile); a "which word is this?" question has the word as both `term` and `answer`. Word Match pairs only the
+first kind.
+
 **Rungs** 1 to 9: Learn 1-3 (recognise the idea), Practise 4-6 (use it on a case), Prove 7-9 (a real-world case, a
 trap, a judgment). Spread each unit across all three levels, about a third each.
 
