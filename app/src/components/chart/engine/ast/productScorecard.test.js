@@ -44,6 +44,7 @@ import path from 'node:path'
 import TABLE from './closedTable.json'
 import { translatePine } from './pine.js'
 import { translateThinkScript } from './thinkscript.js'
+import { strategyScorecardWording } from './strategyScorecard.js'
 
 const ROOT = path.resolve(process.cwd(), '..')
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'))
@@ -143,6 +144,7 @@ alerting         a saved formula is an alert target     ${RAILS.alerting.split('
 sharing          mint → publish → browse → install      ${RAILS.sharing.split('/').pop()}
 verifiability    4-outcome receipt · read-back · roster ${RAILS.verifiability.split('/').pop()}
 strategies       RULED OUT — a strategy is not a screen     ${RAILS.strategies.split('/').pop()}
+strategy bktest  ${strategyScorecardWording()}
 ──────────────────────────────────────────────────────────────────────────────
 import fidelity  ${imp.translate}/${imp.total} on paste · ${imp.accepted}/${imp.total} after accepting the door's own offers
                  ⚠️ COMMUNITY CHART INDICATORS — a REGRESSION NET, not a target. Most of

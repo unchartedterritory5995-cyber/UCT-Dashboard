@@ -27,14 +27,19 @@ import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
+import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
+import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegistry'
+// W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
+registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
-import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
+import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
@@ -1356,7 +1361,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   if (!probe.ok) {
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
-    if (r.guard === 'runtime:object-op' && own.guard) return decline(own.guard, own.why)
+    // ⭐ W3W4-D2 — and `runtime:no-output`: a script that only draws has no output in the value build.
+    if (valueBuildDefersToDrawing(r.guard) && own.guard) return decline(own.guard, own.why)
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold
@@ -1848,7 +1854,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // lane cannot prove that of a whole script, so a FALLBACK document computes
     // only on a series that starts at the listing (`runtimeColumns.js`), and is
     // refused by name on any other. The routed case keeps its measured behaviour.
-    ...(routed ? {} : { runtimeHistory: 'listing' }),
+    // ⭐⭐ W9-T11 — A STRATEGY (its program holds a broker, possible only with the broker gate
+    // on) is stamped instead with the window rule (design 3.4): its run takes the most recent
+    // `ctx.historyWindowBars` bars and never R-W's curtain. Every other document is as before.
+    ...(probe.broker === true ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed ? {} : { runtimeHistory: 'listing' }),
     // ⭐⭐ P1 HARDENING — which front end / IR built this document, and what each
     // `compute.outputs` index named when it did (`runtimeColumns.js::runtimeVersionStamp`).
     // Every run re-checks them, so a later engine that orders outputs differently

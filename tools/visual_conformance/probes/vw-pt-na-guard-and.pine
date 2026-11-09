@@ -1,0 +1,42 @@
+//@version=6
+indicator("UCTPROBE_VW_PT_NA_GUARD_AND", overlay = false, max_bars_back = 5000)
+
+// --- 2026-11-07 prod-ternary - `not na(x) and <ta.* over x>`, `x` na UNTIL A BAR AND NEVER AGAIN ---
+//
+// docs/pine/capture-queue-2026-10-31-prod-ternary.md, "Shapes this branch does
+// NOT stamp", row 4. `x` is `na` on the first bars and never again, so the left
+// side of the v6 `and` is false and then true for good: the right side's FIRST
+// run comes after skips, and `blockRuns` withholds it there. Per run and every
+// bar may agree on that first run (its `x[1]` is `na` on both readings). Rows
+// for `ta.crossover`, `ta.change` and `ta.sma` over such an `x`, each beside the
+// same `and` fed by the every-bar call:
+//
+//   C01 / E01  ta.crossover(close, x)
+//   C02 / E02  ta.change(x) > 0
+//   C03 / E03  ta.sma(x, 3) > close
+//
+// Where every C row equals its E row, `blockRuns` could admit a false-then-true
+// guard for that function.
+//
+// x = ta.sma(close, 30): `na` on the first 29 loaded bars, never again.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line.
+
+x = ta.sma(close, 30)
+ok = not na(x)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ok ? 1 : 0, "A01_left_side_CONTROL")
+plot(x, "A02_x")
+
+e_cross = ta.crossover(close, x)
+e_chg = ta.change(x)
+e_sma = ta.sma(x, 3)
+
+plot(ok and ta.crossover(close, x) ? 1 : 0, "C01_and_crossover")
+plot(ok and e_cross ? 1 : 0, "E01_and_crossover_every_bar")
+plot(ok and ta.change(x) > 0 ? 1 : 0, "C02_and_change_positive")
+plot(ok and e_chg > 0 ? 1 : 0, "E02_and_change_positive_every_bar")
+plot(ok and ta.sma(x, 3) > close ? 1 : 0, "C03_and_sma3_above_close")
+plot(ok and e_sma > close ? 1 : 0, "E03_and_sma3_above_close_every_bar")

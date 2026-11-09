@@ -13,6 +13,9 @@ with no TradingView access. `batch` hands the page work to `batch_capture.py run
 
 ⛔ WHAT THIS NEVER DOES
   * writes Pine from a prose row (a row with no probe file is NEEDS_PROBE);
+  * counts a row its doc DISPOSES of as not a capture question (a `| not a capture | disposition | reason |`
+    table, see DISPOSITIONS) as needing a probe: such a row is listed, counted and reasoned in
+    `rowsNotCaptureQuestions`, never dropped;
   * guesses a chart: a target no row names a readable chart for is NEEDS_CHART, never batched;
   * batches a row that needs a live session (NEEDS_LIVE);
   * re-queues a capture already committed anywhere under tests/fixtures/vendor/;
@@ -99,6 +102,22 @@ STEM_RX = re.compile(r"[a-z0-9][a-z0-9.-]*")
 TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}")
 #: Strongest first: where a target's chart was read. Only `default` (nothing named) is NEEDS_CHART.
 CHART_RANK = {"row": 0, "section": 1, "preamble": 2, "census": 3, "default": 4}
+
+#: THE ONE ROW DISPOSITION. A doc says a row of its own is NOT a capture question with a table headed
+#: `| not a capture | disposition | reason |`: the first cell names the row exactly as the row's own first cell
+#: reads (backticks and bold are ignored), the second is one of DISPOSITIONS, the third says why, in the doc's
+#: own words. Such a row leaves `rowsNeedingProbe` and is never a target; it is listed, with its reason, in
+#: `rowsNotCaptureQuestions` and counted, so nothing leaves the queue silently. A disposition with no reason,
+#: outside DISPOSITIONS, given twice, or naming no row of its doc REFUSES the whole queue (`DispositionError`).
+DISPOSITION_HEAD = "not a capture"
+DISPOSITIONS = {
+    "ruling": "blocked by an owner ruling, not by a missing capture",
+    "engine-gap": "engine work: what it needs is a build, not a TradingView reading",
+    "closed": "the item is closed; nothing is asked",
+    "by-design": "the engine's behaviour here is a decision, not an open question",
+    "builtin": "a TradingView built-in no probe file can stand in for",
+    "withheld-ledger": "a record of what the engine withholds; the capture that settles it, if any, is its own row",
+}
 
 LIVE_RX = re.compile(r"market hours|during regular hours|\brealtime\b|\breal-time\b|\blive\b|\bforming\b|"
                      r"minutes apart|\bintrabar\b|\bvarip\b|\b1m\b|\bticks?\b", re.I)
@@ -561,9 +580,42 @@ def iter_tables(lines):
             i += 1
 
 
+class DispositionError(ValueError):
+    """A `not a capture` disposition the queue cannot honour: no reason, an unknown disposition, or no such row."""
+
+
+def row_id(cells, line_no) -> str:
+    """A row's id, as its key carries it: the first cell, cleaned, whitespace folded, at most 60 characters."""
+    rid = clean_cell(cells[0]) if cells else ""
+    return re.sub(r"\s+", " ", rid)[:60] or f"L{line_no}"
+
+
+def read_dispositions(path: pathlib.Path, lines) -> dict:
+    """{row id: {disposition, reason, line}} from the doc's `not a capture` tables. Refuses a bad one."""
+    out = {}
+    for _start, header, trows in iter_tables(lines):
+        if not header or header[0] != DISPOSITION_HEAD:
+            continue
+        for line_no, cells in trows:
+            rid = row_id(cells, line_no)
+            kind = clean_cell(cells[1]).lower() if len(cells) > 1 else ""
+            reason = clean_cell(" | ".join(cells[2:])) if len(cells) > 2 else ""
+            where = f"{path.name}:{line_no} ({rid!r})"
+            if kind not in DISPOSITIONS:
+                raise DispositionError(f"{where}: disposition {kind!r} is not one of {sorted(DISPOSITIONS)}")
+            if not reason:
+                raise DispositionError(f"{where}: a `not a capture` disposition needs a reason")
+            if rid in out:
+                raise DispositionError(f"{where}: the row is disposed of twice")
+            out[rid] = {"disposition": kind, "reason": re.sub(r"\s+", " ", reason), "line": line_no}
+    return out
+
+
 def parse_doc(world: World, path: pathlib.Path) -> dict:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
+    dispositions = read_dispositions(path, lines)
+    disposed = set()
     m = DOC_RX.match(path.stem)
     date, tag = (m.group(1), m.group(2) or m.group(1)) if m else ("", path.stem)
     first_table = next((i for i, ln in enumerate(lines) if ln.lstrip().startswith("|")), len(lines))
@@ -581,6 +633,8 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
         # ⭐ THE SECTION DECIDES: a section naming its own .pine is asked (two of them is ambiguous, so
         # nothing is inherited); the preamble speaks only for a section that names none.
         inherit_from = lead_sources if lead_sources else pre_sources
+        if header and header[0] == DISPOSITION_HEAD:
+            continue        # read above: a disposition table asks for nothing
         if (set(header) & LEDGER_HEADERS) or (header and header[0] in LEDGER_FIRST_HEADERS):
             context += 1
             continue
@@ -589,8 +643,7 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             continue
         stated_cols = [i for i, h in enumerate(header) if STATED_HEAD_RX.search(h)]
         for line_no, cells in trows:
-            rid = clean_cell(cells[0]) if cells else ""
-            rid = re.sub(r"\s+", " ", rid)[:60] or f"L{line_no}"
+            rid = row_id(cells, line_no)
             ids[rid] += 1
             key = f"{path.stem}#{rid}" + (f"~{ids[rid]}" if ids[rid] > 1 else "")
             rtext = " | ".join(cells)
@@ -663,7 +716,13 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "namedScripts": sorted(set(SLUG_RX.findall(rtext))),
                 "statedUnblocks": stated,
                 "fixtureRefs": fx,
+                "notCapture": dispositions.get(rid),
             })
+            if rid in dispositions:
+                disposed.add(rid)
+    stray = sorted(set(dispositions) - disposed)
+    if stray:
+        raise DispositionError(f"{path.name}: `not a capture` names no row of this doc: {stray}")
     return {"doc": rel(path), "date": date, "wave": tag, "rows": rows, "contextTables": context}
 
 
@@ -725,10 +784,13 @@ def build_queue(world: World | None = None) -> dict:
             t["origins"].append(origin)
         return t
 
-    rows_out, needs_probe = [], []
+    rows_out, needs_probe, not_capture = [], [], []
     for d in docs:
         for r in d["rows"]:
             rows_out.append(r)
+            if r["notCapture"]:
+                not_capture.append(r)       # the doc says why: listed and counted, never a target
+                continue
             if r["needsProbe"]:
                 needs_probe.append(r)
                 continue
@@ -802,6 +864,9 @@ def build_queue(world: World | None = None) -> dict:
         })
     out_targets.sort(key=priority_key)
     counts = summarise(out_targets, needs_probe, held)
+    counts["rowsNotCaptureQuestions"] = len(not_capture)
+    counts["rowsNotCaptureByDisposition"] = dict(sorted(collections.Counter(
+        r["notCapture"]["disposition"] for r in not_capture).items()))
     counts["rowsNamingUnreadableCharts"] = sum(1 for r in rows_out if r["unparsedCharts"])
     return {
         "schema": QUEUE_SCHEMA,
@@ -819,11 +884,19 @@ def build_queue(world: World | None = None) -> dict:
             "chartSource": "where the chart was read: row | section (the heading above the table) | preamble "
                            "(explicit EXCH:SYM only) | census (the E-census pool's house chart, on purpose) | default",
             "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)",
+            "rowsNotCaptureQuestions": "rows their own doc disposes of in a `| not a capture | disposition | reason |` "
+                                       "table: never a target, never counted in rowsNeedingProbe",
+            "dispositions": DISPOSITIONS,
         },
         "counts": counts,
         "targets": out_targets,
         "rowsNeedingProbe": [{k: r[k] for k in ("key", "doc", "line", "docWave", "needsProbe", "needsLive",
                                                 "guards", "namedScripts", "text")} for r in needs_probe],
+        "rowsNotCaptureQuestions": [{"key": r["key"], "doc": r["doc"], "line": r["line"], "docWave": r["docWave"],
+                                     "disposition": r["notCapture"]["disposition"],
+                                     "reason": r["notCapture"]["reason"],
+                                     "dispositionLine": r["notCapture"]["line"], "text": r["text"]}
+                                    for r in not_capture],
         "licenceHeldCensus": held,
         "docs": [{"doc": d["doc"], "wave": d["wave"], "rows": len(d["rows"]), "contextTables": d["contextTables"]}
                  for d in docs],
@@ -1227,6 +1300,8 @@ def print_counts(q: dict) -> None:
     print(f"[queue] by priority band: {json.dumps(c['byPriorityBand'])}")
     print(f"[queue] rows needing a probe file: {c['rowsNeedingProbe']} ({c['rowsNeedingProbeLive']} of them live) · "
           f"licence-held census scripts: {c['licenceHeldCensus']}")
+    print(f"[queue] rows their doc says are not capture questions: {c.get('rowsNotCaptureQuestions', 0)} "
+          f"{json.dumps(c.get('rowsNotCaptureByDisposition', {}))}")
     top = [t for t in q["targets"] if t["status"] == "QUEUED"][:10]
     for t in top:
         print(f"[queue]   p={t['priority']:>3} up={t['unblocks']['upper']:>3} {t['planWave']:>3} {t['id']}")

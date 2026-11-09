@@ -30,8 +30,13 @@ import { isValidTf } from '../../components/chart/timeframes'
 
 const APPEARANCE = ['lineWidth', 'lineStyle', 'overlap']
 // ⭐ PACKAGE 3: `showOn` — which chart timeframes it draws on (Indicators' `setVisibility`, the Inspector's "Show on")
-const PROPERTIES = ['color', 'upColor', 'downColor', 'lineWidth', 'lineStyle', 'plotStyle', 'overlap', 'showOn']
+// ⭐ UCT RS Phase 2a (2a-12b): `dotSize` — the Dot size control on an indicator that draws dots (Indicators' `setDotSize`)
+const PROPERTIES = ['color', 'upColor', 'downColor', 'lineWidth', 'lineStyle', 'plotStyle', 'overlap', 'showOn', 'dotSize']
 const lc = (s) => String(s ?? '').trim().toLowerCase()
+// the member's word for a dot size → the store's word (the three `DOT_SIZES` keys); the control labels "medium" as "Default"
+const DOT_SIZE_SYNONYMS = { default: 'medium', normal: 'medium', regular: 'medium', standard: 'medium', big: 'large', bigger: 'large', larger: 'large', tiny: 'small', smaller: 'small', little: 'small' }
+const dotSizeOf = (v) => { const w = lc(v); return DOT_SIZE_SYNONYMS[w] || w }
+const dotSizeLabel = (w) => (w === 'medium' ? 'Default (medium)' : w)
 
 // ── the request for ONE style change (or why there is none) ──
 /** A colour as the contract accepts it: a name or hex (→ #rrggbb), or a theme token / rgb() / hsl() as said. */
@@ -98,6 +103,18 @@ export function styleRequest(st, { instance, property, value, output }) {
     const visibility = showOnOf(value)
     if (!visibility) return { why: `I can show ${t.name} on all timeframes, intraday only, daily & above, or on the timeframes you name (daily, weekly, 1h…) — which?` }
     return { req: { op: 'setVisibility', instanceId: id, visibility }, name: t.name }
+  }
+  // ⭐ 2a-12b: the Dot size control — only on an indicator that draws dots (`styleOptionsOf(...).dotSize` is null otherwise);
+  // the word is validated against the options Indicators offers, never invented; `output` names ONE dot output (else the instance level)
+  if (property === 'dotSize') {
+    const ds = opts.dotSize
+    if (!ds) return { why: `${t.name} has no dot size to change — this indicator draws no dots.` }
+    const size = dotSizeOf(value)
+    if (!(ds.options || []).includes(size)) return { why: `“${value}” isn't a dot size I know — ${t.name}'s dots can be ${(ds.options || []).map(dotSizeLabel).join(', ')}.` }
+    const plots = ds.plots || []
+    const pick = output ? plots.find(p => lc(p.label) === lc(output) || lc(p.plotKey) === lc(output)) : null
+    if (output && !pick) return { why: `${t.name} draws no dots on “${output}” — its dots: ${plots.map(p => p.label).join(', ')}.` }
+    return { req: { op: 'setDotSize', instanceId: id, size, ...(pick ? { plotKey: pick.plotKey } : {}) }, name: t.name }
   }
   // PACKAGE 3: an indicator built in Create Indicator has no Inspector width control — its width is its own "Line width"
   // SETTING (the `lineWidth` input), changed through the same setInputs door as any setting (exact Undo)
@@ -249,8 +266,8 @@ export function registerIndicatorControlCapabilities() {
     ...common,
     name: 'indicatorStyle.set',
     fanOut: true,
-    summary: 'Change how ONE indicator on ONE chart looks — its colour (or a histogram\'s up / down colours), line width, line style, plot style, or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily). value = the member\'s value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
+    summary: 'Change how ONE indicator on ONE chart looks — its colour (or a histogram\'s up / down colours), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily) | dotSize (small | medium | large — "medium" is the default; only an indicator that draws dots, e.g. "make the RS dots large" = dotSize large). value = the member\'s value (a colour name or #hex for colours). output = which line, colour or dot output when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
     args: { type: 'object', properties: { instance: instanceArg, property: { type: 'string', enum: PROPERTIES }, value: { type: ['string', 'number', 'boolean'] }, output: { type: ['string', 'null'] } }, required: ['instance', 'property', 'value', 'output'], additionalProperties: false },
     fast: ({ lower }) => fastStyle(lower),
     check: (st, args) => checkBuilt(st, styleRequest(st, args)),
@@ -373,6 +390,9 @@ function fastStyle(lower) {
   }
   m = /^(?:show|draw|make) (.+?) (?:as )?an? (histogram|line|area|columns)$/.exec(lower)
   if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'plotStyle', value: m[2], output: null }
+  // ⭐ 2a-12b: "make the RS dots large" / "make sar's dots small" — the Dot size control (styleRequest validates the word)
+  m = /^make (.+?)(?:'s)? dots (small|medium|large|default|big|tiny)$/.exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'dotSize', value: m[2], output: null }
   return null
 }
 function fastPlace(lower) {

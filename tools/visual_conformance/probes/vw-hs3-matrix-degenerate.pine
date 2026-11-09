@@ -1,0 +1,21 @@
+// HONESTY-SWEEP (2026-11-07) - probe Q-HS3 for the capture lane (the twins of W6-M1 rows D01-D04).
+// Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, AFTER THE CLOSE. A runtime error is itself a reading: record its text and the bar it
+// names, comment that row out, and capture the rest.
+//
+//   R01  array.size(matrix.row(m, 0)) of a 2x0 matrix (or an error)
+//   C01  array.size(matrix.col(m, 1)) of a 0x3 matrix (or an error)
+//   F01  matrix.fill of a 0x3 matrix with no range: rows * 10 + columns after (or an error)
+//   F02  matrix.fill(m, 5.0, 1, 1) on a 2x2 matrix holding 1.0: get(1, 1) after (or an error)
+//@version=6
+indicator("vw-hs3-matrix-degenerate", overlay = false)
+m20 = matrix.new<float>(2, 0)
+plot(array.size(matrix.row(m20, 0)), "R01")
+m03 = matrix.new<float>(0, 3)
+plot(array.size(matrix.col(m03, 1)), "C01")
+f03 = matrix.new<float>(0, 3)
+matrix.fill(f03, 2.0)
+plot(matrix.rows(f03) * 10 + matrix.columns(f03), "F01")
+f22 = matrix.new<float>(2, 2, 1.0)
+matrix.fill(f22, 5.0, 1, 1)
+plot(matrix.get(f22, 1, 1), "F02")

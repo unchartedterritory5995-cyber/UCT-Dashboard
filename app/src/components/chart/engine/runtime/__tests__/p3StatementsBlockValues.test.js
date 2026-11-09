@@ -227,9 +227,11 @@ describe('A8 — the comma statement separator', () => {
   it('⛔ CONTROL — a generic type list `<string, float>` is not a separator', () => {
     // The lexer folds a type list into its head token (`typeArgs`), so this comma
     // never reaches the splitter at all; the case keeps that true from the outside.
-    const r = refusalOf(`${head}m = map.new<string, float>()\nplot(close)\n`)
-    expect(r.guard).toBe('runtime:array')
-    expect(r.message).toMatch(/map\.new/)
+    // ⭐ W6-T8 serves `map.new`, so the line BUILDS and runs: the type list reached the call
+    // whole (a split comma would have left `map.new<string` and refused).
+    const [s] = runAll(`${head}m = map.new<string, float>()\nm.put("a", close)\nplot(m.size())\n`)
+    expect(s.length).toBeGreaterThan(0)
+    expect(s.every((v) => v === 1)).toBe(true)
   })
 
   it('⛔ a comma inside a call or a destructuring is not a separator', () => {

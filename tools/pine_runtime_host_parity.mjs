@@ -10,7 +10,8 @@
 //   --host node [--bundle <mjs>] --check      HP-1 + HP-5: run the BUNDLE (built fresh into a temp
 //                                             dir unless --bundle is given) over the corpus and
 //                                             compare with expected-digests.json. Exit 0 equal, 1 red
-//                                             (by case name), 2 inconclusive.
+//                                             (by case name), 2 inconclusive, 130 INTERRUPTED (SIGINT /
+//                                             SIGTERM / SIGHUP mid-run: no verdict, nothing written).
 //   --host node [--bundle <mjs>] --out <json> write this host's records (no compare)
 //   --write                                   regenerate expected-digests.json. REFUSES to change an
 //                                             existing case's digest unless the engine identity
@@ -55,6 +56,11 @@ export const EXPECTED_FILE = join(FIXTURE_DIR, 'expected-digests.json')
 export const ARTIFACT_NEUTRAL_SHA = '0'.repeat(64)
 /** A stop that depends on the wall clock: never a digest, never a verdict (design H5). */
 export const NON_DETERMINISTIC_GUARDS = Object.freeze(['runtime:time-budget'])
+/** A case the run never finished because the RUN was stopped (SIGINT / SIGTERM / SIGHUP, or the
+ *  caller's AbortSignal). Never `runtime:failed` (that is the ENGINE's verdict), never a digest. */
+export const INTERRUPTED_GUARD = 'harness:interrupted'
+export const INTERRUPTED_EXIT = 130
+const interruptedRecord = () => ({ status: 'interrupted', digest: null, guards: [INTERRUPTED_GUARD], warmup: null })
 
 const codec = await import(pathToFileURL(join(RUNTIME_DIR, 'columnDigest.js')).href)
 
@@ -300,7 +306,7 @@ function nodeRaw(rt, c, rows) {
   }
 }
 
-export async function runNode({ bundle, corpus = loadCorpus(), only = null, log = () => {}, rawSink = null } = {}) {
+export async function runNode({ bundle, corpus = loadCorpus(), only = null, log = () => {}, rawSink = null, signal = null } = {}) {
   const rt = await import(pathToFileURL(resolve(bundle)).href)
   const identity = identityOf(rt)
   const cases = caseList(corpus).filter((c) => !only || only.includes(c.case) || only.includes(c.script))
@@ -308,7 +314,11 @@ export async function runNode({ bundle, corpus = loadCorpus(), only = null, log 
   const barsSha = {}
   for (const [set, spec] of Object.entries(corpus.barSets)) { bars[set] = makeBars(spec); barsSha[set] = barsSha256(bars[set]) }
   const records = {}
+  let interrupted = false
   for (const c of cases) {
+    // a case runs synchronously: yield so a pending signal is delivered BETWEEN cases
+    await new Promise((r) => setImmediate(r))
+    if (signal && signal.aborted) { interrupted = true; records[c.case] = interruptedRecord(); continue }
     const t0 = performance.now()
     const rows = bars[c.set].map((b) => ({ ...b }))
     const raw = nodeRaw(rt, c, rows)
@@ -316,7 +326,7 @@ export async function runNode({ bundle, corpus = loadCorpus(), only = null, log 
     records[c.case] = recordOf(raw, identity)
     log(`${c.case.padEnd(40)} ${records[c.case].status.padEnd(9)} ${(performance.now() - t0).toFixed(0).padStart(6)} ms ${records[c.case].guards.join(',')}`)
   }
-  return { host: 'node', identity, barsSha256: barsSha, records, recordedOn: hostVersions() }
+  return { host: 'node', identity, barsSha256: barsSha, records, recordedOn: hostVersions(), interrupted }
 }
 
 /** The host's JS engine. NOT part of the digest: two V8 builds can disagree in the last ulp of
@@ -494,6 +504,8 @@ export function hp1Summary(r, n) {
 
 /** --write: refuse to move an existing case's digest unless the engine identity moved. */
 export function writeExpected(prev, got, corpus) {
+  const stopped = Object.entries(got.records).filter(([, r]) => r.status === 'interrupted').map(([n]) => n)
+  if (got.interrupted || stopped.length) throw new Error(`refused: the run was interrupted (${stopped.length} case(s) never finished)`)
   const ns = distinguishes(got.records)
   if (ns) throw new Error(`refused: ${ns}`)
   const hf = hostileFailures(corpus, got.records)
@@ -608,7 +620,7 @@ function atomicWrite(file, text) {
   renameSync(tmp, file)
 }
 
-async function main(argv) {
+export async function main(argv) {
   const log = argv.includes('--quiet') ? () => {} : (s) => console.log(s)
   const only = argOf(argv, '--only') ? argOf(argv, '--only').split(',') : null
   if (argv.includes('--adapters')) {
@@ -673,7 +685,19 @@ async function main(argv) {
     }
     // W5-T5: --raw-out keeps Node's own encoded columns so a differing case can be explained by column and ulp
     const rawSink = argOf(argv, '--raw-out') ? {} : null
-    const got = await runNode({ bundle, corpus, only, log, rawSink })
+    const ac = new AbortController()
+    let why = null
+    const onSig = (sig) => { why = why || sig; ac.abort() }
+    const SIGS = ['SIGINT', 'SIGTERM', 'SIGHUP']
+    for (const s of SIGS) process.on(s, onSig)
+    let got
+    try { got = await runNode({ bundle, corpus, only, log, rawSink, signal: ac.signal }) } finally { for (const s of SIGS) process.off(s, onSig) }
+    if (got.interrupted) {
+      const n = Object.keys(got.records).length
+      const stopped = Object.values(got.records).filter((r) => r.status === 'interrupted').length
+      console.log(`HP-1 INTERRUPTED by ${why || 'abort'}: ${n - stopped}/${n} cases ran; nothing written, no verdict`)
+      return INTERRUPTED_EXIT
+    }
     if (rawSink) atomicWrite(argOf(argv, '--raw-out'), JSON.stringify({ host: 'node', results: rawSink }))
     if (argOf(argv, '--out')) atomicWrite(argOf(argv, '--out'), `${JSON.stringify(got, null, 1)}\n`)
     if (argv.includes('--write')) {
