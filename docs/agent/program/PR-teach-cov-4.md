@@ -42,6 +42,18 @@ One fresh full runner pass (Vite restarted), each case run once:
 - **One runner exception: C1-163** ("magnet for drawing"). The run recorded `Cannot read properties of null (reading 'x')` before its first step, a harness error rather than a guide failure. It passed in each of two single re-runs. It is still counted as not VERIFIED in this pass's 278.
 - **KNOWN MISSES** are listed in `CHARTS_TEACH_STATUS.md`: cov-3 ×3 and cov-4 ×1.
 
+## Plan vs actual
+The plan expected about +31 for items (1)–(4). The actual gain was **+8** VERIFIED: 270 → 278.
+
+| Item | Plan | Actual | Why short |
+|---|---|---|---|
+| (1) Givens batch 2 | +13 | +2 (C3-059, C3-123) | Of the planned givens, replay, saved indicator, AI Search answer, open note and ETF profile were not built. Each needs app state the harness can't seed through a pref or a fixture route. The two that were tried, a blocked alert and a select pick, didn't work and were reverted. |
+| (2) Runner abilities 2 | +4 | +1 (C3-001) | The select pick and the drawing-pixel right-click are not done. |
+| (3) Chart Settings rows | about +6 | +3 (C1-017, C1-071, C1-076) | The other rows' inventory words are terse ("background to black", "light chart") or reach a more specific walkthrough first. |
+| (4) Drawing menu rows | about +6 | +3 (C1-135, C1-136, C1-155) | Duplicate, Save as default, price label and text style have no assigned walkthrough in expected.json, so they aren't cases. They route to the catalog, which asks. |
+
+Net: the plan's per-item gains were too optimistic about seeding state and about inventory words. The remaining cov-4 items (5)–(7) are re-estimated in their own PR.
+
 ## Touches deixis / useAgent / runtime / host
 No. Goldens are unchanged.
 
