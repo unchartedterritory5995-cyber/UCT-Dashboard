@@ -164,6 +164,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'step',                                      // …and its `by` step
   'cond',                                      // C16: a `latch`'s condition
   'withhold',                                  // C11c: unmeasured on this bar
+  'withholdRuns',                              // W-C22-DEL: the guard's measured conjuncts
   'propWithhold',                              // C22: a PROPERTY unmeasured on this bar
 ])
 
@@ -1164,6 +1165,12 @@ export function assertObjectProgram(program) {
     // ⭐ C11c — a step's WITHHOLD is a plain graph value: true on a bar a window
     // reduction it reads is unmeasured (`pine.js` `Resolver.windowAmbiguity`).
     if (op.withhold !== undefined) assertValueRef(op.withhold, `${where}.withhold`)
+    // ⭐ W-C22-DEL — the guard's conjuncts that read no unmeasured reduction: false
+    // on a bar ⇒ Pine certainly did not run the step. Only beside a `withhold`.
+    if (op.withholdRuns !== undefined) {
+      if (op.withhold === undefined) throw new Error(`${where}: withholdRuns is legal only beside a withhold`)
+      assertValueRef(op.withholdRuns, `${where}.withholdRuns`)
+    }
     // ⭐⭐ C22 — a PROPERTY's value that reads an unmeasured reduction, with the
     // property names it covers: the op RUNS (Pine ran it — ids stay Pine's) and
     // only those properties are marked unknown on that bar (C17's value rule).

@@ -383,7 +383,8 @@ export function beginObjects(program, ctx) {
    *  (`lastBarOnly`): a getter's history read there has no earlier run. */
   let onceNow = false
   /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
-   *  `unknownGuard` create withheld on a bar), per family; and the families
+   *  `unknownGuard` create withheld on a bar — and, W-C22-DEL, a create whose
+   *  guard reads an unmeasured window reduction, `op.withhold`), per family; and the families
    *  whose live count TradingView's collector may therefore have cut — its count
    *  is ours plus up to that many, so past the collector's trigger which objects
    *  it still holds is unknown. Such a family is withheld whole (`finish`), and a
@@ -391,8 +392,8 @@ export function beginObjects(program, ctx) {
    *  still `na` whatever the collector did). */
   const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const collectorUnknown = new Set()
-  const noteUnknownCreate = (op) => {
-    if (!op || op.k !== 'create' || op.unknownGuard !== true || !own(POOL_LIMITS, op.family)) return
+  const noteUnknownCreate = (op, mayHaveRun = !!op && op.unknownGuard === true) => {
+    if (!op || op.k !== 'create' || !mayHaveRun || !own(POOL_LIMITS, op.family)) return
     unknownCreates[op.family] += 1
     if (counts[op.family] + unknownCreates[op.family] > collectsAbove(limits[op.family])) collectorUnknown.add(op.family)
   }
@@ -1479,9 +1480,28 @@ export function beginObjects(program, ctx) {
       }
       // ⭐⭐ C11c — a step whose value reads an UNMEASURED window reduction on this
       // bar (`op.withhold`) is withheld, and — C17's rule — marks everything it
-      // would have written. ⛔ No known-false shortcut: its guard may itself read
-      // the reduction, so its falseness is as unmeasured as its value.
-      if (withheldAt(op)) { withheldUnknown += 1; taintOutputs(op); continue }
+      // would have written. ⛔ No known-false shortcut on the WHOLE guard: it may
+      // itself read the reduction, so its falseness is as unmeasured as its value.
+      // ⭐ W-C22-DEL — but a bar its MEASURED conjuncts (`withholdRuns`, the `&&`
+      // terms that read no reduction) are false is a certain skip, C17's
+      // known-false rule: Pine did not run the step, nothing is withheld or counted.
+      // ⭐⭐ W-C22-DEL — and a create withheld here is one Pine MAY have made, so
+      // TradingView's collector may be that many creates further on than this
+      // run's: it then removed old objects this run still holds. ⚰️ MEASURED on
+      // vdubus SPY 1D replayed from the listing (the script deletes nothing; its
+      // lines leave only by the collector): creates withheld on 20 bars, the
+      // vendor's creation counter at 2907 against our 2831, and the 48 oldest
+      // lines TradingView had collected (pivots 2015-16, before the window) DRAWN
+      // here. The family is withheld whole once that may be so
+      // (`collectorUnknown`, C33's rule — one authority, `finish`), and named.
+      if (withheldAt(op)) {
+        if (op.withholdRuns != null && !valueUnknown(op.withholdRuns) && !truthy(value(op.withholdRuns))) continue
+        withheldUnknown += 1
+        noteUnknownCreate(op, true)
+        if (ctx.trace) events.push({ bar, k: 'withheld', family: op.family, site: op.site })
+        taintOutputs(op)
+        continue
+      }
       // ⭐⭐ C17 — whether it runs, or what it acts on, reads a tainted value.
       if (handleUnknown || guardTainted(op)) { noteUnknownCreate(op); withholdTainted(op); continue }
       if (op.when != null && !truthy(value(op.when))) continue
@@ -2057,6 +2077,10 @@ export function beginObjects(program, ctx) {
   // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
   // this run could not decide pushed the possible count past its trigger).
   for (const fam of collectorUnknown) withheldFams.add(fam)
+  // ⭐⭐ W-C22-DEL — BOTH collector rules above withhold a family WHOLE, and the
+  // member is told which (`withheldBy['objects:collector']`, the binder's drawing
+  // note). ⚰️ Until now the host lane dropped them with no sentence at all.
+  const collectorFams = new Set(withheldFams)
   // ⭐⭐ F1 — OFF THE LISTING, A `var` LIST OF DRAWINGS HOLDS WHAT THIS RUN NEVER
   // SAW. TradingView ran the script from the symbol's first bar: the list (and the
   // chart) already holds the objects earlier bars made, and the script keeps
@@ -2077,10 +2101,12 @@ export function beginObjects(program, ctx) {
   }
   for (const fam of offListingFams) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
+  if (collectorFams.has('line')) collectorFams.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
     if (withheldFams.has(o.family)) withheld[o.family] = (withheld[o.family] || 0) + 1
   }
+  const collectorShown = [...collectorFams].filter((f) => withheld[f] > 0).sort()
   const heldCounts = { ...counts }
   for (const fam of withheldFams) heldCounts[fam] = 0
   // ⭐⭐ C17 — AN OBJECT STILL CARRYING A TAINTED PROPERTY IS NOT DRAWN. Its
@@ -2128,7 +2154,11 @@ export function beginObjects(program, ctx) {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
-    ...(offListingFams.size ? { withheldBy: { 'objects:off-listing': [...offListingFams] } } : {}),
+    ...(offListingFams.size || (collectorShown.length && !stopped) ? { withheldBy: {
+      ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
+      // ⛔ only a family that held something here: an empty one hides nothing
+      ...(collectorShown.length && !stopped ? { 'objects:collector': collectorShown } : {}),
+    } } : {}),
     // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
     // vendor harness's window analysis); never drawn — the binder reads `live`.
     ...(offListingFams.size && !stopped ? { offListingLive: [...live.values()]

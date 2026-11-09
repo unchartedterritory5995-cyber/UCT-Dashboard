@@ -787,6 +787,11 @@ function objectsOf(def, bars, ctx, cols, built = null) {
       pineVersion: reader.program.pineVersion,
       // ⭐ C36 — why drawings that read `time(<timeframe>)` are withheld here.
       chartClock: reader.chartClock || [],
+      // ⭐ W-C22-DEL — families the run withheld WHOLE, by name, because
+      // TradingView's collector may have removed objects this run holds
+      // (`objectRuntime.js`, `withheldBy['objects:collector']`): graded as a gap.
+      ...(run.withheldBy && run.withheldBy['objects:collector']
+        ? { withheldFamilies: [...run.withheldBy['objects:collector']] } : {}),
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }

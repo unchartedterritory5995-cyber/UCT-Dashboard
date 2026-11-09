@@ -1198,10 +1198,10 @@ rvol-spy-1d-2026-10-03                       AMEX:SPY 1D      2      MATCH      
     objects                                  MATCH         neither side draws an object
 sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.95e-16
-    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 sector-rotation-spy-1d-2026-10-03            AMEX:SPY 1D      1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 1800 ok 1799 warm 1/1 steady 0/1799 maxRel 1.95e-16
-    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -1364,8 +1364,8 @@ ultimate-pivot-points-spy-1d-2026-10-03      AMEX:SPY 1D      3      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 102 paired slots; 51 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 vdubus-pattern-gen-v2-restored-refined-rddt- NYSE:RDDT 1D     0      MATCH         all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 122 paired slots; coordinates are NOT compared by v1
-vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); 1 object family differs in COLOUR (first: line.color of line #2154 — vendor #ff9800ff, ours #9c27b000, carriedDiffers); coordinates are NOT compared by v1
+vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree
 vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
 vold-market-breadth-spy-1d-2026-10-03        AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -2558,10 +2558,10 @@ zero-lag-ma-trend-levels-rddt-1d-2026-09-27  NYSE:RDDT D      4      MATCH      
     plot_10                                  MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.95e-16
     objects                                  MATCH         object counts and texts agree; colours agree on 55 paired slots (13 theme-relative); 15 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 
-TOTAL 336 captures — MATCH 155 · DIVERGE 80 · INCONCLUSIVE 101
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 125 captures) — MATCH 155 · DIVERGE 80 · INCONCLUSIVE 101
+TOTAL 336 captures — MATCH 155 · DIVERGE 79 · INCONCLUSIVE 102
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 124 captures) — MATCH 155 · DIVERGE 79 · INCONCLUSIVE 102
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 156 · DIVERGE 76 · INCONCLUSIVE 104
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 156 · DIVERGE 75 · INCONCLUSIVE 105
 CHANGED BY PAINTS (4): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → DIVERGE; supertrend-strategy-spy-1d-2026-10-02 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 

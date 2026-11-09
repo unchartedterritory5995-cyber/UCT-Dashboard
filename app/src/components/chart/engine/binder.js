@@ -1114,11 +1114,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  state could not place is counted into the member's drawing note, never only
    *  into a DOM attribute. A state of `null` (nothing drawn) clears. */
   const dropsPublished = new Set()
-  const publishDrops = (instanceId, state) => {
+  // ⭐ W-C22-DEL — `families`: the drawing families the run withheld WHOLE because
+  // TradingView's collector may have removed objects this chart still holds
+  // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
+  // same note.
+  const publishDrops = (instanceId, state, families = null) => {
     const n = state ? renderDroppedCount(state) : 0
-    if (!n && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope))
-    if (n) dropsPublished.add(instanceId)
+    const fams = Array.isArray(families) ? families : []
+    if (!n && !fams.length && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams))
+    if (n || fams.length) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   const pruneDrops = (keep) => {
@@ -1315,7 +1320,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           dropped: built.value.state.dropped,
         },
       }
-      publishDrops(inst.instanceId, built.value.state)
+      publishDrops(inst.instanceId, built.value.state, (built.value.run.withheldBy || {})['objects:collector'] || null)
       attempt(() => layer.set(built.value.state, sig, meta))
     }
     for (const [id, layer] of objectLayers) {
