@@ -1,7 +1,8 @@
 // P1 GAPS (pl-exec, agent/pl/exec-p1-gaps), each through the REAL panel on the fixture board, read back from the chart's own state,
 // with Undo where one exists. Held-out: agentP1GapsHeldOut (committed first). Evidence: LOCAL native Windows Node v24, jsdom,
 // BROWSER-MOCK-MODEL / SIMULATED (scripted plans).
-//   C1-025  auto-scale ONE chart's price axis (its own auto button): done only when the price scale reads back as auto again
+//   C1-025  auto-scale ONE chart's price axis (its own axis double-click): done only when the price scale reads back as auto again;
+//           Undo puts back the exact price scale it replaced (the dragged pin and LWC's own range)
 //   C1-036 / C1-038  take one comparison overlay off a chart / clear them all (Compare Symbols' own writers); Undo puts them back
 //   C1-080  one chart theme on EVERY chart of the board (the theme gallery's "all charts"); Undo restores each chart's own theme
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -20,39 +21,74 @@ afterEach(() => { vi.restoreAllMocks(); cleanup() })
 const op = (action, args, target = 'c') => p.env('apply', [{ action, target, args }])
 
 // ── C1-025 ──
-/** the chart's view as getDateMeta reports it, plus whether its price scale is on auto (priceAuto) */
+// The price scale exactly as StockChart's getDateMeta reports it (C1-025): `manual` + `pin` = the dragged-axis pin
+// (priceManualRef / priceManualRangeRef), `auto` + `range` = LWC's own price scale (options().autoScale / getVisibleRange()).
+// priceAuto = the scale is on auto (no pin, LWC auto-fitting).
+const DRAGGED = { manual: true, pin: { minValue: 101.25, maxValue: 188.5 }, auto: false, range: { from: 98.75, to: 191.0 } }
+const FIT = { from: 120.5, to: 160.25 }
 function withPriceScale(h, start = {}) {
-  const v = { priceAuto: false, land: true, calls: [], ...start }
-  const meta = () => ({ firstMs: 0, lastMs: 1, rightMs: 1, activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: v.priceAuto, frame: { fromRight: 120, toRight: -5, bars: 500, activeRange: null, locked: false, lock: null } })
+  const v = { scale: { ...DRAGGED }, land: true, calls: [], ...start }
+  const meta = () => ({ firstMs: 0, lastMs: 1, rightMs: 1, activeRange: null, atDefaultView: false, indicatorsHidden: false,
+    priceAuto: !v.scale.manual && v.scale.auto, priceScale: JSON.parse(JSON.stringify(v.scale)),
+    frame: { fromRight: 120, toRight: -5, bars: 500, activeRange: null, locked: false, lock: null } })
   const base = h.charts, read = base.read, list = base.list
   h.charts = {
     ...base,
     read: (ref) => { const s = read(ref); return s && { ...s, view: meta() } },
     list: () => list().map(s => ({ ...s, view: meta() })),
-    viewDo: (ref, o, arg) => { v.calls.push([ref, o, arg]); if (v.land && o === 'autoScale') v.priceAuto = true; return true },
+    viewDo: (ref, o, arg) => {
+      v.calls.push([ref, o, arg])
+      if (v.land && o === 'autoScale') v.scale = { manual: false, pin: null, auto: true, range: { ...FIT } }
+      if (v.land && o === 'restoreScale') v.scale = JSON.parse(JSON.stringify(arg))
+      return true
+    },
   }
   return v
 }
-// ⏸ PAUSED (priority #988 work): a new action does not fit any routing group's budget, and chart.setScale scale=auto would be a
-// non-reversible op on a reversible action (a capreg "### CAP" decision). The work in progress is kept outside the branch; this
-// block is skipped, not deleted, until that decision.
-describe.skip('C1-025: auto-scale one chart\'s price axis', () => {
-  it.each(AUTOSCALE_HELD_OUT.map(c => [c.text]))('held-out "%s": the price scale reads back as auto; the receipt says so', async (t) => {
+// ⭐ (Lead decision) auto-scale is a REVERSIBLE chart.setScale: the Undo puts back the exact price scale it replaced (pin + LWC range).
+describe('C1-025: auto-scale one chart\'s price axis', () => {
+  it.each(AUTOSCALE_HELD_OUT.map(c => [c.text]))('held-out "%s": the price scale reads back as auto; Undo puts the dragged scale back exactly', async (t) => {
     const { say, h } = p.mount(...ONE('NVDA'))
     const v = withPriceScale(h)
+    const before = JSON.stringify(v.scale)
     p.st.envelopes.push(op('chart.setScale', { scale: 'auto' }))
     const out = await say(t)
-    expect(v.priceAuto, out).toBe(true)
+    expect(v.scale.manual || !v.scale.auto, out).toBe(false)
     expect(out).toMatch(/auto/i)
-    expect(out).not.toMatch(/did not|didn't|couldn't/i)
+    expect(out).not.toMatch(/did not|didn't|couldn't|no Undo/i)
+    await say('undo')
+    expect(JSON.stringify(v.scale)).toBe(before)
+    expect(v.calls.map(c => c[1])).toEqual(['autoScale', 'restoreScale'])
+  }, 40000)
+  it('Undo of a pin-less manual scale (LWC autoScale off, no pin) restores exactly that, range included', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withPriceScale(h, { scale: { manual: false, pin: null, auto: false, range: { from: 50.5, to: 75.125 } } })
+    const before = JSON.stringify(v.scale)
+    p.st.envelopes.push(op('chart.setScale', { scale: 'auto' }))
+    await say('auto scale this chart')
+    expect(v.scale.auto).toBe(true)
+    await say('undo')
+    expect(JSON.stringify(v.scale)).toBe(before)
   }, 40000)
   it('NO-OP already on auto: nothing changed is said; the chart is not asked', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
-    const v = withPriceScale(h, { priceAuto: true })
+    const v = withPriceScale(h, { scale: { manual: false, pin: null, auto: true, range: { ...FIT } } })
     p.st.envelopes.push(op('chart.setScale', { scale: 'auto' }))
     const out = await say('auto scale this chart')
     expect(out).toMatch(/already (?:on )?auto/i)
+    expect(out).toMatch(/nothing changed/i)
     expect(v.calls).toEqual([])
+  }, 40000)
+  it('STALE the member drags the axis again after the auto: Undo refuses and leaves their new drag alone', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withPriceScale(h)
+    p.st.envelopes.push(op('chart.setScale', { scale: 'auto' }))
+    await say('auto scale this chart')
+    const mine = { manual: true, pin: { minValue: 10, maxValue: 20 }, auto: false, range: { from: 9, to: 21 } }
+    v.scale = JSON.parse(JSON.stringify(mine))
+    await say('undo')
+    expect(JSON.stringify(v.scale)).toBe(JSON.stringify(mine))
+    expect(v.calls.map(c => c[1])).toEqual(['autoScale'])
   }, 40000)
   it('NEGATIVE a chart that does not go back to auto is never claimed', async () => {
     const { say, h } = p.mount(...ONE('NVDA'))
@@ -62,7 +98,7 @@ describe.skip('C1-025: auto-scale one chart\'s price axis', () => {
     vi.spyOn(Date, 'now').mockImplementation(() => { t += 2000; return t })
     p.st.envelopes.push(op('chart.setScale', { scale: 'auto' }))
     const out = await say('auto scale this chart')
-    expect(out).not.toMatch(/^.*Put the price scale back on auto/m)
+    expect(out).not.toMatch(/^.*price scale back on auto/m)
   }, 60000)
 })
 
