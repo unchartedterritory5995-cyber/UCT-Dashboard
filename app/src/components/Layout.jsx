@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState, lazy } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
@@ -13,7 +13,6 @@ import { OTHER_TOURS } from '../pages/journal-2-0/components/notebook/onboarding
 import FeedbackWidget from './FeedbackWidget'
 import { registerFirstRunSlot } from './firstRun/firstRunStage'
 import ChartsDeskHost from '../pages/charts/ChartsDeskHost'
-import UpdateReadyToast from './UpdateReadyToast'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
 import HomeHubSection from '../hub/sections/HomeHubSection'
@@ -29,6 +28,10 @@ import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVa
 import { titleForPath } from '../surfaces/pageTitle.js'
 import { SkipLinkSlotContext, MAIN_CONTENT_ID } from './skipLinks'
 import styles from './Layout.module.css'
+
+// Off first load, so it costs the Notebook's byte budget nothing. Plain lazy with a null fallback:
+// the toast must never reload the page or reach an error screen.
+const UpdateReadyToast = lazy(() => import('./UpdateReadyToast').catch(() => ({ default: () => null })))
 
 function usePageTracking() {
   const location = useLocation()
@@ -203,7 +206,7 @@ export default function Layout({ children }) {
               <div ref={registerFirstRunSlot} data-first-run-slot="" />
               {/* "A new version is ready." position: fixed like the first-run cards, so it moves
                   nothing; all of its state lives in the leaf (components/UpdateReadyToast.jsx). */}
-              <UpdateReadyToast />
+              <Suspense fallback={null}><UpdateReadyToast /></Suspense>
               {/* The Charts workspace, kept mounted while a board is popped out so changing page does
                   not close the windows on the other monitors. Before the Suspense below on purpose:
                   a page that suspends must not take the board with it. A Layout rendering explicit
