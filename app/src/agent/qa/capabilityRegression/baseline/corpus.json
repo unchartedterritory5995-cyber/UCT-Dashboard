@@ -5483,6 +5483,88 @@
       ]
     },
     {
+      "id": "drawingBoard.delete",
+      "source": "pl-exec round 8, AUDIT (a) (11-09): deleting a Drawing Board is its own guarded action (risk confirm, not reversible): always a proposal, nothing deleted before Apply",
+      "capabilities": [
+        "drawingBoard.delete"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        },
+        {
+          "say": "make a new drawing board called Swing",
+          "model": {
+            "ops": [
+              {
+                "action": "drawingBoard.set",
+                "target": "$drawingBoards[0]",
+                "args": {
+                  "op": "create",
+                  "board": null,
+                  "name": "Swing"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "drawingBoard.set"
+      ],
+      "needs": [
+        "drawingBoard.delete"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "drawingBoard.delete",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Swing"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "drawings": {
+          "count": 1
+        }
+      },
+      "phrasings": [
+        "delete the Swing drawing board",
+        "remove my Swing drawing board",
+        "get rid of the Swing board",
+        "delete drawing board Swing"
+      ]
+    },
+    {
       "id": "widget.unlink",
       "source": "Batch E5 (11-04): chart volume pane, indicator listing, drawings visibility, widget link",
       "capabilities": [

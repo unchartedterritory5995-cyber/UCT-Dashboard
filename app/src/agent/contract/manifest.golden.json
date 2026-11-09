@@ -5294,8 +5294,8 @@
    "name": "drawingBoard.set",
    "domain": "drawingBoard",
    "target": "drawingBoards",
-   "summary": "Drawing Boards (the panel of separate drawing sheets): switch to one, create one, rename one, or delete one (shown first; its drawings go, no Undo).",
-   "hints": "target = the drawingBoards entry. op = switch | create | rename | delete; board = the board by its name (null for create); name = the new name (create / rename), else null.",
+   "summary": "Drawing Boards (the panel of separate drawing sheets): switch to one, create one, or rename one.",
+   "hints": "target = the drawingBoards entry. op = switch | create | rename; board = the board by its name (null for create); name = the new name (create / rename), else null.",
    "args": {
     "type": "object",
     "properties": {
@@ -5304,8 +5304,7 @@
       "enum": [
        "switch",
        "create",
-       "rename",
-       "delete"
+       "rename"
       ]
      },
      "board": {
@@ -5331,6 +5330,34 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawingBoard.delete",
+   "domain": "drawingBoard",
+   "target": "drawingBoards",
+   "summary": "Delete one Drawing Board and every drawing on it (permanent; always shown first).",
+   "hints": "target = the drawingBoards entry; board = the board by its name.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,

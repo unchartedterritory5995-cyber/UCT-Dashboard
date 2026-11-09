@@ -2607,6 +2607,31 @@
     }
    }
   },
+  "drawingBoard.delete": {
+   "digest": "24e3d93c904b34c1",
+   "phrasings": {
+    "delete the Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove my Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete drawing board Swing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.unlink": {
    "digest": "45fc728841a12ebf",
    "phrasings": {

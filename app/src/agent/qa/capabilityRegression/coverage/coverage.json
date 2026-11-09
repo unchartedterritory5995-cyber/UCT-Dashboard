@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 177,
-  "withProductionKinds": 168,
+  "all": 178,
+  "withProductionKinds": 169,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 177,
-  "withAnyRegressionCase": 125,
+  "capabilities": 178,
+  "withAnyRegressionCase": 126,
   "perProtection": {
    "nl": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 126,
+    "applicable": 178
    },
    "routing": {
-    "covered": 122,
-    "applicable": 177
+    "covered": 123,
+    "applicable": 178
    },
    "args": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 126,
+    "applicable": 178
    },
    "execution": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 126,
+    "applicable": 178
    },
    "receipt": {
     "covered": 97,
-    "applicable": 177
+    "applicable": 178
    },
    "refusal": {
     "covered": 31,
-    "applicable": 177
+    "applicable": 178
    },
    "permission": {
     "covered": 170,
-    "applicable": 177
+    "applicable": 178
    },
    "undo": {
     "covered": 57,
     "applicable": 112
    },
    "multiStep": {
-    "covered": 37,
-    "applicable": 177
+    "covered": 38,
+    "applicable": 178
    },
    "phrasings": {
-    "covered": 121,
-    "applicable": 177
+    "covered": 122,
+    "applicable": 178
    }
   }
  },
@@ -3983,6 +3983,60 @@
     "undo": [],
     "multiStep": [
      "drawing.style: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawingBoard.delete": {
+   "domain": "drawingBoard",
+   "group": "drawings",
+   "target": "drawingBoards",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "drawingBoard.delete: \"delete the Swing drawing board\"",
+     "drawingBoard.delete: \"remove my Swing drawing board\"",
+     "drawingBoard.delete: \"get rid of the Swing board\"",
+     "drawingBoard.delete: \"delete drawing board Swing\""
+    ],
+    "routing": [
+     "drawingBoard.delete: \"delete the Swing drawing board\"",
+     "drawingBoard.delete: \"remove my Swing drawing board\"",
+     "drawingBoard.delete: \"get rid of the Swing board\"",
+     "drawingBoard.delete: \"delete drawing board Swing\""
+    ],
+    "args": [
+     "corpus drawingBoard.delete"
+    ],
+    "execution": [
+     "drawingBoard.delete (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [
+     "drawingBoard.delete: after an earlier turn"
     ],
     "phrasings": []
    }

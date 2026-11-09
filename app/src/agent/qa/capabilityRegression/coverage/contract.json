@@ -951,6 +951,19 @@
    ],
    "fast": false
   },
+  "drawingBoard.delete": {
+   "domain": "drawingBoard",
+   "group": "drawings",
+   "target": "drawingBoards",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawingBoard.set": {
    "domain": "drawingBoard",
    "group": "drawings",

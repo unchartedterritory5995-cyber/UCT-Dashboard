@@ -106,7 +106,7 @@ export const TOPICS = [
       // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
       'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert',
       // r8: Drawing Boards (the separate drawing sheets)
-      'drawingBoard.set'], productHas: true,
+      'drawingBoard.set', 'drawingBoard.delete'], productHas: true,
     canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level (always shown to you first); show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo; and switch, create or rename a Drawing Board (with Undo) or delete one (always shown to you first; its drawings go)',
     known: () => ['duplicating a drawing, Save as default and reordering drawings — those are done on the chart'],
     planned: null,

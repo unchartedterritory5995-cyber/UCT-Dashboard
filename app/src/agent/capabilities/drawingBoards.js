@@ -2,7 +2,8 @@
 //
 // Through the product's own board store (components/chart/drawingsStore.js — the Drawing Boards panel's writers
 // setActiveTracing / createTracing / renameTracing / deleteTracing; the feature's internal name is "tracing"), never a second
-// store. ONE capability, `drawingBoard.set`, with an `op`, so the manifest grows by one small entry.
+// store. `drawingBoard.set` with an `op` (switch / create / rename), and `drawingBoard.delete` on its own (AUDIT (a): risk
+// confirm, not reversible, so the server's approval boundary backstops the card).
 //   switch   the panel's row click: that board becomes the one every chart draws on. Undo switches back.
 //   create   its "+ New board": an empty board (named, if a name is said). Undo deletes that new, still-empty board.
 //   rename   its rename field. Undo puts the old name back.
@@ -100,10 +101,9 @@ export function registerDrawingBoardCapabilities() {
     target: 'drawingBoards',
     risk: 'local',
     reversible: true,
-    summary: 'Drawing Boards (the panel of separate drawing sheets): switch to one, create one, rename one, or delete one (shown first; its drawings go, no Undo).',
-    hints: 'target = the drawingBoards entry. op = switch | create | rename | delete; board = the board by its name (null for create); name = the new name (create / rename), else null.',
-    args: { type: 'object', properties: { op: { type: 'string', enum: ['switch', 'create', 'rename', 'delete'] }, board: { type: ['string', 'null'] }, name: { type: ['string', 'null'] } }, required: ['op', 'board', 'name'], additionalProperties: false },
-    confirmIf: (_st, { op } = {}) => op === 'delete',
+    summary: 'Drawing Boards (the panel of separate drawing sheets): switch to one, create one, or rename one.',
+    hints: 'target = the drawingBoards entry. op = switch | create | rename; board = the board by its name (null for create); name = the new name (create / rename), else null.',
+    args: { type: 'object', properties: { op: { type: 'string', enum: ['switch', 'create', 'rename'] }, board: { type: ['string', 'null'] }, name: { type: ['string', 'null'] } }, required: ['op', 'board', 'name'], additionalProperties: false },
     check(st, { op, board, name }) {
       if (op === 'create') return name && st.boards.some(b => norm(b.name) === norm(name)) ? `You already have a drawing board named “${name.trim()}”.` : null
       const p = pickBoard(st.boards, board)
@@ -114,8 +114,7 @@ export function registerDrawingBoardCapabilities() {
         if (st.boards.some(b => b.id !== p.board.id && norm(b.name) === norm(nm))) return `You already have a drawing board named “${nm}”.`
         return null
       }
-      if (op === 'delete' && st.boards.length <= 1) return 'That is your only drawing board, and one always stays.'
-      return null
+      return op === 'switch' ? null : `op is switch, create or rename${op === 'delete' ? ' (deleting a board is drawingBoard.delete)' : ''}.`
     },
     apply(st, { op, board, name }) {
       if (op === 'create') return { ...st, op: { op: 'create', name: String(name || '').trim() || null } }
@@ -123,7 +122,6 @@ export function registerDrawingBoardCapabilities() {
       if (!b) return st
       if (op === 'switch') return b.id === st.activeId ? st : { ...st, op: { op: 'switch', id: b.id, was: st.activeId, label: b.name } }
       if (op === 'rename') { const nm = String(name || '').trim(); return norm(nm) === norm(b.name) ? st : { ...st, op: { op: 'rename', id: b.id, name: nm, was: b.name } } }
-      if (op === 'delete') return { ...st, op: { op: 'delete', id: b.id, label: b.name } }
       return st
     },
     describe(b, a) {
@@ -132,9 +130,30 @@ export function registerDrawingBoardCapabilities() {
       if (o.op === 'switch') return `Switched to the drawing board “${o.label}” — every chart now draws on it`
       if (o.op === 'create') return `Created a new drawing board${o.name ? ` “${o.name}”` : ''}`
       if (o.op === 'rename') return `Renamed the drawing board “${o.was}” to “${o.name}”`
-      if (o.op === 'delete') return `Deleted the drawing board “${o.label}” and its drawings (there is no Undo)`
       return null
     },
     noop: (_b, _a, { op } = {}) => (op === 'switch' ? 'That drawing board is already the one in use' : 'Nothing to change'),
+  })
+  // AUDIT (a): DELETE is its own action, risk confirm and NOT reversible, so the server's enforce_approval turns any `apply` of
+  // it into a proposal (the browser's card is no longer the only guard). The board AND its drawings go; no Undo; never the last.
+  registerCapability({
+    name: 'drawingBoard.delete',
+    surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts',
+    target: 'drawingBoards',
+    risk: 'confirm',
+    reversible: false,
+    summary: 'Delete one Drawing Board and every drawing on it (permanent; always shown first).',
+    hints: 'target = the drawingBoards entry; board = the board by its name.',
+    args: { type: 'object', properties: { board: { type: 'string' } }, required: ['board'], additionalProperties: false },
+    check(st, { board }) {
+      const p = pickBoard(st.boards, board)
+      if (p.why) return p.why
+      return st.boards.length <= 1 ? 'That is your only drawing board, and one always stays.' : null
+    },
+    apply(st, { board }) {
+      const b = pickBoard(st.boards, board).board
+      return b ? { ...st, op: { op: 'delete', id: b.id, label: b.name } } : st
+    },
+    describe(_b, a) { return a.op?.op === 'delete' ? `Deleted the drawing board “${a.op.label}” and its drawings (there is no Undo)` : null },
   })
 }

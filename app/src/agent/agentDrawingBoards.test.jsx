@@ -26,7 +26,10 @@ function boards() {
 }
 const names = () => store.listTracings().map(t => store.tracingLabel(t))
 const active = () => store.tracingLabel(store.listTracings().find(t => t.id === store.getActiveTracingId()))
-const plan = (c) => (body) => p.env(c.op === 'delete' ? 'propose' : 'apply', [{ action: 'drawingBoard.set', target: body.context.drawingBoards[0].ref, args: { op: c.op, board: c.board, name: c.name } }])
+// a delete is its own guarded action (AUDIT (a)); the model is scripted to say `apply` for it, and it is still only proposed
+const plan = (c) => (body) => p.env('apply', [c.op === 'delete'
+  ? { action: 'drawingBoard.delete', target: body.context.drawingBoards[0].ref, args: { board: c.board } }
+  : { action: 'drawingBoard.set', target: body.context.drawingBoards[0].ref, args: { op: c.op, board: c.board, name: c.name } }])
 async function say(text, c) {
   const [w, s] = ONE('SPY')
   const m = p.mount(w, s)

@@ -38,6 +38,8 @@ def test_the_guarded_actions_are_a_deliberate_list():
     # (agentOperatorLive.test.jsx L3) pins the same list
     assert GUARDED == ["alert.create", "alert.delete", "chart.applyTemplate", "chart.resetDefaults", "chartSetup.copyLook",
                        "chartSetup.deleteTemplate", "definition.delete", "definition.duplicate", "drawing.clear", "drawing.setAlert",
+                       # r8 AUDIT (a): deleting a Drawing Board (and its drawings) is its own guarded action
+                       "drawingBoard.delete",
                        "indicator.discardDraft", "indicator.remove", "indicator.saveDraft",
                        # W1-B B-03 (owner's Wave 1 directive): create = confirm; delete is a hard delete in the product
                        "indicatorAlert.create", "indicatorAlert.delete", "indicatorTemplate.delete", "layout.create", "layout.delete",
