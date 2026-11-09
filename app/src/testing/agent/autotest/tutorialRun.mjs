@@ -27,6 +27,7 @@ const { snapshot } = await import('./driver.mjs')
 const { worldPrint } = await import('./oracle.mjs')
 const { scripted } = await import('./plan.mjs')
 const { gradeTutorial, tutorialFamily } = await import('./tutorialOracle.mjs')
+const { prewarm } = await import('./prewarm.mjs')
 const { tutorialCases } = await import('./tutorialCases.mjs')
 const { runProfile } = await import('../../../econHarness/cdp.mjs')
 const { claimProfile, reapOrphans, freeProfile } = await import('./profileGuard.mjs')
@@ -106,6 +107,9 @@ async function runCase(ctx, c) {
     const up = await p.b.waitFor(`(() => { const c = window.__baRead().filter(w => w.type === 'chart'); return !c.length || c.every(x => (x.sym && x.canvases > 5) || ${q(c.board)} === 'MC' && x.id === 'g3') })()`, { timeout: 30000 })
     if (!up) throw new Error('the board never painted')
     await p.settle()
+    // the one-off definitions redraw (#948, prewarm.mjs), taken and graded before anything is measured
+    ev.prewarm = await prewarm(p, sleep)
+    if (ev.prewarm) { await p.b.hover(2, 2); await p.settle() }
     for (const r of c.clicks) await p.select(B.roles[r].id)
     ev.worldBefore = worldPrint(await snapshot(p, c.board))
     const rc0 = await p.receipts()

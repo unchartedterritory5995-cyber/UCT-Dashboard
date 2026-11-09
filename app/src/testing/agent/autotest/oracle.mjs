@@ -120,6 +120,18 @@ export function grade(request, ev) {
     ev.target = targetRecord(o.target, ev, roles, chartPrint)
     C.push(...gradeTarget(o.target, ev.target, { roles, before, asked }))
   }
+  // after the definitions pre-warm (prewarm.mjs, #948): its one burst is graded, and a chart the request did not touch must not
+  // repaint at all. Untouched = every chart outside `only` for a change; every chart for a read, refusal, question or answer
+  if (ev.prewarm) {
+    push('the one-off definitions redraw stayed within its bound (prewarm.mjs)', ev.prewarm.ok, ev.prewarm.detail, 'prewarm')
+    const roles = BOARDS[request.board]?.roles || {}
+    const untouched = o.outcome === 'change' ? (o.only ? Object.keys(roles).filter(r => !o.only.includes(r)) : []) : ['read', 'refuse', 'clarify', 'answer'].includes(o.outcome) ? Object.keys(roles) : []
+    for (const role of untouched) {
+      const layers = ev.repaints?.[roles[role].id]
+      if (!layers) continue
+      push(`${role} did not repaint`, layers.every(n => n === 0), `clears per layer: ${layers.join(',')}`, 'repaint')
+    }
+  }
   if (o.says) push(`it says /${o.says}/`, new RegExp(o.says, 'i').test(saidAll), saidAll.slice(0, 240), 'says')
   if (o.saysNot) push(`it does not say /${o.saysNot}/`, !new RegExp(o.saysNot, 'i').test(saidAll), saidAll.slice(0, 240), 'says')
   for (const e of o.persist || []) { const r = checkOne(e, before, after); C.push({ ...r, name: `persisted: ${r.name}`, tag: 'persist' }) }

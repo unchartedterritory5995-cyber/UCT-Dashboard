@@ -16,6 +16,8 @@ export function classify(request, ev, result, { known = null, mode = 'SIMULATED'
   const got = planActions(ev)
   if (ev.crash) return { layer: 'harness', why: ev.crash.slice(0, 200) }
   if (tags.has('guide')) return { layer: 'guide', why: failed.find(c => c.tag === 'guide').name }
+  if (tags.has('prewarm')) return { layer: 'ui-state', why: 'the one-off definitions redraw (#948) went over its bound' }
+  if (tags.has('repaint') && failed.every(c => c.tag === 'repaint' || c.tag === 'console')) return { layer: 'ui-state', why: 'a chart the request did not touch repainted' }
   if (known && expected.some(a => !known.has(a))) return { layer: 'capability', why: `no capability: ${expected.filter(a => !known.has(a)).join()}` }
   if (/the model was not given|not given:/i.test(said)) return { layer: 'metadata', why: 'the action was not offered to the planner after the reroute' }
   if (/missing:\$/.test(JSON.stringify(ev.turns.map(t => t.envelope?.ops || [])))) return { layer: 'metadata', why: 'the request did not carry the target a planner needs' }

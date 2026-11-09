@@ -7,6 +7,7 @@ import { open, sleep } from '../acceptance/lib.mjs'
 import { BOARDS } from './boards.mjs'
 import { scripted } from './plan.mjs'
 import { grade, worldPrint } from './oracle.mjs'
+import { prewarm, readRepaints, DEFINITIONS_PREWARM } from './prewarm.mjs'
 
 const q = (s) => JSON.stringify(s)
 const normTf = (t) => { const s = String(t || ''); if (/^1?D$/i.test(s)) return 'D'; if (/^1?W$/i.test(s)) return 'W'; if (/^1?M$/.test(s)) return 'M'; const h = /^(\d+)H$/i.exec(s); if (h) return String(Number(h[1]) * 60); const m = /^(\d+)m?$/.exec(s); return m ? m[1] : s }
@@ -151,11 +152,20 @@ export async function runRequest(ctx, req) {
       if (!ok) throw new Error(`the widgets never loaded: ${B.waitDoors.join(', ')}`)
     }
     await p.settle()
+    // the one-off definitions redraw (#948, see prewarm.mjs) is taken, and graded, before anything is measured
+    ev.prewarm = await prewarm(p, sleep)
+    if (ev.prewarm) { await p.b.hover(2, 2); await p.settle() }
     if (req.select) await p.select(BOARDS[req.board].roles[req.select].id)
     ev.before = await snapshot(p, req.board)
     for (const t of req.turns) {
       if (t.act) await ctx.acts?.[t.act]?.(p, req, t)
-      else { ev.beforeLast = await snapshot(p, req.board); ev.clicks = await p.clicks(); ev.turns.push(await driveTurn(p, ctx, req, t)) }
+      else {
+        ev.beforeLast = await snapshot(p, req.board); ev.clicks = await p.clicks()
+        if (ev.prewarm) await readRepaints(p)
+        ev.turns.push(await driveTurn(p, ctx, req, t))
+        // every repaint of every chart during the request's own sentences (a click between sentences is the person's, not counted)
+        if (ev.prewarm) { const r = await readRepaints(p); ev.repaints = ev.repaints || {}; for (const [id, l] of Object.entries(r)) ev.repaints[id] = (ev.repaints[id] || l.map(() => 0)).map((n, i) => n + (l[i] || 0)) }
+      }
       if (R.stopped) throw new Error(`STOP: ${R.stopped}`)
     }
     if (req.oracle.target?.ring) ev.ring = await ringRole(p, req)

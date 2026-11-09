@@ -54,6 +54,7 @@ export function gradeTutorial(spec, ev) {
     else if (k === 'noReceipt') push('no success receipt while it ran', !ev.newReceipt, ev.receiptText, 'receipt')
     else throw new Error(`unknown tutorial check ${k}`)
   }
+  if (ev.prewarm) push('the one-off definitions redraw stayed within its bound (prewarm.mjs)', ev.prewarm.ok, ev.prewarm.detail, 'prewarm')
   if (ev.errors?.length) push('no console errors', false, ev.errors.slice(0, 3).join(' | '), 'console')
   return { pass: C.length > 0 && C.every(c => c.pass), graded: C.length, na: 0, checks: C }
 }
