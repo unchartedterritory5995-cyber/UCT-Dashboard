@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 import types
 from pathlib import Path
 
@@ -617,3 +618,108 @@ def test_CONCIERGE_an_HTTP_error_response_is_free(ledger):
         500, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")), body=None)
     assert dc.charge_unreported(err, "u", "2026-11-05", dc.MODEL, dc.MAX_TOKENS, {}) == 0.0
     assert ledger == []
+
+
+# ═══ the turn deadline ═══════════════════════════════════════════════════════════════════════════
+def _expired(meter):
+    meter.deadline = time.monotonic() - 1
+    return meter
+
+
+def test_DEADLINE_is_derived_from_the_per_call_timeouts_and_the_environment_only_shortens_it(monkeypatch):
+    from api.services import llm_timeouts
+    assert budget.DEFAULT_TURN_DEADLINE_S == v2.DEFAULT_ROUNDS * llm_timeouts.REQUEST_PATH + budget.RESEARCH_ATTEMPTS * 30
+    assert budget.DEFAULT_TURN_DEADLINE_S == 480 and budget.turn_deadline_s() == 480
+    monkeypatch.setenv(budget.TURN_DEADLINE_ENV, "30")
+    assert budget.turn_deadline_s() == 30
+    for value in ("100000", "0", "-5", "soon", ""):
+        monkeypatch.setenv(budget.TURN_DEADLINE_ENV, value)
+        assert budget.turn_deadline_s() == 480
+
+
+def test_DEADLINE_a_call_past_it_is_refused_before_anything_is_reserved_or_sent(clean):  # noqa: F811
+    rid = budget.open_request("u", "c", "x")
+    m = _expired(budget.Meter(user_id="u", request_id=rid, site_reader=ZERO_SITE))
+    calls = []
+    with pytest.raises(budget.BudgetRefused) as e:
+        m.call("turn", _caller(calls), **KW)
+    assert e.value.reason == "turn_deadline" and e.value.sentence == budget.TURN_DEADLINE
+    assert calls == [] and budget.state()["committed_usd"] == 0 and budget.calls_used(rid) == 0
+
+
+def test_DEADLINE_a_lookup_past_it_is_refused_the_same_way(clean):  # noqa: F811
+    m = _expired(budget.Meter(user_id="u", request_id=None, site_reader=ZERO_SITE))
+    looked = []
+    with pytest.raises(budget.BudgetRefused):
+        m.research(lambda: looked.append(1) or {"answer": "a"})
+    assert looked == [] and budget.state()["committed_usd"] == 0
+
+
+def test_DEADLINE_a_call_that_started_in_time_is_not_cut_off(clean):  # noqa: F811
+    m = budget.Meter(user_id="u", request_id=None, site_reader=ZERO_SITE)
+
+    def slow(**kw):
+        m.deadline = time.monotonic() - 1           # the deadline passes while this call runs
+        return _resp(usage=(1000, 100, 0, 0))
+
+    m.call("turn", slow, **KW)
+    assert budget.state()["calls"]["settled"] == 1
+
+
+def test_DEADLINE_ends_a_v2_turn_with_its_sentence_and_only_what_it_spent(v2env):
+    calls = []
+
+    def caller(**kw):
+        calls.append(kw)
+        v2env.deadline = time.monotonic() - 1
+        return resp(tool_use("load_actions", {"names": []}))
+
+    out = run_v2(caller, v2env)
+    assert out["usage"]["stopped"] == "turn_deadline" and len(calls) == 1
+    assert v2.TURN_DEADLINE in out["envelope"]["reply"]
+    assert budget.state()["reserved_usd"] == 0
+
+
+def test_DEADLINE_each_meter_has_its_own_clock_unless_it_is_given_the_turns():
+    a = budget.Meter(user_id="u", request_id=None)
+    a.deadline = time.monotonic() - 1
+    assert budget.Meter(user_id="u", request_id=None).deadline > time.monotonic()
+
+
+def test_DEADLINE_a_v1_turn_gets_the_clear_message_and_nothing_is_sent(client, monkeypatch):  # noqa: F811
+    calls = []
+    monkeypatch.setattr(turn, "_default_caller", _caller(calls))
+    monkeypatch.setattr(budget, "turn_deadline_s", lambda: -1.0)
+    r = client.post("/api/agent/turn", json={"message": "add rsi"})
+    assert r.status_code == 400 and r.json()["detail"] == budget.TURN_DEADLINE and calls == []
+
+
+def test_DEADLINE_does_not_move_the_caps():
+    assert budget.DEFAULT_TURN_USD == 0.25 and budget.DEFAULT_CAP_USD == 5.0
+
+
+# ═══ turns in flight across the site ═════════════════════════════════════════════════════════════
+def test_GLOBAL_in_flight_turns_stop_at_the_limit_and_a_finished_turn_frees_its_place(clean):  # noqa: F811
+    cap = limits.DEFAULTS["UCT_AGENT_INFLIGHT_GLOBAL"]
+    tokens = [limits.admit(f"u{i}", new_request=False) for i in range(cap)]
+    assert all(tokens)
+    with pytest.raises(limits.Refused) as e:
+        limits.admit("one-more", new_request=False)
+    assert e.value.reason == "global_in_flight" and e.value.sentence == limits.GLOBAL_RATE
+    limits.done(tokens[0])
+    assert limits.admit("one-more", new_request=False)
+
+
+def test_GLOBAL_a_refused_turn_uses_no_place_in_the_rate_windows(clean, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("UCT_AGENT_INFLIGHT_GLOBAL", "1")
+    assert limits.admit("first", new_request=True)
+    for _ in range(25):
+        with pytest.raises(limits.Refused) as e:
+            limits.admit("second", new_request=True)
+        assert e.value.reason == "global_in_flight"
+
+
+def test_GLOBAL_crashed_turns_free_their_places_with_the_lease(clean, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("UCT_AGENT_INFLIGHT_GLOBAL", "1")
+    limits.admit("first", new_request=False, now=1000.0)
+    assert limits.admit("second", new_request=False, now=1000.0 + limits.DEFAULTS["UCT_AGENT_INFLIGHT_LEASE_S"] + 1)

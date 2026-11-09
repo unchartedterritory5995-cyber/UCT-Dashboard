@@ -1,13 +1,16 @@
 // ⭐ GUIDE SYSTEM — a walkthrough takes its chart, and its instance, from the words. Real-model findings 2026-11-05: "add
 // bollinger bands to the NVDA chart" walked the AAPL chart, and "the EMA 20 line" ringed the EMA 9 row.
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { render, cleanup } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { getCapability } from './capabilities'
 import { namedChart, namesAChart } from './guide/namedChart'
 import { readIndicator, stepsFor } from './guide/slots'
-import { guideFeature } from './guide/registry'
-import { findTarget } from './guide/targets'
+import { ACTION_SLOTS } from './guide/actions'
+import { guideFeature, matchFeature } from './guide/registry'
+import { findTarget, restoreClipped, unclip } from './guide/targets'
 import { showFeature } from './capabilities/guide'
 import { guideState, _resetGuide } from './guide/guideStore'
 
@@ -140,6 +143,167 @@ describe('words that do not name a chart (AUDIT N2)', () => {
     const charts = [chart('a', 'AAPL', 'left', 0, 'D'), chart('b', 'NVDA', 'right', 1, '5')]
     expect(namedChart(q, charts)?.say).toMatch(said)
     expect(namedChart(q, charts)?.chart).toBeUndefined()
+  })
+})
+
+describe('a length of time is a chart name only when a chart here is on it', () => {
+  it.each(['how do I see the 3 month chart', 'how do I see the 6 month chart', 'show me how to get my 3-month chart', 'show me how to get my 6-month chart'])('it still reaches the range buttons: %s', (q) => {
+    expect(ACTION_SLOTS.viewAct?.read?.(q)?.id ?? ACTION_SLOTS.chartAct?.read?.(q)?.id ?? Object.values(ACTION_SLOTS).map(s => s.read(q)?.id).find(id => id === 'range')).toBe('range')
+    expect(matchFeature(q, null, 'charts')).not.toBeNull()
+  })
+  const one = [chart('a', 'AAPL', 'left', 0)]
+  const two = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '5')]
+  it.each([
+    ['how do I see the 3 month chart', '3M'], ['how do I see the 6 month chart', '6M'], ['how do I see the 3M chart', '3M'], ['how do I see the 6M chart', '6M'], ['how do I see the 12M chart', '12M'],
+    // held out
+    ['show me how to get my 3-month chart', '3M'], ['where do I find that 6 months chart', '6M'], ['how do I look at the 12 month chart', '12M'], ['how do I open the 2 day chart', '2D'], ['how would I see the 5-day chart', '5D'], ['how do I get this 2 week chart', '2W'],
+  ])('%s', (q, tf) => {
+    expect(namedChart(q, one)).toBeNull()
+    expect(namedChart(q, two)).toBeNull()
+    expect(namedChart(q, [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, tf)])?.chart?.ref).toBe('b')
+    expect(namedChart(q, [chart('a', 'AAPL', 'left', 0, tf), chart('b', 'NVDA', 'right', 1, tf)])?.say).toMatch(/More than one chart fits/)
+  })
+  it('a timeframe the buttons read as one is still said when it is not here', () => {
+    expect(namedChart('how do I add RSI to the 1W chart', two)?.say).toMatch(/No chart on this board is on 1W/)
+    expect(namedChart('how do I add RSI to the weekly chart', two)?.say).toMatch(/No chart on this board is on weekly/)
+    expect(namedChart('how do I add RSI to the 15m chart', two)?.say).toMatch(/No chart on this board is on 15m/)
+  })
+  it('3M reads 3 on a board in minutes', () => {
+    expect(namedChart('how do I see the 3M chart', [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '3')])?.chart?.ref).toBe('b')
+  })
+})
+
+describe('Multi Chart rows (#860 follow-ups)', () => {
+  const row = (q) => ACTION_SLOTS.gridAct.read(q)?.id ?? null
+  it.each([
+    ['how do I go back to the previous group in multi chart', 'groupStep'], ['how do I step to the next group in the grid', 'groupStep'], ['how do I switch back a group in the grid', 'groupStep'],
+    ['how do I exit multi chart', 'exit'], ['how do I close multi chart', 'exit'], ['how do I close the grid', 'exit'], ['how do I get out of the grid', 'exit'], ['how do I leave multi-chart', 'exit'],
+    ['how do I go back to my board from the grid', 'exit'], ['how do I get back to the workspace from multi chart', 'exit'],
+    ['how do I make one cell a line chart in the grid', 'cellStyle'], ['how do I set hollow candles in a grid cell', 'cellStyle'],
+  ])('%s', (q, id) => { expect(row(q)).toBe(id) })
+  it.each(['how do I close a chart in the grid', 'how do I add a line to a chart in the grid', 'how do I go back a step in the grid'])('neither leaves the grid nor sets a style: %s', (q) => {
+    expect(['exit', 'cellStyle']).not.toContain(row(q))
+  })
+  it('the style card says which option follows the main chart', () => {
+    expect(JSON.stringify(stepsFor(guideFeature('gridAction'), 'how do I set one cell to candles in the grid'))).toMatch(/The option called Style follows your main chart/)
+  })
+  it('a member who is not an admin is told, and the card lands on a control they have', () => {
+    const last = stepsFor(guideFeature('gridAction'), 'how do I save a prebuilt grid').at(-1)
+    expect(last.target).toEqual([{ within: 'multiChart.flyout', label: 'Prebuilt (available to all users)' }, { within: 'multiChart.flyout', aria: 'Grid name' }])
+    expect(last.altText).toMatch(/^Only admins can offer a grid to everyone/)
+  })
+})
+
+describe('add another (#860 follow-ups)', () => {
+  const row = (q) => ACTION_SLOTS.indAct.read(q)?.id ?? null
+  const fast = (raw) => getCapability('guide.show').fast({ raw, host: { surface: 'charts' } })?.feature
+  it.each(['how do I add another rsi', 'how do I add a second EMA', 'how do I put another moving average on', 'teach me how to get an extra macd', 'how do I add another copy of RSI', 'how do I add another one'])('%s', (q) => {
+    expect(row(q)).toBe('addAnother')
+  })
+  it.each(['how do I add another rsi', 'how do I add a second EMA', 'how do I put another moving average on'])('reaches the row on the fast path: %s', (q) => {
+    expect(fast(q)).toBe('indicatorManage')
+  })
+  it.each(['how do I add RSI to the second chart', 'how do I add another chart', 'how do I add another pane', 'how do I change the second RSI'])('not a copy: %s', (q) => {
+    expect(row(q)).not.toBe('addAnother')
+  })
+})
+
+describe('what the guide moves on screen (#860 follow-ups)', () => {
+  afterEach(() => { cleanup(); restoreClipped(); document.body.innerHTML = '' })
+  const zero = (el) => { el.getBoundingClientRect = () => ({ left: 0, right: 0, top: 0, bottom: 20, width: 0, height: 20 }); el.getClientRects = () => [{}] }
+  const board = (marker) => {
+    document.body.innerHTML = `<div data-widget-id="w"><div id="row"><div id="strip" ${marker}><button data-guide="chart.tool.x">x</button><button>y</button></div><div id="near">near</div></div></div>`
+    document.querySelectorAll('#strip, #strip button').forEach(zero)
+    return document.getElementById('near')
+  }
+  it('a toolbar row we know makes room, and is put back', () => {
+    const near = board('data-guide="chart.drawingTools"')
+    unclip('chart.tool.x', { chartRef: 'w' })
+    expect(near.style.display).toBe('none')
+    restoreClipped()
+    expect(near.style.display).toBe('')
+  })
+  it('anything else squeezed to nothing hides nothing beside it', () => {
+    const near = board('class="dock"')
+    unclip('chart.tool.x', { chartRef: 'w' })
+    expect(near.style.display).toBe('')
+  })
+  it('scrolls to a control once, however many ticks it stays out of reach', () => {
+    const near = board('class="dock"')
+    const el = document.querySelector('[data-guide="chart.tool.x"]')
+    const scroll = el.scrollIntoView = vi.fn()
+    for (let i = 0; i < 5; i++) unclip('chart.tool.x', { chartRef: 'w' })
+    expect(scroll).toHaveBeenCalledTimes(1)
+    restoreClipped()
+    unclip('chart.tool.x', { chartRef: 'w' })
+    expect(scroll).toHaveBeenCalledTimes(2)
+    expect(near).toBeTruthy()
+  })
+})
+
+describe('the duplicate attribute', () => {
+  it('the headline Explain button carries its data-guide once', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/pages/charts/widgets/TradeExchangeNewsParts.jsx'), 'utf8')
+    expect(src.match(/data-guide="teNews\.explain"/g)).toHaveLength(1)
+  })
+})
+
+describe('only a ticker’s shape counts for a bare name', () => {
+  const one = [chart('a', 'AAPL', 'left', 0)]
+  const two = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '5')]
+  const noNote = (q) => { expect(namedChart(q, one)).toBeNull() }
+  // never a chart, on any board: the same three boards every time
+  const stands = (q) => { noNote(q); expect(namedChart(q, two)).toBeNull(); expect(namedChart(q, FOUR)).toBeNull() }
+  it.each([
+    'how do I switch to Renko', 'how do I change to Line', 'how do I show earnings on Monday', 'how do I set it to Extended', 'how do I open Replay in Settings', 'how do I get to Multi Chart',
+    // held out
+    'how do I move it to Tuesday', 'how do I go to Heikin Ashi', 'how do I switch to Logarithmic', 'how do I get to Breadth', 'how do I add it to Favourites', 'how do I save it in Layouts', 'how do I set alerts for Friday', 'how do I go to Watchlists', 'how do I turn on Volume', 'how do I jump to Today',
+  ])('a title-case word: %s', stands)
+  it.each([
+    'how do I add it on RTH', 'how do I price it in USD',
+    // held out: all capitals, and no ticker
+    'how do I show earnings on MONDAY', 'how do I switch to NASDAQ', 'how do I switch to NYSE', 'how do I set the time to UTC', 'how do I see it in GMT', 'how do I mark it on FOMC', 'how do I open it in SETTINGS', 'how do I change it to EXTENDED', 'how do I move it to PRE-MKT', 'how do I switch to AMEX',
+    'how do I go to WATCHLISTS', 'how do I look for EARNINGS',
+  ])('capitals that are no ticker: %s', stands)
+  it.each(['how do I change the timeframe on MSFT', 'how do I change the timeframe for BRK.B', 'how do I change the timeframe in GOOGL', 'how do I add RSI to BF.B'])('a ticker’s shape is still said, and still draws the note: %s', (q) => {
+    expect(namedChart(q, two)?.say).toMatch(/^There’s no [A-Z.]+ chart on this board/)
+    expect(namedChart(q, FOUR)?.say).toMatch(/^There’s no [A-Z.]+ chart on this board/)
+    expect(namedChart(q, one)?.note).toBe('This board only has AAPL, so I’ll show it there.')
+  })
+  it('one letter alone is left alone', () => { stands('how do I set it to L') })
+  it('a symbol the board shows is that chart, whatever its shape', () => {
+    expect(namedChart('how do I add RSI to GOOGLE', [chart('a', 'AAPL', 'left', 0), chart('b', 'GOOGLE', 'right', 1)])?.chart?.ref).toBe('b')
+  })
+  it('the X chart form is unchanged', () => {
+    expect(namedChart('how do I add RSI to the Renko chart', two)).toBeNull()
+    expect(namedChart('how do I add RSI to the Tesla chart', two)?.say).toMatch(/can’t match “Tesla”/)
+    expect(namedChart('how do I add RSI to the Tesla chart', one)?.note).toBeTruthy()
+    expect(namedChart('how do I add RSI to the MONDAY chart', two)?.say).toMatch(/no MONDAY chart/)
+  })
+})
+
+describe('a bare name on a board of several', () => {
+  const two = [chart('a', 'AAPL', 'left', 0), chart('b', 'NVDA', 'right', 1, '5')]
+  const host = { surface: 'charts', charts: { list: () => two, selected: () => 'a' } }
+  it.each([
+    ['how do I add rsi to nvda', 'NVDA'], ['how do I change the timeframe on aapl', 'AAPL'], ['how do I add an ema for nvda', 'NVDA'],
+    // held out
+    ['walk me through putting macd on nvda', 'NVDA'], ['where do I change the timeframe in aapl', 'AAPL'],
+  ])('lowercase asks: %s', (q, sym) => {
+    expect(namedChart(q, two)?.say).toBe(`Did you mean the ${sym} chart?`)
+    expect(getCapability('guide.show').answer({}, { feature: 'timeframe', detail: q }, host)).toBe(`Did you mean the ${sym} chart?`)
+    expect(guideState()).toBeNull()
+  })
+  it.each(['how do I add RSI on TSLA', 'how do I change the timeframe for TSLA', 'how do I change the timeframe in BRK.B', 'walk me through adding macd to GOOGL', 'where do I set the timeframe on TSLA'])('absent in capitals is said: %s', (q) => {
+    expect(namedChart(q, two)?.say).toMatch(/^There’s no [A-Z.]+ chart on this board/)
+    expect(namedChart(q, two)?.chart).toBeUndefined()
+  })
+  it.each(['how do I add rsi to it', 'how do I turn on all my indicators', 'how do I add rsi to my chart', 'how do I change the timeframe on charts', 'how do I set it to low', 'how do I export it to CSV', 'how do I set alerts for EOD', 'how do I add RSI to VWAP', 'how do I press on ENTER keys', 'how do I change the timeframe on the keys chart', 'how do I change the timeframe on the files chart', 'how do I change the timeframe to tsla'])('names nothing here, the clicked chart stands: %s', (q) => {
+    expect(namedChart(q, two)).toBeNull()
+  })
+  it('a chart named some other way wins over a bare word', () => {
+    expect(namedChart('how do I add rsi to nvda on the left chart', two)?.chart?.ref).toBe('a')
+    expect(namedChart('how do I add RSI to TSLA on the left chart', two)?.chart?.ref).toBe('a')
   })
 })
 

@@ -103,7 +103,7 @@ describe('targets', () => {
     expect(earlierOnScreen(steps, 2, {})).toBe(0)
   })
   it('a row squeezed to nothing: its neighbours step aside for the step, and come back', () => {
-    const r = dom('<div id="row"><div id="strip"><button data-guide="tool"></button><button></button></div><div id="actions"></div></div>')
+    const r = dom('<div id="row"><div id="strip" data-guide="chart.drawingTools"><button data-guide="tool"></button><button></button></div><div id="actions"></div></div>')
     const strip = r.querySelector('#strip')
     const actions = r.querySelector('#actions')
     const tool = strip.querySelector('button')

@@ -2041,6 +2041,9 @@ export const BUILTIN_SYMBOL_NUMERIC = Object.freeze({
   'syminfo.mintick': 'mintick',
   // ⭐ C29 — 1 on every US listing captured 2026-09-30, per witnessed exchange.
   'syminfo.pointvalue': 'pointvalue',
+  // ⭐ W9-T4-F1 — per witnessed exchange (`symbolScope.json::min_contract`); no row
+  // is served until a capture lands, so today it refuses by name from the fold.
+  'syminfo.mincontract': 'mincontract',
 })
 
 /** Why a numeric symbol field refuses on a SCREEN — read off the manifest. */

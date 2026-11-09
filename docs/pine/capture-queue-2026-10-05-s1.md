@@ -24,6 +24,9 @@ forming-bar half of Q-S1p, which need a session in progress.
 
 ## Probes for the unsettled rules
 
+Chart for every row of this table unless the row names its own: NYSE:RDDT 1D (the table header says so; added
+2026-11-08 so the queue reads it).
+
 | id | probe (one small strategy each; v5 unless named; NYSE:RDDT 1D) | read | settles |
 |---|---|---|---|
 | Q-S1a | `vw-s1-q-s1a-v4.pine`, `vw-s1-q-s1a-v6.pine`, `vw-s1-q-s1a-v5pct.pine`, `vw-s1-q-s1a-v5cash.pine` (one file per run): `strategy("q", overlay=false)` then one market `strategy.entry("L", strategy.long)` on `bar_index == 50` and `strategy.close("L")` on 80; rows `strategy.position_size`, `strategy.opentrades.size(0)` when open. Run it **four times**: header `//@version=4` (no size declared), `//@version=6` (no size declared), v5 + `default_qty_type = strategy.percent_of_equity, default_qty_value = 100, initial_capital = 100000`, v5 + `default_qty_type = strategy.cash, default_qty_value = 10000` | the size on the fill bar (51) and bar 79; trades CSV "contracts" | v4's unstated fixed value; v6's percent-of-equity default; which price sizes a percent / cash order (bar 50's close vs bar 51's open) and how it rounds (whole shares or fractions) |
@@ -48,3 +51,30 @@ forming-bar half of Q-S1p, which need a session in progress.
 `r1-strategy-draws-rddt-1d-2026-10-02` and `r1-strategy-draws-indicator-rddt-1d-2026-10-02` are R1's
 strategy / indicator pair. They witness C50/R1 (a strategy draws its plots like an indicator) and
 were graded in S1 (triage doc, section S1); they read no broker value.
+
+## Not capture questions (queue dispositions, 2026-11-08)
+
+Disposed of by the 2026-11-08 capture-queue hygiene pass (`fix/pine-capture-queue-hygiene`, r1 after review
+`dsk/reviews/QUEUE-HYGIENE.md`): the W9 design (`docs/pine/W9-STRATEGY-DESIGN.md` 5.2 B) re-specifies each row
+below with a generated `w9-*` probe under the same row id that asks the same question, and that row is the capture.
+**Not disposed, and still queued with their own files:** Q-S1-core and Q-S1n (their probe is the W9 rows' own
+`s1-broker-core.pine`); Q-S1d (a close and a reversal on one bar, two same-direction entries, two stops at one
+price; the W9 probe asks only opposite entries); Q-S1k (profit and limit both given, fractional ticks, an all-`na`
+modify; the W9 probes ask only `profit`/`loss` ticks); Q-S1e (an exit placed on the entry's own bar, so it
+ACTIVATES already past its level; the W9 probe places it while a position is open, which is B-IMMEDIATE); Q-S1g (a
+price entry pending AT the pyramiding limit; the W9 probe never leaves one pending there); Q-S1h (an exit that
+names a non-oldest trade, the manual's example; the W9 probe closes the oldest and spills); Q-S1j (the served
+stop-limit, limit BELOW the stop; the W9 probe asks the refused limit-beyond-stop case). Each asks what no W9
+probe asks, so it stays until a lane folds it into `w9_probes.py` or disposes of it with a reason.
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-S1a | superseded | W9 design 5.2 B re-specifies Q-S1a with generated probes; `capture-queue-2026-11-05-w9.md` Q-S1a (`w9-q-s1a-size-v4/v6/v5pct/v5cash/v2.pine`, NYSE:RDDT 1D) asks the same per-version default sizing and adds v2. The vw-s1 files were never captured |
+| Q-S1b | superseded | the same per-version capital defaults are `capture-queue-2026-11-05-w9.md` Q-S1b (`w9-q-s1b-defaults-v4/v5/v6.pine`), which also reads pyramiding and the reversal |
+| Q-S1c | superseded | this row never had a probe; `capture-queue-2026-11-05-w9.md` Q-S1c is its probe (`w9-q-s1c-tie.pine`) |
+| Q-S1f | superseded | a reversal against an exit with no from_entry: `capture-queue-2026-11-05-w9.md` Q-S1f (`w9-q-s1f-reversal-exit.pine`) |
+| Q-S1i | superseded | margin call, deferred by the W9 design: `capture-queue-2026-11-05-w9.md` Q-S1i (`w9-q-s1i-funds.pine`, NYSE:RDDT 1D) is the row; this SPY copy is not taken |
+| Q-S1l | superseded | off-grid fill rounding: `capture-queue-2026-11-05-w9.md` Q-S1l (`w9-q-s1l-off-grid.pine`), which also plots the price in mintick units |
+| Q-S1m | superseded | an out-of-range trade index: `capture-queue-2026-11-05-w9.md` Q-S1m (`w9-q-s1m-index.pine`) |
+| Q-S1o | superseded | realtime ticks on AMEX:SPY 5: `capture-queue-2026-11-05-w9.md` Q-S1o (`w9-q-s1o-every-tick.pine`, section D, live) |
+| Q-S1p | superseded | split in `capture-queue-2026-11-05-w9.md`: the v5 `when` half is Q-S1p (`w9-q-s1p-when.pine`, history), the forming-bar half is Q-S1p-live (`s1-broker-core.pine` on AMEX:SPY 5, live) |

@@ -82,15 +82,22 @@ function dividerAbove(lines, box, words) {
 }
 // what a target's own narrowing leaves inside one box
 function inside(box, t) {
+  // ⭐ NAMED CONTROLS (guide/controls.js): the control's own accessible name or tooltip, by a pattern, for a name the product
+  // builds per instance ("Delete Swing permanently", "Magnet: on") — never a CSS class
+  if (t.nameRe) {
+    const re = new RegExp(t.nameRe, 'i')
+    return [...box.querySelectorAll('[aria-label], [title]')].filter(el => re.test(el.getAttribute('aria-label') || '') || re.test(el.getAttribute('title') || ''))
+  }
   const sel = t.aria ? `[aria-label="${esc(t.aria)}"]`
     : t.guide ? `[data-guide="${esc(t.guide)}"]`
     : t.attr ? (t.value == null ? `[${t.attr}]` : `[${t.attr}="${esc(t.value)}"]`)
     : null
-  if (t.label) {
-    const want = String(t.label).toLowerCase()
+  if (t.label || t.lead) {
+    const want = String(t.label || t.lead).toLowerCase()
     // the element whose OWN words these are: a row with an icon beside its text has children, and the text is still its own
     const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
-    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => own(el) === want)
+    // `lead`: the label STARTS with these words ("Remove starred (3)" carries its count)
+    return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => (t.lead ? own(el).startsWith(want) : own(el) === want))
   }
   if (t.cursor) {
     const lines = [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
@@ -125,6 +132,14 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
     const cells = document.querySelectorAll(`[data-widget-type="${esc(target.widgetType)}"]`)
     return pick([...cells].flatMap(c => inside(c, target)), target)
   }
+  // ⭐ '@chart': the chart being talked about is the box itself (a toolbar toggle, a panel it opened); a panel portalled
+  // out of the cell is looked for on the page
+  if (typeof target === 'object' && target.within === '@chart') {
+    const cell = cellOf(chartRef)
+    if (!cell) return pick(inside(document.body, target), target)
+    // …never the same control on ANOTHER chart: outside this cell, only what sits in no board cell at all (a portal)
+    return pick(inside(cell, target), target) || pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target)
+  }
   if (typeof target === 'object' && target.within) {
     // a box on a chart: the chart being talked about, when it has one (a menu it opened may be portalled)
     const cell = /^chart\.(?!.*Menu$)/.test(String(target.within)) ? cellOf(chartRef) : null
@@ -157,15 +172,19 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
 // its right end: the settings gear, among others. The member can neither see nor reach it, so the guide slides that row
 // sideways while the step needs it, and puts it back afterwards. It is a view of the same controls: nothing is stored.
 let slid = []
+// a window is scrolled for a control once: this runs on every tick, and must not fight the member's own scrolling
+let scrolledTo = new WeakSet()
 const clips = (node) => { let o = ''; try { o = getComputedStyle(node).overflowX } catch { o = '' } return /hidden|clip|auto|scroll/.test(o) && node.scrollWidth > node.clientWidth }
 // a row squeezed to nothing: with two charts and the Agent open the drawing strip has no width at all, because the fixed
 // buttons beside it take the whole line. There is nothing to slide, so its neighbours step aside for the step
 const SQUEEZED_PX = 8
 const squeezed = (node) => node.getClientRects?.().length > 0 && node.getBoundingClientRect().width < SQUEEZED_PX
+// ⛔ only a toolbar row we know, because this hides what stands beside it: a collapsed dock or panel is never one
+const ROOM_ROWS = '[data-guide="chart.drawingTools"]'
 function makeRoom(el) {
   for (let p = el; p && p !== document.body; p = p.parentElement) {
     // a row of controls, not one tool the member hid under Customize (a button collapsed to width 0)
-    if (!squeezed(p) || p.childElementCount < 2 || !p.parentElement) continue
+    if (!p.matches?.(ROOM_ROWS) || !squeezed(p) || p.childElementCount < 2 || !p.parentElement) continue
     for (const sib of p.parentElement.children) {
       if (sib === p) continue
       slid.push({ node: sib, display: sib.style.display })
@@ -195,11 +214,12 @@ export function unclip(target, ctx) {
     if (by) { slid.push({ node: p, left: p.scrollLeft }); p.scrollLeft += by }
   }
   // below the fold of a long window (the formula box in the builder): bring it up
-  if (!findTarget(target, ctx)) reveal(el)
+  if (!findTarget(target, ctx) && !scrolledTo.has(el)) { scrolledTo.add(el); reveal(el) }
   return !!findTarget(target, ctx)
 }
 /** Put back every row `unclip` slid. */
 export function restoreClipped() {
+  scrolledTo = new WeakSet()
   for (const { node, left, display } of slid.reverse()) {
     try { if (display != null) node.style.display = display; else node.scrollLeft = left } catch { /* gone */ }
   }
