@@ -157,6 +157,39 @@ describe('AlertBell identity scoping', () => {
   })
 })
 
+describe('AlertBell -- notification click-through', () => {
+  async function newAlertNotifications(extra) {
+    feed = [alert('a_0', 'Old')]
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+    feed = [{ ...alert('a_9', 'New'), ...extra }, alert('a_0', 'Old')]
+    await act(async () => {
+      await swrMutate(['/api/alerts?limit=20', 'u_a'])
+      await new Promise(r => setTimeout(r, 20))
+    })
+    await waitFor(() => expect(showBrowserNotification).toHaveBeenCalled())
+    return showBrowserNotification.mock.calls[0]
+  }
+
+  it('passes the alert id as the tag and a click handler that navigates in-app', async () => {
+    const call = await newAlertNotifications({ data: { research_url: '/research/AAPL' } })
+    expect(call[3].tag).toBe('uct-alert-a_9')
+    expect(typeof call[3].onClick).toBe('function')
+    expect(() => act(() => call[3].onClick())).not.toThrow()
+  })
+
+  it('gives no onClick when the alert has no usable URL (focus only)', async () => {
+    const call = await newAlertNotifications({ data: {} })
+    expect(call[3].tag).toBe('uct-alert-a_9')
+    expect(call[3].onClick).toBeUndefined()
+  })
+
+  it('gives no onClick for an off-site research_url', async () => {
+    const call = await newAlertNotifications({ data: { research_url: '//evil.example/x' } })
+    expect(call[3].onClick).toBeUndefined()
+  })
+})
+
 describe('AlertBell -- S7 document-arrival deep-link (owner authorization, 2026-09-03)', () => {
   it('navigates to an alert\'s research_url on click, in addition to marking it read', async () => {
     feed = [{ ...alert('a_1', 'New 8-K — AAPL'), data: { sym: 'AAPL', research_url: '/research/AAPL' } }]
