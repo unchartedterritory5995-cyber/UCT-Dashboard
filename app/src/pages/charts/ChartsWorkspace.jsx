@@ -2935,7 +2935,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     try {
       const uid = deskUidRef.current
       const owner = deskOwnerRef.current
+      const op = beginPrefsOp()            // the member this restore is for, before its await
       const rec = (await listOrphans(uid, owner)).find(r => r.id === recordId)
+      if (op.stale()) return               // signed out or switched while reading: not their board
       if (!rec || !Array.isArray(rec.widgets)) {       // another tab got there first
         setWorkspaceNotice(null)
         offerDeskRestoreRef.current?.()
@@ -2964,7 +2966,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       layoutRef.current = next
       setLayout(next)
       let result = false
-      try { result = await autosaveLayout(next, beginPrefsOp()) } catch { result = false }
+      try { result = await autosaveLayout(next, op) } catch { result = false }
       if (result === false) {
         // Not saved, so not restored: a board on screen that is not saved would read as done.
         const addedIds = new Set(adding.map(w => w.id))
