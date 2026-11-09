@@ -98,6 +98,12 @@ def _referenced_names(conn: sqlite3.Connection, user_id: str) -> set[str]:
     # version with the attachment intact. Before this fix, only the current
     # `j2_notes.body_json` was scanned here, so the file would silently GC
     # out from under any older, still-restorable version 48h later.
+    # Import a tweet: a post's copied images live only in its sidecar (`media_json`), never in
+    # the note body, so without this the sweep would delete them while the card still shows them.
+    for row in conn.execute(
+        "SELECT media_json FROM j2_note_tweet_captures WHERE user_id = ?", (user_id,)
+    ):
+        names.update(_REF_RE.findall(row["media_json"] or ""))
     for row in conn.execute(
         "SELECT body_json FROM j2_note_versions WHERE user_id = ?", (user_id,)
     ):

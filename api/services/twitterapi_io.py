@@ -403,7 +403,11 @@ def _request_tweets_by_ids(batch: list[str]) -> list[dict]:
     if r.status_code != 200:
         raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
 
-    return [t for t in _extract_tweets(r.json()) if isinstance(t, dict)]
+    try:
+        payload = r.json()
+    except ValueError as e:
+        raise TwitterApiTransientError(f"non-JSON 200 body: {r.text[:200]}") from e
+    return [t for t in _extract_tweets(payload) if isinstance(t, dict)]
 
 
 def get_tweets_by_ids(tweet_ids: Iterable[str]) -> list[dict]:

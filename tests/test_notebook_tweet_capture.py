@@ -16,6 +16,8 @@ Fixtures use invented handles and ids.
 """
 from __future__ import annotations
 
+import importlib
+import io
 import json
 import os
 import tempfile
@@ -384,3 +386,549 @@ def test_find_deleted_tweet_ids_is_unchanged(monkeypatch):
                         lambda *a, **k: _Resp(200, {"tweets": [_raw("1")]}))
     assert twitterapi_io.find_deleted_tweet_ids(["1", "2"]) == {"2"}
     assert twitterapi_io.find_deleted_tweet_ids([]) == set()
+
+
+def test_a_200_with_a_non_json_body_is_transient(monkeypatch):
+    class _NotJson(_Resp):
+        def json(self):
+            raise ValueError("not json")
+
+    monkeypatch.setenv("TWITTERAPI_IO_API_KEY", "k")
+    monkeypatch.setattr(twitterapi_io.requests, "get", lambda *a, **k: _NotJson(200, {}))
+    with pytest.raises(twitterapi_io.TwitterApiTransientError):
+        twitterapi_io.get_tweets_by_ids(["1"])
+    with pytest.raises(twitterapi_io.TwitterApiTransientError):
+        twitterapi_io.find_deleted_tweet_ids(["1"])
+
+
+# ── saving into a note (Task 4) ─────────────────────────────────────────────────────────
+
+OTHER = "user-tw-b"
+SAVE_URL = "/api/j2/research-capture/tweets/save"
+
+
+def _png() -> bytes:
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (4, 4), (1, 2, 3)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+@pytest.fixture
+def images(monkeypatch):
+    """`hotlink_fetch.download` answered locally. `fail` is the set of URL substrings that raise."""
+    from api.services.journal_two import hotlink_fetch
+    box = {"urls": [], "fail": set()}
+
+    async def fake(url, **kwargs):
+        box["urls"].append(url)
+        if any(f in url for f in box["fail"]):
+            raise RuntimeError("no image")
+        return _png(), "image/png"
+
+    monkeypatch.setattr(hotlink_fetch, "download", fake)
+    return box
+
+
+@pytest.fixture
+def prices(monkeypatch):
+    from api.services.journal_two import tweet_price
+    box = {"point": None, "calls": [], "hook": None}
+
+    def fake(symbol, posted_at):
+        box["calls"].append((symbol, posted_at))
+        if box["hook"]:
+            box["hook"]()
+        return box["point"]
+
+    monkeypatch.setattr(tweet_price, "price_at_post", fake)
+    monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: True)
+    return box
+
+
+@pytest.fixture
+def notebook(monkeypatch, tmp_path, store, images, prices, vendor):
+    monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    conn = auth_db.get_connection()
+    for uid, email in ((UID, "a@example.com"), (OTHER, "b@example.com")):
+        conn.execute("INSERT INTO users (id, email, password_hash, display_name, role) VALUES (?,?,?,?,?)",
+                     (uid, email, "x", uid, "member"))
+    conn.commit()
+    conn.close()
+    from api.services.journal_two import notes as notes_svc
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(tmp_path / "j2_attachments"))
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "j2_attachments")
+    return auth_db
+
+
+def _note(user_id=UID, ticker="NVDA") -> str:
+    from api.services.journal_two import notes
+    return notes.create_note(user_id, {"title": "Thesis", "ticker": ticker})["id"]
+
+
+def _rows(sql, *args):
+    from api.services import auth_db
+    c = auth_db.get_connection()
+    try:
+        return [dict(r) for r in c.execute(sql, args).fetchall()]
+    finally:
+        c.close()
+
+
+def _seed_post(store, tid, handle="fakedesk_one", text="$NVDA breaking out", tickers=("NVDA",), raw=RAW):
+    store.upsert_tweet(_row(tid, handle=handle, text=text, raw=raw), list(tickers))
+
+
+def _excerpt_nodes(note_id, user_id=UID):
+    from api.services.journal_two import notes
+    return [n["attrs"]["excerptId"] for n in notes.get_note(user_id, note_id)["bodyJson"]["content"]
+            if n.get("type") == "documentExcerpt"]
+
+
+def _assert_no_tweet_rows():
+    for table in ("j2_note_excerpts", "j2_note_document_pages", "j2_note_documents", "j2_note_tweet_captures"):
+        assert _rows(f"SELECT * FROM {table}") == [], table
+
+
+def test_save_creates_excerpt_node_and_sidecar(notebook, store, prices):
+    from api.services.journal_two import tweet_capture as tc
+    from api.services.journal_two.tweet_price import PricePoint
+    prices["point"] = PricePoint("NVDA", 188.2, "posted", None)
+    _seed_post(store, "701")
+    note_id = _note()
+    out = tc.save(UID, note_id, ["701"])
+
+    assert out["warnings"] == []
+    ex = out["excerpts"][0]
+    assert ex["capturedText"] == "$NVDA breaking out"
+    assert ex["charStart"] == 0 and ex["charEnd"] == len("$NVDA breaking out")
+    assert _excerpt_nodes(note_id) == [ex["id"]]
+
+    from api.services.journal_two import notes
+    assert out["note"] == {"id": note_id, "updatedAt": notes.get_note(UID, note_id)["updatedAt"]}
+
+    doc = _rows("SELECT * FROM j2_note_documents")[0]
+    assert doc["attachment_url"] == "x:701" and doc["name"] == "@fakedesk_one on X"
+    assert (doc["source_kind"], doc["capture_type"]) == ("web", "web_passage")
+    assert doc["source_url"] == "https://x.com/fakedesk_one/status/701"
+    assert doc["page_count"] == 1
+    page = _rows("SELECT * FROM j2_note_document_pages")[0]
+    assert (page["page_number"], page["text"], page["text_origin"]) == (1, "$NVDA breaking out", "web_passage")
+
+    car = _rows("SELECT * FROM j2_note_tweet_captures")[0]
+    assert car["document_id"] == doc["id"] and car["user_id"] == UID and car["note_id"] == note_id
+    assert (car["tweet_id"], car["author_handle"], car["author_name"]) == ("701", "fakedesk_one", "FAKEDESK_ONE")
+    assert car["avatar_url"] == AVATAR and car["permalink"] == "https://x.com/fakedesk_one/status/701"
+    assert car["posted_at"] == ex["tweet"]["postedAt"]
+    assert (car["price_symbol"], car["price_at_post"], car["price_label"], car["price_session_date"]) == (
+        "NVDA", 188.2, "posted", None)
+    assert car["removed_at"] is None and car["gone_first_missed_at"] is None and car["created_at"]
+
+    stored = json.loads(car["media_json"])
+    assert len(stored) == 1 and stored[0].startswith(f"/api/j2/notes/attachments/{UID}/{note_id}/inline/")
+    assert "pbs.twimg" not in car["media_json"]
+
+
+def test_save_never_uses_client_text(client, flag_on, notebook, store):
+    _seed_post(store, "702", text="$NVDA the real words")
+    note_id = _note()
+    r = client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": ["702"], "text": "FORGED",
+                                    "capturedText": "FORGED", "handle": "forged"})
+    assert r.status_code == 200, r.text
+    ex = r.json()["excerpts"][0]
+    assert ex["capturedText"] == "$NVDA the real words"
+    assert ex["tweet"]["handle"] == "fakedesk_one"
+    assert "FORGED" not in json.dumps(_rows("SELECT * FROM j2_note_excerpts"))
+
+
+def test_save_twice_is_one_excerpt_placed_once(notebook, store, images):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "703")
+    note_id = _note()
+    first = tc.save(UID, note_id, ["703"])["excerpts"][0]
+    copied = len(images["urls"])
+    second = tc.save(UID, note_id, ["703"])["excerpts"][0]
+    assert second["id"] == first["id"]
+    assert _excerpt_nodes(note_id) == [first["id"]]
+    assert len(_rows("SELECT * FROM j2_note_excerpts")) == 1
+    assert len(_rows("SELECT * FROM j2_note_tweet_captures")) == 1
+    assert len(images["urls"]) == copied          # the dedupe path copies nothing
+
+
+def test_save_replaces_node_after_member_removed_it(notebook, store):
+    from api.services.journal_two import notes, tweet_capture as tc
+    _seed_post(store, "704")
+    note_id = _note()
+    ex_id = tc.save(UID, note_id, ["704"])["excerpts"][0]["id"]
+    n = notes.get_note(UID, note_id)
+    kept = [x for x in n["bodyJson"]["content"] if x.get("type") != "documentExcerpt"]
+    notes.update_note(UID, note_id, {"bodyJson": {"type": "doc", "content": kept}}, client_schema=99)
+    assert _excerpt_nodes(note_id) == []
+
+    out = tc.save(UID, note_id, ["704"])
+    assert out["excerpts"][0]["id"] == ex_id
+    assert _excerpt_nodes(note_id) == [ex_id]
+    assert len(_rows("SELECT * FROM j2_note_tweet_captures")) == 1
+    tc.save(UID, note_id, ["704"])
+    assert _excerpt_nodes(note_id) == [ex_id]
+
+
+def test_save_to_locked_note_is_423_and_leaves_no_rows(notebook, store, images):
+    from api.services import auth_db
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "705")
+    note_id = _note()
+    c = auth_db.get_connection()
+    c.execute("UPDATE j2_notes SET locked = 1 WHERE id = ?", (note_id,))
+    c.commit()
+    c.close()
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, note_id, ["705"])
+    assert e.value.status == 423
+    _assert_no_tweet_rows()
+    assert images["urls"] == []
+
+
+def test_save_failure_after_the_excerpt_leaves_no_rows(notebook, store, monkeypatch):
+    from api.services.journal_two import notes, tweet_capture as tc
+    _seed_post(store, "706")
+    note_id = _note()
+
+    def boom(*a, **k):
+        raise RuntimeError("disk trouble")
+
+    monkeypatch.setattr(notes, "append_document_excerpt", boom)
+    with pytest.raises(RuntimeError):
+        tc.save(UID, note_id, ["706"])
+    _assert_no_tweet_rows()
+
+
+def test_save_to_other_members_note_is_404(notebook, store, vendor):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "707")
+    theirs = _note(OTHER)
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, theirs, ["707"])
+    assert e.value.status == 404
+    _assert_no_tweet_rows()
+    assert vendor["calls"] == []
+
+
+def test_save_over_20_is_400(notebook, vendor):
+    from api.services.journal_two import tweet_capture as tc
+    note_id = _note()
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, note_id, [str(i) for i in range(1, 22)])
+    assert e.value.status == 400
+    assert vendor["calls"] == []
+
+
+@pytest.mark.parametrize("ids", [[], None, "701", [701], ["abc"], [""], ["1" * 26]])
+def test_save_refuses_a_bad_id_list(notebook, vendor, ids):
+    from api.services.journal_two import tweet_capture as tc
+    note_id = _note()
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, note_id, ids)
+    assert e.value.status == 400
+    assert vendor["calls"] == []
+
+
+def test_save_repeated_ids_keep_first_position(notebook, store):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "711", text="$NVDA one")
+    _seed_post(store, "712", text="$NVDA two")
+    note_id = _note()
+    out = tc.save(UID, note_id, ["711", "712", "711"])
+    assert [x["capturedText"] for x in out["excerpts"]] == ["$NVDA one", "$NVDA two"]
+    assert len(_excerpt_nodes(note_id)) == 2
+
+
+def test_save_reads_store_first_then_one_vendor_call_in_requested_order(notebook, store, vendor):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "721", text="$NVDA stored first")
+    _seed_post(store, "723", text="$NVDA stored last")
+    vendor["answer"] = [_row("724", handle="fakeperson", text="$AMD also linked", raw="{}"),
+                        _row("722", handle="fakeperson", text="$AMD linked", raw="{}")]
+    note_id = _note()
+    out = tc.save(UID, note_id, ["721", "722", "723", "724"])
+    assert [x["capturedText"] for x in out["excerpts"]] == [
+        "$NVDA stored first", "$AMD linked", "$NVDA stored last", "$AMD also linked"]
+    assert vendor["calls"] == [["722", "724"]]
+    assert store.get_tweet("722") is None and store.count_tweets() == 2     # never written to tweets.db
+
+
+def test_save_unresolvable_id_stops_and_reports_what_was_saved(notebook, store, vendor):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "731", text="$NVDA saved before")
+    _seed_post(store, "733", text="$NVDA never reached")
+    vendor["answer"] = []
+    note_id = _note()
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, note_id, ["731", "732", "733"])
+    assert e.value.status == 404
+    assert "could not be found" in str(e.value)
+    assert "1 post was saved" in str(e.value)
+    assert [r["captured_text"] for r in _rows("SELECT captured_text FROM j2_note_excerpts")] == ["$NVDA saved before"]
+    assert len(_excerpt_nodes(note_id)) == 1
+
+
+def test_save_unresolvable_first_id_says_nothing_was_saved(notebook, store, vendor):
+    from api.services.journal_two import tweet_capture as tc
+    vendor["answer"] = []
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, _note(), ["739"])
+    assert e.value.status == 404
+    assert str(e.value) == tc.NOT_FOUND_SENTENCE
+    _assert_no_tweet_rows()
+
+
+def test_save_vendor_down_is_503_and_saves_nothing(notebook, store, vendor):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "741")
+    vendor["answer"] = twitterapi_io.TwitterApiTransientError("x")
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, _note(), ["741", "742"])
+    assert e.value.status == 503
+    _assert_no_tweet_rows()
+
+
+def test_save_a_post_with_no_words_is_refused(notebook, store):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "751", text="   ", tickers=())
+    with pytest.raises(tc.TweetCaptureError) as e:
+        tc.save(UID, _note(), ["751"])
+    assert e.value.status == 422
+    _assert_no_tweet_rows()
+
+
+def test_save_without_cashtag_has_no_price(notebook, store, prices):
+    from api.services.journal_two import tweet_capture as tc
+    from api.services.journal_two.tweet_price import PricePoint
+    prices["point"] = PricePoint("NVDA", 188.2, "posted", None)
+    _seed_post(store, "752", text="nothing to price here", tickers=())
+    out = tc.save(UID, _note(), ["752"])
+    assert prices["calls"] == []
+    assert out["excerpts"][0]["tweet"]["price"] is None
+    assert _rows("SELECT price_symbol FROM j2_note_tweet_captures")[0]["price_symbol"] is None
+
+
+def test_save_prices_the_notes_own_ticker_when_the_post_names_it(notebook, store, prices):
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "753", text="$AMD and $NVDA both", tickers=("AMD", "NVDA"))
+    tc.save(UID, _note(ticker="NVDA"), ["753"])
+    assert [c[0] for c in prices["calls"]] == ["NVDA"]
+
+
+def test_price_is_read_outside_the_write_transaction(notebook, store, prices, monkeypatch):
+    from api.services.journal_two import notes, tweet_capture as tc
+    note_id = _note()
+    _seed_post(store, "754")
+    opened = []
+    real = notes.get_connection
+
+    def recording():
+        c = real()
+        opened.append(c)
+        return c
+
+    monkeypatch.setattr(notes, "get_connection", recording)
+    seen = []
+    prices["hook"] = lambda: seen.append([c.in_transaction for c in opened])
+    tc.save(UID, note_id, ["754"])
+    assert seen and opened and all(not any(s) for s in seen), seen
+
+
+def test_image_copy_failure_warns_and_keeps_post(notebook, store, images):
+    from api.services.journal_two import tweet_capture as tc
+    images["fail"].add("FakeImg123")
+    _seed_post(store, "761")
+    note_id = _note()
+    out = tc.save(UID, note_id, ["761"])
+    assert out["warnings"] == ["An image from @fakedesk_one could not be copied."]
+    assert len(out["excerpts"]) == 1
+    assert _excerpt_nodes(note_id) == [out["excerpts"][0]["id"]]
+    assert _rows("SELECT media_json FROM j2_note_tweet_captures")[0]["media_json"] == "[]"
+
+
+def test_only_pbs_twimg_images_are_copied_and_at_most_four(notebook, store, images, monkeypatch):
+    from api.services.journal_two import tweet_capture as tc
+    urls = [f"https://pbs.twimg.com/media/Img{i}.jpg" for i in range(6)]
+    urls.insert(0, "https://evil.test/media/Bad.jpg")
+    raw = json.dumps({"extendedEntities": {"media": [{"media_url_https": u} for u in urls]}})
+    _seed_post(store, "762", raw=raw)
+    original = tweet_store.get_tweet
+
+    def with_media(tid):
+        row = original(tid)
+        row["media"] = urls
+        return row
+
+    monkeypatch.setattr(tweet_store, "get_tweet", with_media)
+    tc.save(UID, _note(), ["762"])
+    assert len(images["urls"]) == 4
+    assert all(u.startswith("https://pbs.twimg.com/") for u in images["urls"])
+
+
+def test_stored_tweet_images_survive_the_attachment_gc(notebook, store):
+    from api.services.journal_two import attachment_gc, tweet_capture as tc
+    from api.services import auth_db
+    _seed_post(store, "763")
+    note_id = _note()
+    tc.save(UID, note_id, ["763"])
+    url = json.loads(_rows("SELECT media_json FROM j2_note_tweet_captures")[0]["media_json"])[0]
+    conn = auth_db.get_connection()
+    try:
+        names = attachment_gc._referenced_names(conn, UID)
+    finally:
+        conn.close()
+    assert url.rsplit("/", 1)[1] in names
+
+
+def test_save_route(client, flag_on, notebook, store):
+    _seed_post(store, "771")
+    note_id = _note()
+    r = client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": ["771"]})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert set(body) == {"excerpts", "note", "warnings"}
+    assert body["note"]["id"] == note_id
+    assert client.post(SAVE_URL, json={"noteId": note_id, "tweetIds": []}).status_code == 400
+    assert client.post(SAVE_URL, json={"noteId": note_id}).status_code == 400
+    assert client.post(SAVE_URL, json=[1]).status_code in (400, 422)
+
+
+def test_save_route_is_404_while_the_flag_is_off(client, notebook, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_TWEET_IMPORT_ENABLED", raising=False)
+    assert client.post(SAVE_URL, json={"noteId": "n", "tweetIds": ["1"]}).status_code == 404
+
+
+def test_save_route_is_paid_only(client, flag_on, notebook):
+    free = {"id": UID, "role": "member", "plan": "free"}
+    client.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(free)
+    assert client.post(SAVE_URL, json={"noteId": "n", "tweetIds": ["1"]}).status_code == 402
+
+
+# ── reading a saved post ────────────────────────────────────────────────────────────────
+
+def test_excerpt_read_carries_tweet_fields(notebook, store, prices):
+    from api.services.journal_two import note_excerpts, tweet_capture as tc
+    from api.services.journal_two.tweet_price import PricePoint
+    prices["point"] = PricePoint("NVDA", 188.2, "close", "2026-11-06")
+    _seed_post(store, "781")
+    note_id = _note()
+    saved = tc.save(UID, note_id, ["781"])["excerpts"][0]
+    listed = note_excerpts.list_note_excerpts(UID, note_id)[0]
+    single = note_excerpts.get_excerpt(UID, saved["id"])
+    for ex in (saved, listed, single):
+        tw = ex["tweet"]
+        assert set(tw) == {"tweetId", "name", "handle", "avatarUrl", "url", "postedAt", "media", "price", "removed"}
+        assert tw["tweetId"] == "781" and tw["handle"] == "fakedesk_one" and tw["name"] == "FAKEDESK_ONE"
+        assert tw["avatarUrl"] == AVATAR and tw["url"] == "https://x.com/fakedesk_one/status/781"
+        assert isinstance(tw["postedAt"], int) and tw["removed"] is False
+        assert tw["price"] == {"symbol": "NVDA", "price": 188.2, "label": "close", "sessionDate": "2026-11-06"}
+        assert len(tw["media"]) == 1 and tw["media"][0].startswith("/api/j2/notes/attachments/")
+
+
+def test_excerpt_read_reports_a_removed_post(notebook, store):
+    from api.services import auth_db
+    from api.services.journal_two import note_excerpts, tweet_capture as tc
+    _seed_post(store, "782")
+    note_id = _note()
+    tc.save(UID, note_id, ["782"])
+    c = auth_db.get_connection()
+    c.execute("UPDATE j2_note_tweet_captures SET removed_at = 'x'")
+    c.commit()
+    c.close()
+    assert note_excerpts.list_note_excerpts(UID, note_id)[0]["tweet"]["removed"] is True
+
+
+def _plain_excerpt(note_id, user_id=UID):
+    """An ordinary (non-tweet) excerpt, through the base tables and `create_excerpt`."""
+    from api.services import auth_db
+    from api.services.journal_two import note_excerpts, notes
+    c = auth_db.get_connection()
+    c.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, status, created_at)"
+              " VALUES (?,?,?,?, 'ready', 't')", ("doc-plain", user_id, note_id, "/att/x.pdf"))
+    c.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text) VALUES (?,?,1,?)",
+              ("doc-plain", user_id, "plain page"))
+    c.commit()
+    c.close()
+    ex = note_excerpts.create_excerpt(user_id, note_id, document_id="doc-plain", page_number=1, captured_text="plain")
+    notes.append_document_excerpt(user_id, note_id, ex["id"])
+    return ex["id"]
+
+
+def test_excerpt_read_without_sidecar_has_no_tweet_key(notebook, monkeypatch):
+    from api.services.journal_two import note_excerpts, tweet_price
+    calls = []
+    monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: calls.append(a) or True)
+    note_id = _note()
+    ex_id = _plain_excerpt(note_id)
+    listed = note_excerpts.list_note_excerpts(UID, note_id)
+    assert len(listed) == 1 and "tweet" not in listed[0]
+    assert "tweet" not in note_excerpts.get_excerpt(UID, ex_id)
+    assert calls == []
+
+
+def test_excerpt_read_uses_one_sidecar_query_however_many_excerpts(notebook, store):
+    from api.services import auth_db
+    from api.services.journal_two import note_excerpts, tweet_capture as tc
+    for i in range(3):
+        _seed_post(store, f"79{i}", text=f"$NVDA post {i}")
+    note_id = _note()
+    tc.save(UID, note_id, ["790", "791", "792"])
+    conn = auth_db.get_connection()
+    sidecar_reads = []
+    conn.set_trace_callback(lambda s: sidecar_reads.append(s) if "j2_note_tweet_captures" in s else None)
+    try:
+        assert len(note_excerpts.list_note_excerpts(UID, note_id, conn=conn)) == 3
+    finally:
+        conn.set_trace_callback(None)
+        conn.close()
+    assert len(sidecar_reads) == 1, sidecar_reads
+
+
+def test_excerpt_read_hides_price_after_split(notebook, store, prices, monkeypatch):
+    from api.services.journal_two import note_excerpts, tweet_capture as tc, tweet_price
+    from api.services.journal_two.tweet_price import PricePoint
+    prices["point"] = PricePoint("NVDA", 188.2, "posted", None)
+    _seed_post(store, "783")
+    note_id = _note()
+    tc.save(UID, note_id, ["783"])
+    assert note_excerpts.list_note_excerpts(UID, note_id)[0]["tweet"]["price"] is not None
+    monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: False)
+    assert note_excerpts.list_note_excerpts(UID, note_id)[0]["tweet"]["price"] is None
+
+
+def test_deleting_the_document_removes_the_sidecar(notebook, store):
+    from api.services import auth_db
+    from api.services.journal_two import tweet_capture as tc
+    _seed_post(store, "784")
+    tc.save(UID, _note(), ["784"])
+    c = auth_db.get_connection()
+    c.execute("DELETE FROM j2_note_documents")
+    c.commit()
+    c.close()
+    assert _rows("SELECT * FROM j2_note_tweet_captures") == []
+
+
+# ── delete_stored_media ─────────────────────────────────────────────────────────────────
+
+def test_delete_stored_media_removes_the_file_and_is_tenant_scoped(notebook):
+    from api.services.journal_two import media_policy, notes as notes_svc
+    note_id = _note()
+    result = media_policy.normalize_media(_png(), "image/png", "x.png")
+    stored = media_policy.store_media(UID, note_id, result, budget=media_policy.MediaBudget.for_member(UID))
+    sub, name = stored.url.rsplit("/", 2)[1:]
+
+    assert media_policy.delete_stored_media(OTHER, note_id, stored.url) is False
+    assert media_policy.delete_stored_media(UID, "another-note", stored.url) is False
+    assert media_policy.delete_stored_media(UID, note_id, "https://evil.test/x.png") is False
+    assert notes_svc.serve_note_image_path(UID, note_id, sub, name) is not None
+
+    assert media_policy.delete_stored_media(UID, note_id, stored.url) is True
+    assert notes_svc.serve_note_image_path(UID, note_id, sub, name) is None
+    assert media_policy.delete_stored_media(UID, note_id, stored.url) is False

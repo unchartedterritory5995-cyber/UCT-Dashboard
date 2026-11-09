@@ -15,6 +15,7 @@ Two capabilities, two routers in one module (both always on: their flags were re
   tweets (import a tweet; DARK behind NOTEBOOK_TWEET_IMPORT_ENABLED, 404 while off)
     GET   /api/j2/research-capture/tweets/recent?symbol=&scope=     posts UCT holds, last 168 h
     POST  /api/j2/research-capture/tweets/resolve                   a pasted X link -> a post
+    POST  /api/j2/research-capture/tweets/save                      posts -> cited excerpts in a note
 
 The rules (the template gallery's, `notebook_template_gallery.py`, and 13C's):
   * PAID, on every route (transcripts are paid data on the Calendar; bars likewise).
@@ -197,5 +198,18 @@ def resolve_tweet(payload: dict[str, Any] = Depends(_json(dict[str, Any])),
                         TWEET_RESOLVE_RATE_SENTENCE, public=False)
     try:
         return {"post": tw.resolve_link(url)}
+    except tw.TweetCaptureError as e:
+        raise _fail(e) from e
+
+
+@tweets_router.post("/save")
+def save_tweets(payload: dict[str, Any] = Depends(_json(dict[str, Any])),
+                user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """Posts by id into a note, as cited excerpts. A sync route (threadpool): each post is
+    re-read server-side, and nothing the client sent about a post is stored."""
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="A JSON object is required")
+    try:
+        return tw.save(str(user["id"]), payload.get("noteId"), payload.get("tweetIds"))
     except tw.TweetCaptureError as e:
         raise _fail(e) from e
