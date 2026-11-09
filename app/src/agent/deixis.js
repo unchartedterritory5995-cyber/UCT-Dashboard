@@ -452,7 +452,11 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const sel = selectedChart(host)
   const said = chartPositions(words)
   const answered = (pickedRefs || []).some(Boolean)
-  if (sel && (/\bthis\b/i.test(words) || (!answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  // ⛔ AUDIT (single clause): a plain "the other one / the other chart" on a board of TWO names the chart that is NOT the click,
+  // and the click is EXCLUDED: a plan on the other chart runs, a plan on the click is asked (unless "this" names it too)
+  const otherOne = !answered && sel && charts.length === 2 && otherOneIsChart(words) ? charts.find(c => c.ref !== sel)?.ref || null : null
+  if (otherOne) named.add(otherOne)
+  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
@@ -482,6 +486,19 @@ function otherChartMeant(text, charts, dest, ops) {
   const fromOther = (ops || []).some(o => strip(o?.args?.from) === other?.ref)
   const hasDef = (ops || []).some(o => typeof o?.args?.defId === 'string' && (other?.cs?.indicatorInstances || []).some(i => i && !i.deleted && i.defId === o.args.defId))
   return fromOther || hasDef
+}
+
+/** "the / my / that other one" (OTHER_CHART) means the other CHART — as the guide reads it (pl-teach T1e/T1f): with a chart word,
+ *  or after a preposition (the LOCATION: "add RSI to the other one"), or when nothing named before it is a thing the "one" can
+ *  stand for. As the verb's object after such a thing ("I drew two lines, delete the other one") it is that thing, not a chart. */
+const ONE_IS_A_THING = /\b(?:drawings?|lines?|trend ?lines?|rays?|rectangles?|boxe?s?|circles?|arrows?|fibs?|fibonacci|channels?|notes?|labels?|indicators?|studies|study|alerts?|levels?|tabs?|layouts?|lists?|watchlists?|widgets?|templates?|panes?|colou?rs?)\b/i
+function otherOneIsChart(text) {
+  const s = String(text || '')
+  const m = OTHER_CHART.exec(s)
+  if (!m) return false
+  if (/chart/i.test(m[0])) return true
+  const before = s.slice(0, m.index)
+  return /\b(?:on|to|onto|from|in|into|for|of|at|over)\s*$/i.test(before) || !ONE_IS_A_THING.test(before)
 }
 
 // the word "this" on a chart or stock, and no position, ordinal, name or description that could be saying something else
