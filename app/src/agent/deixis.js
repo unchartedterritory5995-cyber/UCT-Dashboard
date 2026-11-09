@@ -51,15 +51,31 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
 const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+// unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
+// (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
+// The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
+const DIAG_WORD = `(?:diagonal(?:ly)?\\s+(?:opposite|across)(?:\\s+(?:from|to))?|across\\s+the\\s+diagonal\\s+(?:from|to)|(?:kitty|catty|cater)[-\\s]?corner(?:ed)?(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:in\\s+the\\s+)?opposite\\s+corner(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:directly\\s+)?across\\s+from|opposite(?:\\s+(?:from|to))?)`
+export const DIAGONAL = new RegExp(`\\b${DIAG_WORD}\\s+${REL_ANCHOR}`, 'i')
+// anchorless ("the chart diagonally opposite", "the one in the opposite corner"): the click is the anchor, as RELATIVE_BARE
+const DIAGONAL_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:diagonally|directly)\s+(?:opposite|across)|(?:kitty|catty|cater)[-\s]?corner(?:ed)?|in\s+the\s+opposite\s+corner)\b(?!\s*(?:from|to|of)\b)/i
+// AUDIT GO (2): a relation word UCT cannot place on the grid ("facing this one", "on the far side of this chart"), anchored on the
+// click: the click is still only the ANCHOR, so the reference resolves to no chart (asked with the real names), never the click
+const UNPLACED_RELATION = new RegExp(`\\b(?:facing|mirroring|(?:on\\s+)?the\\s+(?:far|other)\\s+side\\s+of|opposite|across|diagonal(?:ly)?|corner(?:ed)?)\\s+(?:(?:from|to|of)\\s+)?${REL_ANCHOR}`, 'i')
+const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph)\b/i.test(s)
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
   const s = String(text || '')
+  const aboutChart = (x) => !placesNonChart(s.slice(0, x.index)) && (REL_CHART_ANCHOR.test(x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
+  const d = DIAGONAL.exec(s) || DIAGONAL_BARE.exec(s)
+  if (d && aboutChart(d)) { d.diagonal = true; return d }
   const m = RELATIVE.exec(s)
   // ⛔ AUDIT S2-B: the same rule for an anchored relation — "the alert and the one above it": a bare "one" coordinated with a
   // non-chart noun stands for that thing, so no chart relation (the click is read as it would be without one)
   if (m) { const pre = /\b(?:the|that)\s+one\s*$/i.exec(s.slice(0, m.index)); if (pre && oneStandsForAThing(s.slice(0, pre.index))) return null }
   if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
   if (m) return null
+  const u = UNPLACED_RELATION.exec(s)
+  if (u && aboutChart(u)) { u.unplaced = true; return u }
   const b = RELATIVE_BARE.exec(s)
   if (!b) return null
   // its noun IS the chart related ("a macd on the chart above" puts the MACD on that chart), so nothing placed before it counts —
@@ -131,6 +147,20 @@ function sideOf(charts, s, side) {
   if (side === 'left') return pick(o.filter(c => yo(c) && c.cell.x + c.cell.w <= s.cell.x), c => c.cell.x + c.cell.w, Math.max)
   return pick(o.filter(c => yo(c) && c.cell.x >= s.cell.x + s.cell.w), c => c.cell.x, Math.min)
 }
+// unseen9 P1: the charts on the click's DIAGONAL (sharing neither a column nor a row with it). One → that chart. Several (a
+// 3×3 grid) → the one at the click's mirror point through the board's centre, when exactly one is there; otherwise all of them,
+// so the caller asks with their names. None (one row of charts) → none: the caller asks, never the click.
+function diagonalOf(charts, s) {
+  const o = charts.filter(c => c.ref !== s.ref && c.cell)
+  const diag = o.filter(c => !overlaps(c.cell.x, c.cell.x + c.cell.w, s.cell.x, s.cell.x + s.cell.w) && !overlaps(c.cell.y, c.cell.y + c.cell.h, s.cell.y, s.cell.y + s.cell.h))
+  if (diag.length <= 1) return diag
+  const all = charts.filter(c => c.cell)
+  const x0 = Math.min(...all.map(c => c.cell.x)), x1 = Math.max(...all.map(c => c.cell.x + c.cell.w))
+  const y0 = Math.min(...all.map(c => c.cell.y)), y1 = Math.max(...all.map(c => c.cell.y + c.cell.h))
+  const mx = x0 + x1 - (s.cell.x + s.cell.w / 2), my = y0 + y1 - (s.cell.y + s.cell.h / 2)
+  const at = diag.filter(c => mx > c.cell.x && mx < c.cell.x + c.cell.w && my > c.cell.y && my < c.cell.y + c.cell.h)
+  return at.length === 1 ? at : diag
+}
 // ⛔ AUDIT R5 (2026-11-07): a relation is one chart reference among the sentence's others. Read per CLAUSE (split at , ; . and
 // and / then / but / while / also):
 //   NEGATED  — the relation's own clause carries a negation (not, never, n't, except, besides, without, other than, apart from,
@@ -163,6 +193,13 @@ export function relativeChart(text, charts = [], sel = null) {
   const role = relationRole(text, m)
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
   if (!s) return { hits: [], match: m, ...role, excluded: [] }
+  if (m.unplaced) return { hits: [], match: m, ...role, excluded: [] }       // a relation, but no cell UCT can place: asked
+  if (m.diagonal) {
+    const hits = diagonalOf(charts, s)
+    if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+    if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+    return { hits, match: m, ...role, excluded: [] }
+  }
   const v = m[1] && m[1].toLowerCase()
   const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
   // "next to / beside": either side; "adjacent to / near": any side. More than one fits → asked (the caller), never a guess
