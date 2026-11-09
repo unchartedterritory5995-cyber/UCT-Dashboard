@@ -29,6 +29,12 @@ Shared targeting core touched: `host.js` (widget item names for routing), `routi
 - **S1-C:** an item delete offers no Undo (`undoPatch` returns null, the `undoable` contract); a rename is undone by the inverse
   rename of that one set. "undo" after a delete never times out on it.
 
+- **S1-D (CI server rail):** `tests/test_uct_agent_breadth_current.py::test_ENDPOINTS_the_agent_never_calls_them_over_http`
+  text-scans every Agent `.js/.jsx` for "breadth-monitor"; ship-1's `widgetDoorRows.outcome.test.jsx` mocks that endpoint for the
+  real Breadth widget it mounts. **Choice: AUDIT's option (a)** — the rail skips `*.test.*` files (a test that mocks an endpoint
+  is not the Agent calling it), and a new control, `test_ENDPOINTS_the_scan_still_flags_a_non_test_agent_file`, proves the scan
+  still flags a non-test Agent file that names it (and skips a test file). pytest NOT run on this PC: CI on the PR head is the proof.
+
 ## Full suite
 
 Suite on 122e08a071 (code head; this doc commit adds only this file): shards 2223/2226, 3101/3102, 1974/1975, 1821/1823 = 9119 passed, 1 failed, 6 skipped. The one failure, agentGuidePages "W2-C2 /screener SHOW where do I change the filters", passed 18/18 twice when re-run alone on this head and passes in every later slice: a load flake, not this slice.
