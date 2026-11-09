@@ -1,5 +1,10 @@
 # Charts execution status
 
+> Round 4-8 rows (2026-11-09) imported from agent/pl/exec-gen-1 into agent/pl/r8-integration: a row is raised here ONLY when every
+> test its evidence names exists on this branch (71 rows; the Multi Chart rows C3-042..C3-060 are not, and keep their state).
+> C3-140 is VERIFIED here (apply + rename / delete, r8-presets). All LOCAL native Windows Node v24, BROWSER-MOCK-MODEL / SIMULATED.
+> C1-028 (zoom) and C1-162 (drawing undo) stay BLOCKED: owner decisions, in the morning report.
+
 Companion to `docs/agent/CHARTS_COVERAGE_MATRIX.md`, and it supersedes that file's execution counts. Generated 2026-11-05 against agent/pl/integration-1 by running the cited tests. VERIFIED means a real panel test with a scripted model passed and asserts state. It does not prove the real model chooses that plan, and these features are not all in production yet.
 
 # Charts execution status
@@ -309,7 +314,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-008 | Timeframe | Add custom interval | VERIFIED | c:chart.addCustomTimeframe | pass 5/5 | panel, scripted model |
 | C1-009 | Timeframe | Delete custom interval | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-010 | Timeframe | Star a favourite timeframe | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-011 | Timeframe | Timeframe keys with repeat-press cycle | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
+| C1-011 | Timeframe | Timeframe keys with repeat-press cycle | VERIFIED | agentExecRound5: one rung up or down | pass | panel, scripted model |
 | C1-012 | Timeframe | Change timeframe from right-click | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-013 | Chart type | Choose chart type in settings | VERIFIED | c:charttype.line | pass 5/5 | panel, scripted model |
 | C1-014 | Chart type | Choose chart type from right-click | NOT ON /CHARTS | c:charttype.line | pass 5/5 | n/a |
@@ -317,16 +322,16 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-016 | Chart type | Heikin Ashi candles | UNMAPPED | none | n/a | none |
 | C1-017 | Chart type | Candle colour mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-018 | Chart type | Thin bars | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-019 | Session | Regular/extended on intraday | IMPLEMENTED / UNVERIFIED | c:session.extended | pass 5/5 | panel, partial |
+| C1-019 | Session | Regular/extended on intraday | VERIFIED | boardArrangement.outcome: C1-019 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | c:session.extended | pass 5/5 | panel, scripted model |
 | C1-021 | Session | Extended hours from price-axis menu | NOT ON /CHARTS | c:session.extended | pass 5/5 | n/a |
-| C1-022 | Scale | Arithmetic/log/percent from menu | IMPLEMENTED / UNVERIFIED | c:scale.log; g:GW-01 | pass 7/7 | panel, partial |
+| C1-022 | Scale | Arithmetic/log/percent from menu | VERIFIED | boardArrangement.outcome: C1-022 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
 | C1-024 | Scale | Invert scale (Alt+I) | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
 | C1-026 | Scale | Drag price axis to compress | BLOCKED | none | n/a | none |
 | C1-027 | View | Reset view | VERIFIED † | c:chartSetup.resetView; agentChartViewControls: reaches the chart's reset and is read back | pass 5/5 | panel, scripted model |
-| C1-028 | View | Zoom in/out (+/-) | BLOCKED | none | n/a | none |
+| C1-028 | View | Zoom in/out (+/-) | BLOCKED | none | n/a | no read-back of a zoom: the chart view controls the Agent reaches (range, reset, restore) have no zoom op, and a zoom it cannot read back is never claimed |
 | C1-029 | View | Range buttons (3M/6M/YTD/1Y/5Y) | VERIFIED † | c:chartSetup.setRange; agentChartViewControls: offers exactly the buttons the bar has | pass 6/6 | panel, scripted model |
 | C1-030 | Go to date | Type a date in Time Navigator | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
 | C1-031 | Go to date | Pick date or year in calendar | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
@@ -363,8 +368,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-062 | Settings | Title shows ticker/company/both | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-063 | Settings | Day change beside title | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-064 | Settings | Legend mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-065 | Settings | Legend bar-info fields | MISSING | none | n/a | none |
-| C1-066 | Settings | Info-row fields | MISSING | none | n/a | none |
+| C1-065 | Settings | Legend bar-info fields | VERIFIED | agentExecFamilies: C1-065 | pass | panel, scripted model |
+| C1-066 | Settings | Info-row fields | VERIFIED | agentExecFamilies: C1-066 | pass | panel, scripted model |
 | C1-067 | Settings | Header colours | MISSING | none | n/a | none |
 | C1-068 | Settings | Swing labels on/off and sensitivity | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
 | C1-069 | Settings | Swing label background, tint, colours | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
@@ -414,7 +419,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-113 | Share | Copy share link | BLOCKED | none | n/a | none |
 | C1-114 | Alerts | Price alert at the cursor (Alt+N) | VERIFIED | c:alert.price-above; g:GW-14 | pass 7/7 | panel, scripted model |
 | C1-115 | Alerts | Alert on a line, following it | VERIFIED | c:drawing.setAlert; drawingFamily: a trendline: shown first | pass 4/4 | panel, scripted model |
-| C1-116 | Alerts | Alert at a line's fixed level | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-116 | Alerts | Alert at a line's fixed level | VERIFIED | drawingFamily.outcome: a horizontal line is a line alert at its price | pass | panel, scripted model (SIMULATED); already on the r8 base, cited in round 8 |
 | C1-117 | Alerts | Alert on a fib level | VERIFIED | drawingFamily: one Fibonacci level binds | pass 1/1 | panel, scripted model |
 | C1-118 | Alerts | Position alerts (three lines) | MISSING | none | n/a | none |
 | C1-119 | Alerts | Pause/resume indicator alert | VERIFIED | c:indicatorAlert.toggle | pass 5/5 | panel, scripted model |
@@ -424,7 +429,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-123 | Right-click | Add indicator from menu | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-124 | Right-click | Open indicator settings | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-125 | Right-click | Clear all drawings | VERIFIED | c:drawing.clear; drawings.outcome: a hidden drawing and "clear everything" | pass 5/5 | production (I-03) and panel |
-| C1-126 | Right-click | Hide all drawings | IMPLEMENTED / UNVERIFIED | c:drawing.hideAll | pass 4/4 | panel, partial |
+| C1-126 | Right-click | Hide all drawings | VERIFIED | drawManage.outcome: C1-126 (r8-drawings); held-out agentDrawManageHeldOut 6/6 | pass | panel over the REAL drawings store (jsdom), scripted model (SIMULATED); a decoy chart never changes; Undo exact |
 | C1-127 | Settings door | Open chart settings (Alt+,, gear) | MISSING | none | n/a | none |
 | C1-128 | Drawing | Trendline | VERIFIED | c:drawing.trendline | pass 5/5 | production (B-01b) and panel |
 | C1-129 | Drawing | Ray | NOT ON /CHARTS | c:drawing.ray | pass 5/5 | n/a |
@@ -456,19 +461,19 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-155 | Drawing | Edit anchors | VERIFIED | c:drawing.setAnchors; drawingFamily: the request carries each anchor | pass 5/5 | panel, scripted model |
 | C1-156 | Drawing | Make horizontal | VERIFIED | drawingFamily: a whole drawing moves with one item per point | pass 1/1 | panel, scripted model |
 | C1-157 | Drawing | Duplicate | MISSING | none | n/a | none |
-| C1-158 | Drawing | Lock/unlock | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-159 | Drawing | Hide/show one | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
+| C1-158 | Drawing | Lock/unlock | VERIFIED | drawManage.outcome: C1-158 (r8-drawings); held-out agentDrawManageHeldOut 6/6 | pass | panel over the REAL drawings store (jsdom), scripted model (SIMULATED); Undo exact |
+| C1-159 | Drawing | Hide/show one | VERIFIED | drawManage.outcome: C1-159 (r8-drawings); held-out agentDrawManageHeldOut 6/6 | pass | panel over the REAL drawings store (jsdom), scripted model (SIMULATED); Undo exact |
 | C1-160 | Drawing | Save as default | MISSING | none | n/a | none |
 | C1-161 | Drawing | Reorder (front/back) | UNMAPPED | none | n/a | none |
-| C1-162 | Drawing | Undo/redo a drawing | BLOCKED | none | n/a | none |
+| C1-162 | Drawing | Undo/redo a drawing | BLOCKED | none | n/a | owner decision: the Agent’s Undo and the member’s drawing history stay separate (the Agent undoes its own drawing changes, agent.undo) |
 | C1-163 | Drawing | Magnet for drawing | UNMAPPED | none | n/a | none |
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
 | C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
-| C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
-| C1-168 | Boards | Create a board | MISSING | none | n/a | none |
-| C1-169 | Boards | Rename a board | MISSING | none | n/a | none |
-| C1-170 | Boards | Delete a board | MISSING | none | n/a | none |
+| C1-167 | Boards | Switch drawing board | VERIFIED | agentDrawingBoards (r8-drawings, new drawingBoard.set); capreg drawingBoard.switch; held-out agentDrawingBoardsHeldOut | pass | panel over the REAL board store (jsdom), scripted model (SIMULATED); Undo switches back |
+| C1-168 | Boards | Create a board | VERIFIED | agentDrawingBoards (r8-drawings, drawingBoard.set op create) | pass | panel over the REAL board store (jsdom), scripted model (SIMULATED); a taken name refused; Undo deletes the new empty board |
+| C1-169 | Boards | Rename a board | VERIFIED | agentDrawingBoards (r8-drawings, drawingBoard.set op rename) | pass | panel over the REAL board store (jsdom), scripted model (SIMULATED); ambiguous / taken names refused; Undo restores the name |
+| C1-170 | Boards | Delete a board | VERIFIED | agentDrawingBoards (r8-drawings, drawingBoard.set op delete) | pass | panel over the REAL board store (jsdom), scripted model (SIMULATED); always shown first (Apply), nothing deleted before; no Undo (its drawings go); the last board is refused |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | VERIFIED | c:watchlist.add | pass 5/5 | panel, scripted model |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | VERIFIED | c:indicator.rsi | pass 5/5 | panel, scripted model |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNMAPPED | none | n/a | none |
@@ -499,12 +504,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-023 | Read | Read About text | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx:206; agentDefinitions.test.js:75 | pass 2/2 | runtime, no panel |
 | C2-024 | Inputs | Change numeric setting | VERIFIED | c:indicator.update-period | pass 6/6 | panel, scripted model |
 | C2-025 | Inputs | Change select setting (MA type, source) | VERIFIED | agentIndicatorSelectInput: "change that to an SMA" | pass 1/1 | panel, scripted model |
-| C2-026 | Inputs | Flip a toggle setting | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C2-026 | Inputs | Flip a toggle setting | VERIFIED | agentIndicatorStyle (r8-indicator-style): every catalog on/off setting flipped from metadata; held-out agentIndicatorStyleHeldOut 6/6 | pass | panel, scripted model (SIMULATED); read back from the instance inputs |
 | C2-027 | Inputs | Edit session input | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C2-028 | Inputs | Cancel settings, roll back all edits | MISSING | none | n/a | none |
 | C2-029 | Inputs | Set calculation timeframe | MISSING | none | n/a | none |
 | C2-030 | Style | Change line colour | VERIFIED | c:indicatorStyle.colour | pass 6/6 | panel, scripted model |
-| C2-031 | Style | Change histogram up / down colours | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C2-031 | Style | Change histogram up / down colours | VERIFIED | agentIndicatorStyle (r8-indicator-style): histogram up / down colours where offered, by the Inspector's own labels | pass | panel, scripted model (SIMULATED); read back from the input each colour writes |
 | C2-032 | Style | Change line width | VERIFIED | c:indicator.followup-thicker | pass 4/4 | panel, scripted model |
 | C2-033 | Style | Change line style | VERIFIED | agentIndicatorsP2: E2 | pass 1/1 | panel, scripted model |
 | C2-034 | Style | Change plot style | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx:97 | pass 1/1 | runtime, no panel |
@@ -565,7 +570,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-089 | Alerts | Create threshold alert | VERIFIED | c:indicatorAlert.threshold; agentIndicatorAlerts: "alert me when RSI goes above 70" | pass 6/6 | panel, scripted model |
 | C2-090 | Alerts | Create MA cross alert | VERIFIED | c:indicatorAlert.ma-cross | pass 5/5 | panel, scripted model |
 | C2-091 | Alerts | Choose plot on a multi-line indicator | IMPLEMENTED / UNVERIFIED | agentIndicatorAlerts.test.jsx:124 | pass 1/1 | runtime, no panel |
-| C2-092 | Alerts | Alert on a yes/no signal with trigger policy | MISSING | none | n/a | none |
+| C2-092 | Alerts | Alert on a yes/no signal with trigger policy | VERIFIED | agentIndicatorAlertTruth: C2-092 | pass | panel, scripted model |
 | C2-093 | Alerts | Alert on another timeframe | VERIFIED | agentIndicatorAlertTruth: "alert on the weekly RSI": a card first | pass 1/1 | panel, scripted model |
 | C2-094 | Alerts | Limit alert to this chart | MISSING | none | n/a | none |
 | C2-095 | Alerts | Override alert inputs | MISSING | none | n/a | none |
@@ -576,11 +581,11 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-100 | Alerts | See why an alert cannot fire | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C2-101 | Mobile | Edit an average or study on phone | NOT ON /CHARTS | none | n/a | n/a |
 | C3-001 | Board | Add a widget from Widgets ▾ | VERIFIED | c:widget.news | pass 5/5 | panel, scripted model |
-| C3-002 | Board | Drag a widget to move it, or nudge it | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:117; agentBoard.test.jsx:129; agentBoard.test.jsx:231 | pass 3/3 | runtime, no panel |
-| C3-003 | Board | Drag a widget edge or merged seam to resize | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx:192; agentBatch6.test.jsx:204 | pass 2/2 | runtime, no panel |
+| C3-002 | Board | Drag a widget to move it, or nudge it | VERIFIED | boardArrangement.outcome: C3-002 | pass | panel, scripted model (fixture board with the workspace geometry) |
+| C3-003 | Board | Drag a widget edge or merged seam to resize | VERIFIED | boardArrangement.outcome: C3-003 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C3-004 | Board | Close a widget | VERIFIED | c:widget.remove; closeChart: "close the top-left chart" | pass 7/7 | panel, scripted model |
 | C3-005 | Board | Merge or unmerge widgets (lock board, drop borders) | MISSING | none | n/a | none |
-| C3-006 | Link | Cycle a widget's link colour | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:138; agentBoard.test.jsx:145 | pass 2/2 | runtime, no panel |
+| C3-006 | Link | Cycle a widget's link colour | VERIFIED | boardArrangement.outcome: C3-006 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C3-007 | Link | Change a tool panel's colour group | MISSING | none | n/a | none |
 | C3-008 | Float | Float a widget over another | MISSING | agentBoard.test.jsx:231 | pass 1/1 | none |
 | C3-009 | Float | Drag or resize a floating widget | BLOCKED | none | n/a | none |
@@ -590,10 +595,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-013 | Popout | Pop out the whole layout | MISSING | none | n/a | none |
 | C3-014 | Popout | Dock a popped widget or layout back | MISSING | none | n/a | none |
 | C3-015 | Popout | Close a popped widget | MISSING | none | n/a | none |
-| C3-016 | Widget tabs | Add a widget as a tab | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx:564 | pass 1/1 | runtime, no panel |
-| C3-017 | Widget tabs | Switch a widget tab | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:259 | pass 1/1 | runtime, no panel |
+| C3-016 | Widget tabs | Add a widget as a tab | VERIFIED | boardArrangement.outcome: C3-016 | pass | panel, scripted model (fixture board with the workspace geometry) |
+| C3-017 | Widget tabs | Switch a widget tab | VERIFIED | boardArrangement.outcome: C3-016 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C3-018 | Widget tabs | Rename a widget tab | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:268 | pass 1/1 | runtime, no panel |
-| C3-019 | Widget tabs | Close a widget tab | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:268; agentBoard.test.jsx:280; agentBoard.test.jsx:301 | pass 3/3 | runtime, no panel |
+| C3-019 | Widget tabs | Close a widget tab | VERIFIED | boardArrangement.outcome: C3-016 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | c:chart.addTab; chartTabs: "add a tab to this chart" | pass 6/6 | panel, scripted model |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | chartTabs: add two, rename by position, select by name | pass 1/1 | panel, scripted model |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | c:chart.renameTab | pass 5/5 | panel, scripted model |
@@ -604,7 +609,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-027 | Layout Dock | Undo a layout switch from the toast | IMPLEMENTED / UNVERIFIED | agentLayouts.test.jsx:71 | pass 1/1 | runtime, no panel |
 | C3-028 | Layout Dock | Create a new layout from the dock | VERIFIED | c:layout.create | pass 4/4 | panel, scripted model |
 | C3-029 | Layout Dock | Start a new blank board from the Layouts menu | IMPLEMENTED / UNVERIFIED | agentLayouts.test.jsx:403 | pass 1/1 | runtime, no panel |
-| C3-030 | Layout Dock | Save the open layout | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:200; agentBoard.test.jsx:212 | pass 2/2 | production (E-06b) only |
+| C3-030 | Layout Dock | Save the open layout | VERIFIED | boardArrangement.outcome: C3-030 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C3-031 | Layout Dock | Save as a new layout | VERIFIED | c:layout.saveAs | pass 4/4 | production (E-06) and panel |
 | C3-032 | Layout Dock | Save a layout as a global template (admin) | BLOCKED | none | n/a | none |
 | C3-033 | Layout Dock | Rename a layout | VERIFIED | c:layout.rename | pass 4/4 | panel, scripted model |
@@ -637,9 +642,9 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none | n/a | none |
 | C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none | n/a | none |
 | C3-062 | Multi Chart | Set an alert from a cell | BLOCKED | none | n/a | none |
-| C3-063 | Watchlist | Open a list in a widget (own) | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:158 | pass 1/1 | runtime, no panel |
+| C3-063 | Watchlist | Open a list in a widget (own) | VERIFIED | boardArrangement.outcome: C3-063 | pass | panel, scripted model (fixture board with the workspace geometry) |
 | C3-064 | Watchlist | Open a prebuilt or community list | MISSING | none | n/a | none |
-| C3-065 | Watchlist | Open the Flagged list | MISSING | none | n/a | none |
+| C3-065 | Watchlist | Open the Flagged list | VERIFIED | agentExecRound5: the Flagged list in a Watchlist widget | pass | panel, scripted model; held-out phrasings (agentExecHeldOut6) |
 | C3-066 | Watchlist | Open a colour-tag list | MISSING | none | n/a | none |
 | C3-067 | Watchlist | Go back to the list picker | MISSING | none | n/a | none |
 | C3-068 | Watchlist | Click a row to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
@@ -681,10 +686,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-104 | Watchlist | Save or load a watchlist look | MISSING | none | n/a | none |
 | C3-105 | Watchlist | Track or freeze a linked scan or theme | BLOCKED | none | n/a | none |
 | C3-106 | Watchlist | Use a saved screen as a list | BLOCKED | none | n/a | none |
-| C3-107 | Scanner | Pick a preset scan | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:171 | pass 1/1 | runtime, no panel |
-| C3-108 | Scanner | Leave a scan, back to the picker | MISSING | none | n/a | none |
-| C3-109 | Scanner | Search the preset list | MISSING | none | n/a | none |
-| C3-110 | Scanner | Read a scan's conditions | MISSING | none | n/a | none |
+| C3-107 | Scanner | Pick a preset scan | VERIFIED | boardArrangement.outcome: C3-107 | pass | panel, scripted model |
+| C3-108 | Scanner | Leave a scan, back to the picker | VERIFIED | widgetDoorRows.outcome: C3-108 (r8-scanner-filter); held-out agentScanFilterHeldOut | pass | REAL widget (jsdom), scripted model (SIMULATED): the Scanner's own back control (exitScan), offered only while a scan is open |
+| C3-109 | Scanner | Search the preset list | VERIFIED | widgetDoorRows.outcome: C3-109 (r8-scanner-filter); held-out agentScanFilterHeldOut | pass | REAL widget (jsdom), scripted model (SIMULATED): the picker's own search box (a `text` door control); Undo empties it. First-call reach 0/2 (pinned; the reroute reaches it) |
+| C3-110 | Scanner | Read a scan's conditions | VERIFIED | widgetDoorRows.outcome: C3-110 | pass | real widget door (jsdom), scripted model |
 | C3-111 | Scanner | Read a scan's results | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
 | C3-112 | Scanner | Refresh a scan | MISSING | none | n/a | none |
 | C3-113 | Scanner | Sort a scan | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
@@ -694,12 +699,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-117 | Scanner | Open an AI Search scan in the builder and edit conditions | MISSING | none | n/a | none |
 | C3-118 | Scanner | Run or refine a screen from the workspace chat | VERIFIED | c:scan.near-high.sign; c:scan.refine.sector | pass 7/7 | panel, scripted model |
 | C3-119 | Scanner | Save a screen run from the workspace | VERIFIED | c:screener.saveAs | pass 4/4 | panel, scripted model |
-| C3-120 | Scanner | Send a scan to Journal | MISSING | none | n/a | none |
-| C3-121 | Volume Surge | Choose what the scanner watches | MISSING | none | n/a | none |
+| C3-120 | Scanner | Send a scan to Journal | VERIFIED | widgetDoorRows.outcome: C3-120 | pass | real widget capture door (jsdom), scripted model; the Journal door is a stand-in |
+| C3-121 | Volume Surge | Choose what the scanner watches | VERIFIED | widgetDoorRows.outcome: C3-121 | pass | real widget (jsdom), scripted model |
 | C3-122 | Volume Surge | Create, rename or delete a scope list | MISSING | none | n/a | none |
 | C3-123 | Volume Surge | Add a ticker to a scope list | MISSING | none | n/a | none |
-| C3-124 | Volume Surge | Set thresholds (RVOL, burst, move, $ floor) | MISSING | none | n/a | none |
-| C3-125 | Volume Surge | Toggle logos | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
+| C3-124 | Volume Surge | Set thresholds (RVOL, burst, move, $ floor) | BLOCKED | none | n/a | no control on /charts writes the thresholds at this commit (VolumeScanWidget reads opts.minRvol etc.; its settings panel is appearance only): the Agent must not do what the member cannot |
+| C3-125 | Volume Surge | Toggle logos | VERIFIED | agentExecFamilies: C3-125 | pass | panel, scripted model |
 | C3-126 | Volume Surge | Click a row or remove it from the list | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-127 | Alerts | See my alerts | VERIFIED | alerts.outcome: nothing reaches the server until Apply | pass 1/1 | panel, scripted model |
 | C3-128 | Alerts | Create a price alert | VERIFIED | c:alert.price-above; alerts.outcome: nothing reaches the server until Apply | pass 7/7 | panel, scripted model |
@@ -707,14 +712,14 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-130 | Alerts | Click an alert to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-131 | Alerts | Change Alerts widget appearance | MISSING | none | n/a | none |
 | C3-132 | Alerts | Send alerts to Journal | MISSING | none | n/a | none |
-| C3-133 | News | Filter catalysts up, down or all | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
+| C3-133 | News | Filter catalysts up, down or all | VERIFIED | agentExecFamilies: C3-133 | pass | panel, scripted model |
 | C3-134 | News | Read stored headlines for a symbol | VERIFIED | c:news.latest; c:news.catalysts | pass 9/9 | panel, scripted model |
 | C3-135 | News | Place a headline on the chart | MISSING | none | n/a | none |
 | C3-136 | News | Change News widget appearance | MISSING | none | n/a | none |
 | C3-137 | News | Send the feed to Journal | MISSING | none | n/a | none |
-| C3-138 | TE News | Search headlines | MISSING | none | n/a | none |
-| C3-139 | TE News | Filter by category, linked symbol or watchlist | MISSING | none | n/a | none |
-| C3-140 | TE News | Apply, rename or delete a filter preset | MISSING | none | n/a | none |
+| C3-138 | TE News | Search headlines | VERIFIED | teNewsWatchlist.outcome: the box reads the words | pass | REAL widget (jsdom), scripted model: a `text` door control written through the box's own setter; read back from the box and the shown rows; Undo clears it |
+| C3-139 | TE News | Filter by category, linked symbol or watchlist | VERIFIED | agentExecFamilies: C3-139; teNewsWatchlist.outcome: the widget shows only that list | pass | panel, scripted model (category, linked); the watchlist filter over the REAL widget (jsdom) |
+| C3-140 | TE News | Apply, rename or delete a filter preset | VERIFIED | teNewsWatchlist.outcome: C3-140 apply; teNewsWatchlist.outcome: rename or delete a saved News filter preset | pass | REAL widget (jsdom), scripted model (SIMULATED): apply through its own presetPatch (Undo exact; a preset that also searches is refused); rename through its Presets menu (Undo renames back); delete shown first, no Undo; missing / ambiguous / taken / too-long names refused with the real names |
 | C3-141 | TE News | Save or unsave a headline | MISSING | none | n/a | none |
 | C3-142 | TE News | Add or edit a headline note | MISSING | none | n/a | none |
 | C3-143 | TE News | Manage collections | MISSING | none | n/a | none |
@@ -722,65 +727,65 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-145 | TE News | Explain a headline or ask about it | IMPLEMENTED / UNVERIFIED | agentNewsAsk.test.jsx; agentNewsContinue.test.jsx | pass 21/21 | panel, partial |
 | C3-146 | TE News | Jump to live or browse a past day | MISSING | none | n/a | none |
 | C3-147 | TE News | Send a headline to Notebook | MISSING | none | n/a | none |
-| C3-148 | Calendar | Step days in the widget | MISSING | agentMultiActionFollowups.test.jsx:927 | pass 1/1 | none |
-| C3-149 | Calendar | Ask who reports on a day from Charts | MISSING | none | n/a | none |
-| C3-150 | Calendar | Ask when a stock reports from Charts | IMPLEMENTED / UNVERIFIED | c:earnings.date | pass 6/6 | panel, partial |
-| C3-151 | Calendar | Filter economic events by stars | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
-| C3-152 | Calendar | Toggle the TBD section | MISSING | none | n/a | none |
+| C3-148 | Calendar | Step days in the widget | VERIFIED | widgetControls.outcome: show tomorrow on the terminal | pass | real widget (jsdom), scripted model |
+| C3-149 | Calendar | Ask who reports on a day from Charts | VERIFIED | agentWidgetOptions: who reports | pass | panel, no model (existing test, counted in round 2) |
+| C3-150 | Calendar | Ask when a stock reports from Charts | VERIFIED | boardArrangement.outcome: C3-150 | pass | panel, scripted model (gateway earnings fixture) |
+| C3-151 | Calendar | Filter economic events by stars | VERIFIED | agentExecFamilies: C3-151 | pass | panel, scripted model |
+| C3-152 | Calendar | Toggle the TBD section | VERIFIED | widgetControls.outcome: expand the time tbd list | pass | real widget (jsdom), scripted model |
 | C3-153 | Calendar | Sort earnings columns | MISSING | none | n/a | none |
 | C3-154 | Calendar | Show all earnings in a section | MISSING | none | n/a | none |
 | C3-155 | Calendar | Click an earnings row | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
-| C3-156 | Calendar | Send a day to Journal | MISSING | none | n/a | none |
+| C3-156 | Calendar | Send a day to Journal | VERIFIED | widgetDoorRows.outcome: C3-156 | pass | real widget capture door (jsdom), scripted model; the Journal door is a stand-in |
 | C3-157 | Breadth | Read breadth tiles | VERIFIED | c:breadth.now; c:breadth.measure-now | pass 11/11 | panel, scripted model |
-| C3-158 | Breadth | Add or remove a reading | MISSING | agentWidgetOptions.test.jsx | pass 8/8 | none |
-| C3-159 | Breadth | Switch heatmap and ratio view | MISSING | none | n/a | none |
+| C3-158 | Breadth | Add or remove a reading | VERIFIED | widgetDoorRows.outcome: C3-158 | pass | real widget (jsdom), scripted model |
+| C3-159 | Breadth | Switch heatmap and ratio view | VERIFIED | agentExecFamilies: C3-159 | pass | panel, scripted model |
 | C3-160 | Breadth | Change tile style | MISSING | none | n/a | none |
 | C3-161 | Breadth | Change palette, intensity or background | MISSING | none | n/a | none |
 | C3-162 | Breadth | Drill into a reading | MISSING | none | n/a | none |
-| C3-163 | Breadth | Send a snapshot to Journal | MISSING | none | n/a | none |
-| C3-164 | Options Flow | Switch market or symbol scope | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
-| C3-165 | Options Flow | Switch the lead view | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | MISSING | none | n/a | none |
+| C3-163 | Breadth | Send a snapshot to Journal | VERIFIED | widgetDoorRows.outcome: C3-163 | pass | real widget capture door (jsdom), scripted model; the Journal door is a stand-in |
+| C3-164 | Options Flow | Switch market or symbol scope | VERIFIED | agentExecFamilies: C3-164 | pass | panel, scripted model |
+| C3-165 | Options Flow | Switch the lead view | VERIFIED | agentExecFamilies: C3-165 | pass | panel, scripted model |
+| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | VERIFIED | agentExecFamilies: C3-166; agentOptionsFlowFilters: the chip is set | pass | panel, scripted model; every chip family, combos, informational no-ops, unsupported values refused (owner 2026-11-07) |
 | C3-167 | Options Flow | Read the flow | MISSING | none | n/a | none |
 | C3-168 | Options Flow | Click a flow row | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
-| C3-169 | Themes | Pick a period or ranking | MISSING | none | n/a | none |
-| C3-170 | Themes | Flip sort direction | MISSING | none | n/a | none |
-| C3-171 | Themes | Switch today basis | MISSING | none | n/a | none |
-| C3-172 | Themes | Open a theme or pick a holding | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C3-169 | Themes | Pick a period or ranking | VERIFIED | themeTracker.outcome: C3-169 | pass | real widget (jsdom), scripted model |
+| C3-170 | Themes | Flip sort direction | VERIFIED | themeTracker.outcome: C3-170 | pass | real widget (jsdom), scripted model |
+| C3-171 | Themes | Switch today basis | VERIFIED | themeTracker.outcome: C3-171 | pass | real widget (jsdom), scripted model |
+| C3-172 | Themes | Open a theme or pick a holding | VERIFIED | themeTracker.outcome: C3-172 | pass | real widget (jsdom), scripted model |
 | C3-173 | Themes | Search themes or tickers | MISSING | none | n/a | none |
-| C3-174 | Themes | Pick, rename or delete a theme set | MISSING | none | n/a | none |
+| C3-174 | Themes | Pick, rename or delete a theme set | VERIFIED | themeTracker.outcome: C3-174; themeTracker.outcome: rename the Mine set to Growth; themeTracker.outcome: delete the Mine set | pass | real widget (jsdom), scripted model |
 | C3-175 | Themes | Edit a set (add, hide, reset, custom theme) | MISSING | none | n/a | none |
 | C3-176 | Themes | Add or remove a stock in a theme | MISSING | none | n/a | none |
-| C3-177 | Themes | Send the ranking to Journal | MISSING | none | n/a | none |
+| C3-177 | Themes | Send the ranking to Journal | VERIFIED | widgetDoorRows.outcome: C3-177 | pass | real widget capture door (jsdom), scripted model; the Journal door is a stand-in |
 | C3-178 | Fundamentals | Switch view | VERIFIED | agentWidgetOptions: "show annual on the fundamentals" | pass 1/1 | panel, scripted model |
 | C3-179 | Fundamentals | Read the numbers | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
 | C3-180 | Fundamentals | Change appearance or send to Journal | MISSING | none | n/a | none |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
 | C3-182 | Profile | Click a peer ticker | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
-| C3-183 | Indexes | Hide or restore an index | MISSING | none | n/a | none |
-| C3-184 | Indexes | Send levels to Journal | MISSING | none | n/a | none |
+| C3-183 | Indexes | Hide or restore an index | VERIFIED | widgetControls.outcome: remove the dow from the indexes; widgetControls.outcome: put the dow back | pass | real widget (jsdom), scripted model |
+| C3-184 | Indexes | Send levels to Journal | VERIFIED | widgetDoorRows.outcome: C3-184 | pass | real widget capture door (jsdom), scripted model; the Journal door is a stand-in |
 | C3-185 | Market Context | Read market context | UNMAPPED | none | n/a | none |
 | C3-186 | Market Context | Send to Journal | MISSING | none | n/a | none |
-| C3-187 | NH/NL | Add or remove a universe | MISSING | none | n/a | none |
-| C3-188 | NH/NL | Switch universe tab | MISSING | none | n/a | none |
+| C3-187 | NH/NL | Add or remove a universe | VERIFIED | widgetControls.outcome: add the S&P 500 | pass | real widget (jsdom), scripted model |
+| C3-188 | NH/NL | Switch universe tab | VERIFIED | widgetControls.outcome: add the S&P 500 | pass | real widget (jsdom), scripted model |
 | C3-189 | NH/NL | Expand a row or pick a symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-190 | NH/NL | Toggle logos, font, background | MISSING | none | n/a | none |
 | C3-191 | H/L Pulse | Change Pulse settings | MISSING | none | n/a | none |
-| C3-192 | Market Map | Pick or remove a universe | MISSING | none | n/a | none |
-| C3-193 | Market Map | Pick X, Y or size axis | MISSING | none | n/a | none |
-| C3-194 | Market Map | Follow the linked list | MISSING | none | n/a | none |
-| C3-195 | Market Map | Cycle labels or zoom | MISSING | none | n/a | none |
+| C3-192 | Market Map | Pick or remove a universe | VERIFIED | widgetDoorRows.outcome: C3-192 | pass | real widget (jsdom), scripted model |
+| C3-193 | Market Map | Pick X, Y or size axis | VERIFIED | widgetDoorRows.outcome: C3-193 | pass | real widget (jsdom), scripted model |
+| C3-194 | Market Map | Follow the linked list | VERIFIED | widgetDoorRows.outcome: C3-194 (r8-scanner-filter) | pass | REAL widget (jsdom), scripted model (SIMULATED): the widget's own Follow toggle |
+| C3-195 | Market Map | Cycle labels or zoom | VERIFIED | agentExecFamilies: C3-195 | pass | panel, scripted model |
 | C3-196 | AI Search | Ask a question or follow one up | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-197 | AI Search | Change ask mode, stop or retry | MISSING | none | n/a | none |
 | C3-198 | AI Search | Save, reopen or remove an answer | MISSING | none | n/a | none |
 | C3-199 | AI Search | Copy or speak an answer | MISSING | none | n/a | none |
 | C3-200 | AI Search | Send the conversation to Journal | MISSING | none | n/a | none |
-| C3-201 | Notebook | Open or search a note | MISSING | none | n/a | none |
-| C3-202 | Notebook | Create a note | MISSING | none | n/a | none |
+| C3-201 | Notebook | Open or search a note | VERIFIED | widgetDoorRows.outcome: open my NVDA note | pass | real widget door (jsdom), scripted model |
+| C3-202 | Notebook | Create a note | VERIFIED | widgetDoorRows.outcome: create a note through its own New control | pass | real widget door (jsdom), scripted model: proposed first, the New control mints the note, read back by name; Undo of a create is refused honestly (the door only creates) |
 | C3-203 | Notebook | Edit a note's title or body | BLOCKED | none | n/a | none |
 | C3-204 | Notebook | Browse folders | MISSING | none | n/a | none |
 | C3-205 | Period Sort | Start a custom-period sort | MISSING | none | n/a | none |
-| C3-206 | Period Sort | Choose grouping, replay and start mark | MISSING | none | n/a | none |
+| C3-206 | Period Sort | Choose grouping, replay and start mark | IMPLEMENTED / UNVERIFIED | agentExecFamilies: C3-206 | pass (part) | grouping only: replay and start mark have no capability |
 | C3-207 | Period Sort | Dock the panel or add it as a tab | MISSING | none | n/a | none |
 | C3-208 | Period Sort | Refresh results | MISSING | none | n/a | none |
 | C3-209 | Replay | Start replay at a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
@@ -790,10 +795,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-213 | Review | Start Review Charts from a results list | NOT ON /CHARTS | none | n/a | n/a |
 | C3-214 | Review | Step next or previous in a review (mobile only at this commit) | NOT ON /CHARTS | none | n/a | n/a |
 | C3-215 | Review | Open the review feed card (mobile only) | NOT ON /CHARTS | none | n/a | n/a |
-| C3-216 | Company dock | Switch dock tab | MISSING | none | n/a | none |
-| C3-217 | Company dock | Open or collapse the dock | MISSING | none | n/a | none |
+| C3-216 | Company dock | Switch dock tab | VERIFIED | agentExecRound5: C3-216 | pass | panel, scripted model |
+| C3-217 | Company dock | Open or collapse the dock | VERIFIED | agentExecRound5: C3-217 | pass | panel, scripted model |
 | C3-218 | Company dock | Search company info | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C3-219 | Company dock | Open ETF holdings | MISSING | none | n/a | none |
+| C3-219 | Company dock | Open ETF holdings | VERIFIED | etfHoldings.outcome: the button's panel opens | pass | REAL ChartWidget door (jsdom), scripted model; refused with the reason on a plain stock; Undo closes the panel |
 | C3-220 | Company dock | Pick a leveraged or inverse ETF | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-221 | Workspace | Open the Agent | BLOCKED | none | n/a | none |
 | C3-222 | Workspace | Change a widget's UCT theme section | MISSING | none | n/a | none |
