@@ -463,7 +463,12 @@ export function execute(program, ctx, limits, opts) {
   // that, so a skip window keeps its OWN ring of finite values — exactly n
   // cells, appended only when a finite value arrives. Bounded by construction:
   // the gap between observations can be arbitrary, the STORAGE cannot.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span) : null))
+  // ⭐⭐ LANE B0 — `ffill` (`wma`) keeps a ring too: the last `w.span` FILLED values
+  // (each bar's own value, or the last finite one before it), right-aligned; its
+  // newest cell IS the carry, so no state beyond the ring (resume / rollback copy it
+  // already). `winObsN` counts its FINITE observations (capped at `w.span`): the warm-up.
+  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span)
+    : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
   const winObsN = new Int32Array(winPlan.length)
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
@@ -1212,6 +1217,26 @@ export function execute(program, ctx, limits, opts) {
             }
             if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
             stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, 0, span - 1)
+            break
+          }
+
+          if (policy === 'ffill') {
+            // ⭐⭐ LANE B0 (2026-11-09) — `ta.wma`, THE COLUMNAR LANE'S RULE
+            // (`interpret.js::rolling`): an `na` in the lookback is the last finite
+            // value before it (vendor-pinned 2026-09-08), the bar being asked about
+            // must itself be finite, and the window answers only once `span` FINITE
+            // values have arrived — WITNESSED from the listing on
+            // `trend-targets-algoalpha-rddt-1d-2026-10-02` (first answer on the bar
+            // holding the 40th finite value). ⚰️ This lane read `ffill` as
+            // `propagate`: any `na` in the window answered `na`, so it disagreed with
+            // the columnar lane on every hole and started `ta.ema(ta.wma(…))` late.
+            const obs = winObs[wi]
+            const filled = Number.isFinite(live) ? live : obs[w.span - 1]
+            if (Number.isFinite(live) && winObsN[wi] < w.span) winObsN[wi] += 1
+            obs.copyWithin(0, 1)
+            obs[w.span - 1] = filled
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            stack[sp++] = !Number.isFinite(live) || winObsN[wi] < span ? NaN : winReduce[wi](obs, w.span - span, w.span - 1)
             break
           }
 
