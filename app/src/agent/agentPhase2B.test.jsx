@@ -113,12 +113,16 @@ describe('F3 — screenUnnamedTargets (deterministic)', () => {
     expect([...chartsNamedBy('put rsi on F', charts)]).toEqual(['a'])
     expect([...chartsNamedBy('nvda weekly', charts)]).toEqual([])
   })
-  it('pickedChoice: an exact label, a number or an ordinal — nothing looser', () => {
+  // r8-errors (pickOffered): a label word that fits exactly ONE offered option picks it; a word in none, or in both, never does
+  it('pickedChoice: an exact label, a number, an ordinal, or a label word that fits one option only', () => {
     const ch = [{ label: 'Left chart (NVDA)', ref: 'L' }, { label: 'Right chart (AMD)', ref: 'R' }]
     expect(pickedChoice('Right chart (AMD)', ch)).toBe('R')
     expect(pickedChoice('2', ch)).toBe('R')
     expect(pickedChoice('the first one', ch)).toBe('L')
-    expect(pickedChoice('the amd one', ch)).toBeNull()
+    expect(pickedChoice('the amd one', ch)).toBe('R')
+    expect(pickedChoice('the tsla one', ch)).toBeNull()
+    expect(pickedChoice('the chart', ch)).toBeNull()
+    expect(pickedChoice('bananas', ch)).toBeNull()
   })
 })
 
