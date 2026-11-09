@@ -9,6 +9,8 @@
 // Precedence: an explicit position ("the left one") or a named symbol ("this NVDA chart") beats
 // the selection; a single-chart board needs no selection at all.
 
+import { addableRows } from './capabilities/indicatorEdits'
+
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
 const POINTS = /\b(?:(?:this|that|the|my|current|active|selected|focused)\s+(?:current\s+|active\s+|selected\s+)?(?:chart|stock|ticker|symbol|name)|this\s+one|(?:on|in)\s+here|right\s+here)\b/i
@@ -18,6 +20,11 @@ const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|mid
 
 // NL (2026-10-12): "the 5 minute chart", "the daily chart" — a chart named by its TIMEFRAME
 const TF_NAMED = /\b(?:this|that|the)\s+(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)\s+chart\b/i
+// a chart named by its STATE (a Multi Chart cell with no ticker yet) or by an INDICATOR it carries
+const STATE_NAMED = /\b(?:this|that|the|my)\s+(empty|blank|unused|vacant)\s+(?:chart|cell|slot|spot|pane|panel|one)\b/i
+const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showing)\s+(?:the\s+|an?\s+)?([a-z]{2,8})\b/i
+const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
+const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
 function tfOfWord(w) {
   const s = String(w || '').toLowerCase().trim()
   if (s === 'daily') return 'D'
@@ -30,12 +37,19 @@ function tfOfWord(w) {
 }
 
 /**
- * "the AMD chart" / "the 5 minute chart" — a chart named by the SYMBOL or TIMEFRAME it shows right now.
+ * "the AMD chart" / "the 5 minute chart" / "the empty chart" / "the chart with RSI" — a chart named by what it IS right
+ * now: the SYMBOL or TIMEFRAME it shows, its STATE, an INDICATOR on it (autotest multi-chart-04: every word the board can
+ * answer for names a chart; "which chart?" is for words it can't).
  * → { match, word, hits: [chart snapshots] } | null. Only live charts count: a word that names no
  * chart on this board is not a qualifier (the fast path then leaves the sentence as it was).
  */
 export function chartQualifier(text, charts = []) {
   const s = String(text || '')
+  const st = STATE_NAMED.exec(s)
+  if (st) {
+    const hits = charts.filter(c => !String(c.symbol || '').trim())
+    if (hits.length) return { match: withPrep(s, st), word: st[1], hits }
+  }
   const tf = TF_NAMED.exec(s)
   if (tf) {
     const code = tfOfWord(tf[1])
@@ -47,6 +61,15 @@ export function chartQualifier(text, charts = []) {
     const sym = nm[1].toUpperCase()
     const hits = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
     if (hits.length) return { match: withPrep(s, nm), word: nm[1], hits }
+    const shown = charts.filter(c => carries(c, nm[1]))
+    if (shown.length) return { match: withPrep(s, nm), word: nm[1], hits: shown }
+  }
+  const wi = WITH_NAMED.exec(s)
+  if (wi) {
+    const sym = wi[1].toUpperCase()
+    const onIt = charts.filter(c => String(c.symbol || '').toUpperCase() === sym)
+    const hits = onIt.length ? onIt : charts.filter(c => carries(c, wi[1]))
+    if (hits.length) return { match: withPrep(s, wi), word: wi[1], hits }
   }
   return null
 }
@@ -57,10 +80,23 @@ function withPrep(s, m) {
   return p ? { index: p.index, 0: s.slice(p.index, m.index + m[0].length) } : { index: m.index, 0: m[0] }
 }
 
-/** Does the member's text point at one chart without naming it? */
-export function pointsAtChart(text, { chartOp = false } = {}) {
+/**
+ * The charts the member's words DESCRIBE, read from the board as it is: [chart snapshots], possibly none ("the empty chart" with
+ * no empty chart), or null when the words describe nothing. ⛔ A description decides the target: no other chart stands in for it.
+ */
+export function describedCharts(text, charts = []) {
   const s = String(text || '')
-  return POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s))
+  const q = chartQualifier(s, charts)
+  if (q) return q.hits
+  if (STATE_NAMED.test(s)) return []
+  const wi = WITH_NAMED.exec(s)
+  return wi && knownIndicator(wi[1]) ? [] : null
+}
+
+/** Does the member's text point at one chart without naming it? (With the board's `charts`: also a chart it describes.) */
+export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
+  const s = String(text || '')
+  return POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -81,7 +117,8 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   if (!Array.isArray(candidates) || !candidates.length) return null
   const backed = candidates.map(c => ({ c, chart: chartRefOf(kind, c) }))
   if (backed.some(b => !b.chart)) return null                         // not a chart-backed kind
-  if (!pointsAtChart(text, { chartOp })) {
+  const live = host?.charts?.list?.() || []
+  if (!pointsAtChart(text, { chartOp, charts: live })) {
     // OWNER DECISION (2026-10-12): a BARE chart command ("switch to weekly", "add rsi") on a board of
     // several charts goes to the chart the member explicitly CLICKED — only while that selection is
     // valid (still on this board, same layout: host.charts.selected()). No selection, a stale one or a
@@ -92,13 +129,19 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     return hit.length === 1 ? { ref: hit[0].c.ref, implicit: true } : null
   }
   if (candidates.length === 1) return { ref: candidates[0].ref }
-  // "this NVDA chart" / "the 5 minute chart": the symbol or timeframe that exactly one chart shows
-  const q = chartQualifier(text, host?.charts?.list?.() || [])
-  if (q && q.hits.length === 1) {
-    const hits = backed.filter(b => b.chart === q.hits[0].ref)
-    if (hits.length === 1) return { ref: hits[0].c.ref }
-  }
+  // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
+  // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
+  const said = describedCharts(text, live)
   const sel = selectedChart(host)
+  if (said) {
+    const refs = new Set(said.map(c => c.ref))
+    const fits = backed.filter(b => refs.has(b.chart))
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+    const clicked = fits.filter(b => b.chart === sel)
+    if (clicked.length === 1) return { ref: clicked[0].c.ref }
+    const choices = fits.length ? fits.map(b => b.c) : candidates
+    return { ask: { text: 'Which chart do you mean?', choices: choices.map(c => ({ ref: c.ref, label: c.label })) } }
+  }
   const hit = sel ? backed.filter(b => b.chart === sel) : []
   if (hit.length === 1) return { ref: hit[0].c.ref }
   return { ask: { text: sel ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: candidates.map(c => ({ ref: c.ref, label: c.label })) } }
@@ -162,6 +205,9 @@ export function chartsNamedBy(text, charts = []) {
   // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
   if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
+  // what the chart IS right now (chartQualifier), when that fits exactly one chart ("the empty one", "the one with RSI")
+  const q = chartQualifier(s, charts)
+  if (q?.hits.length === 1) named.add(q.hits[0].ref)
   for (const m of s.matchAll(POS_WORDS)) {
     const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
     const parts = w.split('-')
@@ -188,7 +234,7 @@ export function chartsNamedBy(text, charts = []) {
  * → null when every changed chart is identified (or the board has one chart).
  */
 export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
-  if (pointsAtChart(text, { chartOp: true })) return null
+  if (pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   // an ANSWER to the model's question is read with the words that question was about (`context`)
   const words = context ? `${text} ${context}` : String(text || '')
   const charts = host?.charts?.list?.() || []
@@ -256,7 +302,7 @@ function otherChartMeant(text, charts, dest, ops) {
 }
 
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability }) {
-  if (!pointsAtChart(text, { chartOp: true })) return null
+  if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   {
     // PACKAGE 3: "put it on the other chart" — every chart-backed op aims at the other chart of two
     const charts = host?.charts?.list?.() || []

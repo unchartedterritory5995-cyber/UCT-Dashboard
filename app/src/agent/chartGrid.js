@@ -116,6 +116,7 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
   let set = {}
   let addRects = []
   let shape = null
+  let reflowed = null
   if (tiled && k === 0) {
     // no chart to build on: equal cells in ONE empty region (the product's group placement), nothing moved
     const one = n === 1 ? (() => { try { return planPlacement(onGrid, 'chart', cols, rows) } catch { return null } })() : null
@@ -129,12 +130,21 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     const last = reuseWs[k - 1]
     const phantoms = Array.from({ length: needed }, (_, i) => ({ id: `__new${i}`, type: 'chart', x: last.x, y: last.y, w: last.w, h: last.h }))
     const ids = [...reuseWs.map(w => String(w.id)), ...phantoms.map(p => p.id)]
-    const rects = tileWidgets([...onGrid.map(w => ({ ...w, id: String(w.id) })), ...phantoms], ids, pattern, cols, rows)
+    const tile = (p) => tileWidgets([...onGrid.map(w => ({ ...w, id: String(w.id) })), ...phantoms], ids, p, cols, rows)
+    const { minW, minH } = minOf({ type: 'chart' })
+    const tooSmall = (rs) => Object.values(rs).some(r => r.w < minW || r.h < minH)
+    let rects = tile(pattern)
+    // autotest chart-grid-01 ("…side by side, four equal charts" refused, from the instant path and the model's plan alike):
+    // a line of charts is a way to lay them out, not the request. When the line can't hold them at a chart's minimum size
+    // but the even grid can, the even grid is the plan, and the receipt says why (`reflowed`). Only that grid's own failure refuses.
+    if ((pattern === 'columns' || pattern === 'rows') && (!rects || tooSmall(rects))) {
+      const even = tile('grid')
+      if (even && !tooSmall(even)) { rects = even; reflowed = pattern }
+    }
     if (!rects) {
       return { ok: false, reason: 'Your charts are separated by other widgets, so they can’t be re-tiled into one even grid without moving those widgets. Move the other widgets aside (or remove one), then ask again.' }
     }
-    const { minW, minH } = minOf({ type: 'chart' })
-    if (Object.values(rects).some(r => r.w < minW || r.h < minH)) {
+    if (tooSmall(rects)) {
       return { ok: false, reason: `There isn't room for ${k + needed} equal charts in the space your charts take up — each would be smaller than a chart can be. Ask for fewer, or make room first.` }
     }
     for (const w of reuseWs) {
@@ -187,5 +197,5 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     set[railMove] = { x: cols - (rail.w || RAIL_W), y: 0, w: rail.w || RAIL_W, h: rows }
   }
   const noop = !add.length && !remove.length && !Object.keys(set).length && !unlink.length && reuse.every(r => r.symbol == null && r.tf == null)
-  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, noop, symbols: syms, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
+  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, symbols: syms, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
 }
