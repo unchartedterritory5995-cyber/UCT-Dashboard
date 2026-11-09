@@ -22,6 +22,7 @@ import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
 import LogoPrewarm from './components/LogoPrewarm'
+import DeskUsageReporter from './components/DeskUsageReporter'
 import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // Journal 2.0 P4 runtime shell kill-switch (Task A1). Eager (tiny — only imports
 // react) so window.__uctJ2Shell is wired at app boot and the /journal selector
@@ -446,6 +447,8 @@ export default function App() {
             at app load, so opening a list paints real logos with no monogram flash.
             Null render; no-op when logged out. */}
         <LogoPrewarm />
+        {/* Desktop-plan G2 measurement: one coarse usage report per member per day. Null render. */}
+        <DeskUsageReporter />
         {/* Persistent Desk video player — one instance, survives all routing. */}
         <GlobalVideoLayer />
         <AgentProvider>

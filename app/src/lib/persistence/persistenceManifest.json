@@ -211,7 +211,6 @@
         "app/src/hooks/useChartIndicatorBus.js",
         "app/src/pages/Settings.jsx",
         "app/src/pages/charts/ChartsWorkspace.jsx",
-        "app/src/pages/charts/grid/GridChartCell.jsx",
         "app/src/pages/charts/grid/MultiChartGrid.jsx"
       ]
     },
@@ -348,7 +347,20 @@
       "label": "Indicator templates",
       "serverAllowlisted": true,
       "files": [
-        "app/src/components/chart/IndicatorTemplatesBar.jsx"
+        "app/src/components/chart/IndicatorTemplatesBar.jsx",
+        "app/src/pages/charts/ChartsWorkspace.jsx"
+      ]
+    },
+    {
+      "key": "indicator_tours_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/components/chart/useIndicatorTours.js"
       ]
     },
     {
@@ -384,7 +396,8 @@
       "label": "Page layout",
       "serverAllowlisted": true,
       "files": [
-        "app/src/pages/journal-2-0/components/layout/PageLayoutEditor.jsx"
+        "app/src/pages/journal-2-0/components/layout/PageLayoutEditor.jsx",
+        "app/src/pages/journal-2-0/components/notebook/AdoptLayoutSheet.jsx"
       ]
     },
     {
@@ -422,6 +435,16 @@
       "files": []
     },
     {
+      "key": "notebook_chart_sets",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "serverAllowlisted": true,
+      "files": []
+    },
+    {
       "key": "notebook_daily_template",
       "store": "server-preference",
       "scope": "cross-device",
@@ -442,7 +465,8 @@
       "label": "Get started checklist progress",
       "serverAllowlisted": true,
       "files": [
-        "app/src/pages/journal-2-0/components/notebook/GettingStartedList.jsx"
+        "app/src/pages/journal-2-0/components/notebook/GettingStartedList.jsx",
+        "app/src/pages/journal-2-0/tabs/NotebookTab.jsx"
       ]
     },
     {
@@ -453,7 +477,21 @@
       "kind": "state",
       "label": "Kind of note offer answer",
       "serverAllowlisted": true,
-      "files": []
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/styles/StylesManager.jsx"
+      ]
+    },
+    {
+      "key": "notebook_landing",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/TodayHome.jsx"
+      ]
     },
     {
       "key": "notebook_log_trade_checklist",
@@ -487,7 +525,25 @@
       "kind": "state",
       "label": "Starter pack offer answer",
       "serverAllowlisted": true,
-      "files": []
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FirstRunSheet.jsx",
+        "app/src/pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx",
+        "app/src/pages/journal-2-0/lib/starterPacks.js"
+      ]
+    },
+    {
+      "key": "notebook_tips",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "One-time Notebook tips already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FirstRunGate.jsx",
+        "app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx",
+        "app/src/pages/journal-2-0/lib/firstLiveWidget.js"
+      ]
     },
     {
       "key": "notebook_tour",
@@ -895,6 +951,28 @@
       ]
     },
     {
+      "key": "breadthpack.seed",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/lib/barsPackClient.js"
+      ]
+    },
+    {
+      "key": "breadthpack.version",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/lib/barsPackClient.js"
+      ]
+    },
+    {
       "key": "calendar.orderBoostOff",
       "store": "localStorage",
       "scope": "device-local",
@@ -1142,6 +1220,86 @@
       ]
     },
     {
+      "key": "study.blitz.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/study/StudyLanding.jsx",
+        "app/src/pages/study/challenges/BlitzChallenge.jsx"
+      ]
+    },
+    {
+      "key": "study.blitz.tutorialSeen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/lab/pieces/Piece47BlitzV2.jsx",
+        "app/src/lab/pieces/Piece53BlitzV3.jsx"
+      ]
+    },
+    {
+      "key": "study.howto.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/ui/HowItPlays.jsx"
+      ]
+    },
+    {
+      "key": "study.outbox",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/study/studyOutbox.js"
+      ]
+    },
+    {
+      "key": "study.set.cache",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/study/useStudySession.js"
+      ]
+    },
+    {
+      "key": "study.sfx.muted",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/lab/sfx.js"
+      ]
+    },
+    {
+      "key": "study.sound",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/study/studyFeedback.js"
+      ]
+    },
+    {
       "key": "tipo:*",
       "store": "localStorage",
       "scope": "device-local",
@@ -1173,7 +1331,7 @@
       "kind": "cache",
       "label": "Local copy of your flagged list (the list is saved to your account)",
       "files": [
-        "app/src/hooks/useFlagged.js"
+        "app/src/hooks/flaggedStore.js"
       ]
     },
     {
@@ -1498,6 +1656,53 @@
       ]
     },
     {
+      "key": "uct.agent.news..*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.news.*.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.nl1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/nl1/interpreter.js"
+      ]
+    },
+    {
+      "key": "uct.agent.nlm1.inplan",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/nlm1/inplan.js",
+        "app/src/agent/qa/capabilityRegression/testing/harness.jsx"
+      ]
+    },
+    {
       "key": "uct.agent.open",
       "store": "localStorage",
       "scope": "device-local",
@@ -1528,6 +1733,63 @@
       "label": "UCT Agent routing kill switch (diagnostic)",
       "files": [
         "app/src/agent/routing.js"
+      ]
+    },
+    {
+      "key": "uct.agent.routingV2",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/nlm1/flag.js",
+        "app/src/agent/qa/capabilityRegression/testing/harness.jsx"
+      ]
+    },
+    {
+      "key": "uct.agent.stream",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/agentClient.js"
+      ]
+    },
+    {
+      "key": "uct.agent.welcomed.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.welcomed.anon",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.width",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/agentFlag.js"
       ]
     },
     {
@@ -1584,6 +1846,17 @@
       "label": "App theme, for painting before your account loads",
       "files": [
         "app/src/styles/appThemes.js"
+      ]
+    },
+    {
+      "key": "uct.auth.ping",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/context/AuthContext.jsx"
       ]
     },
     {
@@ -1841,6 +2114,17 @@
       ]
     },
     {
+      "key": "uct.debug.layoutShift",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Debug only: log layout shifts to the console (off unless set by hand)",
+      "files": [
+        "app/src/lib/clsDebug.js"
+      ]
+    },
+    {
       "key": "uct.desk.article.progress",
       "store": "localStorage",
       "scope": "device-local",
@@ -1908,6 +2192,17 @@
       ]
     },
     {
+      "key": "uct.deskUsage.sent",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Platform",
+      "kind": "internal",
+      "label": "Daily usage report marker",
+      "files": [
+        "app/src/hooks/useDeskUsage.js"
+      ]
+    },
+    {
       "key": "uct.draw.recentTools",
       "store": "localStorage",
       "scope": "device-local",
@@ -1948,6 +2243,7 @@
       "kind": "setting",
       "label": "Create Indicator switched on in this browser",
       "files": [
+        "app/src/agent/qa/capabilityRegression/testing/harness.jsx",
         "app/src/components/chart/builder/studio/createIndicatorFlag.js"
       ]
     },
@@ -2412,6 +2708,53 @@
       ]
     },
     {
+      "key": "uct.nb.tickerSuggest.no.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/TickerSuggestion.jsx"
+      ]
+    },
+    {
+      "key": "uct.nb.widgetDraft.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/widgetBuilder/builderDraft.js"
+      ]
+    },
+    {
+      "key": "uct.nb.widgetDraft.me",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/widgetBuilder/builderDraft.js"
+      ]
+    },
+    {
+      "key": "uct.nb.widgetUses.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/pages/journal-2-0/lib/builtInWidgets.js"
+      ]
+    },
+    {
       "key": "uct.notebook.graph.view",
       "store": "localStorage",
       "scope": "device-local",
@@ -2420,6 +2763,17 @@
       "label": "Graph view settings",
       "files": [
         "app/src/pages/journal-2-0/lib/graphNavigation.js"
+      ]
+    },
+    {
+      "key": "uct.notebook.noteDetails.open",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx"
       ]
     },
     {
@@ -2589,6 +2943,17 @@
       "label": "Chart loading rollout switch",
       "files": [
         "app/src/hooks/useRealtimePrices.js"
+      ]
+    },
+    {
+      "key": "uct.study.sound",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/components/settings/StudySettingsCard.jsx"
       ]
     },
     {
@@ -2849,6 +3214,28 @@
       ]
     },
     {
+      "key": "uct.agent.activeDraft",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/capabilities/indicatorAuthoring.js"
+      ]
+    },
+    {
+      "key": "uct.agent.lastSaved",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/agent/capabilities/indicatorAuthoring.js"
+      ]
+    },
+    {
       "key": "uct.authoring.drafts.v1",
       "store": "sessionStorage",
       "scope": "device-local",
@@ -2856,29 +3243,8 @@
       "kind": "work",
       "label": "Formula authoring drafts in this tab",
       "files": [
+        "app/src/agent/testing/panelHarness.jsx",
         "app/src/components/chart/builder/authoring/conversationSessions.js"
-      ]
-    },
-    {
-      "key": "uct.indicators.history.v1:*",
-      "store": "sessionStorage",
-      "scope": "device-local",
-      "surface": "Charts",
-      "kind": "state",
-      "label": "Indicator Undo history for this tab (per member and chart)",
-      "files": [
-        "app/src/components/chart/indicatorHistoryStore.js"
-      ]
-    },
-    {
-      "key": "uct.indicators.unavailable.dismissed.v1:*",
-      "store": "sessionStorage",
-      "scope": "device-local",
-      "surface": "Charts",
-      "kind": "state",
-      "label": "Unavailable-indicator notices you chose to keep, this tab",
-      "files": [
-        "app/src/components/chart/UnavailableIndicators.jsx"
       ]
     },
     {
@@ -2893,6 +3259,30 @@
       ]
     },
     {
+      "key": "uct.indicators.history.v1:*",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Indicator Undo history for this tab (per member and chart)",
+      "pattern": true,
+      "files": [
+        "app/src/components/chart/indicatorHistoryStore.js"
+      ]
+    },
+    {
+      "key": "uct.indicators.unavailable.dismissed.v1:*",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Unavailable-indicator notices you chose to keep, this tab",
+      "pattern": true,
+      "files": [
+        "app/src/components/chart/UnavailableIndicators.jsx"
+      ]
+    },
+    {
       "key": "uct.j2.askInsert.pending",
       "store": "sessionStorage",
       "scope": "device-local",
@@ -2901,6 +3291,40 @@
       "label": "Ask answer waiting to be inserted",
       "files": [
         "app/src/pages/journal-2-0/lib/askInsert.js"
+      ]
+    },
+    {
+      "key": "uct.nb.kindOfferApplied.*",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "pattern": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/styles/offerApplied.js"
+      ]
+    },
+    {
+      "key": "uct.nb.kindOfferApplied.anon",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/styles/offerApplied.js"
+      ]
+    },
+    {
+      "key": "uct.nb.pendingNotice",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": null,
+      "kind": null,
+      "label": null,
+      "files": [
+        "app/src/pages/journal-2-0/lib/dailyNote.js"
       ]
     },
     {
@@ -2945,29 +3369,6 @@
       "label": "Terminal layout to return to after opening a shared board",
       "files": [
         "app/src/pages/terminal/TerminalShell.jsx"
-      ]
-    },
-    {
-      "key": "notebook_tips",
-      "store": "server-preference",
-      "scope": "cross-device",
-      "surface": "Notebook",
-      "kind": "state",
-      "label": "One-time Notebook tips already seen",
-      "serverAllowlisted": true,
-      "files": [
-        "app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx"
-      ]
-    },
-    {
-      "key": "uct.debug.layoutShift",
-      "store": "localStorage",
-      "scope": "device-local",
-      "surface": "App",
-      "kind": "internal",
-      "label": "Debug only: log layout shifts to the console (off unless set by hand)",
-      "files": [
-        "app/src/lib/clsDebug.js"
       ]
     }
   ]
