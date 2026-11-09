@@ -112,7 +112,17 @@ export function planCompound(text, { host } = {}) {
   const n = segs.length
   const spanText = (a, b) => segs.slice(a, b).map((s, i) => (i ? s.sep : '') + s.text).join('').trim()
   const kinds = new Map()
-  const kindOf = (a, b) => { const k = `${a}:${b}`; if (!kinds.has(k)) kinds.set(k, clauseKind(spanText(a, b), host)); return kinds.get(k) }
+  // owner approved (2026-11-10): after a layout OPEN, a later clause names charts of the layout it opens, not this board's ("open
+  // my Swing layout, then make the AMD chart weekly"): it is read by its words alone here, and resolved on the opened board when
+  // its turn comes (resolveStep; a chart it names that is not there, or two that fit, → asked)
+  const opensLayout = (() => { try { const f = fastParse(segs[0]?.text || '', { host }); return f?.kind === 'ops' && f.ops.length === 1 && f.ops[0].action === 'layout.open' } catch { return false } })()
+  const kindOf = (a, b) => {
+    const k = `${a}:${b}`
+    // (its kind only: the chart it names is read off and the change classified as said of "it"; the target is resolved later)
+    const lenient = (t) => clauseKind(t.replace(/\b(?:(?:on|for|to|in)\s+)?the\s+[a-z0-9.$\-]+(?:\s+[a-z0-9.\-]+)?\s+(?:chart|one)\b/gi, ' it ').replace(/\s+/g, ' ').trim(), host)
+    if (!kinds.has(k)) kinds.set(k, clauseKind(spanText(a, b), host) || (opensLayout && a > 0 ? lenient(spanText(a, b)) : null))
+    return kinds.get(k)
+  }
   // best[i] = the fewest clauses covering segs[0..i)
   const best = Array(n + 1).fill(null)
   best[0] = []
@@ -221,6 +231,8 @@ function aim(ops, charts, host) {
     const kind = cap ? getTargetKind(cap.target) : null
     if (!kind) return null
     const list = kind.list(host) || []
+    // owner approved (2026-11-10): a step's layout OPEN takes the ONE layouts entry (the library is account-wide, never per chart)
+    if (o.action === 'layout.open' && cap.target === 'layouts' && list.length === 1 && chartRefOf(kind, list[0]) == null) { out.push({ ...o, target: list[0].ref }); continue }
     for (const ref of charts) {
       const snap = list.find(s => chartRefOf(kind, s) === ref)
       if (!snap) return null

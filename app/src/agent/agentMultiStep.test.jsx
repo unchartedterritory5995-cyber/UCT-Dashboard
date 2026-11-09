@@ -256,16 +256,16 @@ describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', ()
   // with the reason ("do it in two steps") and nothing runs. Whether a layout open followed by edits should run is the owner's
   // product decision (7a165efb6d's send() / aim() change was reverted). afb72ee305's premise re-read (a run's own layouts step is
   // no changed premise) is pinned by agentWorkspaceComposeP3's "New layout" flow.
-  it('(d) "open my Swing layout, then make it weekly": refused whole as exclusive, with the reason; nothing opens, nothing changes', async () => {
+  // OWNER APPROVED 2026-11-10 (supersedes the pin above): the open, then the change on the opened layout's one chart; the full
+  // family (named chart, ambiguous ask, saves unchanged) is agentLayoutThenEdit
+  it('(d) "open my Swing layout, then make it weekly": two steps; the opened layout\'s chart goes weekly; 0 model calls', async () => {
     const MAIN = [{ id: 'c0', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: { settings: bareSettings() } }]
     const SWING = [{ id: 's0', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: { settings: bareSettings() } }]
     const m = p.mount(MAIN, { A: 'SPY' }, { decorate: label, layouts: { entries: [{ id: 1, name: 'Main' }, { id: 2, name: 'Swing' }], active: 1, boards: { 1: MAIN, 2: SWING } } })
     const out = await m.say('open my Swing layout, then make it weekly')
-    expect(out).toContain('Opening a layout replaces the whole board, so do it in two steps: open the layout first, then ask for the changes.')
-    expect(m.board.state.layouts.activeId).toBe(1)
-    expect(m.board.state.widgets.map(x => x.id)).toEqual(['c0'])
-    expect(m.board.state.widgets[0].opts?.tf || 'D').toBe('D')
-    expect(m.board.state.layouts.boards[2][0].opts?.tf || 'D').toBe('D')
+    expect(m.board.state.layouts.activeId, out).toBe(2)
+    expect(m.board.state.widgets.map(x => x.id)).toEqual(['s0'])
+    expect(m.board.state.widgets[0].opts?.tf, out).toBe('W')
     expect(p.turns()).toBe(0)
   }, 60000)
 })

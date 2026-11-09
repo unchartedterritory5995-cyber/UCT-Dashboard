@@ -2338,6 +2338,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
+      // OWNER APPROVED (2026-11-10): "open my Swing layout, then make it weekly" runs as TWO steps. ONLY a layout OPEN first, followed
+      // by changes that are neither exclusive nor about the layouts (a save, a rename, a delete keep the old refusal whole), and only
+      // when the sentence reads as those steps. Step 2 is read on the NEWLY opened board (runCompound re-reads each step live).
+      if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops[0]?.action === 'layout.open'
+        && fast.ops.slice(1).every(o => { const c = getCapability(o?.action); return c && !c.exclusive && c.target !== 'layouts' && o.action !== 'layout.open' })) {
+        let steps = null
+        try { steps = planCompound(text, { host })?.steps || null } catch { steps = null }
+        if (steps?.length > 1) { mark('fast:open-then-steps'); fast = null }
+      }
       // Options Flow (owner 2026-11-07, supersedes round 3's refusal): "only show puts in the options flow" with an Options Flow
       // WIDGET on the board is a request for that widget's own filter chips (widget.setOption over its registry rows), never a
       // screen: the instant screen reading is dropped and the model plans the chips (routing boardEdit, the widget named)
