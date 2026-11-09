@@ -50,7 +50,7 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph)\s+(?:(?:one|two|three|four|[1-4])\s+)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
@@ -206,14 +206,36 @@ export function relativeChart(text, charts = [], sel = null) {
   const v = m[1] && m[1].toLowerCase()
   const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
   // "next to / beside": either side; "adjacent to / near": any side. More than one fits → asked (the caller), never a guess
-  const hits = side ? sideOf(charts, s, side)
+  let hits = side ? sideOf(charts, s, side)
     : m[4] ? ['above', 'below', 'left', 'right'].flatMap(x => sideOf(charts, s, x))
       : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  // ported from r8-integration 7e3e9bb6a6 (counted part only): a COUNTED relation ("the chart two to the left", "the second chart
+  // to the right of this", "the next-but-one chart below") walks that many cells in the one direction, one unique neighbour at a
+  // time; none, or a fork, → no chart (asked). Never the anchor.
+  const count = side ? relationCount(String(text || ''), m) : 1
+  if (side && count > 1) hits = stepFrom(charts, s, side, count)
   if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
   if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
   return { hits, match: m, ...role, excluded: [] }
 }
-const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, 1: 1, 2: 2, 3: 3, 4: 4, second: 2, third: 3 }
+const COUNT_NOUN = '(?:chart|one|cell|pane|panel|graph)'
+// the count a relation carries: inside a bare match ("the chart two to the left"), or right before the relation ("the chart two
+// above this", "the second chart to the right of this", "the next-but-one chart below this")
+function relationCount(s, m) {
+  const scope = `${s.slice(0, m.index)}${m[0]}`
+  const at = (re) => re.exec(scope)
+  const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|[1-4])\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+    || at(new RegExp(`\\b(second|third)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+  if (c) return NUM_WORD[c[1].toLowerCase()] || 1
+  return at(new RegExp(`\\bnext[-\\s]but[-\\s]one\\s+${COUNT_NOUN}\\b`, 'i')) ? 2 : 1
+}
+function stepFrom(charts, s, side, n) {
+  let at = s
+  for (let i = 0; i < n; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) return []; at = next[0] }
+  return [at]
+}
+const knownIndicator =(word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
 const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
 function tfOfWord(w) {
   const s = String(w || '').toLowerCase().trim()
@@ -340,8 +362,11 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     const refs = new Set(rel.hits.map(c => c.ref))
     const fits = backed.filter(b => refs.has(b.chart))
     if (fits.length === 1) return { ref: fits[0].c.ref }
-    return { ask: { text: rel.hits.length || selectedChart(host) ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
-      choices: (fits.length ? fits.map(b => b.c) : candidates).map(c => ({ ref: c.ref, label: c.label })) } }
+    // AUDIT (#988): the click is the relation's ANCHOR, so it is never offered as the chart meant
+    const anchor = selectedChart(host)
+    const pool = fits.length ? fits : backed.filter(b => !anchor || b.chart !== anchor)
+    return { ask: { text: rel.hits.length || anchor ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
+      choices: pool.map(b => b.c).map(c => ({ ref: c.ref, label: c.label })) } }
   }
   // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
   // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
@@ -393,6 +418,8 @@ export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2
 export function ordinalChart(text, charts = []) {
   const m = ORD_RE.exec(String(text || ''))
   if (!m) return null
+  // "the second chart to the right of this": a COUNT of a relation from the click, not the board's second chart
+  if (m[1] && /^\s+(?:(?:right|just|directly|immediately)\s+)?(?:to\s+the\s+(?:left|right)|on\s+the\s+(?:left|right)|above|over|below|under|underneath|beneath)\b/i.test(String(text).slice(m.index + m[0].length))) return null
   const n = charts.length
   const word = (m[1] || `chart ${m[2]}`).toLowerCase()
   if (!n) return { ask: { text: 'There are no charts on this board.', choices: [] }, match: m }
@@ -742,7 +769,10 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (onClicked && onlyPointer(text, host?.charts?.list?.() || [])) { aimed.set(o, r.ref); continue }
     if (r?.ref && r.ref !== o.target) {
       const meant = list.find(s => s.ref === r.ref)
-      return { ask: { text: `Did you mean ${meant?.label || 'the selected chart'}?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      // AUDIT (#988): when the words relate a chart to the click, the click is the anchor and is never offered back as a choice
+      const anchor = relationMatch(text) ? selectedChart(host) : null
+      const offer = list.filter(c => !anchor || chartRefOf(kind, c) !== anchor)
+      return { ask: { text: `Did you mean ${meant?.label || 'the selected chart'}?`, choices: offer.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
   }
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
