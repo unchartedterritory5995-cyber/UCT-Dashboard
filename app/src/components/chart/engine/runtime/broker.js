@@ -148,7 +148,8 @@ export function makeBroker(cfg, data) {
   // test-only pin set arrives as `data.isPinned` (a predicate), never as `pinned`'s second argument.
   const isPinned = typeof data.isPinned === 'function' ? data.isPinned : (id) => pinned(id)
   // ⭐ W9-T4 r1 — the symbol's minimum contract (`syminfo.mincontract`), as the run context states it;
-  // undefined when the caller does not know it (today: every product caller)
+  // undefined when no witnessed source states it (W9-T4-F1: `runtimeColumns.js` derives it from
+  // `symbolScope.json::min_contract`, which serves no row until a capture lands one)
   const minContract = data.minContract
   const okRules = new Set()
   const rule = (id) => {
@@ -1100,8 +1101,9 @@ export function makeBroker(cfg, data) {
    *   - rounded DOWN to whole units, served ONLY for a symbol whose minimum contract the run context
    *     states is 1 (`syminfo.mincontract`: "The smallest amount of the current symbol that can be traded
    *     ... For cryptocurrencies, it is often less than 1 token. For most other types of asset, it is
-   *     often 1."). A fractional symbol, or one whose minimum contract the run was not told, refuses.
-   *     No product caller states it yet, so on the member door this refuses even once B-QTY is pinned.
+   *     often 1."). Any other minimum contract (a fraction, or a lot of more than one unit), or one the
+   *     run was not told, refuses. The member door states it only for an exchange with a witnessed
+   *     `symbolScope.json::min_contract` row (W9-T4-F1), so elsewhere this refuses even once B-QTY is pinned.
    * Every case the hypothesis does not reach refuses by name (Q-S1a): a price (limit / stop) order,
    * whose sizing price could be its level or the signal close; a percent order placed while trades are
    * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
@@ -1138,8 +1140,11 @@ export function makeBroker(cfg, data) {
     if (minContract !== 1) {
       throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size, which this broker rounds down to `
         + `whole units, and this symbol's minimum contract is ${finite(minContract)
-          ? `${minContract} (a fractional symbol, such as a cryptocurrency, trades in parts of a unit)`
-          : 'not known to this run (a fractional symbol, such as a cryptocurrency, trades in parts of a unit)'}`,
+          ? `${minContract}, not 1 (${minContract < 1
+            ? 'a fractional symbol, such as a cryptocurrency, trades in parts of a unit'
+            : `this symbol trades in lots of ${minContract} units, and how this broker sizes lots is not stated`})`
+          : 'not known to this run (`syminfo.mincontract` is stated only for a listing whose exchange has a '
+            + 'witnessed minimum contract; a fractional symbol, such as a cryptocurrency, trades in parts of a unit)'}`,
       'Q-S1a')
     }
     needSymbol()

@@ -183,6 +183,11 @@ def world(monkeypatch):
         return [] if sym == "NONE" else _store_rows()
     monkeypatch.setattr(bars_sqlite, "get_bars", get_bars)
     monkeypatch.setattr(pst, "_runtime_client", lambda: state["client"])
+    # W9-T4-F1: the store's exchange per ticker (never a provider call in a test)
+    from api.services import ticker_meta
+    state["exchanges"] = {"AAA": "NYSE"}
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta",
+                        lambda sym: {"exchange": state["exchanges"].get(sym)})
     app = FastAPI()
     app.include_router(pst.router)
     app.dependency_overrides[get_current_user] = lambda: dict(PAID)
@@ -520,3 +525,42 @@ def test_D2_a_record_that_does_not_state_its_start_by_the_rule_is_a_500(world):
     assert post(world).status_code == 500
     world["client"] = StubClient(lambda job: ok(job, startSentence=None))
     assert post(world).status_code == 500
+
+
+# --- W9-T4-F1: the job carries the store's exchange; the SERVICE settles the minimum contract -------
+
+def test_F1_the_job_carries_the_symbols_store_exchange(world):
+    """The route hands the service ``{ticker, exchange}`` from the store the chart reads, so the run's
+    ``syminfo.*`` (and the broker's minimum contract, derived from it in ``runtimeColumns.js``) settle
+    from one symbol. It never states a minimum contract itself."""
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    [job] = world["client"].calls[0]["jobs"]
+    assert (job.ticker, job.exchange) == ("AAA", "NYSE")
+
+
+@pytest.mark.parametrize("meta", [None, {}, {"exchange": None}, {"exchange": 7}, {"exchange": "x" * 40},
+                                  {"exchange": "bad\tname"}])
+def test_F1_an_unknown_or_unusable_exchange_is_empty_never_guessed(world, monkeypatch, meta):
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta", lambda sym: meta)
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    assert world["client"].calls[0]["jobs"][0].exchange == ""
+
+
+def test_F1_a_store_failure_is_empty_never_a_dead_request(world, monkeypatch):
+    from api.services import ticker_meta
+
+    def boom(sym):
+        raise RuntimeError("provider down")
+    monkeypatch.setattr(ticker_meta, "get_ticker_meta", boom)
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    assert world["client"].calls[0]["jobs"][0].exchange == ""
+
+
+def test_F1_the_route_never_states_a_minimum_contract():
+    """The wire's ctx is closed (``protocol.mjs``); the route must not try to smuggle one either."""
+    text = (ROOT / "api" / "routers" / "pine_strategy_backtest.py").read_text(encoding="utf-8")
+    assert not re.search(r"\bminContract\b|min_contracts?\s*=", text)

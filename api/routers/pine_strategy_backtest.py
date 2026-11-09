@@ -184,6 +184,23 @@ def _window_of(sent: list, rec: Optional[dict] = None) -> dict:
             "historyWindowBars": HISTORY_WINDOW_BARS, "fromListing": False, "note": note}
 
 
+def _exchange_of(sym: str) -> str:
+    """W9-T4-F1 -- the symbol's exchange in OUR store's spelling, from the same store the chart reads
+    (``ticker_meta``, served to the chart by ``/api/ticker-meta``), so a server run and a chart run settle
+    ``syminfo.*`` -- ``syminfo.mincontract`` and the broker's minimum contract with it -- from one
+    ``{ticker, exchange}``. The SERVICE derives the minimum contract from this (``runtimeColumns.js``,
+    ``symbolScope.json::min_contract``); this route never states one. An unreadable or unknown exchange
+    is ``""``: nothing settles, and a cash / percent-of-equity size refuses by name (Q-S1a)."""
+    try:
+        from api.services import ticker_meta
+        exch = (ticker_meta.get_ticker_meta(sym) or {}).get("exchange")
+    except Exception:  # noqa: BLE001 -- unknown stays unknown, refused by name downstream
+        return ""
+    if not isinstance(exch, str) or not runtime_client._EXCHANGE.match(exch.strip()):
+        return ""
+    return exch.strip()
+
+
 def _transport(why: runtime_client.Refusal) -> bool:
     """A run-wide refusal that says nothing about the script (the service, the wire, the clock)."""
     return why.key == "*" and (why.guard in runtime_client.CLIENT_GUARDS or why.guard == runtime_client.TIME_BUDGET
@@ -214,7 +231,7 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
         sent = sbt._service_bars(bars)
         sent_of[sym] = (bars, sent)
         jobs.append(runtime_client.Job(
-            job=sym, ticker=sym, tf=TF, bars=sent, want=(codec.STRATEGY_WANT,),
+            job=sym, ticker=sym, exchange=_exchange_of(sym), tf=TF, bars=sent, want=(codec.STRATEGY_WANT,),
             runtime_inputs=dict(body.inputs or {}), history_from_listing=False,
             history_window_bars=HISTORY_WINDOW_BARS))
 
