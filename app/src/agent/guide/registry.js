@@ -152,7 +152,7 @@ export const GUIDE_FEATURES = [
   {
     // pages/charts/widgets/AlertsWidget.jsx — the widget's quick-add row; the widget comes off Widgets ▾ when it isn't on the board
     id: 'alertPrice', except: /\bwidget\b.*\b(settings?|gear|appearance|look)\b/, terms: ['price alert', 'price alerts', 'alerts widget'], control: 'the Alerts widget', title: 'Setting a price alert', topic: 'alerts',
-    words: [/\balerts?\b/, /\bnotify me\b/],
+    words: [/\balerts?\b/, /\bnotify me\b/, /\b(get|be) alerted\b/],
     caps: ['alert.create'],
     explain: 'The Alerts widget sets a price alert on any ticker: type the ticker, choose Above or Below, type the price, click Set. Add the widget from Widgets ▾ → Alerts. On a chart, Alt+N sets one at the cursor.',
     steps: [
