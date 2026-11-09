@@ -46,6 +46,10 @@ import styles from './GuideOverlay.module.css'
 
 const COVERED = 'That control is behind the window that’s open. Close the window, and I’ll carry on from here.'
 const OFF = 'This control is greyed out right now, so it can’t be clicked yet.'
+// a step waiting for a ROW of a menu (`{ within: '…Menu', … }`): the menu, by its own anchor
+const rowOfMenu = (w) => (w && typeof w === 'object' && !Array.isArray(w) && typeof w.within === 'string' && /Menu$/.test(w.within) ? w.within : null)
+// how long an open menu may lack the row before it is taken as not offered (menus render their rows at once)
+export const ABSENT_MS = 1500
 const BUSY = 'I’m still working on your last request. Press Do it for me again when I’ve finished.'
 const FIRST = 'This step comes first — the next control only appears once it’s done. Follow the highlight, or press Exit.'
 
@@ -93,6 +97,11 @@ export default function GuideOverlay() {
     let armed = !st.back && !step.waitFor?.not
     // ⭐ its own control pressed (needsOwnPress): another chart's gear opening Chart Settings is not this chart's step
     let pressedOwn = false
+    // ⭐ the menu this step opens is open, and the row the next step needs is not in it: a step that knows its row is offered
+    // only when it is on for this member (`absent`: what is true then — a layout's Version history while the version store is
+    // off) says so and ends, never waits on a row that will not come. Opt-in: a menu whose rows differ by where it was opened
+    // (the chart's, by region) is a misclick to recover from, not a missing row
+    let absentSince = null
     const tick = () => {
       if (cancelled) return
       // ⭐ OWNER RULE (2026-11-07): the walkthrough's chart changed symbol from OUTSIDE the walkthrough (a linked watchlist row
@@ -114,6 +123,14 @@ export default function GuideOverlay() {
         const others = typeof step.target === 'string' && document.querySelectorAll(`[data-guide="${step.target}"]`).length > 1
         if (met && armed && (pressedOwn || !needsOwnPress(step) || !others)) { nextStep(); return }
         if (!met) armed = true
+        const menu = !met && step.absent && rowOfMenu(step.waitFor)
+        if (menu && findTarget({ id: menu }, st)) {
+          if (absentSince == null) absentSince = Date.now()
+          else if (Date.now() - absentSince >= ABSENT_MS) {
+            endGuide('absent', step.absent)
+            return
+          }
+        } else absentSince = null
       }
       // a list's first entry is the control itself: below the fold of a long window it is scrolled up, not passed over for the fallback
       if (Array.isArray(step.target)) unclip(step.target[0], st)

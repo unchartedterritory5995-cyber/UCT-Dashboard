@@ -186,8 +186,10 @@ const LAYOUT_TAB = { within: 'workspace.layouts', attr: 'data-layout-pin' }
 const layoutItem = (id) => ({ within: 'workspace.layoutMenu', attr: 'data-menu-id', value: id })
 // `mine`: the row is only on the member's OWN layouts (UCT Default and the prebuilt ones have no Rename or Version history), so
 // capabilities/guide.js rings one of theirs on the bar by name, or says they have none (`mine: 'layout'`)
+// a row LayoutDock.jsx offers only when it is on: Version history needs the server's version store (probeArtifactVersions)
+const ABSENT = { history: 'Version history isn’t in that menu for you right now, so the guide stopped. It shows there once layout history is switched on.' }
 const layoutMenu = (id, name, say, more = [], mine = false) => [
-  { target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Right-click one of your own layouts on the bar.', waitFor: layoutItem(id), ...(mine ? { mine: 'layout' } : {}) },
+  { target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Right-click one of your own layouts on the bar.', waitFor: layoutItem(id), ...(mine ? { mine: 'layout' } : {}), ...(ABSENT[id] ? { absent: ABSENT[id] } : {}) },
   { target: layoutItem(id), name, text: say, endsOnClick: !more.length },
   ...more,
 ]
