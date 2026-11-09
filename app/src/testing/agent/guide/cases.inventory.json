@@ -114,6 +114,12 @@
   "title": "Going to a date"
  },
  {
+  "id": "C1-031",
+  "say": "show me how to go to 2020",
+  "feature": "goToDate",
+  "title": "Going to a date"
+ },
+ {
   "id": "C1-034",
   "say": "show me how to compare with AMD",
   "feature": "compare",
@@ -126,10 +132,34 @@
   "title": "Comparing a whole group"
  },
  {
+  "id": "C1-037",
+  "say": "show me how to remove the semis overlay",
+  "feature": "compareAction",
+  "title": "Removing a compared symbol"
+ },
+ {
   "id": "C1-038",
   "say": "how do I clear all comparisons",
   "feature": "compareAction",
   "title": "Clearing all comparisons"
+ },
+ {
+  "id": "C1-039",
+  "say": "how do I same/new scale per symbol",
+  "feature": "compareAction",
+  "title": "A compared symbol’s scale"
+ },
+ {
+  "id": "C1-040",
+  "say": "how do I same/new scale for a group",
+  "feature": "compareAction",
+  "title": "A group’s scale"
+ },
+ {
+  "id": "C1-041",
+  "say": "show me how to show only the comparisons",
+  "feature": "compareAction",
+  "title": "Showing the group only"
  },
  {
   "id": "C1-042",
@@ -882,10 +912,46 @@
   "title": "Creating an indicator"
  },
  {
+  "id": "C2-059",
+  "say": "how do I undo a draft step",
+  "feature": "builderAction",
+  "title": "Undoing a draft step"
+ },
+ {
+  "id": "C2-061",
+  "say": "how do I save draft, acknowledge warnings",
+  "feature": "builderAction",
+  "title": "Saving a formula"
+ },
+ {
+  "id": "C2-062",
+  "say": "how do I discard draft",
+  "feature": "builderAction",
+  "title": "Discarding a draft"
+ },
+ {
   "id": "C2-066",
   "say": "how do I enter a formula",
   "feature": "builderAction",
   "title": "Entering a formula"
+ },
+ {
+  "id": "C2-070",
+  "say": "show me how to put a green arrow under the bar when true",
+  "feature": "builderAction",
+  "title": "Signal markers and colours"
+ },
+ {
+  "id": "C2-071",
+  "say": "show me how to paint the candles gold when true",
+  "feature": "builderAction",
+  "title": "Signal markers and colours"
+ },
+ {
+  "id": "C2-072",
+  "say": "how do I name the draft",
+  "feature": "builderAction",
+  "title": "Naming a formula"
  },
  {
   "id": "C2-073",
@@ -1590,6 +1656,18 @@
   "title": "Ranking themes by period"
  },
  {
+  "id": "C3-170",
+  "say": "show me how to sort themes worst first",
+  "feature": "widgetAction",
+  "title": "Ranking themes by period"
+ },
+ {
+  "id": "C3-171",
+  "say": "show me how to measure from the open",
+  "feature": "widgetAction",
+  "title": "The today basis"
+ },
+ {
   "id": "C3-172",
   "say": "how do I open a theme or pick a holding",
   "feature": "widgetAction",
@@ -1630,6 +1708,12 @@
   "say": "show me how to send index levels to journal",
   "feature": "control",
   "title": "Sending Indexes to the Journal"
+ },
+ {
+  "id": "C3-187",
+  "say": "show me how to add the Nasdaq 100 to new highs",
+  "feature": "widgetAction",
+  "title": "New highs and lows universes"
  },
  {
   "id": "C3-196",

@@ -10,6 +10,7 @@
 //   savedGrids a saved Multi Chart grid in the layout library (the harness's own ?multichart fixture)
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
 //   versions   the server's version store switched on (a layout's Version history)
+//   chartSettings  the chart's own settings pref (custom intervals, compared symbols)
 //   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
@@ -18,6 +19,8 @@
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const GROUPS = { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' }
 const SCAN = { key: 'highest-volume-1y', name: 'Highest Volume In 1-Year' }
+// pages/charts/CompareSymbolsPanel.jsx: { sym, color, enabled, group? } (a group is its name on each of its symbols)
+const COMPARED = [{ sym: 'AMD', color: '#f5a623', enabled: true }, { sym: 'NVDA', color: '#4fc3f7', enabled: true, group: 'Semis' }, { sym: 'AVGO', color: '#81c784', enabled: true, group: 'Semis' }]
 const watch = (extra = {}) => ({ id: 'w-watch', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 20, opts: {}, ...extra })
 // one chart and one watchlist fill the board: a widget the walkthrough adds goes through the real Place step
 const PLAIN = [chart('w-chart-a', 'A', 0, 0, 16, 20), watch()]
@@ -57,6 +60,10 @@ export function givenFor(c) {
   // a layout's Version history shows only while the server's version store says it is on (components/artifactHistory
   // ArtifactHistory.jsx probeArtifactVersions: GET /api/artifact-versions/status → { enabled })
   if (/A layout’s version history/.test(c.title || '')) g.versions = true
+  // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
+  // a custom interval to delete, and symbols (one a group's) the Compare panel lists
+  if (/^Deleting a custom timeframe$/.test(c.title || '')) g.chartSettings = { header: { customTimeframes: ['45'] } }
+  if (c.feature === 'compareAction' && !/^Comparing a whole group$/.test(c.title || '')) g.chartSettings = { comparisonSymbols: COMPARED }
   // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
@@ -106,7 +113,7 @@ export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : '']
 
 export function boardFor(g) {
   const widgets = BOARDS[g.board || 'plain']
-  return { charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }), charts_workspace_groups: JSON.stringify(GROUPS), ...(g.prefs || {}) }
+  return { charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }), charts_workspace_groups: JSON.stringify(GROUPS), ...(g.chartSettings ? { chart_settings: JSON.stringify(g.chartSettings) } : {}), ...(g.prefs || {}) }
 }
 
 // in the page: the app's own routes and stores, after the board has loaded

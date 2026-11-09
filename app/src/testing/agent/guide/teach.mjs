@@ -164,6 +164,26 @@ try {
       const pt = await p.b.evaluate(`(() => { const c = document.querySelector('[data-widget-type="watchlist"] [data-guide="watchlist.picker"]'); const el = c && [...c.querySelectorAll('button,[role=button],div')].find(e => /Momentum/.test(e.textContent) && e.children.length < 4); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 } })()`)
       if (pt) { await p.b.click(pt.x, pt.y); await sleep(1500); continue }
     }
+    // the card names a key chord ("Click the chart, then press Alt+Shift+A"): click where it rings, then press it, as a person would
+    const chord = /\bpress ((?:(?:Ctrl|Alt|Shift|Meta|Cmd)\+)+)([A-Z0-9])\b/.exec(s.stepText || '')
+    if (chord) {
+      await p.b.click(s.ring.x, s.ring.y); await sleep(300)
+      const mods = chord[1].split('+').filter(Boolean)
+      const bit = { Alt: 1, Ctrl: 2, Meta: 4, Cmd: 4, Shift: 8 }
+      const m = mods.reduce((a, k) => a | (bit[k] || 0), 0)
+      const k = chord[2], code = /\d/.test(k) ? `Digit${k}` : `Key${k}`
+      const key = mods.includes('Shift') ? k : k.toLowerCase()
+      await p.b.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers: m, windowsVirtualKeyCode: k.charCodeAt(0) })
+      await p.b.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers: m, windowsVirtualKeyCode: k.charCodeAt(0) })
+      await sleep(1300); continue
+    }
+    // a field the card asks to type into ("Type a name for the list"): a person types something there
+    if (s.field && /\btype\b/i.test(s.stepText || '')) {
+      await p.b.click(s.ring.x, s.ring.y); await sleep(200); await p.b.type('Teach list'); await sleep(900)
+      const after = await p.b.evaluate(STATE)
+      if (after && after.index === s.index && after.next) { await p.button(after.next, '[data-testid="guide-card"]'); await sleep(900) }
+      continue
+    }
     if (s.right) { if (!(await rightClickRegion(s))) { rec.why = `step ${s.index + 1}: no point of the region it names opened the menu row it needs`; break } await sleep(600); continue }
     if (!s.field) await p.b.click(s.ring.x, s.ring.y)
     await sleep(1300)
