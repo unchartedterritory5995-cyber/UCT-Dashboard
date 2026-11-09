@@ -38,6 +38,7 @@ which the whop button does not carry.
 from __future__ import annotations
 
 import html as _html
+import json
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -63,11 +64,13 @@ from api.services import cap_universe
 #   5 -> 6: the prose source also accepts ETFs -- the liquid-ETF watchlist
 #           plus this desk's thematic funds. cap_universe is an equity
 #           screen, so CIBR/TQQQ/LABU/SKYY were being refused.
+#   7 -> 8: Substack-native videos render as a player. The placeholder holds only
+#           an upload id, so every article carrying one had silently lost it.
 # ⛔ ANY change to what convert() EMITS needs a bump here. Shipping the furniture
 # drop without one left every stored row on the previous output and the
 # improvement applied to nothing -- silently, because a backfill with no version
 # change has no work to find.
-CONVERTER_VERSION = 7
+CONVERTER_VERSION = 8
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -142,6 +145,12 @@ _ATTRS: dict[str, tuple[str, ...]] = {
 }
 
 _SAFE_SCHEMES = frozenset({"http", "https", "mailto"})
+
+# Substack's iframe player sends frame-ancestors for its own domains only, so the
+# video has to be ours. /src redirects to a Mux URL whose token lasts 24h and is
+# minted per request: store /src, never where it redirects to.
+_NATIVE_VIDEO_SRC = "https://substack.com/api/v1/video/upload/{id}/src"
+_UPLOAD_ID_RE = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 
 # The label the Sunday Scans generator emits as ONE h3 with a <br>, followed by
 # the week's symbols. Matching the label (not the shape of the text after it) is
@@ -247,6 +256,24 @@ class ConvertedArticle:
 # anchor and the subscribe form's submit input, so keying on it would either
 # keep the dead email form or kill the membership CTA.
 _CTA_COMPONENT = "ButtonCreateButton"
+
+
+def _native_video_id(tag: str, attrs: dict[str, str]) -> str | None:
+    """Upload id of a Substack video placeholder, or None.
+
+    The id is interpolated into markup bound for dangerouslySetInnerHTML, so it
+    must be exactly a UUID. Anything else means no player at all.
+    """
+    if tag != "div" or "native-video-embed" not in attrs.get("class", "").split():
+        return None
+    try:
+        payload = json.loads(attrs.get("data-attrs") or "")
+    except ValueError:
+        return None
+    media_id = payload.get("mediaUploadId") if isinstance(payload, dict) else None
+    if isinstance(media_id, str) and _UPLOAD_ID_RE.fullmatch(media_id):
+        return media_id
+    return None
 
 
 def _is_cta(attrs: dict[str, str]) -> bool:
@@ -434,6 +461,14 @@ class _Converter(HTMLParser):
 
         if tag == "img":
             self._emit_img(attrs)
+            return
+
+        video_id = _native_video_id(tag, attrs)
+        if video_id:
+            src = _NATIVE_VIDEO_SRC.format(id=video_id)
+            self._emit(f'<video class="uctArticleVideo" controls playsinline '
+                       f'preload="metadata" src="{src}"></video>')
+            self._stack.append((tag, None))
             return
 
         if tag in _HEADINGS and self._heading is None:
