@@ -340,14 +340,27 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const r = refusalOf(`${v6}${C47_CONTINUED}x = if close > 103\n    f("a")\nplot(x ? 1 : 0)\n`)
     expect(r.message).toMatch(/v6 bool is never `na`|ends in a block|block/)
   })
-  for (const objectDoor of [false, true]) {
-    it(`⛔⛔ re-review 4: standalone \`plot(f("a"))\` over continued C47 arms is refused (${objectDoor ? 'object door' : 'pane'})`, () => {
-      for (const head of [v5, v6]) {
-        const b = build(`${head}${C47_CONTINUED}plot(f("a"))\n`, { objectDoor, objectTrees: [], objectTreesAt: [] })
-        expect(b.ok, 'expected a refusal').toBe(false)
-      }
-    })
-  }
+  // ⭐ W34-I6a (intended, classified): the continuation lines sit at indent 14, not a multiple
+  // of four, so by Pine's line-wrapping rule ("each wrapped line after the first can use any
+  // indentation length except multiples of four") each arm is ONE expression, `close > open`.
+  // The pane now joins them (`wrappedArmOf`) and reads that whole value, never the `close`
+  // alone this rail guarded against. The object door keeps master's refusal.
+  it('⛔⛔ re-review 4: standalone `plot(f("a"))` over continued C47 arms is refused (object door)', () => {
+    for (const head of [v5, v6]) {
+      const b = build(`${head}${C47_CONTINUED}plot(f("a"))\n`, { objectDoor: true, objectTrees: [], objectTreesAt: [] })
+      expect(b.ok, 'expected a refusal').toBe(false)
+    }
+  })
+  it('⭐ W34-I6a: on the pane, continued C47 arms read as the whole wrapped expression (equals one-line arms)', () => {
+    const oneLine = 'f(simple string m) =>\n    switch m\n        "a" => close > open\n        "b" => open > close\n'
+    for (const head of [v5, v6]) {
+      const wants = ['a', 'b'].map((pick) => run(`${head}${oneLine}plot(f("${pick}") ? 1 : 0)\n`))
+      expect(wants[0], 'the fixture distinguishes the arms').not.toEqual(wants[1])
+      ;['a', 'b'].forEach((pick, k) => {
+        expect(run(`${head}${C47_CONTINUED}plot(f("${pick}") ? 1 : 0)\n`)).toEqual(wants[k])
+      })
+    }
+  })
   it('⭐ re-review 4 CONTROL: single-line C47 arms still draw the selected arm', () => {
     const out = run(`${v6}f(simple string m) =>\n    switch m\n        "a" => close\n        "b" => open\nplot(f("a"))\n`)
     expect(out).toEqual(C)

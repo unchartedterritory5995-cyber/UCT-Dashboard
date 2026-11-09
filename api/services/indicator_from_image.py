@@ -120,6 +120,10 @@ IMAGE_TOKENS_WORST: int = 4784
 #: `tests/test_vision_spend_containment.py` fails if the prompt outgrows it.
 PROMPT_TOKENS_WORST: int = 20_600
 
+#: One member's hard daily ceiling on the $4 interactive lane. A fixed figure on purpose: as a fraction of the
+#: lane it would rise whenever the lane did. Without it, one member's timeouts could drain the lane for everyone.
+MEMBER_VISION_USD: float = 1.00
+
 #: ⛔ ONE BILLED ATTEMPT. See the header: a timed-out call has already generated
 #: tokens and reports no ``usage``, so an SDK retry is spend the ledger counts as
 #: zero. The 60 s clock is the shared client's and stays.
@@ -201,6 +205,8 @@ REFUSALS: Mapping[str, str] = MappingProxyType({
         "the chart is holding more history than one request can carry"),
     "vision:spend-cap": (
         "the picture reader has reached its spending limit for today"),
+    "vision:member-share": (
+        "you have used your share of the picture reader for today"),
     "vision:hourly": (
         "you have sent as many pictures as one hour allows"),
     "vision:transport": (
@@ -542,13 +548,16 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
     ticker = f"indicator-vision:{user_id}"
     worst = worst_case_usd(note)
     try:
-        slot = cost_guard.reserve_member_call(market_date, ticker, MODEL, worst,
-                                              max_per_hour=max_per_hour)
+        slot = cost_guard.reserve_member_call(
+            market_date, ticker, MODEL, worst, max_per_hour=max_per_hour,
+            member_limit_usd=MEMBER_VISION_USD)
     except Exception:                               # noqa: BLE001 -- never raises out
         logger.exception("[indicator-vision] ledger unavailable; call refused")
         return _refusal("vision:spend-cap")
     if slot.get("refused") == "hourly":
         return _refusal("vision:hourly", retry_after=slot.get("retry_after"))
+    if slot.get("refused") == "member-share":
+        return _refusal("vision:member-share")
     if slot.get("refused"):
         return _refusal("vision:spend-cap")
     rowid = slot["id"]

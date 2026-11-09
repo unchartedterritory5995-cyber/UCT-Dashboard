@@ -342,6 +342,10 @@ export default function ChartSettingsModal({
   onCreateIndicator = null,
   // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
   definitionDoors = null,
+  // ⭐ UCT RS Phase 4 (4-11) — the Indicators tab's FIRST add of a definition with a
+  // `meta.tour` (ChartSettingsIndicators `onFirstAdd`). The host holds it until
+  // this modal closes, then hands it to the chart's tour (ChartPane). Absent ⇒ none.
+  onIndicatorFirstAdd = null,
   // Optional `{ current: Element }` -- the control that opened this modal (the
   // gear). Focus returns there on close; without it, to whatever held focus at open.
   returnFocusRef = null,
@@ -1369,6 +1373,7 @@ export default function ChartSettingsModal({
             chartFeatures={chartFeatures}
             definitionDoors={definitionDoors}
             openAdd={scrollTo === 'add'}
+            onFirstAdd={onIndicatorFirstAdd}
           />
           )}
 

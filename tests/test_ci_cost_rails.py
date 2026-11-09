@@ -31,6 +31,7 @@ UNFILTERED_BRANCH_PUSH_OK = {
 UNFILTERED_PR_OK = {
     "term018-guards.yml": "every guard in api/ is its subject; ~3 min",
     "wisdom-rails.yml": "the ban rails scan the whole tree; ~5 min",
+    "secret-scan.yml": "a key can land in ANY file of a public repo; scans only the PR's own commits, ~1 min",
 }
 
 

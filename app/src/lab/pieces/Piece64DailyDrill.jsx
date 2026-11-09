@@ -14,7 +14,7 @@ export default function Piece64DailyDrill() {
   }, [])
   useEffect(() => {
     if (!fresh || signedOut !== false) return
-    fetch('/api/study/sessions', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'free' }) })
+    fetch('/api/study/sessions', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'free', lesson: true }) })
       .then((r) => r.json()).then(setInitial).catch(() => setInitial(null))
   }, [fresh, signedOut])
   if (signedOut == null) return null

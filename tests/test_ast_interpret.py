@@ -351,7 +351,11 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # and the AST claim is the half nothing else in the repo makes.
     # ⭐ scalar half 137 -> 138 (2026-10-11): `dollar_vol_1d` joined the screener columns and
     # is declared (`tests/test_ast_scalars.py`'s partition pin has the reason)
-    assert len(ast_table.scalar_names()) == 138, len(ast_table.scalar_names())
+    # ⭐ 138 -> 139 (2026-11-06, UCT RS 2a-01): `base_pivot_px` declared bars_asof.
+    # ⭐ 139 -> 149 (2026-11-06, UCT RS 2a-07): the ten bar-derived RS screener
+    # columns (`rs_columns.py`, unit 2a-05) declared bars_asof; the seven rating
+    # columns are EXCLUDED dark and do not count here.
+    assert len(ast_table.scalar_names()) == 149, len(ast_table.scalar_names())
     # ⭐ 208 -> 234 (2026-09-02) is the SAME 26 Wave-1 columns as the scalar
     # bump below; this is their combined total, so the two move together or
     # one of them is wrong.
@@ -390,7 +394,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 268 -> 269 (2026-10-11): `dollar_vol_1d` (the scalar half above)
     # 269 -> 276 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
     # The bar half moved 131 -> 138, the scalar half is untouched at 138; this is their sum.
-    assert len(declared) == 276, f"the table declares {len(declared)} names, not 276"
+    # 276 -> 287 (2026-11-06, UCT RS 2a-01 + 2a-07): the scalar half moved 138 -> 149
+    # (base_pivot_px, then the ten bar-derived RS columns); the bar half is untouched at 138.
+    assert len(declared) == 287, f"the table declares {len(declared)} names, not 287"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

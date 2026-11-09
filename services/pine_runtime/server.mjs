@@ -116,7 +116,10 @@ export async function loadBundle(path = DEFAULT_BUNDLE) {
   for (const k of ['columnDigest', 'decodeColumn']) {
     if (typeof mod[k] !== 'function') throw new Error(`the bundle at ${path} exports no ${k}; the service refuses to start.`)
   }
-  const codec = { columnDigest: mod.columnDigest, decodeColumn: mod.decodeColumn }
+  // W9-T14: and the bundle's ONE strategy record check, which the seal asks of a served record. A bundle
+  // without it still boots: the seal then refuses any record it is handed (fails closed), and nothing else changes.
+  const codec = { columnDigest: mod.columnDigest, decodeColumn: mod.decodeColumn,
+    strategyRecordShapeErrors: typeof mod.strategyRecordShapeErrors === 'function' ? mod.strategyRecordShapeErrors : null }
   return { mod, identity, codec, tfSet: [...mod.NATIVE_TFS], maxBars: mod.DEFAULT_LIMITS.HISTORY }
 }
 

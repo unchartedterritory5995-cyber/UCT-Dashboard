@@ -103,7 +103,7 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // ⭐ `mintick` joined `pending_measurement` on 2026-09-28: served where a
     // capture backs the exchange, refused with THIS roster's sentence where not.
     expect(Object.keys(SYMBOL_SCOPE.pending_measurement).filter((k) => !k.startsWith('_')).sort())
-      .toEqual(['basecurrency', 'currency', 'mintick', 'pointvalue', 'prefix', 'root', 'session',
+      .toEqual(['basecurrency', 'currency', 'mincontract', 'mintick', 'pointvalue', 'prefix', 'root', 'session',
         'tickerid', 'timezone'])
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.mintick')
   })
@@ -132,6 +132,14 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // ⭐ AND 43 → 44 ON 2026-09-27, AGAIN NOT BECAUSE OF (h). The vocabulary wave
     // declared `pine:budget`: a SCREENER column wrapping the session-long `vwap()`
     // translated and then could not be saved. Named in PARITY-PROGRAMME.md.
-    expect(Object.keys(REFUSALS).length).toBe(44)
+    //
+    // ⭐ AND 44 → 45 ON 2026-11-07, AGAIN NOT BECAUSE OF (h). I6a-N4 declared
+    // `pine:indent`: an `if` / `else` / `for` / `while` / `switch` (a nested
+    // `0 => switch k` included) whose every line beneath sits at an indent that is
+    // not a multiple of four has no local block by the manual's rule ("A local
+    // block must be indented by a tab or four spaces"; any other indent is a wrap),
+    // and master served it. Both lanes now refuse it by that name
+    // (`pine.js::refuseOffBlockIndent`, rail `runtime/__tests__/i6aN4BlockIndent.test.js`).
+    expect(Object.keys(REFUSALS).length).toBe(45)
   })
 })

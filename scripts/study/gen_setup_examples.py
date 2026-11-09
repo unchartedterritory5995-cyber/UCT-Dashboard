@@ -112,7 +112,9 @@ def fact_line(setup: str, ex: dict) -> str:
             # pass 2 (owner 2026-10-24): the setup behind the day
             level = ("the 21 or 50-day average" if f.get("low_near_ma") else
                      "a prior swing low" if f.get("low_near_swing_low") else "no obvious level")
-            line += (f" The setup was already there: the stock was above its 200-day, had pulled back {f.get('pullback_pct')}% "
+            # find_oops (bank v2) does not require the 200-day: say so where it was under it (no earlier item was)
+            where = "under its 200-day" if f.get("above_200") is False else "above its 200-day"
+            line += (f" The setup was already there: the stock was {where}, had pulled back {f.get('pullback_pct')}% "
                      f"from its 20-day high, the dip tested {level}, and the close "
                      + ("reclaimed the 21-day average" if f.get("reclaims_e21") else "stayed under the 21-day average")
                      + (" on its earnings report." if f.get("earnings_day") else "."))

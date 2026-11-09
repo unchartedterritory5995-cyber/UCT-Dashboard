@@ -10,11 +10,11 @@ Nothing on the train runs them.
 
 ## W4-T15 (`docs/pine/evidence/2026-11-04-w4-t15/EVIDENCE.md`, "Open captures")
 
-| row | what to capture | what the runtime lane does today |
-|---|---|---|
-| W4-T15-a | the value of a loop that ends via `break` / `continue` | refused by name |
-| W4-T15-b | the value of a loop whose body ends in an `if` chain, a call, or a tuple | kept valueless |
-| W4-T15-c | `log.*` with a malformed format string (does TradingView stop the script?) | arguments are not evaluated; no chart effect |
+| row | probe | what to capture | what the runtime lane does today |
+|---|---|---|---|
+| W4-T15-a | `vw-w4-t15-loop-break-value.pine` | the value of a loop that ends via `break` / `continue` | refused by name |
+| W4-T15-b | `vw-w4-t15-loop-tail-value.pine` | the value of a loop whose body ends in an `if` chain, a call, or a tuple | kept valueless |
+| W4-T15-c | `vw-w4-t15-log-malformed.pine` | `log.*` with a malformed format string (does TradingView stop the script?) | arguments are not evaluated; no chart effect |
 
 W4-T15-c matters only if TradingView raises a runtime error on a malformed `log.*` format string: then
 the runtime lane would keep drawing where TradingView stops (review note 2).

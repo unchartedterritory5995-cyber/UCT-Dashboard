@@ -1514,6 +1514,144 @@ def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
         return None
 
 
+#: (date, tickers-hash) -> {ticker: shares}. A recorded day's volumes never change.
+_DAY_VOL_CACHE: dict = {}
+_DAY_VOL_CACHE_MAX = 64
+
+
+def _day_volumes(date_str: str, tickers: list) -> dict:
+    """Each ticker's raw daily volume on `date_str`, read straight from bars.db.
+
+    ⛔ Not through breadth_live's pack frame: that cache holds ONE key, and a drill
+    read would evict the live breadth frame (a ~40 s reload). One indexed read per
+    chunk of 800 names on the (ticker, tf, ts) primary key is cheap.
+    """
+    try:
+        y, m, d = (int(x) for x in date_str.split("-"))
+    except Exception:
+        return {}
+    ts = y * 10000 + m * 100 + d
+    want = sorted({str(t).upper() for t in tickers if t})
+    if not want:
+        return {}
+    key = (ts, hash(tuple(want)))
+    hit = _DAY_VOL_CACHE.get(key)
+    if hit is not None:
+        return hit
+    from api.services import bars_sqlite
+    conn = bars_sqlite._conn()
+    out: dict = {}
+    for i in range(0, len(want), 800):
+        chunk = want[i:i + 800]
+        qm = ",".join("?" * len(chunk))
+        for tk, vol in conn.execute(
+            f"SELECT ticker, v FROM ohlcv WHERE tf='D' AND ts = ? AND ticker IN ({qm})",
+            [ts, *chunk],
+        ).fetchall():
+            if vol:
+                out[tk] = int(vol)
+    # Only a complete-enough answer is remembered: a cold bars.db after a restart
+    # must not pin a half-empty column for the life of the process.
+    if len(out) >= 0.9 * len(want):
+        if len(_DAY_VOL_CACHE) >= _DAY_VOL_CACHE_MAX:
+            _DAY_VOL_CACHE.pop(next(iter(_DAY_VOL_CACHE)))
+        _DAY_VOL_CACHE[key] = out
+    return out
+
+
+def fill_drill_volumes(date_str: str, items: list) -> list:
+    """Add raw session volume (`v`) to a recorded drill list's items that lack it.
+
+    The stored `*_list` rows carry RVOL (`vr`) but not the shares, so the drill's
+    Vol column showed only dashes on every past day. Never raises; a name with no
+    bar that day simply stays without `v`.
+    """
+    if not isinstance(items, list):
+        return items
+    need = [i.get("t") for i in items if isinstance(i, dict) and i.get("t") and not i.get("v")]
+    if not need:
+        return items
+    try:
+        vols = _day_volumes(date_str, need)
+    except Exception as e:
+        print(f"[breadth_monitor] drill volumes unavailable: {type(e).__name__}: {e}")
+        return items
+    if not vols:
+        return items
+    out = []
+    for it in items:
+        if isinstance(it, dict) and it.get("t") and not it.get("v"):
+            v = vols.get(str(it["t"]).upper())
+            if v:
+                it = {**it, "v": v}
+        out.append(it)
+    return out
+
+
+# Lists that say nothing about a ticker beyond "it exists" — overlap with them is noise.
+_CONTEXT_SKIP_LISTS = frozenset({"universe_list"})
+
+
+def _is_list_key(k) -> bool:
+    return isinstance(k, str) and k.endswith("_list") and k.replace("_", "").isalnum() and k == k.lower()
+
+
+def get_drill_context(date_str: str, metric_key: str, tickers: list, lookback: int = 5) -> dict:
+    """Per-ticker context for one drill list on one date, for the scan window's badges.
+
+      also    {ticker: [other *_list keys on the SAME snapshot that also hold it]}
+      repeat  {ticker: how many of the previous `lookback` snapshots held it in THIS list}
+      lookback_found  how many previous snapshots actually existed (a short history must
+                      not read as "first appearance")
+
+    Read-only. The previous snapshots are read with json_extract of the ONE key, so a
+    lookback never parses five whole metrics blobs (each carries the universe list).
+    Never raises: a missing date or a bad key returns empty maps, and the caller treats
+    context as optional.
+    """
+    out = {"also": {}, "repeat": {}, "lookback_found": 0}
+    if not _is_list_key(metric_key):
+        return out
+    want = {str(t).upper() for t in tickers if t}
+    if not want:
+        return out
+    try:
+        with _conn() as c:
+            row = c.execute("SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)).fetchone()
+            if row:
+                m = json.loads(row["metrics"])
+                also: dict = {}
+                for k, v in m.items():
+                    if k == metric_key or k in _CONTEXT_SKIP_LISTS or not _is_list_key(k) or not isinstance(v, list):
+                        continue
+                    for it in v:
+                        t = it.get("t") if isinstance(it, dict) else None
+                        if t and str(t).upper() in want:
+                            also.setdefault(str(t).upper(), []).append(k)
+                out["also"] = {t: sorted(ks) for t, ks in also.items()}
+            prev = c.execute(
+                "SELECT date, json_extract(metrics, ?) AS lst FROM breadth_snapshots "
+                "WHERE date < ? ORDER BY date DESC LIMIT ?",
+                (f"$.{metric_key}", date_str, int(max(0, min(lookback, 20)))),
+            ).fetchall()
+            repeat: dict = {}
+            found = 0
+            for p in prev:
+                found += 1
+                try:
+                    lst = json.loads(p["lst"]) if p["lst"] else []
+                except (TypeError, ValueError):
+                    lst = []
+                seen = {str(it.get("t")).upper() for it in lst if isinstance(it, dict) and it.get("t")}
+                for t in want & seen:
+                    repeat[t] = repeat.get(t, 0) + 1
+            out["repeat"] = repeat
+            out["lookback_found"] = found
+    except Exception as e:
+        print(f"[breadth_monitor] get_drill_context error: {e}")
+    return out
+
+
 def pit_export(since: str = "2026-01-01") -> dict:
     """READ-ONLY export of the collector's stored UCT lists for the V2 producer's PIT gate.
 

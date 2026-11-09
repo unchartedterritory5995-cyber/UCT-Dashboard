@@ -18,6 +18,7 @@
 //   • a reroute is bounded to ONE extra call, and only when the first call planned nothing.
 // Kill switch: localStorage `uct.agent.routing = '0'` sends the full manifest every turn.
 
+import { namedWidgetTypes, controlledWidgetTypes, itemNamedTypes, ITEM_LISTS } from './widgetNames'
 export const ROUTING_VERSION = 1
 
 // hotfix 2026-11-03: "on four charts", "4 charts", "two more charts", "all the same size", "equal size", "evenly", "split"
@@ -42,6 +43,8 @@ export const GROUPS = [
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
       /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|thin bars|invert|template|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/,
+      // execution family L (pl-exec): the strips Chart Settings → Header names, whose fields chart.setSetting picks
+      /\b(?:info row|bar info|header)\b/,
       // CG-25 (corpus #774): "theme" is the CHART's look — never the app's ("light / dark / app / UCT theme")
       /\b(?<!(?:light|dark|app|uct|site) )themes?\b/,
       // "defaults" — a chart's own defaults ("restore the chart defaults"), never a default for NEW charts (settings)
@@ -335,6 +338,14 @@ export function routingEnabled() {
 // "take smci off momentum": a layout / watchlist / saved screen named in the message (whole words,
 // from live state the caller passes in) brings its group. Pure: nothing here reads state.
 const NAME_GROUPS = { layouts: 'layouts', watchlists: 'lists', screens: 'screener', indicatorTemplates: 'chartSetup' }
+// Execution family W (pl-exec): a widget ON THIS BOARD named by its registry label ("the theme tracker", "options flow") brings
+// boardEdit, where its one-control action lives. `names.widgetTypes` = the board's types; widgetNames.js holds the names.
+const SURFACE_GROUPS = ['charts', 'chartSetup', 'indicators', 'drawings']
+// a ONE-word label that already means the chart ("Volume", "Themes" beside chart themes) is not a widget's name; a longer
+// label ("Volume Surge", "Theme Tracker") is
+const surfaceWord = (n) => !String(n).trim().includes(' ') && SURFACE_GROUPS.some(id => wordsSelect(id, n))
+/** The widget types on the board that `message` names (by label), with controls a person sets. */
+export const namedBoardWidgets = (message, types) => namedWidgetTypes(message, types || [], surfaceWord)
 const normWords = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z0-9$&+.\- ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
 function namedGroups(q, names) {
   const out = new Set()
@@ -345,6 +356,8 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   return out
 }
 
@@ -355,6 +368,13 @@ export function routingNames(host) {
     layouts: read(() => host?.layouts?.snapshot?.()?.entries?.map(e => e.name)),
     watchlists: read(() => host?.watchlists?.snapshot?.()?.map(l => l.name)),
     screens: read(() => host?.savedScreens?.snapshot?.()?.map(s => s.name)),
+    widgetTypes: read(() => host?.widgets?.types?.()),
+    // the member's own items a widget lists (its door), for the types that have such a list: [{ type, key, names }]
+    widgetItems: read(() => (host?.widgets?.ids?.() || []).filter(w => ITEM_LISTS[w.type]).flatMap(w => {
+      let r = null
+      try { r = host.widgets.door?.(w.id)?.read?.() || null } catch { r = null }
+      return ITEM_LISTS[w.type].map(l => ({ type: w.type, key: l.key, names: (Array.isArray(r?.[l.key]) ? r[l.key] : []).map(x => x?.name).filter(Boolean) }))
+    })),
     indicatorTemplates: read(() => {
       const raw = host?.prefs?.read?.()?.indicator_templates
       const list = typeof raw === 'string' ? JSON.parse(raw) : raw

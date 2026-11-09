@@ -104,7 +104,14 @@ function refusals() {
   return out
 }
 
-describe('⭐⭐ the call sites behind one guard', () => {
+// A whole-corpus measurement (buildObjectLane over every committed script), so
+// wall time grades the MACHINE, not the code: measured ~39s for its slowest test
+// alone on Node 20 (--maxWorkers=1, 2026-11-08) and slower in a folder run, past
+// vite.config's 15s testTimeout. 150s is ~3x the slow-box duration. A genuine
+// hang still fails; no assertion is weakened.
+const MEASURE_TIMEOUT_MS = 150000
+
+describe('⭐⭐ the call sites behind one guard', { timeout: MEASURE_TIMEOUT_MS }, () => {
   it('⛔ CONTROL — the corpus is on disk', () => {
     expect(SCRIPTS.length).toBeGreaterThan(200)
   })

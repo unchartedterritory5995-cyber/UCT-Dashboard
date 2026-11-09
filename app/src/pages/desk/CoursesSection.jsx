@@ -216,7 +216,7 @@ export default function CoursesSection() {
       const hit = locateUnit(curricula, unitId)
       const skillId = hit?.unit?.skills?.[0] || null
       try {
-        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId } })
+        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId, lesson: true } })
         openSet(payload)
       } catch {
         /* the trail stays open; the member can retry */
@@ -443,6 +443,9 @@ export default function CoursesSection() {
               curricula={curricula}
               byId={skillRows}
               badges={Array.isArray(studyProfile?.badges) ? studyProfile.badges : []}
+              profile={profileRow}
+              today={studyToday}
+              onStartToday={() => (studyToday?.finished_at ? practise() : startToday(studyToday?.session_id))}
               onOpenUnit={openUnit}
               onOpenTrail={openTrail}
               onOpenChallenge={openChallenge}
@@ -454,7 +457,7 @@ export default function CoursesSection() {
                 {/* ?study=today|practise: the panel's buttons write the URL; the
                     integrator mounts the drill (a fullscreen Sheet) off those two
                     values beside this panel. */}
-                <StudyPanel onStart={startToday} onPractise={practise} onOpenUnit={openUnit} />
+                <StudyPanel onStart={startToday} onPractise={practise} onOpenUnit={openUnit} hidePrimary />
               </div>
               <div className={cs.studyMain}>{grid}</div>
             </div>

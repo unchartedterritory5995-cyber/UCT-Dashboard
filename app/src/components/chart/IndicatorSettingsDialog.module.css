@@ -20,6 +20,93 @@
   gap: 10px;
 }
 
+/* ── the preset picker (header, above the tabs) ───────────────────────────── */
+
+/* Rendered only for a definition that declares `meta.presets`. One row — label
+   left, select + reset right — on the same `--fld-label-w` column as the input
+   rows below it, so the picker reads as the first row of the form rather than a
+   second toolbar. The origin line takes a whole line of its own underneath. */
+.presetBar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px;
+  flex: 0 0 auto;
+}
+.presetRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+}
+.presetLabel {
+  flex: 0 0 var(--fld-label-w);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.presetControls {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Chrome matches `.btn` below (13px, --radius-md; review finding V2 residual,
+   2026-11-06); only the height differs — 30px on desktop so the row stays a row,
+   the 44px `--tap-min` floor on touch (the phone and touch blocks at the end). */
+.presetBtn {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.presetBtn:hover { border-color: var(--border-accent); }
+/* Keyboard focus keeps the global 2 px gold ring (brand guide §22: never remove the
+   focus ring); the earlier 1 px inset border-accent ring measured 1.6:1. */
+.presetBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.presetOrigin {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-bottom: 4px;
+}
+
+/* ⭐ VA2 — "Save as my default" / "Reset to UCT default", above the footer. The
+   buttons reuse the preset button (44 px on touch); the note is the origin line's
+   size and ink. */
+.defaults {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 2px 0;
+  flex: 0 0 auto;
+}
+.defaultsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+}
+.defaultsNote {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-bottom: 4px;
+}
+
 /* ── tabs ─────────────────────────────────────────────────────────────────── */
 
 .tabs {
@@ -225,8 +312,37 @@
   border-radius: var(--radius-sm);
 }
 .unit { margin-left: 6px; font-size: 11px; color: var(--text-muted); }
-.num:disabled, .sel:disabled, .when:disabled { opacity: 0.4; cursor: not-allowed; }
-.num:focus-visible, .sel:focus-visible, .when:focus-visible { outline: none; border-color: var(--border-accent); }
+/* ⭐ UCT RS Phase 3, unit 3-02 — the generic text box (a `string` input). The
+   select's width, so a ticker box lines up under the Benchmark select above it;
+   `max-width: 100%` + `min-width: 0` so a narrow panel shrinks the box rather
+   than pushing the row past the panel edge. A miss reads in the warning colour
+   on the border only; the words under it stay muted (`.textMiss`). */
+.text {
+  width: var(--fld-sel-w);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+}
+.text::placeholder { color: var(--text-dim, var(--text-muted)); }
+.text[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
+.textMiss {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 2px;
+}
+
+.num:disabled, .sel:disabled, .when:disabled, .text:disabled { opacity: 0.4; cursor: not-allowed; }
+.num:focus-visible, .sel:focus-visible, .when:focus-visible, .text:focus-visible { outline: none; border-color: var(--border-accent); }
 
 .toggle {
   appearance: none;
@@ -239,7 +355,12 @@
   cursor: pointer;
   flex: 0 0 auto;
 }
-.toggleOn { background: var(--border-accent); }
+/* ⭐ THE MUTED GOLD TRACK (decision B5, 2026-11-07): on is a `--ut-gold-dim`
+   fill and a `--ut-gold` knob edge (an inset ring, so the knob's box and travel
+   do not move); off stays neutral. Never full gold, never green. The same switch
+   look as Chart Settings' `.toggle` and the phone sheet's `.switch`. */
+/* Layered over the neutral track: 8% gold alone would paint ON darker than OFF. */
+.toggleOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--bg-surface); }
 .toggle:disabled { opacity: 0.4; cursor: not-allowed; }
 .toggleKnob {
   position: absolute;
@@ -247,9 +368,9 @@
   width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--text-bright);
-  transition: transform 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
-.toggleOn .toggleKnob { transform: translateX(16px); }
+.toggleOn .toggleKnob { transform: translateX(16px); box-shadow: inset 0 0 0 1.5px var(--ut-gold); }
 
 /* The clamp announcement. It is a `role="status"` line, not a colour change: a
    control that silently changed the number the user typed is the defect. */
@@ -323,10 +444,11 @@
    and silently lost min-height while the Sheet's own 16px input rule masked
    the font half — measured, not guessed). 16px also stops iOS zoom-on-focus. */
 @media (max-width: 640px) {
-  .num, .sel {
+  .num, .sel, .text {
     min-height: var(--tap-min);
     font-size: 16px;
   }
+  .presetBtn { min-height: var(--tap-min); }
   .toggle {
     width: 52px;
     height: 30px;
@@ -346,7 +468,9 @@
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
   .num,
-  .sel {
+  .sel,
+  .text,
+  .presetBtn {
     min-height: var(--tap-min);
   }
 }

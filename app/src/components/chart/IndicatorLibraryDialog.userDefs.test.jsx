@@ -167,7 +167,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     // declares `Depends(require_paid)` — see the definition's own comment), so
     // its badge must still render. `indicatorCatalog.test.js` pins `d.meta.tier`
     // for it but never touches the DOM — this is that render-side half.
-    const rsLineRow = getResultRow(/Relative Strength Line/)
+    const rsLineRow = getResultRow(/UCT Relative Strength/)
     expect(within(rsLineRow).getByText('premium')).toBeTruthy()
   })
 

@@ -1,0 +1,44 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_H1_WINDOW_RUNS", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H1
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// Do `ta.stdev`, `ta.sum` and `ta.median` in a root-level `if` block count RUNS of the block (as
+// `ta.sma` does, vw-call-site-history C03 / D02) or the chart's last 5 bars? Each is called in a
+// block under an irregular test (`close > open`, U*) and a periodic one (`bar_index % 2 == 0`, V*);
+// E* are the every-bar answers the block values are read against.
+// A warning that a call "should be called on each calculation" is fine; an error names its line:
+// split that row out and capture the rest.
+// CHART: the row names none (the queue marks it NEEDS_CHART); vw-call-site-history, whose C03 / D02
+// this extends, was read on NYSE:RDDT 1D from the listing.
+
+up = close > open
+even = bar_index % 2 == 0
+
+float u_stdev = na
+float u_sum = na
+float u_median = na
+if up
+    u_stdev := ta.stdev(close, 5)
+    u_sum := ta.sum(close, 5)
+    u_median := ta.median(close, 5)
+
+float v_stdev = na
+float v_sum = na
+float v_median = na
+if even
+    v_stdev := ta.stdev(close, 5)
+    v_sum := ta.sum(close, 5)
+    v_median := ta.median(close, 5)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_up_CONTROL")
+plot(ta.stdev(close, 5), "E01_stdev5_every_bar")
+plot(ta.sum(close, 5), "E02_sum5_every_bar")
+plot(ta.median(close, 5), "E03_median5_every_bar")
+plot(u_stdev, "U01_stdev5_in_up_block")
+plot(u_sum, "U02_sum5_in_up_block")
+plot(u_median, "U03_median5_in_up_block")
+plot(v_stdev, "V01_stdev5_in_even_block")
+plot(v_sum, "V02_sum5_in_even_block")
+plot(v_median, "V03_median5_in_even_block")

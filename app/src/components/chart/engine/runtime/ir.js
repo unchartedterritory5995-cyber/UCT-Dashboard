@@ -113,6 +113,9 @@ export const EXPR = Object.freeze({
   // ── declared, not yet lowerable ──
   ARRAY_OP: 'arrayOp',
   OBJECT_OP: 'objectOp',
+  // ⭐⭐ S1 — an operation of the strategy BROKER (`runtime/broker.js`): an order
+  // command (void) or a `strategy.*` value. `args` positional, `null` = not passed.
+  BROKER: 'broker',
 })
 
 /** Where a resolved variable lives.
@@ -148,6 +151,7 @@ export function makeIrProgram({
   functions = [], callSites = [], history = [], windows = [], carried = [],
   carried2 = [],
   requests = [], objectTreeOutputs = [], iterOutputs = [], objectCaps = {},
+  broker = null,
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -183,6 +187,9 @@ export function makeIrProgram({
     iterOutputs: iterOutputs || [],
     // ⭐ RT5 — the script's declared `max_*_count`s (the run's object store).
     objectCaps: objectCaps || {},
+    // ⭐⭐ S1 — the strategy declaration the broker runs with (`runtime/broker.js`),
+    // or null for every program that runs no broker.
+    broker: broker || null,
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -524,6 +531,15 @@ export function validateIr(p) {
       // `args` is POSITIONAL on the op's canonical parameter list, with `null`
       // where the script passed nothing (the default applies) — a different fact
       // from an `na` it passed, which arrives as an expression.
+      case EXPR.BROKER:
+        if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a broker op carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: a broker op carries an args array`)
+        // W9-T7-F1: 'string', a trade's order id / comment (`broker.js::BROKER_OPS`)
+        if (!['void', 'number', 'string'].includes(e.returns)) {
+          throw new IrError(`${where}: \`${e.fn}\` declares what it returns`)
+        }
+        e.args.forEach((x, i) => { if (x !== null) walkExpr(x, `${where}.${e.fn}[${i}]`) })
+        return
       case EXPR.OBJECT_OP:
         if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a drawing op carries a name`)
         if (!Array.isArray(e.args)) throw new IrError(`${where}: a drawing op carries an args array`)
@@ -596,6 +612,9 @@ export function validateIr(p) {
             if (!Number.isInteger(s[k]) || s[k] < 0 || s[k] >= nSlots) {
               throw new IrError(`${at}: for.${k} ${s[k]} outside ${nSlots} slots`)
             }
+          }
+          if (s.live !== undefined && s.live !== true) {
+            throw new IrError(`${at}: for.live is either absent or true`)
           }
           walkExpr(s.from, `${at}.from`)
           walkExpr(s.to, `${at}.to`)
@@ -816,6 +835,10 @@ export const arrayCall = (fn, args, typeArg = null) => (
  *  script did not pass, `returns` what it leaves on the stack. */
 export const objectCall = (fn, args, returns) => (
   { kind: EXPR.OBJECT_OP, fn, args, returns })
+/** ⭐⭐ S1 — a broker operation (`runtime/broker.js::BROKER_OPS`): `args` positional
+ *  with `null` for a parameter the script did not pass. */
+export const brokerCall = (fn, args, returns) => (
+  { kind: EXPR.BROKER, fn, args, returns })
 /** `Foo.new(…)` — one instance of a user-defined type.
  *
  *  ⛔ `fields` IS IN DECLARATION ORDER AND `args` MATCHES IT POSITION FOR
@@ -915,9 +938,14 @@ export const fieldSet = (of, name, value) => (
  *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.
  *  Pine does not re-read them per iteration, and a runtime that did would
  *  make a body that grows the array it walks into a loop that never ends.
- *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
-export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
-  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+ *  `toSlot` and `stepSlot` are where those once-evaluated values live.
+ *
+ *  ⭐⭐ W6-T6 — `live: true` is a `for … in` walk (`forInRule.js`): `from` is 0, `step` is 1,
+ *  and `to` is the walked list's LENGTH, an EXCLUSIVE bound RE-READ before every pass (C48,
+ *  `vw-forin-collections` F03 / F04: a body that shifts or pushes changes the pass count). It
+ *  never counts down: an empty list runs no pass. */
+export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body, live = false }) => (
+  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body, ...(live ? { live: true } : {}) })
 /** `while test` — C18.
  *
  *  ⭐⭐ THE TEST IS RE-EVALUATED BEFORE EVERY PASS, and that is the whole
