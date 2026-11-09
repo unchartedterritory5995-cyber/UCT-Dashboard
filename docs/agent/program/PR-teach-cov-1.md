@@ -34,8 +34,14 @@ Base: `agent/pl/teach-ship-5-runner` @ `eddf82a426` (its head, with its PR doc).
 - **New `scan` given:** a Scanner widget with a preset scan open (its own `opts.scanKey`), with results on the scan's own route.
 - **`cases.inventory.json`:** regenerated, 255 → 263.
 
-## Found, not changed
-- **C3-120 "Send a scan to Journal".** The scan's Journal buttons are behind the Wave R capture release flag (`captureEnabled()`, off by default), so with a scan open the walkthrough shows its "Pick a scan first" sentence. That sentence is wrong while the flag is off. This is an owner/product call: either teach it only when the flag is on, or reword the fallback.
+## C3-120 "Send a scan to Journal" (Lead ruling, `15f1235016`)
+- **Why:** the scan's Journal buttons are behind the Wave R capture release switch (`captureEnabled()`, off by default). The guide used to say "Pick a scan first" for a button no member could see.
+- **Now:** `guide/releases.js` reads the same accessor when the walkthrough starts.
+  - OFF: nothing is rung, and the member is told it isn't available yet.
+  - ON: the walkthrough runs as designed.
+- **Rail:** `agentGuideRelease.test.jsx` covers both states and an accessor that throws.
+- **Browser:** both states checked in single runs.
+- **Status:** C3-120 stays unVERIFIED while the switch is off, which is the truthful state.
 
 ## Touches deixis / useAgent / runtime / host
 No.
