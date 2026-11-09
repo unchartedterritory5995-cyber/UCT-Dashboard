@@ -1960,6 +1960,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         : `Stopped at ${rest[0]}: ${why}. ${rest.length > 1 ? `Nothing after it was started: ${rest.slice(1).join(', ')}.` : ''}`.trim()
       push({ role: 'agent', text })
       record({ member, outcome: text, outcomeData: { kind: 'compound-stopped', step: i, of: steps.length }, telemetry: { path: 'fast', refused: true, voice } })
+      // round 8: what the stopped request DID is one Undo too ("undo" takes back every step that ran)
+      groupFresh(idsAtStart)
     }
     let prevIds = null                        // the Undo entries the step before committed (null = no step yet)
     for (let i = 0; i < steps.length; i++) {
@@ -2024,7 +2026,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
     // ⭐ NLM-1 D2 (dark): every step of ONE request is ONE Undo group — "undo" takes the whole request back, newest first
     // (doUndo's group path: each entry's own exact Undo and checks). Off: each step keeps its own entry, as before.
-    if (routingV2Active()) groupFresh(idsAtStart)
+    // round 8 (owner): on BOTH routings — Undo of a multi-step request takes the whole sequence back
+    groupFresh(idsAtStart)
     return { done: true }
   }, [host, execute, push, record, doUndo, doUndoOne, undoIds])
   runCompoundRef.current = runCompound
@@ -2300,11 +2303,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) { mark('fast:flow-widget-to-model'); fast = null }
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
       // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
+      // round 8: a ticker an instant op TAKES ("set this chart to QQQ") is its argument, not a chart the sentence names
+      const argSyms = fast?.kind === 'ops' ? [...new Set(fast.ops.flatMap(o => [o?.args?.symbol, ...(o?.args?.symbols || []), ...(o?.args?.add || [])]).filter(x => typeof x === 'string' && /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(x)).map(x => x.toUpperCase()))] : []
+      const chartWords = argSyms.length ? text.replace(new RegExp(`\\$?\\b(?:${argSyms.map(x => x.replace(/[.]/g, '\\.')).join('|')})\\b`, 'gi'), ' ') : text
       if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
-        && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
+        && clausesNameDifferentCharts(chartWords, host)) { mark('fast:clauses-to-model'); fast = null }
       // …and ONE instant op for a sentence whose clauses name two charts ("log scale on it and on the TSLA chart") leaves one out
       if (fast?.kind === 'ops' && fast.ops.length === 1 && getCapability(fast.ops[0]?.action)?.target === 'chart') {
-        const named = clauseCharts(text, host)
+        const named = clauseCharts(chartWords, host)
         if (named.size > 1) { mark('fast:clauses-to-model'); fast = null }
       }
       if (fast?.kind === 'say') {
@@ -2396,6 +2402,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (fast.target?.chart) list = list.filter(s => chartRefOf(getTargetKind(k), s) === fast.target.chart)
           if (fast.target?.ask) list = []
           if (list.length === 1) pick[k] = list[0].ref
+        }
+        // round 8: several kinds of change for ONE chart ("set this chart to QQQ and hourly, then add RSI") on a board of several:
+        // the chart is resolved once, as a one-kind command resolves it (the click for "this", the conversation's chart, a
+        // description), and each kind takes THAT chart's entry. No single chart: as before (the model plans it).
+        if (!fast.target && kindsOf(fastOps).some(k => !pick[k])) {
+          const ck = getTargetKind('chart')
+          const cl = ck ? ck.list(host) || [] : []
+          const d = cl.length > 1 ? resolveDeictic({ host, kind: ck, candidates: cl, text, chartOp: true }) : null
+          if (d?.ref) for (const k of kindsOf(fastOps)) {
+            if (pick[k]) continue
+            const hit = (getTargetKind(k)?.list(host) || []).filter(x => chartRefOf(getTargetKind(k), x) === d.ref || x.ref === d.ref)
+            if (hit.length === 1) pick[k] = hit[0].ref
+          }
         }
         if (fastOps.every(o => o.target || pick[getCapability(o.action)?.target])) {
           const ops = fastOps.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
