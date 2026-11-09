@@ -206,3 +206,12 @@ and A1 ("A is good").
 - E58. No new buys outside regular trading hours. ("58, that is fine.")
 - E59. Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics. ("59 yes
   and other statistics.")
+
+**F. Fifth round (2026-11-09)**
+- F60. Margin (up to 200%, B24) is used only in a Green market. ("60, yes.")
+- F61. No hedge rule: an inverse ETF against your longs is not ruled out. ("61, no")
+- F62. The stop sits a few cents under the day's low, not exactly on it. ("62, yes.")
+- F63. If a stock opens above a trim level (3R, 5R), take that trim at the open. ("63 yes")
+- F64. Each day, a focus list of the 5 to 10 best setups; the rest are ignored. ("64 yes.")
+- F65. The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and
+  fewer; Orange, only A+ setups; Red, mostly cash and shorts. ("65 yes.")
