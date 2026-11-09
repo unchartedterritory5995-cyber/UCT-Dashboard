@@ -103,5 +103,14 @@ export function lastShownGuide(now = Date.now()) {
 }
 export function forgetLastShown() { lastShown = null }
 
+// A walkthrough the Agent OFFERED ("Want me to show you?"): { feature, detail, chartRef, at }. The member's very next
+// message spends it (a yes starts it; anything else drops it) — it never outlives one turn, nor OFFER_TTL_MS.
+export const OFFER_TTL_MS = 5 * 60 * 1000
+let offer = null
+export function offerGuide(feature, { detail = '', chartRef = null, now = Date.now() } = {}) { offer = feature ? { feature, detail, chartRef, at: now } : null }
+export function peekGuideOffer(now = Date.now()) { return offer && now - offer.at <= OFFER_TTL_MS ? offer : null }
+/** The offer, spent: returned once (while recent), then gone. */
+export function takeGuideOffer(now = Date.now()) { const o = peekGuideOffer(now); offer = null; return o }
+
 /** Rails only. */
-export function _resetGuide() { clearTimeout(noticeTimer); state = null; ended = null; lastShown = null; notice = null; snap = { state: null, notice: null }; subs.clear(); doers.clear() }
+export function _resetGuide() { clearTimeout(noticeTimer); state = null; ended = null; lastShown = null; offer = null; notice = null; snap = { state: null, notice: null }; subs.clear(); doers.clear() }

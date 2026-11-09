@@ -14,7 +14,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, getTargetKind } from '../capabilities'
 import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
-import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
+import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState, takeGuideOffer } from '../guide/guideStore'
 import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
 import { readControl, askWhich } from '../guide/controls'
@@ -81,6 +81,16 @@ export function showFeature(f, host, words = '') {
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
   const note = asked?.note ? `${asked.note} ` : ''
   return `${note}I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your ${chart || surfaceOf(f) === 'charts' ? 'board' : 'page'} has changed.${already}`
+}
+
+// C1-025: the member's answer to a walkthrough the Agent offered ("Want me to show you?")
+const OFFER_YES = /^(?:(?:yes|yeah|yep|yup|sure|ok(?:ay)?|please|go ahead|go on|sounds good)(?:[,!.]?\s*(?:please|thanks|thank you|do|show me))*|(?:please\s+)?show me(?:\s+(?:how|please|then))*)[.!]*$/i
+/** The next message after an offered walkthrough → { say } when it is a yes (the walkthrough, started), else null. The offer
+ *  is spent either way: a "no", or any other request, drops it. Starting it changes nothing on the board. */
+export function acceptGuideOffer(text, host) {
+  const o = takeGuideOffer()
+  if (!o || !OFFER_YES.test(String(text || '').trim())) return null
+  return { say: showFeature(guideFeature(o.feature), host, o.detail) }
 }
 
 /**

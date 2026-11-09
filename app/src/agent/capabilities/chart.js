@@ -708,8 +708,10 @@ const CAPABILITIES = [
         if (!st.view) return 'This chart is still loading. Try again in a moment.'
         // a dragged LOG scale cannot be put back exactly (LWC reads it as prices, writes it as logs), so no inexact Undo: refused
         const ps = st.view.priceScale
+        // (owner decision) …with the on-screen walkthrough offered: a yes shows where, and never claims the reset happened
         return ps?.log && ps.auto === false && st.view.priceAuto !== true
-          ? "This chart is on a log scale with a dragged price axis, and I couldn't put that exact axis back afterwards, so I left it as it is. Double-click the price axis to put it back on auto yourself."
+          ? { reason: "This chart is on a log scale with a dragged price axis, and I couldn't put that exact axis back afterwards, so I left it as it is.",
+            offer: 'Want me to show you? Double-click the price axis to reset it.', guide: { feature: 'chartView', detail: 'reset the price scale' } }
           : null
       }
       if (!SCALE_LABEL[scale]) return `“${scale}” is not a price scale.`

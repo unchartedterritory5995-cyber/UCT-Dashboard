@@ -152,7 +152,8 @@ export function planOps(targets, opsIn, env = {}, ctx = null) {
       // `copy`: the member's own words asked for ANOTHER one (a capability's screen) — never the model's
       const oenv = op.trusted || op.explicit || op.copy ? { ...opEnv, ...(op.trusted ? { trusted: true } : {}), ...(op.explicit === true ? { explicit: true } : {}), ...(op.copy === true ? { copy: true } : {}) } : opEnv
       const why = cap.check(st, op.args, oenv)
-      if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
+      // a check may refuse with a walkthrough to offer: { reason, offer, guide } (the runtime offers it; nothing else reads it)
+      if (why) { refusals.push({ index, action: op.action, target: ref, ...(typeof why === 'object' ? why : { reason: why }) }); continue }
       if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
       const next = cap.apply(st, op.args, oenv)
       // hotfix 2026-11-03 (live T1: "Already Daily · Already Daily" for two charts that did not exist yet): a NEW target's

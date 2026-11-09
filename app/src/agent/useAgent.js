@@ -52,7 +52,8 @@ import { nlm1Rewrite, createReferents } from './nlm1/followups'   // NLM-1 D2/D3
 import { planCreatedReference } from './nlm1/plans'                 // NLM-1 D2 (same two keys), on Track A's bindCreated
 import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupOps'   // NLM-1 D2/D3.1 (same two keys)
 import { isStepPlan, prepareStepPlan, snapshotInstances, resolveResultRefs, readBackStepPlan } from './nlm1/stepPlans'   // NLM-1 step plans (same two keys)
-import { doItForMe } from './capabilities/guide'
+import { doItForMe, acceptGuideOffer } from './capabilities/guide'
+import { offerGuide } from './guide/guideStore'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
@@ -1216,7 +1217,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
         return
       }
-      const text = refusalText(plan.refusals)
+      // C1-025: a refusal that offers a walkthrough says so, and the member's next message may take it
+      const offered = plan.refusals.find(r => r.guide && r.offer)
+      const text = `${refusalText(plan.refusals)}${offered ? ` ${offered.offer}` : ''}`
+      if (offered) offerGuide(offered.guide.feature, { detail: offered.guide.detail, chartRef: offered.target })
       refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
       return
@@ -2245,6 +2249,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ PHASE 2 — DO IT FOR ME: "now do it for me" right after a walkthrough runs that feature's EXISTING capability
       // on the chart it showed (agent/capabilities/guide.doItForMe) — asked first when a value is needed (which
       // timeframe?), then planned, checked, receipted and undoable like any other request. Never with a proposal waiting.
+      // C1-025: the answer to a walkthrough the Agent offered — a yes starts it (nothing changes); anything else drops the offer
+      const tookOffer = acceptGuideOffer(text, host)
+      if (tookOffer?.say && !answering && !memRef && !pendingRef.current) {
+        push({ role: 'agent', text: tookOffer.say })
+        record({ member: text, outcome: tookOffer.say, outcomeData: { kind: 'guide-offer-shown' }, telemetry: { path: 'fast', disposition: 'answer', voice } })
+        return
+      }
       const guideDo = answering || memRef || pendingRef.current ? null : doItForMe(text, host)
       if (guideDo?.say) {
         push({ role: 'agent', text: guideDo.say })
