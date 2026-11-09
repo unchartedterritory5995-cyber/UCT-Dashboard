@@ -152,6 +152,9 @@ try {
   for (let n = 0, waits = 0; n < 16; n++) {
     const s = await p.b.evaluate(STATE)
     if (s?.stale) { rec.why = 'HARNESS: the page’s guide module is not the runner’s (Vite hot-reloaded it): restart Vite and run again'; rec.harness = true; break }
+    // the walkthrough finished itself on the member's press of a ringed control (its own `done`: a widget added where the board
+    // had room, so the optional Place step never came): the last control was reached and pressed, which is a pass
+    if (!s && rec.steps.length && rec.steps.at(-1).onPrimary && await p.b.evaluate(`(async () => { const G = await import('/src/agent/guide/guideStore.js'); return G.guideEnded?.()?.reason === 'done' })()`)) { rec.pass = true; rec.note = 'ended done on the press of its ringed control'; break }
     if (!s) { const said = await p.b.evaluate(`document.querySelector('[data-testid="guide-notice"]')?.textContent || ''`); rec.why = rec.steps.length ? `the walkthrough ended before its last step${said ? `: ${said}` : ''}` : `no walkthrough: ${(await p.last()).slice(0, 160)}`; break }
     rec.steps.push({ i: s.index, text: s.text, onPrimary: s.onPrimary, pr: s.pr, rr: s.rr })
     if (s.last) {
