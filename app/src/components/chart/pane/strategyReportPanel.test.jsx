@@ -251,7 +251,8 @@ describe('W9-T13b no guard id reaches the DOM', () => {
 
   it('memberSentence strips a quoted guard id and changes nothing else', () => {
     expect(memberSentence('it stopped (runtime:strategy-unpinned).')).toBe('it stopped.')
-    expect(memberSentence('refused pine:strategy-call here')).toBe('refused here')
+    // r3: a bare id is left in place (its composer's to fix); only quoted ids are removed
+    expect(memberSentence('refused (pine:strategy-call) here')).toBe('refused here')
     const plain = FIXTURES.allServed.metrics.maxDrawdown.sentence
     expect(memberSentence(plain)).toBe(plain)
     expect(memberSentence(START_SENTENCE)).toBe(START_SENTENCE)
@@ -264,22 +265,19 @@ describe('W9-T13b no guard id reaches the DOM', () => {
     }
   })
 
-  // ⏳ PENDING-ON-r3 of fix/pine-disclosure-no-guard-ids. The review's three probes, with the clean output the
-  // panel needs. memberCopy.js is that lane's file and is being fixed there (coordinator, 2026-11-08), so
-  // these are `it.fails` against today's helper: each goes RED the day r3 makes it pass, and is then turned
-  // into a plain `it` in the commit that merges r3. The wording of the clean output is r3's to settle; what
-  // these hold is "no hole, no unbalanced bracket".
+  // The review's three probes, against the shared helper at r3 (fix/pine-disclosure-no-guard-ids be3d512b38).
+  // r3 strips QUOTED ids only, keeping brackets balanced; a BARE id is left in place by design ("that
+  // sentence is its composer's to fix"), so no subject or noun is ever eaten. The report's own sentences
+  // carry no bare id (rail: w9T13aBrokerReport "plain words"), so none reaches this panel's DOM.
   const balanced = (out) => (out.match(/\(/g) || []).length === (out.match(/\)/g) || []).length
-  it.fails('PENDING-ON-r3: "(capture row Q-S1a, runtime:strategy-unsettled)." keeps its bracket balanced, no dangling comma', () => {
+  it('r3 probe 1: an id inside a parenthetical goes, the bracket stays balanced, no dangling comma', () => {
     const out = memberSentence('(capture row Q-S1a, runtime:strategy-unsettled).')
-    expect(balanced(out), out).toBe(true)
-    expect(out, out).not.toMatch(/,\s*[.)]/)
+    expect(out).toBe('(capture row Q-S1a).')
+    expect(balanced(out)).toBe(true)
   })
-  it.fails('PENDING-ON-r3: "pine:strategy-call stops this." keeps a subject', () => {
-    expect(memberSentence('pine:strategy-call stops this.')).not.toMatch(/^stops this\.$/)
-  })
-  it.fails('PENDING-ON-r3: "Use the runtime:limit (budget) guard." leaves no empty-looking bracketed hole', () => {
-    expect(memberSentence('Use the runtime:limit (budget) guard.')).not.toBe('Use the (budget) guard.')
+  it('r3 probes 2 and 3: a bare id is left whole (no hole where the subject or noun was)', () => {
+    expect(memberSentence('pine:strategy-call stops this.')).toBe('pine:strategy-call stops this.')
+    expect(memberSentence('Use the runtime:limit (budget) guard.')).toBe('Use the runtime:limit (budget) guard.')
   })
 })
 
