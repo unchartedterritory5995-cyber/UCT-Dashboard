@@ -236,7 +236,9 @@ describe('GO bar: atomic steps, an exact receipt, the premise, Undo, bounds', ()
     const done = steps.slice(0, k)
     expect(out).toContain(`Done ${done.length} of ${steps.length} steps (${done.map(t => `“${t}” on Chart (c0)`).join('; ')}), then stopped at “${steps[k]}”`)
     expect(out).toContain(`Not done: ${steps.slice(k).map(t => `“${t}”`).join(', ')}.`)
-    expect(out).not.toMatch(/All d+ steps done/)
+    const FULL = /All \d+ steps done/
+    expect(() => expect('All 3 steps done.').not.toMatch(FULL), 'non-vacuity: the guard fails on a full-success receipt').toThrow()
+    expect(out).not.toMatch(FULL)
     expect(p.turns(), 'no model call re-plans it').toBe(0)
   }, 60000)
   it('(5) bounded: past the wall-clock cap no further step starts; 0 model calls for a multi-step request', async () => {
