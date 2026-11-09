@@ -222,5 +222,5 @@ and A1 ("A is good").
   the first ones work (the account's number of positions, not adds to one trade, A5). ("yes to all of those")
 - F69. Small accounts hold fewer positions, about 3 to 5, so each is big enough to manage. ("yes to all of those")
 
-**The account rulebook is complete as of 2026-11-09** (65 rules: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
+**The account rulebook is complete as of 2026-11-09** (71 rules: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
 F60-F69). The setup plans (TRADE_PLANS.md) are reviewed next, when the owner says so.
