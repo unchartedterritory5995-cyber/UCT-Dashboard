@@ -278,17 +278,26 @@ export function makeBroker(cfg, data) {
    * HYPOTHESES (W9-K4 grades them): slippage counts whole ticks from an on-grid price; a reversal's one order
    * closes and opens at the one slipped price; a slipped price may lie outside the bar (the manual above).
    */
+  /** the decimals a tick is written with (0.01 -> 2, 0.3 -> 1, 5 -> 0, 1/64 -> 6, 1e-7 -> 7), at most 15 */
+  const tickDecimals = (t) => {
+    const [mant, exp] = String(t).split('e')
+    const frac = (mant.split('.')[1] || '').length
+    return Math.min(15, Math.max(0, frac - (exp ? Number(exp) : 0)))
+  }
   const slipped = (price, side) => {
     if (!slipTicks) return price
     rule('B-SLIPPAGE')
     costAtTick(`a slippage of ${slipTicks} ticks`)
     needSymbol()
-    const inv = Math.round(1 / mintick)
-    if (!(onTick(price) && Math.abs(inv * mintick - 1) < 1e-12)) {
+    // r2: the grid test is k = round(price / mintick) within a RELATIVE tolerance, so a tick that does not
+    // divide 1 (5, 10, 0.3) is a grid like any other; the result steps k by the slippage, and is written at the
+    // tick's own decimals (0.3 x 336 reads 100.8, not 100.80000000000001)
+    const k = Math.round(price / mintick)
+    if (!(Math.abs(price - k * mintick) <= 1e-9 * Math.max(1, Math.abs(price)))) {
       throw new BrokerRefusal(`a market order fills at ${price}, off the tick grid of ${mintick}, under a slippage of `
         + `${slipTicks} ticks, and whether TradingView slips that price before or after rounding it is not stated`, 'W9-K4')
     }
-    return (Math.round(price / mintick) + side * slipTicks) / inv
+    return Number(((k + side * slipTicks) * mintick).toFixed(tickDecimals(mintick)))
   }
   /** ⛔ a STOP or LIMIT fill under a slippage: refused by name (see `slipped`) */
   const noPriceOrderSlippage = (what, kind) => {

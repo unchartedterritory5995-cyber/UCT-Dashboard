@@ -63,3 +63,15 @@ and dies in `w9BrokerIntegration.test.js`'s N7 rail, so that file is in the run.
   d1a6cb9fb3, which this branch does not carry, so the dependency is noted in `brokerRules.js` and the spec.
 - **Mutants:** 35 of 35 killed. M32 to M35 are new: the limit refusal, the take-profit refusal, the off-grid
   refusal, and the percent fee without pointvalue.
+
+## r2 (review GO-WITH-NOTES @afbe38d73a)
+
+- **The grid test under slippage.** r1 assumed 1 / mintick was a whole number, so it wrongly refused on-grid
+  fills for tick 5 (at 4200) and tick 0.3 (at 99.9). The test is now k = round(price / mintick) with
+  |price - k * mintick| <= 1e-9 * max(1, |price|). The fill steps k by the slippage and is written at the
+  tick's own decimals.
+- **Rails** (`makeBroker`, behind the test pin), long and short, for ticks 5, 10, 0.3, 0.25, 1/64, 0.00001 and
+  0.1. Tick 0.1 is there because 7 x 0.1 is not exactly 0.7 in floating point, so it checks the decimals step.
+  On-grid fills are served; price + tick / 3 refuses (W9-K4).
+- **Mutants:** 37 of 37 killed. M36 restores the r1 test; M37 drops the write at the tick's decimals.
+- Node 20: 20 focused files, 510/510. Node 24.13.1: HP-1 GREEN 166/166; service suite 139/139.

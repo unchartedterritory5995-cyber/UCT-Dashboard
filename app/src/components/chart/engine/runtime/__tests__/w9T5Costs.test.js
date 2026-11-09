@@ -244,6 +244,38 @@ describe('W9-T5 slippage (W9-K4): market fills only', () => {
   })
 })
 
+describe('W9-T5 r2: the tick grid under slippage, for ticks that do not divide 1 and for very small ones', () => {
+  // A market entry placed on bar 0 fills at bar 1's open `px`, slipped 2 ticks against the strategy (a buy up,
+  // a sell down). r1 assumed 1 / mintick was a whole number and refused tick 5 at 4200 and tick 0.3 at 99.9 as
+  // "off the grid". The grid is now k = round(px / tick) within a relative tolerance.
+  const fillAt = (tick, px, dir) => {
+    const O = [px, px]; const H = [px + 10 * tick, px + 10 * tick]; const L = [px - 10 * tick, px - 10 * tick]; const C = [px, px]
+    const cfg = { version: 5, pyramiding: 1, defaultQty: 1, qtyType: 'fixed', qtyValue: 1, initialCapital: 1e9,
+      marginLong: 0, marginShort: 0, defaulted: {}, slippage: 2 }
+    const b = makeBroker(cfg, { series: [O, H, L, C], barTimes: [at(0), at(1)], isPinned: ALL })
+    b.call('#symbol', [tick, 1], 0)
+    b.call('strategy.entry', ['L', dir, 1], 0)
+    while (b.beginBar(1)) { /* no extra executions */ }
+    return b.call('strategy.opentrades.entry_price', [0], 1)
+  }
+  for (const [tick, px, up, down] of [
+    [5, 4200, 4210, 4190], [10, 4210, 4230, 4190], [0.3, 99.9, 100.5, 99.3], [0.25, 100.25, 100.75, 99.75],
+    [1 / 64, 100 + 3 / 64, 100 + 5 / 64, 100 + 1 / 64], [0.00001, 1.23457, 1.23459, 1.23455],
+    // 7 x 0.1 and 3 x 0.1 are not 0.7 and 0.3 in binary: the price is written at the tick's decimals
+    [0.1, 0.5, 0.7, 0.3],
+  ]) {
+    it(`tick ${tick}: ${px} is on the grid; a long fills at ${up}, a short at ${down}; ${px} + tick / 3 refuses (W9-K4)`, () => {
+      expect(fillAt(tick, px, 1)).toBe(up)
+      expect(fillAt(tick, px, -1)).toBe(down)
+      let err
+      try { fillAt(tick, px + tick / 3, 1) } catch (e) { err = e }
+      expect(err && err.guard).toBe('runtime:strategy-unsettled')
+      expect(err.message).toMatch(/off the tick grid/)
+      expect(err.message).toContain('W9-K4')
+    })
+  }
+})
+
 describe('W9-T5 costs at the close under process_orders_on_close (W9-P1, B-POC-COST)', () => {
   const POC = (cost) => DECL(`process_orders_on_close = true, ${cost}`)
   it('HYPOTHESIS (W9-P1): a POC market fill takes its slippage from the close and pays its fee there', () => {
