@@ -450,7 +450,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
       ? { propose: true, note: `You said ${count} charts, and this changes ${targets.size} — check it first; nothing has changed yet.` }
       : null
   }
-  const named = chartsNamedBy(words, charts)
+  // a ticker an op TAKES as its argument ("switch to AAPL, weekly, …": the symbol it switches to) names no chart (pl-auto
+  // u8-sequences-02, inside a sequence as on the instant path)
+  const named = chartsNamedBy(withoutArgTickers(words, ops), charts)
   // a picked choice may be the chart itself or a chart-backed entry of it (`ixe:<chart>`)
   for (const r of pickedRefs || []) if (r) { named.add(r); named.add(String(r).replace(/^[a-z]+:/i, '')) }
   // ⛔ The click answers for a request that names no chart. Words that name one are not overruled by it: a plan on the clicked
@@ -463,7 +465,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // and the click is EXCLUDED: a plan on the other chart runs, a plan on the click is asked (unless "this" names it too)
   const otherOne = !answered && sel && charts.length === 2 && otherOneIsChart(words) ? charts.find(c => c.ref !== sel)?.ref || null : null
   if (otherOne) named.add(otherOne)
-  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !chartsNamedBy(`${withoutArgTickers(words, ops).replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   // conversational targeting (convTarget.js): "it" / "that one" is the conversation's chart, standing in for the click this turn
   if (sel && host?.charts?.turnTarget === sel && /\b(?:it|that one|that chart|the same chart|same one)\b/i.test(words)) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
@@ -476,6 +478,11 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   return { propose: true, note: `I wasn't sure you meant ${unnamed.map(label).join(' and ')}, so check this first — nothing has changed yet.` }
 }
 
+/** The text without the tickers the ops take as their own symbol arguments (symbol, symbols, a compare's add). */
+export function withoutArgTickers(text, ops) {
+  const syms = [...new Set((ops || []).flatMap(o => [o?.args?.symbol, ...(o?.args?.symbols || []), ...(o?.args?.add || [])]).filter(x => typeof x === 'string' && /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(x)).map(x => x.toUpperCase()))]
+  return syms.length ? String(text || '').replace(new RegExp(`\\$?\\b(?:${syms.map(x => x.replace(/[.]/g, '\\.')).join('|')})\\b`, 'gi'), ' ') : String(text || '')
+}
 /** The member's selected chart ref (live, still on this board) or null. */
 export function selectedChart(host) {
   try { return host?.charts?.selected?.() || null } catch { return null }
@@ -696,7 +703,8 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     const list = kind.list(host) || []
     const snap = list.find(s => s.ref === o.target)
     if (!snap || !chartRefOf(kind, snap) || list.length < 2) continue
-    const r = resolveDeictic({ host, kind, candidates: list, text, chartOp: true })
+    // the ticker an op takes as its argument describes no chart here (pl-auto u8-sequences-02)
+    const r = resolveDeictic({ host, kind, candidates: list, text: withoutArgTickers(text, ops), chartOp: true })
     if (r?.ask) return { ask: { ...r.ask, action: o.action } }
     // "this chart" with a chart clicked is settled: the plan goes there, no question (production 11-05: "Did you mean" the right chart).
     // ⛔ Only then: anything else in the words may be naming another chart, so a plan that disagrees is still asked about.

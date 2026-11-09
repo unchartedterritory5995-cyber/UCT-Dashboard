@@ -589,7 +589,7 @@ const CAPABILITIES = [
       // ambiguity that keeps "show volume" from ever reading as a ticker.
       const named = /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
-        || /^(?:chart|open|show|load|pull up|put|switch to|go to|(?:change|flip|switch)(?: it| this| that| the chart| this chart| my chart)? to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:chart|open|show|load|pull up|put|switch to|go to|(?:change|flip|switch|set)(?: it| this| that| the chart| this chart| my chart)? to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
         || named
       // ⛔ "change the ticker to it" / "$" aside, a pronoun is never a ticker (nl/tickers.js)
       const typed = m && raw.includes(`$${m[1]}`) ? `$${m[1]}` : m?.[1]   // "$IT" is explicitly a ticker

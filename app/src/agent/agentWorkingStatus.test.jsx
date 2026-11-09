@@ -350,7 +350,7 @@ describe('the panel header during real execution', () => {
     commitPlan.mockImplementationOnce(async () => ({ ok: false, lines: [], failed: [{ label: 'Chart', reason: 'did not take effect' }], undo: null }))
     const { send } = await mount()
     send('put the 9 and 20 ema on this chart, then make the fast one green and the slow one yellow')
-    await waitFor(() => expect(transcript()).toMatch(/Done 1 of 2 steps, then stopped/), { timeout: 8000 })
+    await waitFor(() => expect(transcript()).toMatch(/Done 1 of 2 steps \(.+\), then stopped/), { timeout: 8000 })
     await idle()
     expect(isWorking()).toBe(false)
     expect(transcript()).not.toMatch(/All 2 steps done/)

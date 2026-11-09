@@ -631,6 +631,10 @@ const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new o
 // (`read`: the panel's own step reader — the same one the run uses)
 const preUnread = (step, read) => step.kind !== 'undo' && !refersBack(step.text) && stepUnread(read(step, null))
 
+// round 8 (GO bar): a multi-step request's wall-clock cap — no step STARTS after it (a step under way finishes; nothing re-plans)
+export let COMPOUND_WALL_MS = 60000
+export const _setCompoundWallMs = (ms) => { COMPOUND_WALL_MS = ms }
+
 export default function useAgent({ host: workspaceHost, gridMode = false, surface = 'charts' }) {
   // ⭐ Multi Chart: while the grid is on screen the Agent's charts are its cells, and the hidden board is not a target
   const host = useMemo(() => (gridMode ? scopeHostToGrid(workspaceHost) : workspaceHost), [gridMode, workspaceHost])
@@ -1934,6 +1938,24 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const idsAtStart = undoRef.current.map(e => e.id)    // NLM-1 D2 (dark): the whole request's Undo entries, grouped at the end
     let working = working0
     let done = 0
+    // round 8 (GO bar): what each done step did, on which chart — the receipt names them; the run's own clock and the board it
+    // started on (a layout opened under it, or another board visit, is a changed premise: nothing after runs)
+    const doneSteps = []
+    const t0 = Date.now()
+    let board0 = epochOf(host), visit0 = visitOf(host)
+    const chartsOf = (ops) => {
+      let charts = []
+      try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+      const labels = []
+      for (const o of ops || []) {
+        const k = getTargetKind(getCapability(o?.action)?.target)
+        const snap = k?.list?.(host)?.find(x => x.ref === o.target)
+        const ref = snap ? (k.name === 'chart' ? snap.ref : snap.chartRef || k.groupOf?.(snap.ref) || null) : null
+        const c = ref ? charts.find(x => x.ref === ref) : null
+        if (c?.label && !labels.includes(c.label)) labels.push(c.label)
+      }
+      return labels
+    }
     const fallBack = async () => {
       mark('nlm1:whole-fallback', String(done))
       const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
@@ -1955,15 +1977,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     const stop = (i, why) => {
       const rest = steps.slice(i).map(s => `“${s.text}”`)
+      const did = doneSteps.map(d => `“${d.text}”${d.charts.length ? ` on ${d.charts.join(' and ')}` : ''}`).join('; ')
       const text = done
-        ? `Done ${done} of ${steps.length} steps, then stopped at ${rest[0]}: ${why}. Not done: ${rest.join(', ')}.`
+        ? `Done ${done} of ${steps.length} steps (${did}), then stopped at ${rest[0]}: ${why}. Not done: ${rest.join(', ')}.`
         : `Stopped at ${rest[0]}: ${why}. ${rest.length > 1 ? `Nothing after it was started: ${rest.slice(1).join(', ')}.` : ''}`.trim()
       push({ role: 'agent', text })
       record({ member, outcome: text, outcomeData: { kind: 'compound-stopped', step: i, of: steps.length }, telemetry: { path: 'fast', refused: true, voice } })
+      // round 8: what the stopped request DID is one Undo too ("undo" takes back every step that ran)
+      groupFresh(idsAtStart)
     }
     let prevIds = null                        // the Undo entries the step before committed (null = no step yet)
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
+      if (i > 0 && Date.now() - t0 > COMPOUND_WALL_MS) { stop(i, `the request ran past its time limit (${Math.round(COMPOUND_WALL_MS / 1000)} s), so I didn't start the rest`); return }
+      if (i > 0 && (epochOf(host) !== board0 || visitOf(host) !== visit0)) { stop(i, 'the board changed while I was working (another layout or board opened), so nothing after that ran'); return }
       // hotfix 2026-11-03: "change NVDA to weekly, then undo that" — the Undo of exactly what the step before committed,
       // through doUndo (its refusals and receipt); a first-step Undo is the ordinary Undo of the newest change
       if (step.kind === 'undo') {
@@ -2011,6 +2038,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       done += 1
+      doneSteps.push({ text: step.text, charts: chartsOf(r.ops) })
+      // a step that itself acts on the layouts ("open my … layout") moves the board ON PURPOSE: the run's starting point is
+      // re-read after it, so only a change from OUTSIDE the run is a changed premise
+      if (r.ops.some(o => getCapability(o?.action)?.target === 'layouts')) { board0 = epochOf(host); visit0 = visitOf(host) }
       prevIds = undoRef.current.map(e => e.id).filter(id => !idsBefore.includes(id))
       // review t4 M5: a grid that ADDED the charts beside others showing the same tickers ("Add 4 more") — the rest goes on the
       // NEW charts only (the charts that were already there are never the target)
@@ -2024,7 +2055,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
     // ⭐ NLM-1 D2 (dark): every step of ONE request is ONE Undo group — "undo" takes the whole request back, newest first
     // (doUndo's group path: each entry's own exact Undo and checks). Off: each step keeps its own entry, as before.
-    if (routingV2Active()) groupFresh(idsAtStart)
+    // round 8 (owner): on BOTH routings — Undo of a multi-step request takes the whole sequence back
+    groupFresh(idsAtStart)
     return { done: true }
   }, [host, execute, push, record, doUndo, doUndoOne, undoIds])
   runCompoundRef.current = runCompound
@@ -2300,11 +2332,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) { mark('fast:flow-widget-to-model'); fast = null }
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
       // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
+      // round 8: a ticker an instant op TAKES ("set this chart to QQQ") is its argument, not a chart the sentence names
+      const argSyms = fast?.kind === 'ops' ? [...new Set(fast.ops.flatMap(o => [o?.args?.symbol, ...(o?.args?.symbols || []), ...(o?.args?.add || [])]).filter(x => typeof x === 'string' && /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(x)).map(x => x.toUpperCase()))] : []
+      const chartWords = argSyms.length ? text.replace(new RegExp(`\\$?\\b(?:${argSyms.map(x => x.replace(/[.]/g, '\\.')).join('|')})\\b`, 'gi'), ' ') : text
       if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
-        && clausesNameDifferentCharts(text, host)) { mark('fast:clauses-to-model'); fast = null }
+        && clausesNameDifferentCharts(chartWords, host)) { mark('fast:clauses-to-model'); fast = null }
       // …and ONE instant op for a sentence whose clauses name two charts ("log scale on it and on the TSLA chart") leaves one out
       if (fast?.kind === 'ops' && fast.ops.length === 1 && getCapability(fast.ops[0]?.action)?.target === 'chart') {
-        const named = clauseCharts(text, host)
+        const named = clauseCharts(chartWords, host)
         if (named.size > 1) { mark('fast:clauses-to-model'); fast = null }
       }
       if (fast?.kind === 'say') {
@@ -2396,6 +2431,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (fast.target?.chart) list = list.filter(s => chartRefOf(getTargetKind(k), s) === fast.target.chart)
           if (fast.target?.ask) list = []
           if (list.length === 1) pick[k] = list[0].ref
+        }
+        // round 8: several kinds of change for ONE chart ("set this chart to QQQ and hourly, then add RSI") on a board of several:
+        // the chart is resolved once, as a one-kind command resolves it (the click for "this", the conversation's chart, a
+        // description), and each kind takes THAT chart's entry. No single chart: as before (the model plans it).
+        if (!fast.target && kindsOf(fastOps).some(k => !pick[k])) {
+          const ck = getTargetKind('chart')
+          const cl = ck ? ck.list(host) || [] : []
+          const d = cl.length > 1 ? resolveDeictic({ host, kind: ck, candidates: cl, text, chartOp: true }) : null
+          if (d?.ref) for (const k of kindsOf(fastOps)) {
+            if (pick[k]) continue
+            const hit = (getTargetKind(k)?.list(host) || []).filter(x => chartRefOf(getTargetKind(k), x) === d.ref || x.ref === d.ref)
+            if (hit.length === 1) pick[k] = hit[0].ref
+          }
         }
         if (fastOps.every(o => o.target || pick[getCapability(o.action)?.target])) {
           const ops = fastOps.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))

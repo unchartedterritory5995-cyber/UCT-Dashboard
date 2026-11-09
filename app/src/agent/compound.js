@@ -83,7 +83,19 @@ function clauseKind(text, host) {
   // Undo of exactly what the step before it committed, through doUndo; never an older change)
   if (f?.kind === 'undo' && !f.all) return 'undo'
   if (followUpShape(t)) return 'follow'
+  // round 8: "…, then add the zorkblat indicator" — an indicator the library does not have is a step of its own that cannot run:
+  // the plan keeps it, and the run stops there honestly (the steps before it done and said; it and the rest said as not done)
+  if (unknownIndicator(t)) return 'unknown'
   return null
+}
+const UNKNOWN_IND = /^(?:then\s+|and\s+)?(?:add|put|plot|load|apply|stick|throw|slap)\s+(?:an?\s+|the\s+|my\s+)?([a-z0-9][a-z0-9 .%-]{1,40}?)\s+(?:indicator|study|oscillator)(?:\s+(?:on|to)\s+(?:it|the chart|this chart|this one))?$/i
+/** The name of an indicator a clause adds that no reader knows (not in the library by id or name), else null. */
+export function unknownIndicator(text) {
+  const m = UNKNOWN_IND.exec(String(text || '').trim().replace(/[.!?]+$/, ''))
+  if (!m) return null
+  const name = m[1].trim()
+  try { if (defIdOfWords(name) || settingsOfWords(name)) return null } catch { return null }
+  return name
 }
 
 /**
@@ -239,6 +251,7 @@ export function resolveStep(step, { host, memory, epoch = null, working = null }
     }
     return { ops }
   }
+  if (step.kind === 'unknown') return { say: `I don’t have an indicator called “${unknownIndicator(t)}” in the indicator library, so I didn’t add anything for it` }
   if (step.kind === 'newLayout') return { ops: [{ action: 'layout.create', target: 'layouts', args: { name: step.name } }] }
   if (step.kind === 'openLayout') return { ops: [{ action: 'layout.open', target: 'layouts', args: { layout: step.name } }] }
   if (step.kind === 'grid') {
