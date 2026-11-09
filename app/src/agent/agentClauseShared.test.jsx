@@ -119,3 +119,27 @@ describe('held-out', () => {
     expect(r.out).toMatch(/Which chart|check this first|Click/)
   }, 40000)
 })
+
+// ⛔ AUDIT S2-A (ship-2): a bare "one" stands for the nearest noun before it. When that is a line, an alert or a level, "the one
+// below / above" relates THAT thing, not a chart: the sentence acts on the click as before (no "Which chart?"). A chart word, or no
+// noun at all, keeps the relation: with no click those still ask, never act.
+describe('AUDIT S2-A: "the one below" after a line, an alert or a level is not a chart relation', () => {
+  it.each([
+    'make this chart weekly and delete the line and the one below',
+    'make this one weekly, then move the alert to the one below',
+    'make it weekly, the level I drew and the one above are both support',
+  ])('"%s" (clicked BL): the click is weekly, no question', async (text) => {
+    const r = await run({ click: 'c2', text, plan: [['weekly', 'c2']] })
+    expect(r.out).not.toMatch(/Which chart/)
+    expect(where(r, 'weekly'), r.out).toEqual(['c2'])
+  }, 40000)
+  it.each([
+    ['make the chart above weekly', 'weekly'],
+    ['log scale on the one to the right', 'log'],
+    ['put a macd on the chart below', 'macd'],
+  ])('"%s" with NO click still asks; a plan on any chart does not land', async (text, change) => {
+    const r = await run({ click: null, text, plan: [[change, 'c0']] })
+    expect(where(r, change), r.out).toEqual([])
+    expect(r.out).toMatch(/Which chart|check this first|Click/)
+  }, 40000)
+})

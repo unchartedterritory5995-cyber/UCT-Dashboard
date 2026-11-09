@@ -168,6 +168,74 @@ describe('Theme Tracker theme sets: rename and delete, through the tracker’s o
   }, 60000)
 })
 
+// ⛔ AUDIT S1-A / S1-B / S1-C (ship-1 CHANGES REQUIRED): ONE operation on the member's sets, never a whole-list reconcile; a set
+// made between the plan and the commit survives a delete and a rename; the card and the receipt name the set the words RESOLVED
+// to; a delete offers no Undo (and "undo" never times out on it).
+describe('AUDIT S1: theme set operations are one operation each, and name what they resolved to', () => {
+  const setsNow = () => data.sets.map(x => x.name)
+  it('S1-A a set created while a delete card is open survives the Apply (the plan is stale; nothing of the new set is touched)', async () => {
+    data.sets = [{ id: 'set1', name: 'Old' }, { id: 'set2', name: 'Core' }]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    await m.say('delete my Old theme set', setOption('themeSets', 'delete:Old'))
+    expect(proposalsNow()).toHaveLength(1)
+    data.sets = [...data.sets, { id: 'set3', name: 'Growth' }]          // the member makes "Growth" while the card is open
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.map(x => x.name)).toContain('Growth'))
+    await m.apply()
+    await new Promise(r => setTimeout(r, 50))
+    expect(setsNow()).toContain('Growth')
+    expect(setsNow()).toContain('Core')
+  }, 60000)
+  it('S1-A a set created during the model call survives a rename: only the one set is renamed', async () => {
+    data.sets = [{ id: 'set1', name: 'Old' }, { id: 'set2', name: 'Core' }]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    const plan = (c) => { data.sets = [...data.sets, { id: 'set3', name: 'Growth' }]; return setOption('themeSets', 'rename:Old=>Leaders')(c) }
+    await m.say('rename my Old theme set to Leaders', plan)
+    await new Promise(r => setTimeout(r, 50))
+    expect(setsNow()).toContain('Growth')
+    expect(setsNow()).toContain('Core')
+  }, 60000)
+  it('S1-A the door write is one operation: handed { op, id, name } it touches that set only; handed a whole list it does nothing', async () => {
+    data.sets = [{ id: 'set1', name: 'Old' }, { id: 'set2', name: 'Core' }]
+    board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    mountedWidgetDoor('th').write('themeSets', [{ id: 'set2', name: 'Core' }])            // the old whole-list form: ignored
+    await new Promise(r => setTimeout(r, 30))
+    expect(setsNow()).toEqual(['Old', 'Core'])
+    mountedWidgetDoor('th').write('themeSets', { op: 'rename', id: 'set1', name: 'New' })
+    await waitFor(() => expect(setsNow()).toEqual(['New', 'Core']))
+  }, 60000)
+  it('S1-B a fragment ("mine") resolves to "Mine growth": the card and the receipt name "Mine growth"', async () => {
+    data.sets = [{ id: 'set1', name: 'Mine growth' }, { id: 'set2', name: 'Core' }]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    const card = await m.say('delete the mine set', setOption('themeSets', 'delete:mine'))
+    expect(card).toMatch(/“Mine growth”/)
+    expect(card).not.toMatch(/“mine”/)
+    await m.apply()
+    await waitFor(() => expect(setsNow()).toEqual(['Core']))
+  }, 60000)
+  it('S1-B a rename of a fragment ("leaders") names the set it resolved to in the receipt', async () => {
+    data.sets = [{ id: 'set4', name: 'Leaders 2026' }, { id: 'set2', name: 'Core' }]
+    const m2 = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.map(x => x.name)).toContain('Leaders 2026'))
+    const out = await m2.say('rename leaders to Winners', setOption('themeSets', 'rename:leaders=>Winners'))
+    expect(out).toMatch(/renamed the theme set “Leaders 2026” to “Winners”/)
+  }, 60000)
+  it('S1-C a delete offers no Undo: "undo" afterwards never times out on it, and the set stays deleted', async () => {
+    data.sets = [{ id: 'set1', name: 'Old' }, { id: 'set2', name: 'Core' }]
+    const m = board()
+    await waitFor(() => expect(mountedWidgetDoor('th')?.read?.().themeSets.length).toBe(2))
+    await m.say('delete my Old theme set', setOption('themeSets', 'delete:Old'))
+    await m.apply()
+    await waitFor(() => expect(setsNow()).toEqual(['Core']))
+    const out = await m.say('undo')
+    expect(out).not.toMatch(/did not change/)
+    expect(setsNow()).toEqual(['Core'])
+  }, 60000)
+})
+
 // round 4 (pl-exec): a theme set named by its OWN name ("rename my Mine theme set", no widget named) reaches the item control on the
 // FIRST model call: routing reads the tracker's own set names through its door (widgetNames itemNamedTypes) — no reroute.
 import { ITEM_HELD_OUT } from '../../agentExecHeldOut4.test.js'
