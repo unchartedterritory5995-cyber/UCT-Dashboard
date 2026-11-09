@@ -5,6 +5,7 @@ import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import UIcon from '../../../../components/ui/UIcon'
 import {
   fetchRecent, resolveLink, saveTweets, groupByDay, postAge, isPostLink, setPendingFocus,
+  authorInitials, avatarTint, splitCashtags,
 } from '../../lib/tweetImport'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
@@ -19,27 +20,18 @@ const LINK_WAIT_MS = 180
 const NOT_A_LINK = "That doesn't look like a link to a post on X."
 const AT_MOST = `Import at most ${MAX_POSTS} posts at a time.`
 const KINDS = [['news', 'Headlines'], ['commentary', 'Theses and takes']]
-const AVATAR_TINTS = ['#7a4cc2', '#2f7f6f', '#b5683a', '#3468a8', '#a13f62']
-
-const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
-
-function tintFor(handle) {
-  let h = 0
-  for (const c of String(handle || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0
-  return AVATAR_TINTS[h % AVATAR_TINTS.length]
-}
 
 function Avatar({ post }) {
   const [failed, setFailed] = useState(false)
   if (post.avatarUrl && !failed) {
     return <img className={styles.avatar} src={post.avatarUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
   }
-  return <span className={styles.avatar} style={{ background: tintFor(post.handle), color: '#fff' }} aria-hidden="true">{initials(post.name)}</span>
+  return <span className={styles.avatar} style={{ background: avatarTint(post.handle), color: '#fff' }} aria-hidden="true">{authorInitials(post.name)}</span>
 }
 
 /** The post's words, with its cashtags in gold. */
 function PostText({ text }) {
-  return String(text || '').split(/(\$[A-Z]{1,5}\b)/).map((part, i) => (
+  return splitCashtags(text).map((part, i) => (
     i % 2 ? <span key={i} className={styles.cash}>{part}</span> : part
   ))
 }

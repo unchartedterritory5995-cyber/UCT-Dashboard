@@ -5,6 +5,7 @@
  * open (SlashMenu reads the flag and the event), so the sheet's weight stays in
  * `components/notebook/ImportTweetSheet.jsx`, which loads on use.
  */
+import { formatCurrency, formatPercent, formatSessionDate } from '../../../lib/presentation/presentationPrimitives'
 import { notebookFlag } from './offline/notebookFlags'
 import { call } from './researchCapture'
 
@@ -39,6 +40,71 @@ export const saveTweets = ({ noteId, tweetIds }) =>
 const STATUS_LINK = /^(?:https?:\/\/)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\/[A-Za-z0-9_]{1,15}\/status(?:es)?\/\d{1,25}(?:[/?#].*)?$/i
 
 export const isPostLink = (url) => STATUS_LINK.test(String(url || '').trim())
+
+/** A stored link as a safe href: only a post on X, always absolute. Otherwise null. */
+export function postHref(url) {
+  const link = String(url || '').trim()
+  if (!isPostLink(link)) return null
+  return /^https?:\/\//i.test(link) ? link : `https://${link}`
+}
+
+const AVATAR_TINTS = ['#7a4cc2', '#2f7f6f', '#b5683a', '#3468a8', '#a13f62']
+
+export const authorInitials = (name) =>
+  String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+
+/** One author, one colour, in the sheet and on the card. */
+export function avatarTint(handle) {
+  let h = 0
+  for (const c of String(handle || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return AVATAR_TINTS[h % AVATAR_TINTS.length]
+}
+
+/** A post's words split on its cashtags: the odd indexes are the cashtags. */
+export const splitCashtags = (text) => String(text || '').split(/(\$[A-Z]{1,5}\b)/)
+
+/** My take. It lives on the excerpt row, so it moves no note revision and has none to settle. */
+export const saveTake = (excerptId, annotation) =>
+  call(`/api/j2/excerpts/${encodeURIComponent(excerptId)}`, { method: 'PATCH', body: { annotation } })
+
+export const snapshotKey = (symbol) => `/api/snapshot/${encodeURIComponent(symbol)}`
+
+/** The latest price in a `/api/snapshot/{ticker}` answer: `ext_price`, else `close`, else null. */
+export function nowPriceOf(snapshot) {
+  for (const value of [snapshot?.ext_price, snapshot?.close]) {
+    if (Number.isFinite(value) && value > 0) return value
+  }
+  return null
+}
+
+const PRICE_WORDS = { posted: 'when posted', premarket: 'premarket', after_hours: 'after hours' }
+
+function priceWords({ label, sessionDate }) {
+  if (label !== 'close') return PRICE_WORDS[label] || null
+  const day = formatSessionDate(sessionDate)
+  return day ? `close on ${day}` : 'close'
+}
+
+/**
+ * The card's price line, or null when there is no price to state. With no usable `nowPrice` only
+ * `thenText` is filled in. `tone` follows the sign printed in `pctText`.
+ */
+export function priceLineParts(price, nowPrice) {
+  const words = price && priceWords(price)
+  if (!words || !price.symbol || !(Number.isFinite(price.price) && price.price > 0)) return null
+  const thenText = `$${price.symbol} ${words} ${formatCurrency(price.price)}`
+  if (!(Number.isFinite(nowPrice) && nowPrice > 0)) {
+    return { thenText, nowText: null, pctText: null, tone: null }
+  }
+  const pct = ((nowPrice - price.price) / price.price) * 100
+  const pctText = `${formatPercent(pct, { decimals: 1, signed: true })} since`
+  return {
+    thenText,
+    nowText: `Now ${formatCurrency(nowPrice)}`,
+    pctText,
+    tone: pctText.startsWith('-') ? 'down' : 'up',
+  }
+}
 
 const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
 
