@@ -170,3 +170,20 @@ and A1 ("A is good").
   of but sometimes you have to break rule to get exposure but not recomended.") Taught: don't; if you do, journal why.
 - C37. New traders start at 0.25% risk per trade until 50 journaled trades followed the rules, then size up.
   ("37 yes")
+
+**D. Third round (2026-11-09)**
+- D38. Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down. ("38, A and B are
+  normal size, A+ are sized up, B- or lower sized down.")
+- D39. Every planned buy has its entry, stop and size written down before the market opens. ("39 yes")
+- D40. Prefer stocks with growing sales and earnings; the chart comes first. ("40, yes.")
+- D41. Every position has a real stop order with the broker, not a stop kept in your head. ("41, yes.")
+- D42. Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched. ("42, yes
+  obviously we shouldnt even watch illiquid stocks like that.")
+- D43. Recalculate the account value weekly or monthly and size every trade from it. ("43, weekly or monthly either one.")
+- D44. No setup, no trade: never force a trade to have something on; cash is a position. ("44. yes.")
+- D45. Never raise risk past the rules after a run of winners. ("45. yes.")
+- D46. In a Red market: mostly cash, plus shorts below the 200-day. ("46, yes.")
+- D47. Shorts are our long setups reversed, for almost every setup. A parabolic short's stop sits above the day's high
+  and its target is the 9-day average (Bracco's post). ("47, yes but that is parabolics. Shorts are the same just
+  reversed for almost all our setupstuff.")
+- D48. Skip a short when the stock is hard to borrow or the borrow fee is high. ("48, yes.")
