@@ -92,6 +92,9 @@ describe('negatives: a thing placed on the click itself — the click is acted o
     ['put the stochastic on the side of this chart', 'stoch'],
     ['add rsi to this one, below the price', 'rsi'],
     ['put a MACD on the selected chart under the candles', 'macd'],
+    // the preposition introduces a thing ON the click (a price, the volume), not a chart: still the click
+    ['put rsi on the price above this one', 'rsi'],
+    ['add a MACD to the volume below this one', 'macd'],
   ]
   it.each(ACT)('"%s" (2x2, BR clicked): the plan on the click runs there', async (t, defId) => {
     const m = mount(FOUR, 'BR')
