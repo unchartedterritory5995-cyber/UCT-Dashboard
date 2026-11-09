@@ -120,7 +120,10 @@ async function rightClickRegion(s) {
     await sleep(250)
     for (const type of ['mousePressed', 'mouseReleased']) await p.b.send('Input.dispatchMouseEvent', { type, x: pt.x, y: pt.y, button: 'right', clickCount: 1 })
     await sleep(450)
-    const now = await p.b.evaluate(STATE)
+    let now = await p.b.evaluate(STATE)
+    // a menu opened without the row: the guide may be saying the row is not offered here (GuideOverlay ABSENT_MS), as a
+    // person who opened the menu and waited would see. Wait for that before trying the next point
+    if (now && now.index === s.index && !now.met && await p.b.evaluate(`!!document.querySelector('[role="menu"],[data-guide$="Menu"]')`)) { await sleep(1900); now = await p.b.evaluate(STATE) }
     if (!now || now.index !== s.index || now.met) return true
     // the wrong region's menu closes, and the next candidate is tried. Escape only while a menu is open: with none, Escape is
     // the member leaving the guide (GuideOverlay's own rule)
@@ -149,7 +152,7 @@ try {
   for (let n = 0, waits = 0; n < 16; n++) {
     const s = await p.b.evaluate(STATE)
     if (s?.stale) { rec.why = 'HARNESS: the page’s guide module is not the runner’s (Vite hot-reloaded it): restart Vite and run again'; rec.harness = true; break }
-    if (!s) { rec.why = rec.steps.length ? 'the walkthrough ended before its last step' : `no walkthrough: ${(await p.last()).slice(0, 160)}`; break }
+    if (!s) { const said = await p.b.evaluate(`document.querySelector('[data-testid="guide-notice"]')?.textContent || ''`); rec.why = rec.steps.length ? `the walkthrough ended before its last step${said ? `: ${said}` : ''}` : `no walkthrough: ${(await p.last()).slice(0, 160)}`; break }
     rec.steps.push({ i: s.index, text: s.text, onPrimary: s.onPrimary, pr: s.pr, rr: s.rr })
     if (s.last) {
       // PASS: the ring is on the last step's own control (a greyed-out one too: the card then says why), never on a fallback
