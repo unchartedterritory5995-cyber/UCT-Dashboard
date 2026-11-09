@@ -460,8 +460,8 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
 
       {/* Filter strip (collapsible) */}
       {filtersOpen && !(lead === 'sentiment' && scope === 'market') && (
-        <div className={styles.filterStrip}>
-          <div className={styles.filterRow}>
+        <div className={styles.filterStrip} data-guide="flow.filterStrip">
+          <div className={styles.filterRow} data-guide="flow.filter.min">
             <span className={styles.filterLabel}>Min</span>
             {MIN_PREM_OPTS.map(o => (
               <button
@@ -473,7 +473,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
             ))}
           </div>
           <div className={styles.filterRow}>
-            <span className={styles.chipGroup}>
+            <span className={styles.chipGroup} data-guide="flow.filter.cp">
               {[{ k: 'all', l: 'All' }, { k: 'C', l: 'Calls' }, { k: 'P', l: 'Puts' }].map(o => (
                 <button key={o.k} type="button"
                   className={`${styles.chip}${filters.cp === o.k ? ' ' + styles.chipOn : ''}${o.k === 'C' ? ' ' + styles.chipUp : o.k === 'P' ? ' ' + styles.chipDown : ''}`}
@@ -481,7 +481,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
                 >{o.l}</button>
               ))}
             </span>
-            <span className={styles.chipGroup}>
+            <span className={styles.chipGroup} data-guide="flow.filter.type">
               {[{ k: 'all', l: 'Any' }, { k: 'SWEEP', l: 'Sweep' }, { k: 'BLOCK', l: 'Block' }].map(o => (
                 <button key={o.k} type="button"
                   className={`${styles.chip}${filters.type === o.k ? ' ' + styles.chipOn : ''}`}
@@ -489,7 +489,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
                 >{o.l}</button>
               ))}
             </span>
-            <span className={styles.chipGroup}>
+            <span className={styles.chipGroup} data-guide="flow.filter.dir">
               {[{ k: 'all', l: 'All' }, { k: 'BULL', l: 'Bull' }, { k: 'BEAR', l: 'Bear' }].map(o => (
                 <button key={o.k} type="button"
                   className={`${styles.chip}${filters.dir === o.k ? ' ' + styles.chipOn : ''}${o.k === 'BULL' ? ' ' + styles.chipUp : o.k === 'BEAR' ? ' ' + styles.chipDown : ''}`}
