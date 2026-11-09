@@ -62,8 +62,10 @@ describe('C1-094: resize one indicator pane', () => {
     const out = await say(t)
     if (c.refuse) {
       expect(stored(board), out).toBe(before)
-      expect(out).not.toMatch(/of the chart's height/)
       expect(out).toMatch(/didn't change anything/)
+      // ⭐ (Lead 11-09) said in the percent the member speaks in, never the stored fraction
+      if (typeof c.size === 'number') expect(out).toMatch(/between 4% and 90% of the chart's height, so 95% isn't possible/)
+      expect(out).not.toMatch(/0\.04|0\.9\b/)
       return
     }
     const now = shareOf(widget(board).opts.settings, key)

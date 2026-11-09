@@ -208,7 +208,10 @@ export function resizeRequest(st, { pane, size }) {
   if (w === 'smaller' || w === 'shorter') return { req: { op: 'setPaneSize', paneKey: p.key, share: round(base / 1.5) } }
   const n = Number(size)
   if (!Number.isFinite(n) || n <= 0) return { why: 'Say a size (a percent of the chart\'s height), bigger, smaller or automatic.' }
-  return { req: { op: 'setPaneSize', paneKey: p.key, share: n > 1 ? n / 100 : n } }
+  const share = n > 1 ? n / 100 : n
+  // the divider's own band (engine/paneSizes MIN_SHARE / MAX_SHARE), said in the percent the member speaks in
+  if (share < 0.04 || share > 0.9) return { why: `A pane can be between 4% and 90% of the chart's height, so ${Math.round(share * 100)}% isn't possible — say a size in that range, bigger, smaller or automatic.` }
+  return { req: { op: 'setPaneSize', paneKey: p.key, share } }
 }
 
 // ── copy ──
