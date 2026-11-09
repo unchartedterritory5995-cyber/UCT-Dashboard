@@ -1229,6 +1229,16 @@ _HIDDEN_NOT_A_SCREEN = re.compile(r"\b(?:where|how|what(?:'s| is| does| do| are)
                                   r"settings?|overlay|widget|turn (?:on|off)|enable|disable|bars)\b", re.I)
 
 
+def _flow_widget_ids(context) -> set:
+    """The ids of the Options Flow widgets on the board the request was sent with (context `board` entries). AUDIT S4-A."""
+    out = set()
+    for entry in (context or {}).get("board") or []:
+        for w in (entry or {}).get("widgets") or []:
+            if isinstance(w, dict) and w.get("type") == "optionsflow" and w.get("id") is not None:
+                out.add(str(w["id"]))
+    return out
+
+
 def hidden_screen_request(message: str) -> bool:
     """A screen (or a refinement) over a universe, as far as words can tell — never one stock's figure ("show me the
     composite rating for NVDA"), a question or a chart control."""
@@ -2621,7 +2631,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # widget on the board: widget.setOption on its own chips) runs no screen and reads no hidden field, so the screen-shaped
             # words alone never discard it. A plan with any screener op, or no ops at all, is gated exactly as before.
             ops_now = [o for o in env.get("ops") or [] if isinstance(o, dict)]
-            widget_only = bool(ops_now) and all(str(o.get("action") or "") == "widget.setOption" for o in ops_now)
+            # AUDIT round 2: only widget controls that carry NO hidden field — today, only the Options Flow widget's own chips
+            # (its setOption targets read no screener field). A setOption on any other widget is gated as before.
+            flow_ids = _flow_widget_ids(context)
+            widget_only = bool(ops_now) and all(str(o.get("action") or "") == "widget.setOption"
+                                                and str((o.get("args") or {}).get("widget") or "") in flow_ids for o in ops_now)
             if hidden_why and (plans_screen or (hidden_screen_request(msg) and not widget_only)):
                 usage["hidden_phrase"] = True
                 env = {**env, "disposition": "answer", "reply": f"I didn't run it: {hidden_why}", "ops": [], "question": None,

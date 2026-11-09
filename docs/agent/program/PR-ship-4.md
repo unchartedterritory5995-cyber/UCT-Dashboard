@@ -22,6 +22,15 @@ Base: ship-3 (stacked). Shared targeting core touched: `useAgent.js` (one fast-p
   on this PC (no backend, no pytest under pl-exec's rules).
 - ship-1's S1 fixes and ship-3's Notebook fix arrive through the merge from ship-3.
 
+## AUDIT round 2 — hardening
+
+- `widget_only` in `turn.py` is narrowed to plans whose every `widget.setOption` targets an **Options Flow** widget on the board
+  the request was sent with (`_flow_widget_ids(context)`): its chips carry no hidden field. A setOption on any other widget (one
+  that can be backed by a hidden screener field, e.g. a Scanner) is gated exactly as before.
+- pytest extended (owed to AUDIT / CI, not run here): a setOption on a Scanner with the same words is still refused;
+  `_flow_widget_ids` reads only Options Flow widgets.
+- ship-2's S2-B arrives through the merge.
+
 ## Full suite
 
 Suite on ca9e7e1644 (code head): 2257/2260, 3149, 2022/2023, 1839/1841 = 9267 passed, 0 failed, 6 skipped.
