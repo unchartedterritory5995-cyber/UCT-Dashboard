@@ -1223,3 +1223,9 @@ the preferences read). The budget itself is unchanged. To make room, Research Ho
 Master alone read 2,260,770 B, 23 B under the old line, so no version of this feature could pass without one or the other. The branch, merged with master at `ac26096ea8`, reads **2,264,592 B** (+3,799 B over the old line), leaving 297 B of room. That weight is the Import a tweet entry points (the button, the toolbar door and `/tweet`), the tweet card, and the guard in `lib/noteContentGuard.js` that stops a keystroke right after opening from deleting a first-block card, image or divider.
 
 ⚠️ The 297 B is thin. The next change that adds to first open should pay for itself the way Tier 1a did, by moving a member-action surface onto a lazy chunk, not by raising this line again.
+
+## Budget raised by a further 10,240 B to unblock promotion (owner's call, 2026-11-09)
+
+`notebook_first_open.max` moved from 2,264,889 B to **2,275,129 B**. Master read 2,271,183 B at `55ccee8971` against the old 2,260,793 B line, about 10 KB of growth in the entry chunk from the merges between `94505138ae` and that commit (desktop, chart pop-outs, polite reloads, bundled html2canvas). A red here refuses promotion, so no commit could reach production. With Import a tweet merged, master reads **2,274,607 B** at `2fcaa34b35`, leaving 522 B of room.
+
+The owner chose the raise over reworking that code to get the bytes back. The growth was not reviewed for what could move off first open. That review is still worth doing, and it is where the next change that adds to first open should start.
