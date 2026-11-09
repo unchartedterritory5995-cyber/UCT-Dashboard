@@ -99,6 +99,15 @@ export default function TwitterAccountsPanel() {
     mutate()
   }
 
+  async function toggleNews(handle, isNews) {
+    await fetch(`/api/admin/twitter-accounts/${handle}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content_kind: isNews ? 'news' : 'commentary' }),
+    })
+    mutate()
+  }
+
   async function removeAccount(handle) {
     if (!confirm(`Disable @${handle}?`)) return
     await fetch(`/api/admin/twitter-accounts/${handle}`, { method: 'DELETE' })
@@ -131,6 +140,7 @@ export default function TwitterAccountsPanel() {
             <tr>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }}>Handle</th>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }} title="Show in The Desk → Posts">Official</th>
+              <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }} title="Headlines filter in Notebook tweet import">News</th>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }}>Status</th>
               <th style={{ textAlign: 'left', padding: '4px 8px', opacity: 0.7 }}>Last poll</th>
               <th style={{ textAlign: 'right', padding: '4px 8px', opacity: 0.7 }}>Tweets seen</th>
@@ -160,6 +170,20 @@ export default function TwitterAccountsPanel() {
                       }}
                     >
                       {a.is_official ? '★ official' : '☆ mark'}
+                    </button>
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <button
+                      onClick={() => toggleNews(a.handle, a.content_kind !== 'news')}
+                      aria-pressed={a.content_kind === 'news'}
+                      title="News account — counted as headlines in Notebook tweet import"
+                      style={{
+                        fontSize: 11,
+                        color: a.content_kind === 'news' ? '#c9a84c' : 'var(--text-muted)',
+                        fontWeight: a.content_kind === 'news' ? 700 : 400,
+                      }}
+                    >
+                      {a.content_kind === 'news' ? 'news' : 'commentary'}
                     </button>
                   </td>
                   <td style={{ padding: '6px 8px' }}>

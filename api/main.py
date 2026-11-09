@@ -146,6 +146,8 @@ from api.routers import notebook_entry_context as notebook_entry_context_router
 # excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
 # flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
+# Import a tweet (/api/j2/research-capture/tweets/*), dark behind NOTEBOOK_TWEET_IMPORT_ENABLED.
+from api.routers import notebook_tweet_capture as notebook_tweet_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
 # always on (its flag was retired 2026-11-04).
@@ -4804,6 +4806,20 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
 
+    # Price alerts: scheduled server-side evaluation, so an alert on a symbol no
+    # client is polling still fires. The thread always starts and sleeps; every
+    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off) from os.environ,
+    # which is fixed at process start: a Railway change takes effect only on a
+    # new boot. Stop it with `--set ...=0` (redeploys), or after a `variable
+    # delete` run `railway redeploy --service web --yes` and confirm the fresh
+    # boot from the pod.
+    try:
+        from api.services import price_alert_evaluator
+        price_alert_evaluator.start_evaluator(interval_sec=60)
+        logging.getLogger(__name__).info("[startup] price alert evaluator thread started (flag-gated)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] price alert evaluator failed to start")
+
     # Awareness Engine (M1): durable regime-label ledger. Cheap + idempotent;
     # initialized unconditionally (like indicator_alert_service) so local
     # dev/tests never need AWARENESS_ENGINE_ENABLED=1 just to read/write it.
@@ -8151,6 +8167,13 @@ async def lifespan(app: FastAPI):
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
+            # returns at once while NOTEBOOK_TWEET_IMPORT_ENABLED is off (read per run).
+            from api.services.journal_two import tweet_capture_sync as _tw_capture_sync
+            _scheduler.add_job(_tw_capture_sync.run_sweep, trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
+                               id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+                               id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
         # -- The Desk -> Substack articles poller -------------------------------
@@ -10387,6 +10410,36 @@ def _process_rss_mb():
     return None
 
 
+_BUILD_ID_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def _bundle_build_id() -> str:
+    """The SPA entry bundle path (e.g. ``assets/index-abc123.js``), read once.
+
+    Source: the ``isEntry`` row for ``index.html`` in ``<DIST>/.vite/manifest.json``
+    (``DIST`` is the same ``app/dist`` the SPA catch-all serves index.html from).
+    Normalised to no leading slash so it equals ``getClientBuildId`` on the page.
+    Railway's healthcheck calls this: it caches the first answer, and returns ""
+    on ANY failure -- it must never raise.
+    """
+    global _BUILD_ID_CACHE
+    cached = _BUILD_ID_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        import json as _json
+
+        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
+            row = _json.load(f).get("index.html")
+        if isinstance(row, dict) and row.get("isEntry") and isinstance(row.get("file"), str):
+            result = row["file"].lstrip("/")
+    except Exception:
+        result = ""
+    _BUILD_ID_CACHE = result
+    return result
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -10399,6 +10452,8 @@ def health():
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
+        # Bundle identity for the "new version available" watcher.
+        "build_id": _bundle_build_id(),
     }
 
 
@@ -10652,6 +10707,10 @@ if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
 # unset = off = nobody), before the plan gate and before any read. No flag of its own.
 from api.routers import pine_strategy_backtest as pine_strategy_backtest_router
 app.include_router(pine_strategy_backtest_router.router)
+# W9-T11-F1 -- the chart lane's strategy window (design 3.4 "The chart", section 9 item 6): a
+# signed-in read of `bars_window.HISTORY_WINDOW_BARS`. Asked only by a build with the broker gate on.
+from api.routers import pine_history_window as pine_history_window_router
+app.include_router(pine_history_window_router.router)
 # RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
 # 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
 # (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
@@ -10792,6 +10851,7 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
+app.include_router(notebook_tweet_capture_router.tweets_router)
 
 # Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.

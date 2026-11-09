@@ -21,9 +21,17 @@ const hits = (a, b) => !!a && !!b && a.left < b.left + b.width && a.left + a.wid
 /** Where the card goes: below the control if it fits, else above, else beside it, always inside the window and ⛔ NEVER on
  *  top of the control. `avoid`: boxes to stay off when there is room (the menu or window the control sits in, so the
  *  member can see what they are working in). `cardH` is measured by the overlay once the card has rendered. */
-export function placeCard(rect, { vw, vh, cardH = 140, cardW = CARD_W, margin = 12, avoid = [] } = {}) {
+// `pointer`: a box around where the member's pointer is. The card never lands under it: a hover menu (Layouts ▾) closes the
+// moment the pointer is over something outside it, and a card that moved under the pointer would close it (pl-teach round 4)
+export function placeCard(rect, { vw, vh, cardH = 140, cardW = CARD_W, margin = 12, avoid = [], pointer = null } = {}) {
   const w = Math.min(cardW, vw - margin * 2)
-  if (!rect) return { top: margin, left: margin, width: w }
+  // no control found yet ("Looking for it…"): a corner, never the one under the pointer
+  if (!rect) {
+    const box0 = (t, l) => ({ top: t, left: l, width: w, height: cardH })
+    const corners = [[margin, margin], [margin, vw - margin - w], [vh - cardH - margin, vw - margin - w], [vh - cardH - margin, margin]]
+    const [t, l] = corners.find(([t, l]) => !pointer || !hits(box0(t, l), pointer)) || corners[0]
+    return { top: Math.round(t), left: Math.round(l), width: w }
+  }
   const clampL = (l) => Math.max(margin, Math.min(l, vw - margin - w))
   const clampT = (t) => Math.max(margin, Math.min(t, vh - cardH - margin))
   const spots = [
@@ -38,13 +46,13 @@ export function placeCard(rect, { vw, vh, cardH = 140, cardW = CARD_W, margin = 
     spots.push({ top: clampT(rect.top), left: b.left - GAP - w, fits: b.left - GAP - w >= margin })
     spots.push({ top: b.top + b.height + GAP, left: clampL(rect.left), fits: b.top + b.height + GAP + cardH <= vh - margin })
   }
-  const fitting = spots.filter(s => s.fits)
   const box = (s) => ({ top: s.top, left: s.left, width: w, height: cardH })
+  const fitting = spots.filter(s => s.fits && (!pointer || !hits(box(s), pointer)))
   const best = fitting.find(s => !avoid.some(b => hits(box(s), b)) && !hits(box(s), rect))
     || fitting.find(s => !hits(box(s), rect))
     // nothing fits beside it (a very small window): the corner furthest from the control, still off it where that is possible
     || [{ top: margin, left: margin }, { top: margin, left: vw - margin - w }, { top: vh - cardH - margin, left: margin }, { top: vh - cardH - margin, left: vw - margin - w }]
-      .find(s => !hits(box(s), rect))
+      .find(s => !hits(box(s), rect) && (!pointer || !hits(box(s), pointer)))
     || { top: margin, left: margin }
   return { top: Math.round(best.top), left: Math.round(best.left), width: w }
 }

@@ -28,6 +28,7 @@ import {
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
 } from '../engine/runtime/brokerReport.js'
 import { strategyRecordOf } from '../engine/runtime/strategyRecord.js'
+import { orderLogFor } from '../engine/runtime/__tests__/orderLogFixture.js'
 import { UNPINNED_GUARD } from '../engine/runtime/brokerRules.js'
 import { BROKER_UNSETTLED_GUARD, BROKER_START_GUARD } from '../engine/runtime/broker.js'
 import { setStrategyRecord, resetStrategyRecords } from '../engine/strategyReportNotice'
@@ -46,7 +47,7 @@ const tr = (id, dir, qty, e, x, exact = true) => ({
   ...(x ? { exit: { time: at(x[0]), price: x[1], rule: 'B-CLOSE' } } : {}),
 })
 const recordOf = (trades, { fromListing = false } = {}) => strategyRecordOf({
-  summary: { record: { trades, rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
+  summary: { record: { trades, orders: orderLogFor(trades), rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
   decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 1, fromListing, defaulted: {} },
   barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true,
 })
@@ -148,7 +149,7 @@ describe('W9-T13b the panel renders the report exactly', () => {
     // the trade list serves (its fills' rules are pinned); each closed profit carries its refusal
     clickTab('List of trades')
     const row1 = screen.getByTestId('strategy-report-trade-1')
-    expect(row1.querySelectorAll('td')[6].textContent).toBe(FIXTURES.mixed.trades.rows[0].profit.sentence)
+    expect(row1.querySelectorAll('td')[8].textContent).toBe(FIXTURES.mixed.trades.rows[0].profit.sentence)
     expect(FIXTURES.mixed.trades.rows[0].profit.sentence).toMatch(/^Trade 1's profit is not shown: /)
   })
 
@@ -158,13 +159,18 @@ describe('W9-T13b the panel renders the report exactly', () => {
     const table = screen.getByTestId('strategy-report-trades')
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 5)
     const cells = (n) => [...screen.getByTestId(`strategy-report-trade-${n}`).children].map((c) => c.textContent)
-    expect(cells(1)).toEqual(['1', 'Long', '2', '2024-03-22 13:30', '10.00', '2024-03-24 13:30', '13.00', '6.00'])
-    expect(cells(2)).toEqual(['2', 'Short', '1', '2024-03-25 13:30', '20.00', '2024-03-27 13:30', '25.00', '-5.00'])
-    expect(cells(5).slice(0, 7)).toEqual(['5', 'Long', '1', '2024-04-03 13:30', '30.00', 'Open', ''])
-    expect(cells(5)[7]).toBe("This open trade's profit is not shown: it is its profit at the last bar's close, "
+    // W9-T7-F1: each fill's signal (its order's comment, else its id); these fixtures close by strategy.close
+    // without a comment, an exit TradingView names itself, so the exit signal says why it is not shown
+    const unnamed = (n) => `Trade ${n}'s exit signal is not shown: TradingView names this kind of exit itself, and that `
+      + 'name has not yet been checked against TradingView.'
+    expect(cells(1)).toEqual(['1', 'Long', '2', 'L1', '2024-03-22 13:30', '10.00', unnamed(1), '2024-03-24 13:30', '13.00', '6.00'])
+    expect(cells(2)).toEqual(['2', 'Short', '1', 'S1', '2024-03-25 13:30', '20.00', unnamed(2), '2024-03-27 13:30', '25.00', '-5.00'])
+    expect(cells(5).slice(0, 9)).toEqual(['5', 'Long', '1', 'L4', '2024-04-03 13:30', '30.00', '', 'Open', ''])
+    expect(cells(5)[9]).toBe("This open trade's profit is not shown: it is its profit at the last bar's close, "
       + 'and the backtest record does not carry that yet.')
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
-      .toEqual(['Trade', 'Direction', 'Size', 'Entry (UTC)', 'Entry price', 'Exit (UTC)', 'Exit price', 'Profit'])
+      .toEqual(['Trade', 'Direction', 'Size', 'Entry signal', 'Entry (UTC)', 'Entry price', 'Exit signal', 'Exit (UTC)',
+        'Exit price', 'Profit'])
   })
 
   it('zero trades: the list says so, and the counts are 0 (no D10 floor)', () => {
@@ -415,5 +421,35 @@ describe('W9-T13b the mount is dark behind VITE_PINE_STRATEGY_BROKER_ENABLED', (
     expect(mount).not.toMatch(/^import[^\n]*(brokerReport|StrategyReportPanel|\.module\.css)/m)
     const report = fs.readFileSync(path.join(here, '../engine/runtime/brokerReport.js'), 'utf8')
     expect(report, 'brokerReport must not import the broker (it split broker.js into a shared chunk)').not.toMatch(/^import[^\n]*from '\.\/broker\.js'/m)
+  })
+})
+
+describe('W9-T7-F1 r1 (review N1) a reversed trade\'s exit signal: the plain refusal, never the reversing entry\'s comment', () => {
+  // trade 1 long L, closed on bar 6 by the reversing short entry S (comment "flip"), which opens trade 2
+  const rev = () => {
+    const trades = [tr('L', 'long', 1, [1, 10], [6, 12]), tr('S', 'short', 1, [6, 12], null)]
+    const orders = orderLogFor(trades, { entryComments: [null, 'flip'] })
+    // the broker logs a reversal as ONE row: the entry S, which closed trade 1 and opened trade 2
+    const s = orders.find((o) => o.kind === 'entry' && o.id === 'S')
+    const c = orders.find((o) => o.kind === 'close')
+    s.closed = c.closed
+    const log = orders.filter((o) => o !== c).map((o, i) => ({ ...o, n: i + 1 }))
+    return strategyRecordOf({ summary: { record: { trades, orders: log, rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
+      decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 1, defaulted: {} },
+      barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true })
+  }
+  const SENT = "Trade 1's exit signal is not shown: this trade was closed by the order that reversed the position, and what "
+    + 'TradingView shows for that exit has not yet been checked against TradingView.'
+
+  it('the panel shows the plain sentence in that cell; the reversing entry\'s own entry signal is served', () => {
+    const report = strategyReportOf(rev(), { isPinned: ALL })
+    expect(report.trades.rows[0].exitSignal).toMatchObject({ status: 'refused', guard: REPORT_UNSTATED_GUARD, row: 'W9-V1', sentence: SENT })
+    expect(report.trades.rows[1].entrySignal).toEqual({ status: 'served', value: 'flip' })
+    render(<StrategyReportPanel report={report} />)
+    clickTab('List of trades')
+    const cells = (n) => [...screen.getByTestId(`strategy-report-trade-${n}`).children].map((c) => c.textContent)
+    expect(cells(1)[6]).toBe(SENT)
+    expect(cells(1)[6]).not.toMatch(/flip|W9-V1|runtime:/)
+    expect(cells(2)[3]).toBe('flip')
   })
 })

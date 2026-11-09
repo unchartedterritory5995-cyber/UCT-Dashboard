@@ -15,12 +15,13 @@ import {
   MARKER_RULE, MARKER_CAPTURE, MARKER_RECORD_GUARD, MARKER_UNRECORDED_GUARD, MARKER_LOOK_HYPOTHESES,
   MARKER_UNPINNED_SENTENCE, MARKER_UNRECORDED_SENTENCE, MARKER_RECORD_SENTENCE,
   publishTradeMarkers, tradeMarkersFor, onTradeMarkersChange, resetTradeMarkers,
-  markersWithheldWith, joinMarkersToState, MARKER_WITHHELD_GUARD,
+  markersWithheldWith, joinMarkersToState, MARKER_WITHHELD_GUARD, MARKER_UNLABELLED_GUARD, MARKER_UNLABELLED_SENTENCE,
 } from '../tradeMarkers.js'
 import { strategyRecordOf, withStrategyRecord, strategyRecordShapeErrors, STRATEGY_WINDOW_HISTORY, STRATEGY_RECORD_UNSERVED } from '../strategyRecord.js'
 import { UNPINNED_GUARD, BROKER_RULE_IDS, PRESENTATION_RULES, MARKER_RULE as RULES_MARKER_RULE } from '../brokerRules.js'
 import RESOLVED from '../brokerPins.resolved.json'
 import { toRenderState } from '../../objectRenderState.js'
+import { orderLogFor } from './orderLogFixture.js'
 
 const DAY = 86400
 const T0 = 1714000000
@@ -35,22 +36,29 @@ const tr = (id, dir, qty, ei, ep, xi, xp) => ({
   ...(xi === undefined ? {} : { exit: { time: at(xi), price: xp, rule: 'B-MARKET' } }),
 })
 
-/** The record T11 builds from those trades: orders and exit ids unserved (as on master). */
+const DECL = { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 2 }
+/** ⭐ W9-T7-F1: the owner tag an engine BEFORE the order log put on the two fields (its `unserved`). */
+const LEGACY_OWNER = 'W9-T7-F1 (order log, exitId)'
+/** A record as an engine BEFORE W9-T7-F1 built it: the order log and the exit ids unserved, named. */
 function rawRecord(trades) {
-  return strategyRecordOf({ summary: { record: { trades, rulesUsed: ['B-MARKET'] } },
-    decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 2 },
-    barTimes: TIMES, historyWindowBars: 5000, confirmed: true })
+  const rec = strategyRecordOf({ summary: { record: { trades, orders: orderLogFor(trades), rulesUsed: ['B-MARKET'] } },
+    decl: DECL, barTimes: TIMES, historyWindowBars: 5000, confirmed: true })
+  rec.orders = null
+  for (const t of rec.trades) t.exitId = null
+  rec.unserved = { orders: LEGACY_OWNER, ...rec.unserved, 'trades.exitId': LEGACY_OWNER }
+  expect(strategyRecordShapeErrors(rec)).toEqual([])
+  return rec
 }
 
-/** The same record with the order log and the exit ids served (what W9-T7 adds), hand-made. */
+/** A record with the order log the trades imply (`orderLogFor`): the exit fills by the exit command ids `exits`,
+ *  and each fill's comment from `orders` (`ord(id, bar, comment)`). */
 function servedRecord(trades, exits, orders) {
-  const rec = rawRecord(trades)
-  rec.trades.forEach((t, i) => { t.exitId = t.open ? null : exits[i] })
-  rec.orders = orders
-  const u = { ...rec.unserved }
-  delete u.orders
-  delete u['trades.exitId']
-  rec.unserved = u
+  const find = (id, time) => orders.find((o) => o.id === id && o.fillTime === time) || {}
+  const rec = strategyRecordOf({ summary: { record: { trades, rulesUsed: ['B-MARKET'],
+    orders: orderLogFor(trades, { exitIds: exits,
+      entryComments: trades.map((t) => find(t.id, t.entry.time).comment),
+      exitComments: trades.map((t, i) => (t.exit ? find(exits[i], t.exit.time).comment : null)) }) } },
+  decl: DECL, barTimes: TIMES, historyWindowBars: 5000, confirmed: true })
   expect(strategyRecordShapeErrors(rec)).toEqual([])
   return rec
 }
@@ -96,19 +104,27 @@ describe('W9-T12 2 — the member door refuses by name until W9-MK1 is pinned', 
     expect(tradeMarkersOf(rec(), PIN).status).toBe('ok')
   })
 
-  it('the refusal is the look, asked FIRST: a record T11 builds today (orders unserved) still names W9-MK1', () => {
+  it('the refusal is the look, asked FIRST: a record from before the order log still names W9-MK1', () => {
     const out = memberTradeMarkers(withStrategyRecord({}, rawRecord([tr('L', 1, 1, 2, 10, 5, 12)])))
     expect(out.capture).toBe(MARKER_CAPTURE)
   })
 
-  it('with the look pinned, a record without the order log refuses by name, naming the owner', () => {
+  it('⭐ W9-T7-F1: the record T11 builds NOW serves the order log and the exit ids (no longer unserved)', () => {
+    expect(Object.keys(STRATEGY_RECORD_UNSERVED)).not.toContain('orders')
+    expect(Object.keys(STRATEGY_RECORD_UNSERVED)).not.toContain('trades.exitId')
+    // and the member door STILL refuses, by the look (MK-LOOK unpinned in the committed ledger)
+    const out = memberTradeMarkers(withStrategyRecord({}, servedRecord([tr('L', 1, 1, 2, 10, 5, 12)], ['XL'], [])))
+    expect(out.guard).toBe(UNPINNED_GUARD)
+    expect(out.rule).toBe(MARKER_RULE)
+  })
+
+  it('with the look pinned, a record from before the order log refuses by name, naming the owner', () => {
     const out = tradeMarkersOf(rawRecord([tr('L', 1, 1, 2, 10, 5, 12)]), PIN)
     expect(out.status).toBe('refused')
     expect(out.guard).toBe(MARKER_UNRECORDED_GUARD)
     expect(out.fields).toEqual(['orders', 'trades.exitId'])
-    // the owners are the record's own (`STRATEGY_RECORD_UNSERVED`), never restated here
-    expect(out.owners).toEqual([STRATEGY_RECORD_UNSERVED.orders, STRATEGY_RECORD_UNSERVED['trades.exitId']])
-    expect(out.owners.every((o) => /^W9-T7/.test(o))).toBe(true)
+    // the owners are the record's own (its `unserved`), never restated by the markers
+    expect(out.owners).toEqual([LEGACY_OWNER, LEGACY_OWNER])
   })
 
   it('MK-LOOK is a presentation rule, read from the one table in brokerRules.js, never a broker rule', () => {
@@ -252,11 +268,13 @@ describe('W9-T12 3 — geometry from hand-made records (test pin path)', () => {
 })
 
 describe('W9-T12 4 — a record the markers cannot read whole refuses whole', () => {
-  it('a fill with no filled order in the log', () => {
-    const out = tradeMarkersOf(servedRecord([tr('L', 1, 1, 2, 10, 5, 12)], ['XL'], [ord('L', 2)]), PIN)
+  it('a fill with no filled order in the log (the one shape check says so)', () => {
+    const rec = servedRecord([tr('L', 1, 1, 2, 10, 5, 12)], ['XL'], [ord('L', 2)])
+    rec.orders.find((o) => o.closed.includes(1)).closed = []
+    const out = tradeMarkersOf(rec, PIN)
     expect(out.status).toBe('refused')
     expect(out.guard).toBe(MARKER_RECORD_GUARD)
-    expect(out.errors).toEqual(['trade 1 exit has no filled order XL'])
+    expect(out.errors).toEqual(['trades[0] has no closing order', 'trades[0].exitId'])
   })
 
   it('a fill after asOfBar', () => {
@@ -339,5 +357,44 @@ describe('W9-T12 r2 helpers', () => {
     expect(j.state.lines).toBe(host.lines)
     // CONTROL: nothing to add returns the inputs untouched
     expect(joinMarkersToState(host, [1], [0], [], {}).state).toBe(host)
+  })
+})
+
+describe('W9-T7-F1 — a fill is labelled from the ORDER LOG, or the set refuses by name', () => {
+  const close = (comment) => servedRecord([tr('L', 1, 2, 2, 10, 5, 12)], [null], [ord('L', 2), ...(comment ? [{ id: null, fillTime: at(5), comment }] : [])])
+
+  it('an exit closed by strategy.close WITH a comment is labelled by the comment (R6: shown instead of the generated id)', () => {
+    // orderLogFor names a close's comment by its exitComments; give it directly
+    const rec = strategyRecordOf({ summary: { record: { trades: [tr('L', 1, 2, 2, 10, 5, 12)], rulesUsed: ['B-MARKET'],
+      orders: orderLogFor([tr('L', 1, 2, 2, 10, 5, 12)], { exitComments: ['flat'] }) } },
+    decl: DECL, barTimes: TIMES, historyWindowBars: 5000, confirmed: true })
+    expect(rec.trades[0].exitId).toBe(null)
+    const out = ok(rec)
+    expect(out.markers.map(markerText)).toEqual(['L\n+2', 'flat\n-2'])
+  })
+
+  it('⛔ an exit closed by strategy.close with NO comment has no stated name: refused whole, by name', () => {
+    const out = tradeMarkersOf(close(null), PIN)
+    expect(out.status).toBe('refused')
+    expect(out.guard).toBe(MARKER_UNLABELLED_GUARD)
+    expect(out.sentence).toBe(MARKER_UNLABELLED_SENTENCE)
+    expect(out.fills).toEqual(['trade 1 exit (order 2, no stated name)'])
+    expect(tradeMarkerObjects(out)).toEqual([])
+  })
+
+  it('⛔ a comment the script computes (not recorded) is never guessed: refused whole, by name', () => {
+    const rec = servedRecord([tr('L', 1, 2, 2, 10, 5, 12)], ['XL'], [])
+    const entry = rec.orders.find((o) => o.opened.includes(1))
+    entry.commentRecorded = false
+    const out = tradeMarkersOf(rec, PIN)
+    expect(out.guard).toBe(MARKER_UNLABELLED_GUARD)
+    expect(out.fills).toEqual(['trade 1 entry (order 1, a computed comment)'])
+    // CONTROL: the same record recorded is served
+    entry.commentRecorded = true
+    expect(tradeMarkersOf(rec, PIN).status).toBe('ok')
+  })
+
+  it('the unlabelled sentence names no field path', () => {
+    expect(MARKER_UNLABELLED_SENTENCE).not.toMatch(/\b[a-z][A-Za-z]*\.[a-z][A-Za-z_]*\b/)
   })
 })

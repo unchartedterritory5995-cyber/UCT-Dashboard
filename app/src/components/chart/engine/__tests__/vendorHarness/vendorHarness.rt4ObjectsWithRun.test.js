@@ -68,20 +68,19 @@ describe('RT4 — the object program is not drawn without the run', () => {
     expect(cap.history && cap.history.startsAtBar0).not.toBe(true)
   })
 
-  it.each(PROBES)('⭐⭐ %s: its objects row is withheld by name — not DIVERGE, not MATCH', (name) => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): graded COLD these probes never converged behind the
+  // warm-up curtain, so the run drew nothing and the object program was withheld (RT4).
+  // The harness now replays SPY's proved history from its listing, as the member's daily
+  // chart computes it: the run computes from bar 0, and the drawings it owns MATCH.
+  // The RT4 gate itself stays railed by the two CONTROLs below and the chart binding's
+  // "the run computed nothing on this chart" rail.
+  it.each(PROBES)('⭐⭐ %s: replayed from the listing, the run draws and every item MATCHES (DIV-1)', (name) => {
     const cap = capture(name)
     on()
-    const { verdict } = gradeCapture(cap)
-    expect(verdict.objects, 'the capture records objects, so a row exists').toBeTruthy()
-    expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
-    expect(verdict.objects.reason).toContain('the run drew nothing')
-    // UIE Phase 2: off the listing the run is tried behind its warm-up curtain; these
-    // probes plot `bar_index` (their CONTROL row), which never forgets its first bar
-    expect(verdict.objects.reason).toContain('runtime:warmup-never-converges')
-    expect(verdict.verdict).not.toBe('DIVERGE')
-    expect(verdict.verdict).not.toBe('MATCH')
-    // and every plot is what it was: not compared, the run computed nothing
-    for (const p of verdict.plots) expect(p.verdict, p.title).toBe('INCONCLUSIVE')
+    const { verdict, ours } = gradeCapture(cap)
+    expect(ours.historyReplay.kind).toBe('replayed')
+    expect(verdict.verdict, verdict.reason).toBe('MATCH')
+    expect(verdict.objects.verdict, verdict.objects.reason).toBe('MATCH')
   })
 
   it('⭐ CONTROL: a runtime document CARRYING a clean host program is gated until its run computes', () => {

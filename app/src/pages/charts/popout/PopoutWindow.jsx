@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { registerPopout } from '../../../lib/popoutRegistry'
+import { isAppClosing } from '../../../lib/appClosing'
+
+export { markAppClosing, clearAppClosing, __resetAppClosingForTests } from '../../../lib/appClosing'
+
+// How long a page that started to unload may still be running before it is
+// treated as having stayed (a cancelled "Leave site?"). A page that really is
+// leaving but slow to commit reaching this is harmless: the board docks, and its
+// desk record goes only after the save lands.
+const OPENER_STAYED_MS = 5000
 
 /**
  * Renders `children` into a real, separate browser window the user can drag to
@@ -50,6 +60,8 @@ export default function PopoutWindow({
       return
     }
 
+    const unregister = registerPopout()
+
     win.document.title = title
     relabelAddressBar(win)
 
@@ -82,7 +94,7 @@ export default function PopoutWindow({
 
     let done = false
     const finish = () => {
-      if (done) return
+      if (done || isAppClosing()) return
       done = true
       onCloseRef.current?.()
     }
@@ -94,15 +106,32 @@ export default function PopoutWindow({
 
     // A popped window with no opener is an orphan the user can't get rid of
     // through the app, so it goes when the main tab does.
-    const closeOrphan = () => { try { win.close() } catch { /* already gone */ } }
+    //
+    // ⛔ `done` is set BEFORE close(): close() runs the popup's beforeunload (above)
+    // synchronously, and that must not read as the member closing the window. The
+    // board is carried through the unload by its desk record, not by docking.
+    let stayedTimer = null
+    const closeOrphan = () => {
+      done = true
+      try { win.close() } catch { /* already gone */ }
+      // beforeunload can be cancelled ("Leave site?" answered Stay). The window is
+      // gone either way, so a page still running afterwards takes the board back.
+      if (stayedTimer) clearTimeout(stayedTimer)
+      stayedTimer = setTimeout(() => {
+        done = false
+        finish()
+      }, OPENER_STAYED_MS)
+    }
     window.addEventListener('beforeunload', closeOrphan)
 
     setContainer(mount)
 
     return () => {
       done = true          // unmount is an intentional close, not a user close
+      unregister()
       clearInterval(poll)
       clearTimeout(fitTimer)
+      if (stayedTimer) clearTimeout(stayedTimer)
       window.removeEventListener('beforeunload', closeOrphan)
       stopSyncing()
       stopForwardingKeys()
