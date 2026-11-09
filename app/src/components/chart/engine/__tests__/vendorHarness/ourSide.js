@@ -37,7 +37,7 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
@@ -810,6 +810,14 @@ const PARITY_CLOCK = () => 0
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
  *            ctx: object, notes: string[]}}
  */
+/** Does this column hold no value on any bar (a by-name withholding that reached
+ *  every bar)? A missing column answers no: there is nothing to grade either way. */
+export function withholdsEveryBar(column) {
+  if (!column || typeof column.length !== 'number' || !column.length) return false
+  for (let i = 0; i < column.length; i++) if (column[i] === column[i]) return false
+  return true
+}
+
 export function runOurSide(capture) {
   setRuntimeDoorClock(PARITY_CLOCK)
   try {
@@ -905,15 +913,28 @@ function runOurSideOnTheParityClock(capture) {
     // NO served value: it is graded "not compared — withheld by name", never as a
     // value that differs. ⚰️ Graded as a column of `na` it read DIVERGE, the
     // verdict a WRONG value gets, which is the one thing a withholding is not.
-    // ⛔ Only `bar-index:window`: the C36 whole-series codes keep their grading
-    // (changing another lane's verdict is not this one's to do).
+    // ⭐⭐ 2026-11-09 (`fix/pine-cumulative-off-listing`, triage lane WN) — EVERY
+    // whole-series code, not only `bar-index:window`. ⚰️ The C36 codes
+    // (`time-anchor:not-daily`, `time-own:chart-unwitnessed`, …) were left out "to
+    // keep another lane's verdict", and their all-`na` columns graded DIVERGE: 13
+    // captures over vw-time-tf / vw-bar-counters / vw-bar-origin read as WRONG
+    // values where the door had withheld them by name. A per-bar code
+    // (`time-anchor:period-open-missing`, `bar-index:early-bars`, …) withholds some
+    // bars; a plot it names whose column holds NO value on any bar is withheld
+    // whole just the same, and graded the same way. A plot with values keeps its
+    // comparison: the bars the door drew are still judged.
     const clockReport = registry.chartClockReport(cols)
     const withheldWhole = new Map()
     if (clockReport) {
       for (const r of clockReport.withheld) {
-        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+        const what = r.code.startsWith('bar-index:') ? '`bar_index`'
+          : (r.code.startsWith('running-total:') ? 'a running total' : 'time(<timeframe>)')
         notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
-        if (r.code === 'bar-index:window') for (const key of r.plots) withheldWhole.set(key, r.code)
+        const whole = CHART_CLOCK_WHOLE.includes(r.code)
+        for (const key of r.plots) {
+          if (withheldWhole.has(key)) continue
+          if (whole || withholdsEveryBar(cols[key])) withheldWhole.set(key, r.code)
+        }
       }
     }
 
@@ -960,7 +981,11 @@ function runOurSideOnTheParityClock(capture) {
         ? (rowByOutput.get(index) || null)
         : (o && o.ast ? rowByAst.get(o.ast) : null)
       const heldBy = row ? withheldWhole.get(row.key) : undefined
-      const col = row && !heldBy ? cols[row.key] : undefined
+      // ⚠️ `bar-index:window` keeps the shape C45 pinned (no column at all); every
+      // other by-name withholding keeps its all-`na` column for the rails that read
+      // it, and carries `withheldBy` — which `compare.mjs` grades exactly as it grades
+      // a missing column: INCONCLUSIVE, with the reason.
+      const col = row && heldBy !== 'bar-index:window' ? cols[row.key] : undefined
       let missingReason = null
       if (heldBy) {
         missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
@@ -981,6 +1006,7 @@ function runOurSideOnTheParityClock(capture) {
         title: o ? o.title : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
+        withheldBy: heldBy || null,
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
