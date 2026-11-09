@@ -28,7 +28,7 @@ const COL_WORD = { left: 'first', first: 'first', right: 'last', last: 'last', m
 const WHOLE_LINE = /\b(?:the|my)\s+(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)\b(?!['’]s)/gi
 const PLACE_BEFORE = /\b(?:first|second|third|last|middle|cent(?:er|re)|left(?:most)?|right(?:most)?|top(?:most)?|bottom(?:most)?|upper(?:most)?|lower(?:most)?)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:in|of|on|along|from)\s*$/i
 // a relation whose anchor is NAMED (not "this / it / the selected one"): "beside the top-left chart", "above the NVDA chart"
-const REL_NAMED = /\b(beside|next to|alongside|above|over|on top of|below|under(?:neath)?|beneath|(?:to the |on the )?left of|(?:to the |on the )?right of)\s+(the\s+(?!(?:one|chart)\b)[a-z0-9 \-]{1,30}?\s*(?:chart|one|cell|pane|graph))\b/gi
+const REL_NAMED = /\b(beside|next to|alongside|above|over|on top of|below|under(?:neath)?|beneath|(?:to the |on the )?left of|(?:to the |on the )?right of)\s+(the\s+(?!(?:one|chart)\b)[a-z0-9 -]{1,30}?\s*(?:chart|one|cell|pane|graph))\b/gi
 const SIDES = (w) => {
   const s = w.toLowerCase()
   if (/beside|next to|alongside/.test(s)) return ['left', 'right']
