@@ -224,6 +224,14 @@ def test_calcs(fn, args, want):
     assert math.isclose(cl.run_calc({"fn": fn, "args": args}), want, rel_tol=1e-9, abs_tol=1e-9)
 
 
+@pytest.mark.parametrize("x,never", [(0.05, "0.1"), (2.25, "2.2"), (16.67, "16.7"), (0.125, "0.13"), (104.0, "104.1")])
+def test_numeric_accept_lists_only_the_same_value(x, never):
+    forms = cl.numeric_accept(x)
+    assert never not in forms
+    assert all(abs(float(f) - x) < 1e-12 for f in forms)
+    assert cl._num_text(x) in forms
+
+
 def test_leveraged_decay_in_chop():
     # +10% then -10% on the index: the index ends at 99, a 3x fund (no fees) ends at 91
     assert math.isclose(cl.run_calc({"fn": "leveraged_path", "args": {"daily_pcts": [10, -10]}}), 99.0)

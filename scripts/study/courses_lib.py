@@ -199,10 +199,14 @@ def _num_text(x: float) -> str:
 
 
 def numeric_accept(x: float) -> list[str]:
-    """The typed forms of one number the scorer must accept: 12, 12.0, 12.00; 2.5, 2.50."""
+    """The typed forms of ONE value the scorer must accept: 12, 12.0, 12.00; 2.5, 2.50; 0.05 only as 0.05.
+    A form is listed only when it is the SAME value (2026-11-09: rounding 0.05 to one decimal listed "0.1" and
+    would have scored a wrong answer right). The scorer also compares typed numbers by value (study_scoring)."""
     out = {_num_text(x)}
-    for d in (1, 2):
-        out.add(f"{x:.{d}f}")
+    for d in (1, 2, 3):
+        form = f"{x:.{d}f}"
+        if abs(float(form) - float(x)) < 1e-12:
+            out.add(form)
     if float(x).is_integer():
         out.add(str(int(x)))
     return sorted(out)
