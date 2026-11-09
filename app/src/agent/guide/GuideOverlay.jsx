@@ -37,7 +37,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, useId } from 'react'
 import { createPortal } from 'react-dom'
-import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt, escapeOnBoard } from './guideStore'
+import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide, pinWidget, goToStep, restartGuide, requestGuideDoIt, escapeOnBoard, SELECTED_DRAWING } from './guideStore'
 import { needsOwnPress, findTarget, rectOf, reveal, isDisabled, coveredBy, startIndex, reachableAfter, earlierOnScreen, unclip, restoreClipped } from './targets'
 import { POLL_MS, LOST_MS, LATE_MS, CLICK_MS, PAUSE_MS, sameRect, placeCard } from './placement'
 import { registerShortcuts, isEditableFocus } from '../../pages/command/shortcutRegistry'
@@ -58,7 +58,8 @@ const hasDoIt = (feature) => !!feature?.doIt
 
 // the menus that close on Escape carry no layer attribute (a plain dropdown is not a layer): which were open at the press
 const MENUS = '[role="menu"],[data-guide$="Menu"]'
-const TOOL_OWNS = '[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],[aria-label="Drawing actions"]'
+// an armed drawing tool, or a selected drawing (guideStore.SELECTED_DRAWING: desktop and touch)
+const TOOL_OWNS = '[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],' + SELECTED_DRAWING
 const NO_LAYERS_BENEATH = new Set()
 
 // the walkthrough chart's symbol, from its own label (components/chart/pane/ChartIdentityRow.jsx sym-label)
