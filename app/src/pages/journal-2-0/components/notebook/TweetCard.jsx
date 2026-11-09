@@ -46,8 +46,8 @@ function Amount({ text }) {
   return <span>{text.slice(0, cut + 1)}<b>{text.slice(cut + 1)}</b></span>
 }
 
-function PriceLine({ price, removed }) {
-  const key = price && !removed ? snapshotKey(price.symbol) : null
+function PriceLine({ price }) {
+  const key = price ? snapshotKey(price.symbol) : null
   const { data } = useSWR(key, (url) => call(url), ONCE)
   const parts = priceLineParts(price, nowPriceOf(data))
   if (!parts) return null
@@ -205,7 +205,7 @@ export default function TweetCard({ excerpt, deleteNode, noteId }) {
           </div>
         )}
       </div>
-      <PriceLine price={tweet.price} removed={removed} />
+      <PriceLine price={tweet.price} />
       <MyTake excerpt={excerpt} noteId={noteId} />
     </div>
   )

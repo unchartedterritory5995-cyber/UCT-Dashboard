@@ -91,7 +91,9 @@ export default function ExcerptView({ node, editor, deleteNode }) {
       <NodeViewWrapper as="div" className={styles.wrap} data-document-excerpt contentEditable={false}>
         <TweetCardBoundary>
           <Suspense fallback={LOADING_CARD}>
-            <TweetCard excerpt={excerpt} deleteNode={deleteNode} noteId={noteId} />
+            {/* The key: TipTap reuses this node view when only the node type matches, and the
+                card's save is bound to the excerpt it first rendered. */}
+            <TweetCard key={excerpt.id} excerpt={excerpt} deleteNode={deleteNode} noteId={noteId} />
           </Suspense>
         </TweetCardBoundary>
       </NodeViewWrapper>

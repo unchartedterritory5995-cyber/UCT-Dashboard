@@ -18,7 +18,7 @@ vi.mock('../../lib/noteCreation', () => ({
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
-import { TWEET_EVENT, consumePendingFocus, groupByDay } from '../../lib/tweetImport'
+import { TWEET_EVENT, consumePendingFocus, groupByDay, tweetImportEnabled } from '../../lib/tweetImport'
 import { ImportTweetButton, TweetInsertHost } from './TweetDoors'
 
 const NOW = Math.floor(Date.now() / 1000)
@@ -94,6 +94,25 @@ describe('Import a tweet', () => {
     expect(container.innerHTML).toBe('')
   })
 
+  describe('the app-wide tweet kill switch', () => {
+    afterEach(() => vi.unstubAllEnvs())
+
+    it('VITE_TWITTER_UI_ENABLED="0" hides the door even with the Notebook flag on', () => {
+      vi.stubEnv('VITE_TWITTER_UI_ENABLED', '0')
+      expect(tweetImportEnabled()).toBe(false)
+      const { container } = wrap(<ImportTweetButton symbol="NVDA" notes={NOTES} />)
+      expect(container.innerHTML).toBe('')
+    })
+
+    it('any other value leaves the door on, and the Notebook flag still decides', () => {
+      vi.stubEnv('VITE_TWITTER_UI_ENABLED', '1')
+      expect(tweetImportEnabled()).toBe(true)
+      __resetNotebookFlags()
+      latchNotebookFlags({ notebook_tweet_import_enabled: false })
+      expect(tweetImportEnabled()).toBe(false)
+    })
+  })
+
   it('ticking two posts and importing sends both ids in tick order', async () => {
     const calls = installFetch([FEED, [/\/tweets\/save$/, 'POST', [200, SAVED]]])
     await openFromButton()
@@ -140,6 +159,34 @@ describe('Import a tweet', () => {
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled()
+  })
+
+  it('a post saved in another note says so and can still be ticked', async () => {
+    const feed = [/\/tweets\/recent/, 'GET', [200, { posts: [{ ...TAKE, savedInNote: true }, { ...NEWS, savedInNote: false }] }]]
+    installFetch([feed, [/\/notes\/n1\/excerpts$/, 'GET', [200, { excerpts: [] }]]])
+    const parts = fakeEditor()
+    wrap(<TweetInsertHost editor={parts.editor} noteId="n1" ticker="NVDA" />)
+    await act(async () => { parts.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true })) })
+    const row = await rowFor('Alder Street Desk')
+    expect(screen.getAllByText('Saved in one of your notes')).toHaveLength(1)
+    expect(row.textContent).toContain('Saved in one of your notes')
+    expect(row).toBeEnabled()
+    fireEvent.click(row)
+    expect(row).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled()
+    // CONTROL: the row the server did not mark carries no label.
+    expect((await rowFor('Northgate Newswire')).textContent).not.toContain('Saved in one of your notes')
+  })
+
+  it('a post already in the open note says only that, even when the server marks it saved', async () => {
+    const feed = [/\/tweets\/recent/, 'GET', [200, { posts: [{ ...NEWS, savedInNote: true }, TAKE] }]]
+    installFetch([feed, [/\/notes\/n1\/excerpts$/, 'GET', [200, { excerpts: [{ id: 'ex9', tweet: { tweetId: '1001' } }] }]]])
+    const parts = fakeEditor()
+    wrap(<TweetInsertHost editor={parts.editor} noteId="n1" ticker="NVDA" />)
+    await act(async () => { parts.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true })) })
+    await screen.findByText('Already in this note')
+    expect(screen.queryByText('Saved in one of your notes')).toBeNull()
+    expect(await rowFor('Northgate Newswire')).toBeDisabled()
   })
 
   it('Import is disabled with nothing ticked', async () => {

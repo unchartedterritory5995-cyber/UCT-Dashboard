@@ -11,9 +11,9 @@ Two reads, one shape. Both answer the same camelCase POST:
 
     {id, name, handle, avatarUrl, text, postedAt, url, tickers, media, kind}
 
-  * `recent(symbol, scope)` -- posts already in `tweets.db` over the last 168 hours: for one
-    ticker (`'ticker'`, `tweet_store.tweets_for_ticker`) or the whole curated feed (`'all'`,
-    `tweet_store.feed(hours=168, limit=200)`).
+  * `recent(symbol, scope, user_id)` -- posts already in `tweets.db` over the last 168 hours: for
+    one ticker (`'ticker'`, `tweet_store.tweets_for_ticker`) or the whole curated feed (`'all'`,
+    `tweet_store.feed(hours=168, limit=200)`). Each also carries `savedInNote`, for that member.
   * `resolve_link(url)` -- a pasted link becomes a post. The store is asked first (no vendor
     call, no spend); only a miss goes to the vendor.
 
@@ -85,7 +85,7 @@ _SMALL_RENDITION_RE = re.compile(r"([?&]name=)small(?=&|$)")
 #: separator (or end of string) must follow, so `x.com.evil.test` and `notx.com` never match.
 _STATUS_RE = re.compile(
     r"^(?:https?://)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)/"
-    r"[A-Za-z0-9_]{1,15}/status(?:es)?/(\d{1,25})(?:[/?#].*)?$",
+    r"(?:[A-Za-z0-9_]{1,15}/status(?:es)?|i/web/status)/(\d{1,25})(?:[/?#].*)?$",
     re.IGNORECASE,
 )
 _AVATAR_RE = re.compile(r'https://pbs\.twimg\.com/profile_images/[^"\\\s]+')
@@ -144,8 +144,26 @@ def _post(row: dict, kinds: dict[str, str]) -> dict[str, Any]:
     }
 
 
-def recent(symbol: Optional[str], scope: str) -> list[dict[str, Any]]:
-    """Posts UCT holds from the last 168 hours, newest first."""
+def _saved_ids(user_id: str, ids: list[str]) -> set[str]:
+    """Which of `ids` this member holds a capture of that has not been removed. One query."""
+    if not ids:
+        return set()
+    from api.services.journal_two import notes as notes_service
+    marks = ",".join("?" * len(ids))
+    conn = notes_service.get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT tweet_id FROM j2_note_tweet_captures"
+            f" WHERE user_id = ? AND removed_at IS NULL AND tweet_id IN ({marks})",
+            (user_id, *ids)).fetchall()
+    finally:
+        conn.close()
+    return {str(r["tweet_id"]) for r in rows}
+
+
+def recent(symbol: Optional[str], scope: str, user_id: str) -> list[dict[str, Any]]:
+    """Posts UCT holds from the last 168 hours, newest first. `savedInNote` is `user_id`'s own,
+    so `user_id` is required: the answer is one member's and must never be shared."""
     if scope == "ticker":
         sym = route_symbol(symbol.strip().lstrip("$")) if isinstance(symbol, str) else None
         if not sym:
@@ -157,7 +175,9 @@ def recent(symbol: Optional[str], scope: str) -> list[dict[str, Any]]:
     else:
         raise TweetCaptureError("Scope must be 'ticker' or 'all'.")
     kinds = _kinds()
-    return [_post(r, kinds) for r in rows]
+    posts = [_post(r, kinds) for r in rows]
+    saved = _saved_ids(user_id, [p["id"] for p in posts])
+    return [{**p, "savedInNote": p["id"] in saved} for p in posts]
 
 
 def resolve_link(url: Any) -> dict[str, Any]:

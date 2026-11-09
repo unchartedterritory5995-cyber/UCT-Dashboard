@@ -4,10 +4,8 @@
     POST  /api/j2/research-capture/tweets/resolve                   a pasted X link -> a post
     POST  /api/j2/research-capture/tweets/save                      posts -> cited excerpts in a note
 
-⛔ ITS OWN MODULE, NOT A THIRD ROUTER IN `notebook_research_capture.py`. Saving a post reads its
-price through the member bars door, and transcript capture carries a rail that its router's
-import graph never reaches AlphaVantage (`tests/test_notebook_transcript_capture.py`). The URL
-prefix is shared; the import graph is not.
+⛔ ITS OWN MODULE, NOT A THIRD ROUTER IN `notebook_research_capture.py`. The separation keeps
+tweet code out of that router's module; the URL prefix is shared.
 
 Service: `journal_two/tweet_capture.py`. Paid on every route, zero model calls.
 """
@@ -100,9 +98,10 @@ def recent_tweets(symbol: str | None = Query(None, max_length=32),
                   scope: str = Query("all", max_length=16),
                   user: dict = Depends(require_paid)) -> dict[str, Any]:
     """Posts UCT already holds from the last 168 hours: `scope=ticker` needs `symbol`,
-    `scope=all` is the curated feed. A plain read of `tweets.db`; no vendor call."""
+    `scope=all` is the curated feed. A plain read of `tweets.db`, plus one query for which of
+    them this member has saved; no vendor call."""
     try:
-        return {"posts": tw.recent(symbol, scope)}
+        return {"posts": tw.recent(symbol, scope, str(user["id"]))}
     except tw.TweetCaptureError as e:
         raise _fail(e) from e
 

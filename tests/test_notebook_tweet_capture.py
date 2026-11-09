@@ -101,6 +101,14 @@ def client(store, monkeypatch):
     ("x.com/a_b/status/123", "123"),
     ("https://www.x.com/a_b/status/123", "123"),
     ("  https://x.com/a_b/status/123  ", "123"),
+    ("https://x.com/i/web/status/123", "123"),
+    ("https://twitter.com/i/web/status/123?s=20", "123"),
+    ("https://mobile.twitter.com/i/web/status/123/photo/1", "123"),
+    ("x.com/i/web/status/123", "123"),
+    ("https://x.com.evil.test/i/web/status/123", None),
+    ("https://notx.com/i/web/status/123", None),
+    ("https://x.com/i/web/status/abc", None),
+    ("https://x.com/i/web/123", None),
     ("https://x.com.evil.test/a/status/123", None),
     ("https://notx.com/a/status/123", None),
     ("https://evil.test/x.com/a/status/123", None),
@@ -198,11 +206,12 @@ def _seed(store):
     store.upsert_tweet(_row("4", text="$NVDA old", created_at=NOW - 200 * 3600), ["NVDA"])
 
 
-def test_recent_shape_has_no_raw_json(store):
+def test_recent_shape_has_no_raw_json(notebook, store):
     _seed(store)
-    posts = tweet_capture.recent("NVDA", "ticker")
+    posts = tweet_capture.recent("NVDA", "ticker", UID)
     assert [p["id"] for p in posts] == ["1", "2"]            # newest first, the 200h-old one is out
-    want = {"id", "name", "handle", "avatarUrl", "text", "postedAt", "url", "tickers", "media", "kind"}
+    want = {"id", "name", "handle", "avatarUrl", "text", "postedAt", "url", "tickers", "media", "kind",
+            "savedInNote"}
     for p in posts:
         assert set(p) == want
         assert "raw_json" not in p
@@ -216,9 +225,9 @@ def test_recent_shape_has_no_raw_json(store):
     assert sorted(second["tickers"]) == ["AMD", "NVDA"]      # tickers attached for a ticker query
 
 
-def test_recent_all_is_the_feed(store):
+def test_recent_all_is_the_feed(notebook, store):
     _seed(store)
-    posts = tweet_capture.recent(None, "all")
+    posts = tweet_capture.recent(None, "all", UID)
     assert [p["id"] for p in posts] == ["1", "2", "3"]
     assert all("raw_json" not in p for p in posts)
 
@@ -233,10 +242,10 @@ def test_recent_does_not_change_what_the_existing_routes_return(store):
     assert "tickers" not in rows[0]
 
 
-def test_recent_dual_class_symbol(store):
+def test_recent_dual_class_symbol(notebook, store):
     store.upsert_tweet(_row("7", text="$BRK.B holds"), ["BRK-B"])
     for spelling in ("BRK.B", "brk-b", "$BRK.B"):
-        assert [p["id"] for p in tweet_capture.recent(spelling, "ticker")] == ["7"]
+        assert [p["id"] for p in tweet_capture.recent(spelling, "ticker", UID)] == ["7"]
 
 
 @pytest.mark.parametrize("symbol,scope", [
@@ -245,7 +254,7 @@ def test_recent_dual_class_symbol(store):
 ])
 def test_recent_refusals_are_400(store, symbol, scope):
     with pytest.raises(tweet_capture.TweetCaptureError) as e:
-        tweet_capture.recent(symbol, scope)
+        tweet_capture.recent(symbol, scope, UID)
     assert e.value.status == 400
 
 
@@ -276,7 +285,7 @@ def test_routes_are_paid_only(client, flag_on, monkeypatch):
     assert r.status_code == 402
 
 
-def test_recent_route(client, flag_on, store):
+def test_recent_route(client, flag_on, notebook, store):
     _seed(store)
     r = client.get("/api/j2/research-capture/tweets/recent?symbol=NVDA&scope=ticker")
     assert r.status_code == 200
@@ -1003,6 +1012,79 @@ def test_excerpt_read_reports_a_removed_post(notebook, store):
     c.commit()
     c.close()
     assert note_excerpts.list_note_excerpts(UID, note_id)[0]["tweet"]["removed"] is True
+
+
+# ── "Saved in one of your notes" ────────────────────────────────────────────────────────
+
+def _saved_flags(posts):
+    return {p["id"]: p["savedInNote"] for p in posts}
+
+
+def test_recent_says_which_posts_this_member_has_saved(notebook, store):
+    _seed_post(store, "801")
+    _seed_post(store, "802")
+    tweet_capture.save(UID, _note(), ["801"])
+    assert _saved_flags(tweet_capture.recent("NVDA", "ticker", UID)) == {"801": True, "802": False}
+    assert _saved_flags(tweet_capture.recent(None, "all", UID)) == {"801": True, "802": False}
+
+
+def test_another_members_save_does_not_show(notebook, store):
+    _seed_post(store, "803")
+    tweet_capture.save(OTHER, _note(OTHER), ["803"])
+    assert _saved_flags(tweet_capture.recent("NVDA", "ticker", UID)) == {"803": False}
+    # CONTROL: the same row does answer for the member who saved it.
+    assert _saved_flags(tweet_capture.recent("NVDA", "ticker", OTHER)) == {"803": True}
+
+
+def test_a_capture_marked_removed_does_not_count_as_saved(notebook, store):
+    from api.services import auth_db
+    _seed_post(store, "804")
+    tweet_capture.save(UID, _note(), ["804"])
+    assert _saved_flags(tweet_capture.recent("NVDA", "ticker", UID)) == {"804": True}
+    c = auth_db.get_connection()
+    c.execute("UPDATE j2_note_tweet_captures SET removed_at = 'x'")
+    c.commit()
+    c.close()
+    assert _saved_flags(tweet_capture.recent("NVDA", "ticker", UID)) == {"804": False}
+
+
+def test_recent_reads_the_saves_in_one_query(notebook, store, monkeypatch):
+    from api.services.journal_two import notes
+    for i in range(3):
+        _seed_post(store, f"81{i}", text=f"$NVDA post {i}")
+    tweet_capture.save(UID, _note(), ["810"])
+    reads = []
+    real = notes.get_connection
+
+    def traced(*args, **kwargs):
+        conn = real(*args, **kwargs)
+        conn.set_trace_callback(lambda s: reads.append(s) if "j2_note_tweet_captures" in s else None)
+        return conn
+
+    monkeypatch.setattr(notes, "get_connection", traced)
+    assert len(tweet_capture.recent("NVDA", "ticker", UID)) == 3
+    assert len(reads) == 1, reads
+
+
+def test_recent_with_no_posts_opens_no_query(notebook, store, monkeypatch):
+    from api.services.journal_two import notes
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("no posts means no query")
+
+    monkeypatch.setattr(notes, "get_connection", refuse)
+    assert tweet_capture.recent(None, "all", UID) == []
+
+
+def test_recent_route_answers_for_the_signed_in_member(client, flag_on, notebook, store):
+    _seed_post(store, "805")
+    tweet_capture.save(UID, _note(), ["805"])
+    url = "/api/j2/research-capture/tweets/recent?symbol=NVDA&scope=ticker"
+    assert _saved_flags(client.get(url).json()["posts"]) == {"805": True}
+    # The same request as somebody else.
+    other = {"id": OTHER, "role": "member", "plan": "pro"}
+    client.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(other)
+    assert _saved_flags(client.get(url).json()["posts"]) == {"805": False}
 
 
 def _plain_excerpt(note_id, user_id=UID):

@@ -17,8 +17,13 @@ export const TWEET_EVENT = 'uct-notebook:tweet-import'
 
 const BASE = '/api/j2/research-capture/tweets'
 
+// The app's own tweet kill switch, the rule MoversSidebar, TapeFeed, MorningWire and TwtPanel read:
+// default on, "0" hides. Restated rather than imported from TwtPanel, because this module is on the
+// Notebook's first open and that file would pull the terminal's panel code into the Notebook chunk.
+const twitterUiEnabled = () => (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
+
 export function tweetImportEnabled() {
-  return notebookFlag(TWEET_IMPORT_FLAG) === true
+  return twitterUiEnabled() && notebookFlag(TWEET_IMPORT_FLAG) === true
 }
 
 /** The posts UCT holds from the last week, newest first: `scope` is 'ticker' or 'all'. */

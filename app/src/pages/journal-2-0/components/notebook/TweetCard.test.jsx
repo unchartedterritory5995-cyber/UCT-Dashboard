@@ -166,7 +166,21 @@ describe('TweetCard', () => {
     expect(screen.getByText('Alder Street Desk')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'View on X' })).toBeTruthy()
     expect(document.body.textContent).toContain('$NVDA when posted $188.20')
-    await act(async () => { await Promise.resolve() })
+  })
+
+  it('a removed post keeps the whole price line', async () => {
+    renderCard(tweetExcerpt({ capturedText: '' }, { removed: true }))
+    await screen.findByText(/Now/)
+    expect(document.body.textContent).toContain('$NVDA when posted $188.20')
+    expect(document.body.textContent).toContain('Now $191.10')
+    expect(document.body.textContent).toContain('+1.5% since')
+    expect(snapshotCalls()).toHaveLength(1)
+  })
+
+  it('a removed post with no price fetches nothing', async () => {
+    renderCard(tweetExcerpt({ capturedText: '' }, { removed: true, price: null }))
+    expect(screen.queryByText(/when posted/)).toBeNull()
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
     expect(snapshotCalls()).toHaveLength(0)
   })
 
@@ -363,5 +377,40 @@ describe('TweetCard inside a real editor', () => {
       Object.assign(Range.prototype, original)
     }
     expect(editor.getJSON()).not.toEqual(doc)
+  })
+
+  const docFor = (excerptId) => ({
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Before the card' }] },
+      { type: 'documentExcerpt', attrs: { excerptId } },
+    ],
+  })
+
+  it('after a body swap to another excerpt, a blur saves to the new excerpt', async () => {
+    hookExcerpts = [tweetExcerpt({ id: 'ex1' }), tweetExcerpt({ id: 'ex2', annotation: 'Second card.' })]
+    render(<SWRConfig value={{ provider: () => new Map() }}><Harness /></SWRConfig>)
+    await screen.findByLabelText('My take')
+
+    act(() => { editor.commands.setContent(docFor('ex2')) })
+    await waitFor(() => expect(take().value).toBe('Second card.'))
+
+    fireEvent.change(take(), { target: { value: 'Landed on the second card.' } })
+    fireEvent.blur(take())
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].url).toBe('/api/j2/excerpts/ex2')
+    expect(JSON.parse(patches()[0].body)).toEqual({ annotation: 'Landed on the second card.' })
+  })
+
+  it('words not yet saved when the excerpt changes stay with the excerpt they were typed on', async () => {
+    hookExcerpts = [tweetExcerpt({ id: 'ex1' }), tweetExcerpt({ id: 'ex2' })]
+    render(<SWRConfig value={{ provider: () => new Map() }}><Harness /></SWRConfig>)
+    fireEvent.change(await screen.findByLabelText('My take'), { target: { value: 'Typed on the first card.' } })
+
+    act(() => { editor.commands.setContent(docFor('ex2')) })
+    await waitFor(() => expect(patches()).toHaveLength(1))
+    expect(patches()[0].url).toBe('/api/j2/excerpts/ex1')
+    expect(JSON.parse(patches()[0].body)).toEqual({ annotation: 'Typed on the first card.' })
+    await waitFor(() => expect(take().value).toBe(''))
   })
 })

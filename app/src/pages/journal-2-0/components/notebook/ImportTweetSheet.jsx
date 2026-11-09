@@ -51,7 +51,9 @@ function PostRow({ post, ticked, already, onToggle }) {
         </span>
         <span className={styles.postText}><PostText text={post.text} /></span>
         {media && <img className={styles.postImage} src={media} alt="" loading="lazy" />}
-        {already && <span className={styles.tag}>Already in this note</span>}
+        {already
+          ? <span className={styles.tag}>Already in this note</span>
+          : post.savedInNote && <span className={styles.tag}>Saved in one of your notes</span>}
       </span>
       <span className={styles.check} aria-hidden="true">
         {ticked && <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
