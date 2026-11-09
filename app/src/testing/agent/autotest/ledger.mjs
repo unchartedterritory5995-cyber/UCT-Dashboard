@@ -11,7 +11,7 @@ import { parseArgs } from 'node:util'
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const { values: A } = parseArgs({ options: {
-  d: { type: 'string' }, 'd-label': { type: 'string', default: 'development' }, p: { type: 'string' }, 'p-label': { type: 'string', default: 'production' }, out: { type: 'string' },
+  d: { type: 'string' }, 'd-label': { type: 'string', default: 'development' }, p: { type: 'string' }, 'p-label': { type: 'string', default: 'production' }, out: { type: 'string' }, note: { type: 'string', multiple: true, default: [] },
 } })
 const D = JSON.parse(readFileSync(A.d, 'utf8')), P = JSON.parse(readFileSync(A.p, 'utf8'))
 for (const [n, x] of [['d', D], ['p', P]]) if (!x.ledger) throw new Error(`--${n}: a recount JSON from a recount.mjs that writes the ledger section`)
@@ -46,6 +46,7 @@ const md = [
   '',
   `Inputs: D = \`${D.ledger.source}\`; P = \`${P.ledger.source}\`.`,
   '',
+  ...(A.note.length ? ['**Notes.**', '', ...A.note.map(n => `- ${n}`), ''] : []),
 ].join('\n')
 writeFileSync(A.out, md)
 console.log(JSON.stringify({ areas: rows.length, total: { inScope: tot('inScope'), dExec: tot('dExec'), pExec: tot('pExec'), p0: tot('p0'), dP0: tot('dP0'), pP0: tot('pP0'), dTeach: tot('dTeach'), pTeach: tot('pTeach') } }))
