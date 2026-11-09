@@ -30,7 +30,7 @@ import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
-import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
+import { Budget, RuntimeLimitError, DEFAULT_LIMITS, LIMIT_PLAIN } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 // ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
 import { registerObjectRuntimeValues } from '../objectRuntimeSeam.js'
@@ -104,7 +104,7 @@ export const RUNTIME_HISTORY_GUARD = 'runtime:history-start'
  */
 export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
   const tooBig = sourceSizeRefusal(source)
-  if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig } }
+  if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig, limit: 'PROGRAM_SIZE' } }
   let built
   try {
     // ⭐ RT5 — `objectsInRun`: the build that DRAWS its own objects instead of
@@ -323,7 +323,7 @@ export function sourceSizeRefusal(source) {
   const ceiling = DEFAULT_LIMITS.PROGRAM_SIZE
   if (bytes <= ceiling) return null
   return `this script is ${bytes} bytes long, past the ${ceiling}-byte limit a script drawn bar by bar is `
-    + 'read under (PROGRAM_SIZE), so it is not read at all.'
+    + 'read under, so it is not read at all.'
 }
 
 // ─── ⭐⭐ P1 HARDENING — VERSION AND OUTPUT-MAP INTEGRITY ─────────────────────
@@ -386,10 +386,23 @@ export function runtimeVersionRefusal(def, programOutputs) {
 }
 
 /** A refusal-shaped error, as `nativeRegistry.runtimeColumnsOrReasons` reads one. */
-function refusal(guard, message) {
+function refusal(guard, message, limit) {
   const err = new Error(message)
   err.guard = guard
+  // the limit's engine NAME, for telemetry only — never in the member's sentence
+  if (limit) err.limit = limit
   return err
+}
+
+/** ⭐ THE MEMBER'S SENTENCE FOR A VM LIMIT — plain words, the numbers kept, no engine
+ *  token (`CALL_COUNT`). Exported for its rail. */
+export function runtimeLimitSentence(err, bar, total) {
+  const what = LIMIT_PLAIN[err && err.limit] || 'one of the limits a script drawn bar by bar runs under'
+  const n = (v) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US') : String(v))
+  const unit = err && err.limit === 'WALL_TIME' ? ' ms' : ''
+  return `this script went past ${what} (at most ${n(err && err.ceiling)}${unit}, it reached `
+    + `${n(err && err.reached)}${unit}) on bar ${n(bar)} of ${n(total)}, so it is stopped and nothing is drawn `
+    + 'rather than part of it.'
 }
 
 /**
@@ -1234,7 +1247,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     }
   }
   const tooBig = sourceSizeRefusal(compute.source)
-  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig)
+  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
   // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
   // ⭐ P3 WS-F x WS-E — a `bar_index`-shifted build (the calc_bars window's probe) is a
   // MEASUREMENT: it never keeps or resumes a session, so its build, checkpoint and realtime
@@ -1390,13 +1403,19 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
         finished = bar
         if (budgetMs !== null) {
           const spent = now() - startedAt
-          if (spent > budgetMs) throw new RuntimeLimitError('WALL_TIME', budgetMs, Math.round(spent))
+          if (spent > budgetMs) {
+            // ⛔ TAGGED AS THE PANE'S: the VM's own `limits.WALL_TIME` throws the same
+            // class and name, and must not be reported as this budget.
+            const over = new RuntimeLimitError('WALL_TIME', budgetMs, Math.round(spent))
+            over.paneBudget = true
+            throw over
+          }
         }
       },
     })
   } catch (err) {
     if (err && err.name === 'runtime.error') err.bar = finished + 1
-    if (err instanceof RuntimeLimitError && err.limit === 'WALL_TIME' && budgetMs !== null) {
+    if (err instanceof RuntimeLimitError && err.paneBudget === true) {
       throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${budgetMs} ms to draw `
         + `bar by bar (it had reached bar ${finished + 1} of ${rows.length}), which is this pane's budget `
         + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
@@ -1408,9 +1427,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // can read. The script's own `runtime.error` (C43) keeps its own path.
     if (err && err.name !== 'runtime.error' && !err.guard) {
       if (err instanceof RuntimeLimitError) {
-        throw refusal(RUNTIME_LIMIT_GUARD, `this script passed one of the limits a script drawn bar by bar `
-          + `runs under (${err.limit}: at most ${err.ceiling}, it reached ${err.reached}) on bar ${finished + 1} `
-          + `of ${rows.length}, so it is stopped and nothing is drawn rather than part of it.`)
+        throw refusal(RUNTIME_LIMIT_GUARD, runtimeLimitSentence(err, finished + 1, rows.length), err.limit)
       }
       // A collection / record / VM error words its own reason (`collections.js`:
       // "array.sum of an empty array — …"); it is kept, with the bar it stopped on.
@@ -1577,7 +1594,7 @@ const wantedKind = (spec) => (spec && !spec.passes && spec.node && spec.kind) ||
 
 export function probeObjectRuntime(source, specs) {
   const tooBig = sourceSizeRefusal(source)
-  if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig } }
+  if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig, limit: 'PROGRAM_SIZE' } }
   let built
   try {
     built = buildRuntimeIr(String(source || ''), {

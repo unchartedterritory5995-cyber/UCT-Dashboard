@@ -101,7 +101,10 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     const over = DEFAULT_LIMITS.HISTORY + 1
     try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(new RegExp(`HISTORY: at most ${DEFAULT_LIMITS.HISTORY}, it reached ${over}`))
+    // the NAME rides as a field; the member reads plain words and the numbers
+    expect(err.limit).toBe('HISTORY')
+    expect(err.message).toContain(`the number of bars a script may be drawn over (at most ${DEFAULT_LIMITS.HISTORY.toLocaleString('en-US')}, it reached ${over.toLocaleString('en-US')})`)
+    expect(err.message).not.toMatch(/HISTORY/)
     expect(err.message).not.toMatch(/_EXCEEDED/)
   })
 
