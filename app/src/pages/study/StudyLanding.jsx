@@ -16,7 +16,7 @@
 import UIcon from '../../components/ui/UIcon'
 import StudyMark from '../../components/study/StudyMark'
 import StudyButton from './ui/StudyButton'
-import { CHALLENGES } from './challenges/ChallengeSheet'
+import { CHALLENGES } from './challenges/registry'
 import { BLITZ_BEST_KEY } from './challenges/challengeBank'
 import { trackSummary, recommendUnit } from './studyMap'
 import { METHOD_ID, FOUNDATIONS_ID } from './studyLandingChart'
