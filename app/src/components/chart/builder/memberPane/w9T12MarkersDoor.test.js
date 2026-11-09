@@ -28,7 +28,7 @@ import { runtimeStrategyOf, withStrategyRecord } from '../../engine/runtime/stra
 import { tradeMarkersFor, resetTradeMarkers, onTradeMarkersChange } from '../../engine/runtime/tradeMarkers'
 import { createBinder } from '../../engine/binder'
 import { createFakeChart } from '../../engine/__tests__/fakeChart'
-import { RUNTIME_WARMUP_KEY } from '../../engine/runtime/runtimeObjects'
+import { RUNTIME_WARMUP_KEY, withRuntimeObjects } from '../../engine/runtime/runtimeObjects'
 import { objectRenderDropsFor, resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 
 const NL = String.fromCharCode(10)
@@ -62,7 +62,7 @@ function build(source) {
 }
 
 /** The real binder over the recording chart, fed `cols`; returns the render states handed to the layer. */
-function bind(def, cols, scope = '', bars = BARS) {
+function bind(def, cols, scope = '', bars = BARS, makeLayer = undefined) {
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC, scope })
   const layers = []
@@ -81,7 +81,8 @@ function bind(def, cols, scope = '', bars = BARS) {
     bars, tf: 'D', adjustTime: (t) => t, plan: { fresh: true },
     applyData: (series, data) => series.setData(data),
     resolvePlacement: () => ({ paneIndex: 0, scaleId: 's', scaleOptions: {} }),
-    createObjectLayer: () => ({ set: (state, sig, meta) => { layers.push(state); sigs.push(sig); metas.push(meta) }, clear: () => {} }),
+    createObjectLayer: makeLayer !== undefined ? makeLayer
+      : () => ({ set: (state, sig, meta) => { layers.push(state); sigs.push(sig); metas.push(meta) }, clear: () => {} }),
   })
   return { binder, instanceId, layers, sigs, metas }
 }
@@ -313,6 +314,81 @@ describe('W9-T12 r2 (N2) the host-path merge keeps ids and bars in step and coun
     const m = bind(def, cols, 'tip', dateBars)
     const drops = objectRenderDropsFor(m.instanceId, 'tip')
     expect(drops && drops.dropped).toBe(1)
+    m.binder.teardown()
+  })
+})
+
+describe('W9-T12 r3 every way the run branch draws nothing turns a served outcome into the withheld refusal', () => {
+  const GUARD = 'runtime:strategy-markers-withheld'
+  /** served columns that also carry a run-owned drawing payload with one object */
+  const withObjects = (cols, obj) => withRuntimeObjects(cols, { status: 'ok', live: [obj], withheld: {}, stats: { nextId: 2 } })
+  const goodLine = { id: 1, family: 'line', createdBar: 0, props: { x1: 0, y1: 100, x2: 5, y2: 110 } }
+
+  it('Q1: the render state throws => cleared layer and the withheld refusal, never ok', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(SRC)
+    expect(def.objects).toBeFalsy()   // the run branch
+    const bad = { id: 1, family: 'line', createdBar: 0, get props() { throw new Error('boom') } }
+    const m = bind(def, withObjects(served(def), bad))
+    expect(m.layers.filter(Boolean)).toEqual([])
+    expect(tradeMarkersFor(m.instanceId).guard).toBe(GUARD)
+    m.binder.teardown()
+  })
+
+  it('Q1 CONTROL: the same payload with a well-formed object is drawn and reported ok', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(SRC)
+    const m = bind(def, withObjects(served(def), goodLine))
+    const s = m.layers.filter(Boolean).pop()
+    expect(s.labels).toHaveLength(2)
+    expect(tradeMarkersFor(m.instanceId).status).toBe('ok')
+    m.binder.teardown()
+  })
+
+  it('N: a surface with no object layer => the withheld refusal', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(SRC)
+    const m = bind(def, served(def), '', BARS, null)
+    expect(tradeMarkersFor(m.instanceId).guard).toBe(GUARD)
+    m.binder.teardown()
+  })
+
+  it('N: a layer that cannot be made (the factory throws, or returns nothing) => the withheld refusal, on both paths', () => {
+    globalThis.__w9t12LookPinned = true
+    for (const src of [SRC, hostedSrc(HOSTED['var line once'])]) {
+      const def = build(src)
+      for (const make of [() => { throw new Error('no canvas') }, () => null]) {
+        const m = bind(def, served(def), '', BARS, make)
+        expect(tradeMarkersFor(m.instanceId).guard, src).toBe(GUARD)
+        m.binder.teardown()
+      }
+      registry.uninstallUserDefinition(ID)
+    }
+  })
+
+  it('N: the layer refuses the picture (set throws) => the withheld refusal, on both paths', () => {
+    globalThis.__w9t12LookPinned = true
+    for (const src of [SRC, hostedSrc(HOSTED['var line once'])]) {
+      const def = build(src)
+      const m = bind(def, served(def), '', BARS, () => ({ set: () => { throw new Error('ctx lost') }, clear: () => {} }))
+      expect(tradeMarkersFor(m.instanceId).guard).toBe(GUARD)
+      m.binder.teardown()
+      registry.uninstallUserDefinition(ID)
+    }
+  })
+
+  it('N, host path: no object layer => the withheld refusal', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const m = bind(def, served(def), '', BARS, null)
+    expect(tradeMarkersFor(m.instanceId).guard).toBe(GUARD)
+    m.binder.teardown()
+  })
+
+  it('CONTROL: look unpinned with no object layer => the W9-MK1 refusal passes through unchanged', () => {
+    const def = build(SRC)
+    const m = bind(def, served(def), '', BARS, null)
+    expect(tradeMarkersFor(m.instanceId).capture).toBe('W9-MK1')
     m.binder.teardown()
   })
 })

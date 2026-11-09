@@ -1185,12 +1185,13 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (drawsRuntimeObjects(def) || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
         const memo = computeMemo.get(inst.instanceId)
-        if (typeof make !== 'function') continue
+        // (r3) no object layer on this surface, or one that could not be made: nothing is drawn
+        if (typeof make !== 'function') { markersCleared(); continue }
         let rlayer = objectLayers.get(inst.instanceId)
         if (!rlayer) {
           const made = attempt(() => make(inst))
           rlayer = made.ok ? made.value : null
-          if (!rlayer) continue
+          if (!rlayer) { markersCleared(); continue }
           objectLayers.set(inst.instanceId, rlayer)
         }
         const objPayload = runtimeObjectsOf(memo && memo.cols)
@@ -1205,24 +1206,25 @@ export function createBinder({ chart, LWC, scope = '' }) {
         publishDrops(inst.instanceId, rstate)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
-        attempt(() => rlayer.set(rstate, rsig, {
+        const rset = attempt(() => rlayer.set(rstate, rsig, {
           liveIds: payload.live.map((o) => o.id),
           createdBars: payload.live.map((o) => o.createdBar),
           lane: 'runtime',
           withheld: payload.withheld || {},
           reason: payload.reason || null,
         }))
+        if (!rset.ok) markersCleared()
         continue
       }
       const program = def && def.objects
       if (!program) continue
       alive.add(inst.instanceId)
-      if (typeof make !== 'function') continue
+      if (typeof make !== 'function') { markersCleared(); continue }
       let layer = objectLayers.get(inst.instanceId)
       if (!layer) {
         const made = attempt(() => make(inst))
         layer = made.ok ? made.value : null
-        if (!layer) continue
+        if (!layer) { markersCleared(); continue }
         objectLayers.set(inst.instanceId, layer)
       }
       // ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN: what step 1
@@ -1368,7 +1370,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         } else markersCleared()
       }
       publishDrops(inst.instanceId, hstate)
-      attempt(() => layer.set(hstate, sig + markSig, meta))
+      if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {
       if (alive.has(id)) continue
