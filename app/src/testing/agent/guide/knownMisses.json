@@ -1,5 +1,5 @@
 {
- "note": "Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES and COV4_MISSES in app/src/agent/agentGuideHeldOutCov3.test.js and agentGuideHeldOutCov4.test.js.",
+ "note": "Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES and COV4B_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b test files.",
  "misses": [
   {
    "set": "cov-3",
@@ -28,6 +28,13 @@
    "named": "Market cap in the info row",
    "reaches": "The header’s info row",
    "why": "the info row's own panel walkthrough (the matrix's assignment for C1-066) takes it first"
+  },
+  {
+   "set": "cov-4b",
+   "say": "how do I get alerted at a fib level",
+   "named": "An alert on a line",
+   "reaches": "Setting a price alert",
+   "why": "a fib has no Set alert of its own (drawingSettingsSchema.js), so the truthful walkthrough is a price alert at the level"
   }
  ]
 }
