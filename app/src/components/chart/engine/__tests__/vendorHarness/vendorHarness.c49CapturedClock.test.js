@@ -762,7 +762,10 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     }
     const daily = on(CAP.D900, src)
     expect(noteCodes(daily)).toEqual([])
-    expect(column(daily, 0).filter(Number.isNaN).length).toBe(1)             // the first partial week: no closed week before it
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was 1 (the first partial week had no closed week before
+    // it). The daily capture is now replayed over SPY's proved history from its listing, as
+    // the member's daily chart computes it, so the week before the window IS closed: 0.
+    expect(column(daily, 0).filter(Number.isNaN).length).toBe(0)
     // ⚠️ WHY the intraday resample was not the answer: on the 60-minute chart its "weekly close" is the last
     // HOURLY bar's close, which is not the daily bar's — the same gap the 5-minute capture shows for the day
     const h = CAP.I60.bars.rows
