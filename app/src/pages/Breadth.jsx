@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react'
 import { lazyDeferrable } from '../utils/lazyWithRetry'
 import { useSearchParams } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
@@ -369,7 +369,7 @@ function cellClass(col, val, row = null) {
 // this surface is not a lookalike of those widgets, it IS them.
 // Lazy so the breadth bundle does not pull the charts workspace until a cell is
 // actually clicked.
-const BreadthDrillModal = lazy(() => import('./breadth/drill/BreadthDrillModal'))
+const BreadthDrillModal = lazyDeferrable(() => import('./breadth/drill/BreadthDrillModal'))
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
