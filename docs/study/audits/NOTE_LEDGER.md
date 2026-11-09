@@ -14,7 +14,7 @@ it waits on a decision only he can make.
 His score is the only score. "Done" here means built and checked, not that it has reached his 99/100: that is what his
 ranks on each batch say, and every batch's ranks are added to this ledger the day they arrive.
 
-Last checked: 2026-11-08, branch `feat/study-focus-status`.
+Last checked: 2026-11-08 (late), branch `feat/study-focus-status`. Nothing is left Partly or Not yet; what remains waits on his ranks or approvals.
 
 ## 1. The chart
 
@@ -25,7 +25,7 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 | N023, N045 | The chart a bit bigger, sized better | Done | `heroChart`, 480 to 520 px on desktop in every mode |
 | N089 | Do not ask with the indicators blanked | Done | the toggles are gone |
 | N029 | Show the ticker on the lesson's question card ("the widget stays exactly as on the Charts page, identity row and watermark visible before answering") | Done 2026-11-08 (his "Yes") | a lesson set carries each chart's `ticker` (`_set_payload` `ticker`; `/today` and `lesson: true` sets); the lesson chart shows the widget's identity row and watermark; the challenges never carry it (Hard mode stays "no ticker"); test in `test_study_router.py` |
-| N112 | "better graphics" on the chart | Partly | the widget look, the pointer and the key; no change aimed only at this |
+| N112 | "better graphics" on the chart | Built 2026-11-08, waiting on his rank | since his batch-24 "Okay": the gold targeting brackets round every chart (the arena), the key under it, the replay framed close and widening, its clock, its questions, and the trade as bar markers at their own bars |
 
 ## 2. The pointer (the arrow and its label)
 
