@@ -47,6 +47,10 @@ import { CalendarRoute, TerminalRoute } from './pages/terminal/TerminalRoutes'
 // Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
 import useHubActive from './hub/useHubActive'
 import { shouldRetryOnErrorAppWide } from './lib/swrRetry'
+// /charts is mounted by ChartsDeskHost (inside Layout) so it can outlive a route change while a
+// board is popped out; the route itself renders nothing. Eager and tiny; the page chunk stays lazy.
+import { ChartsRouteSlot } from './pages/charts/ChartsDeskHost'
+import { importChartsWorkspace } from './pages/charts/chartsWorkspaceImporter'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -158,7 +162,7 @@ const J2WrappedSurface = lazy(() => import('./pages/journal-2-0/surfaces/Wrapped
 const J2RouteFocus = lazy(() => import('./pages/journal-2-0/lib/routeFocus'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
-const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsWorkspace'))
+pageImporters.set('/charts', importChartsWorkspace)
 
 // Start the CURRENT route's chunk NOW — module scope, so it fires as soon as the
 // entry bundle parses rather than waiting on React to mount, AuthGuard to clear,
@@ -624,7 +628,7 @@ export default function App() {
                 <Route path="/morning-wire" element={<MorningWire />} />
                 <Route path="/uct-20" element={<UCT20 />} />
                 <Route path="/breadth" element={<Breadth />} />
-                <Route path="/charts" element={<ChartsWorkspace />} />
+                <Route path="/charts" element={<ChartsRouteSlot />} />
                 <Route path="/theme-tracker" element={<LegacyRedirect />} />
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />

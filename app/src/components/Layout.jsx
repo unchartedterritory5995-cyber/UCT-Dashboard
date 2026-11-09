@@ -12,6 +12,7 @@ import RegistryToursGate from '../pages/journal-2-0/components/notebook/onboardi
 import { OTHER_TOURS } from '../pages/journal-2-0/components/notebook/onboarding/tourRegistry'
 import FeedbackWidget from './FeedbackWidget'
 import { registerFirstRunSlot } from './firstRun/firstRunStage'
+import ChartsDeskHost from '../pages/charts/ChartsDeskHost'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
 import HomeHubSection from '../hub/sections/HomeHubSection'
@@ -199,6 +200,14 @@ export default function Layout({ children }) {
                   nothing on the page; the slot itself is empty and has no box at all.
                   components/firstRun/firstRunStage.js; rail Layout.firstRunSlot.test.jsx. */}
               <div ref={registerFirstRunSlot} data-first-run-slot="" />
+              {/* The Charts workspace, kept mounted while a board is popped out so changing page does
+                  not close the windows on the other monitors. Before the Suspense below on purpose:
+                  a page that suspends must not take the board with it. A Layout rendering explicit
+                  children has no routes, so no workspace either. The state lives in this leaf, not in
+                  Layout (pages/charts/ChartsDeskHost.jsx). */}
+              {children == null && (
+                <ChartsDeskHost fallback={<div className={styles.routeFallback} aria-busy="true" />} />
+              )}
               <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
                 {children ?? <Outlet />}
               </Suspense>

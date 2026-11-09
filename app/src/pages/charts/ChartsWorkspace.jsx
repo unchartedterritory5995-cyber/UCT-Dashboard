@@ -5,6 +5,7 @@ import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
 import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
+import { markDeskHidden } from './deskKeyGate'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
@@ -781,12 +782,19 @@ function DeleteConfirm({ onYes, onCancel }) {
 // preferences through the boot path (the hydration gate and all). The first answer of /me is not a
 // change of member and does not remount. The unmounting board's pending save is dropped by its op.
 const prefsGeneration = () => beginPrefsOp().gen
-export default function ChartsWorkspace() {
+// `hidden`: ChartsDeskHost is keeping this workspace alive behind another page because a board or
+// widget is popped out. A hidden board keeps its pop-outs and its state and does nothing in the main
+// window: no grid, no toolbar, no main-window widgets, no shortcuts (see `boardHidden` below).
+export default function ChartsWorkspace({ hidden = false }) {
   const generation = useSyncExternalStore(onPrefsUserChange, prefsGeneration, prefsGeneration)
-  return <ChartsWorkspaceBoard key={generation} />
+  return <ChartsWorkspaceBoard key={generation} boardHidden={hidden === true} />
 }
 
-function ChartsWorkspaceBoard() {
+// ⛔ Kept out of the hook call's default so the empty list is one stable identity.
+const NO_MAIN_BOARD_WIDGETS = []
+const BOARD_HIDDEN_STYLE = { display: 'none' }
+
+function ChartsWorkspaceBoard({ boardHidden = false }) {
   const isPhonePortrait = useMediaQuery('(max-width: 640px)')
   // A rotated phone (coarse pointer, short landscape viewport) also gets the
   // chart-first shell — TradingView's rotate-to-fullscreen. Without this the
@@ -807,11 +815,14 @@ function ChartsWorkspaceBoard() {
   // mounted for a frame and REMOUNTED the shell, wiping every bit of its state
   // (open sheet, open widget page, pending opens). Discovery journey
   // `rotate-midsheet` caught the sheet vanishing; one MQL cannot have a gap.
-  const isMobile = useMediaQuery(
+  const isMobileViewport = useMediaQuery(
     '(max-width: 640px), '
     + '(pointer: coarse) and (orientation: landscape) and (max-height: 500px), '
     + '(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)',
   )
+  // Hidden behind another page the phone shell must not mount (it would paint over that page and
+  // set html[data-mobile-chart-shell]); the pop-outs keep running from the desktop branch below.
+  const isMobile = isMobileViewport && !boardHidden
   const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
   const { prefs, setPref, setPrefMerged, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
   // Read at WRITE time by the Watchlist-columns fold below (it runs from the autosave, 500 ms
@@ -881,7 +892,15 @@ function ChartsWorkspaceBoard() {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [computeRowHeight, merged])
+    // boardHidden: the body is not rendered while hidden, so returning has to measure it again.
+  }, [computeRowHeight, merged, boardHidden])
+
+  // While hidden, keys typed on the page in the main window are not the desk's (deskKeyGate.js).
+  useEffect(() => {
+    if (!boardHidden) return undefined
+    markDeskHidden(true)
+    return () => markDeskHidden(false)
+  }, [boardHidden])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -1119,7 +1138,9 @@ function ChartsWorkspaceBoard() {
       .map(w => w.id),
     [layout.widgets, poppedWidgetIds, floatingWidgetIds],
   )
-  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
+  // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
+  // the widgets back in through the same cap instead of mounting them all at once.
+  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
 
   const widgetCanvasByType = useMemo(() => {
     // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
@@ -1692,6 +1713,7 @@ function ChartsWorkspaceBoard() {
   // ⛔ Declared AFTER applyTfToCharts on purpose (it reads it).
   const deepLinkAppliedRef = useRef(false)
   useEffect(() => {
+    if (boardHidden) { deepLinkAppliedRef.current = false; return }
     if (deepLinkAppliedRef.current || prefsLoading) return
     const link = readChartsLink(typeof window !== 'undefined' ? window.location.search : '')
     deepLinkAppliedRef.current = true
@@ -1704,7 +1726,7 @@ function ChartsWorkspaceBoard() {
       window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest}`)
     } catch { /* history unavailable — lingering params are harmless */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefsLoading])
+  }, [prefsLoading, boardHidden])
 
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
@@ -1896,13 +1918,16 @@ function ChartsWorkspaceBoard() {
   // docs/superpowers/specs/2026-08-30-dashboard-session-cockpit-design.md.
   const ensureWidgetAppliedRef = useRef(false)
   useEffect(() => {
+    // A workspace kept alive behind another page comes back through this door too, so a URL that
+    // arrives on the return is read the same way a fresh mount reads it.
+    if (boardHidden) { ensureWidgetAppliedRef.current = false; return }
     if (ensureWidgetAppliedRef.current || prefsLoading) return
     ensureWidgetAppliedRef.current = true
     const want = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('ensure')
     if (!want) return
     if (layoutRef.current?.widgets?.some(w => w.type === want)) return
     handleAddWidget(want, undefined, { instant: true })
-  }, [prefsLoading, handleAddWidget])
+  }, [prefsLoading, handleAddWidget, boardHidden])
 
 
   // Commit a pending smart-placement add (Place / Enter / click the ghost). Mirrors
@@ -2791,11 +2816,12 @@ function ChartsWorkspaceBoard() {
   // workspace-level listener names the gesture. Grid cells don't implement
   // capture, so the hint would mislead there.
   const [jwHotkeyMsg, setJwHotkeyMsg] = useJournalToast()
-  const jwHotkeyCtx = useRef({ gridMode })
-  jwHotkeyCtx.current = { gridMode }
+  const jwHotkeyCtx = useRef({ gridMode, boardHidden })
+  jwHotkeyCtx.current = { gridMode, boardHidden }
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (jwHotkeyCtx.current.boardHidden) return
       if (jwHotkeyCtx.current.gridMode) return
       if (activeChartRef.current != null) return
       e.preventDefault()
@@ -3161,7 +3187,8 @@ function ChartsWorkspaceBoard() {
   // The host reads the charts through chartApiById (each ChartWidget's own agent
   // adapter) and the visible board below — it never writes prefs itself.
   const agentFlag = useAgentFlag()
-  const agentAllowed = agentFlag && isAdmin
+  // A hidden board is not the page showing: it offers no Agent and registers no page host for it.
+  const agentAllowed = agentFlag && isAdmin && !boardHidden
   // The panel's code is fetched in the background before the first open, so that open slides
   // in on the first click instead of waiting on the download.
   useEffect(() => {
@@ -3388,7 +3415,7 @@ function ChartsWorkspaceBoard() {
     },
   }), [])
   // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
-  useAgentPageHost('charts', agentHost, { owned: true })
+  useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
   // The toolbar names its chart `chartId` or `chartId:tabId`; the host names it `chartId~tabId`. A
@@ -3686,10 +3713,15 @@ function ChartsWorkspaceBoard() {
     onFloat: handleFloatWidget,
   }
 
+  // ⭐ Hidden, everything that belongs to the MAIN window is left out, and the pop-outs below stay
+  // where they are: the two conditional blocks keep the pop-outs at the same place in the tree, so
+  // React never remounts them and never closes a window. The main-window widgets unmount, which is
+  // what stops their charts, streams and key listeners while another page is showing.
   return (
     <ContextChannelsProvider>
     <WorkspaceContext.Provider value={workspaceValue}>
-      <div className={styles.workspace} data-charts-theme={chartsTheme}>
+      <div className={styles.workspace} data-charts-theme={chartsTheme} style={boardHidden ? BOARD_HIDDEN_STYLE : undefined}>
+        {!boardHidden && (<>
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
@@ -3998,6 +4030,7 @@ function ChartsWorkspaceBoard() {
         )}
         {agentAllowed && agentOpen && inRouter && <AgentNavBridge navRef={agentNavRef} />}
         </div>
+        </>)}
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and
@@ -4041,6 +4074,7 @@ function ChartsWorkspaceBoard() {
           />
         ))}
 
+        {!boardHidden && (<>
         {popoutNotice && (
           <div className={styles.popoutNotice} role="alert">
             {popoutNotice}
@@ -4140,6 +4174,7 @@ function ChartsWorkspaceBoard() {
           />
         )}
         {noticeHost}
+        </>)}
       </div>
     </WorkspaceContext.Provider>
     </ContextChannelsProvider>

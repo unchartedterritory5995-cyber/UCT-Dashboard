@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import { useWorkspace } from '../WorkspaceContext'
@@ -196,7 +197,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const markActive = useCallback(() => {
     if (activeChartRef) activeChartRef.current = widgetIdRef.current
   }, [activeChartRef])
-  const hotkeysIsActive = useCallback(() => {
+  const hotkeysIsActive = useCallback((e) => {
+    // ⛔ A chart on a popped desk does not answer keys typed on the page in the main window.
+    if (isHiddenDeskKey(e)) return false
     const a = activeChartRef?.current
     return a == null || a === widgetIdRef.current
   }, [activeChartRef])
@@ -580,6 +583,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (isHiddenDeskKey(e)) return
       // ⛔ NOT hotkeysIsActive(): its null-means-all baseline is right for TF
       // keys (legacy behavior) but a CAPTURE with no hovered chart would fire
       // on EVERY mounted chart — N inbox rows per press. Capture demands an
