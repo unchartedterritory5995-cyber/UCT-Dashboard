@@ -32,8 +32,8 @@
 // is a row, and a row whose profit cannot be served carries that profit's refusal.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE } from './brokerRules.js'
-import { BROKER_UNSETTLED_GUARD } from './broker.js'
+// ⛔ NOT from './broker.js': importing the broker here split it into its own shared chunk (engine-40 bytes)
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, BROKER_UNSETTLED_GUARD } from './brokerRules.js'
 import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf } from './strategyRecord.js'
 
 export const STRATEGY_REPORT_SCHEMA = 'uct.strategy-report/v1'

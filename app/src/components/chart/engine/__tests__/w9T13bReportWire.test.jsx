@@ -76,7 +76,7 @@ const installStrategy = () => {
 }
 
 describe('W9-T13b the binder publishes a strategy run\'s record, and the mount renders it', () => {
-  it('broker gate ON: record published under the instance, the panel renders it, and it leaves with the instance', () => {
+  it('broker gate ON: record published under the instance, the panel renders it, and it leaves with the instance', async () => {
     flags(true)
     installStrategy()
     binder.sync(ctxFor([inst()]))
@@ -86,6 +86,8 @@ describe('W9-T13b the binder publishes a strategy run\'s record, and the mount r
 
     const settings = { indicatorInstances: [inst()] }
     const { container } = render(<AttachedStrategyReports settings={settings} />)
+    // the report half is lazily loaded (engine-40 bytes): wait for it
+    await screen.findByTestId('strategy-reports')
     expect(container.querySelector('summary').textContent).toBe('Wire strategy: strategy report')
     // a run from the listing: D2 ALWAYS (r1), the record's sentence is shown verbatim
     expect(rec.window.fromListing).toBe(true)
