@@ -41,11 +41,8 @@ export const STRATEGY_RECORD_UNSERVED = Object.freeze({
   equity: 'W9-T13a-F1',
   'trades.exitId': 'W9-T7-F1 (order log, exitId)',
   'trades.profit': 'W9-T13a-F1',
-  'trades.commission': 'W9-T5',
   'trades.runUp': 'W9-T13a-F1',
   'trades.drawdown': 'W9-T13a-F1',
-  'settings.commission': 'W9-T5',
-  'settings.slippage': 'W9-T5',
   'settings.bar_detalization': 'W9-T9',
   'settings.currency': 'W9-D2 (deferred)',
 })
@@ -70,6 +67,17 @@ const timeAt = (barTimes, i) => (Array.isArray(barTimes) && Number.isInteger(i) 
   && Number.isFinite(barTimes[i]) ? barTimes[i] : null)
 const dirOf = (d) => (d > 0 ? 'long' : d < 0 ? 'short' : null)
 const QTY_TYPES = new Set(['fixed', 'cash', 'percent_of_equity'])
+/** W9-T5: the commission types (R6 `strategy.commission.*`) */
+export const COMMISSION_TYPES = Object.freeze(['percent', 'cash_per_contract', 'cash_per_order'])
+const commissionOf = (cfg) => {
+  const c = cfg.commission && typeof cfg.commission === 'object' ? cfg.commission : {}
+  return {
+    type: COMMISSION_TYPES.includes(c.type) ? c.type : 'percent',
+    value: Number.isFinite(c.value) && c.value >= 0 ? c.value : 0,
+    // false only when the script declares `commission_type` (B-DEFAULTS, `brokerRules.js` commissionRulesOf)
+    typeDefaulted: c.typeDefaulted !== false,
+  }
+}
 const defaultQtyOf = (cfg) => {
   if (QTY_TYPES.has(cfg.qtyType) && Number.isFinite(cfg.qtyValue)) return { type: cfg.qtyType, value: cfg.qtyValue }
   return Number.isFinite(cfg.defaultQty) ? { type: 'fixed', value: cfg.defaultQty } : null
@@ -107,7 +115,9 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     exitRule: t.exit ? t.exit.rule : null,
     exitId: null,
     profit: null,
-    commission: null,
+    // ⭐ W9-T5: the fees the trade paid, in the account currency (the broker's own figure; closed: entry +
+    // exit, open: entry so far). 0 with no commission.
+    commission: Number.isFinite(t.commission) ? t.commission : 0,
     runUp: null,
     drawdown: null,
   }))
@@ -142,8 +152,10 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
       calc_on_order_fills: cfg.calcOnOrderFills === true,
       // which of the above are the version's defaults, not the script's own (B-DEFAULTS)
       defaulted: Object.keys(defaulted).filter((k) => defaulted[k] === true).sort(),
-      commission: null,
-      slippage: null,
+      // ⭐⭐ W9-T5 — costs, as the declaration set them (each non-zero one asks its rule when a fill pays it):
+      // `{ type, value }`, R6 defaults percent / 0; `slippage` in ticks
+      commission: commissionOf(cfg),
+      slippage: Number.isInteger(cfg.slippage) && cfg.slippage >= 0 ? cfg.slippage : 0,
       bar_detalization: null,
       currency: null,
     },
@@ -198,6 +210,11 @@ export function strategyRecordShapeErrors(rec) {
     'window.bars <= window.historyWindowBars')
   need(isNullOr(w.asOfBar, isTime), 'window.asOfBar')
   need(!!rec.settings && typeof rec.settings === 'object', 'settings')
+  // W9-T5: the costs the run was charged with
+  const cm = rec.settings && rec.settings.commission
+  need(!!cm && COMMISSION_TYPES.includes(cm.type) && Number.isFinite(cm.value) && cm.value >= 0
+    && typeof cm.typeDefaulted === 'boolean', 'settings.commission')
+  need(!!rec.settings && Number.isInteger(rec.settings.slippage) && rec.settings.slippage >= 0, 'settings.slippage')
   const posOrNull = (v) => v === null || (Number.isFinite(v) && v > 0)
   need(!!rec.symbol && typeof rec.symbol === 'object', 'symbol')
   need(!!rec.symbol && posOrNull(rec.symbol.mintick), 'symbol.mintick')
@@ -212,6 +229,7 @@ export function strategyRecordShapeErrors(rec) {
     need(typeof t.entryRule === 'string', `trades[${i}].entryRule`)
     need(typeof t.open === 'boolean', `trades[${i}].open`)
     need(typeof t.exact === 'boolean', `trades[${i}].exact`)
+    need(Number.isFinite(t.commission) && t.commission >= 0, `trades[${i}].commission`)
     need(t.open ? t.exitTime === null : isTime(t.exitTime), `trades[${i}].exitTime`)
     need(t.open || typeof t.exitRule === 'string', `trades[${i}].exitRule`)
   }

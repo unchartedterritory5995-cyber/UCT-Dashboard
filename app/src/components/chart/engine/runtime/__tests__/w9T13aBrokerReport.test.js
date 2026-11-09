@@ -78,9 +78,11 @@ describe('W9-T13a served metrics, hand-computed', () => {
       totalClosedTrades: 4, totalOpenTrades: 1,
       numberWinningTrades: 2, numberLosingTrades: 1, numberEvenTrades: 1,
       netProfit: 5, netProfitPercent: 0.005, grossProfit: 10, grossLoss: 5, profitFactor: 2,
+      // W9-T5: no commission declared, so the closed trades paid 0 (resting on B-DEFAULTS)
+      commissionPaid: 0,
     })
     for (const k of SERVED_KEYS) {
-      expect(rep.metrics[k].source).toMatch(/strategy-broker-spec\.md B-VAL/)
+      expect(rep.metrics[k].source).toMatch(k === 'commissionPaid' ? /strategy\.closedtrades\.commission/ : /strategy-broker-spec\.md B-VAL/)
       expect(rep.metrics[k].pine).toBe(SERVED_METRICS[k].pine)
     }
     expect(rep.trades.status).toBe('served')
@@ -113,7 +115,7 @@ describe('W9-T13a served metrics, hand-computed', () => {
     const rep = strategyReportOf(recordOf([tr('a', 'long', 1, [1, 10], [2, 7]), tr('b', 'short', 2, [3, 4], [4, 5])]), { isPinned: ALL })
     expect(vals(rep, SERVED_KEYS)).toEqual({
       totalClosedTrades: 2, totalOpenTrades: 0, numberWinningTrades: 0, numberLosingTrades: 2, numberEvenTrades: 0,
-      netProfit: -5, netProfitPercent: -0.005, grossProfit: 0, grossLoss: 5, profitFactor: 0,
+      netProfit: -5, netProfitPercent: -0.005, grossProfit: 0, grossLoss: 5, profitFactor: 0, commissionPaid: 0,
     })
   })
 
@@ -121,7 +123,7 @@ describe('W9-T13a served metrics, hand-computed', () => {
     const rep = strategyReportOf(recordOf([]), { isPinned: ALL })
     expect(vals(rep, SERVED_KEYS)).toEqual({
       totalClosedTrades: 0, totalOpenTrades: 0, numberWinningTrades: 0, numberLosingTrades: 0, numberEvenTrades: 0,
-      netProfit: 0, netProfitPercent: 0, grossProfit: 0, grossLoss: 0, profitFactor: REPORT_UNDEFINED_GUARD,
+      netProfit: 0, netProfitPercent: 0, grossProfit: 0, grossLoss: 0, profitFactor: REPORT_UNDEFINED_GUARD, commissionPaid: 0,
     })
     expect(rep.metrics.profitFactor.sentence).toBe('Profit factor is not shown: it is gross profit divided by gross loss, and this backtest has no gross loss to divide by.')
     expect(rep.trades).toEqual({ status: 'served', rows: [] })
@@ -191,7 +193,10 @@ describe('W9-T13a pin before serve (D1)', () => {
   // not read from COMMISSION_NET_VALUES, so dropping a figure from the shared list goes red
   const NET_FIGURES = ['strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades', 'strategy.netprofit',
     'strategy.netprofit_percent', 'strategy.grossprofit', 'strategy.grossloss', 'strategy.openprofit',
-    'strategy.equity', 'strategy.closedtrades.profit']
+    'strategy.equity', 'strategy.closedtrades.profit',
+    // W9-T5: the fee itself rests on the commission's rules too
+    'strategy.closedtrades.commission', 'strategy.opentrades.commission']
+  const TRADE_FN = (fn) => fn.includes('trades.')
   const NOT_NET = ['strategy.closedtrades', 'strategy.opentrades', 'strategy.position_size', 'strategy.initial_capital']
   const brokerWith = (isPinned) => {
     const b = makeBroker({ pyramiding: 1, defaultQty: 1, initialCapital: 100000, marginLong: 0, marginShort: 0, defaulted: {} },
@@ -199,7 +204,7 @@ describe('W9-T13a pin before serve (D1)', () => {
     b.call('#symbol', [0.01, 1], 0)
     return b
   }
-  const callOf = (b, fn) => { try { return { v: b.call(fn, fn.endsWith('.profit') ? [0] : [], 0) } } catch (e) { return { e } } }
+  const callOf = (b, fn) => { try { return { v: b.call(fn, TRADE_FN(fn) ? [0] : [], 0) } } catch (e) { return { e } } }
 
   for (const fn of NET_FIGURES) {
     it(`r3 broker: ${fn} is net of commission, so it asks B-DEFAULTS (refused unpinned without it)`, () => {
@@ -212,7 +217,7 @@ describe('W9-T13a pin before serve (D1)', () => {
     const b = brokerWith(except('B-DEFAULTS'))
     for (const fn of NOT_NET) expect(callOf(b, fn).e).toBeUndefined()
     const all = brokerWith(ALL)
-    for (const fn of NET_FIGURES.filter((f) => !f.endsWith('.profit'))) expect(callOf(all, fn).e).toBeUndefined()
+    for (const fn of NET_FIGURES.filter((f) => !TRADE_FN(f))) expect(callOf(all, fn).e).toBeUndefined()
   })
   it('r3 ONE AUTHORITY: the shared list names real broker values, and every non-count report metric is one of them', () => {
     for (const fn of COMMISSION_NET_VALUES) expect(Object.keys(BROKER_OPS)).toContain(fn)
@@ -257,7 +262,8 @@ describe('W9-T13a refused by name (D8)', () => {
     expect(rep.metrics.maxDrawdown.sentence).toBe("Max drawdown is not shown: no source we hold states exactly how TradingView's "
       + 'Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S1).')
     expect(rep.metrics.sharpeRatio.row).toBe('W9-S2')
-    expect(rep.metrics.commissionPaid).toMatchObject({ guard: REPORT_UNRECORDED_GUARD, owner: 'W9-T5' })
+    // W9-T5 served it (the closed trades' fees; w9T5Costs.test.js has the non-zero cases)
+    expect(rep.metrics.commissionPaid).toMatchObject({ status: 'served', value: 0 })
   })
 
   it('the served and refused sets are disjoint and cover every report slot the capture harness reads', () => {
@@ -268,8 +274,8 @@ describe('W9-T13a refused by name (D8)', () => {
     expect(Object.keys(slots).filter((k) => !served.has(k) && !refused.has(k))).toEqual([])
   })
 
-  it('a served metric is only a B-VAL value or the manual\'s profit factor', () => {
-    for (const m of Object.values(SERVED_METRICS)) expect(m.source).toMatch(/B-VAL/)
+  it('a served metric is only a B-VAL value, the manual\'s profit factor, or (W9-T5) the reference\'s trade fees', () => {
+    for (const m of Object.values(SERVED_METRICS)) expect(m.source).toMatch(/B-VAL|`strategy\.closedtrades\.commission`/)
     expect(BROKER_RULE_IDS).toContain('B-VAL')
   })
 })

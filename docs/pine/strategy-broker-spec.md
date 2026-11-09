@@ -40,7 +40,7 @@ Where the reference and the manual disagree, the rule is **unsettled** (both quo
 | **B-FIFO** | Exits close the **oldest** open trades first (`close_entries_rule = "FIFO"`, the default). Served when the targeted trades ARE the oldest; any other case refuses (Q-S1h). | R5 `strategy.close` remarks: "a strategy.close call exits from the position starting with the first open trade. This behavior applies even if the id value is the entry ID of different open trades." M "Closing a market position". |
 | **B-QTY** | An order's size is its `qty`; `qty = na` takes the declaration's default. Fixed: the declared or documented value (v4's unstated value is taken as 1, a hypothesis). **W9-T4:** cash and percent-of-equity are sized when the order is placed, from the signal bar's close: cash `floor(value / (close x pointvalue))`, percent `floor(equity x value / 100 / (close x pointvalue))`, `equity` = `strategy.equity` at that close. This is a HYPOTHESIS (no text states the price or the rounding), unpinned until Q-S1a MATCHes; a price entry, a percent order with trades open, a percent above 100 and a size under one unit refuse (Q-S1a). | R5 `strategy.entry` `qty`: "The default is na, which means that the command uses the default_qty_type and default_qty_value parameters". M "Position sizing". |
 | **B-DEFAULTS** | Declaration defaults **per Pine version, from that version's reference**: v4 - `default_qty_type` fixed ("fixed quantity by default", no value stated), `initial_capital` 100000, `margin_long/short` 100; v5 - fixed, `default_qty_value` 1, `initial_capital` 1000000, margin 0; v6 - percent_of_equity, value 100, `initial_capital` 100000, margin 100. Commission, slippage 0 everywhere; `process_orders_on_close` false; `close_entries_rule` "FIFO". | R4/R5/R6 `strategy()` argument texts (e.g. R5 `initial_capital`: "The default is 1000000."; R6: "The default is 100000."; R5 `margin_long`: "The default is 0"; R6: "The default is 100"). M "Commission": "If not specified, the strategy applies no commission". The version split is the reference's; Q-S1b confirms it on the chart. |
-| **B-DECL** | A declaration property is served only at a value whose effect is settled: `pyramiding`, fixed `default_qty_*`, `initial_capital`, `margin_*`, `calc_on_every_tick` (history), and the defaults of `process_orders_on_close` (false), `calc_on_order_fills` (false), `use_bar_magnifier` (false), `slippage` 0, `commission_value` 0, `backtest_fill_limits_assumption` 0, `calc_bars_count` 0, `close_entries_rule` "FIFO", `currency` NONE. Presentation properties are read past. Anything else refuses `runtime:strategy-option`. | R4/R5/R6 `strategy()`. |
+| **B-DECL** | A declaration property is served only at a value whose effect is settled: `pyramiding`, fixed `default_qty_*`, `initial_capital`, `margin_*`, `calc_on_every_tick` (history), and the defaults of `process_orders_on_close` (false), `calc_on_order_fills` (false), `use_bar_magnifier` (false), `backtest_fill_limits_assumption` 0, `calc_bars_count` 0, `close_entries_rule` "FIFO", `currency` NONE. Presentation properties are read past. Anything else refuses `runtime:strategy-option`. W9-T5: `commission_type`, `commission_value` (a non-negative literal) and `slippage` (a non-negative whole number of ticks) are READ; a non-zero cost asks its own rule when a fill pays it (section "W9-T5"). | R4/R5/R6 `strategy()`. |
 | **B-SIG** | Positional order arguments follow the version's own signature (v4 `strategy.entry(id, long, qty, limit, stop, oca_name, oca_type, comment, when, alert_message)`; v5/v6 `strategy.entry(id, direction, qty, limit, stop, oca_name, oca_type, comment, alert_message, disable_alert)`, and likewise for exit / close / close_all / cancel / cancel_all). Labels (`comment*`, `alert*`, `disable_alert`) change no value. | R4/R5/R6 `syntax` lines. |
 | **B-WHEN** | `when` (v4, and still compiled by v5): "The order is placed if condition is 'true'. If condition is 'false', nothing happens (the previously placed order with the same ID is not cancelled)." v6 has no `when` (refused). | R4 `strategy.entry/exit/close` `when`. The v5 reference no longer lists it; Q-S1p confirms v5. |
 | **B-DIR** | v4 `long` takes `true` / `strategy.long` for long and `false` / `strategy.short` for short; v5/v6 `direction` takes `strategy.long` / `strategy.short`. | R4 `strategy.entry` `long`; R5 `direction`. |
@@ -73,12 +73,12 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 | Q-S1p | v5 `when`; a strategy's outputs on the forming bar | B-WHEN carried from R4; B-EXEC from M only |
 
 Not served at all (refused by name at build, `runtime:strategy-option` / `runtime:strategy-value`):
-`strategy.risk.*`, a `strategy.exit` `oca_name` (W9-X3), commission, slippage,
+`strategy.risk.*`, a `strategy.exit` `oca_name` (W9-X3),
 bar magnifier, `calc_on_every_history_tick = true`, `backtest_fill_limits_assumption` other than 0 (W9-T6 made `process_orders_on_close` and `calc_on_order_fills` READ: each refuses at run time by its rule until pinned; W9-T7 made `strategy.order`, `trail_*`, partial `qty` / `qty_percent`, entry / order OCA groups and `immediately` READ the same way), `close_entries_rule = "ANY"`,
 an account currency, and every `strategy.*` value outside B-VAL (`max_drawdown`, `*_percent` but
 `netprofit_percent`, `position_entry_name`, `avg_*`, `max_contracts_held_*`, the per-trade functions
 other than `opentrades.entry_price / entry_bar_index / size` and `closedtrades.entry_price / exit_price
-/ entry_bar_index / exit_bar_index / size / profit`).
+/ entry_bar_index / exit_bar_index / size / profit` and (W9-T5) `opentrades.commission` / `closedtrades.commission`).
 
 ## Pinned by (W9-T1; vocabulary: `runtime/brokerRules.js`, truth: `runtime/brokerPins.resolved.json`)
 
@@ -125,6 +125,11 @@ W9-T6 r1: the July-2026 Properties defaults (W9-J1) are not a rule. They are par
 | B-IMMEDIATELY | W9-X4 | (W9-T7) `close` / `close_all` `immediately = true`: filled at the bar close it is placed on |
 | B-STOP-LIMIT | Q-S1j | (W9-T7) stop-limit entry / order: the stop places a limit at `limit` |
 | B-EXIT-LEVELS | Q-S1k | (W9-T7) `profit` + `limit` (or `loss` + `stop`): v5 keeps the price, v6 the level reached first |
+| B-COMM-PCT | W9-K1 | (W9-T5) `strategy.commission.percent`: each fill pays `commission_value` percent of its cash volume |
+| B-COMM-CONTRACT | W9-K2 | (W9-T5) `strategy.commission.cash_per_contract`: each fill pays `commission_value` per contract |
+| B-COMM-ORDER | W9-K3 | (W9-T5) `strategy.commission.cash_per_order`: each filled order pays `commission_value` |
+| B-SLIPPAGE | W9-K4 | (W9-T5) `slippage` ticks: a market order fills that many ticks less favourably |
+| B-POC-COST | W9-P1 | (W9-T5) under `process_orders_on_close`: a fill at the close pays its costs there, from the close |
 
 ## W9-T7: the exit family and the other order kinds (all unpinned)
 
@@ -161,3 +166,37 @@ one tick, now also an activation or a stop-limit trigger beside another order), 
 no capture row queued.
 
 B-START is not a pin rule: Q-S1n is a fact capture that pins nothing. A run is refused `runtime:strategy-start` unless it is told the history window (`bars_window.HISTORY_WINDOW_BARS`, via the run context) and holds no more bars than it.
+
+## W9-T5: costs (all unpinned)
+
+Design section 4 T5 ("the three commission types, slippage, and both at the close under
+`process_orders_on_close`"), gated by capture rows W9-K1..K4 and W9-P1. One rule per capture row; the
+probes are `tools/visual_conformance/probes/w9-k1-commission-pct.pine`, `-k2-commission-contract`,
+`-k3-commission-order`, `-k4-slippage` and `w9-p1-on-close.pine`. Text quoted from the v6 Language
+Reference (R6, `_w0-2026-11-02/ref/pine_v6_reference.json`) unless named. **Everything the text leaves open
+is either a HYPOTHESIS behind its rule (served only once that rule is pinned) or a named refusal.** A zero
+commission and a zero slippage change nothing: every figure keeps its pre-T5 expression (`costOn` /
+`slipTicks` false), the census below shows it.
+
+**One commission authority.** `brokerRules.js` `commissionRulesOf(commission)` decides what a figure that
+reads a commission rests on: a zero commission, `[COMMISSION_RULE]` (B-DEFAULTS) exactly as before; a
+non-zero one, its type's rule (`COMMISSION_TYPE_RULES`), plus B-DEFAULTS when `commission_type` is not
+declared (R6 `commission_type`: "The default is strategy.commission.percent"). `broker.js` (the values, the
+margin check, equity) and `brokerReport.js` (the report, from the record's `settings.commission`) both ask it.
+`COMMISSION_NET_VALUES` gains `strategy.closedtrades.commission` and `strategy.opentrades.commission`.
+
+| rule | the reference says | HYPOTHESIS built (graded by the capture row) | refused by name |
+|---|---|---|---|
+| B-COMM-PCT | `commission_type`: "strategy.commission.percent for a percentage of the cash volume of the order"; `strategy.commission.percent`: "A percentage of the cash volume of order"; `strategy.closedtrades.commission`: "Returns the sum of entry and exit fees paid in the closed trade"; `strategy.closedtrades.profit`: "reduced by the trade's commissions" | the fee of a fill is size x fill price x pointvalue x value / 100, charged at the entry fill and at the exit fill, NOT rounded; with a commission, `grossprofit` / `grossloss` and win / loss / even classify and sum NET profits; an open trade's entry fee is paid, so it comes off `openprofit` and `equity` (its exit fee is not counted until it fills); a reversal's one fill charges each trade its own share (the fee is linear in size) | a cash or percent default size under a commission (whether the size allows for the fee); a T7 kind (partial size, `strategy.order`, OCA, trail, stop-limit, `immediately`) under a commission; a fee on a `calc_on_order_fills` extra execution's fill (W9-P2). All W9-K1 unless named |
+| B-COMM-CONTRACT | `commission_type`: "strategy.commission.cash_per_contract for currency per contract" | the fee of a fill is size x value, at entry and at exit; the same net-profit readings as B-COMM-PCT | as B-COMM-PCT, row W9-K2 |
+| B-COMM-ORDER | `commission_type`: "strategy.commission.cash_per_order for currency per order" | each filled order pays value once, at entry and at exit | ONE order that fills more than one trade (a reversal; a close of several open trades): how the one fee is divided is not stated, W9-K3; as B-COMM-PCT otherwise |
+| B-SLIPPAGE | `slippage`: "Slippage expressed in ticks. This value is added to or subtracted from the fill price of market/stop orders to make the fill price less favorable for the strategy. E.g., if syminfo.mintick is 0.01 and `slippage` is set to 5, a long market order will enter at 5 * 0.01 = 0.05 points above the actual price." | a MARKET fill (entry, close, close_all, a reversal) moves `slippage` ticks against the strategy, a buy up and a sell down, counted in whole ticks; the reversal's close and new trade share the one slipped price; a slipped price may lie outside the bar (M "Slippage", read 2026-11-08 through a fetch tool, verbatim not yet confirmed: "some orders can fill outside the candle range"); a limit order (entry or take-profit) is not slipped (the text names "market/stop orders") | a STOP order's slippage (a stop entry, a stop-loss): the text covers it but the W9-K4 probe fills market orders only, W9-K4; a cash or percent default size under a slippage; a T7 kind under a slippage; a slippage on a `calc_on_order_fills` extra execution's fill (W9-P2) |
+| B-POC-COST | (design T6: "costs are taken at the close") | under `process_orders_on_close` a fill at the close pays its fee and takes its slippage there, from the close price | as above |
+
+Commission paid (the report, `brokerReport.js`): the sum of the closed trades' fees (each one the R6
+`strategy.closedtrades.commission`). Served only while no open trade has paid a fee; otherwise refused by name
+(`runtime:strategy-report-unstated`, W9-S1): whether the Strategy Tester counts an open trade's entry fee is
+not stated. The record (`strategyRecord.js`) now carries `settings.commission` (`{ type, value,
+typeDefaulted }`), `settings.slippage` and each trade's `commission` (closed: entry + exit; open: entry so far).
+
+Evidence: `docs/pine/evidence/2026-11-08-w9-t5/` (the census harness; base `30e85eb877` against this lane).

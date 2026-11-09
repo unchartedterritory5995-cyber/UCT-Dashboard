@@ -1,0 +1,188 @@
+[
+ {
+  "mutant": "M1 percent fee scale /1000",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M2 exit fee never charged",
+  "verdict": "killed",
+  "failed": 9,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M3 entry fee never charged",
+  "verdict": "killed",
+  "failed": 9,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M4 openprofit not net of the paid entry fee",
+  "verdict": "killed",
+  "failed": 4,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M5 sign of the GROSS profit under a commission",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M6 grossprofit sums gross profits",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M7 per-order two-trade guard dropped",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M8 slippage in the favourable direction",
+  "verdict": "killed",
+  "failed": 4,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M9 slippage asks no B-SLIPPAGE",
+  "verdict": "killed",
+  "failed": 4,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M10 a close slips the entry side",
+  "verdict": "killed",
+  "failed": 3,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M11 a stop entry is slipped, not refused",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M12 stop-loss slippage refusal dropped",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M13 a limit is slipped",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M14 B-POC-COST never asked",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M15 extra-execution cost refusal dropped",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M16 T7 kind with a commission served",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M17 cash / percent size under a cost served",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M18 a defaulted type does not ask B-DEFAULTS",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M19 a zero commission asks the type rule",
+  "verdict": "killed",
+  "failed": 3,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M20 values ask no commission rule",
+  "verdict": "killed",
+  "failed": 11,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M21 report ignores the fees",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M22 report commission paid served with a fee-paying open trade",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M23 report rests on B-DEFAULTS only",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M24 record drops the trade fee",
+  "verdict": "killed",
+  "failed": 3,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M25 declaration does not read slippage",
+  "verdict": "killed",
+  "failed": 10,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M26 declaration: type always defaulted",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M27 reversal closes at the unslipped price",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M28 equity gross of fees",
+  "verdict": "killed",
+  "failed": 2,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M29 netprofit gross of fees",
+  "verdict": "killed",
+  "failed": 4,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M30 closedtrades.profit gross of fees",
+  "verdict": "killed",
+  "failed": 3,
+  "tests": "w9T5Costs, w9T13aBrokerReport, w9T1Broker, s1StrategyBroker"
+ },
+ {
+  "mutant": "M31 margin check asks no commission rule",
+  "verdict": "killed",
+  "failed": 1,
+  "tests": "+ w9BrokerIntegration (the N7 rail); SURVIVED the four-file run alone"
+ }
+]

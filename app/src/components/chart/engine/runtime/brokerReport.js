@@ -16,10 +16,11 @@
 // (rows W9-S1, W9-S2), or the record does not carry what it needs.
 //
 // ⛔⛔ PIN BEFORE SERVE (ruling D1). A metric rests on the rules the run's fills used
-// (`record.rulesUsed`), on B-VAL (its definition) and, for a currency value, on B-DEFAULTS (the
-// commission is 0: the broker refuses any other `commission_value` at build, and an undeclared
-// one is the manual's default, which the record cannot tell apart; a trade's SIGN rests on it too,
-// since a commission can turn a break-even or small win into a loss). Each is asked of the
+// (`record.rulesUsed`), on B-VAL (its definition) and, for a currency value, on the commission's
+// rules (`brokerRules.js` commissionRulesOf over the record's `settings.commission`: a zero commission
+// rests on B-DEFAULTS, the manual's default, which the record cannot tell from a declared 0; ⭐ W9-T5 a
+// non-zero one on its type's rule, W9-K1..K3). A trade's SIGN rests on it too, since a commission can
+// turn a break-even or small win into a loss. Each is asked of the
 // committed ledger HERE, at report time (`pinned(rule)`); an unpinned one refuses the metric
 // `runtime:strategy-unpinned`, naming the rule and its capture row. Tests pass `isPinned` (a
 // predicate, like `broker.js`'s `data.isPinned`), never a second argument to `pinned`.
@@ -32,7 +33,7 @@
 // is a row, and a row whose profit cannot be served carries that profit's refusal.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, commissionRulesOf } from './brokerRules.js'
 import { BROKER_UNSETTLED_GUARD } from './broker.js'
 import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf } from './strategyRecord.js'
 
@@ -50,6 +51,7 @@ export const REPORT_RECORD_GUARD = 'runtime:strategy-report-record'
 export { startSentenceOf }
 
 const B_VAL_SOURCE = 'docs/pine/strategy-broker-spec.md B-VAL (Pine Language Reference strategy.* variable texts)'
+const COMMISSION_SOURCE = 'Pine Language Reference v6 `strategy.closedtrades.commission`: "the sum of entry and exit fees paid in the closed trade" (W9-T5)'
 const PF_SOURCE = 'docs/pine/strategy-broker-spec.md B-VAL (Pine User Manual "Using strategy information in scripts": grossprofit / grossloss)'
 
 /** ⭐ THE SERVED METRICS: key -> the B-VAL value it is, and what it needs.
@@ -67,6 +69,10 @@ export const SERVED_METRICS = Object.freeze({
   grossProfit: Object.freeze({ label: 'Gross profit', pine: 'strategy.grossprofit', kind: 'money', source: B_VAL_SOURCE }),
   grossLoss: Object.freeze({ label: 'Gross loss', pine: 'strategy.grossloss', kind: 'money', source: B_VAL_SOURCE }),
   profitFactor: Object.freeze({ label: 'Profit factor', pine: null, kind: 'ratio', source: PF_SOURCE }),
+  // ⭐ W9-T5: the fees the closed trades paid (the sum of `strategy.closedtrades.commission`). HYPOTHESIS (the
+  // Tester's own figure is read only after W9-C0, row W9-S1): served only when no OPEN trade has paid a fee,
+  // since whether the Tester counts an open trade's entry fee is not stated
+  commissionPaid: Object.freeze({ label: 'Commission paid', pine: null, kind: 'commission', source: COMMISSION_SOURCE }),
 })
 
 const unstated = (label, row) => Object.freeze({
@@ -96,8 +102,6 @@ export const REFUSED_METRICS = Object.freeze({
   avgBarsInTrades: unstated('Average bars in trades', 'W9-S1'),
   sharpeRatio: unstated('Sharpe ratio', 'W9-S2'),
   sortinoRatio: unstated('Sortino ratio', 'W9-S2'),
-  commissionPaid: unrecorded('Commission paid', 'it needs the commission the run was charged',
-    STRATEGY_RECORD_UNSERVED['settings.commission']),
   openProfit: unrecorded('Open profit', "it is the open trades' profit at the last bar's close",
     STRATEGY_RECORD_UNSERVED.equity),
   equity: unrecorded('Equity', "it includes the open trades' profit at the last bar's close",
@@ -165,14 +169,27 @@ export function strategyReportOf(rec, opts = {}) {
   const pts = (t) => (t.exitPrice - t.entryPrice) * (t.dir === 'long' ? 1 : -1) * t.qty
   const sum = (arr, f) => arr.reduce((s, t) => s + f(t), 0)
   // B-DEFAULTS: a closed trade's profit is net of commission, which is 0 only by the default when the
-  // script does not declare it, so every value that reads a profit (its SIGN included) rests on it
-  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : [COMMISSION_RULE])]
+  // script does not declare it, so every value that reads a profit (its SIGN included) rests on it.
+  // ⭐ W9-T5: a non-zero commission rests on its type's rule instead (ONE authority: `commissionRulesOf`)
+  const commission = rec.settings.commission
+  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : commissionRulesOf(commission))]
+  // W9-T5: with a commission every money figure is net of the trade's fees (the broker's `netOf`); with none,
+  // the pre-W9-T5 expressions exactly
+  const costOn = commission.value > 0
+  const netMoney = (t) => pts(t) * pointvalue - t.commission
 
   // the sign of a closed trade's profit, off the tick grid only when it is further than one
   // tick-quantity from zero (the broker's `signOf`); null + refusal when it cannot be told
   const signs = (label) => {
     const out = []
     for (const t of closed) {
+      if (costOn) {
+        if (pointvalue === null || mintick === null) return { refused: noSymbol(label, 'tick size and point value') }
+        const n = netMoney(t)
+        if (!t.exact && Math.abs(n) <= t.qty * mintick * pointvalue) return { refused: offGrid(label) }
+        out.push(Math.sign(n))
+        continue
+      }
       const p = pts(t)
       if (!t.exact) {
         if (mintick === null) return { refused: noSymbol(label, 'tick size') }
@@ -200,11 +217,22 @@ export function strategyReportOf(rec, opts = {}) {
       const want = key === 'numberWinningTrades' ? 1 : key === 'numberLosingTrades' ? -1 : 0
       return served(s.signs.filter((x) => x === want).length)
     }
+    if (m.kind === 'commission') {
+      if (open.some((t) => t.commission > 0)) {
+        return refusal({ guard: REPORT_UNSTATED_GUARD, row: 'W9-S1',
+          sentence: `${m.label} is not shown: an open trade has paid its entry fee, and whether TradingView's Strategy Tester `
+            + 'counts it before the trade closes is not stated (capture row W9-S1).' })
+      }
+      if (costOn && commission.type === 'percent' && closed.some((t) => !t.exact)) return offGrid(m.label)
+      return served(sum(closed, (t) => t.commission))
+    }
     const g = money(m.label)
     if (g.refused) return g.refused
-    const net = sum(closed, pts) * pointvalue
-    const gross = sum(closed, (t) => { const p = pts(t); return p > 0 ? p : 0 }) * pointvalue
-    const loss = sum(closed, (t) => { const p = pts(t); return p < 0 ? -p : 0 }) * pointvalue
+    const net = costOn ? sum(closed, netMoney) : sum(closed, pts) * pointvalue
+    const gross = costOn ? sum(closed, (t) => { const n = netMoney(t); return n > 0 ? n : 0 })
+      : sum(closed, (t) => { const p = pts(t); return p > 0 ? p : 0 }) * pointvalue
+    const loss = costOn ? sum(closed, (t) => { const n = netMoney(t); return n < 0 ? -n : 0 })
+      : sum(closed, (t) => { const p = pts(t); return p < 0 ? -p : 0 }) * pointvalue
     switch (key) {
       case 'netProfit': return served(net)
       case 'grossProfit': return served(gross)
@@ -214,7 +242,7 @@ export function strategyReportOf(rec, opts = {}) {
           return refusal({ guard: REPORT_UNRECORDED_GUARD, row: null,
             sentence: `${m.label} is not shown: it needs the strategy's initial capital, and the backtest record does not carry it.` })
         }
-        return served((sum(closed, pts) * pointvalue) / capital * 100)
+        return served(net / capital * 100)
       case 'profitFactor':
         if (loss === 0) {
           return refusal({ guard: REPORT_UNDEFINED_GUARD, row: null,
@@ -242,7 +270,7 @@ export function strategyReportOf(rec, opts = {}) {
       } else if (profitMissing.length) profit = unpinnedRefusal(`Trade ${t.n}'s profit`, profitMissing)
       else if (!t.exact) profit = offGrid(`Trade ${t.n}'s profit`)
       else if (pointvalue === null) profit = noSymbol(`Trade ${t.n}'s profit`, 'point value')
-      else profit = { status: 'served', value: pts(t) * pointvalue, pine: 'strategy.closedtrades.profit', source: B_VAL_SOURCE }
+      else profit = { status: 'served', value: costOn ? netMoney(t) : pts(t) * pointvalue, pine: 'strategy.closedtrades.profit', source: B_VAL_SOURCE }
       return { n: t.n, entryId: t.entryId, dir: t.dir, qty: t.qty, entryTime: t.entryTime, entryPrice: t.entryPrice,
         exitTime: t.exitTime, exitPrice: t.exitPrice, open: t.open, profit }
     })

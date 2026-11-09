@@ -26,7 +26,7 @@
 // bar at all (`vm.js`), so no realtime tick ever reaches this file.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, COMMISSION_NET_VALUES } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf } from './brokerRules.js'
 
 export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 export const BROKER_START_GUARD = 'runtime:strategy-start'
@@ -110,6 +110,9 @@ export const BROKER_OPS = Object.freeze({
   'strategy.closedtrades.exit_bar_index': { params: ['trade_num'], returns: 'number' },
   'strategy.closedtrades.size': { params: ['trade_num'], returns: 'number' },
   'strategy.closedtrades.profit': { params: ['trade_num'], returns: 'number' },
+  // ⭐ W9-T5: the fees a trade paid (R6: "the sum of entry and exit fees paid in the ... trade")
+  'strategy.closedtrades.commission': { params: ['trade_num'], returns: 'number' },
+  'strategy.opentrades.commission': { params: ['trade_num'], returns: 'number' },
 })
 
 /** The values the broker serves (no arguments) — the front end's vocabulary. */
@@ -166,6 +169,21 @@ export function makeBroker(cfg, data) {
   // bar" - on history a bar executes once on its close. Asked once, before the first bar: it is the
   // whole run's execution model. (The forming bar is refused separately, Q-S1o, in `vm.js`.)
   if (cfg.calcOnEveryTick === true) rule('B-TICK-HIST')
+  // ⭐⭐ W9-T5 — COSTS, read from the declaration (`ast/strategyBroker.js`). A zero commission and a zero
+  // slippage change nothing and ask nothing new (`costOn` / `slipTicks` false: every figure below takes
+  // its pre-W9-T5 expression exactly). A non-zero one asks its rule (`commissionRulesOf`, B-SLIPPAGE) at
+  // the first fill that pays it, so a run that never fills is unchanged.
+  const comm = cfg.commission && typeof cfg.commission === 'object' ? cfg.commission : { type: 'percent', value: 0 }
+  const costOn = finite(comm.value) && comm.value > 0
+  const slipTicks = Number.isInteger(cfg.slippage) && cfg.slippage > 0 ? cfg.slippage : 0
+  const commRules = commissionRulesOf(comm)
+  /** every figure that reads a commission (a net profit, equity, the fee itself) asks this */
+  const askCommission = () => { for (const r of commRules) rule(r) }
+  const COMM_ROW = { percent: 'W9-K1', cash_per_contract: 'W9-K2', cash_per_order: 'W9-K3' }
+  /** which tick the fill being made is on: 'open' | 'path' | 'poc' | 'vertex' (W9-T5) */
+  let costTick = 'open'
+  /** ⭐ W9-T5 [B-COMM-ORDER] fees charged by the order being filled: a per-order fee is ONE per order */
+  let orderFees = 0
   /** the price of the tick an extra execution runs on ([B-FILLS]); `null` while the script runs on the close */
   let tickPx = null
   let mintick = NaN
@@ -204,20 +222,93 @@ export function makeBroker(cfg, data) {
     return Math.abs(k - Math.round(k)) < 1e-6
   }
 
+  // ─── W9-T5: costs ─────────────────────────────────────────────────────────
+  /** The fee of filling `units` at `price`, in the account currency, with no rule asked.
+   *  R6 `commission_type`: "strategy.commission.percent for a percentage of the cash volume of the order,
+   *  strategy.commission.cash_per_contract for currency per contract, strategy.commission.cash_per_order
+   *  for currency per order". Cash volume = units x price x pointvalue (B-VAL's currency rule).
+   *  HYPOTHESIS (W9-K1..K3 grade it): the fee is not rounded (no text states a rounding). */
+  const rawFee = (units, price) => {
+    if (!costOn) return 0
+    if (comm.type === 'percent') { needSymbol(); return units * price * pointvalue * comm.value / 100 }
+    if (comm.type === 'cash_per_contract') return units * comm.value
+    return comm.value
+  }
+  /** a cost paid on the tick of the fill being made: at the close under process_orders_on_close it is
+   *  B-POC-COST's hypothesis (W9-P1); on an extra execution's tick ([B-FILLS]) it is not served. (An
+   *  `immediately = true` close never gets here with a cost: it is a T7 kind, refused at its call.) */
+  const costAtTick = (what) => {
+    if (costTick === 'poc') rule('B-POC-COST')
+    else if (costTick === 'vertex') {
+      throw new BrokerRefusal(`${what} on a fill under \`calc_on_order_fills\` is not served (no capture combines the two)`, 'W9-P2')
+    }
+  }
+  /** The fee one fill pays, asking its rules. R6 `strategy.closedtrades.commission`: "the sum of entry and
+   *  exit fees paid in the closed trade", so a trade pays a fee at its entry fill AND at its exit fill (M
+   *  "Commission", read 2026-11-08 through a fetch tool, verbatim not yet confirmed: a commission "to each
+   *  filled order"). Zero commission: 0, nothing asked. */
+  const feeOf = (units, price) => {
+    if (!costOn) return 0
+    askCommission()
+    costAtTick(`a commission of ${comm.value} (${comm.type})`)
+    if (comm.type === 'cash_per_order') {
+      // ⛔ one order closing or opening more than one trade (a reversal, a close of several trades) pays
+      // ONE fee, and how TradingView divides it among the trades is not stated
+      orderFees += 1
+      if (orderFees > 1) {
+        throw new BrokerRefusal('one order filled more than one trade under a per-order commission, and how TradingView '
+          + 'divides the fee among them is not stated', 'W9-K3')
+      }
+    }
+    return rawFee(units, price)
+  }
+  /**
+   * ⭐⭐ W9-T5 [B-SLIPPAGE] a MARKET fill's price after slippage. R6 `strategy()` `slippage`: "Slippage
+   * expressed in ticks. This value is added to or subtracted from the fill price of market/stop orders to
+   * make the fill price less favorable for the strategy. E.g., if syminfo.mintick is 0.01 and `slippage` is
+   * set to 5, a long market order will enter at 5 * 0.01 = 0.05 points above the actual price."
+   * `side` +1 buys (fills higher), -1 sells (fills lower). Counted in whole ticks, like `trailLevel`.
+   * ⛔ Served on MARKET orders only: the W9-K4 probe fills market orders and nothing else, so a STOP order's
+   * slippage (the text's other half: a stop entry, a stop-loss, on a gap or on the path) refuses by name.
+   * HYPOTHESES (W9-K4 grades them): a reversal's one order closes and opens at the one slipped price; a
+   * slipped price may lie outside the bar (M "Slippage", read 2026-11-08 through a fetch tool, verbatim not yet
+   * confirmed: "some orders can fill outside the candle range").
+   */
+  const slipped = (price, side) => {
+    if (!slipTicks) return price
+    rule('B-SLIPPAGE')
+    costAtTick(`a slippage of ${slipTicks} ticks`)
+    needSymbol()
+    const inv = Math.round(1 / mintick)
+    if (onTick(price) && Math.abs(inv * mintick - 1) < 1e-12) return (Math.round(price / mintick) + side * slipTicks) / inv
+    return price + side * slipTicks * mintick
+  }
+  const noStopSlippage = (what) => {
+    if (slipTicks) {
+      throw new BrokerRefusal(`${what} fills under a slippage of ${slipTicks} ticks, and the W9-K4 capture fills market `
+        + 'orders only (a stop order\'s slippage is not witnessed)', 'W9-K4')
+    }
+  }
+
   // ─── fills ────────────────────────────────────────────────────────────────
   const closeTrade = (t, price, bar, exact) => {
     const i = open.indexOf(t)
     if (i < 0) return
+    // ⭐ W9-T5: the exit fill's fee; `commission` is the trade's entry fee plus it (0 with no commission)
+    const exitFee = feeOf(t.qty, price)
     open.splice(i, 1)
-    closed.push({ ...t, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact, profit: (price - t.price) * t.dir * t.qty })
+    closed.push({ ...t, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact, profit: (price - t.price) * t.dir * t.qty,
+      commission: t.fee + exitFee })
     for (const x of exits) { x.trades.delete(t); x.maybe.delete(t); x.res.delete(t) }
   }
   /** ⭐ W9-T7 — close `units` of trade `t`: the whole trade, or a split (a closed trade of `units`,
    *  the open one keeps the rest, its entry price, bar and id). [B-EXIT-QTY] [B-CLOSE-QTY] [B-ORDER] */
   const closePart = (t, units, price, bar, exact) => {
     if (units >= t.qty) { closeTrade(t, price, bar, exact); return }
+    // (W9-T5: a partial size is a T7 kind, and a T7 kind with a cost refuses at its call, `t7DefaultTimingOnly`,
+    // so no fee is ever split here)
     closed.push({ ...t, qty: units, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact,
-      profit: (price - t.price) * t.dir * units })
+      profit: (price - t.price) * t.dir * units, commission: 0 })
     t.qty -= units
   }
   /** ⭐ W9-T7 — close `units` of the position, OLDEST trade first ([B-FIFO]; R6 `strategy.close`
@@ -260,8 +351,8 @@ export function makeBroker(cfg, data) {
     rule('B-MARGIN')
     if (defaulted.margin) rule('B-DEFAULTS')
     // ⭐ W9-T13a N7 — the check below reads EQUITY, which is net of every closed trade's commission, so
-    // it rests on the commission being 0 (COMMISSION_RULE) whether or not the margin was defaulted
-    rule(COMMISSION_RULE)
+    // it rests on the commission (COMMISSION_RULE, or W9-T5's type rule) whether or not the margin was defaulted
+    askCommission()
     const dir = open[0].dir
     const pct = dir > 0 ? cfg.marginLong : cfg.marginShort
     const ratio = finite(pct) ? pct / 100 : NaN
@@ -274,7 +365,9 @@ export function makeBroker(cfg, data) {
     let openPl = 0
     let size = 0
     for (const t of open) { openPl += (price - t.price) * t.dir * t.qty; size += t.qty }
-    const equity = cfg.initialCapital + (net + openPl) * pointvalue
+    // W9-T5: with a commission, equity is net of the fees paid (`moneyOfClosed` / `openFees`)
+    const equity = costOn ? cfg.initialCapital + moneyOfClosed() + openPl * pointvalue - openFees()
+      : cfg.initialCapital + (net + openPl) * pointvalue
     const mvs = size * price * pointvalue
     // [B-MARGIN] Available Funds = Equity - MVS * Margin Ratio; below zero the emulator
     // liquidates (a margin call) or refuses funds - neither is modelled here.
@@ -303,7 +396,8 @@ export function makeBroker(cfg, data) {
   }
   /** ⭐ W9-T7 — a new open trade from order `o`, bound to the exits waiting for it. */
   const openTrade = (o, price, bar, exact, reversed) => {
-    const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule }
+    // W9-T5: `fee` is the entry fill's fee, paid now (0 with no commission)
+    const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule, fee: feeOf(o.qty, price) }
     open.push(t)
     for (const x of exits) {
       if (x.orders.has(o)) { x.orders.delete(o); bindExit(x, t) } else if (x.all) {
@@ -344,13 +438,26 @@ export function makeBroker(cfg, data) {
     ocaAfterFill(o, o.qty)
     return null
   }
-  const fillEntry = (o, price, bar, exact) => {
-    if (o.kind === 'order') return fillOrder(o, price, bar, exact)
+  /** ⭐ W9-T5 the price an entry fills at: a market order's slipped price ([B-SLIPPAGE]); a limit's is its
+   *  own (R6: slippage is on "market/stop orders"); a stop's slippage is refused (W9-K4 fills none). */
+  const entryFillPx = (o, price) => {
+    if (!slipTicks) return price
+    if (o.type === 'market') return slipped(price, o.dir)
+    if (o.type === 'stop') noStopSlippage(`the stop entry \`${o.id}\``)
+    return price
+  }
+  const fillEntry = (o, price0, bar, exact) => {
+    orderFees = 0
+    if (o.kind === 'order') return fillOrder(o, price0, bar, exact)
     entries = entries.filter((e) => e !== o)
     let reversed = false
+    // W9-T5: one order, one (slipped) price for a reversal's close and its new trade. Taken once the entry
+    // is known to fill (not at the pyramiding limit), so a dropped entry asks no cost rule.
+    let price = price0
     if (open.length && open[0].dir !== o.dir) {
       // [B-REVERSE] an entry against the position closes it and opens the new size
       rule('B-REVERSE')
+      price = entryFillPx(o, price0)
       for (const t of open.slice()) closeTrade(t, price, bar, exact)
       reversed = true
     } else if (open.length >= maxEntries) {
@@ -361,6 +468,7 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`a price entry \`${o.id}\` triggered at the pyramiding limit, and whether it is `
         + 'cancelled or kept waiting is not stated', 'Q-S1g')
     }
+    if (!reversed) price = entryFillPx(o, price0)
     if (open.length && maxEntries > 1) { rule('B-PYR'); if (defaulted.pyramiding) rule('B-DEFAULTS') }
     const t = openTrade(o, price, bar, exact, reversed)
     if (reversed) afterPositionChange()
@@ -549,6 +657,9 @@ export function makeBroker(cfg, data) {
       return null
     }
     rule('B-EXIT-BIND')
+    orderFees = 0
+    // W9-T5: a take-profit is a limit order (no slippage, R6); a stop-loss is a stop order, refused under one
+    if (lo.leg === 'sl') noStopSlippage(`the stop-loss of exit \`${lo.x.id}\``)
     const keep = fillRule
     if (lo.leg === 'trail') fillRule = 'B-TRAIL'
     requireOldest([lo.t])
@@ -589,6 +700,7 @@ export function makeBroker(cfg, data) {
    *  Returns `{ filled, fresh }`: whether any order filled, and the trade an entry opened. */
   const tickFill = (px, bar, mode) => {
     const atClose = mode === 'poc'
+    costTick = mode
     // [B-POC-PRICE] HYPOTHESIS, the R6 reading (W9-P1 / W9-P1b grade it): "an additional attempt to
     // execute orders after a bar closes" names no subset, so EVERY live order gets the close attempt,
     // whichever execution placed it. An order placed before the close execution (an older one, or one an
@@ -712,6 +824,7 @@ export function makeBroker(cfg, data) {
         }
         p = best
         let made = null
+        costTick = 'path'
         for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
         checkActivation(best, made)
         if (coof) {
@@ -774,8 +887,11 @@ export function makeBroker(cfg, data) {
   }
   /** [B-CLOSE] a market close's fill: the trades of its id (or all), whole, or ([B-CLOSE-QTY], W9-T7)
    *  its size of them, oldest first. */
-  const executeClose = (cl, price, bar, exact) => {
+  const executeClose = (cl, price0, bar, exact) => {
     const targets = cl.kind === 'all' ? open.slice() : open.filter((t) => t.entryId === cl.id)
+    orderFees = 0
+    // ⭐ W9-T5 [B-SLIPPAGE] a close is a market order that sells a long (fills lower) or buys back a short
+    const price = targets.length && slipTicks ? slipped(price0, -targets[0].dir) : price0
     if (!cl.spec) {
       requireOldest(targets)
       for (const t of targets) closeTrade(t, price, bar, exact)
@@ -809,6 +925,14 @@ export function makeBroker(cfg, data) {
     if (poc || coof) {
       throw new BrokerRefusal(`${what} under ${poc ? 'process_orders_on_close' : 'calc_on_order_fills'} is not served `
         + '(no capture combines the two)', poc ? 'W9-P1' : 'W9-P2')
+    }
+    // ⭐ W9-T5 — nor with costs: the W9-K rows fill whole market entries and closes only, so a T7 kind under a
+    // commission (a partial fill's fee split, a per-order fee) or a slippage stops by name
+    if (slipTicks) {
+      throw new BrokerRefusal(`${what} with a slippage of ${slipTicks} ticks is not served (no capture combines the two)`, 'W9-K4')
+    }
+    if (costOn) {
+      throw new BrokerRefusal(`${what} with a commission (${comm.type}) is not served (no capture combines the two)`, COMM_ROW[comm.type])
     }
   }
   /** ⭐ W9-T7 [B-OCA] an order's One-Cancels-All group: `null`, or `{ name, type }`. R6 `oca_name`:
@@ -1068,6 +1192,15 @@ export function makeBroker(cfg, data) {
   }
   const sum = (arr, f) => arr.reduce((s, t) => s + f(t), 0)
   const netPts = () => sum(closed, (t) => t.profit)
+  // ⭐ W9-T5 — with a commission, money figures are NET of the fees (R6 `strategy.closedtrades.profit`:
+  // "reduced by the trade's commissions"). Used ONLY when `costOn`: with no commission every figure keeps its
+  // pre-W9-T5 expression, so its arithmetic (and the bits) cannot move.
+  const netOf = (t) => t.profit * pointvalue - t.commission
+  const moneyOfClosed = () => sum(closed, netOf)
+  /** HYPOTHESIS (W9-K1..K3 grade it, the std set plots openprofit and equity): an open trade's entry fee is
+   *  PAID (R6 `strategy.opentrades.commission`: "fees paid in the open trade"), so it comes off its open profit
+   *  and off equity; its exit fee is not paid yet and is not counted. */
+  const openFees = () => sum(open, (t) => t.fee)
   const capital = () => {
     if (!finite(cfg.initialCapital)) throw new BrokerRefusal('the initial capital is not settled', 'Q-S1b')
     if (defaulted.initialCapital) rule('B-DEFAULTS')
@@ -1076,9 +1209,10 @@ export function makeBroker(cfg, data) {
   /** [B-VAL] `strategy.equity` at bar `bar`'s close: initial capital + net profit + open profit. */
   const equityAt = (bar, what) => {
     // ⭐ W9-T13a N7 — equity is net of commission: every reader of it (a percent-of-equity size included,
-    // not only the `strategy.equity` value) rests on COMMISSION_RULE
-    rule(COMMISSION_RULE)
+    // not only the `strategy.equity` value) rests on the commission's rules (`commissionRulesOf`)
+    askCommission()
     exactOpen(what); exactClosed(what); needSymbol()
+    if (costOn) return capital() + moneyOfClosed() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue - openFees()
     return capital() + (netPts() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty)) * pointvalue
   }
 
@@ -1124,6 +1258,12 @@ export function makeBroker(cfg, data) {
     }
     rule('B-QTY'); if (defaulted.qty) rule('B-DEFAULTS')
     const unit = qtyType === 'cash' ? 'cash' : 'percent-of-equity'
+    // ⭐ W9-T5 — whether a cash / percent size leaves room for the fee, or sizes at the slipped price, is not
+    // stated, and the W9-K rows size by a fixed quantity: refused by name
+    if (costOn || slipTicks) {
+      throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size under ${costOn ? `a commission (${comm.type})`
+        : `a slippage of ${slipTicks} ticks`}, and whether the size allows for it is not stated`, costOn ? COMM_ROW[comm.type] : 'W9-K4')
+    }
     // ⭐⭐ W9-T4 x W9-T6 (review merge note) — an extra execution ([B-FILLS]) runs at its fill tick's price
     // (`tickPx`), and this size is taken at the bar's close: one order would read two prices. Which one
     // TradingView sizes it at is not stated, so it stops by name. (A FIXED default reads no price.)
@@ -1176,6 +1316,15 @@ export function makeBroker(cfg, data) {
   // win / loss / even: the SIGN of a trade's profit, served off the tick grid only
   // when the trade's profit is further than one tick-quantity from zero
   const signOf = (t, what) => {
+    if (costOn) {
+      // W9-T5: the sign of the NET profit; off the grid, served only further than one tick-quantity from 0
+      needSymbol()
+      const net = netOf(t)
+      if (!t.exact && Math.abs(net) <= t.qty * mintick * pointvalue) {
+        throw new BrokerRefusal(`${what} reads a trade whose sign depends on an off-grid fill`, 'Q-S1l')
+      }
+      return Math.sign(net)
+    }
     if (!t.exact) {
       needSymbol()
       if (Math.abs(t.profit) <= t.qty * mintick) {
@@ -1190,8 +1339,8 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`\`${fn}\` is read on the bar an \`immediately = true\` close filled, after that close, `
         + 'and whether the value already reflects the fill is not stated', 'W9-X4')
     }
-    // [B-DEFAULTS] every figure net of commission rests on the commission being 0 (`brokerRules.js`)
-    if (COMMISSION_NET_VALUES.includes(fn)) rule(COMMISSION_RULE)
+    // [B-DEFAULTS] every figure net of commission rests on the commission's rules (`brokerRules.js`)
+    if (COMMISSION_NET_VALUES.includes(fn)) askCommission()
     switch (fn) {
       case 'strategy.position_size': return sum(open, (t) => t.dir * t.qty)
       case 'strategy.position_avg_price': {
@@ -1204,17 +1353,24 @@ export function makeBroker(cfg, data) {
       case 'strategy.wintrades': return closed.filter((t) => signOf(t, '`strategy.wintrades`') > 0).length
       case 'strategy.losstrades': return closed.filter((t) => signOf(t, '`strategy.losstrades`') < 0).length
       case 'strategy.eventrades': return closed.filter((t) => signOf(t, '`strategy.eventrades`') === 0).length
-      case 'strategy.netprofit': exactClosed('`strategy.netprofit`'); needSymbol(); return netPts() * pointvalue
+      case 'strategy.netprofit':
+        exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() : netPts() * pointvalue
       case 'strategy.netprofit_percent':
-        exactClosed('`strategy.netprofit_percent`'); needSymbol(); return (netPts() * pointvalue) / capital() * 100
+        exactClosed('`strategy.netprofit_percent`'); needSymbol()
+        return (costOn ? moneyOfClosed() : netPts() * pointvalue) / capital() * 100
+      // W9-T5 HYPOTHESIS (W9-K1..K3): with a commission a trade is winning or losing by its NET profit (the
+      // profit R6 defines), and the gross figures sum net profits
       case 'strategy.grossprofit':
         exactClosed('`strategy.grossprofit`'); needSymbol()
+        if (costOn) return sum(closed, (t) => (netOf(t) > 0 ? netOf(t) : 0))
         return sum(closed, (t) => (t.profit > 0 ? t.profit : 0)) * pointvalue
       case 'strategy.grossloss':
         exactClosed('`strategy.grossloss`'); needSymbol()
+        if (costOn) return sum(closed, (t) => (netOf(t) < 0 ? -netOf(t) : 0))
         return sum(closed, (t) => (t.profit < 0 ? -t.profit : 0)) * pointvalue
       case 'strategy.openprofit':
         exactOpen('`strategy.openprofit`'); needSymbol()
+        if (costOn) return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue - openFees()
         return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue
       case 'strategy.equity': return equityAt(bar, '`strategy.equity`')
       case 'strategy.initial_capital': return capital()
@@ -1242,7 +1398,19 @@ export function makeBroker(cfg, data) {
         const t = tradeAt(closed, a[0], fn)
         if (!t.exact) exactClosed(`\`${fn}\``)
         needSymbol()
-        return t.profit * pointvalue
+        return costOn ? netOf(t) : t.profit * pointvalue
+      }
+      // ⭐ W9-T5 — the fees a trade paid: closed, its entry and exit fees; open, its entry fee (its exit fee is
+      // not paid yet). With no commission, 0.
+      case 'strategy.closedtrades.commission': {
+        const t = tradeAt(closed, a[0], fn)
+        if (costOn && comm.type === 'percent' && !t.exact) exactClosed(`\`${fn}\``)
+        return t.commission
+      }
+      case 'strategy.opentrades.commission': {
+        const t = tradeAt(open, a[0], fn)
+        if (costOn && comm.type === 'percent' && !t.exact) exactOpen(`\`${fn}\``)
+        return t.fee
       }
       default: throw new BrokerRefusal(`\`${fn}\` is not a value this broker serves`)
     }
@@ -1272,6 +1440,8 @@ export function makeBroker(cfg, data) {
   // the report refuses what depends on one exactly as `value` does). W9-T13a reads it.
   const tradeRecord = (t) => ({
     id: t.entryId, dir: t.dir, qty: t.qty, exact: t.exact === true,
+    // W9-T5: the fees the trade paid in the account currency (closed: entry + exit; open: entry so far)
+    commission: t.exitBar === undefined ? t.fee : t.commission,
     entry: { time: timeOf(t.bar), price: t.price, rule: t.entryRule },
     ...(t.exitBar === undefined ? {} : { exit: { time: timeOf(t.exitBar), price: t.exitPrice, rule: t.exitRule } }),
   })

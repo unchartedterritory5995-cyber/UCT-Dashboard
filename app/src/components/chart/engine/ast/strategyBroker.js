@@ -50,8 +50,6 @@ export const DECLARATION_DEFAULTS = Object.freeze({
 const PRESENTATION = new Set(['title', 'shorttitle', 'overlay', 'format', 'precision', 'scale', 'max_bars_back',
   'max_lines_count', 'max_labels_count', 'max_boxes_count', 'max_polylines_count', 'explicit_plot_zorder',
   'dynamic_requests', 'behind_chart', 'risk_free_rate', 'linktoseries',
-  // [B-COMMISSION] the TYPE only matters with a non-zero `commission_value`, refused below
-  'commission_type',
   // only changes fills on a Heikin Ashi chart; the member chart is standard OHLC
   'fill_orders_on_standard_ohlc'])
 /** v6's positional order (the reference `syntax` line); v4/v5 differ past `overlay`,
@@ -74,7 +72,8 @@ const nameOf = (node) => (node && node.type === 'name' ? node.name : null)
  * @returns {{pyramiding:number, defaultQty:(number|null), qtyType:(string|null), qtyValue:(number|null),
  *   initialCapital:(number|null),
  *   marginLong:(number|null), marginShort:(number|null), calcOnEveryTick:boolean, version:number,
- *   processOrdersOnClose:boolean, calcOnOrderFills:boolean}}
+ *   processOrdersOnClose:boolean, calcOnOrderFills:boolean,
+ *   commission:{type:(string|null), value:number, typeDefaulted:boolean}, slippage:number}}  (W9-T5 costs)
  */
 export function readStrategyDeclaration(call, version) {
   const v = Number(version)
@@ -90,6 +89,9 @@ export function readStrategyDeclaration(call, version) {
     marginLong: d ? d.margin : null, marginShort: d ? d.margin : null, calcOnEveryTick: false, version: v,
     // W9-T6: fill timing at its documented defaults (R6 `strategy()`: false, false)
     processOrdersOnClose: false, calcOnOrderFills: false,
+    // ⭐⭐ W9-T5: costs at their documented defaults. R6 `strategy()` `commission_type`: "The default is
+    // strategy.commission.percent"; `commission_value`: "The default is 0"; `slippage`: "The default is 0".
+    commission: { type: 'percent', value: 0 }, slippage: 0,
   }
   let qtyType = d ? d.qtyType : null
   let qtyValue = d ? d.qtyValue : null
@@ -125,8 +127,18 @@ export function readStrategyDeclaration(call, version) {
       // and no capture is queued for it, so it is not built as a rule: refused by name, with the reason
       case 'backtest_fill_limits_assumption': need(key, n === 0, 'other than 0 is not served (a limit that fills only '
         + 'once the price passes its level by that many ticks: no TradingView capture is queued for it)'); break
-      case 'slippage': need(key, n === 0, 'other than 0 is not served'); break
-      case 'commission_value': need(key, n === 0, 'other than 0 is not served'); break
+      // ⭐⭐ W9-T5 — costs are READ, and the broker asks each one's rule when a run REACHES a fill that pays
+      // it (B-COMM-PCT / -CONTRACT / -ORDER, B-SLIPPAGE, B-POC-COST): unpinned, the run stops by name.
+      // R6 `slippage`: "Slippage expressed in ticks" (a `const int`); R6 `commission_value`: a `const int/float`.
+      case 'slippage': need(key, Number.isInteger(n) && n >= 0, 'is not a non-negative whole-number literal (ticks)'); cfg.slippage = n; break
+      case 'commission_value': need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.commission.value = n; break
+      case 'commission_type': {
+        // read past, as before W9-T5, unless a non-zero `commission_value` makes the type matter (checked below)
+        const nm = nameOf(node)
+        cfg.commission.type = nm === 'strategy.commission.percent' || nm === 'strategy.commission.cash_per_contract'
+          || nm === 'strategy.commission.cash_per_order' ? nm.slice('strategy.commission.'.length) : null
+        break
+      }
       case 'calc_bars_count': need(key, n === 0, 'other than 0 is not served'); break
       case 'close_entries_rule': need(key, literalText(node) === 'FIFO', 'other than "FIFO" is not served'); break
       // W9-T4: an identity currency needs a broker rule the ledger can pin (capture row W9-D2), and
@@ -149,6 +161,12 @@ export function readStrategyDeclaration(call, version) {
     initialCapital: !named.has('initial_capital'),
     margin: !named.has('margin_long') || !named.has('margin_short'),
     qty: !named.has('default_qty_type') || !named.has('default_qty_value'),
+  }
+  // W9-T5: a commission whose TYPE is the default rests on B-DEFAULTS too (`brokerRules.js` commissionRulesOf)
+  cfg.commission.typeDefaulted = !named.has('commission_type')
+  if (cfg.commission.value > 0 && cfg.commission.type === null) {
+    throw new StrategyOptionError('`commission_type` is not one of strategy.commission.percent / cash_per_contract / '
+      + 'cash_per_order', named.get('commission_type') && named.get('commission_type').tok)
   }
   return cfg
 }

@@ -63,23 +63,50 @@ export const BROKER_RULES = Object.freeze({
   'B-IMMEDIATELY': Object.freeze({ capture: 'W9-X4', what: 'strategy.close / close_all immediately = true: the close fills on the tick it is placed, the bar close' }),
   'B-STOP-LIMIT': Object.freeze({ capture: 'Q-S1j', what: 'an entry / order with both stop and limit: the stop level, once reached, places a limit order at the limit level' }),
   'B-EXIT-LEVELS': Object.freeze({ capture: 'Q-S1k', what: 'strategy.exit with both profit and limit (or loss and stop): v5 keeps the price level, v6 the level expected to fill first' }),
+  // ── W9-T5: costs (`broker.js` `feeOf` / `slipped`; design section 4 T5, capture rows W9-K1..K4, W9-P1) ──
+  // One rule per capture row: pinning W9-K1 (percent) must never also serve a per-order fee. Asked only
+  // when a run REACHES a non-zero cost; a zero commission keeps resting on COMMISSION_RULE (B-DEFAULTS).
+  'B-COMM-PCT': Object.freeze({ capture: 'W9-K1', what: 'commission_type = strategy.commission.percent: each fill pays commission_value percent of its cash volume (size x fill price x pointvalue); a trade profit is net of its entry and exit fees' }),
+  'B-COMM-CONTRACT': Object.freeze({ capture: 'W9-K2', what: 'commission_type = strategy.commission.cash_per_contract: each fill pays commission_value per contract filled; a trade profit is net of its entry and exit fees' }),
+  'B-COMM-ORDER': Object.freeze({ capture: 'W9-K3', what: 'commission_type = strategy.commission.cash_per_order: each filled order pays commission_value; a trade profit is net of its entry and exit fees' }),
+  'B-SLIPPAGE': Object.freeze({ capture: 'W9-K4', what: 'slippage (ticks): a market order fills that many ticks less favorably than its price (higher for a buy, lower for a sell)' }),
+  'B-POC-COST': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close with costs: a fill at the bar close pays its commission and takes its slippage there, from the close price' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
 
 /** ⭐ W9-T13a r3 — ONE AUTHORITY over "this figure is net of commission". A trade's profit is net of
- *  its commission, and the commission is 0 only because the broker refuses any other declared
- *  `commission_value` at build and an undeclared one is the version's default (B-DEFAULTS, "M
- *  Commission: If not specified, the strategy applies no commission"). Neither the declaration the
- *  broker holds nor the record says which, so every figure that reads a profit (its sign included)
- *  rests on COMMISSION_RULE. `broker.js` (the strategy.* values) and `brokerReport.js` (the report)
- *  both ask it from here. */
+ *  its commission (R6 `strategy.closedtrades.profit`: "reduced by the trade's commissions"). A ZERO
+ *  commission is the version's default (B-DEFAULTS, "M Commission: If not specified, the strategy
+ *  applies no commission") or a declared 0, which the declaration the broker holds does not tell
+ *  apart, so every figure that reads a profit (its sign included) rests on COMMISSION_RULE.
+ *  ⭐⭐ W9-T5 — a NON-ZERO `commission_value` rests instead on its type's rule (COMMISSION_TYPE_RULES),
+ *  and on B-DEFAULTS too when the type is not declared (R6 `commission_type`: "The default is
+ *  strategy.commission.percent"). `commissionRulesOf` is the ONE place that decides which; `broker.js`
+ *  (the strategy.* values, the margin check, equity) and `brokerReport.js` (the report) both ask it. */
 export const COMMISSION_RULE = 'B-DEFAULTS'
-/** The broker's values that read a profit net of commission. */
+/** W9-T5: the rule each `commission_type` rests on (R6 constants `strategy.commission.*`). */
+export const COMMISSION_TYPE_RULES = Object.freeze({
+  percent: 'B-COMM-PCT',
+  cash_per_contract: 'B-COMM-CONTRACT',
+  cash_per_order: 'B-COMM-ORDER',
+})
+/** The rules a figure that reads a commission rests on, for the run's declared-or-defaulted commission
+ *  `{ type, value, typeDefaulted }` (`ast/strategyBroker.js`; the record's `settings.commission`).
+ *  A missing or zero commission: exactly `[COMMISSION_RULE]`, as before W9-T5. */
+export function commissionRulesOf(commission) {
+  const c = commission || {}
+  if (!(typeof c.value === 'number' && c.value > 0)) return [COMMISSION_RULE]
+  const r = COMMISSION_TYPE_RULES[c.type]
+  if (!r) throw new Error(`commission type \`${c.type}\` is not one brokerRules.js names`)
+  return c.typeDefaulted === false ? [r] : [r, COMMISSION_RULE]
+}
+/** The broker's values that read a commission: a profit net of it, or (W9-T5) the fee itself. */
 export const COMMISSION_NET_VALUES = Object.freeze([
   'strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades',
   'strategy.netprofit', 'strategy.netprofit_percent', 'strategy.grossprofit', 'strategy.grossloss',
   'strategy.openprofit', 'strategy.equity', 'strategy.closedtrades.profit',
+  'strategy.closedtrades.commission', 'strategy.opentrades.commission',
 ])
 
 /** The capture row that pins `ruleId`; throws for a rule this table does not name. */
