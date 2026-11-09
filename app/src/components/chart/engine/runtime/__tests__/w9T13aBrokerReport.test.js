@@ -9,7 +9,7 @@
 //     guard and a member sentence; the harness's report slots are all accounted for.
 //   - PIN BEFORE SERVE (D1): a metric resting on an unpinned rule inherits
 //     `runtime:strategy-unpinned`, naming the rule and its capture row.
-//   - D2: the start sentence, exactly, whenever the window does not reach the listing.
+//   - D2: the start sentence, exactly, on every record, from the listing too (W9-T13b r1).
 //
 // ⛔ PINS: tests pass `isPinned` (a predicate). The committed ledger is read once, unmocked,
 // to show the product default refuses what it does not pin.
@@ -169,8 +169,9 @@ describe('W9-T13a pin before serve (D1)', () => {
     for (const k of SERVED_KEYS) {
       expect(rep.metrics[k]).toMatchObject({ status: 'refused', guard: UNPINNED_GUARD, rule: 'B-VAL', row: 'Q-S1-core' })
     }
-    expect(rep.metrics.netProfit.sentence).toBe('Net profit is not shown: it rests on the broker rule B-VAL, which no matching '
-      + 'TradingView capture pins yet (capture row Q-S1-core).')
+    // W9-T13b r2 plain words: the rule and row are FIELDS (above); the sentence names neither
+    expect(rep.metrics.netProfit.sentence).toBe('Net profit is not shown: it depends on a rule of how TradingView runs a '
+      + 'backtest that has not yet been checked against TradingView.')
     // the list's fills rest on the fill rules only, so it serves; its profits rest on B-VAL too
     expect(rep.trades.status).toBe('served')
     expect(rep.trades.rows[0].profit).toMatchObject({ guard: UNPINNED_GUARD, rule: 'B-VAL' })
@@ -252,10 +253,10 @@ describe('W9-T13a refused by name (D8)', () => {
       expect(rep.metrics[k].guard).toBe(r.guard)
       expect([REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD]).toContain(r.guard)
       expect(rep.metrics[k].sentence).toMatch(/ is not shown: /)
-      if (r.guard === REPORT_UNSTATED_GUARD) expect(rep.metrics[k].sentence).toMatch(new RegExp(`capture row ${r.row}\\)\\.$`))
+      if (r.guard === REPORT_UNSTATED_GUARD) expect(rep.metrics[k].sentence).toMatch(/has not yet been checked against TradingView\.$/)
     }
-    expect(rep.metrics.maxDrawdown.sentence).toBe("Max drawdown is not shown: no source we hold states exactly how TradingView's "
-      + 'Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S1).')
+    expect(rep.metrics.maxDrawdown.sentence).toBe("Max drawdown is not shown: we do not yet know exactly how TradingView's "
+      + 'Strategy Tester computes it, and it has not yet been checked against TradingView.')
     expect(rep.metrics.sharpeRatio.row).toBe('W9-S2')
     expect(rep.metrics.commissionPaid).toMatchObject({ guard: REPORT_UNRECORDED_GUARD, owner: 'W9-T5' })
   })
@@ -283,16 +284,21 @@ describe('W9-T13a window and run-wide refusals', () => {
     expect(rep.window).toMatchObject({ startTime: T0, startDate: '2024-03-21', fromListing: false, asOfBar: at(39), asOfDate: '2024-04-29' })
   })
 
-  it('D2: a window from the listing carries no start caveat', () => {
-    const rep = strategyReportOf(recordOf([], { fromListing: true }), { isPinned: ALL })
-    expect(rep.window).toMatchObject({ fromListing: true, sentence: null })
+  it('D2 ALWAYS (W9-T13b r1): a window from the listing carries the same sentence (the plan bar limit can move TradingView start)', () => {
+    const rec = recordOf([], { fromListing: true })
+    const rep = strategyReportOf(rec, { isPinned: ALL })
+    expect(rep.window).toMatchObject({ fromListing: true, sentence: 'this backtest starts on 2024-03-21 (UTC); TradingView may start elsewhere' })
+    expect(rec.window.startSentence).toBe(startSentenceOf(T0))
+    // a from-listing record WITHOUT the sentence is not a v1 record
+    const bare = { ...rec, window: { ...rec.window, startSentence: null } }
+    expect(strategyReportOf(bare, { isPinned: ALL }).refusals[0].fields).toContain('window.startSentence')
   })
 
   it('D2 ONE AUTHORITY: the report READS the record sentence, never recomputes it', () => {
     const rec = { ...A, window: { ...A.window } }
     // a record carrying a sentence other than the rule's is not a v1 record (the shape check owns the rule)
     rec.window.startSentence = 'this backtest starts on 1999-01-01 (UTC); TradingView may start elsewhere'
-    expect(strategyReportOf(rec, { isPinned: ALL }).refusals[0].sentence).toMatch(/window\.startSentence/)
+    expect(strategyReportOf(rec, { isPinned: ALL }).refusals[0].fields).toContain('window.startSentence')
   })
 
   it('D2 FIXTURE: a non-US daily session (ASX, 10:00 AEDT = 23:00 UTC the day BEFORE) — record and report say the same sentence, and the route reads this file', () => {
@@ -302,17 +308,20 @@ describe('W9-T13a window and run-wide refusals', () => {
       { name: 'NYSE 2024-01-02 session, 09:30 ET', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000 },
       // review N3: 00:00-05:59 UTC is the PREVIOUS day in every US zone, so a host-local date is told apart
       { name: 'TSE 2024-03-21 session, 09:00 JST', startTime: Date.UTC(2024, 2, 21, 0, 0) / 1000 },
+      // W9-T13b r1, D2 ALWAYS: a run from the listing states the same sentence
+      { name: 'NYSE 2024-01-02 session, 09:30 ET, from the listing', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000, fromListing: true },
     ].map((c) => {
       const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: [] } },
-        decl: { version: 5, fromListing: false }, barTimes: [c.startTime, c.startTime + DAY],
+        decl: { version: 5, fromListing: c.fromListing === true }, barTimes: [c.startTime, c.startTime + DAY],
         historyWindowBars: 5000, confirmed: true })
       const rep = strategyReportOf(rec, { isPinned: ALL })
       expect(rep.window.sentence).toBe(rec.window.startSentence)
       expect(rep.window.startDate).toBe(rec.window.startDate)
-      return { ...c, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
+      return { ...c, fromListing: rec.window.fromListing, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
     })
     expect(cases[0].reportSentence).toBe('this backtest starts on 2024-03-20 (UTC); TradingView may start elsewhere')
     expect(cases[2].startDate).toBe('2024-03-21')
+    expect(cases[3]).toMatchObject({ fromListing: true, reportSentence: cases[1].reportSentence })
     const text = `${JSON.stringify({ why: 'W9-T13a r1, ruling D2: written by w9T13aBrokerReport.test.js from strategyRecord.js; read by tests/test_pine_strategy_backtest.py', cases }, null, 1)}
 `
     const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../../../tests/fixtures/pine_runtime/w9t13a_start_sentence.json')
@@ -332,6 +341,53 @@ describe('W9-T13a window and run-wide refusals', () => {
     expect(rep).toMatchObject({ status: 'refused', metrics: null, trades: null })
     expect(rep.refusals[0].guard).toBe(REPORT_RECORD_GUARD)
     const noExact = { ...A, trades: A.trades.map((t) => ({ ...t, exact: undefined })) }
-    expect(strategyReportOf(noExact, { isPinned: ALL }).refusals[0].sentence).toMatch(/trades\[0\]\.exact/)
+    const bad = strategyReportOf(noExact, { isPinned: ALL }).refusals[0]
+    expect(bad.fields).toContain('trades[0].exact')
+    expect(bad.sentence).toBe('the backtest record is incomplete or in a form this report cannot read, so there is no report.')
+  })
+})
+
+// ─── W9-T13b r2: PLAIN WORDS. No member sentence names a rule id, a capture row, a field path
+// or a guard id; the engineer's detail rides the refusal's own fields (`rule`, `row`, `fields`).
+const ENGINEER_WORDS = [/\bB-[A-Z]+\b/, /\bQ-S1/, /\bW9-[A-Z0-9]+/, /capture row/,
+  /\b[a-z][a-zA-Z_]*\.[a-zA-Z_]+/, /\[\d+\]/, /runtime:|pine:/]
+const memberTexts = (rep) => [
+  ...Object.values(rep.metrics || {}).map((m) => m.sentence).filter(Boolean),
+  ...((rep.trades && rep.trades.rows) || []).map((r) => r.profit && r.profit.sentence).filter(Boolean),
+  ...(rep.trades && rep.trades.sentence ? [rep.trades.sentence] : []),
+  ...(rep.refusals || []).map((r) => r.sentence),
+]
+describe('W9-T13b r2 plain words in every member sentence the report writes', () => {
+  const OFF = recordOf([tr('L1', 'long', 1, [1, 10], [3, 10.004], false)])
+  const reports = {
+    allPinned: strategyReportOf(A, { isPinned: ALL }),
+    unpinnedVal: strategyReportOf(A, { isPinned: except('B-VAL') }),
+    unpinnedFill: strategyReportOf(A, { isPinned: except('B-CLOSE') }),
+    unpinnedDefaults: strategyReportOf(A, { isPinned: except('B-DEFAULTS') }),
+    offGrid: strategyReportOf(OFF, { isPinned: ALL }),
+    badRecord: strategyReportOf({ schema: 'nope' }, { isPinned: ALL }),
+    productDefault: strategyReportOf(A),
+  }
+  for (const [name, rep] of Object.entries(reports)) {
+    it(`${name}: no rule id, capture row, field path or guard id`, () => {
+      const texts = memberTexts(rep)
+      expect(texts.length).toBeGreaterThan(0)
+      for (const t of texts) for (const re of ENGINEER_WORDS) expect(t, `${re} in: ${t}`).not.toMatch(re)
+    })
+  }
+  it('the exact sentences', () => {
+    expect(reports.offGrid.metrics.netProfit.sentence).toBe("Net profit is not shown: a trade filled at a price between the "
+      + "symbol's price steps, and how TradingView treats such a fill has not yet been checked.")
+    expect(reports.unpinnedFill.trades.sentence).toBe('The list of trades is not shown: it depends on a rule of how '
+      + 'TradingView runs a backtest that has not yet been checked against TradingView.')
+    // the engineer's detail is still there, as fields
+    expect(reports.unpinnedVal.metrics.netProfit).toMatchObject({ rule: 'B-VAL', row: 'Q-S1-core' })
+    expect(reports.offGrid.metrics.netProfit.row).toBe('Q-S1l')
+  })
+  it('CONTROL: the rail can fail (the T13a r0 wording is caught)', () => {
+    const r0 = ['Net profit is not shown: it rests on the broker rule B-VAL, which no matching TradingView capture pins yet (capture row Q-S1-core).',
+      'the backtest record is not one this report reads (window.startSentence), so there is no report.',
+      'the backtest record is not one this report reads (trades[0].exact), so there is no report.']
+    for (const t of r0) expect(ENGINEER_WORDS.some((re) => re.test(t)), t).toBe(true)
   })
 })

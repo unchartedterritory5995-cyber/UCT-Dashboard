@@ -46,6 +46,7 @@
 // 3. A VISIBILITY toggle that is not a REMOVE. See `rowVisible` below — the two
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
+import { withoutGuardIds } from '../../lib/presentation/memberCopy'
 import { orderCategories } from './technicalCategories'
 import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
@@ -2189,7 +2190,7 @@ export default function ChartSettingsIndicators({
   /** A CORE fact that is true and not editable — see `readOnlyCore`. */
   const renderReadOnly = (f) => (
     <div key={f.key} className={styles.insField} data-field={f.key} data-readonly="true"
-      data-measure="wide" title={f.why}>
+      data-measure="wide" title={withoutGuardIds(f.why)}>
       <span className={styles.insFieldLabel}>{f.label}</span>
       <span className={styles.insFieldCtl}>
         {/* ⛔ NOT A CONTROL, AND IT MUST NOT LOOK LIKE ONE. No border, no chevron,
@@ -3504,7 +3505,7 @@ export default function ChartSettingsIndicators({
               <span
                 className={styles.resRepaint}
                 data-repaint={row.measuredRepaint}
-                title={(row.repaintingPlots || []).map((n) => `${n.label} — ${n.sentence}`).join(' ')}
+                title={(row.repaintingPlots || []).map((n) => `${n.label} — ${withoutGuardIds(n.sentence)}`).join(' ')}
               >{String(row.measuredRepaint).charAt(0).toUpperCase() + String(row.measuredRepaint).slice(1)}</span>
             )}
             {/* Tier only when it is NOT free, and NEVER on the member's own

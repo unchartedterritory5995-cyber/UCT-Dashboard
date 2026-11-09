@@ -62,6 +62,7 @@
 // consumers. It is rendered here, VERBATIM, because this is the surface whose
 // job is to offer a member their own formulas and therefore the surface that
 // owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
+import { withoutGuardIds } from '../../lib/presentation/memberCopy'
 import { orderCategories } from './technicalCategories'
 import { useState, useMemo, useRef, useEffect, useCallback, useId } from 'react'
 import Sheet from '../mobile/Sheet'
@@ -921,7 +922,7 @@ function repaintNotice(row) {
       data-repaint={mode}
       data-repaint-plots={notices.map((n) => n.plotKey).join(' ')}
       /* The linter's own settling sentence, per plot, untouched. */
-      title={notices.map((n) => `${n.label} — ${n.sentence}`).join(' ')}
+      title={notices.map((n) => `${n.label} — ${withoutGuardIds(n.sentence)}`).join(' ')}
     >{labelForRepaint(mode)}{notices.length ? ` — ${notices.map((n) => n.label).join(', ')}` : ''}</span>
   )
 }

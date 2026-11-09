@@ -22,6 +22,7 @@
 // probe, because the absence of a literal is not behaviourally observable.
 //
 // Pattern mirrors ComparisonPicker.jsx (top:40px, right:8px, position absolute inside the chart wrapper).
+import { withoutGuardIds } from '../../lib/presentation/memberCopy'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import styles from './IndicatorAlertPopover.module.css'
 import {
@@ -631,7 +632,7 @@ export default function IndicatorAlertPopover({
         {preflightRefused && (
           <div className={styles.catalogError} role="alert"
             data-testid="alert-signal-refused" data-guard={preflight.guard || undefined}>
-            {preflight.reason}
+            {withoutGuardIds(preflight.reason)}
           </div>
         )}
 
