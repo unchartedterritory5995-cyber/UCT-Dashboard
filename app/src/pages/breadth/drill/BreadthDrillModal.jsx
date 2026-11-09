@@ -20,6 +20,8 @@ import WhatElseOpenPrompt from '../../../components/instruments/WhatElseOpenProm
 import useScanDeck from './scan/useScanDeck'
 import { dayContext, stepDate } from './scan/scanDeckModel'
 import { ScanHeader, ScanRail, ScanStage } from './scan/ScanDeckParts'
+import ScanGrid from './scan/ScanGrid'
+import BreadthDateNav from '../BreadthDateNav'
 import styles from './BreadthDrillModal.module.css'
 
 const FOCUSABLE = [
@@ -208,7 +210,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   }, [selectedSym, deck.review, go])
 
   // ── Mode + layout ───────────────────────────────────────────────────────────
-  const mode = board.mode || 'scan'
+  const mode = board.mode || 'focus'
   const layout = board.layout || '1'
   const setMode = useCallback((m) => {
     onBoardChange(b => ({ ...b, mode: m, split: MODE_SPLIT[m] ?? b.split }))
@@ -294,6 +296,26 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     const t = dir < 0 ? prevTarget : nextTarget
     if (t && colKey) onNavigate?.({ colKey, ...t })
   }, [prevTarget, nextTarget, colKey, onNavigate])
+  // The date box: the same control (and calendar) the chart widget and the
+  // Monitor header use. A picked day snaps to the nearest session on or before
+  // it; a picked year opens that year's last session.
+  const settledDates = useMemo(() => (rows || []).filter(r => !r?._live && r?.date).map(r => r.date), [rows])
+  const goDate = useCallback((iso) => {
+    const hit = settledDates.find(d => d <= iso) || settledDates[settledDates.length - 1]
+    if (hit && colKey) onNavigate?.({ colKey, date: hit, live: false })
+  }, [settledDates, colKey, onNavigate])
+  const goYear = useCallback((y) => goDate(`${y}-12-31`), [goDate])
+  const dateNav = onNavigate && settledDates.length ? (
+    <BreadthDateNav
+      topDate={drillLive ? settledDates[0] : drillDate}
+      minDate={settledDates[settledDates.length - 1]}
+      maxDate={settledDates[0]}
+      canForward={!!nextTarget}
+      onStep={step}
+      onPickDate={goDate}
+      onPickYear={goYear}
+    />
+  ) : null
   const pickMetric = useCallback((key) => {
     onNavigate?.({ colKey: key, date: drillDate, live: drillLive })
   }, [onNavigate, drillDate, drillLive])
@@ -312,7 +334,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     error: drill?.error ?? null,
     onRetry: onRetry ?? null,
     groupMeta: deck.groupMeta,
-    mode: board.mode || 'scan',
+    mode: board.mode || 'focus',
     // The Scan Deck owns grouping (Groups mode) and the count (masthead), so the
     // list drops its own List|Grouped bar and footer.
     deckHosted: true,
@@ -324,6 +346,8 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       if (document.querySelector(WIDGET_MENU_SELECTOR)) return
+      // The date box calendar closes itself on Escape; the window stays.
+      if (document.querySelector('[role="dialog"][aria-label="Go to date"]')) return
       onClose?.()
     }
     window.addEventListener('keydown', onKey)
@@ -405,14 +429,11 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
         <ScanHeader
           label={source.label}
           count={drill?.items ? total : null}
-          date={source.date}
           live={source.live}
           drillCols={drillCols}
           colKey={drill?.colKey}
           onPickMetric={onNavigate ? pickMetric : null}
-          onStep={onNavigate ? step : null}
-          canPrev={!!prevTarget}
-          canNext={!!nextTarget}
+          dateNav={dateNav}
           ctx={ctx}
           summary={deck.summary}
           mode={mode}
@@ -435,6 +456,15 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
         <WorkspaceContext.Provider value={workspace}>
           <DrillSourceContext.Provider value={source}>
+            {mode === 'grid' ? (
+              <ScanGrid
+                rows={deck.shownRows}
+                dir={deck.dir}
+                selectedSym={selectedSym}
+                onOpen={(sym) => { setSym('A', sym); setMode('focus') }}
+                toolbarStart={<ScanRail deck={deck} total={total} inline />}
+              />
+            ) : (
             <BreadthDrillBoard
               board={shownBoard}
               onBoardChange={onBoardChange}
@@ -442,9 +472,10 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
               poppedIds={poppedIds}
               mobilePane={mobilePane}
               hosted
-              listTop={drill?.items?.length ? <ScanRail deck={deck} mode={mode} total={total} /> : null}
+              listTop={drill?.items?.length ? <ScanRail deck={deck} total={total} /> : null}
               wrapChartPane={wrapChartPane}
             />
+            )}
 
             {/* Ejected widgets, rendered from the SAME board state inside the SAME
                 providers so a popped list still drives the chart. */}

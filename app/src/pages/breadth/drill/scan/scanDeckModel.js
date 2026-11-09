@@ -103,7 +103,10 @@ export function dayContext(rows, colKey, date, { window = 252, spark = 60, live 
   }
   const series = settled.slice(startIdx, startIdx + spark).map(r => num(r[colKey])).reverse()
   if (live && Number.isFinite(value)) series.push(value)
-  return { value, pctile, sample: hist.length, health: num(row.breadth_score), series }
+  const sorted = [...hist].sort((a, b) => a - b)
+  const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
+  return { value, pctile, sample: hist.length, health: num(row.breadth_score), series,
+    median, min: sorted.length ? sorted[0] : null, max: sorted.length ? sorted[sorted.length - 1] : null }
 }
 
 function num(v) {
@@ -232,4 +235,28 @@ export function fmtCap(v) {
   if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
   if (v >= 1e6) return `$${Math.round(v / 1e6)}M`
   return `$${Math.round(v / 1e3)}K`
+}
+
+// ── The reading, in words ────────────────────────────────────────────────────
+// "14th pctile · 1Y" made people ask what they were looking at. The masthead
+// says the same thing as a verdict and a sentence: how today's count compares
+// with a normal day over the last year.
+export const READING_BANDS = [
+  { min: 90, tone: 'hot', label: 'Unusually high' },
+  { min: 70, tone: 'up', label: 'Above normal' },
+  { min: 30, tone: 'mid', label: 'Normal' },
+  { min: 10, tone: 'dn', label: 'Below normal' },
+  { min: -1, tone: 'cold', label: 'Unusually low' },
+]
+
+/** { tone, label, sentence } for a dayContext, or null without enough history. */
+export function describeReading(ctx) {
+  if (!ctx || !Number.isFinite(ctx.pctile) || !Number.isFinite(ctx.value)) return null
+  const p = ctx.pctile
+  const band = READING_BANDS.find(b => p >= b.min)
+  const span = ctx.sample >= 240 ? 'the past year' : `the last ${ctx.sample} sessions`
+  let sentence
+  if (p >= 50) sentence = `More than on ${p}% of days in ${span}`
+  else sentence = `Fewer than on ${100 - p}% of days in ${span}`
+  return { tone: band.tone, label: band.label, sentence }
 }

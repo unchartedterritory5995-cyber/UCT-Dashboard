@@ -65,7 +65,7 @@ function listFor(drillKey, date) {
 }
 const ROWS = SESSIONS.map(date => {
   const row = { date, breadth_score: 30 + (hash(date) & 63) }
-  for (const c of COLS) row[c.key] = listFor(c.drillKey, date).length * 6
+  for (const c of COLS) row[c.key] = listFor(c.drillKey, date).length
   return row
 })
 
@@ -114,6 +114,11 @@ window.fetch = async (input, init) => {
       out.industries[t] = u.industry; out.sectors[t] = u.sector; out.themes[t] = u.theme
     }
     return json(out)
+  }
+  if (url.includes('/api/watchlists/themes-batch')) {
+    const results = {}
+    for (const t of bodyOf(init).tickers || []) results[t] = BY_T[t]?.theme ?? null
+    return json({ results })
   }
   if (url.includes('/api/watchlists/bulk-meta') || url.includes('/api/research/snapshot-batch')) {
     const res = {}

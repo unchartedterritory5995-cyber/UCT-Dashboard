@@ -20,14 +20,16 @@ export const CHART_WIDGET_ID = 'drill-chart'
 // charts tab uses, not a bespoke callback.
 export const DRILL_GROUP = 'A'
 
-const DEFAULT_SPLIT = 340   // px, list panel width
+const DEFAULT_SPLIT = 600   // px, list panel width (Focus: Symbol, Sector, Industry, Theme, % Chg)
 
 // ── Scan Deck arrangement ────────────────────────────────────────────────────
 // MODES are arrangements of the SAME list + chart, never different data: Scan is
 // chart-first, Groups opens the group panel above the list, Table gives the list
 // most of the width. Each mode carries its own default list width.
-export const SCAN_MODES = ['scan', 'groups', 'table']
-export const MODE_SPLIT = { scan: 340, groups: 400, table: 680 }
+export const SCAN_MODES = ['focus', 'grid', 'table']
+export const MODE_SPLIT = { focus: 600, grid: 600, table: 1000 }
+// Modes a stored board may still carry from the first Scan Deck build.
+const LEGACY_MODE = { scan: 'focus', groups: 'focus' }
 // Chart LAYOUTS inside the chart pane: one chart, Daily + Weekly of the same
 // stock, or four stocks (the selected one and the next three in the list).
 export const SCAN_LAYOUTS = ['1', 'dw', '4']
@@ -49,7 +51,7 @@ function withoutDropped(opts) {
 export function defaultBoard(seedChartOpts = {}) {
   return {
     split: DEFAULT_SPLIT,
-    mode: 'scan',
+    mode: 'focus',
     layout: '1',
     widgets: [
       { id: LIST_WIDGET_ID, type: 'watchlist', color: DRILL_GROUP, opts: { source: 'breadthDrill' } },
@@ -81,7 +83,7 @@ export function parseBoard(raw, seedChartOpts = {}) {
     }
   })
   const split = Number.isFinite(parsed.split) ? clampSplit(parsed.split) : fresh.split
-  const mode = SCAN_MODES.includes(parsed.mode) ? parsed.mode : fresh.mode
+  const mode = SCAN_MODES.includes(parsed.mode) ? parsed.mode : (LEGACY_MODE[parsed.mode] || fresh.mode)
   const layout = SCAN_LAYOUTS.includes(parsed.layout) ? parsed.layout : fresh.layout
   return { split, mode, layout, widgets }
 }
@@ -90,7 +92,7 @@ export function parseBoard(raw, seedChartOpts = {}) {
 // tech as aria-valuemin/max: retyping the numbers there would put a second
 // authority over one value, and the pair that drifts is the one nobody can see.
 export const SPLIT_MIN = 240
-export const SPLIT_MAX = 760
+export const SPLIT_MAX = 1200
 
 export function clampSplit(px) {
   return Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, Math.round(px)))
@@ -99,7 +101,7 @@ export function clampSplit(px) {
 export function serializeBoard(board) {
   return JSON.stringify({
     split: clampSplit(board?.split ?? DEFAULT_SPLIT),
-    mode: SCAN_MODES.includes(board?.mode) ? board.mode : 'scan',
+    mode: SCAN_MODES.includes(board?.mode) ? board.mode : 'focus',
     layout: SCAN_LAYOUTS.includes(board?.layout) ? board.layout : '1',
     widgets: (board?.widgets ?? []).map(w => ({ id: w.id, opts: w.opts || {} })),
   })

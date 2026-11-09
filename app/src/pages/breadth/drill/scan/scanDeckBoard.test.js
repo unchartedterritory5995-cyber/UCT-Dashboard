@@ -9,9 +9,9 @@ const SEED = { settings: { preset: 'uct' }, scanTemplate: 'scan' }
 const chartOf = (b) => b.widgets.find(w => w.id === CHART_WIDGET_ID)
 
 describe('Scan Deck board — mode and layout', () => {
-  it('a fresh board opens in Scan mode with one chart', () => {
+  it('a fresh board opens in Focus mode with one chart', () => {
     const b = defaultBoard(SEED)
-    expect(b.mode).toBe('scan')
+    expect(b.mode).toBe('focus')
     expect(b.layout).toBe('1')
   })
   it('mode and layout round-trip through the stored pref', () => {
@@ -23,15 +23,20 @@ describe('Scan Deck board — mode and layout', () => {
   })
   it('an unknown mode or layout falls back rather than breaking the window', () => {
     const back = parseBoard(JSON.stringify({ mode: 'kanban', layout: '9', widgets: [] }), SEED)
-    expect(back.mode).toBe('scan')
+    expect(back.mode).toBe('focus')
     expect(back.layout).toBe('1')
   })
-  it('a pre-Scan-Deck pref (no mode, no layout) opens as Scan with one chart', () => {
+  it('a pre-Scan-Deck pref (no mode, no layout) opens as Focus with one chart', () => {
     const old = JSON.stringify({ split: 300, widgets: [{ id: CHART_WIDGET_ID, opts: { tf: 'W' } }] })
     const back = parseBoard(old, SEED)
-    expect(back.mode).toBe('scan')
+    expect(back.mode).toBe('focus')
     expect(back.layout).toBe('1')
     expect(chartOf(back).opts.tf).toBe('W')
+  })
+  it('a board stored by the first Scan Deck build (Scan / Groups) opens in Focus', () => {
+    for (const mode of ['scan', 'groups']) {
+      expect(parseBoard(JSON.stringify({ mode, widgets: [] }), SEED).mode).toBe('focus')
+    }
   })
   it('every mode has a list width inside the split travel', () => {
     for (const m of SCAN_MODES) expect(MODE_SPLIT[m]).toBeGreaterThan(0)
