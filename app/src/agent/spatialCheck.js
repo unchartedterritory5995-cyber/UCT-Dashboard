@@ -209,8 +209,10 @@ export function spatialConstraints(text, charts = [], sel = null) {
       // own geometry: the target is a neighbour on that side. Any other relation's reading is the resolver's (its hits).
       const s = charts.find(c => c.ref === sel && c.cell)
       const m = s ? clauses.map(c => REL_CLICK.exec(c)).find(Boolean) : null
-      const plain = m && !rel.match?.walk && !rel.match?.line && !rel.match?.farLine && !rel.match?.corner && !rel.match?.sameBut && !rel.plural
-        && !/\b(?:two|three|four|five|[2-9]|second|third|fourth|next[-\s]but[-\s]one|both|all|every)\b/i.test(String(text || ''))
+      const x = rel.match || {}
+      const plain = m && !rel.plural && !['walk', 'line', 'farLine', 'corner', 'sameBut', 'diagonal', 'step', 'farEnd', 'neighbours', 'unplaced'].some(k => x[k])
+        && !/\b(?:two|three|four|five|[2-9]|second|third|fourth|next[-\s]but[-\s]one|both|all|every|diagonal(?:ly)?|corner|across|opposite)\b/i.test(String(text || ''))
+        && !/\b(?:up|down)\s+and\s+(?:to\s+the\s+)?(?:left|right)\b|\b(?:left|right)\s+and\s+(?:up|down)\b/i.test(String(text || ''))
       if (plain) add(SIDES(m[1]).flatMap(side => neighbours(charts, s, side)).map(x => x.ref), 'relation-click')
       else if (hits.length) add(hits, 'relation-click')
     }
