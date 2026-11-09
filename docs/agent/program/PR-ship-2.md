@@ -29,6 +29,30 @@ Why one slice: the per-clause guard, the round-3 flow refusal and the round-3 Un
   case is left as logged.
 - ship-1's S1-A/B/C/D fixes arrive through the merge.
 
+## AUDIT round 2 — fixed (S2-B, a wrong-chart defect introduced by S2-A)
+
+- **S2-B:** S2-A's antecedent scan took ANY indicator or placed-thing word earlier in the sentence, so "add RSI to the one below"
+  (click TL) added RSI on the click instead of the chart below. Now a bare "one" stands for a thing ONLY when it is COORDINATED
+  with that thing in the same noun phrase ("the line and the one below", "the level I drew and the one above"); after a
+  preposition (to / on / onto / in / into / for / at / from / over) "the one <relation>" is the place, a chart; a word separated
+  from "one" by a verb or a preposition is never its antecedent.
+- Rails (`agentClauseShared`, "AUDIT S2-B"): probe 7's three phrasings — the plan on the neighbour lands; a plan on the click
+  never lands (all failed on ba6a4ffbf1). "make this one weekly, then move the alert to the one below" now ASKS (an ambiguous
+  move never acts on the click); it moved out of the S2-A acts-on-the-click rail. The S2-A coordination cases still act on the click.
+
+## S2-B generalised (owner priority 2026-11-08)
+
+- The coordination rule now covers the ANCHORED relation too ("delete the alert and the one above it": the "one" is the alert's
+  kind, no chart relation; the sentence acts on the click).
+- **Held-out set** (`agentRelationHeldOut`, 24 cases, committed first in 8ed64f31c4, never tuned on; AUDIT's probe-7 three
+  included): TWO / THREE / FOUR / SIX boards, with and without a click, below / above / left / right / next to / beside / under,
+  positions, after a preposition vs coordinated with a non-chart noun. Before this commit 42/44 checks passed; after it 44/44
+  (`agentRelation`): the chart meant lands, a plan on the click never lands, the ask cases land nowhere, the coordination cases
+  act on the click. **One changed expectation:** t3 ("log scale on the chart to the left", TWO, no click) was frozen as 'ask';
+  with no click "left" is a position that fits one chart, so it acts on the left chart — never a click. Graded so, reported here.
+- **The live production bug** ("make the chart above weekly" changed the clicked chart on master): a rail shows a plan on the
+  click does not land and the plan on the chart above does.
+
 ## Full suite
 
 Suite on 679b8b2d14 (code head): 2256/2259, 3119, 2002/2003, 1823/1825 = 9200 passed, 0 failed, 6 skipped.

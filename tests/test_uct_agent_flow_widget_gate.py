@@ -18,7 +18,7 @@ SET_OPTION = {"name": "widget.setOption", "domain": "board", "target": "board", 
                                                         "value": {"type": ["string", "number", "boolean"]}},
                        "required": ["widget", "key", "value"], "additionalProperties": False}}
 CAPS_FLOW = ALL + [SET_OPTION]
-CTX_FLOW = {**CTX2, "board": [{"ref": "board", "label": "Board", "widgets": [{"id": "of", "type": "optionsflow"}]}]}
+CTX_FLOW = {**CTX2, "board": [{"ref": "board", "label": "Board", "widgets": [{"id": "of", "type": "optionsflow"}, {"id": "sc", "type": "scanner"}]}]}
 
 
 @pytest.fixture(autouse=True)
@@ -60,3 +60,17 @@ def test_a_mixed_plan_with_any_screener_op_is_still_refused():
     c = caller_of(_resp(mixed))
     out = turn.run_turn(message="filter the options flow to sweeps", context=CTX_FLOW, history=[], capabilities=CAPS_FLOW, caller=c)
     assert out["envelope"]["ops"] == [] and out["envelope"]["reply"].startswith("I didn't run it:")
+
+
+def test_a_widget_setOption_on_a_widget_that_is_not_the_options_flow_is_still_gated():
+    # AUDIT round 2: only the Options Flow widget's own chips carry no hidden field; a setOption on any other widget (here a
+    # Scanner, which can show screener fields) is gated exactly as before
+    plan = env("apply", ops=[{"action": "widget.setOption", "target": "board", "args": {"widget": "sc", "key": "show", "value": "picker"}}])
+    c = caller_of(_resp(plan))
+    out = turn.run_turn(message="filter the options flow to sweeps", context=CTX_FLOW, history=[], capabilities=CAPS_FLOW, caller=c)
+    assert out["envelope"]["ops"] == [] and out["envelope"]["reply"].startswith("I didn't run it:")
+
+
+def test_flow_widget_ids_reads_only_options_flow_widgets_from_the_board_context():
+    assert turn._flow_widget_ids(CTX_FLOW) == {"of"}
+    assert turn._flow_widget_ids({}) == set()

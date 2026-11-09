@@ -126,7 +126,6 @@ describe('held-out', () => {
 describe('AUDIT S2-A: "the one below" after a line, an alert or a level is not a chart relation', () => {
   it.each([
     'make this chart weekly and delete the line and the one below',
-    'make this one weekly, then move the alert to the one below',
     'make it weekly, the level I drew and the one above are both support',
   ])('"%s" (clicked BL): the click is weekly, no question', async (text) => {
     const r = await run({ click: 'c2', text, plan: [['weekly', 'c2']] })
@@ -141,5 +140,32 @@ describe('AUDIT S2-A: "the one below" after a line, an alert or a level is not a
     const r = await run({ click: null, text, plan: [[change, 'c0']] })
     expect(where(r, change), r.out).toEqual([])
     expect(r.out).toMatch(/Which chart|check this first|Click/)
+  }, 40000)
+})
+
+// ⛔ AUDIT S2-B (round 2, a WRONG-CHART defect of S2-A): "one" stands for a thing ONLY when coordinated with it in the same noun
+// phrase. After a preposition "the one <relation>" is the place, a chart; a word separated from "one" by a verb or a preposition
+// is never its antecedent. Probe 7: the neighbour runs, a plan on the click is asked — never the click.
+describe('AUDIT S2-B: "to the one below" is a chart; only coordination makes "one" a thing', () => {
+  it.each([
+    ['add RSI to the one below', 'rsi', 'c2'],
+    ['put a MACD on the one to the right', 'macd', 'c1'],
+    ['the rsi looks good here, now make the one below weekly', 'weekly', 'c2'],
+  ])('"%s" (clicked TL): the plan on the neighbour lands', async (text, change, meant) => {
+    const r = await run({ click: 'c0', text, plan: [[change, meant]] })
+    expect(where(r, change), r.out).toEqual([meant])
+  }, 40000)
+  it.each([
+    ['add RSI to the one below', 'rsi'],
+    ['put a MACD on the one to the right', 'macd'],
+    ['the rsi looks good here, now make the one below weekly', 'weekly'],
+  ])('NEGATIVE "%s" (clicked TL): a plan on the CLICK never lands', async (text, change) => {
+    const r = await run({ click: 'c0', text, plan: [[change, 'c0']] })
+    expect(where(r, change), r.out).not.toContain('c0')
+  }, 40000)
+  it('an ambiguous move ("move the alert to the one below") asks; it never acts on the click', async () => {
+    const r = await run({ click: 'c2', text: 'make this one weekly, then move the alert to the one below', plan: [['weekly', 'c2']] })
+    expect(r.out).toMatch(/Which chart|Did you mean|check this first/)
+    expect(where(r, 'weekly'), r.out).toEqual([])
   }, 40000)
 })
