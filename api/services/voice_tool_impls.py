@@ -2083,6 +2083,25 @@ def _trader_archive_rhymes(*, limit: int = 8) -> dict:
     return _archive_tools.rhymes(limit)
 
 
+# UCT Relative Strength (RS) read tools (engineering map 2026-11-08, D16, unit 4-07). ONE
+# implementation, api/services/rs_read_tools.py (plain dicts, reusable by the UCT Agent);
+# these are the Compass voice wrappers, and chat reaches them through `_voice_delegate`.
+# Gated PER CALL by RS_COMPASS_TOOLS_ENABLED (only the literal 1 arms it): while off the
+# tools are absent from every schema and dispatch refuses them.
+def _rs_tools_gate() -> bool:
+    return os.environ.get("RS_COMPASS_TOOLS_ENABLED", "0") == "1"
+
+
+def _get_rs_reading(*, ticker: str = "", benchmark: str = "SPY") -> dict:
+    from api.services import rs_read_tools
+    return rs_read_tools.rs_reading(ticker, benchmark or "SPY")
+
+
+def _explain_rs(*, term: str = "") -> dict:
+    from api.services import rs_read_tools
+    return rs_read_tools.explain_term(term)
+
+
 def _find_patterns_on_ticker(
     *, symbol: str, tf: str = "D", min_conf: float = 50.0,
 ) -> dict:
@@ -3192,6 +3211,24 @@ def _register_all() -> None:
         contexts=["global"],
         gate=_archive_tool_gate,
     )(_trader_archive_rhymes)
+
+    # UCT Relative Strength read tools (unit 4-07): descriptions and parameters are
+    # rs_read_tools' constants, shared with the chat registry so the two cannot drift.
+    from api.services import rs_read_tools as _rs_rt
+    _vt.voice_tool(
+        name="get_rs_reading",
+        description=_rs_rt.READING_DESCRIPTION,
+        parameters=_rs_rt.READING_PARAMETERS,
+        contexts=["global"],
+        gate=_rs_tools_gate,
+    )(_get_rs_reading)
+    _vt.voice_tool(
+        name="explain_rs",
+        description=_rs_rt.EXPLAIN_DESCRIPTION,
+        parameters=_rs_rt.EXPLAIN_PARAMETERS,
+        contexts=["global"],
+        gate=_rs_tools_gate,
+    )(_explain_rs)
 
     _vt.voice_tool(
         name="scan_active_patterns",

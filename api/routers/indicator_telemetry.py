@@ -7,6 +7,13 @@ other three events (`import_accepted`, `delivery_configured`,
 SERVER decision (validated, saved, delivered, executed) and a client must
 never be able to assert one of those about its own unconfirmed input.
 
+⭐ Since then the list has grown by client OBSERVATIONS only, never a server
+decision: `studio_action` (the authoring funnel) and the six UCT RS counts
+(`rs_on`, `rs_off_within_60s`, `rs_preset`, `rs_benchmark`, `rs_marker_card`,
+`rs_learn`; `app/src/lib/rsTelemetry.js`), each prop held to a closed set or a
+strict pattern by the service's `_VALUE_RULES`. `CLIENT_FIREABLE_EVENTS` is the
+list; this paragraph is not.
+
 ⛔ AUTHENTICATED, UNLIKE `landing_analytics.py`. That router is deliberately
 open (anonymous marketing visitors have no session); this one is not — the
 indicator/screener surface is a signed-in feature, and an open write endpoint

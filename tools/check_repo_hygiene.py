@@ -53,6 +53,13 @@ BIG_ALLOWLIST = {
     "api/fill-6-26-stocks.csv", "api/fill-6-29-stocks.csv", "api/fill-6-30-stocks.csv",
     "api/fill-7-1-stocks.csv", "api/fill-7-2-stocks.csv", "api/fill-7-8-stocks.csv",
     "app/public/UCT Logo.png", "app/public/UCT_logo_512.png",
+    # Added deliberately 2026-11-06 (PR #899's gate went red on them): Study bank segments the web pod imports FROM THE
+    # DEPLOYED REPO (scripts/study/import_bank.py), so they cannot leave git. spot.setups is the owner-calibrated setup
+    # bank (1,825 items, 1995-2026); cycle.price_action is 1,800 Chart IQ cycle questions. Generated, reviewed item by
+    # item on the review screen; a split would only multiply the import's --only list.
+    "docs/study/bank/spot.setups.json", "docs/study/bank/cycle.price_action.json",
+    # 2026-11-07: chart.events (1,700 Chart IQ event questions) crossed 5 MB with its brain quotes; same reason.
+    "docs/study/bank/chart.events.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}

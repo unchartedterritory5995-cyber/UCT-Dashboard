@@ -10,7 +10,7 @@
         "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal",
         "api/services/breadth_metrics.py :: the _ROWS catalogue literal"
       ],
-      "count": 196,
+      "count": 207,
       "note": "a bars or breadth metric is table-qualified (ohlcv.c, breadth_snapshot_numeric.pct_above_50sma) so a short column/key name cannot shadow a screener scalar"
     },
     "entity": {
@@ -48,7 +48,7 @@
     "screener_rows": {
       "declared_in": "app/src/components/chart/engine/ast/closedTable.json",
       "authority": "authoritative",
-      "metric_count": 138
+      "metric_count": 149
     },
     "bars_sqlite": {
       "declared_in": "api/services/bars_sqlite.py",
@@ -151,29 +151,29 @@
     }
   },
   "axis_report": {
-    "metric_count": 196,
+    "metric_count": 207,
     "stores": {
       "bars_sqlite": 5,
       "breadth_snapshot_numeric": 53,
-      "screener_rows": 138
+      "screener_rows": 149
     },
     "cadences": {
       "(undeclared)": 58,
-      "nightly": 138
+      "nightly": 149
     },
     "grains": {
       "(undeclared)": 58,
-      "date": 138
+      "date": 149
     },
     "as_of_columns": {
-      "bars_asof": 59,
+      "bars_asof": 70,
       "date": 53,
       "snapshot_date": 79,
       "ts": 5
     },
     "yields": {
-      "bool": 22,
-      "num": 174
+      "bool": 27,
+      "num": 180
     }
   },
   "metrics": {
@@ -266,6 +266,16 @@
       "yields": "num",
       "authority": "authoritative",
       "sentence": "the 30-day average volume"
+    },
+    "base_pivot_px": {
+      "store": "screener_rows",
+      "column": "base_pivot_px",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the pivot price the symbol's HEAD base structure's own detection computed (the entry a Flat Base or Base-on-Base names, in dollars); blank when the head structure has no pivot -- never invented"
     },
     "base_relation_count": {
       "store": "screener_rows",
@@ -1227,6 +1237,16 @@
       "authority": "authoritative",
       "sentence": "the opening gap percentage"
     },
+    "green_on_red_20": {
+      "store": "screener_rows",
+      "column": "green_on_red_20",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the number of the last 20 sessions on which the symbol closed up on a day SPY closed down at least 0.5 % -- bought on the market's red days"
+    },
     "gross_margin": {
       "store": "screener_rows",
       "column": "gross_margin",
@@ -1436,6 +1456,26 @@
       "yields": "num",
       "authority": "authoritative",
       "sentence": "the long-term debt to total capital ratio"
+    },
+    "mansfield": {
+      "store": "screener_rows",
+      "column": "mansfield",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the Mansfield relative strength -- the RS line's percentage distance above (positive) or below (negative) its own 200-day average, two decimals"
+    },
+    "mansfield_cross_bars_ago": {
+      "store": "screener_rows",
+      "column": "mansfield_cross_bars_ago",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the number of sessions since Mansfield relative strength last crossed its zero line in either direction, 0 on the newest session; blank when it has not inside the window"
     },
     "market_cap": {
       "store": "screener_rows",
@@ -1966,6 +2006,76 @@
       "yields": "num",
       "authority": "authoritative",
       "sentence": "the return on invested capital"
+    },
+    "rs_benchmark_agree": {
+      "store": "screener_rows",
+      "column": "rs_benchmark_agree",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "bool",
+      "authority": "authoritative",
+      "sentence": "whether the RS line's 20-session slope has the same sign against SPY and against RSP (the equal-weight S&P 500), so the strength is not an artefact of the cap-weighted benchmark"
+    },
+    "rs_cross_up_bars_ago": {
+      "store": "screener_rows",
+      "column": "rs_cross_up_bars_ago",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the number of sessions since the RS line last crossed above its 21-day EMA, 0 on the newest session; blank when it has not inside the window"
+    },
+    "rs_line_above_ma": {
+      "store": "screener_rows",
+      "column": "rs_line_above_ma",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "bool",
+      "authority": "authoritative",
+      "sentence": "whether the RS line (the symbol's close over SPY's) closed at or above its 21-day EMA on the newest session"
+    },
+    "rs_new_high": {
+      "store": "screener_rows",
+      "column": "rs_new_high",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "bool",
+      "authority": "authoritative",
+      "sentence": "whether the RS line (the symbol's close over SPY's) closed at a 52-week high on the newest session; a tie counts"
+    },
+    "rs_nh_bars_ago": {
+      "store": "screener_rows",
+      "column": "rs_nh_bars_ago",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": "the number of sessions since the RS line last made a 52-week high, 0 on the newest session; blank when it has not inside the window"
+    },
+    "rs_nh_before_price": {
+      "store": "screener_rows",
+      "column": "rs_nh_before_price",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "bool",
+      "authority": "authoritative",
+      "sentence": "whether the RS line made a 52-week high on the newest session while price itself was still more than 2 % under its own 52-week high -- the line leading price"
+    },
+    "rs_nh_red_day": {
+      "store": "screener_rows",
+      "column": "rs_nh_red_day",
+      "as_of_column": "bars_asof",
+      "grain": "date",
+      "cadence": "nightly",
+      "yields": "bool",
+      "authority": "authoritative",
+      "sentence": "whether the RS line made a 52-week high on a session SPY closed down at least 0.5 % -- strength shown on a red day"
     },
     "rs_rank": {
       "store": "screener_rows",

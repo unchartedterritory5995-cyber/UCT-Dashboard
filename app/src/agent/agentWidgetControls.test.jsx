@@ -13,6 +13,7 @@ import { makeBoard } from './__fixtures__/board'
 import { publishWidgetDoor } from '../pages/charts/widgetDoors'
 import { WIDGET_REGISTRY } from '../widgets/registry'
 import { widgetControls } from '../widgets/widgetControls'
+import { allControls } from './widgetNames'
 import { etToday } from './dateWords'
 import { routeManifestV2 } from './nlm1/routingV2'
 
@@ -306,7 +307,9 @@ describe('what the model is told: the types on THIS board, not every type on eve
     for (const type of Object.keys(WIDGET_REGISTRY)) {
       const { host } = makeBoard([w('x', type)], {})
       const line = (await entry(host))?.controls[type]
-      const rows = widgetControls(type)
+      // the Agent's own controls too (widgetNames AGENT_CONTROLS: a Notebook's note, a chart's Company Info panel), each
+      // offered only while the widget can take it (a chart with no panel offers none)
+      const rows = allControls(type).filter(f => !f.when?.({}))
       if (!rows.length) { expect(line, type).toBeUndefined(); continue }
       for (const f of rows) expect(line, `${type}.${f.key}`).toContain(`${f.key}(`)
     }

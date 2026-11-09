@@ -127,20 +127,24 @@ describe('A · corrections and changes of mind', () => {
 })
 
 describe('A · Undo of a described change', () => {
-  it('"undo just the color change" undoes the newest change when it IS a colour change, and says so when it is not', async () => {
+  // round 3 (pl-exec, owner via Program Lead): a DESCRIBED Undo takes back the most recent change of THAT kind, not only the
+  // newest one; the changes after it stay, and the member is told so. Nothing of that kind left → nothing undone, said.
+  it('"undo just the color change" takes back the most recent colour change, even when a newer change came after it', async () => {
     const { say, board, h } = p.mount(...ONE('BRCB'))
     await say('add the 9 ema')
     await say('make it green')
     await say('weekly')
     let out = await say('undo just the color change')
-    expect(out).toMatch(/My last change wasn't a colour change — it was: Switched timeframe to Weekly\. Nothing was undone/)
-    expect(h.charts.read('c').tf).toBe('W')
-    expect(emaColours(board)).toEqual([[9, GREEN]])
+    expect(emaColours(board)).toEqual([[9, '#f0b90b']])
+    expect(h.charts.read('c').tf).toBe('W')                            // the newer change stays
+    expect(out).toMatch(/That was an earlier change: the change after it stays as it is/)
     out = await say('undo the timeframe change')
-    expect(h.charts.read('c').tf).toBe('D')
+    expect(h.charts.read('c').tf, out).toBe('D')
     out = await say('undo just the colour change')
-    expect(emaColours(board)).toEqual([[9, '#f0b90b']])                // never an older entry picked out of order
+    expect(out).toMatch(/My last change wasn't a colour change — it was: .*Nothing was undone/)
+    expect(emaColours(board)).toEqual([[9, '#f0b90b']])
     expect(p.turns()).toBe(0)
+    void GREEN
   }, 30000)
 })
 

@@ -6,6 +6,7 @@ import { useMemo, useRef, useCallback } from 'react'
 import StockChart from '../components/StockChart'
 import useHouseChart from '../pages/study/useHouseChart'
 import { studySettingsOverride } from '../pages/study/studyChartLook'
+import useSessionChartSettings from '../components/chart/pane/useSessionChartSettings'
 
 export default function StudyChart({
   bars, height = 360, markers = null, annotations = null, highlightBarTime = null, highlightColor = '#e6b800',
@@ -18,6 +19,12 @@ export default function StudyChart({
   const house = useHouseChart()
   const override = useMemo(() => (houseLook ? studySettingsOverride(chartOpts, house) : null), [houseLook, chartOpts, house])
   const entryDate = bars?.[0]?.t ?? null
+  // ⛔ policy A (settingsScope.rail.test.js rule 1): an override needs a sink, or an edit made on this exhibit
+  // (a right-click toggle, an indicator hidden) is written into the member's GLOBAL chart_settings. The same
+  // session-scoped sink the product's study charts use (pages/study/ui/StudyChart.jsx): the edit stays on THIS
+  // mounted chart until the exhibit changes, and nothing is persisted. Without `houseLook` the base is null and
+  // the member's own settings still draw the chart; edits made here simply stay here too.
+  const session = useSessionChartSettings(override, `${houseLook ? 'house' : 'own'}:${entryDate}`)
   const exitDate = exitProp || (bars?.length ? bars[bars.length - 1].t : null)
   const last = useRef(null)
   const onCrosshairMove = useCallback((c) => { if (c && c.time != null) last.current = { time: c.time, price: c.cursorPrice } }, [])
@@ -47,7 +54,8 @@ export default function StudyChart({
         showDrawingTools={false}
         {...(frame === 'exact' ? { entryDate, exitDate, exactDateRange: true } : { dailyDefaultBars: defaultBars })}
         rightPadBars={rightPadBars}
-        settingsOverride={override}
+        settingsOverride={session.settingsOverride}
+        onSettingsPersist={session.onSettingsPersist}
         annotations={annotations}
         annotationsVisible={!!annotations}
         annotationsTextVisible={!!annotations}

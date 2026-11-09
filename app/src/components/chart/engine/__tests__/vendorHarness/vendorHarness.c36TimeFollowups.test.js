@@ -171,10 +171,24 @@ describe('C36 · 1 — BITSTAMP:BTCUSD 1D, every day of the week: served, date f
     expect(BTC.symbol.session).toBe('24x7')
   })
 
-  it('the probe as captured still refuses at the door on `input.time` alone (so the replay is the derived capture)', () => {
+  // ⚰️ THIS SAID the probe as captured "still refuses at the door on `input.time` alone".
+  // RULING-0927 (2026-11-07) serves T16's own form, so the probe passes the door. What the full
+  // history then shows on T01–T09 is WITHHOLDING (ours `na` where the chart cannot answer, the
+  // bars the derived capture below cuts), never a wrong value: every divergence is na-only.
+  it('RULING-0927 — the probe as captured passes the door; T16 matches, T01–T09 only withhold', () => {
     const full = gradeCapture(BTC)
-    expect(full.verdict.verdict).toBe('INCONCLUSIVE')
-    expect(full.verdict.reason).toMatch(/member door refused \(pine:input-kind\)/)
+    const VERDICT = full.verdict
+    expect(VERDICT.reason).not.toMatch(/member door refused/)
+    const t16 = VERDICT.plots.find((p) => p.title === 'T16_input_time_default_DAYS')
+    expect(t16 && t16.stats, 'T16 was not graded').toBeTruthy()
+    expect([t16.stats.valueMismatches, t16.stats.naMismatches, t16.stats.matching]).toEqual([0, 0, t16.stats.bars])
+    const diverging = VERDICT.plots.filter((p) => p.verdict === 'DIVERGE')
+    expect(diverging.map((p) => p.title).sort()).toEqual(['T01_timeW_minus_time_DAYS', 'T02_timeM_minus_time_DAYS',
+      'T03_time3M_minus_time_DAYS', 'T04_time12M_minus_time_DAYS', 'T07_newWeek', 'T08_newMonth', 'T09_newQuarter'])
+    for (const p of diverging) {
+      expect(p.stats.valueMismatches, p.title).toBe(0)
+      expect(p.stats.firstDivergence.ours, p.title).toBe(null)
+    }
   })
 
   const ROWS = { W: 'T01_timeW_minus_time_DAYS', M: 'T02_timeM_minus_time_DAYS', '3M': 'T03_time3M_minus_time_DAYS', '12M': 'T04_time12M_minus_time_DAYS' }

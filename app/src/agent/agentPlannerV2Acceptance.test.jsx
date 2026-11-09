@@ -32,7 +32,8 @@ const SAVED = [{ id: 901, name: 'ADR Movers', spec: { filters: [{ key: 'adr_pct'
 const GAPS = {}
 
 let p, srv
-beforeEach(() => { _resetAgentConfig(); _resetScreenerCache(); p = setupPanel() })
+// the screen's result rows are tickers the server knows (the realistic harness ticker search answers only known ones)
+beforeEach(() => { _resetAgentConfig(); _resetScreenerCache(); p = setupPanel({ tickers: SCAN.rows.map(r => r.ticker) }) })
 afterEach(() => { srv?.uninstall?.(); vi.restoreAllMocks(); cleanup() })
 
 const settled = async () => { await waitFor(() => { if (screen.queryByTestId('agent-typing') || srv.stream) throw new Error('busy') }, { timeout: 15000 }) }

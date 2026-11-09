@@ -28,10 +28,10 @@ plot(str.length(str.substring(s, 4)), "A02_two_arg_expect_2")
 // plot(str.length(str.substring(s, 0.5, 2)), "A06_fractional_begin")
 ```
 
-| row | what it settles |
-|---|---|
-| A01/A02 | the 0-based, end-exclusive rule and the 2-argument form (expected 2 and 2) |
-| A03-A06 | runtime error (script stops, banner text) vs `na` (str.length of na) vs a clamp, per bad position |
+| row | probe | what it settles |
+|---|---|---|
+| A01/A02 | `vw-w4t11-a-substring.pine`; AMEX:SPY 1D | the 0-based, end-exclusive rule and the 2-argument form (expected 2 and 2) |
+| A03-A06 | one file per case: `vw-w4t11-a03-substring-end-past-length.pine`, `vw-w4t11-a04-substring-end-before-begin.pine`, `vw-w4t11-a05-substring-negative-begin.pine`, `vw-w4t11-a06-substring-fractional-begin.pine`; AMEX:SPY 1D | runtime error (script stops, banner text) vs `na` (str.length of na) vs a clamp, per bad position |
 
 ## W4-T11-b: `str.tonumber`, `str.replace` edge texts
 
@@ -49,11 +49,11 @@ plot(str.length(str.replace("abc", "b", "XY", 3)), "B08_missing_occurrence_expec
 // one case per run: plot(str.length(str.replace("abc", "", "X")), "B09_empty_target")
 ```
 
-| row | what it settles |
-|---|---|
-| B01-B06 | which texts read as numbers (this lane: B02-B05 are numbers, B01 and B06 are `na`) |
-| B07/B08 | occurrences count non-overlapping from 0; a missing occurrence leaves the text unchanged |
-| B09 | empty target: raised here; if TradingView returns the source or inserts, change `replaceNth` |
+| row | probe | what it settles |
+|---|---|---|
+| B01-B06 | `vw-w4t11-b-tonumber-replace.pine`; AMEX:SPY 1D | which texts read as numbers (this lane: B02-B05 are numbers, B01 and B06 are `na`) |
+| B07/B08 | `vw-w4t11-b-tonumber-replace.pine`; AMEX:SPY 1D | occurrences count non-overlapping from 0; a missing occurrence leaves the text unchanged |
+| B09 | `vw-w4t11-b09-replace-empty.pine` (its own file: one case per run); AMEX:SPY 1D | empty target: raised here; if TradingView returns the source or inserts, change `replaceNth` |
 
 ## W4-T11-c: `str.format_time` letters, zones, `na` time
 
@@ -69,8 +69,8 @@ plot(str.length(str.format_time(t, "HH:mm", "UTC")), "C05_other_zone")
 plot(str.length(str.format_time(na, "yyyy")), "C06_na_time")
 ```
 
-| row | what it settles |
-|---|---|
-| C01 | the served letters `yyyy yy MM M dd d HH H mm m ss s` in the exchange zone |
-| C02-C05 | letters and zones this lane REFUSES by name until captured |
-| C06 | the answer for an `na` time: this lane returns the empty text; unproven |
+| row | probe | what it settles |
+|---|---|---|
+| C01 | `vw-w4t11-c-format-time.pine`; AMEX:SPY 1D | the served letters `yyyy yy MM M dd d HH H mm m ss s` in the exchange zone |
+| C02-C05 | `vw-w4t11-c-format-time.pine`; AMEX:SPY 1D | letters and zones this lane REFUSES by name until captured |
+| C06 | `vw-w4t11-c-format-time.pine`; AMEX:SPY 1D | the answer for an `na` time: this lane returns the empty text; unproven |

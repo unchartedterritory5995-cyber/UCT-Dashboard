@@ -62,7 +62,8 @@ const ACTIONS_CLEARANCE_PX = 4
  *   ⭐ This is the ONLY thing that teaches a user the fan has two rings. Reach mode makes both
  *   reachable; without a label, the inner ring is still folklore. Set only while selecting.
  * @param {boolean} [props.mirrored] Left-handed mode — sits right of the pad instead of left.
- * @param {string} [props.modeColor] A `--hub-mode-*` token name for the label's colour.
+ *   (No mode colour prop: since B4, 2026-11-07, the mode word is --ut-gold on every mode, set
+ *   in `hub.module.css .chipMode`; the per-mode hue lives on the knob's dot only.)
  * @param {number} [props.actionsWidthPx] The Actions button's MEASURED width, reported by
  *   `HubActionsButton` (see `ACTIONS_CLEARANCE_PX` above). `0` means no button is rendered.
  */
@@ -74,7 +75,6 @@ export default function HubChip({
   open = false,
   ringName = null,
   mirrored = false,
-  modeColor,
   actionsWidthPx = 0,
 }) {
   // While selecting, the chip becomes the ring readout instead of disappearing.
@@ -129,9 +129,7 @@ export default function HubChip({
         bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + verticalOffset + openLift}px)`,
       }}
     >
-      <b className={styles.chipMode} style={{ color: modeColor ? `var(${modeColor})` : undefined }}>
-        {label}
-      </b>
+      <b className={styles.chipMode}>{label}</b>
       <span className={styles.chipHint}>{hint}</span>
     </div>
   )

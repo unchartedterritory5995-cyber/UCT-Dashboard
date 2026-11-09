@@ -26,7 +26,10 @@ import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, C
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
+// ⭐ W6-T8 — a map's values hold drawings too (Pine's collector, `heldNow`)
+import { isMap } from './maps.js'
 import { ARRAY_FNS, kindOf, argKind, CollectionError } from './collections.js'
+import { isMatrix } from './matrices.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
 // scope in other arms, and a record accessor silently shadowed by one of them
 // would read the wrong thing with nothing red.
@@ -35,6 +38,9 @@ import {
 } from './records.js'
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
+// ⭐⭐ S1 — the strategy broker (`broker.js`).
+import { makeBroker, BrokerRefusal, BrokerStart, BrokerUnpinned } from './broker.js'
+import { pinned as ledgerPinned } from './brokerPins.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
@@ -320,6 +326,51 @@ export function execute(program, ctx, limits, opts) {
   // a sized `array.new_line(n)` may hold Pine's `na` handle (`collections.js::ARRAY_NEW`).
   if (store && budget.objectsInRun === undefined) budget.objectsInRun = true
 
+  // ⭐⭐ S1 — THE RUN'S BROKER, for a program that declares one. A request's sub-run
+  // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
+  const brokerOps = program.brokerOps || []
+  let broker = null
+  if (program.broker && !(opts && opts.entry !== undefined)) {
+    // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
+    if (program.broker.fromListing !== true) {
+      throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
+        + "not known to start at the symbol's first bar", 'Q-S1n')
+    }
+    // [B-EXEC] calc_on_every_tick executes a strategy on every realtime tick of a forming bar.
+    if (program.broker.calcOnEveryTick === true && ctx.confirmed === false) {
+      throw new BrokerRefusal('`calc_on_every_tick = true` executes this strategy on every tick of the forming '
+        + 'bar, which a run over bars cannot reproduce', 'Q-S1o')
+    }
+    // ⭐⭐ W9-T1 — [3.4] a broker run takes the most recent `ctx.historyWindowBars` bars (the value of
+    // `bars_window.HISTORY_WINDOW_BARS`, handed in by the caller: this lane adds no bar constant).
+    // A run without it, or holding more bars than it, is refused: scroll-back must never change trades.
+    const win = ctx.historyWindowBars
+    if (!(Number.isInteger(win) && win > 0)) {
+      throw new BrokerStart('a strategy run needs the history window it starts from, and this run was not told it')
+    }
+    if (ctx.bars > win) {
+      throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
+    }
+    // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`. W9-T4-F1: the one product caller
+    // (`runtimeColumns.js`) derives it from the symbol's witnessed `symbolScope.json::min_contract` row, the
+    // value a script's own `syminfo.mincontract` folds to; no row ⇒ undefined ⇒ a cash / percent-of-equity
+    // size refuses by name (Q-S1a).
+    broker = makeBroker(program.broker, {
+      series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned, minContract: ctx.minContract,
+      // W9-T8 — `ctx.tradingDays`: each bar's trading day, when the CALLER knows the session and exchange time zone.
+      // No product caller sets it yet, so max_intraday_filled_orders refuses by name (W9-R1i).
+      tradingDays: ctx.tradingDays,
+    })
+  }
+  // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
+  // it has not run yet, so nothing it computes exists there.
+  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`.
+  if (broker && ctx.confirmed === false) {
+    const pinOk = opts && typeof opts.brokerPinned === 'function' ? opts.brokerPinned : (id) => ledgerPinned(id)
+    if (!pinOk('B-EXEC')) throw new BrokerUnpinned('B-EXEC')
+  }
+  const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
+
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //
   // The reducers in `interpret.js` take `(series, lo, hi)` over a CONTIGUOUS
@@ -465,7 +516,10 @@ export function execute(program, ctx, limits, opts) {
       if (isDrawingHandle(v)) { containers.add(v.id); return }
       seen.add(v)
       if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1); return }
+      // ⭐ W6-T7 — a matrix's cells hold drawings too (`matrix<pivotGraphic>`)
+      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1); return }
       if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
+      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1)
     }
     const top = (v) => {
       if (isDrawingHandle(v)) vars.add(v.id)
@@ -496,6 +550,11 @@ export function execute(program, ctx, limits, opts) {
   // `true` answer stops the run there (`stoppedAt`). ⛔ Never for a program that
   // draws: an object store is not encoded, so it is not probed.
   const probe = opts && opts.probe && !store && entryPc === 0 ? opts.probe : null
+  // ⭐⭐ W9-T1 — a broker's state (orders, trades, position) is in no checkpoint and no probe
+  // cell, so a broker run is never resumed, checkpointed or probed: it runs from bar 0.
+  if (broker && opts && opts.probe) {
+    throw new BrokerRefusal('a strategy run is not probed by the warm-up curtain: the state of the broker is not part of its cells', 'W9-probe')
+  }
   const probeBars = probe && Array.isArray(probe.bars) ? probe.bars : []
   let probeI = 0
   let probeAt = probe && probeBars.length ? probeBars[0] : -1
@@ -515,8 +574,8 @@ export function execute(program, ctx, limits, opts) {
   // every tick, so no tick's writes accumulate into the next.
   // `opts.checkpointAt` names the bar at whose end this run's state is copied OUT
   // (`res.checkpoint`) — the last CONFIRMED bar, so no forming value is ever saved.
-  const resume = opts && opts.resume && entryPc === 0 ? opts.resume : null
-  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 ? opts.checkpointAt : -1
+  const resume = opts && opts.resume && entryPc === 0 && !broker ? opts.resume : null
+  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 && !broker ? opts.checkpointAt : -1
   let checkpoint = null
   let startBar = 0
   if (resume) {
@@ -582,7 +641,52 @@ export function execute(program, ctx, limits, opts) {
     pkNest = bc.LOOP_NESTING
   }
   const realtime = opts && opts.realtime && entryPc === 0 ? opts.realtime : null
-  for (let bar = startBar; bar < ctx.bars; bar += 1) {
+  // ⭐⭐ W9-T6 — THE STEP ORDER OF A BAR THAT RE-RUNS ([B-FILLS], [B-POC-FILLS]). Under
+  // calc_on_order_fills a bar may execute more than once: at each fill tick (an extra execution) and,
+  // with process_orders_on_close, after a fill on its close. Every execution but the bar's last is
+  // ROLLED BACK to the bar's start state - `var`s, history, held and carried state, iteration buffers,
+  // drawings and this bar's outputs - the realtime rollback model; the broker's own state is kept,
+  // which is the point of the re-run. Only a broker run under calc_on_order_fills takes this path;
+  // every other run never snapshots and steps exactly as before.
+  const brokerReruns = !!broker && program.broker.calcOnOrderFills === true
+  // ⛔ DEFENSIVE, NOT REACHABLE THROUGH A PRODUCT DOOR TODAY: the realtime hooks exist only for a program
+  // with a `varip` or a `barstate.isnew` read (`runtimeColumns.js::realtimeRun`), and in a broker program
+  // `varip` refuses first (rule 11, `runtime:varip`) while `barstate.isnew` is refused by name on this lane
+  // (`closedTable.json::_barstate.refused`). Kept so that a ruling opening either one cannot let a
+  // rolled-back re-run step a realtime ledger built for one execution per update. Railed only through
+  // `execute` with test hooks (w9T6FillTiming, X7).
+  if (brokerReruns && realtime) {
+    throw new BrokerRefusal('`calc_on_order_fills` re-runs a bar, and this run also keeps realtime state '
+      + '(`varip` / `barstate.isnew`) whose value across those re-runs is not stated', 'W9-P1b')
+  }
+  let barSnap = null
+  let barReruns = 0
+  const snapBar = (bar) => {
+    const [p, ini, h, hd, cs, c2, wn, it] = cloneValues([persist, initialised, hist, held, carState, car2State, winObsN, iters])
+    return { bar, committed, persist: p, initialised: ini, hist: h, held: hd, carState: cs, car2State: c2, winObsN: wn,
+      winObs: winObs.map((o) => (o ? Array.from(o) : null)), iters: it,
+      out: outputs.map((o) => o[bar]), store: store ? store.snapshot() : null }
+  }
+  const restoreBar = (sn) => {
+    const [p, ini, h, hd, cs, c2, wn, it] = cloneValues([sn.persist, sn.initialised, sn.hist, sn.held, sn.carState,
+      sn.car2State, sn.winObsN, sn.iters])
+    const put = (into, from) => { for (let i = 0; i < into.length; i += 1) into[i] = from[i] }
+    put(persist, p); put(initialised, ini); put(hist, h); put(held, hd)
+    put(carState, cs); put(car2State, c2); put(winObsN, wn)
+    for (let w = 0; w < winObs.length; w += 1) if (winObs[w]) put(winObs[w], sn.winObs[w])
+    for (let k = 0; k < iters.length; k += 1) put(iters[k], it[k])
+    for (let k = 0; k < nOut; k += 1) outputs[k][sn.bar] = sn.out[k]
+    if (store && sn.store) store.restore(sn.store)
+    committed = sn.committed
+  }
+  for (let bar = startBar; bar < runBars; bar += 1) {
+    // ⭐⭐ S1 — [B-FILL] the orders the last bar placed fill BEFORE this bar's script runs.
+    // ⭐⭐ W9-T6 — `true`: the walk stopped at a fill tick and THIS execution is an extra one ([B-FILLS]).
+    let extraRun = false
+    if (broker) {
+      if (brokerReruns && (!barSnap || barSnap.bar !== bar)) { barSnap = snapBar(bar); barReruns = 0 }
+      extraRun = broker.beginBar(bar)
+    }
     if (realtime) realtime.barStart(bar, persist, initialised)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -922,6 +1026,22 @@ export function execute(program, ctx, limits, opts) {
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
           break
         }
+        // ⭐⭐ S1 — A BROKER OPERATION: the PASSED arguments in parameter order, spread
+        // back onto the op's parameter list (`undefined` where the script passed none).
+        case 100 /* OP.BROKER */: {
+          const bop = brokerOps[a]
+          if (!broker) {
+            throw new VmError(`pc ${pc - 1}: \`${bop.fn}\` is a broker op, and this run holds no broker `
+              + '(a request of other bars)')
+          }
+          sp -= b
+          const bargs = new Array(bop.present.length)
+          let k = sp
+          for (let i = 0; i < bop.present.length; i += 1) bargs[i] = bop.present[i] ? stack[k++] : undefined
+          const bv = broker.call(bop.fn, bargs, bar)
+          if (bop.returns !== 'void') stack[sp++] = bv === undefined ? NaN : bv
+          break
+        }
         case 85 /* OP.COLOUR */: {
           // ⭐ ONE CHECK SITE, FROM THE ENTRY'S OWN DECLARATION — the rule
           // `OP.TEXT` states below. A colour is a packed integer at run time, so
@@ -987,9 +1107,11 @@ export function execute(program, ctx, limits, opts) {
             // collection is assigned. Pine raises a runtime error on an `na` array id;
             // this stops BY NAME (`runtime:CollectionError`), never with the VM's
             // internal kind-mismatch sentence.
-            if (want === 'array' && typeof stack[sp + i] === 'number' && Number.isNaN(stack[sp + i])) {
+            // ⭐ W6-T7 — and an `na` MATRIX (`var matrix<float> m = na`) the same way.
+            if ((want === 'array' || want === 'matrix') && typeof stack[sp + i] === 'number'
+                && Number.isNaN(stack[sp + i])) {
               throw new CollectionError(
-                `\`${op.fn}\`: the array is \`na\` (no array was assigned to it before this call); `
+                `\`${op.fn}\`: the ${want} is \`na\` (no ${want} was assigned to it before this call); `
                 + 'Pine stops the script here with a runtime error')
             }
             if (want !== 'any' && kindOf(stack[sp + i]) !== want) {
@@ -1356,6 +1478,21 @@ export function execute(program, ctx, limits, opts) {
         + 'bar pushes must be consumed by the end of it')
     }
 
+    // ⭐⭐ W9-T6 — [B-POC] the close execution has run: the orders it placed get their attempt at this
+    // close. Then, under calc_on_order_fills, an extra execution (or a close fill) re-runs the bar.
+    if (broker) {
+      const again = extraRun || broker.endBar(bar)
+      if (again) {
+        barReruns += 1
+        if (barReruns > 64) {
+          throw new BrokerRefusal(`bar ${bar} re-ran more than 64 times under \`calc_on_order_fills\``, 'W9-P2')
+        }
+        restoreBar(barSnap)
+        bar -= 1
+        continue
+      }
+    }
+
     // ─── ⭐⭐⭐ THE END-OF-BAR COMMIT ───────────────────────────────────────
     //
     // The bar has finished. Whatever each history-bearing slot holds NOW is that
@@ -1452,5 +1589,6 @@ export function execute(program, ctx, limits, opts) {
   if (probe && typeof probe.done === 'function') probe.done({ dynLowSeries, dynLowCol })
 
   return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store,
-    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}) }
+    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}),
+    ...(broker ? { broker: broker.summary() } : {}) }
 }
