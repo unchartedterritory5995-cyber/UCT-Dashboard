@@ -117,10 +117,23 @@ DISPOSITIONS = {
     "by-design": "the engine's behaviour here is a decision, not an open question",
     "builtin": "a TradingView built-in no probe file can stand in for",
     "withheld-ledger": "a record of what the engine withholds; the capture that settles it, if any, is its own row",
+    "superseded": "a later row asks the same question with its own probe (the reason names it); that row is the capture",
 }
 
-LIVE_RX = re.compile(r"market hours|during regular hours|\brealtime\b|\breal-time\b|\blive\b|\bforming\b|"
-                     r"minutes apart|\bintrabar\b|\bvarip\b|\b1m\b|\bticks?\b", re.I)
+#: ⛔ THE ONE LIVE MARKER. A row needs a live session (NEEDS_LIVE) when its doc SAYS so, explicitly: a table
+#: with a `live` (or `needs market hours`) column is the authority for every row of it, its cell one of
+#: LIVE_YES / LIVE_NO (anything else refuses the queue, `LiveMarkerError`). A table without the column falls
+#: back to LIVE_RX, which names a SESSION ("market hours", "realtime", "forming", ...), never a word that
+#: also names history: 2026-11-08 the old pattern's `live` / `ticks?` / `1m` / `varip` matched probe names
+#: (`w9-q-s1e-live-past`, `w9-p3-every-tick-history`, `w9-q-s1d-same-tick`), `format.mintick`'s "tick" and
+#: AMEX:SPY **1M** (monthly), and marked four history captures NEEDS_LIVE (W9-P3, Q-S1d, Q-S1e, Q-W3-6).
+#: NOT_LIVE_RX strips a NEGATED mention ("no market hours needed") before LIVE_RX looks.
+LIVE_HEADS = {"live", "needs market hours"}
+LIVE_YES = {"yes", "true", "live"}
+LIVE_NO = {"no", "false", "history", "-", ""}
+LIVE_RX = re.compile(r"market hours|during regular hours|during RTH\b|\brealtime\b|\breal-time\b|\bforming\b|"
+                     r"minutes apart", re.I)
+NOT_LIVE_RX = re.compile(r"\bno market hours(?: needed)?|\bmarket hours (?:are )?not needed", re.I)
 VARIANT_RX = re.compile(r"\bline \d+\b[^|]*(?:replac|//@version|→|->)|the same (?:file|probe) with|"
                         r"the same probe,|\bline 1 `//@version", re.I)
 VERSION_RX = re.compile(r"//@version=(\d)")
@@ -580,6 +593,23 @@ def iter_tables(lines):
             i += 1
 
 
+class LiveMarkerError(ValueError):
+    """A `live` column cell the queue cannot read as yes or no."""
+
+
+def row_needs_live(header, cells, rtext: str, where: str) -> bool:
+    """THE live classifier: the table's explicit `live` column if it has one, else LIVE_RX on the row's text."""
+    col = next((i for i, h in enumerate(header) if h in LIVE_HEADS), None)
+    if col is not None:
+        v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+        if v in LIVE_YES:
+            return True
+        if v in LIVE_NO:
+            return False
+        raise LiveMarkerError(f"{where}: a `live` cell must be one of {sorted(LIVE_YES | LIVE_NO)}, not {v!r}")
+    return bool(LIVE_RX.search(NOT_LIVE_RX.sub(" ", rtext)))
+
+
 class DispositionError(ValueError):
     """A `not a capture` disposition the queue cannot honour: no reason, an unknown disposition, or no such row."""
 
@@ -710,7 +740,7 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "charts": [list(c) for c in charts], "chartDefaulted": defaulted, "chartSource": chart_source,
                 "unparsedCharts": unparsed,
                 "fromListing": listing,
-                "needsLive": bool(LIVE_RX.search(rtext)),
+                "needsLive": row_needs_live(header, cells, rtext, f"{path.name}:{line_no} ({rid!r})"),
                 "needsProbe": needs_probe,
                 "guards": sorted(set(GUARD_RX.findall(rtext))),
                 "namedScripts": sorted(set(SLUG_RX.findall(rtext))),

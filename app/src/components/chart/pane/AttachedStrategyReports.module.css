@@ -1,0 +1,24 @@
+/* app/src/components/chart/pane/AttachedStrategyReports.module.css
+ *
+ * W9-T13b. Same rule as `AttachedPineDisclosures.module.css`: IT MUST NOT EAT THE CHART. The
+ * list sits below the chart, `flex: 0 0 auto`, collapsed by default; an opened report scrolls
+ * inside a hard max-height instead of squeezing the candles.
+ */
+.reports {
+  flex: 0 0 auto;
+  max-height: 45vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev, var(--bg));
+}
+.item + .item { border-top: 1px solid var(--border); }
+.summary {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+/* r2: the touch tier is <=1024 (tablets too), not <=640 */
+@media (max-width: 1024px) {
+  .summary { min-height: var(--tap-min, 44px); padding-top: 14px; padding-bottom: 14px; box-sizing: border-box; }
+}

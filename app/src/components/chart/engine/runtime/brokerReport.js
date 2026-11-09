@@ -32,8 +32,8 @@
 // is a row, and a row whose profit cannot be served carries that profit's refusal.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE } from './brokerRules.js'
-import { BROKER_UNSETTLED_GUARD } from './broker.js'
+// ⛔ NOT from './broker.js': importing the broker here split it into its own shared chunk (engine-40 bytes)
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_RULE, BROKER_UNSETTLED_GUARD } from './brokerRules.js'
 import { STRATEGY_RECORD_UNSERVED, strategyRecordShapeErrors, startDateOf, startSentenceOf } from './strategyRecord.js'
 
 export const STRATEGY_REPORT_SCHEMA = 'uct.strategy-report/v1'
@@ -69,13 +69,15 @@ export const SERVED_METRICS = Object.freeze({
   profitFactor: Object.freeze({ label: 'Profit factor', pine: null, kind: 'ratio', source: PF_SOURCE }),
 })
 
+// W9-T13b: `label` is the metric's name as the panel prints it, the SAME string its sentence opens
+// with (one authority for both: the panel never types a metric name of its own).
 const unstated = (label, row) => Object.freeze({
-  guard: REPORT_UNSTATED_GUARD, row,
-  sentence: `${label} is not shown: no source we hold states exactly how TradingView's Strategy Tester `
-    + `computes it, and no capture has witnessed it yet (capture row ${row}).`,
+  guard: REPORT_UNSTATED_GUARD, row, label,
+  sentence: `${label} is not shown: we do not yet know exactly how TradingView's Strategy Tester computes it, `
+    + 'and it has not yet been checked against TradingView.',
 })
 const unrecorded = (label, why, owner) => Object.freeze({
-  guard: REPORT_UNRECORDED_GUARD, row: null, owner,
+  guard: REPORT_UNRECORDED_GUARD, row: null, owner, label,
   sentence: `${label} is not shown: ${why}, and the backtest record does not carry that yet.`,
 })
 
@@ -114,14 +116,15 @@ const unpinnedRefusal = (label, missing) => {
   try { cap = ruleCapture(rule) } catch { cap = null }
   return refusal({
     guard: UNPINNED_GUARD, rule, rules: missing, row: cap,
-    sentence: `${label} is not shown: it rests on the broker rule ${rule}, which no matching TradingView `
-      + `capture pins yet (${cap ? `capture row ${cap}` : 'no capture row is queued for it yet'}).`,
+    // W9-T13b r2 PLAIN WORDS: the rule id and capture row ride `rule` / `row`, never the member text
+    sentence: `${label} is not shown: it depends on a rule of how TradingView runs a backtest that has not `
+      + 'yet been checked against TradingView.',
   })
 }
 const offGrid = (label) => refusal({
   guard: BROKER_UNSETTLED_GUARD, row: 'Q-S1l',
-  sentence: `${label} is not shown: a trade filled at a price off the symbol's tick grid, and whether `
-    + 'TradingView rounds that fill is not stated (capture row Q-S1l).',
+  sentence: `${label} is not shown: a trade filled at a price between the symbol's price steps, and how `
+    + 'TradingView treats such a fill has not yet been checked.',
 })
 const noSymbol = (label, what) => refusal({
   guard: REPORT_UNRECORDED_GUARD, row: null,
@@ -147,7 +150,9 @@ export function strategyReportOf(rec, opts = {}) {
   const shape = strategyRecordShapeErrors(rec)
   if (shape.length) {
     return { schema: STRATEGY_REPORT_SCHEMA, status: 'refused', window: null, metrics: null, trades: null,
-      refusals: [{ guard: REPORT_RECORD_GUARD, sentence: `the backtest record is not one this report reads (${shape.join(', ')}), so there is no report.` }] }
+      // W9-T13b r2 PLAIN WORDS: the failing field paths ride `fields`, never the member text
+      refusals: [{ guard: REPORT_RECORD_GUARD, fields: shape,
+        sentence: 'the backtest record is incomplete or in a form this report cannot read, so there is no report.' }] }
   }
   const window = windowOf(rec.window)
   // a run-wide refusal: the report holds only the refusal (design 3.3)

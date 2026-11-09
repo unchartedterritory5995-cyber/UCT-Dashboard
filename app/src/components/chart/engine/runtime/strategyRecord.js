@@ -51,7 +51,9 @@ export const STRATEGY_RECORD_UNSERVED = Object.freeze({
 })
 
 /** ⭐⭐ RULING D2, ONE AUTHORITY (coordinator, 2026-11-08). The backtest's start date and the
- *  sentence a window that does not reach the listing always carries. The record holds both
+ *  sentence EVERY record carries. W9-T13b r1 (coordinator ruling, 2026-11-08): D2 says ALWAYS, so a
+ *  run from the listing carries the same sentence: TradingView's plan bar limit can still start its
+ *  backtest later than the listing. The record holds both
  *  (`window.startDate`, `window.startSentence`), computed HERE from `window.startTime`, the run's
  *  truth; the report reads them and the route (`pine_strategy_backtest.py`) serves the record's,
  *  never its own bars' dates. No record carries the symbol's exchange timezone, so the date is
@@ -118,8 +120,8 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
     window: {
       startTime,
       startDate: startDateOf(startTime),
-      // D2: always stated when the window does not reach the listing
-      startSentence: fromListing ? null : startSentenceOf(startTime),
+      // D2: ALWAYS stated, from the listing too (W9-T13b r1: TradingView's plan bar limit can move its start)
+      startSentence: startSentenceOf(startTime),
       fromListing,
       bars: n,
       historyWindowBars,
@@ -191,7 +193,7 @@ export function strategyRecordShapeErrors(rec) {
   need(isNullOr(w.startTime, isTime), 'window.startTime')
   need(typeof w.fromListing === 'boolean', 'window.fromListing')
   need(w.startDate === startDateOf(w.startTime), 'window.startDate')
-  need(w.startSentence === (w.fromListing === true ? null : startSentenceOf(w.startTime)), 'window.startSentence')
+  need(w.startSentence === startSentenceOf(w.startTime), 'window.startSentence')
   need(Number.isInteger(w.bars) && w.bars >= 0, 'window.bars')
   need(Number.isInteger(w.historyWindowBars) && w.historyWindowBars > 0, 'window.historyWindowBars')
   need(Number.isInteger(w.bars) && Number.isInteger(w.historyWindowBars) && w.bars <= w.historyWindowBars,
