@@ -4797,24 +4797,118 @@ def _var_origin_seed_invariant(seed: Any, inputs: Optional[Mapping[str, Any]]) -
     return True
 
 
-def _var_origin_agree(a: float, b: float, spread: float) -> bool:
-    """Two runs of one recurrence from seeds ``spread`` apart agree within the
+def _var_origin_agree(a: float, b: float, dist: float) -> bool:
+    """Two runs of one recurrence from seeds ``dist`` apart agree within the
     residual the bounded window is admitted on (``interpret.js::seedRunsAgree``)."""
     if math.isnan(a) or math.isnan(b):
         return math.isnan(a) and math.isnan(b)
-    return abs(a - b) <= SEED_RESIDUAL_TOLERANCE * spread
+    return abs(a - b) <= SEED_RESIDUAL_TOLERANCE * dist
 
 
-def _var_origin_probe_seeds(real: List[float]) -> tuple:
-    """``interpret.js::probeSeedsOf`` -- the seeds a window is probed from: values
-    the running value really takes on these bars. ``(seeds, spread)``."""
+def _var_origin_probe_seeds(real: List[float], body: Any = None, bind: Any = None) -> List[tuple]:
+    """``interpret.js::probeSeedsOf`` -- the seeds a window is probed from, each with
+    the distance its residual is graded against: ``[(seed, dist)]``. Values the
+    running value really takes (all of them up to four; else least and greatest
+    PLUS ``+-PREFIX_PROBE``, r1's far seeds for a state-gated hold)."""
     vals = sorted({v for v in real if not math.isnan(v) and not math.isinf(v)})
+
+    def far(lo: float, hi: float) -> List[tuple]:
+        d = PREFIX_PROBE + abs(lo) + abs(hi)
+        return [(PREFIX_PROBE, d), (-PREFIX_PROBE, d)]
+    lo, hi = (vals[0], vals[-1]) if vals else (0.0, 0.0)
     if not vals:
-        return [PREFIX_PROBE, -PREFIX_PROBE], 2 * PREFIX_PROBE
-    if len(vals) == 1:
-        return [vals[0], vals[0] + 1], 1
-    spread = vals[-1] - vals[0]
-    return (vals if len(vals) <= 4 else [vals[0], vals[-1]]), spread
+        base = far(0.0, 0.0)
+    elif len(vals) == 1:
+        base = [(vals[0], 1), (vals[0] + 1, 1)]
+    elif len(vals) <= 4:
+        base = [(v, hi - lo) for v in vals]
+    else:
+        base = [(lo, hi - lo), (hi, hi - lo)] + far(lo, hi)
+    # r1 -- a state the update names (``interpret.js::probeSeedsOf``): a number the update
+    # WRITES (an arm of its ``?:`` chain) or compares the value ITSELF with, at most eight,
+    # when ``self`` decides a branch -- never every number in it (a SuperTrend's ATR factor)
+    if body is None or not _var_origin_self_decides_branch(body, bind):
+        return base
+    have = {b[0] for b in base}
+    named: List[float] = []
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+
+    def add(n: Any) -> None:
+        v = n.get("value") if isinstance(n, dict) else None
+        if (isinstance(n, dict) and n.get("type") == "num" and isinstance(v, (int, float))
+                and not isinstance(v, bool) and math.isfinite(v) and v not in have and len(named) < 8):
+            have.add(v)
+            named.append(v)
+
+    def is_state(n: Any) -> bool:
+        if not isinstance(n, dict):
+            return False
+        if n.get("type") == "series" and n.get("name") == bind:
+            return True
+        a = n.get("args")
+        return (n.get("type") == "call" and n.get("name") == "nz" and isinstance(a, list) and bool(a)
+                and isinstance(a[0], dict) and a[0].get("type") == "series" and a[0].get("name") == bind)
+    arms = [body]
+    while arms:
+        n = arms.pop()
+        if not isinstance(n, dict):
+            continue
+        a = n.get("args")
+        if n.get("type") == "op" and n.get("name") == "?:" and isinstance(a, list) and len(a) == 3:
+            arms.extend([a[1], a[2]])
+        else:
+            add(n)
+    stack = [body]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in stateful:
+            continue
+        a = n.get("args") if isinstance(n.get("args"), list) else []
+        if n.get("type") == "op" and n.get("name") in (">", "<", ">=", "<=", "==", "!=") and len(a) == 2:
+            if is_state(a[0]):
+                add(a[1])
+            if is_state(a[1]):
+                add(a[0])
+        stack.extend(a)
+    return base + [(p, max(1, hi - lo, abs(p - lo), abs(p - hi))) for p in named]
+
+
+def _var_origin_self_decides_branch(body: Any, bind: Any) -> bool:
+    """``interpret.js::selfDecidesBranch`` -- ``self`` read in the test of a ``?:``
+    or in a comparison (not ``na(self)`` alone; a nested recurrence not entered)."""
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+    comparisons = (">", "<", ">=", "<=", "==", "!=")
+
+    def reads_self(root: Any) -> bool:
+        st = [root]
+        while st:
+            n = st.pop()
+            if not isinstance(n, dict):
+                continue
+            if n.get("type") == "series" and n.get("name") == bind:
+                return True
+            if n.get("type") == "call" and (n.get("name") in stateful or n.get("name") == "na"):
+                continue
+            a = n.get("args")
+            if isinstance(a, list):
+                st.extend(a)
+        return False
+    stack = [body]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in stateful:
+            continue
+        args = n.get("args") if isinstance(n.get("args"), list) else []
+        if n.get("type") == "op" and n.get("name") == "?:" and len(args) == 3 and reads_self(args[0]):
+            return True
+        if n.get("type") == "op" and n.get("name") in comparisons and reads_self(n):
+            return True
+        stack.extend(args)
+    return False
 
 
 def var_origin_mask(tree: Any, bars: List[dict],
@@ -4847,7 +4941,7 @@ def var_origin_mask(tree: Any, bars: List[dict],
                 body = args[body_at]
                 if switched_seed_of(args[seed_at]):
                     found.append((node, under, "switched"))
-                elif _var_origin_holds(body, bind):
+                elif _var_origin_holds(body, bind) or _var_origin_self_decides_branch(body, bind):
                     bare = isinstance(body, dict) and body.get("type") == "series" and body.get("name") == bind
                     if not (bare and _var_origin_seed_invariant(args[seed_at], inputs)):
                         found.append((node, under, "held" if bare else "probe"))
@@ -4873,13 +4967,13 @@ def var_origin_mask(tree: Any, bars: List[dict],
         else:
             seed_at = RECURRENCES[node["name"]]["seed"]
             real = _interpret_column(node, bars, inputs, budget, scalars, inner)
-            seeds, spread = _var_origin_probe_seeds(real)
             runs = []
-            for p in seeds:
+            rec = RECURRENCES[node["name"]]
+            for p, dist in _var_origin_probe_seeds(real, node["args"][rec["body"]], rec.get("binds")):
                 args = list(node["args"])
                 args[seed_at] = {"type": "num", "value": p}
-                runs.append(_interpret_column(dict(node, args=args), bars, inputs, budget, scalars, inner))
-            unknown = [any(not _var_origin_agree(real[i], r[i], spread) for r in runs) for i in range(n)]
+                runs.append((_interpret_column(dict(node, args=args), bars, inputs, budget, scalars, inner), dist))
+            unknown = [any(not _var_origin_agree(real[i], r[i], d) for r, d in runs) for i in range(n)]
         last = -math.inf
         for i in range(n):
             if unknown[i]:

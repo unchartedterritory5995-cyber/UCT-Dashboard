@@ -41,8 +41,8 @@ const nulls = (key, where) => col(key, where).filter((v) => v === null).length
 const KEYS = [...new Set(PARITY.cases.filter((c) => c.name.includes(' · var origin · ')).map((c) => c.pine))]
 
 describe('the fixture holds the var-origin trees', () => {
-  it('thirteen trees, each off the listing, with controls from the listing and in the formula language', () => {
-    expect(KEYS.length).toBe(13)
+  it('seventeen trees, each off the listing, with controls from the listing and in the formula language', () => {
+    expect(KEYS.length).toBe(17)
     expect(PARITY.cases.filter((c) => c.name.endsWith('· var origin · from the listing')).length).toBe(4)
     expect(PARITY.cases.filter((c) => c.name.endsWith("· var origin · the formula language's own accum")).length).toBe(3)
   })
@@ -188,6 +188,87 @@ describe('⭐ THE ORACLE — truth is the tree run from the listing; every bar s
   it('CONTROL — the oracle can fail: without the var-origin declaration the same window serves wrong bars', () => {
     const { wrong } = tally({ tf: 'D', barIndexAbsolute: true })
     expect(wrong).toBeGreaterThan(60)
+  })
+})
+
+describe('⭐ r1 — the three shapes the first probe let through (review VAR-OFF N1 / N2 / N3)', () => {
+  it('a three-state latch read only in its test: probed from EVERY state it takes, its absorbing middle included', () => {
+    // r == 1 absorbs; it was entered at bar ~22 (close < 94) and never left on TradingView.
+    const c = col('a latch read only in its test')
+    let lastEntry = -1
+    for (let i = 0; i < N; i++) if (BARS[i].c < 94) lastEntry = i
+    // served (as 1, TradingView's value) only while the window still holds that entry
+    for (let i = 250; i < N; i++) expect(c[i], `bar ${i}`).toBe(i - 250 < lastEntry ? 1 : null)
+    expect(codes('a latch read only in its test')).toEqual(['var-origin:bars'])
+  })
+
+  it('CONTROL — a number the update compares a PRICE with is no state: the direction stays served', () => {
+    // ⚰️ seeded with every number in the update, the direction matched neither test at
+    // 1.2, held it, and was withheld (633 RIGHT bars on two SuperTrend scripts, census r1)
+    expect(codes('a direction with a threshold factor')).toEqual([])
+    expect(nulls('a direction with a threshold factor')).toBe(250)
+  })
+
+  it('a state-gated hold is probed from far seeds as well, and is withheld where its state may lie outside', () => {
+    expect(nulls('a state-gated hold')).toBe(N)
+    expect(codes('a state-gated hold')).toEqual(['var-origin:bars'])
+  })
+
+  it('a hold beside an admitted contraction keeps ~0.94^125 of its seed — above the residual, withheld', () => {
+    expect(nulls('a hold beside a contraction')).toBe(N)
+    expect(codes('a hold beside a contraction')).toEqual(['var-origin:bars'])
+  })
+
+  it('the pass memo answers a recurrence only for ITSELF (review VAR-OFF N4: one answer per recurrence per pass)', () => {
+    // one pass, one memo, two different `var`s: each keeps its own withheld bars
+    const crossMemo = new Map()
+    const one = (key) => Array.from(interpret(kase(key).ast, BARS, {}, undefined, undefined, { ...VAR_DOC, crossMemo }))
+      .map((x) => (Number.isNaN(x) ? null : x))
+    expect(one('var set on a rare bar')).toEqual(col('var set on a rare bar'))
+    expect(one('var set on a frequent bar')).toEqual(col('var set on a frequent bar'))
+    expect(one('a latch read only in its test')).toEqual(col('a latch read only in its test'))
+    expect([...crossMemo.keys()].filter((k) => typeof k === 'string' && k.startsWith('varorigin')).length).toBe(3)
+  })
+
+  it('a `var` read on other bars (`sym` / `tf`) is withheld whole: no window here describes those bars', () => {
+    const acc = kase('var set on a frequent bar').ast
+    for (const type of ['sym', 'tf']) {
+      const tree = { type, value: type === 'sym' ? 'QQQ' : 'W', args: [acc] }
+      const sink = new Map()
+      const m = varOriginMask(tree, BARS, {}, undefined, undefined, { ...VAR_DOC, chartClockSink: sink })
+      expect(Array.from(m).every((v) => v === 1), type).toBe(true)
+      expect([...sink.keys()], type).toEqual(['var-origin:window'])
+    }
+  })
+})
+
+describe('⭐ r1 — THE REVIEWER\'S ORACLE SHAPE: a rally to 200, then a 95–105 range; truth from the listing', () => {
+  // The bars and trees live in the parity fixture (`rally`, written by `barIndexShift.test.js`),
+  // so the Python lane is held to the same answers.
+  const { bars: RALLY, from: FROM, cases: RCASES } = PARITY.rally
+  const tally = (opts) => {
+    let served = 0
+    let wrong = 0
+    for (const { ast } of RCASES) {
+      const truth = Array.from(interpret(ast, RALLY, {}, undefined, undefined, { ...VAR_DOC, historyFromListing: true })).slice(FROM)
+      const ours = Array.from(interpret(ast, RALLY.slice(FROM), {}, undefined, undefined, opts))
+      for (let i = 0; i < ours.length; i++) {
+        if (Number.isNaN(ours[i])) continue
+        served += 1
+        if (!(Math.abs(ours[i] - truth[i]) <= 1e-9 * Math.max(1, Math.abs(truth[i])))) wrong += 1
+      }
+    }
+    return { served, wrong }
+  }
+  it('six trees, 600 bars each', () => {
+    expect(RCASES.length).toBe(6)
+    expect(RALLY.length - FROM).toBe(600)
+  })
+  it('no bar of the six is served wrong', () => {
+    expect(tally(VAR_DOC).wrong).toBe(0)
+  })
+  it('CONTROL — without the declaration the window serves them wrong (350 bars each)', () => {
+    expect(tally({ tf: 'D', barIndexAbsolute: true }).wrong).toBeGreaterThanOrEqual(6 * 350)
   })
 })
 

@@ -5822,11 +5822,45 @@ function seedBarInvariant(seed, inputs) {
   return true
 }
 
-/** Two runs of one recurrence from seeds `spread` apart agree within the
- *  residual the bounded window is admitted on (`SEED_RESIDUAL_TOLERANCE`). */
-const seedRunsAgree = (a, b, spread) => (a !== a || b !== b
+/** Two runs of one recurrence from seeds `dist` apart agree within the residual
+ *  the bounded window is admitted on (`SEED_RESIDUAL_TOLERANCE` of `dist`). */
+const seedRunsAgree = (a, b, dist) => (a !== a || b !== b
   ? a !== a && b !== b
-  : Math.abs(a - b) <= SEED_RESIDUAL_TOLERANCE * spread)
+  : Math.abs(a - b) <= SEED_RESIDUAL_TOLERANCE * dist)
+
+/** ⭐⭐ r1 (review VAR-OFF N2) — DOES THE RUNNING VALUE DECIDE A BRANCH? `self` read in
+ *  the test of a `?:` or in a comparison — `regime := regime == 2 ? 2 : close > 180 ?
+ *  2 : 1` holds a latch with no `self` in any ARM, so `bodyHoldsSeed` never saw it
+ *  (measured: 350 / 350 served bars wrong, 600 bars off the listing). ⛔ Not
+ *  `na(self)` alone: whether the value exists yet is the warm-up's question, and a
+ *  value carried from before the window always exists, so that test only decides
+ *  how the window RE-SEEDS (the admitted contraction's residual). A nested
+ *  recurrence binds its own `self` and is not entered. Iterative. */
+function selfDecidesBranch(body, bind) {
+  const readsSelf = (root) => {
+    const st = [root]
+    while (st.length) {
+      const n = st.pop()
+      if (!n || typeof n !== 'object') continue
+      if (n.type === 'series' && n.name === bind) return true
+      if (n.type === 'call' && (own(RECURRENCES, n.name) || own(MULTI_STATES, n.name))) continue
+      if (n.type === 'call' && n.name === 'na') continue
+      if (Array.isArray(n.args)) st.push(...n.args)
+    }
+    return false
+  }
+  const stack = [body]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'call' && (own(RECURRENCES, n.name) || own(MULTI_STATES, n.name))) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'op' && n.name === '?:' && args.length === 3 && readsSelf(args[0])) return true
+    if (n.type === 'op' && ['>', '<', '>=', '<=', '==', '!='].includes(n.name) && readsSelf(n)) return true
+    stack.push(...args)
+  }
+  return false
+}
 
 /** ⭐ THE SEEDS A WINDOW IS PROBED FROM — values the running value REALLY takes on
  *  these bars, never an arbitrary pair. ⚰️ MEASURED: probed from `±PREFIX_PROBE`,
@@ -5835,16 +5869,68 @@ const seedRunsAgree = (a, b, spread) => (a !== a || b !== b
  *  withheld 622 bars the bounded window drew RIGHT (`supertrend-explorer`, AMEX:SPY
  *  1D off the listing). A state with at most four values is probed from EACH of
  *  them (a discrete machine is then run from every state it was seen in); a wider
- *  one from its least and greatest value; a constant `c` from `c` and `c + 1`; a
- *  column with no value from `±PREFIX_PROBE`. Returns `[seeds, spread]`. */
-function probeSeedsOf(real) {
+ *  one from its least and greatest value AND from `±PREFIX_PROBE`; a constant `c`
+ *  from `c` and `c + 1`; a column with no value from `±PREFIX_PROBE`.
+ *  ⭐ r1 (review VAR-OFF N1) — THE FAR SEEDS. A state-gated hold (`s := s > 150 ? s :
+ *  low`, a ratchet) whose TradingView state lies OUTSIDE the range this window
+ *  takes entered the same branch from its least and its greatest value, so every
+ *  run agreed and 350 wrong bars were served; from `±PREFIX_PROBE` it enters the
+ *  other. Returns `[{p, dist}]`: each seed and the distance its residual is graded
+ *  against — the column's spread for a seed inside it, the seed's own distance from
+ *  the column for a far one (an admitted contraction leaves at most
+ *  `SEED_RESIDUAL_TOLERANCE` of THAT). */
+function probeSeedsOf(real, body, bind) {
   const seen = new Set()
   for (let i = 0; i < real.length; i++) if (Number.isFinite(real[i])) seen.add(real[i])
   const vals = [...seen].sort((a, b) => a - b)
-  if (!vals.length) return [[PREFIX_PROBE, -PREFIX_PROBE], 2 * PREFIX_PROBE]
-  if (vals.length === 1) return [[vals[0], vals[0] + 1], 1]
-  const spread = vals[vals.length - 1] - vals[0]
-  return [vals.length <= 4 ? vals : [vals[0], vals[vals.length - 1]], spread]
+  const far = (lo, hi) => [{ p: PREFIX_PROBE, dist: PREFIX_PROBE + Math.abs(lo) + Math.abs(hi) },
+    { p: -PREFIX_PROBE, dist: PREFIX_PROBE + Math.abs(lo) + Math.abs(hi) }]
+  const lo = vals.length ? vals[0] : 0
+  const hi = vals.length ? vals[vals.length - 1] : 0
+  const base = !vals.length ? far(0, 0)
+    : vals.length === 1 ? [{ p: vals[0], dist: 1 }, { p: vals[0] + 1, dist: 1 }]
+      : vals.length <= 4 ? vals.map((p) => ({ p, dist: hi - lo }))
+        : [{ p: lo, dist: hi - lo }, { p: hi, dist: hi - lo }, ...far(lo, hi)]
+  // ⭐ r1 (review VAR-OFF N2) — A STATE THE UPDATE NAMES. `regime == 2 ? 2 : …` latches
+  // a state this window may never take (TradingView entered it in the rally; the
+  // window ranges). The numbers the update WRITES (an arm of its `?:` chain) or
+  // compares the value ITSELF with (`self == 2`, `nz(self, 1) == -1`) are states it
+  // can hold, so each is a seed too (at most eight). ⛔ Not every number in the
+  // update: a SuperTrend's ATR factor is no direction, and seeded with it the
+  // direction matched neither test, held it, and withheld 633 bars the window drew
+  // RIGHT (census, AMEX:SPY 1D off the listing).
+  if (!selfDecidesBranch(body, bind)) return base
+  const have = new Set(base.map((b) => b.p))
+  const named = []
+  const add = (n) => {
+    if (n && n.type === 'num' && Number.isFinite(n.value) && !have.has(n.value) && named.length < 8) {
+      have.add(n.value)
+      named.push(n.value)
+    }
+  }
+  const isState = (n) => !!n && ((n.type === 'series' && n.name === bind)
+    || (n.type === 'call' && n.name === 'nz' && Array.isArray(n.args) && n.args[0]
+      && n.args[0].type === 'series' && n.args[0].name === bind))
+  const arms = [body]
+  while (arms.length) {
+    const n = arms.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'op' && n.name === '?:' && Array.isArray(n.args) && n.args.length === 3) arms.push(n.args[1], n.args[2])
+    else add(n)
+  }
+  const stack = [body]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'call' && (own(RECURRENCES, n.name) || own(MULTI_STATES, n.name))) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'op' && ['>', '<', '>=', '<=', '==', '!='].includes(n.name) && args.length === 2) {
+      if (isState(args[0])) add(args[1])
+      if (isState(args[1])) add(args[0])
+    }
+    stack.push(...args)
+  }
+  return [...base, ...named.map((p) => ({ p, dist: Math.max(1, hi - lo, Math.abs(p - lo), Math.abs(p - hi)) }))]
 }
 
 /** ⭐⭐ 2026-11-09 — THE BARS OF A TREE THAT READS A `var` STILL CARRYING WHAT IT
@@ -5910,7 +5996,7 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
       const seed = node.args[rec.seed]
       const body = node.args[rec.body]
       if (switchedSeedOf(seed)) found.push({ node, under, kind: 'switched' })
-      else if (bodyHoldsSeed(body, rec.binds)) {
+      else if (bodyHoldsSeed(body, rec.binds) || selfDecidesBranch(body, rec.binds)) {
         const bare = !!body && body.type === 'series' && body.name === rec.binds
         if (!(bare && seedBarInvariant(seed, inputs))) found.push({ node, under, kind: bare ? 'held' : 'probe' })
       }
@@ -5935,10 +6021,18 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
   const rootReach = maxLookback(tree)
   const mask = new Float64Array(n)
   let any = false
+  // ⭐ r1 (review VAR-OFF N4) — ONE ANSWER PER RECURRENCE PER PASS. A document's plots
+  // repeat the same `var` (keltner's channel reads its state in four trees), and each
+  // tree asked the same seeded runs again. The pass memo holds the unknown bars,
+  // keyed on the recurrence's structure (a seeded run never depends on the tree around it).
+  const memo = opts.crossMemo instanceof Map ? opts.crossMemo : null
   for (const { node, kind } of found) {
     const reach = Math.max(0, rootReach - maxLookback(node))
-    let unknown
-    if (kind === 'switched') {
+    const memoKey = memo ? `varorigin\u0001${JSON.stringify(node)}` : null
+    let unknown = memoKey && memo.has(memoKey) ? memo.get(memoKey) : null
+    if (unknown) {
+      // answered by an earlier tree of this pass
+    } else if (kind === 'switched') {
       const hi = run(node, { prefixProbe: PREFIX_PROBE, crossMemo: probeMemo(opts, PREFIX_PROBE) })
       const lo = run(node, { prefixProbe: -PREFIX_PROBE, crossMemo: probeMemo(opts, -PREFIX_PROBE) })
       unknown = (i) => !(hi[i] === lo[i] || (hi[i] !== hi[i] && lo[i] !== lo[i]))
@@ -5946,10 +6040,11 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
       const at = RECURRENCES[node.name].seed
       const seeded = (p) => ({ ...node, args: node.args.map((a, k) => (k === at ? { type: 'num', value: p } : a)) })
       const real = run(node)
-      const [seeds, spread] = probeSeedsOf(real)
-      const runs = seeds.map((p) => run(seeded(p)))
-      unknown = (i) => runs.some((r) => !seedRunsAgree(real[i], r[i], spread))
+      const runs = probeSeedsOf(real, node.args[RECURRENCES[node.name].body], RECURRENCES[node.name].binds)
+        .map(({ p, dist }) => ({ col: run(seeded(p)), dist }))
+      unknown = (i) => runs.some((r) => !seedRunsAgree(real[i], r.col[i], r.dist))
     }
+    if (memoKey && !memo.has(memoKey)) memo.set(memoKey, unknown)
     let last = -Infinity
     for (let i = 0; i < n; i++) {
       if (unknown(i)) last = i

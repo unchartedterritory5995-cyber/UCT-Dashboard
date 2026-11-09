@@ -108,6 +108,19 @@ export const ORIGIN = {
   // a two-state machine (a SuperTrend direction): every window from either state meets a flip
   'a direction that flips': [['var int dir = 1',
     'dir := dir == 1 and close < open - 1 ? -1 : dir == -1 and close > open + 1 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r1 — a three-state machine whose MIDDLE state absorbs, read only in a test (no `self`
+  // in any arm): probed from its least and greatest state alone it looks forgotten
+  'a latch read only in its test': [['var int r = 0',
+    'r := r == 1 ? 1 : close < 94 ? 1 : close > open ? 2 : 0', 'plot(r)'], 'inv', 0],
+  // ⭐ r1 — a two-state machine whose tests also compare PRICES with a number (a SuperTrend's
+  // factor): only the numbers compared with the value ITSELF are states, so 1.2 is no seed
+  'a direction with a threshold factor': [['var int dir = 1',
+    'dir := dir == 1 and open - close > 1.2 ? -1 : dir == -1 and close - open > 1.2 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r1 — a state-gated hold: its TradingView state can lie outside every value this window takes
+  'a state-gated hold': [['var float s = close', 's := s > 115 ? s : low', 'plot(s)'], 'inv', 0],
+  // ⭐ r1 — a hold beside an admitted contraction: the seed survives ~0.94^125, above the residual
+  'a hold beside a contraction': [['var float e = na',
+    'e := na(e[1]) ? close : close > open ? e[1] : 0.94 * e[1] + 0.06 * close', 'plot(e)'], 'inv', 0],
 }
 const linesOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) ? ORIGIN[key] : PINE[key])[0]
 const inputsOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) && ORIGIN[key][3]) || {}
@@ -145,6 +158,32 @@ function evaluate(ast, opts, inputs = {}) {
   return { expected: col, codes: [...sink.keys()].sort() }
 }
 
+/** ⭐⭐ r1 (review VAR-OFF) — THE REVIEWER'S ORACLE SHAPE, held by both lanes: 900 bars,
+ *  closes climbing to 200 by bar 100, then a 95–105 range. TradingView's state was
+ *  decided in the rally; the last 600 bars (off the listing) never see it. */
+const RALLY = Array.from({ length: 900 }, (_, i) => {
+  const c = i <= 100 ? 100 + i : 100 + 5 * Math.sin(i / 3)
+  const o = c - Math.cos(i * 1.7)
+  const d = new Date(Date.UTC(2020, 0, 6))
+  d.setUTCDate(d.getUTCDate() + i)
+  return { t: d.toISOString().slice(0, 10), o, h: Math.max(o, c) + 1, l: Math.min(o, c) - 1, c, v: 1000 }
+})
+const RALLY_FROM = 300
+const RALLY_TREES = {
+  'latch held in an arm': ['var int regime = 0', 'regime := regime == 2 ? regime : close > 180 ? 2 : 1', 'plot(regime)'],
+  'latch by if': ['var bool hit = false', 'if close > 180', '    hit := true', 'plot(hit ? 1 : 0)'],
+  'state-gated hold': ['var float s = close', 's := s > 150 ? s : low', 'plot(s)'],
+  'state-gated hold, seeded 0': ['var float s = 0.0', 's := s > 150 ? s : low', 'plot(s)'],
+  ratchet: ['var float lvl = close', 'lvl := high > lvl * 1.5 ? high : lvl > 150 ? lvl : low', 'plot(lvl)'],
+  'self only in a condition': ['var int regime = 0',
+    'regime := regime == 2 ? 2 : close > 180 ? 2 : close > 100 ? 1 : 0', 'plot(regime)'],
+}
+const rallyTree = (lines) => {
+  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${lines.join('\n')}\n`, { strict: true })
+  if (!t.ok) throw new Error(t.refusal && t.refusal.message)
+  return t.outputs[t.selected].ast
+}
+
 if (WRITE) {
   const doc = {
     _: 'C45 — bar_index off the listing, the same answer in both lanes. Written by '
@@ -163,6 +202,15 @@ if (WRITE) {
       return { name, pine: key, opts, inputs: inputsOf(key), ast, cls: v.cls, thresholds: v.thresholds.length,
         ...(jsOnly ? { jsOnly: true } : {}), ...evaluate(ast, opts, inputsOf(key)) }
     }),
+    // ⭐ r1 — the off-listing window of RALLY (`bars.slice(from)`) under a Pine document;
+    // `expected` is this lane's answer there, which the Python lane must reproduce.
+    rally: { bars: RALLY, from: RALLY_FROM, opts: VAR_DOC, cases: Object.entries(RALLY_TREES).map(([name, lines]) => {
+      const ast = rallyTree(lines)
+      const sink = new Map()
+      const expected = Array.from(interpret(ast, RALLY.slice(RALLY_FROM), {}, undefined, undefined,
+        { ...VAR_DOC, chartClockSink: sink })).map((x) => (Number.isNaN(x) ? null : x))
+      return { name, pine: lines, ast, expected, codes: [...sink.keys()].sort() }
+    }) },
   }
   writeFileSync(FIXTURE, `${JSON.stringify(doc)}\n`)
 }

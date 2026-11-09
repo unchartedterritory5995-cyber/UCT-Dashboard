@@ -115,3 +115,34 @@ def test_the_whole_series_code_is_declared_whole_in_both_lanes():
     assert "bar-index:window" in ai.CHART_CLOCK_WHOLE
     assert "bar-index:early-bars" in ai.CHART_CLOCK_WITHHELD_CODES
     assert "bar-index:early-bars" not in ai.CHART_CLOCK_WHOLE
+
+
+def test_a_var_read_on_other_bars_is_withheld_whole():
+    """r1 (review VAR-OFF N3, V2) -- ``interpret.js::varOriginMask``'s rule, this lane: a
+    recurrence under ``sym`` / ``tf`` reads other bars, and no window here describes them."""
+    doc = _doc()
+    cases = {c["name"]: c for c in doc["cases"]}
+    acc = cases["var set on a frequent bar \u00b7 var origin \u00b7 off the listing"]["ast"]
+    opts = {"tf": "D", "barIndexAbsolute": True, "varOriginAbsolute": True}
+    for kind, value in (("sym", "QQQ"), ("tf", "W")):
+        sink: dict = {}
+        mask = ai.var_origin_mask({"type": kind, "value": value, "args": [acc]}, doc["bars"], {},
+                                  opts=dict(opts, chartClockSink=sink))
+        assert mask == [1] * len(doc["bars"]), kind
+        assert sorted(sink) == ["var-origin:window"], kind
+
+
+@pytest.mark.parametrize("case", _doc()["rally"]["cases"], ids=lambda c: c["name"])
+def test_the_python_lane_reproduces_the_rally_window(case):
+    """r1 (review VAR-OFF N1/N2) -- the reviewer's oracle shape: a rally to 200, then a
+    95-105 range; the last 600 bars off the listing. The JS lane withholds every bar whose
+    `var` may still hold what the rally set; this lane must answer the same."""
+    rally = _doc()["rally"]
+    sink: dict = {}
+    got = ai.interpret(case["ast"], rally["bars"][rally["from"]:], {}, opts=dict(rally["opts"], chartClockSink=sink))
+    for i, (a, b) in enumerate(zip(got, case["expected"])):
+        if b is None:
+            assert a is None, f"{case['name']} bar {i}: {a} where the other lane withheld"
+        else:
+            assert a is not None and abs(a - b) <= 1e-9 * max(1.0, abs(b)), f"{case['name']} bar {i}: {a} vs {b}"
+    assert sorted(sink) == case["codes"], case["name"]
