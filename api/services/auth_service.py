@@ -801,7 +801,7 @@ def get_user_activity(user_id: str, limit: int = 20) -> list[dict]:
     try:
         rows = conn.execute(
             "SELECT id, action, details, ip_address, created_at "
-            "FROM activity_log WHERE user_id = ? "
+            "FROM activity_log WHERE user_id = ? AND action <> 'desk_usage' "
             "ORDER BY created_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
@@ -1168,7 +1168,7 @@ def get_user_detail(user_id: str) -> dict | None:
         # Last 10 activity entries
         activity_rows = conn.execute(
             "SELECT id, action, details, ip_address, created_at "
-            "FROM activity_log WHERE user_id = ? "
+            "FROM activity_log WHERE user_id = ? AND action <> 'desk_usage' "
             "ORDER BY created_at DESC LIMIT 10",
             (user_id,),
         ).fetchall()

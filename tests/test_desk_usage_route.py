@@ -126,7 +126,20 @@ def test_admin_recent_activity_feed_does_not_list_desk_usage(client):
     assert all(r["action"] != "desk_usage" for r in get_recent_activity(limit=500))
 
 
-def test_the_route_is_inside_a_declared_rate_limit_family():
+def test_the_route_is_inside_the_declared_auth_rate_limit_family():
     from api import rate_limit_policy as rlp
-    fam = rlp.family_for("/api/auth/desk-usage") if hasattr(rlp, "family_for") else None
-    assert fam in (None, "auth") or "auth" in str(fam)
+    hit = rlp.classify("/api/auth/desk-usage")
+    assert hit is not None and hit[0] == rlp.KIND_FAMILY and hit[1] == "auth", hit
+
+
+def test_admin_per_member_views_do_not_list_desk_usage(client):
+    from api.services.auth_service import get_user_activity, get_user_detail
+    from api.services.auth_service import log_activity
+    client.post("/api/auth/desk-usage", json=GOOD)
+    log_activity(A["id"], "login")
+    assert [r["action"] for r in get_user_activity(A["id"], limit=50)] == ["login"]
+    detail = get_user_detail(A["id"])
+    assert detail is not None
+    assert all(r["action"] != "desk_usage" for r in detail["recent_activity"])
+    assert [r["action"] for r in detail["recent_activity"]] == ["login"]
+    assert len(_rows(A["id"])) == 1  # the row is still stored (export path keeps it)
