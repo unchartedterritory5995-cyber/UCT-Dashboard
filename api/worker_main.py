@@ -175,10 +175,11 @@ def _start_uploader():
                     outcome = "no_credentials"
                 elif data_sync.DELTA_ENABLED:
                     # The day's full base runs on its own thread (base_loop).
+                    started = time.monotonic()
                     ts = data_sync.upload_delta()
                     if ts:
                         outcome = "delta"
-                        log.info(f"uploaded delta {ts}")
+                        log.info(f"uploaded delta {ts} in {time.monotonic() - started:.0f}s")
                     else:
                         outcome = "unchanged"  # nothing in the window
                 else:
@@ -204,7 +205,7 @@ def _start_uploader():
         # ⛔ The base gets its OWN thread so it can never hold up the deltas.
         # It takes hours on a 40 GB bars.db and a master merge restarts this
         # process, so on 2026-11-09 every base was killed before finishing and,
-        # sharing the delta loop, no delta shipped for 29 hours. A base stamped
+        # sharing the delta loop, no delta shipped after the restore. A base stamped
         # after deltas that ran during its build is safe: each delta carries a
         # full 7-45 day window, so the next one restores anything a pod skipped.
         while True:
