@@ -257,13 +257,36 @@ function pivotCentres(c, depth) {
 }
 const doubledBars = (P) => [...new Set(P.map((p) => p.bar))].filter((b) => P.filter((p) => p.bar === b).length === 2)
 
-describe('F6 — vdubus SPY: lines 504/272, labels 129/23 are the WINDOW plus two zig-zag spans the door withholds (C22)', () => {
+// ⛔⛔ DIV-1 RE-PIN (2026-11-09): PRODUCT DEFECT, fix lane W-C22-DEL — NOT an explained difference.
+// Graded cold, this block proved "lines 504/272, labels 129/23 are the WINDOW plus two
+// withheld zig-zag spans" and "nothing we draw is wrong" (295 of 295 ours were TradingView's).
+// The harness now replays SPY's proved history from its 1993 listing — the series a
+// member's daily chart computes (DIV-1) — and the truth it shows is a defect the member
+// sees: counts are close (lines 504 vs 500, labels 129 = 129), 581 of our 629 objects are
+// TradingView's in order, but
+//   · ours holds 48 zig-zag LINES TradingView does not: their pivots sit at absolute bars
+//     5649..5948 (2015-16, before the window) — stale lines TradingView deleted;
+//   · TradingView holds 52 in-window lines (prices 322..697.84, 2020 onward) that we lack.
+// Suspected cause (not yet proved): the C22 window-ambiguity withholding (doubled 9-bar
+// pivots at absolute bars 7025 / 8231 = window 348 / 1554) withholds the program's
+// DELETES as well as its creates, so pre-window lines survive that TradingView removed.
+// These rails pin the defect AS IT IS, so the fix (lane W-C22-DEL) flips them.
+describe('F6 — vdubus SPY (DIV-1, product defect W-C22-DEL): replayed from the listing we hold 48 stale pre-window lines and lack 52 in-window lines', () => {
   const ID = 'vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03'
 
-  it('every one of our 295 objects is TradingView\'s, in order — nothing we draw is wrong', () => {
-    const { pairs, unO } = inOrderPairing(vendorObjects(cap(ID)), ourObjects(ours(ID)))
-    expect(pairs.length).toBe(295)
-    expect(unO).toEqual([])
+  it('⛔ DEFECT: 581 of our 629 objects are TradingView\'s in order; the 48 we hold that it does not are LINES whose pivots lie before the window (absolute bars 5649..5948)', () => {
+    const c = cap(ID)
+    const V = vendorObjects(c)
+    const O = ourObjects(ours(ID))
+    const { pairs, unO } = inOrderPairing(V, O)
+    expect([V.length, O.length, pairs.length]).toEqual([633, 629, 581])
+    expect(unO.length).toBe(48)
+    expect(new Set(unO.map((o) => o.f))).toEqual(new Set(['line']))
+    // our x is the absolute bar index of the replayed series: the window starts at 6677
+    const xs = unO.flatMap((o) => o.x).filter(Number.isFinite)
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([5649, 5948])
+    expect(Math.max(...xs)).toBeLessThan(6677)
+    expect(graded(ID).objects.verdict).toBe('DIVERGE')
   }, T)
 
   it('the cause: SPY has two bars that are BOTH a 9-bar pivot high and a pivot low (348, 1554); RDDT has none, which is why RDDT MATCHES', () => {
@@ -277,42 +300,16 @@ describe('F6 — vdubus SPY: lines 504/272, labels 129/23 are the WINDOW plus tw
     expect(doorDiagnostics(cap(ID)).windowAmbiguousSteps).toBeGreaterThan(0)
   }, T)
 
-  it('⭐ every vendor object we lack is pre-window, made while the zig-zag still held pre-window pivots, or inside one of the two withheld spans (4 pivots before each doubled bar to the 10th after it)', () => {
+  it('⛔ DEFECT: the 52 objects TradingView holds that we lack are LINES inside the window\'s prices (322..697.84, 2020 onward)', () => {
     const c = cap(ID)
-    const V = vendorObjects(c)
-    const O = ourObjects(ours(ID))
-    const { pairs, unV } = inOrderPairing(V, O)
-    const P = pivotCentres(c, 9)
-    const spans = doubledBars(P).map((d) => {
-      const i = P.findIndex((p) => p.bar === d)
-      return [P[i - 4].bar, P[Math.min(P.length - 1, i + 11)].bar + 9]
-    })
-    expect(spans).toEqual([[287, 523], [1454, 1728]])
-    // and the WINDOW's own state: until the fast engine has seen ten pivots of its
-    // own, its ten-deep arrays still hold (on TradingView's side) pivots from
-    // before our bar 0 — a structure drawn there is a window effect
-    const warm = [0, P[9].bar + 9]
-    // TradingView's x is a dense rank over the x it holds; read our bar off the pairs
-    const rankToBar = new Map()
-    for (const [a, b] of pairs) V[a].x.forEach((x, k) => { if (Number.isFinite(x) && Number.isFinite(O[b].x[k])) rankToBar.set(x, O[b].x[k]) })
-    const ranks = [...rankToBar.keys()].sort((a, b) => a - b)
-    const firstRank = ranks[0]
+    const { unV } = inOrderPairing(vendorObjects(c), ourObjects(ours(ID)))
+    expect(unV.length).toBe(52)
+    expect(new Set(unV.map((v) => v.f))).toEqual(new Set(['line']))
     const range = windowRange(c)
-    const barsOf = (v) => {
-      const r = Math.max(...v.x.filter(Number.isFinite))
-      const lo = ranks.filter((k) => k <= r).pop()
-      const hi = ranks.find((k) => k >= r)
-      return [rankToBar.get(lo), rankToBar.get(hi)]
-    }
-    const pre = unV.filter((v) => outsideWindow(v, range) || Math.max(...v.x.filter(Number.isFinite)) < firstRank)
-    const inWin = unV.filter((v) => !pre.includes(v))
-    const inSpan = (span, v) => { const [lo, hi] = barsOf(v); return lo <= span[1] && hi >= span[0] }
-    const early = inWin.filter((v) => inSpan(warm, v) && !spans.some((s) => inSpan(s, v)))
-    expect(inWin.filter((v) => !spans.some((s) => inSpan(s, v)) && !inSpan(warm, v)).map(key)).toEqual([])
-    expect([unV.length, pre.length, inWin.length, early.length]).toEqual([338, 277, 61, 9])
-    // non-vacuity: the same spans moved 600 bars on would not hold them
-    const moved = spans.map(([a, b]) => [a + 600, b + 600])
-    expect(inWin.filter((v) => !moved.some((s) => inSpan(s, v))).length).toBeGreaterThan(50)
+    expect(unV.filter((v) => outsideWindow(v, range))).toEqual([])
+    const ys = unV.flatMap((v) => v.y).filter(Number.isFinite)
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(322)
+    expect(Math.max(...ys)).toBe(697.84)
   }, T)
 })
 
