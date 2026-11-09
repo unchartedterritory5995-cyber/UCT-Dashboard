@@ -72,7 +72,9 @@ const FAR_END = new RegExp(`\\b(?:at\\s+)?the\\s+(?:far(?:thest)?|other|opposite
 // AUDIT condition on the STRUCTURAL rule: a CHART reference ("the one / chart / cell / panel … <spatial word> … <anchor>", "both
 // neighbours of this one", "<spatial word> … this one / this chart") with ANY spatial word never resolves to the click; it is only
 // the anchor. A relation word on a non-chart noun (a line, a level, an MA, a price, an alert) is not this rule.
-const SPATIAL_WORD = '(?:left|right|above|below|up|down|over|under|beneath|next\\s+(?:to|door)|beside|adjacent|neighbou?rs?|far|farthest|furthest|end|corner|opposite|diagonal\\w*|across|facing|side|row|column|beyond|past|behind)'
+// (relational words only: a verb particle — "pull UP nvidia on this one", "switch OVER" — or a time word — "the PAST year on this
+// chart" — is not one; "far / other" only with end / side / corner, "row / column" only as "same / next row")
+const SPATIAL_WORD = '(?:left|right|above|below|under(?:neath)?|beneath|next\\s+(?:to|door)|beside|adjacent|neighbou?rs?|corner|opposite|diagonal\\w*|across|facing|beyond|behind|(?:far|farthest|furthest|other)\\s+(?:end|side|corner)|(?:same|next)\\s+(?:row|column)|past(?=\\s+(?:this|that|it|here)\\b))'
 const STRUCT_CHART = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,3}?(?:chart|one|cell|pane|panel|graph|neighbou?rs?)s?\\b[^.;,]{0,40}?\\b${SPATIAL_WORD}\\b[^.;,]{0,30}?\\b(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
 const STRUCT_NEIGHBOURS = new RegExp(`\\b(?:both|all|either|the|its|my)\\s+(?:two\\s+)?neighbou?rs?\\s+(?:of|to|beside)\\s+(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
 const STRUCT_TAIL = new RegExp(`\\b${SPATIAL_WORD}\\b[^.;,]{0,24}?\\b(?:this|that)\\s+(?:one|chart|cell|pane|panel|graph)\\b`, 'i')
