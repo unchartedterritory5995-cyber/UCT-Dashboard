@@ -189,8 +189,8 @@ and A1 ("A is good").
 - D48. Skip a short when the stock is hard to borrow or the borrow fee is high. ("48, yes.")
 
 **E. Fourth round (2026-11-09)**
-- E49. Risk by grade, "a little smaller" than the first suggestion (A+ 1.5% to 2%, A and B about 1%, B- 0.5% or less);
-  the exact numbers wait on his confirmation. ("49, yes but a little smaller honestly.")
+- E49. Risk by grade: A+ 1% to 1.5%; A and B 0.5% to 1%; B- or lower 0.25% to 0.5%. ("49, yes but a little smaller
+  honestly."; the smaller numbers: "Sur that is good for 49.")
 - E50. Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours. ("50, It
   is discretionary and hard to define.")
 - E51. After the first third at 3R: another third at 5R, then trail the last third; adjustable. ("51, thats fine idk can
@@ -215,3 +215,12 @@ and A1 ("A is good").
 - F64. Each day, a focus list of the 5 to 10 best setups; the rest are ignored. ("64 yes.")
 - F65. The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and
   fewer; Orange, only A+ setups; Red, mostly cash and shorts. ("65 yes.")
+- F66. Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules.
+  ("yes to all of those")
+- F67. Tired, sick, angry or distracted: no new trades that day. ("yes to all of those")
+- F68. After a market correction, when the reading turns Green again, start with a few positions and add more only as
+  the first ones work (the account's number of positions, not adds to one trade, A5). ("yes to all of those")
+- F69. Small accounts hold fewer positions, about 3 to 5, so each is big enough to manage. ("yes to all of those")
+
+**The account rulebook is complete as of 2026-11-09** (65 rules: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
+F60-F69). The setup plans (TRADE_PLANS.md) are reviewed next, when the owner says so.
