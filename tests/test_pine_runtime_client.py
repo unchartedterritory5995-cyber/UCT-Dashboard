@@ -363,6 +363,16 @@ def test_limits_r1_a_vm_wall_time_stop_keeps_time_budget_carries_its_limit_and_i
     assert not prc.cacheable(res) and len(cache) == 0
 
 
+def test_limits_r2_an_old_shaped_refusal_decodes_on_the_new_client():
+    """Phase 1: the service emits {key, guard, sentence, bar} only; the new client reads it, limit None."""
+    c, fake, _ = client()
+    fake.withhold["AAPL|D"] = ("runtime:limit", "this script went past the number of function calls")
+    fake.tamper = lambda reply: (reply["results"][0]["refusals"][0].pop("limit", None), reply)[1]
+    [res] = run(c, [job()])
+    assert guard_of(res) == "runtime:limit" and res.run_refusal().limit is None
+    assert res.run_refusal().sentence == "this script went past the number of function calls"
+
+
 def test_limits_r1_a_limit_stop_names_its_limit_as_a_field():
     c, fake, _ = client()
     fake.withhold["AAPL|D"] = ("runtime:limit", "this script went past the number of function calls")

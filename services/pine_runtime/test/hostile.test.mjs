@@ -18,8 +18,8 @@ import { FAKE_BUNDLE, buildRealBundle, decodeColumn, docOf, parsedJob, parsedReq
 const H = (body, decl = 'indicator("t7")') => `//@version=5\n${decl}\n${body}`
 
 /** The design's hostile corpus. `stop` is the guard measured on this engine; `says` names the limit IN
- *  PLAIN WORDS (`limits.js::LIMIT_PLAIN`) and `limit` is its engine name, carried as a FIELD on the
- *  refusal and never in the sentence (LIMITS r1). */
+ *  PLAIN WORDS (`limits.js::LIMIT_PLAIN`) and `limit` is its engine name, never in the sentence (LIMITS r1;
+ *  the service emits it as a field only in phase 2, `job.mjs::EMIT_REFUSAL_LIMIT`). */
 const TOKEN = /[A-Z][A-Z0-9]*_[A-Z0-9_]+/
 const CORPUS = [
   { name: 'infinite while', source: H('x = 0\nwhile true\n    x += 1\nplot(x)'), stop: 'runtime:limit', limit: 'WHILE_ITERATIONS', says: /the number of passes one `while` loop may make/ },
@@ -87,7 +87,7 @@ test('hostile corpus: every case ends in a named stop, by the VM and never by th
       assert.equal(r.refusals[0].guard, c.stop, `${c.name}: ${JSON.stringify(r.refusals)}`)
       assert.match(r.refusals[0].sentence, c.says, c.name)
       assert.doesNotMatch(r.refusals[0].sentence, TOKEN, `${c.name}: no engine token reaches the sentence`)
-      assert.equal(r.refusals[0].limit, c.limit, `${c.name}: the limit rides as a field`)
+      assert.ok(!('limit' in r.refusals[0]), `${c.name}: phase 1 emits no limit field (job.mjs EMIT_REFUSAL_LIMIT)`)
     }
     for (const c of OVERSIZED) {
       const { status, json } = await post(http.port, wireRequest(door.identity, { doc: docOf(c.source), jobs: [{ name: c.name }] }))
@@ -97,7 +97,6 @@ test('hostile corpus: every case ends in a named stop, by the VM and never by th
       assert.equal(r.refusals[0].guard, c.stop, `${c.name}: ${JSON.stringify(r.refusals)}`)
       assert.match(r.refusals[0].sentence, c.says, c.name)
       assert.doesNotMatch(r.refusals[0].sentence, TOKEN, c.name)
-      assert.equal(r.refusals[0].limit, c.limit, c.name)
     }
     assert.equal(pool.stats().kills, 0, 'no case needed the hard kill')
     assert.equal(pool.stats().crashes + pool.stats().ooms, 0)

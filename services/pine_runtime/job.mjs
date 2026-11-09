@@ -31,7 +31,7 @@
 //                    wall-clock stop `runtime:time-budget` (runtimeColumns.js), which the result
 //                    cache never stores (cache.mjs `cacheable`): the pane budget's AND the VM's own
 //                    `limits.WALL_TIME` (LIMITS r1 ruling B2-a; the sentence names whichever ceiling
-//                    fired, and the refusal's `limit` field says WALL_TIME). The budget stays
+//                    fired). The budget stays
 //                    explicit so that no future routing of a wall-clock stop can reach the cache.
 //   run-wide stop    status `withheld`, no `columns`, refusals `[{key: '*', guard, sentence, bar}]`.
 //                    guard = the run's own `err.guard`; the script's `runtime.error` is guard
@@ -116,8 +116,15 @@ export function encodeColumn(rt, col, n) {
   return rt.bytesToB64(bytes)
 }
 
+/** ⛔ LIMITS r2 — PHASE 1 OF 2: the service does NOT emit a refusal's `limit` field yet. The web,
+ *  worker and runtime services deploy independently, and a client older than LIMITS r1 refuses a
+ *  refusal with any key outside {key, guard, sentence, bar} as INTEGRITY. The new client accepts the
+ *  field (`pine_runtime_client.py::_REFUSAL_KEYS`); TODO(LIMITS phase 2): set this true once every
+ *  Python service runs a client that accepts it. Railed: `job.test.mjs` (the emitted key set). */
+export const EMIT_REFUSAL_LIMIT = false
+
 const runWide = (job, guard, sentence, bar = null, limit = null) => ({
-  job, status: 'withheld', refusals: [{ key: '*', guard, sentence, bar, ...(limit ? { limit } : {}) }],
+  job, status: 'withheld', refusals: [{ key: '*', guard, sentence, bar, ...(EMIT_REFUSAL_LIMIT && limit ? { limit } : {}) }],
 })
 
 /** LIMITS r1: a stop's limit NAME (`CALL_COUNT`, `WALL_TIME`, ...) rides as a field: the
