@@ -1,7 +1,9 @@
 // SIZE IT (docs/study/GAMES.md §3, kind 'size'): the pure arithmetic of the game. Sixty seconds of trade cards: an
 // account, the risk per trade, a long entry and its stop. How many shares? Four tiles: the right size and three of the
-// named sizing mistakes. Every number the game shows or scores comes from here, in whole cents (no float drift), from a
-// seed (the component seeds once at start; nothing here reads the clock or Math.random).
+// named sizing mistakes (sized on the price, rounded up past the risk, a 10x slip, the stop's percent read as dollars;
+// the catalogue's "forgot the risk %" only where one of those cannot be dealt). Every number the game shows or scores
+// comes from here, in whole cents (no float drift), from a seed (the component seeds once at start; nothing here reads
+// the clock or Math.random).
 //
 // The rule it teaches is ours, docs/study/sizing_rule.md:
 //   §1  risk 0.25% to 2% of the account a trade; 2% is the hard ceiling; under 1% is normal
@@ -18,7 +20,9 @@ export const SIZE_SECS = 60
 export const SIZE_POINTS = 10
 export const SIZE_BEST_KEY = 'study.size.best'
 export const LESSON = 'Stop first, distance second, size last.'
-export const LESSON_SOURCE = 'Our sizing rule · unit F9.02'
+/** §3: shares are rounded DOWN, so the loss at the stop never runs past the risk. */
+export const ROUND_DOWN = 'Round the shares down, so the loss at the stop stays inside your risk.'
+export const LESSON_SOURCE = 'Our sizing rule · course unit F9.02, Stop first, then size'
 
 /** §1: risk per trade in basis points (25 = 0.25%), 0.25% to the 2% ceiling. */
 export const MIN_RISK_BPS = 25
@@ -52,6 +56,16 @@ export const MISTAKES = {
   stopPct: { key: 'stopPct', title: 'A percent is not dollars.', short: 'used the stop\u00a0% as dollars' },
   noRisk: { key: 'noRisk', title: 'Forgot the risk\u00a0%.', short: 'forgot the risk\u00a0%' },
 }
+/** The game's four named mistakes (its brief): the ones a real trader makes at the desk. */
+export const NAMED = ['price', 'roundUp', 'tenX', 'stopPct']
+/** The catalogue's "forgot the risk %": the whole account over the stop distance, 50 to 400 times the right size. A size
+ *  nobody would buy gives the answer away, so it fills a slot only when one of the four cannot be dealt on a card. */
+export const LAST_RESORT = 'noRisk'
+/** The share of cards that deal the round-up trap. Its tile is always the right size plus one share, so on a card that
+ *  carries it the lower of the two neighbours is the answer. Dealt on nearly every card, that pair would answer the
+ *  question for you (OWNER_PRINCIPLES rule 10: questions that ask, not lead), so half the draws carry the trap and the
+ *  rest make you do the sum. */
+export const TRAP_SHARE = 0.5
 
 // ── the seeded draw ─────────────────────────────────────────────────────────────────────────────────────────────
 const MOD = 2147483647
@@ -147,17 +161,19 @@ export function cardAt(seed, index) {
     const pct = lo + rnd() * (MAX_STOP_PCT - lo)
     const distCents = Math.round((entryCents * pct) / 100 / level.step) * level.step
     const tenDir = rnd() < 0.5 ? 'down' : 'up'
-    const order = shuffleKeys(rnd)
-    const card = buildCard({ index, level, account, riskBps, entryCents, distCents, tenDir, order, preferRoundUp: rnd() < 0.7 })
+    const trap = rnd() < TRAP_SHARE
+    const card = buildCard({ index, level, account, riskBps, entryCents, distCents, tenDir, order: mistakeOrder(rnd, trap), preferRoundUp: trap })
     if (card && (!level.exact || card.exact)) return card
   }
   return buildCard({ index, level, ...FALLBACK })
 }
 
-function shuffleKeys(rnd) {
-  const a = Object.keys(MISTAKES)
+/** The order a card fills its three slots: the named four shuffled (the round-up trap only on a trap draw), then the
+ *  last resort. */
+export function mistakeOrder(rnd, trap = true) {
+  const a = NAMED.filter((k) => trap || k !== 'roundUp')
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
-  return a
+  return [...a, LAST_RESORT]
 }
 
 // ── the words and numbers on screen ─────────────────────────────────────────────────────────────────────────────

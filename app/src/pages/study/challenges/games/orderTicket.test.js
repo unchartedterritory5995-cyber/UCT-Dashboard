@@ -7,10 +7,10 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  FAMILIES, HOUSE_ENTRY, LABEL_CHAR_W_WIDE, NO_PRICE, SIDES, SIDE_WHY, SOURCES, TEMPLATES, TICKET_HEARTS, TICKET_TOTAL, TYPES,
-  anchorOf, between, buildRun, buildSituation, down10, fmt, heartsLeft, labelSpan, ladderOf, levelAbove, levelBelow,
-  makeQuote, missLine, orderMarks, randInt, rightTicket, rng, runOver, runPost, saidTicket, scoreTicket, shuffle,
-  stackRows, ticketText, up10, working,
+  FAMILIES, HOUSE_ENTRY, LABEL_CHAR_W, LABEL_CHAR_W_WIDE, LABEL_PX, NO_PRICE, SIDES, SIDE_WHY, SOURCES, TEMPLATES, TICKET_HEARTS,
+  TICKET_TOTAL, TYPES, anchorFor, anchorOf, between, buildRun, buildSituation, down10, fmt, heartsLeft, labelFit, labelSpan,
+  ladderOf, levelAbove, levelBelow, makeQuote, missLine, orderMarks, randInt, rightTicket, rng, runOver, runPost, saidTicket,
+  scoreTicket, shuffle, stackRows, ticketText, up10, verdictMiss, working,
 } from './orderTicket'
 
 const IDS = Object.keys(TEMPLATES)
@@ -289,6 +289,16 @@ describe('scoring and the working', () => {
     expect(missLine(right)).toBe(null)
     expect(missLine(working(s, { side: 'Buy', type: null, price: 1 }))).toMatch(/^No order type picked\./)
   })
+  it('the verdict on a miss marks every field and teaches the first wrong one, in one line', () => {
+    const v = verdictMiss(working(s, { side: 'Buy', type: 'Limit', price: 0 }))
+    expect(v.marks).toEqual([{ field: 'side', label: 'Side', ok: true }, { field: 'type', label: 'Order type', ok: false }, { field: 'price', label: 'Price', ok: false }])
+    expect(v.field).toBe('Order type')
+    expect(v.line).toBe('You said Limit. A buy limit at 160.81 buys now. A limit fills at your price or better, and the 156.10 ask is better.')
+    const all = verdictMiss(working(s, { side: 'Sell', type: 'Limit', price: 2 }))
+    expect(all.marks.map((m) => m.ok)).toEqual([false, false, false])
+    expect([all.field, all.line]).toEqual(['Side', 'You said Sell. Sell closes shares you own. You own none.'])
+    expect(verdictMiss(working(s, pickRight(s)))).toMatchObject({ field: null, line: null })
+  })
 })
 
 describe('the ladder on the quote card', () => {
@@ -352,6 +362,66 @@ describe('the ladder on the quote card', () => {
     const bm = buildSituation('buy-market', 1)
     expect(orderMarks(bm, { price: 0 }).map((m) => m.text)).toEqual(['Fills near 156.10'])
     expect(orderMarks(buildSituation('sell-market', 1), { price: 0 }).map((m) => m.text)).toEqual(['Fills near 156.09'])
+  })
+})
+
+describe('the ladder measured for the card it is drawn on', () => {
+  it('turns the card\'s pixels into fractions of it', () => {
+    expect(LABEL_PX).toEqual({ char: 7.2, flag: 24, under: 4, hang: 8, gap: 6 })
+    const f = labelFit(300)
+    expect(f.charW).toBeCloseTo(0.024, 12)
+    expect(f.pad).toBeCloseTo(0.08, 12)
+    expect(f.nudge).toBeCloseTo(8 / 300, 12)
+    expect(f.gap).toBeCloseTo(0.02, 12)
+    expect(f.under).toMatchObject({ charW: f.charW, nudge: f.nudge, gap: f.gap })
+    expect(f.under.pad).toBeCloseTo(4 / 300, 12)
+    expect(labelFit(0).charW).toBeCloseTo(7.2 / 160, 12)            // never measured as nothing: a floor of 160px
+    // a measured label spans its characters, its pill and its hang: "Stop 148.19" from 0.1 on a 300px card
+    expect(labelSpan({ x: 0.1, text: 'Stop 148.19' }, f)).toEqual([expect.closeTo(0.1 - 8 / 300, 12), expect.closeTo(0.1 - 8 / 300 + (11 * 7.2 + 24) / 300, 12)])
+  })
+  it('a 260px phone card stacks the two flags the fixed guess let touch (a sell limit and the bid you picked)', () => {
+    const s = buildSituation('sell-limit', 1)
+    const bid = s.prices.findIndex((p) => p.cents === s.quote.bid)
+    expect(orderMarks(s, { price: bid }, LABEL_CHAR_W).map((m) => [m.key, m.row])).toEqual([['right', 0], ['said', 0]])
+    expect(orderMarks(s, { price: bid }, labelFit(260)).map((m) => [m.key, m.text, m.row, m.anchor])).toEqual([['right', 'Sell limit 171.60', 1, 'end'], ['said', 'Yours 156.09', 0, 'start']])
+  })
+  it('hangs a long label from the side that keeps it on the card, and slides one no side can hold, its pin left on its price', () => {
+    const long = { key: 'r', x: 0.669, text: 'Buy to cover stop 209.11' }
+    expect(anchorOf(long.x)).toBe('end')
+    expect(anchorFor(long, labelFit(260))).toBe('middle')                   // hung from its end it would run off the left
+    const [placed] = stackRows([long], labelFit(240))                      // too wide for any side at 240px: it slides left
+    expect(placed.x).toBe(0.669)
+    expect(placed.shift).toBeLessThan(0)
+    const [a, b] = labelSpan(placed, labelFit(240))
+    expect(a).toBeGreaterThanOrEqual(0); expect(b).toBeCloseTo(1, 9)
+    expect(stackRows([long], labelFit(800))[0]).toMatchObject({ anchor: 'end', shift: 0 })   // a wide card needs neither
+  })
+  it('at every width from a small phone to a desktop, no two labels on a row touch and none leaves the card', () => {
+    // 220px is the ladder on a 320px phone (the sheet's and the lesson's gutters, the card's padding); 200px is narrower
+    // than any phone, where a label wider than the whole card starts at its left edge
+    for (const W of [200, 220, 240, 260, 300, 360, 480, 600, 900]) {
+      const fit = labelFit(W)
+      for (let seed = 1; seed < 160; seed++) {
+        for (const id of IDS) {
+          const s = buildSituation(id, seed * 7919)
+          const lad = ladderOf(s, fit)
+          const sets = [[lad.below, fit.under], ...[0, 1, 2].map((p) => [orderMarks(s, { price: p }, fit), fit])]
+          for (const [set, f] of sets) {
+            for (const p of set) {
+              const [a, b] = labelSpan(p, f)
+              expect(a).toBeGreaterThanOrEqual(-1e-9)
+              if (b - a <= 1) expect(b).toBeLessThanOrEqual(1 + 1e-9)
+              else { expect(W).toBe(200); expect(a).toBeCloseTo(0, 9) }
+              for (const q of set) {
+                if (p.key === q.key || p.row !== q.row) continue
+                const [c, d] = labelSpan(q, f)
+                expect(a < d + f.gap - 1e-9 && c < b + f.gap - 1e-9).toBe(false)
+              }
+            }
+          }
+        }
+      }
+    }
   })
 })
 

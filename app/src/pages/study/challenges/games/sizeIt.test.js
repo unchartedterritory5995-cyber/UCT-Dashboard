@@ -4,10 +4,10 @@ import house from '../../../../constants/houseSizing.json'
 import { sizeFor } from '../../../journal-2-0/lib/blocks/sizeCalc'
 import { blitzMult } from '../challengeBank'
 import {
-  ACCOUNTS, LESSON, LEVELS, MAX_POSITION_PCT, MAX_PRICE, MAX_RISK_BPS, MAX_STOP_PCT, MIN_PRICE, MIN_RISK_BPS, MIN_SHARES, MIN_STOP_PCT,
-  MISTAKES, RISK_BPS, SIZE_KIND, SIZE_POINTS, SIZE_SECS, buildCard, cardAt, dollars, ladderGap, levelAt, missTitle, mistakeOf, mistakeValues,
-  money, pointsFor, price, quotientText, riskPctText, rngFor, runIdOf, sharesFor, sharesText, sizeMult, sizeVerdict, slipLine, stopPctTenths,
-  stopPctText, topSlip, whyLine, working, workingText,
+  ACCOUNTS, LAST_RESORT, LESSON, LESSON_SOURCE, LEVELS, MAX_POSITION_PCT, MAX_PRICE, MAX_RISK_BPS, MAX_STOP_PCT, MIN_PRICE, MIN_RISK_BPS,
+  MIN_SHARES, MIN_STOP_PCT, MISTAKES, NAMED, RISK_BPS, ROUND_DOWN, SIZE_KIND, SIZE_POINTS, SIZE_SECS, TRAP_SHARE, buildCard, cardAt, dollars,
+  ladderGap, levelAt, missTitle, mistakeOf, mistakeOrder, mistakeValues, money, pointsFor, price, quotientText, riskPctText, rngFor, runIdOf,
+  sharesFor, sharesText, sizeMult, sizeVerdict, slipLine, stopPctTenths, stopPctText, topSlip, whyLine, working, workingText,
 } from './sizeIt'
 
 // $40,000 at 1%, long $50.00, stop $48.00: $400 / $2.00 = 200 shares exactly
@@ -96,6 +96,21 @@ describe('the named mistakes', () => {
     // $25 risk on a $40 stock: sized on the price it is under one share, so it is no tile
     expect(mistakeValues({ account: 10000, riskBps: 25, entryCents: 4000, distCents: 100, riskCents: 2500, shares: 25 }, 'up').price).toBe(null)
   })
+  it('deals the four named in the brief first, the round-up trap only on a trap draw, and the risk % left out last', () => {
+    expect(NAMED).toEqual(['price', 'roundUp', 'tenX', 'stopPct'])
+    expect(LAST_RESORT).toBe('noRisk')
+    expect(TRAP_SHARE).toBe(0.5)
+    for (let seed = 1; seed <= 50; seed++) {
+      const trap = mistakeOrder(rngFor(seed, 0), true)
+      expect([...trap].sort()).toEqual([...NAMED, LAST_RESORT].sort())
+      expect(trap[trap.length - 1]).toBe(LAST_RESORT)
+      const plain = mistakeOrder(rngFor(seed, 0), false)
+      expect(plain).not.toContain('roundUp')
+      expect(plain).toHaveLength(4)
+      expect(plain[3]).toBe(LAST_RESORT)
+      expect(mistakeOrder(rngFor(seed, 0), false)).toEqual(plain)          // the same draw for the same seed
+    }
+  })
   it('names every mistake for the miss', () => {
     expect(Object.keys(MISTAKES)).toEqual(ORDER)
     for (const m of Object.values(MISTAKES)) {
@@ -177,7 +192,7 @@ describe('the generator', () => {
     expect(rngFor(9, 3)()).not.toBe(rngFor(9, 2)())
   })
   it('keeps every rule on thousands of cards: range, realism, our ceiling, four distinct positive tiles, the right one floor()', () => {
-    const seen = { roundUp: 0, risk: new Set(), levels: new Set(), mistakes: new Set(), fractional: 0 }
+    const seen = { roundUp: 0, noRisk: 0, cards: 0, risk: new Set(), levels: new Set(), mistakes: new Set(), fractional: 0 }
     for (let seed = 1; seed <= 400; seed++) {
       for (let i = 0; i < 14; i++) {
         const c = cardAt(seed * 7919 + 13, i)
@@ -209,7 +224,19 @@ describe('the generator', () => {
         expect(c.choices.filter((x) => x.mistake == null)).toEqual([{ value: c.shares, mistake: null }])
         for (const x of c.choices) if (x.mistake) expect(mistakeValues(c, c.tenDir)[x.mistake]).toBe(x.value)
         expect(sharesText(Math.max(...vals)).length).toBeLessThanOrEqual(12)             // fits a 2x2 tile (VOICE §4)
-        if (c.choices.some((x) => x.mistake === 'roundUp')) seen.roundUp += 1
+        const dealt = new Set(c.choices.map((x) => x.mistake))
+        if (dealt.has('roundUp')) {
+          seen.roundUp += 1
+          expect(c.choices.find((x) => x.mistake === 'roundUp').value).toBe(c.shares + 1)   // the trap is one share over
+        }
+        if (dealt.has('noRisk')) {
+          // the risk % left out only when the named four could not fill three distinct slots on this card
+          seen.noRisk += 1
+          const v = mistakeValues(c, c.tenDir)
+          const usable = new Set(NAMED.filter((k) => k !== 'roundUp' || dealt.has('roundUp')).map((k) => v[k]).filter((x) => x != null))
+          expect(usable.size).toBeLessThan(3)
+        }
+        seen.cards += 1
         if (!c.exact) seen.fractional += 1
         seen.risk.add(c.riskBps); seen.levels.add(c.level)
         c.choices.forEach((x) => x.mistake && seen.mistakes.add(x.mistake))
@@ -218,7 +245,11 @@ describe('the generator', () => {
     expect(seen.risk.size).toBe(RISK_BPS.length)                    // 0.25% to 2%, every step turns up
     expect([...seen.levels].sort()).toEqual(['easy', 'hard', 'medium'])
     expect([...seen.mistakes].sort()).toEqual([...ORDER].sort())   // every named mistake is dealt
-    expect(seen.roundUp).toBeGreaterThan(seen.fractional * 0.5)    // the round-down trap is the common one
+    // the trap sits on about half the cards that do not divide exactly: common enough to teach "round down", rare enough
+    // that the lower of two neighbours is not the answer to every card (OWNER_PRINCIPLES rule 10)
+    expect(seen.roundUp / seen.fractional).toBeGreaterThan(0.4)
+    expect(seen.roundUp / seen.fractional).toBeLessThan(0.6)
+    expect(seen.noRisk / seen.cards).toBeLessThan(0.1)              // a size nobody would buy is a rare filler, not a tile on most cards
   })
 })
 
@@ -252,7 +283,7 @@ describe('the words and numbers', () => {
         texts.push(workingText(c), ...c.choices.map((x) => whyLine(c, x.value)), ...c.choices.map((x) => missTitle(c, x.value)))
       }
     }
-    texts.push(slipLine([]), slipLine([{ ok: true }]), slipLine([{ ok: false, mistake: 'tenX' }]), LESSON)
+    texts.push(slipLine([]), slipLine([{ ok: true }]), slipLine([{ ok: false, mistake: 'tenX' }]), LESSON, ROUND_DOWN, LESSON_SOURCE)
     for (const t of texts) {
       expect(t).not.toMatch(/—/)
       expect(t).not.toMatch(/the firm/i)

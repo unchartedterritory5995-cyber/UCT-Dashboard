@@ -7,9 +7,11 @@
 .hudRow > :first-child { flex: 1; min-width: 0; }
 .hearts { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--k-line);
   background: var(--k-glass), var(--k-plate); box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); }
-.heart { display: block; width: 22px; height: 22px; fill: var(--k-down); stroke: none; filter: drop-shadow(0 0 6px rgba(223, 70, 70, .5));
-  transition: fill .3s, filter .3s, transform .35s var(--k-ease); }
-.heart.lost { fill: none; stroke: var(--k-line-lit); stroke-width: 1.6; filter: none; transform: scale(.86); }
+/* each heart is the kit's shield glyph (UIcon), lit gold while it stands and dim once lost, as in Options Payoff */
+.heart { display: grid; place-items: center; font-style: normal; transition: color .3s, opacity .3s, filter .3s, transform .35s var(--k-ease); }
+.heart svg { display: block; }
+.heart.heartOn { color: var(--k-gold-bright); filter: drop-shadow(0 0 6px rgba(220, 187, 94, .45)); }
+.heart.lost { color: var(--k-line-lit); opacity: .75; transform: scale(.86); }
 
 /* ── the situation ──────────────────────────────────────────────────────────────────────────────────────── */
 .situation { margin: 4px 0 0; font-size: 27px; line-height: 1.24; font-weight: 800; letter-spacing: -.015em; color: var(--k-ink); text-wrap: pretty; }
@@ -101,11 +103,17 @@
 .rowWhy { font-size: 15.5px; line-height: 1.55; color: var(--k-ink-soft); }
 .source { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--k-ink-dim); }
 
-/* the verdict's working (spans: the takeover sets it inside a paragraph) */
+/* the verdict (spans: the takeover sets it inside a paragraph): on a miss, the three fields marked right or wrong, the
+   first wrong one's lesson, the hearts; kept short so the takeover's button stays on a phone's screen */
 .tkLine { display: block; margin-top: 8px; text-align: left; }
-.tkLine b { margin-right: 4px; }
 .tkCenter { text-align: center; }
 .tkHearts { margin-top: 12px; text-align: center; font-weight: 800; color: #ffb3b3; }
+.tkMarks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.tkMark { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 999px; border: 1px solid; font-size: 12px;
+  font-weight: 850; letter-spacing: .08em; text-transform: uppercase; line-height: 18px; }
+.tkMark svg { display: block; }
+.tkMarkOk { color: #8fe3b1; border-color: rgba(47, 175, 104, .5); background: rgba(47, 175, 104, .1); }
+.tkMarkBad { color: #ff9d9d; border-color: rgba(223, 70, 70, .55); background: rgba(223, 70, 70, .12); }
 
 @keyframes otRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes otPop { from { opacity: 0; transform: translateY(6px) scale(.9); } to { opacity: 1; } }
@@ -122,10 +130,13 @@
   /* the status line keeps the full width on a phone; the hearts sit just under it, at the right */
   .hudRow { flex-direction: column; align-items: stretch; gap: 6px; }
   .hearts { align-self: flex-end; padding: 5px 10px; gap: 3px; border-radius: 12px; }
-  .heart { width: 18px; height: 18px; }
+  .heart svg { width: 18px; height: 18px; }
   .situation { font-size: 21px; }
   .cells { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .cell { padding: 8px 9px 9px; }
+  /* a third of a phone card is about 70px: a level's name ("Your target") wraps to two lines rather than lose its end,
+     and the price sits at the foot of every cell in the row */
+  .cell { padding: 8px 9px 9px; grid-template-rows: 1fr auto; }
+  .cell dt { white-space: normal; overflow: visible; text-overflow: clip; letter-spacing: .1em; line-height: 1.25; overflow-wrap: anywhere; }
   .cell dd { font-size: 18px; }
   .ticket { padding: 10px; border-radius: 18px; }
   .field { padding: 8px; }

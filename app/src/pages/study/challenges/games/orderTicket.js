@@ -456,39 +456,91 @@ export function missLine(work) {
   return r.said ? `You said ${r.said}. ${r.saidWhy || r.why}` : `No ${r.label.toLowerCase()} picked. ${r.why}`
 }
 
+/** What the verdict says on a miss, kept short so it always fits a phone's screen (the takeover cannot scroll): each
+ *  field right or wrong, then the first wrong field's lesson in one line. The full working is in the review under it. */
+export function verdictMiss(work) {
+  const first = work.rows.find((x) => !x.ok) || null
+  return { marks: work.rows.map((r) => ({ field: r.field, label: r.label, ok: r.ok })), field: first ? first.label : null, line: missLine(work) }
+}
+
 /** Where a label hangs from its point: from the left edge it runs right, from the right edge it runs left. */
 export const anchorOf = (x) => (x < 0.38 ? 'start' : x > 0.62 ? 'end' : 'middle')
 
-/** A label's width as a fraction of the ladder: a character of 12px type on the narrowest card (a phone, ~310px wide)
- *  is about 0.022 of it, plus the pill's padding; on a tablet or desktop card (600px and wider) about 0.012. */
+/** A label's width as a fraction of the ladder. Before the card is measured (and in tests) a fixed guess: a character of
+ *  12px type is about 0.022 of a phone card and 0.012 of a wide one, plus 0.04 for the pill, a label hangs 0.02 past
+ *  its point and two on a row keep 0.01 apart. Once the card is measured, labelFit(px) gives the real fractions. */
 export const LABEL_CHAR_W = 0.022
 export const LABEL_CHAR_W_WIDE = 0.012
-export function labelSpan(it, charW = LABEL_CHAR_W) {
-  const w = String(it.text || '').length * charW + 0.04
-  const a = anchorOf(it.x)
-  return a === 'start' ? [it.x - 0.02, it.x - 0.02 + w] : a === 'end' ? [it.x + 0.02 - w, it.x + 0.02] : [it.x - w / 2, it.x + w / 2]
+/** The pixels the ladder's labels take (OrderTicketGame.module.css): 12px type at weight 800 to 850 is at most about
+ *  7.2px a character, digits and capitals included; a flag's pill adds 18px of padding, 2px of border and 4px of air;
+ *  a label under the line adds 4px of air; each hangs 8px past its point; two on a row keep 6px apart. */
+export const LABEL_PX = { char: 7.2, flag: 24, under: 4, hang: 8, gap: 6 }
+
+/** The label metrics for a ladder this many pixels wide, as fractions of it (the flags over the line and, in `under`,
+ *  the plain labels under it). */
+export function labelFit(widthPx) {
+  const w = Math.max(160, Number(widthPx) || 0)
+  const base = { charW: LABEL_PX.char / w, nudge: LABEL_PX.hang / w, gap: LABEL_PX.gap / w }
+  return { ...base, pad: LABEL_PX.flag / w, under: { ...base, pad: LABEL_PX.under / w } }
 }
 
-/** Labels on one side of the ladder, each on the lowest row where its span overlaps no label already there, so two
- *  never sit on top of each other. */
-export function stackRows(items, charW = LABEL_CHAR_W) {
+/** A fit as {charW, pad, nudge, gap}: a measured one as it is, a bare number as the fixed guess above. */
+function fitOf(fit) {
+  if (fit && typeof fit === 'object') return fit
+  return { charW: typeof fit === 'number' ? fit : LABEL_CHAR_W, pad: 0.04, nudge: 0.02, gap: 0.01 }
+}
+const underOf = (fit) => (fit && typeof fit === 'object' && fit.under ? fit.under : fit)
+
+/** The span a label covers, from its point, the side it hangs from and any slide that keeps it on the card. */
+export function labelSpan(it, fit = LABEL_CHAR_W, anchor = it.anchor || anchorOf(it.x)) {
+  const f = fitOf(fit)
+  const w = String(it.text || '').length * f.charW + f.pad
+  const x = it.x + (Number(it.shift) || 0)
+  return anchor === 'start' ? [x - f.nudge, x - f.nudge + w] : anchor === 'end' ? [x + f.nudge - w, x + f.nudge] : [x - w / 2, x + w / 2]
+}
+
+/** The side a label hangs from: the natural one for its point when the label fits on the card that way, else the one
+ *  that keeps it on the card (a long label near the middle of a narrow phone card), else the one that spills least. */
+export function anchorFor(it, fit = LABEL_CHAR_W) {
+  const pref = anchorOf(it.x)
+  const order = [pref, ...(it.x < 0.5 ? ['start', 'middle', 'end'] : ['end', 'middle', 'start']).filter((a) => a !== pref)]
+  let best = pref
+  let least = Infinity
+  for (const a of order) {
+    const [lo, hi] = labelSpan(it, fit, a)
+    const spill = Math.max(0, -lo) + Math.max(0, hi - 1)
+    if (spill <= 1e-9) return a
+    if (spill < least) { least = spill; best = a }
+  }
+  return best
+}
+
+/** Labels on one side of the ladder, each hung from a side that keeps it on the card (and, on a card too narrow for any
+ *  side, slid along by `shift`, a fraction of the card, until it fits; its pin stays on its price), then put on the
+ *  lowest row where its span overlaps no label already there, so two never sit on top of each other. */
+export function stackRows(items, fit = LABEL_CHAR_W) {
+  const f = fitOf(fit)
   const rows = []
   const at = new Map()
   for (const it of [...items].sort((p, q) => p.x - q.x)) {
-    const [a, b] = labelSpan(it, charW)
+    const anchor = anchorFor(it, f)
+    let [a, b] = labelSpan({ ...it, shift: 0 }, f, anchor)
+    const shift = a < 0 || b - a >= 1 ? -a : b > 1 ? 1 - b : 0
+    a += shift; b += shift
     let row = 0
-    while (rows[row] && rows[row].some(([c, d]) => a < d + 0.01 && c < b + 0.01)) row += 1
+    while (rows[row] && rows[row].some(([c, d]) => a < d + f.gap && c < b + f.gap)) row += 1
     if (!rows[row]) rows[row] = []
     rows[row].push([a, b])
-    at.set(it.key, row)
+    at.set(it.key, { row, anchor, shift })
   }
-  return items.map((it) => ({ ...it, row: at.get(it.key), anchor: anchorOf(it.x) }))
+  return items.map((it) => ({ ...it, ...at.get(it.key) }))
 }
 
 /** THE LADDER on the quote card: where the market, the level and the orders sit, as fractions of the card's width
  *  (0 is the lowest price shown, 1 the highest), with 15% of the span as room at each end. Under the line: the market
- *  and the levels the situation names, stacked so no two labels collide. */
-export function ladderOf(sit, charW = LABEL_CHAR_W) {
+ *  and the levels the situation names, stacked so no two labels collide. `fit` is labelFit(the ladder's width), or the
+ *  fixed guess before it is measured. */
+export function ladderOf(sit, fit = LABEL_CHAR_W) {
   const pts = [sit.quote.bid, sit.quote.ask]
   for (const l of sit.levels) if (l.ladder !== false) pts.push(l.cents)
   for (const p of sit.prices) { if (p.cents != null) pts.push(p.cents); if (p.limit != null) pts.push(p.limit) }
@@ -500,16 +552,17 @@ export function ladderOf(sit, charW = LABEL_CHAR_W) {
   const below = stackRows([
     { key: 'market', kind: 'market', text: 'Market now', x: (market.from + market.to) / 2 },
     ...sit.levels.filter((l) => l.ladder !== false).map((l) => ({ key: l.key, kind: 'level', text: `${l.label} ${fmt(l.cents)}`, x: x(l.cents) })),
-  ], charW)
+  ], underOf(fit))
   return { lo: a, hi: b, market, below, rowsBelow: 1 + Math.max(0, ...below.map((r) => r.row)), x }
 }
 
 const typeWord = (t) => (t === 'Stop-limit' ? 'stop-limit' : t.toLowerCase())
 
 /** The orders drawn on the ladder after Check: the right ticket in green (a stop-limit's stop and limit both), and the
- *  member's own prices in red where they differ from the right ones. A market order has no price, so it marks nothing. */
-export function orderMarks(sit, pick, charW = LABEL_CHAR_W) {
-  const lad = ladderOf(sit, charW)
+ *  member's own prices in red where they differ from the right ones. A market order has no price: it marks where it
+ *  fills. */
+export function orderMarks(sit, pick, fit = LABEL_CHAR_W) {
+  const lad = ladderOf(sit, fit)
   const right = sit.prices[sit.price]
   const out = []
   const taken = new Set()
@@ -536,7 +589,7 @@ export function orderMarks(sit, pick, charW = LABEL_CHAR_W) {
       : [{ key: 'said', cents: said.cents, text: `Yours ${fmt(said.cents)}` }]
     for (const m of mine) if (!taken.has(m.cents)) out.push({ ...m, tone: 'said', x: lad.x(m.cents) })
   }
-  return stackRows(out, charW)
+  return stackRows(out, fit)
 }
 
 /** Hearts left after these results (a miss costs one). */
