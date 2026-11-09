@@ -951,6 +951,19 @@
    ],
    "fast": false
   },
+  "drawingBoard.set": {
+   "domain": "drawingBoard",
+   "group": "drawings",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "guide.explain": {
    "domain": "guide",
    "group": "guide",

@@ -19,6 +19,7 @@ import { registerSavedScreenCapabilities } from './capabilities/savedScreens'
 import { registerAboutCapabilities } from './capabilities/about'
 import { registerBoardCapabilities } from './capabilities/board'
 import { registerDrawingCapabilities } from './capabilities/drawings'
+import { registerDrawingBoardCapabilities } from './capabilities/drawingBoards'
 import { registerIndicatorCapabilities } from './capabilities/indicators'
 import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits'
 import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
@@ -65,6 +66,7 @@ export function registerBuiltins() {
   registerSavedScreenCapabilities()
   registerBoardCapabilities()
   registerDrawingCapabilities()
+  registerDrawingBoardCapabilities()
   registerIndicatorCapabilities()
   registerIndicatorEditCapabilities()
   registerIndicatorAuthoringCapabilities()

@@ -5291,6 +5291,54 @@
    "shape": null
   },
   {
+   "name": "drawingBoard.set",
+   "domain": "drawingBoard",
+   "target": "drawingBoards",
+   "summary": "Drawing Boards (the panel of separate drawing sheets): switch to one, create one, rename one, or delete one (shown first; its drawings go, no Undo).",
+   "hints": "target = the drawingBoards entry. op = switch | create | rename | delete; board = the board by its name (null for create); name = the new name (create / rename), else null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "switch",
+       "create",
+       "rename",
+       "delete"
+      ]
+     },
+     "board": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "board",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicator.list",
    "domain": "indicator",
    "target": "indicators",

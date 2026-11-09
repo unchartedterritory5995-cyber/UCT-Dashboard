@@ -398,6 +398,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     st.views = views
   }
   if (extra.drawings) {
+    // the Drawing Boards are module-level too: back to the one unnamed board an earlier case may have added to or renamed
+    const [first, ...others] = drawingsStore.listTracings()
+    if (first) { drawingsStore.setActiveTracing(first.id); others.forEach(t => drawingsStore.deleteTracing(t.id)); drawingsStore.renameTracing(first.id, '') }
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
   }
