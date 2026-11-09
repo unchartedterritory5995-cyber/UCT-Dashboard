@@ -526,3 +526,26 @@ def test_a_lesson_set_shows_each_charts_ticker_and_a_challenge_set_does_not(paid
     assert all(i.get("ticker") for i in practise if i.get("has_chart"))
     challenge = paid_client.post("/api/study/sessions", json={"kind": "free"}).json()["items"]
     assert challenge and all("ticker" not in i for i in challenge)
+
+
+# ── authored course units stay hidden until approved (docs/study/courses/README.md, 2026-11-08) ──────────────────
+
+def test_member_map_hides_authored_units_until_one_item_is_approved(monkeypatch, paid_client):
+    fake = {"curricula": [{"id": "foundations", "tracks": [
+        {"id": "F1", "units": [
+            {"id": "F1.03", "skills": ["basics.spread"], "supply": "authored"},
+            {"id": "F1.04", "skills": ["basics.volume"], "supply": "authored"},
+        ]},
+        {"id": "F2", "units": [{"id": "F2.01", "skills": ["vocab.chart"], "supply": "thin"}]},
+    ]}]}
+    monkeypatch.setattr(study_router, "_skill_map", lambda: fake)
+    monkeypatch.setattr(ss, "review_sections", lambda: [
+        {"skill_id": "basics.spread", "approved": 3, "draft": 20},
+        {"skill_id": "basics.volume", "approved": 0, "draft": 18},
+    ])
+    r = paid_client.get("/api/study/map")
+    assert r.status_code == 200
+    tracks = {t["id"]: t for t in r.json()["map"]["curricula"][0]["tracks"]}
+    assert [u["id"] for u in tracks["F1"]["units"]] == ["F1.03"]          # F1.04: drafts only, hidden
+    assert [u["id"] for u in tracks["F2"]["units"]] == ["F2.01"]          # not authored: untouched, even with 0
+    assert [u["id"] for u in fake["curricula"][0]["tracks"][0]["units"]] == ["F1.03", "F1.04"]  # the file is not mutated

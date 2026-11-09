@@ -115,6 +115,18 @@ class AttemptIn(BaseModel):
     time_ms: Optional[int] = None
 
 
+class GameRunIn(BaseModel):
+    kind: str
+    run_id: str
+    right: int = 0
+    total: int = 0
+
+
+class GamePoolIn(BaseModel):
+    kind: str
+    size: int = 20
+
+
 class StepIn(BaseModel):
     n: int = 1
     offset: int = REVEAL_FORWARD_BARS
@@ -220,11 +232,26 @@ def _bank_query():
 
 # ── Member routes ─────────────────────────────────────────────────────────────
 
+def _member_map(m: dict, approved_by_skill: dict) -> dict:
+    """The map a member sees. An AUTHORED course unit (`supply: "authored"`, laid on the map by
+    scripts/study/gen_courses.py, docs/study/courses/README.md) shows only once one of its skills has an approved
+    item: the bank imports its questions as drafts and the owner approves them on the review screen, so a unit
+    whose questions are all still drafts would open empty. Every other unit is passed through untouched."""
+    out = json.loads(json.dumps(m)) if m else {}
+    for cur in out.get("curricula") or []:
+        for tr in cur.get("tracks") or []:
+            tr["units"] = [u for u in tr.get("units") or []
+                           if u.get("supply") != "authored"
+                           or any(approved_by_skill.get(s, 0) > 0 for s in u.get("skills") or [])]
+    return out
+
+
 @router.get("/map", dependencies=_ARMED)
 def get_map(user: dict = Depends(require_paid)):
     """The skill map (a stub reading docs/study/skill_map.json) plus this
     member's skill rows so the trail can colour its nodes."""
-    return {"map": _skill_map(), "skills": study_store.list_skills(user["id"])}
+    approved = {r["skill_id"]: int(r.get("approved") or 0) for r in study_store.review_sections()}
+    return {"map": _member_map(_skill_map(), approved), "skills": study_store.list_skills(user["id"])}
 
 
 @router.get("/today", dependencies=_ARMED)
@@ -452,6 +479,28 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
                                                    "daily_done")},
                          "badges_new": result.get("badges_new") or []},
             "skill": result["skill"]}
+
+
+@router.post("/game-runs", dependencies=_ARMED)
+def post_game_run(body: GameRunIn, user: dict = Depends(require_paid)):
+    """A finished run of a computed game (docs/study/GAMES.md §2): capped XP, once per run_id."""
+    try:
+        r = study_store.record_game_run(user["id"], body.kind, body.run_id, body.right, body.total)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"xp_gained": r["xp_gained"], "duplicate": r["duplicate"], "capped": r["capped"],
+            "progress": {"xp_gained": r["xp_gained"], "xp": r["xp"], "level": r["level"], "weekly_xp": r["weekly_xp"],
+                         "badges_new": r["badges_new"]},
+            "badges_new": r["badges_new"]}
+
+
+@router.post("/game-pool", dependencies=_ARMED)
+def post_game_pool(body: GamePoolIn, user: dict = Depends(require_paid)):
+    """Approved material for a pool game: `tf` prompts (scored through /attempts) or `match` word pairs."""
+    try:
+        return {"kind": body.kind, "items": study_store.game_pool(body.kind, body.size)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/attempts/{attempt_id}/step", dependencies=_ARMED)

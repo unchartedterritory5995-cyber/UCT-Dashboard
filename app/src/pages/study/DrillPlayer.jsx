@@ -516,7 +516,8 @@ export default function DrillPlayer({
         </div>
         {phase === 'reveal' && result && (
           <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}
-            attemptId={result.attempt_id ?? null} reviewer={reviewer} hideVerdict={!unscored} className={styles.revealIn} />
+            attemptId={result.attempt_id ?? null} reviewer={reviewer} hideVerdict={!unscored} className={styles.revealIn}
+            picked={state?.choice ?? null} />
         )}
         {phase === 'failed' && (
           <p className={styles.failed} role="status" data-testid="post-failed">
