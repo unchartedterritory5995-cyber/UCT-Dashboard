@@ -50,7 +50,7 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph)\s+(?:(?:one|two|three|four|[1-4])\s+)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
@@ -65,8 +65,19 @@ const DIAGONAL_PRE = /\b(?:the|that)\s+(?:opposite[-\s]+corner(?:ed)?|diagonal(?
 // click: the click is still only the ANCHOR, so the reference resolves to no chart (asked with the real names), never the click
 const UNPLACED_RELATION = new RegExp(`\\b(?:facing|mirroring|(?:on\\s+)?the\\s+(?:far|other)\\s+side\\s+of|opposite|across|diagonal(?:ly)?|corner(?:ed)?)\\s+(?:(?:from|to|of)\\s+)?${REL_ANCHOR}`, 'i')
 const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph)\b/i.test(s)
+// AUDIT #988 (belt and braces): a COUNT with a DIRECTION anywhere in the words ("2 spaces left of here", "a couple over to the
+// right", "3 over") is a relation from the click even when its shape is not one UCT can place: the click is its anchor, so it is
+// never applied and never offered (the reference resolves to no chart and is asked about without the anchor)
+const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
+  const r = relationMatchOf(text)
+  if (r) return r
+  const c = COUNT_DIRECTION.exec(String(text || ''))
+  if (c) { c.unplaced = true; return c }
+  return null
+}
+function relationMatchOf(text) {
   const s = String(text || '')
   const aboutChart = (x) => !placesNonChart(s.slice(0, x.index)) && (REL_CHART_ANCHOR.test(x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
   const d = DIAGONAL.exec(s) || DIAGONAL_BARE.exec(s) || DIAGONAL_PRE.exec(s)
@@ -218,14 +229,16 @@ export function relativeChart(text, charts = [], sel = null) {
   if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
   return { hits, match: m, ...role, excluded: [] }
 }
-const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, 1: 1, 2: 2, 3: 3, 4: 4, second: 2, third: 3 }
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, second: 2, third: 3 }
 const COUNT_NOUN = '(?:chart|one|cell|pane|panel|graph)'
+// AUDIT #988 probe 13: the unit a count may carry ("two PLACES to the left", "2 charts over to the right")
+const COUNT_UNIT = '(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)'
 // the count a relation carries: inside a bare match ("the chart two to the left"), or right before the relation ("the chart two
 // above this", "the second chart to the right of this", "the next-but-one chart below this")
 function relationCount(s, m) {
   const scope = `${s.slice(0, m.index)}${m[0]}`
   const at = (re) => re.exec(scope)
-  const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|[1-4])\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+  const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|five|[1-9])\\s+(?:${COUNT_UNIT}\\s+)?(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
     || at(new RegExp(`\\b(second|third)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
   if (c) return NUM_WORD[c[1].toLowerCase()] || 1
   return at(new RegExp(`\\bnext[-\\s]but[-\\s]one\\s+${COUNT_NOUN}\\b`, 'i')) ? 2 : 1
@@ -772,7 +785,9 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
       // AUDIT (#988): when the words relate a chart to the click, the click is the anchor and is never offered back as a choice
       const anchor = relationMatch(text) ? selectedChart(host) : null
       const offer = list.filter(c => !anchor || chartRefOf(kind, c) !== anchor)
-      return { ask: { text: `Did you mean ${meant?.label || 'the selected chart'}?`, choices: offer.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      // AUDIT #988 (3): the headline never names the anchor either
+      const namesAnchor = !!anchor && chartRefOf(kind, meant) === anchor
+      return { ask: { text: namesAnchor ? 'Which chart do you mean?' : `Did you mean ${meant?.label || 'the selected chart'}?`, choices: offer.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
   }
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
