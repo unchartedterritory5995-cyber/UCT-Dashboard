@@ -355,6 +355,9 @@ export function execute(program, ctx, limits, opts) {
     // caller sets it yet (no witnessed source), so a cash / percent-of-equity size refuses by name (Q-S1a).
     broker = makeBroker(program.broker, {
       series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned, minContract: ctx.minContract,
+      // W9-T8 — `ctx.tradingDays`: each bar's trading day, when the CALLER knows the session and exchange time zone.
+      // No product caller sets it yet, so max_intraday_filled_orders refuses by name (W9-R1i).
+      tradingDays: ctx.tradingDays,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar

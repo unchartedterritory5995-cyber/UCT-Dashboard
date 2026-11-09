@@ -73,6 +73,15 @@ export const BROKER_RULES = Object.freeze({
   'B-COMM-ORDER': Object.freeze({ capture: 'W9-K3', what: 'commission_type = strategy.commission.cash_per_order: each filled order pays commission_value; a trade profit is net of its entry and exit fees' }),
   'B-SLIPPAGE': Object.freeze({ capture: 'W9-K4', what: 'slippage (ticks): a market order fills that many ticks less favorably than its price (higher for a buy, lower for a sell)' }),
   'B-POC-COST': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close with costs: a fill at the bar close pays its commission and takes its slippage there, from the close price' }),
+  // ── W9-T8: strategy.risk.* (`broker.js` `riskAllow` / `riskTick` / `riskFill`; design section 4 T8, capture rows
+  // W9-R1 and W9-R1i). One rule per probe that witnesses it: `w9-r1-risk-allow.pine` (allow_entry_in),
+  // `w9-r1-risk-ddown.pine` (max_drawdown), `w9-r1-risk-intraday.pine` (max_intraday_filled_orders). A HALT (the limit
+  // reached: cancel, close, stop trading) is NOT a rule: no queued capture is known to reach one, so a run that may
+  // reach a limit stops by name (`runtime:strategy-unsettled`). max_intraday_loss, max_cons_loss_days and
+  // max_position_size have no probe that calls them: they are refused at build (`ast/strategyBroker.js`), not named here.
+  'B-RISK-ALLOW': Object.freeze({ capture: 'W9-R1', what: 'strategy.risk.allow_entry_in: a strategy.entry market order in the other direction closes the open position at its fill (and opens nothing); with no position it fills nothing; an entry in the allowed direction is unchanged' }),
+  'B-RISK-DDOWN': Object.freeze({ capture: 'W9-R1', what: 'strategy.risk.max_drawdown below its limit: the run is exactly the run without the call (the limit reached is a refusal, not this rule)' }),
+  'B-RISK-INTRADAY-ORDERS': Object.freeze({ capture: 'W9-R1i', what: 'strategy.risk.max_intraday_filled_orders below its limit on every trading day: the run is exactly the run without the call (the limit reached is a refusal, not this rule)' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
@@ -110,6 +119,14 @@ export const COMMISSION_NET_VALUES = Object.freeze([
   'strategy.openprofit', 'strategy.equity', 'strategy.closedtrades.profit',
   'strategy.closedtrades.commission', 'strategy.opentrades.commission',
 ])
+
+/** ⭐ W9-T8: the rule and capture row of each `strategy.risk.*` command the broker reads (the declaration's
+ *  `risk` keys, `ast/strategyBroker.js` readRiskCall). ONE TABLE: the broker's refusals name these rows. */
+export const RISK_RULES = Object.freeze({
+  allow: 'B-RISK-ALLOW',
+  maxDrawdown: 'B-RISK-DDOWN',
+  intradayOrders: 'B-RISK-INTRADAY-ORDERS',
+})
 
 /** The capture row that pins `ruleId`; throws for a rule this table does not name. */
 export function ruleCapture(ruleId) {

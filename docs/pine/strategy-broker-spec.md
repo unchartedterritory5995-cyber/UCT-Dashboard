@@ -73,7 +73,7 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 | Q-S1p | v5 `when`; a strategy's outputs on the forming bar | B-WHEN carried from R4; B-EXEC from M only |
 
 Not served at all (refused by name at build, `runtime:strategy-option` / `runtime:strategy-value`):
-`strategy.risk.*`, a `strategy.exit` `oca_name` (W9-X3),
+`strategy.risk.max_intraday_loss` / `max_cons_loss_days` / `max_position_size` and every `strategy.risk.*` call that is not v6, top-level and literal (W9-T8 reads the other three, section "W9-T8"), a `strategy.exit` `oca_name` (W9-X3),
 bar magnifier, `calc_on_every_history_tick = true`, `backtest_fill_limits_assumption` other than 0 (W9-T6 made `process_orders_on_close` and `calc_on_order_fills` READ: each refuses at run time by its rule until pinned; W9-T7 made `strategy.order`, `trail_*`, partial `qty` / `qty_percent`, entry / order OCA groups and `immediately` READ the same way), `close_entries_rule = "ANY"`,
 an account currency, and every `strategy.*` value outside B-VAL (`max_drawdown`, `*_percent` but
 `netprofit_percent`, `position_entry_name`, `avg_*`, `max_contracts_held_*`, the per-trade functions
@@ -130,6 +130,9 @@ W9-T6 r1: the July-2026 Properties defaults (W9-J1) are not a rule. They are par
 | B-COMM-ORDER | W9-K3 | (W9-T5) `strategy.commission.cash_per_order`: each filled order pays `commission_value` |
 | B-SLIPPAGE | W9-K4 | (W9-T5) `slippage` ticks: a market order fills that many ticks less favourably |
 | B-POC-COST | W9-P1 | (W9-T5) under `process_orders_on_close`: a fill at the close pays its costs there, from the close |
+| B-RISK-ALLOW | W9-R1 | (W9-T8) `strategy.risk.allow_entry_in`: a forbidden market `strategy.entry` closes the open position at its fill and opens nothing; flat, it fills nothing |
+| B-RISK-DDOWN | W9-R1 | (W9-T8) `strategy.risk.max_drawdown` below its limit changes nothing (the limit possibly reached is a named refusal, not this rule) |
+| B-RISK-INTRADAY-ORDERS | W9-R1i | (W9-T8) `strategy.risk.max_intraday_filled_orders` below its limit on every trading day changes nothing (the limit reached is a named refusal) |
 
 ## W9-T7: the exit family and the other order kinds (all unpinned)
 
@@ -200,3 +203,49 @@ not stated. The record (`strategyRecord.js`) now carries `settings.commission` (
 typeDefaulted }`), `settings.slippage` and each trade's `commission` (closed: entry + exit; open: entry so far).
 
 Evidence: `docs/pine/evidence/2026-11-08-w9-t5/` (the census harness; base `30e85eb877` against this lane).
+
+## W9-T8: strategy.risk.* (all unpinned)
+
+Design section 4 T8, gated by capture rows W9-R1 (`w9-r1-risk-allow.pine`, `w9-r1-risk-ddown.pine`, NYSE:RDDT 1D) and
+W9-R1i (`w9-r1-risk-intraday.pine`, AMEX:SPY 15, schedulable only after the 15-minute depth read; D4 is not decided).
+One rule per probe that CALLS its command. Text quoted from the v6 Language Reference (R6,
+`_w0-2026-11-02/ref/pine_v6_reference.json`) and the User Manual (M, "Risk management", the live page
+https://www.tradingview.com/pine-script-docs/concepts/strategies/#risk-management, fetched 2026-11-08, HTTP 200, the
+section read verbatim from the HTML). **Everything the texts leave open is either a HYPOTHESIS behind its rule (served only
+once that rule is pinned) or a named refusal. No halt (a limit reached: cancel, close, stop trading) is served anywhere:
+no queued capture is known to reach one.**
+
+**Read like the declaration, not run like an order** (`ast/strategyBroker.js` `readRiskCall`, into `program.broker.risk`).
+M: "Strategies can incorporate any number of risk management criteria in any combination. All risk management commands
+execute on every tick and order execution event, regardless of any changes to the strategy's calculation behavior. There is
+no way to deactivate any of these commands on specific script executions. Irrespective of a risk management command's
+location, the command always applies to the strategy unless the programmer removes the call from the code." R6 types every
+argument `simple`. Served only in the shape every probe has: Pine v6, at the top level of the script, literal arguments,
+one call per command (otherwise `runtime:strategy-option` at build, by name). Beside a risk command, `process_orders_on_close`,
+`calc_on_order_fills`, a commission, a slippage and every T7 kind (`strategy.order` included) stop the run by name: no
+capture combines them.
+
+| rule | the texts say | HYPOTHESIS built (graded by the capture row) | refused by name |
+|---|---|---|---|
+| B-RISK-ALLOW | R6: "This function can be used to specify in which market direction the strategy.entry() function is allowed to open positions." R6 example: "Instead of opening a short position with 10 contracts, this command will close long entries." M: "This command overrides the market direction allowed for all calls to the strategy.entry() command. If a user specifies the trade direction with the strategy.risk.allow_entry_in() function (e.g., strategy.direction.long), the strategy enters trades only in that direction. If the script calls an entry command in the opposite direction of an open market position, the strategy generates a market order to close the position without entering a new trade in that direction." | the close is the forbidden entry's own market order, filled where and when the entry would have (the next open), closing every open trade (oldest first), labelled `B-RISK-ALLOW`; a forbidden entry with no position fills nothing; an allowed entry, and `strategy.direction.all`, change nothing | a forbidden PRICE entry (the probe places market entries only); `strategy.order` (both texts name strategy.entry only). All W9-R1 |
+| B-RISK-DDOWN | R6: "The purpose of this rule is to determine maximum drawdown. The rule affects the whole strategy. Once the maximum drawdown value is reached, all pending orders are cancelled, all open positions are closed and no new orders can be placed." `value`: "The maximum drawdown value. It is specified either in money (base currency), or in percentage of maximum equity. For % of equity the range of allowed values is from 0 to 100." `type`: "Note: if equity drops down to zero or to a negative and the 'strategy.percent_of_equity' is specified, all pending orders are cancelled, all open positions are closed and no new orders can be placed for good." M: "This command cancels all pending orders, closes any open market position, and stops all additional trade actions after the strategy's drawdown reaches the amount specified in the function call." | below the limit the run is the run without the call | the limit possibly reached, by the WIDEST reading of the texts: equity with open profit at every extreme the path makes (each vertex, each fill level on the path), the peak from the initial capital, a percent taken of the initial capital (smaller than the maximum equity R6 names), reached at `>=`. The halt is never served. W9-R1 |
+| B-RISK-INTRADAY-ORDERS | R6: "The purpose of this rule is to determine maximum number of filled orders per 1 day (per 1 bar, if chart resolution is higher than 1 day). The rule affects the whole strategy. Once the maximum number of filled orders is reached, all pending orders are cancelled, all open positions are closed and no new orders can be placed till the end of the current trading session." R6 example comment: "After 10 orders are filled, no more strategy orders will be placed (except for a market order to exit current open market position, if there is any)." M: "This command specifies the maximum number of filled orders per trading day (or per chart bar if the chart's timeframe is higher than "1D"). If the strategy fills more orders than the specified limit, the command cancels all pending orders, closes any open market position, and halts trading activity until the end of the current session." | below the limit on every trading day the run is the run without the call; the trading day of each bar is what the run context states (`ctx.tradingDays`) | a run not told each bar's trading day (the session and exchange time zone: no product caller states it, so on the member door it always refuses); a day whose count REACHES the limit (R6 "is reached" and M "fills more orders than the specified limit" disagree), each trade a fill opens or closes counted once (an upper bound: whether one order filling several trades counts once is not stated). W9-R1i |
+
+Refused at build, not rules (no queued capture calls them; a pure hypothesis is not a rule):
+- `strategy.risk.max_intraday_loss`: R6 "The maximum loss value allowed during a day. It is specified either in money (base
+  currency), or in percentage of maximum intraday equity (0 -100)." The design names W9-R1i for "the intraday risk
+  functions", but its probe calls only `max_intraday_filled_orders`. Follow-up: a probe that calls it (T3b).
+- `strategy.risk.max_cons_loss_days`: R6 "The purpose of this rule is to cancel all pending orders, close all open positions
+  and stop placing orders after a specified number of consecutive days with losses. The rule affects the whole strategy."
+  No capture row (follow-up: a row and a probe, design 5.2).
+- `strategy.risk.max_position_size`: R6 "The purpose of this rule is to determine maximum size of a market position. The rule
+  affects the following function: strategy.entry(). The 'entry' quantity can be reduced (if needed) to such number of
+  contracts/shares/lots/units, so the total position size doesn't exceed the value specified in
+  'strategy.risk.max_position_size'. If minimum possible quantity still violates the rule, the order will not be placed."
+  No capture row (follow-up as above).
+
+Note on the W9-R1 drawdown probe (`max_drawdown(2, strategy.percent_of_equity)`, fixed size 1, v6 capital 100,000 on RDDT):
+a 2% drawdown is 2,000, more than one share of RDDT can lose, so the capture can witness only the below-the-limit branch,
+which is all B-RISK-DDOWN serves. A probe that reaches a limit is needed before any halt can be built.
+
+Evidence: `docs/pine/evidence/2026-11-08-w9-t8/` (census; base `6b75450c5e` against this lane; mutants).

@@ -65,7 +65,7 @@ import {
 import { CLOCK_FIELDS } from '../runtime/program.js'
 // ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
 import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS } from '../runtime/broker.js'
-import { readStrategyDeclaration, orderArgsOf, StrategyOptionError } from './strategyBroker.js'
+import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError } from './strategyBroker.js'
 // W9-T1 - the build flag is NOT read here: this module is in the server compute closure, which bakes
 // no VITE_* name (serverBundle.rail, hostNeutralClosure.rail). The member door (memberPaneDefinition.js,
 // outside the closure) registers the reader; the server never does, so the broker is dark there.
@@ -11799,6 +11799,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
         note('runtime:strategy-order')
         // ⭐⭐ S1 — with the broker on, an order call is an ORDER, lowered as one.
         if (brokerMode) {
+          // ⭐⭐ W9-T8 — a `strategy.risk.*` command is READ into the declaration (`strategyBroker.js`
+          // readRiskCall), not lowered: R6 types its arguments `simple`, and the User Manual says it applies
+          // "irrespective of a risk management command's location". ⛔ Served only at the top level, the shape
+          // every W9-R1 / W9-R1i probe has; one inside a block, a loop or a function refuses by name.
+          if (word.startsWith('strategy.risk.')) {
+            if (condDepth !== 0) {
+              note('runtime:strategy-option')
+              throw new RuntimeRefusal('runtime:strategy-option', `\`${word}()\` inside a block (the User Manual says a `
+                + 'risk command applies irrespective of its location; no TradingView capture witnesses one that is not at the '
+                + 'top level of the script)', locate(first))
+            }
+            try { readRiskCall(word, parseWholeExpression(toks), pineVersion, brokerDecl) } catch (e) {
+              throw brokerRefusal(e, first)
+            }
+            continue
+          }
           if (!BROKER_ORDER_OPS.includes(word)) {
             note('runtime:strategy-option')
             throw new RuntimeRefusal('runtime:strategy-option', `\`${word}()\``, locate(first))

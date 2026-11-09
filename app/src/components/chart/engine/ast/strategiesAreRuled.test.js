@@ -185,7 +185,10 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // (W9-K1), B-COMM-CONTRACT (W9-K2), B-COMM-ORDER (W9-K3), B-SLIPPAGE (W9-K4), B-POC-COST (W9-P1,
     // design T6's "costs are taken at the close").
     // Every other rail DERIVES the count; a rule added without moving this line is the drift it catches.
-    expect(BROKER_RULE_IDS.length).toBe(41)
+    // + 3 W9-T8 risk rules (dated 2026-11-08), one per probe that calls its command: B-RISK-ALLOW (W9-R1,
+    // allow_entry_in), B-RISK-DDOWN (W9-R1, max_drawdown), B-RISK-INTRADAY-ORDERS (W9-R1i,
+    // max_intraday_filled_orders). The three commands no probe calls refuse at build and are not rules.
+    expect(BROKER_RULE_IDS.length).toBe(44)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

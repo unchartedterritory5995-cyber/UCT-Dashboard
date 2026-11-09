@@ -26,7 +26,7 @@
 // bar at all (`vm.js`), so no realtime tick ever reaches this file.
 
 import { pinned } from './brokerPins.js'
-import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf } from './brokerRules.js'
+import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf, RISK_RULES } from './brokerRules.js'
 
 export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 export const BROKER_START_GUARD = 'runtime:strategy-start'
@@ -180,6 +180,30 @@ export function makeBroker(cfg, data) {
   /** every figure that reads a commission (a net profit, equity, the fee itself) asks this */
   const askCommission = () => { for (const r of commRules) rule(r) }
   const COMM_ROW = { percent: 'W9-K1', cash_per_contract: 'W9-K2', cash_per_order: 'W9-K3' }
+  // ⭐⭐ W9-T8 — strategy.risk.*, read from the declaration (`ast/strategyBroker.js` readRiskCall). With no risk
+  // command `riskOn` is false and every risk line below returns at once: the run is exactly the pre-T8 run.
+  const risk = cfg.risk && typeof cfg.risk === 'object' ? cfg.risk : {}
+  const allow = typeof risk.allow === 'string' ? risk.allow : null
+  const maxDd = risk.maxDrawdown && typeof risk.maxDrawdown === 'object' ? risk.maxDrawdown : null
+  const dayCap = Number.isInteger(risk.intradayOrders) ? risk.intradayOrders : null
+  const riskOn = allow !== null || maxDd !== null || dayCap !== null
+  /** the capture row of the risk command(s) this run declares (W9 design 5.2) */
+  const riskRow = allow !== null || maxDd !== null ? 'W9-R1' : 'W9-R1i'
+  // the trading day of each bar, as the run context states it (`ctx.tradingDays`); undefined when the caller does
+  // not know it (today: every product caller), so max_intraday_filled_orders refuses by name (W9-R1i)
+  const tradingDays = data.tradingDays
+  /** ⛔ every W9-R1 / W9-R1i probe runs at the default fill timing with no cost: a risk command combined with
+   *  process_orders_on_close, calc_on_order_fills, a commission or a slippage stops the run by name. */
+  const riskDefaultOnly = (what) => {
+    if (poc || coof) {
+      throw new BrokerRefusal(`${what} under ${poc ? 'process_orders_on_close' : 'calc_on_order_fills'} is not served `
+        + '(no capture combines the two)', riskRow)
+    }
+    if (costOn || slipTicks) {
+      throw new BrokerRefusal(`${what} with ${costOn ? `a commission (${comm.type})` : `a slippage of ${slipTicks} ticks`} is not `
+        + 'served (no capture combines the two)', riskRow)
+    }
+  }
   /** which tick the fill being made is on: 'open' | 'path' | 'poc' | 'vertex' (W9-T5) */
   let costTick = 'open'
   /** ⭐ W9-T5 [B-COMM-ORDER] fees charged by the order being filled: a per-order fee is ONE per order */
@@ -315,6 +339,7 @@ export function makeBroker(cfg, data) {
   const closeTrade = (t, price, bar, exact) => {
     const i = open.indexOf(t)
     if (i < 0) return
+    riskFill(bar)
     // ⭐ W9-T5: the exit fill's fee; `commission` is the trade's entry fee plus it (0 with no commission)
     const exitFee = feeOf(t.qty, price)
     open.splice(i, 1)
@@ -326,6 +351,7 @@ export function makeBroker(cfg, data) {
    *  the open one keeps the rest, its entry price, bar and id). [B-EXIT-QTY] [B-CLOSE-QTY] [B-ORDER] */
   const closePart = (t, units, price, bar, exact) => {
     if (units >= t.qty) { closeTrade(t, price, bar, exact); return }
+    // (W9-T8: no fill count here - a partial size is a T7 kind, refused beside a risk command, `t7DefaultTimingOnly`)
     // (W9-T5: a partial size is a T7 kind, and a T7 kind with a cost refuses at its call, `t7DefaultTimingOnly`,
     // so no fee is ever split here)
     closed.push({ ...t, qty: units, exitPrice: price, exitBar: bar, exitRule: fillRule, exact: t.exact && exact,
@@ -417,6 +443,7 @@ export function makeBroker(cfg, data) {
   }
   /** ⭐ W9-T7 — a new open trade from order `o`, bound to the exits waiting for it. */
   const openTrade = (o, price, bar, exact, reversed) => {
+    riskFill(bar)
     // W9-T5: `fee` is the entry fill's fee, paid now (0 with no commission)
     const t = { entryId: o.id, dir: o.dir, qty: o.qty, price, bar, exact, seq: (seq += 1), entryRule: fillRule, fee: feeOf(o.qty, price) }
     open.push(t)
@@ -470,6 +497,11 @@ export function makeBroker(cfg, data) {
   const fillEntry = (o, price0, bar, exact) => {
     orderFees = 0
     if (o.kind === 'order') return fillOrder(o, price0, bar, exact)
+    // ⭐⭐ W9-T8 [B-RISK-ALLOW] an entry the declared direction may forbid
+    if (allow !== null) {
+      const r = riskAllow(o, price0, bar, exact)
+      if (r !== undefined) return r
+    }
     entries = entries.filter((e) => e !== o)
     let reversed = false
     // W9-T5: one order, one (slipped) price for a reversal's close and its new trade. Taken once the entry
@@ -848,6 +880,7 @@ export function makeBroker(cfg, data) {
         let made = null
         costTick = 'path'
         for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
+        riskTick(best) // W9-T8: a fill level on the path (a reversal there is an equity extreme no vertex holds)
         checkActivation(best, made)
         if (coof) {
           if (last && best === target) closingTick()
@@ -855,6 +888,7 @@ export function makeBroker(cfg, data) {
         }
       }
       p = target
+      riskTick(target) // W9-T8: each vertex the path reaches (the bar's last is its close)
       ratchetTrails(target)
       // [B-FILLS] a market order an extra execution placed fills on the next tick: this vertex
       if (coof && waiting()) {
@@ -956,6 +990,10 @@ export function makeBroker(cfg, data) {
     if (costOn) {
       throw new BrokerRefusal(`${what} with a commission (${comm.type}) is not served (no capture combines the two)`, COMM_ROW[comm.type])
     }
+    // ⭐ W9-T8 — nor with a risk command: every W9-R1 / W9-R1i probe places whole market entries and closes only.
+    // (This is also what refuses `strategy.order` beside allow_entry_in, which R6 and the manual do not cover:
+    // both name strategy.entry only.)
+    if (riskOn) throw new BrokerRefusal(`${what} with a strategy.risk.* command is not served (no capture combines the two)`, riskRow)
   }
   /** ⭐ W9-T7 [B-OCA] an order's One-Cancels-All group: `null`, or `{ name, type }`. R6 `oca_name`:
    *  "The default is an empty string, which means the order does not belong to an OCA group";
@@ -1197,6 +1235,124 @@ export function makeBroker(cfg, data) {
     if (!truthy(a[0])) return
     entries = []
     exits = []
+  }
+
+  // ─── ⭐⭐ W9-T8: strategy.risk.* ──────────────────────────────────────────────
+  /**
+   * [B-RISK-ALLOW] R6 `strategy.risk.allow_entry_in`: "This function can be used to specify in which market direction
+   * the strategy.entry() function is allowed to open positions." Its example: "Instead of opening a short position with
+   * 10 contracts, this command will close long entries." User Manual ("Risk management", the live page, 2026-11-08):
+   * "This command overrides the market direction allowed for all calls to the strategy.entry() command. If a user
+   * specifies the trade direction with the strategy.risk.allow_entry_in() function (e.g., strategy.direction.long),
+   * the strategy enters trades only in that direction. If the script calls an entry command in the opposite direction
+   * of an open market position, the strategy generates a market order to close the position without entering a new
+   * trade in that direction."
+   * HYPOTHESES (W9-R1, `w9-r1-risk-allow.pine`, grades them): that close is the forbidden entry's own market order,
+   * filled where and when the entry would have filled (the next open), and it closes every open trade (oldest first);
+   * a forbidden entry with no position open fills nothing; an allowed entry, and `strategy.direction.all`, change nothing.
+   * ⛔ Refused by name (W9-R1): a forbidden PRICE entry (the probe places market entries only). Returns `undefined`
+   * when the entry proceeds as usual, else what `fillEntry` returns.
+   */
+  const riskAllow = (o, price, bar, exact) => {
+    rule(RISK_RULES.allow)
+    riskDefaultOnly('`strategy.risk.allow_entry_in`')
+    const side = o.dir > 0 ? 'long' : 'short'
+    if (allow === 'all' || allow === side) return undefined
+    if (o.type !== 'market') {
+      throw new BrokerRefusal(`the ${o.type} entry \`${o.id}\` is ${side}, which strategy.risk.allow_entry_in(${allow}) forbids, `
+        + 'and what TradingView does with a forbidden price entry is not witnessed (the W9-R1 probe places market entries only)', 'W9-R1')
+    }
+    // (an exit waiting for this id keeps a reference to an order that never fills, which places nothing: `liveOrders`
+    // reads only bound trades, and the exit ends with the position, `afterPositionChange`)
+    entries = entries.filter((e) => e !== o)
+    if (!open.length) return null
+    // the open position is the other direction's: the allowed one (nothing else opens a trade beside a risk command,
+    // `t7DefaultTimingOnly` refuses `strategy.order`)
+    const keep = fillRule
+    fillRule = RISK_RULES.allow
+    const targets = open.slice()
+    requireOldest(targets)
+    for (const t of targets) closeTrade(t, price, bar, exact)
+    fillRule = keep
+    afterPositionChange()
+    return null
+  }
+  /**
+   * [B-RISK-DDOWN] R6 `strategy.risk.max_drawdown`: "The purpose of this rule is to determine maximum drawdown. The rule
+   * affects the whole strategy. Once the maximum drawdown value is reached, all pending orders are cancelled, all open
+   * positions are closed and no new orders can be placed." `value`: "The maximum drawdown value. It is specified either in
+   * money (base currency), or in percentage of maximum equity. For % of equity the range of allowed values is from 0 to
+   * 100." `type`: "Note: if equity drops down to zero or to a negative and the 'strategy.percent_of_equity' is specified,
+   * all pending orders are cancelled, all open positions are closed and no new orders can be placed for good." User
+   * Manual: "This command cancels all pending orders, closes any open market position, and stops all additional trade
+   * actions after the strategy's drawdown reaches the amount specified in the function call."
+   * SERVED: only a run that stays BELOW the limit, which is the run without the call (the rule's one hypothesis).
+   * ⛔ The texts leave open what "drawdown" is measured on and when: equity with or without open profit, at each tick
+   * (the manual: "All risk management commands execute on every tick and order execution event") or at the bar close,
+   * and whether a percent is of the maximum equity (R6) or, say, of the initial capital. So the check takes the WIDEST
+   * reading, and a run that MAY reach the limit under any of them stops by name (W9-R1). The series is equity WITH
+   * open profit, from a peak that starts at the initial capital, at every extreme the path can make: each vertex (the
+   * bar's extremes and its close) and each fill level on the path. Between those the position is fixed and the price
+   * monotonic, so equity is monotonic; at a fill equity is continuous (no cost is served beside a risk command), and
+   * only a REVERSAL at a level turns it there. The open needs no sample of its own: it lies between the bar's extremes,
+   * and with the position held after its fills it is never beyond the vertex on either side. A finer sampling can only
+   * raise the peak and lower the trough, so a run below the limit here is below it at any coarser one (the bar close).
+   * Equity of CLOSED trades
+   * only needs no series of its own: it moves only at a fill, where both series hold the same realized part, and a
+   * trade closing at a loss was already under water in the open series on the path to that fill, on the same prices
+   * (one symbol, costs refused beside a risk command). A percent is taken of the smaller of the initial capital and
+   * the maximum equity, which is the initial capital (the peak starts there). The halt itself is never served.
+   */
+  let ddPeak = NaN
+  const riskTick = (px) => {
+    if (maxDd === null) return
+    needSymbol()
+    const cap = cfg.initialCapital
+    const eq = cap + (netPts() + sum(open, (t) => (px - t.price) * t.dir * t.qty)) * pointvalue
+    ddPeak = Math.max(ddPeak, eq)
+    const dd = ddPeak - eq
+    const limit = maxDd.type === 'cash' ? maxDd.value : cap * maxDd.value / 100
+    if (dd >= limit - 1e-9 * Math.max(1, Math.abs(limit))) {
+      throw new BrokerRefusal(`strategy.risk.max_drawdown(${maxDd.value}, ${maxDd.type}) may reach its limit at ${px}: a `
+        + `drawdown of ${dd} from an equity of ${ddPeak} by the widest reading of the texts (every tick the path reaches; a `
+        + 'percent of the initial capital, the smaller base), and what TradingView does at the limit (which tick it closes '
+        + 'on, at what price) is not witnessed', 'W9-R1')
+    }
+  }
+  /**
+   * [B-RISK-INTRADAY-ORDERS] R6 `strategy.risk.max_intraday_filled_orders`: "The purpose of this rule is to determine
+   * maximum number of filled orders per 1 day (per 1 bar, if chart resolution is higher than 1 day). The rule affects
+   * the whole strategy. Once the maximum number of filled orders is reached, all pending orders are cancelled, all open
+   * positions are closed and no new orders can be placed till the end of the current trading session." User Manual:
+   * "This command specifies the maximum number of filled orders per trading day (or per chart bar if the chart's
+   * timeframe is higher than "1D"). If the strategy fills more orders than the specified limit, the command cancels all
+   * pending orders, closes any open market position, and halts trading activity until the end of the current session."
+   * SERVED: only a run below the limit on every trading day, which is the run without the call.
+   * ⛔ The texts disagree on the trigger (R6 "is reached", the manual "fills more orders than the specified limit");
+   * what a "day" is depends on the symbol's session and exchange time zone, which no run carries; and whether one order
+   * that fills several trades (a reversal, a close of several) counts once is not stated. So the run must be TOLD each
+   * bar's trading day (`ctx.tradingDays`; no product caller is yet), every trade a fill opens or closes counts once (an
+   * upper bound on filled orders), and a day whose count REACHES the limit stops the run by name (W9-R1i). The halt
+   * itself is never served.
+   */
+  const dayFills = new Map()
+  const riskFill = (bar) => {
+    if (dayCap === null) return
+    rule(RISK_RULES.intradayOrders)
+    riskDefaultOnly('`strategy.risk.max_intraday_filled_orders`')
+    const day = Array.isArray(tradingDays) && Number.isInteger(bar) && bar >= 0 && bar < tradingDays.length ? tradingDays[bar] : undefined
+    if (day === undefined || day === null) {
+      throw new BrokerRefusal('`strategy.risk.max_intraday_filled_orders` counts filled orders per trading day, and the trading '
+        + 'day of each bar (its session and exchange time zone) is not known to this run', 'W9-R1i')
+    }
+    const n = (dayFills.get(day) || 0) + 1
+    dayFills.set(day, n)
+    if (n >= dayCap) {
+      throw new BrokerRefusal(`strategy.risk.max_intraday_filled_orders(${dayCap}) may reach its limit on trading day ${day} `
+        + `(${n} fills, each trade a fill opens or closes counted once): the v6 reference halts "once the maximum number of `
+        + 'filled orders is reached", the User Manual when the strategy "fills more orders than the specified limit", and the '
+        + 'halt (cancel, close, no new orders until the end of the session) is not witnessed', 'W9-R1i')
+    }
   }
 
   // ─── the values ───────────────────────────────────────────────────────────
@@ -1482,6 +1638,14 @@ export function makeBroker(cfg, data) {
       rulesUsed: Array.from(okRules).sort(),
     },
   })
+
+  // ⭐⭐ W9-T8 [B-RISK-DDOWN] the whole run rests on staying below the limit: asked once, before the first bar (as
+  // B-TICK-HIST is). The peak starts at the initial capital (the equity before any trade).
+  if (maxDd !== null) {
+    rule(RISK_RULES.maxDrawdown)
+    riskDefaultOnly('`strategy.risk.max_drawdown`')
+    ddPeak = capital()
+  }
 
   return { beginBar, endBar, call, summary }
 }

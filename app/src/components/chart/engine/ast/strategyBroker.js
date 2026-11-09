@@ -171,6 +171,97 @@ export function readStrategyDeclaration(call, version) {
   return cfg
 }
 
+// ─── ⭐⭐ W9-T8: strategy.risk.* ─────────────────────────────────────────────
+//
+// A risk command is read like the declaration, not run like an order. The User Manual ("Risk management",
+// the live page https://www.tradingview.com/pine-script-docs/concepts/strategies/#risk-management, read
+// 2026-11-08): "All risk management commands execute on every tick and order execution event, regardless of any
+// changes to the strategy's calculation behavior. There is no way to deactivate any of these commands on specific
+// script executions. Irrespective of a risk management command's location, the command always applies to the
+// strategy unless the programmer removes the call from the code." Its arguments are `simple` (R6 `allowedTypeIDs`),
+// so the value is fixed for the run. ⛔ This reader serves only what a capture row's probe witnesses: a v6 call,
+// at the top level of the script (the probes' shape), with literal arguments, once per command.
+//
+// Each command's rule is asked by `runtime/broker.js` when a run REACHES it (B-RISK-ALLOW, B-RISK-DDOWN,
+// B-RISK-INTRADAY-ORDERS; `runtime/brokerRules.js`). The three commands below have no probe that calls them, so
+// they refuse here, at build, by name (`runtime:strategy-option`): a pure hypothesis is not a rule.
+/** R6 `syntax` lines, v6: the parameters of the risk commands this reader serves. */
+const RISK_SIGNATURES = Object.freeze({
+  'strategy.risk.allow_entry_in': ['value'],
+  'strategy.risk.max_drawdown': ['value', 'type', 'alert_message'],
+  'strategy.risk.max_intraday_filled_orders': ['count', 'alert_message'],
+})
+/** The risk commands no queued capture witnesses, and why (W9 design 5.2 names no probe that calls them). */
+const RISK_UNWITNESSED = Object.freeze({
+  'strategy.risk.max_intraday_loss': 'is not served: capture row W9-R1i\'s probe (`w9-r1-risk-intraday.pine`) calls '
+    + 'only `strategy.risk.max_intraday_filled_orders`, so no queued TradingView capture witnesses an intraday loss limit',
+  'strategy.risk.max_cons_loss_days': 'is not served: no TradingView capture row is queued for it (W9 design 5.2 '
+    + 'names W9-R1 for allow_entry_in and max_drawdown only)',
+  'strategy.risk.max_position_size': 'is not served: no TradingView capture row is queued for it (W9 design 5.2 '
+    + 'names W9-R1 for allow_entry_in and max_drawdown only)',
+})
+/** R6 `strategy.direction.*` constants, as the broker reads them. */
+const RISK_DIRECTIONS = Object.freeze({ 'strategy.direction.all': 'all', 'strategy.direction.long': 'long', 'strategy.direction.short': 'short' })
+
+/**
+ * ⭐⭐ W9-T8 — read one `strategy.risk.*(...)` call (its parse node) into the declaration's `risk` record:
+ * `cfg.risk = { allow?: 'all'|'long'|'short', maxDrawdown?: { value, type: 'percent_of_equity'|'cash' },
+ * intradayOrders?: count }`. Throws `StrategyOptionError` (refused at build, by name) for anything else.
+ * @param {string} fn the command
+ * @param {object} call its parse node
+ * @param {number} version the script's `//@version`
+ * @param {object|null} cfg the declaration `readStrategyDeclaration` returned (null: none read yet)
+ */
+export function readRiskCall(fn, call, version, cfg) {
+  const tok = call && call.tok
+  if (Object.prototype.hasOwnProperty.call(RISK_UNWITNESSED, fn)) throw new StrategyOptionError(`\`${fn}()\` ${RISK_UNWITNESSED[fn]}`, tok)
+  const sig = RISK_SIGNATURES[fn]
+  if (!sig) throw new StrategyOptionError(`\`${fn}()\` is not a risk command this broker reads`, tok)
+  // only the v6 reference was read, and every W9-R1 / W9-R1i probe is v6
+  if (Number(version) !== 6) throw new StrategyOptionError(`\`${fn}()\` in Pine version ${version} (only the v6 reference was read)`, tok)
+  if (!cfg) throw new StrategyOptionError(`\`${fn}()\` before the strategy() declaration`, tok)
+  const got = new Map()
+  ;(call.args || []).forEach((a, i) => {
+    const key = a.name || sig[i]
+    if (!key || !sig.includes(key)) {
+      throw new StrategyOptionError(`\`${fn}\` has no parameter ${a.name ? `\`${a.name}\`` : `at position ${i + 1}`}`, a.value && a.value.tok)
+    }
+    got.set(key, a.value)
+  })
+  // `alert_message` labels an alert and changes no broker value; a literal only (an expression could carry an effect)
+  if (got.has('alert_message') && got.get('alert_message').type !== 'string') {
+    throw new StrategyOptionError(`\`${fn}\`'s \`alert_message\` is not a text literal`, got.get('alert_message').tok)
+  }
+  const need = (ok, why, node) => { if (!ok) throw new StrategyOptionError(`\`${fn}\` ${why}`, (node && node.tok) || tok) }
+  const risk = cfg.risk || (cfg.risk = {})
+  const once = (key) => need(risk[key] === undefined, 'is called more than once (which call wins is not stated)')
+  if (fn === 'strategy.risk.allow_entry_in') {
+    once('allow')
+    const v = got.get('value')
+    const dir = RISK_DIRECTIONS[nameOf(v)]
+    need(!!dir, '`value` is not strategy.direction.all / long / short', v)
+    risk.allow = dir
+  } else if (fn === 'strategy.risk.max_drawdown') {
+    once('maxDrawdown')
+    const v = got.get('value')
+    const t = got.get('type')
+    const n = numOf(v)
+    const type = nameOf(t) === 'strategy.percent_of_equity' ? 'percent_of_equity' : (nameOf(t) === 'strategy.cash' ? 'cash' : null)
+    need(!!t && type !== null, '`type` is not strategy.percent_of_equity / strategy.cash (it is a required parameter)', t)
+    // R6 `value`: "For % of equity the range of allowed values is from 0 to 100."
+    need(Number.isFinite(n) && n > 0 && (type === 'cash' || n <= 100), type === 'cash' ? '`value` is not a positive literal'
+      : '`value` is not a literal above 0 and at most 100', v)
+    risk.maxDrawdown = { value: n, type }
+  } else {
+    once('intradayOrders')
+    const v = got.get('count')
+    const n = numOf(v)
+    need(Number.isInteger(n) && n > 0, '`count` is not a positive whole-number literal', v)
+    risk.intradayOrders = n
+  }
+  return risk
+}
+
 /** [B-SIG] each order command's parameter list, per Pine version (the reference
  *  `syntax` lines). v5 and v6 share one list per command. */
 const SIGNATURES = Object.freeze({
