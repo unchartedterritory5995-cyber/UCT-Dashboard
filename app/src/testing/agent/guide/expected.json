@@ -997,8 +997,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C3-103": {
-  "feature": "widgetSettings",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "watchlistAction",
+  "title": "Changing a watchlist’s look",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (was widgetSettings: the widget’s own ⚙ settings panel (canvas, text, tint))"
  },
  "C3-107": {
   "feature": "widgetAction",
@@ -1574,5 +1575,20 @@
   "feature": "control",
   "title": "A drawing’s Duplicate",
   "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
+ },
+ "C3-071": {
+  "feature": "watchlistAction",
+  "title": "Creating a list from a template",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: ‹ Lists → ＋ New → Template, in the Charts widget’s picker)"
+ },
+ "C3-102": {
+  "feature": "watchlistAction",
+  "title": "A ticker’s attention facts",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: the column menu’s Attention, whose cells hold the facts)"
+ },
+ "C3-104": {
+  "feature": "watchlistAction",
+  "title": "A saved watchlist look",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: ⚙ → Templates in the widget’s settings panel)"
  }
 }

@@ -1500,6 +1500,12 @@
   "title": "Creating a watchlist"
  },
  {
+  "id": "C3-071",
+  "say": "how do I create a list from a template",
+  "feature": "watchlistAction",
+  "title": "Creating a list from a template"
+ },
+ {
   "id": "C3-075",
   "say": "how do I delete a list",
   "feature": "control",
@@ -1546,6 +1552,24 @@
   "say": "how do I compare from a row",
   "feature": "watchlistAction",
   "title": "Comparing a ticker from the list"
+ },
+ {
+  "id": "C3-102",
+  "say": "how do I open a row's attention facts",
+  "feature": "watchlistAction",
+  "title": "A ticker’s attention facts"
+ },
+ {
+  "id": "C3-103",
+  "say": "how do I change list appearance (canvas, text, tint)",
+  "feature": "watchlistAction",
+  "title": "Changing a watchlist’s look"
+ },
+ {
+  "id": "C3-104",
+  "say": "how do I save or load a watchlist look",
+  "feature": "watchlistAction",
+  "title": "A saved watchlist look"
  },
  {
   "id": "C3-107",
