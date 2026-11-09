@@ -451,6 +451,10 @@ export default function ChartSettingsIndicators({
   const searchRef = useRef(null)
   /** The row ids present at the moment an ADD was issued — see the effect below. */
   const pendingAddRef = useRef(null)
+  /** The row id whose arrival should take keyboard focus — see the effect after the landing one. */
+  const focusLandedRef = useRef(null)
+  /** The tab's own root, so the focus hand-off can tell "lost to the add" from "put elsewhere". */
+  const tabRootRef = useRef(null)
 
   // ─── REMOTE RESULTS ARRIVE LATE, AND NOTHING THE MEMBER IS AIMING AT MAY MOVE ──
   //
@@ -654,7 +658,45 @@ export default function ChartSettingsIndicators({
     setSelected(id)
     setLanded(id)
     setNarrowView('inspector')
+    focusLandedRef.current = id
   }, [rows])
+
+  // ─── …AND KEYBOARD FOCUS LANDS WITH IT (2026-11-08) ──────────────────────
+  //
+  // ⚰️ MEASURED: Enter on a result added it, the Add surface closed (the add is
+  // finished — see `addRow`), the button that had focus left the DOM with it, and
+  // focus fell to <body>. A keyboard member then had to Tab from the top of the
+  // page to reach the series they had just made.
+  //
+  // ⭐ SO FOCUS GOES TO THE NEW ROW ITSELF — its name button in the structure
+  // list, which is selected and therefore already showing its Inspector on the
+  // right; ↑/↓ walk on from there and Tab reaches the Inspector. At the narrow
+  // layout the list is not on screen (the Inspector is the view), so it goes to
+  // the Inspector's first control instead (its Back arrow).
+  //
+  // ⛔ ONLY WHEN FOCUS WAS LOST TO THE ADD, never stolen from somewhere the member
+  // put it: it moves when focus is on <body>, on a node no longer in the
+  // document, or inside (or around) this tab. Keyed on the render AFTER the
+  // landing effect's own state writes, so the row and the Inspector exist.
+  useEffect(() => {
+    const id = focusLandedRef.current
+    if (!id) return
+    focusLandedRef.current = null
+    if (typeof document === 'undefined') return
+    const active = document.activeElement
+    const root = tabRootRef.current
+    const lost = !active || active === document.body || !active.isConnected
+      || (!!root && (root.contains(active) || active.contains(root)))
+    if (!lost) return
+    // Matched by walking, not by an attribute selector: a row id is an instance
+    // address and jsdom has no `CSS.escape`.
+    const rowBtn = listRef.current
+      ? Array.from(listRef.current.querySelectorAll('[data-row-primary]')).find((el) => el.getAttribute('data-row-primary') === id)
+      : null
+    const panel = rowBtn ? null : document.getElementById(inspectorDomId(id))
+    const target = rowBtn || (panel && panel.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+    try { target?.focus() } catch { /* a node that cannot take focus simply does not */ }
+  }, [selected, narrowView, landed])
 
   useEffect(() => {
     if (!landed) return undefined
@@ -3901,7 +3943,7 @@ export default function ChartSettingsIndicators({
     || (mode === 'active' && narrowView === 'inspector')
 
   return (
-    <div className={styles.indTab} data-mode={mode} data-narrow={narrow ? 'true' : undefined}>
+    <div className={styles.indTab} ref={tabRootRef} data-mode={mode} data-narrow={narrow ? 'true' : undefined}>
       <div className={styles.insSplit}>
         {showLeft && (
           <div className={styles.insLeft} data-testid="chart-structure">
