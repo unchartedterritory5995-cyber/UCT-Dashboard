@@ -26,7 +26,8 @@ The $0.25 turn, $5 Agent day and $15 shared caps use the same files, so they wou
 **⛔ The runtime check only sees replicas that share the file.** Replicas on separate volumes each see one and carry on.
 `test_REPLICAS_separate_volumes_are_invisible_to_this_check` pins this. It catches a shared-volume mistake, and it is
 not proof of the live replica count. Nothing in this repo reads the live count yet: that needs a Railway API token
-in CI. The dashboard stays the authority until then.
+in CI. ~~The dashboard stays the authority until then.~~ ⚰️ Superseded 2026-11-09: the repo pin (`railway.web.json`
+`numReplicas`) is the authority. See "Owner decision 2026-11-09" below.
 
 ## Before scaling horizontally
 
@@ -40,8 +41,8 @@ in CI. The dashboard stays the authority until then.
 
 - The `"numReplicas": 1` pin in `railway.web.json` was approved by the owner on 2026-11-09, to keep the AI-spending safeguards
   correct (they hold only on one web replica; see above).
-- From now on the pin in the repo is the authority for the replica count. This supersedes "the dashboard stays the authority"
-  in the section above. Do NOT change the replica count by hand in the Railway dashboard: the next deploy applies the repo's
+- From now on the pin in the repo is the authority for the replica count. This supersedes the struck "the dashboard stays the
+  authority" line in the section above. Do NOT change the replica count by hand in the Railway dashboard: the next deploy applies the repo's
   config, so a dashboard value that differs is silently overridden.
 - Scaling beyond one replica requires BOTH a reviewed config change AND a review of the AI-spending architecture, including
   whether the spending limits are enforced globally across replicas (the steps in "Before scaling horizontally").
