@@ -74,17 +74,37 @@ export function pinWidget(widgetRef) {
   state = { ...state, widgetRef }
   emit()
 }
-/** reason: 'done' | 'exit' | 'lost' (its control is gone) | 'replaced' | 'closed' (the Agent went away) */
+/** reason: 'done' | 'exit' | 'lost' (its control is gone) | 'chartGone' (the chart it was on closed) | 'replaced' (a new request) | 'closed' (the Agent went away) */
 export function endGuide(reason = 'exit') {
   if (!state) return
   ended = { featureId: state.feature.id, reason, at: Date.now() }
   state = null
-  if (reason === 'lost') {
-    notice = 'I can’t see that control on screen any more, so the guide stopped. Ask me to show you again when it’s back.'
+  if (reason === 'lost' || reason === 'chartGone') {
+    notice = reason === 'chartGone'
+      ? 'The chart this walkthrough was on is gone, so the guide stopped. Ask me again on the chart you want.'
+      : 'I can’t see that control on screen any more, so the guide stopped. Ask me to show you again when it’s back.'
     clearTimeout(noticeTimer)
     noticeTimer = setTimeout(() => { notice = null; emit() }, NOTICE_MS)
   }
   emit()
+}
+/** ⭐ A new request to the Agent mid-walkthrough: the walkthrough ends (a guide request then starts its own). For useAgent to call
+ *  when a request starts (pl-auto new-command); the Send button's press already does it (GuideOverlay). */
+export function endForNewRequest() { if (state) endGuide('replaced') }
+/** ⭐ Escape heard on the board, whatever the board's own handlers did with it (they stop or prevent it even with nothing to
+ *  cancel: pl-auto esc-on-board): ends the walkthrough unless a field, a layer, a menu, an armed drawing tool or a selected
+ *  drawing had it. For a registry observer declared on Escape in the capture phase to call (observers get no event). */
+/** Something on the board owns an Escape press: a field, a modal dialog, a menu, an armed drawing tool, a selected drawing. */
+export function boardOwnsEscape(doc = typeof document === 'undefined' ? null : document) {
+  if (!doc) return true
+  const ae = doc.activeElement
+  const field = !!ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)
+  return field || !!doc.querySelector('[role="dialog"][aria-modal="true"],[role="menu"],[data-guide$="Menu"],[data-guide^="chart.tool."][aria-pressed="true"],[data-guide^="chart.tool."][data-guide-on="true"],[aria-label="Drawing actions"]')
+}
+export function escapeOnBoard(doc = typeof document === 'undefined' ? null : document) {
+  if (!state || !doc || boardOwnsEscape(doc)) return false
+  endGuide('exit')
+  return true
 }
 // ── TEACH → DO: the card's "Do it for me" asks the Agent panel to take over, down the same `doItForMe` path typed words use ──
 const doers = new Set()

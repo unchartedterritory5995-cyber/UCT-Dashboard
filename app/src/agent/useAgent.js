@@ -54,6 +54,7 @@ import { planCreatedReference } from './nlm1/plans'                 // NLM-1 D2 
 import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupOps'   // NLM-1 D2/D3.1 (same two keys)
 import { isStepPlan, prepareStepPlan, snapshotInstances, resolveResultRefs, readBackStepPlan } from './nlm1/stepPlans'   // NLM-1 step plans (same two keys)
 import { doItForMe } from './capabilities/guide'
+import { endForNewRequest } from './guide/guideStore'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
@@ -2037,6 +2038,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     let text = String(raw || '').trim()       // NLM-1 D2/D3 may read it as its explicit form (below; dark)
     if (!text || lockRef.current) return
     lockRef.current = true
+    // pl-teach round 6 (pl-auto new-command): a new request, from any input path, ends a walkthrough on screen (a guide request
+    // then starts its own; "do it for me" still finds it: guideStore keeps what was last shown)
+    endForNewRequest()
     turnStart('send')
     saidRef.current = text
     const askedFor0 = askedForRef.current
