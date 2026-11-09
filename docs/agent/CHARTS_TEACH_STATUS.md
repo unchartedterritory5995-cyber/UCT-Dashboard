@@ -10,10 +10,10 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 
 | Part | VERIFIED | ROUTED / BROWSER FAILED | ASSIGNED / NOT REACHED | NO ASSIGNED WALKTHROUGH | NO WALKTHROUGH |
 |---|---|---|---|---|---|
-| C1 | 125 | 5 | 14 | 19 | 12 |
+| C1 | 127 | 3 | 14 | 19 | 12 |
 | C2 | 42 | 6 | 16 | 25 | 12 |
-| C3 | 111 | 15 | 31 | 43 | 23 |
-| All | 278 | 26 | 61 | 87 | 47 |
+| C3 | 112 | 14 | 31 | 43 | 23 |
+| All | 281 | 23 | 61 | 87 | 47 |
 
 - VERIFIED: proved in the browser, as above.
 - ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.
@@ -39,8 +39,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-014 | Chart type | Choose chart type from right-click | NO ASSIGNED WALKTHROUGH |  | The words reach chartType; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-015 | Chart type | Breadth Line/Candles quick toggle | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-016 | Chart type | Heikin Ashi candles | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C1-017 | Chart type | Candle colour mode | VERIFIED | chartSetting | Browser 2026-11-09: "how do I candle colour mode" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C1-018 | Chart type | Thin bars | ROUTED / BROWSER FAILED | chartSetting | "how do I thin bars" reaches it; browser: last step shows its fallback: It’s on this tab: scroll down for Thin bars. | ROUTED / BROWSER FAILED |
+| C1-017 | Chart type | Candle colour mode | VERIFIED | chartSetting | Browser 2026-11-09: "how do I candle colour mode" → ring on the last step's control | VERIFIED |
+| C1-018 | Chart type | Thin bars | VERIFIED | chartSetting | Browser 2026-11-09: "how do I thin bars" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C1-019 | Session | Regular/extended on intraday | VERIFIED | chartView | Browser 2026-11-09: "how do I regular/extended on intraday" → ring on the last step's control | VERIFIED |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | chartView | Browser 2026-11-09: "how do I regular/extended on D/W/M" → ring on the last step's control | VERIFIED |
 | C1-021 | Session | Extended hours from price-axis menu | NO ASSIGNED WALKTHROUGH |  | The words reach chartView; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -93,12 +93,12 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-068 | Settings | Swing labels on/off and sensitivity | VERIFIED | chartSetting | Browser 2026-11-09: "how do I swing labels on/off and sensitivity" → ring on the last step's control | VERIFIED |
 | C1-069 | Settings | Swing label background, tint, colours | VERIFIED | chartSetting | Browser 2026-11-09: "how do I swing label background, tint, colours" → ring on the last step's control | VERIFIED |
 | C1-070 | Settings | Event markers | VERIFIED | chartSetting | Browser 2026-11-09: "show me how to turn on earnings markers" → ring on the last step's control | VERIFIED |
-| C1-071 | Settings | Earnings beat/miss and IPO colours | VERIFIED | chartSetting | Browser 2026-11-09: "how do I earnings beat/miss and IPO colours" → ring on the last step's control | ASSIGNED / NOT REACHED |
+| C1-071 | Settings | Earnings beat/miss and IPO colours | VERIFIED | chartSetting | Browser 2026-11-09: "how do I earnings beat/miss and IPO colours" → ring on the last step's control | VERIFIED |
 | C1-072 | Settings | Prev-day lines on/off | VERIFIED | chartSetting | Browser 2026-11-09: "show me how to show the prior day high" → ring on the last step's control | VERIFIED |
 | C1-073 | Settings | Prev-day line style/width/colour | VERIFIED | chartSetting | Browser 2026-11-09: "show me how to dash the prior day low" → ring on the last step's control | VERIFIED |
 | C1-074 | Settings | Dark-pool levels | VERIFIED | chartSetting | Browser 2026-11-09: "how do I dark-pool levels" → ring on the last step's control | VERIFIED |
 | C1-075 | Settings | Bar-close countdown (Shift+C) | VERIFIED | chartSetting | Browser 2026-11-09: "how do I bar-close countdown (Shift+C)" → ring on the last step's control | VERIFIED |
-| C1-076 | Settings | Restore defaults | VERIFIED | panelAction: Restoring a chart’s defaults | Browser 2026-11-09: "how do I restore defaults" → ring on the last step's control | ASSIGNED / NOT REACHED |
+| C1-076 | Settings | Restore defaults | VERIFIED | panelAction: Restoring a chart’s defaults | Browser 2026-11-09: "how do I restore defaults" → ring on the last step's control | VERIFIED |
 | C1-077 | Settings | Save / delete a custom colour | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-078 | Settings | Light/dark palette (Shift+T) | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C1-079 | Themes | Apply a theme to one chart | VERIFIED | chartThemes | Browser 2026-11-09: "how do I apply a theme to one chart" → ring on the last step's control | VERIFIED |
@@ -139,7 +139,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-114 | Alerts | Price alert at the cursor (Alt+N) | ASSIGNED / NOT REACHED | chartMenu | Assigned chartMenu; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C1-115 | Alerts | Alert on a line, following it | VERIFIED | drawingEdit | Browser 2026-11-09: "how do I alert on a line, following it" → ring on the last step's control | VERIFIED |
 | C1-116 | Alerts | Alert at a line's fixed level | VERIFIED | drawingEdit | Browser 2026-11-09: "how do I alert at a line's fixed level" → ring on the last step's control | VERIFIED |
-| C1-117 | Alerts | Alert on a fib level | NO ASSIGNED WALKTHROUGH |  | The words reach drawingEdit; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C1-117 | Alerts | Alert on a fib level | NO ASSIGNED WALKTHROUGH |  | The words reach alertPrice; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-118 | Alerts | Position alerts (three lines) | NO ASSIGNED WALKTHROUGH |  | The words reach drawingEdit; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-119 | Alerts | Pause/resume indicator alert | VERIFIED | alertAction: Pausing an indicator alert | Browser 2026-11-09: "how do I pause/resume indicator alert" → ring on the last step's control | VERIFIED |
 | C1-120 | Alerts | Delete indicator alert | VERIFIED | alertAction: Deleting an indicator alert | Browser 2026-11-09: "how do I delete indicator alert" → ring on the last step's control | VERIFIED |
@@ -157,8 +157,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-132 | Drawing | Horizontal ray | VERIFIED | drawing | Browser 2026-11-09: "how do I horizontal ray" → ring on the last step's control | VERIFIED |
 | C1-133 | Drawing | Vertical line | VERIFIED | drawing | Browser 2026-11-09: "how do I vertical line" → ring on the last step's control | VERIFIED |
 | C1-134 | Drawing | Rectangle | VERIFIED | drawing | Browser 2026-11-09: "how do I rectangle" → ring on the last step's control | VERIFIED |
-| C1-135 | Drawing | Circle | VERIFIED | drawing | Browser 2026-11-09: "how do I circle" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C1-136 | Drawing | Arrow | VERIFIED | drawing | Browser 2026-11-09: "how do I arrow" → ring on the last step's control | ASSIGNED / NOT REACHED |
+| C1-135 | Drawing | Circle | VERIFIED | drawing | Browser 2026-11-09: "how do I circle" → ring on the last step's control | VERIFIED |
+| C1-136 | Drawing | Arrow | VERIFIED | drawing | Browser 2026-11-09: "how do I arrow" → ring on the last step's control | VERIFIED |
 | C1-137 | Drawing | Fib retracement | VERIFIED | drawing | Browser 2026-11-09: "how do I fib retracement" → ring on the last step's control | VERIFIED |
 | C1-138 | Drawing | Fib extension | VERIFIED | drawing | Browser 2026-11-09: "how do I fib extension" → ring on the last step's control | VERIFIED |
 | C1-139 | Drawing | Pitchfork | VERIFIED | drawing | Browser 2026-11-09: "how do I pitchfork" → ring on the last step's control | VERIFIED |
@@ -177,7 +177,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-152 | Drawing | Reset fib | ROUTED / BROWSER FAILED | control: A drawing’s Reset levels | "show me how to reset the fib levels" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | ROUTED / BROWSER FAILED |
 | C1-153 | Drawing | Measure-label options | ROUTED / BROWSER FAILED | control: A drawing’s Show bars | "show me how to hide bars on the measure" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | ROUTED / BROWSER FAILED |
 | C1-154 | Drawing | Price label on a line | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C1-155 | Drawing | Edit anchors | VERIFIED | drawingEdit | Browser 2026-11-09: "how do I edit anchors" → ring on the last step's control | ASSIGNED / NOT REACHED |
+| C1-155 | Drawing | Edit anchors | VERIFIED | drawingEdit | Browser 2026-11-09: "how do I edit anchors" → ring on the last step's control | VERIFIED |
 | C1-156 | Drawing | Make horizontal | VERIFIED | control: A drawing’s Make horizontal | Browser 2026-11-09: "show me how to flatten that line" → ring on the last step's control | VERIFIED |
 | C1-157 | Drawing | Duplicate | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-158 | Drawing | Lock/unlock | VERIFIED | drawingEdit | Browser 2026-11-09: "show me how to lock that line" → ring on the last step's control | VERIFIED |
@@ -185,7 +185,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-160 | Drawing | Save as default | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-161 | Drawing | Reorder (front/back) | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C1-162 | Drawing | Undo/redo a drawing | VERIFIED | drawingEdit | Browser 2026-11-09: "how do I undo/redo a drawing" → ring on the last step's control | VERIFIED |
-| C1-163 | Drawing | Magnet for drawing | ROUTED / BROWSER FAILED | control: The drawing magnet | "how do I magnet for drawing" reaches it; browser: Cannot read properties of null (reading 'x') | VERIFIED |
+| C1-163 | Drawing | Magnet for drawing | VERIFIED | control: The drawing magnet | Browser 2026-11-09: "how do I magnet for drawing" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C1-164 | Drawing | Repeat drawing mode | VERIFIED | control: Repeat drawing | Browser 2026-11-09: "how do I repeat drawing mode" → ring on the last step's control | VERIFIED |
 | C1-165 | Drawing | Customise tool favourites | VERIFIED | control: Choosing your drawing tools | Browser 2026-11-09: "how do I customise tool favourites" → ring on the last step's control | VERIFIED |
 | C1-166 | Drawing | Nudge selected with arrows | VERIFIED | control: Nudging a drawing from the keyboard | Browser 2026-11-09: "how do I nudge selected with arrows" → ring on the last step's control | VERIFIED |
@@ -299,7 +299,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C2-099 | Alerts | Delete alert | VERIFIED | alertAction | Browser 2026-11-09: "show me how to delete the RSI alert" → ring on the last step's control | VERIFIED |
 | C2-100 | Alerts | See why an alert cannot fire | ROUTED / BROWSER FAILED | alertAction | "how do I see why an alert cannot fire" reaches it; browser: last step shows its fallback: None of your alerts for this symbol are blocked. A blocked one says why under its name here. | ROUTED / BROWSER FAILED |
 | C2-101 | Mobile | Edit an average or study on phone | NO ASSIGNED WALKTHROUGH |  | The words reach indicators; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-001 | Board | Add a widget from Widgets ▾ | VERIFIED | widgetAdd | Browser 2026-11-09: "how do I add a widget from Widgets ▾" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-001 | Board | Add a widget from Widgets ▾ | VERIFIED | widgetAdd | Browser 2026-11-09: "how do I add a widget from Widgets ▾" → ring on the last step's control | VERIFIED |
 | C3-002 | Board | Drag a widget to move it, or nudge it | VERIFIED | widgetMove | Browser 2026-11-09: "how do I drag a widget to move it, or nudge it" → ring on the last step's control | VERIFIED |
 | C3-003 | Board | Drag a widget edge or merged seam to resize | VERIFIED | widgetResize | Browser 2026-11-09: "how do I drag a widget edge or merged seam to resize" → ring on the last step's control | VERIFIED |
 | C3-004 | Board | Close a widget | VERIFIED | widgetHeader | Browser 2026-11-09: "how do I close a widget" → ring on the last step's control | VERIFIED |
@@ -317,11 +317,11 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-016 | Widget tabs | Add a widget as a tab | VERIFIED | widgetHeader | Browser 2026-11-09: "how do I add a widget as a tab" → ring on the last step's control | VERIFIED |
 | C3-017 | Widget tabs | Switch a widget tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I switch a widget tab" → ring on the last step's control | VERIFIED |
 | C3-018 | Widget tabs | Rename a widget tab | VERIFIED | control: Renaming a widget tab | Browser 2026-11-09: "how do I rename a widget tab" → ring on the last step's control | VERIFIED |
-| C3-019 | Widget tabs | Close a widget tab | ROUTED / BROWSER FAILED | tabAction | "how do I close a widget tab" reaches it; browser: last step shows its fallback: This widget has no extra tabs. This + adds one. | ROUTED / BROWSER FAILED |
+| C3-019 | Widget tabs | Close a widget tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I close a widget tab" → ring on the last step's control | ROUTED / BROWSER FAILED |
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | chartTab | Browser 2026-11-09: "how do I add a chart tab" → ring on the last step's control | VERIFIED |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I switch a chart tab" → ring on the last step's control | VERIFIED |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | control: Renaming a chart tab | Browser 2026-11-09: "how do I rename a chart tab" → ring on the last step's control | VERIFIED |
-| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 10:00 AM how do I change a chart tab's link colour // UCT Agent 10:00 AM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scroll | ROUTED / BROWSER FAILED |
+| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 12:17 PM how do I change a chart tab's link colour // UCT Agent 12:17 PM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scroll | ROUTED / BROWSER FAILED |
 | C3-024 | Chart tabs | Close a chart tab | VERIFIED | tabAction | Browser 2026-11-09: "how do I close a chart tab" → ring on the last step's control | VERIFIED |
 | C3-025 | Layout Dock | Open a saved layout | VERIFIED | layouts | Browser 2026-11-09: "how do I open a saved layout" → ring on the last step's control | VERIFIED |
 | C3-026 | Layout Dock | See which layout is open | VERIFIED | layoutAction | Browser 2026-11-09: "how do I see which layout is open" → ring on the last step's control | VERIFIED |
@@ -357,7 +357,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED | gridAction | Browser 2026-11-09: "how do I set a cell's timeframe" → ring on the last step's control | VERIFIED |
 | C3-057 | Multi Chart | Set a cell's chart style | VERIFIED | gridAction | Browser 2026-11-09: "how do I set a cell's chart style" → ring on the last step's control | VERIFIED |
 | C3-058 | Multi Chart | Toggle a cell's session | ROUTED / BROWSER FAILED | gridAction | "how do I toggle a cell's session" reaches it; browser: last step shows its fallback: This chart is too narrow to show them. Maximize it, or close me for a moment. | ROUTED / BROWSER FAILED |
-| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED | gridAction | Browser 2026-11-09: "how do I reset a cell to my chart" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED | gridAction | Browser 2026-11-09: "how do I reset a cell to my chart" → ring on the last step's control | VERIFIED |
 | C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED | gridAction | Browser 2026-11-09: "how do I maximize or restore a cell" → ring on the last step's control | VERIFIED |
 | C3-061 | Multi Chart | Open shared grid settings | VERIFIED | gridAction | Browser 2026-11-09: "how do I open shared grid settings" → ring on the last step's control | VERIFIED |
 | C3-062 | Multi Chart | Set an alert from a cell | VERIFIED | gridAction | Browser 2026-11-09: "how do I set an alert from a cell" → ring on the last step's control | VERIFIED |
@@ -418,10 +418,10 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-117 | Scanner | Open an AI Search scan in the builder and edit conditions | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-118 | Scanner | Run or refine a screen from the workspace chat | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-119 | Scanner | Save a screen run from the workspace | NO ASSIGNED WALKTHROUGH |  | The words reach layoutSave; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-120 | Scanner | Send a scan to Journal | ROUTED / BROWSER FAILED | widgetAction | "how do I send a scan to Journal" reaches it; browser: no walkthrough: Harness 10:09 AM how do I send a scan to Journal // UCT Agent 10:09 AM Sending a scan to the Journal isn’t available yet. It will show in the Scanner widget on | ROUTED / BROWSER FAILED |
+| C3-120 | Scanner | Send a scan to Journal | ROUTED / BROWSER FAILED | widgetAction | "how do I send a scan to Journal" reaches it; browser: no walkthrough: Harness 12:27 PM how do I send a scan to Journal // UCT Agent 12:27 PM Sending a scan to the Journal isn’t available yet. It will show in the Scanner widget on | ROUTED / BROWSER FAILED |
 | C3-121 | Volume Surge | Choose what the scanner watches | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-122 | Volume Surge | Create, rename or delete a scope list | ROUTED / BROWSER FAILED | control: Deleting a Volume Surge list | "how do I create, rename or delete a scope list" reaches it; browser: last step shows its fallback: You have no lists of your own here yet. | ROUTED / BROWSER FAILED |
-| C3-123 | Volume Surge | Add a ticker to a scope list | VERIFIED | control: Adding a ticker to a Volume Surge list | Browser 2026-11-09: "how do I add a ticker to a scope list" → ring on the last step's control | ROUTED / BROWSER FAILED |
+| C3-123 | Volume Surge | Add a ticker to a scope list | VERIFIED | control: Adding a ticker to a Volume Surge list | Browser 2026-11-09: "how do I add a ticker to a scope list" → ring on the last step's control | VERIFIED |
 | C3-124 | Volume Surge | Set thresholds (RVOL, burst, move, $ floor) | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-125 | Volume Surge | Toggle logos | VERIFIED | control: Logos on Volume Surge | Browser 2026-11-09: "show me how to show logos on volume surge" → ring on the last step's control | VERIFIED |
 | C3-126 | Volume Surge | Click a row or remove it from the list | NO ASSIGNED WALKTHROUGH |  | The words reach watchlistAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -481,8 +481,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-180 | Fundamentals | Change appearance or send to Journal | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | widgetAction | Browser 2026-11-09: "how do I read profile and earnings table" → ring on the last step's control | VERIFIED |
 | C3-182 | Profile | Click a peer ticker | NO ASSIGNED WALKTHROUGH |  | The words reach symbol; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 10:18 AM how do I hide or restore an index // UCT Agent 10:18 AM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on. | ROUTED / BROWSER FAILED |
-| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 10:18 AM show me how to send index levels to journal // UCT Agent 10:18 AM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s sw | ROUTED / BROWSER FAILED |
+| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 12:35 PM how do I hide or restore an index // UCT Agent 12:35 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on. | ROUTED / BROWSER FAILED |
+| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 12:35 PM show me how to send index levels to journal // UCT Agent 12:35 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s sw | ROUTED / BROWSER FAILED |
 | C3-185 | Market Context | Read market context | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-186 | Market Context | Send to Journal | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-187 | NH/NL | Add or remove a universe | VERIFIED | widgetAction | Browser 2026-11-09: "show me how to add the Nasdaq 100 to new highs" → ring on the last step's control | VERIFIED |
@@ -525,7 +525,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 
 ## Held-out KNOWN MISSES (not passes)
 
-Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES and COV4_MISSES in app/src/agent/agentGuideHeldOutCov3.test.js and agentGuideHeldOutCov4.test.js.
+Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES and COV4B_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b test files.
 
 | Set | Words | Named | Reaches | Why |
 |---|---|---|---|---|
@@ -533,3 +533,4 @@ Held-out phrasings that do NOT reach what their held-out file named. Asserted bo
 | cov-3 | how do I open the options flow then filter it to puts | Flow filters | Options Flow: calls or puts | the Options Flow catalog control is more specific than the row the held-out named |
 | cov-3 | how do I add a horizontal line and then lock it | Locking a drawing | Drawing a Horizontal Line, then locking a drawing | a two-part walkthrough's title lowercases its second part |
 | cov-4 | how do I show the market cap in the info row | Market cap in the info row | The header’s info row | the info row's own panel walkthrough (the matrix's assignment for C1-066) takes it first |
+| cov-4b | how do I get alerted at a fib level | An alert on a line | Setting a price alert | a fib has no Set alert of its own (drawingSettingsSchema.js), so the truthful walkthrough is a price alert at the level |

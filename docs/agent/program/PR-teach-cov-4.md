@@ -63,7 +63,13 @@ One fresh full runner pass (Vite restarted), each case run once:
   - **C3-023 / H4b-09** (a chart tab's link dot). The dot shows only on the selected extra tab, and only while that tab is linked. Selecting the tab first wasn't enough on the harness board, so the change was reverted and not committed.
   - **C3-058** (a narrow grid cell): not attempted.
   - **H4b-06** (MACD signal-line alert): needs MACD on the chart.
-- Not yet re-run: one full runner pass for (5)–(7), and a suite on this head.
+- **Full runner pass for (5)–(7)** (Vite restarted, each case run once):
+  - **Result: 281 VERIFIED of 304 cases**, up from 278 in the pass for items (1)–(4). None lost.
+  - Gained: C1-018 (Thin bars), C3-019 (close a widget tab), and C1-163 (passes again; its last failure was a runner exception).
+  - **Program total: 281 of 499.**
+  - The run file `runs/2026-11-09.cov4.results.json` and `CHARTS_TEACH_STATUS.md` are regenerated.
+- **Held-out cov-4b, final browser single run:** 7/9. H4b-06 needs MACD on the chart; H4b-09 is the chart tab dot.
+- **Owed:** a full suite on this head, since items (5)–(7) came after the earlier suite line.
 
 ## Plan vs actual
 The plan expected about +31 for items (1)–(4). The actual gain was **+8** VERIFIED: 270 → 278.
@@ -75,7 +81,15 @@ The plan expected about +31 for items (1)–(4). The actual gain was **+8** VERI
 | (3) Chart Settings rows | about +6 | +3 (C1-017, C1-071, C1-076) | The other rows' inventory words are terse ("background to black", "light chart") or reach a more specific walkthrough first. |
 | (4) Drawing menu rows | about +6 | +3 (C1-135, C1-136, C1-155) | Duplicate, Save as default, price label and text style have no assigned walkthrough in expected.json, so they aren't cases. They route to the catalog, which asks. |
 
-Net: the plan's per-item gains were too optimistic about seeding state and about inventory words. The remaining cov-4 items (5)–(7) are re-estimated in their own PR.
+Items (5)–(7):
+
+| Item | Plan | Actual | Why short |
+|---|---|---|---|
+| (5) Alerts | about +5 | 0 VERIFIED | The alert rows route now (held-out routing 8/9 plus 1 KNOWN MISS). The inventory's own alert rows need state the run doesn't seed (an indicator on the chart; a fib can't hold an alert, so C1-117 stays unassigned). |
+| (6) Templates and legend | about +7 | 0 | Indicator templates are behind `VITE_INDICATOR_TEMPLATES_ENABLED` (off), so there is nothing truthful to teach. Legend rows were not reached. |
+| (7) Guide gaps | +5 | +2 (C1-018, C3-019) | The chart tab dot shows only on a selected, linked extra tab (the attempt was reverted); the narrow-cell case was not attempted. |
+
+Net for cov-4: **+11 VERIFIED** (270 → 281) against the plan's +47 for items (1)–(7). The plan was too optimistic about seeding state and about the inventory's terse words. Several gains were truthfulness fixes instead (fib alerts, Thin bars, Version history, release switches), which add no VERIFIED rows by design.
 
 ## Touches deixis / useAgent / runtime / host
 No. Goldens are unchanged.

@@ -1,7 +1,7 @@
 {
  "mode": "BROWSER-MOCK-MODEL",
  "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
- "at": "2026-11-09T15:21:19.332Z",
+ "at": "2026-11-09T17:38:09.565Z",
  "base": "http://127.0.0.1:5302",
  "results": [
   {
@@ -427,8 +427,10 @@
    "say": "how do I thin bars",
    "feature": "chartSetting",
    "title": "Changing Thin bars",
-   "given": [],
-   "pass": false,
+   "given": [
+    "chartSettings"
+   ],
+   "pass": true,
    "steps": [
     {
      "i": 0,
@@ -449,18 +451,22 @@
     },
     {
      "i": 2,
-     "text": "It’s on this tab: scroll down for Thin bars.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "Thin bars is here, under Bar thickness. This shows while the chart type is Bars or HLC.",
+     "onPrimary": true,
+     "pr": [
+      479,
+      519,
+      632,
+      16
+     ],
      "rr": [
       475,
-      242,
-      74,
-      44
+      515,
+      640,
+      24
      ]
     }
    ],
-   "why": "last step shows its fallback: It’s on this tab: scroll down for Thin bars.",
    "consoleErrors": []
   },
   {
@@ -476,15 +482,15 @@
      "text": "These buttons switch between regular hours and extended hours. Pre-market and post-market buttons turn on while those sessions run.",
      "onPrimary": true,
      "pr": [
-      419,
+      405,
       109,
-      257,
+      263,
       19
      ],
      "rr": [
-      415,
+      401,
       105,
-      265,
+      271,
       27
      ]
     }
@@ -504,15 +510,15 @@
      "text": "These buttons switch between regular hours and extended hours. Pre-market and post-market buttons turn on while those sessions run.",
      "onPrimary": true,
      "pr": [
-      419,
+      405,
       109,
-      257,
+      263,
       19
      ],
      "rr": [
-      415,
+      401,
       105,
-      265,
+      271,
       27
      ]
     }
@@ -6198,14 +6204,14 @@
      "text": "Fill is here, on this drawing’s menu.",
      "onPrimary": true,
      "pr": [
-      560,
-      384,
+      494,
+      327,
       17,
       15
      ],
      "rr": [
-      556,
-      380,
+      490,
+      323,
       25,
       23
      ]
@@ -6215,20 +6221,20 @@
    "tried": [
     [
      {
-      "x": 543,
-      "y": 311
+      "x": 477,
+      "y": 254
      },
      {
-      "x": 570,
-      "y": 311
+      "x": 513,
+      "y": 254
      },
      {
-      "x": 597,
-      "y": 311
+      "x": 549,
+      "y": 254
      },
      {
-      "x": 624,
-      "y": 311
+      "x": 585,
+      "y": 254
      }
     ]
    ],
@@ -6267,14 +6273,14 @@
      "text": "Click Levels… to turn each level and its fill on or off. This shows on a Fibonacci drawing.",
      "onPrimary": true,
      "pr": [
-      311,
-      401,
+      245,
+      345,
       51,
       15
      ],
      "rr": [
-      307,
-      397,
+      241,
+      341,
       59,
       23
      ]
@@ -6285,19 +6291,19 @@
     [
      {
       "x": 18,
-      "y": 308
+      "y": 252
      },
      {
-      "x": 294,
-      "y": 317
+      "x": 228,
+      "y": 261
      },
      {
-      "x": 18,
-      "y": 318
+      "x": 594,
+      "y": 261
      },
      {
-      "x": 450,
-      "y": 318
+      "x": 252,
+      "y": 262
      }
     ]
    ],
@@ -6337,19 +6343,19 @@
     [
      {
       "x": 18,
-      "y": 252
+      "y": 308
      },
      {
-      "x": 228,
-      "y": 261
+      "x": 294,
+      "y": 317
      },
      {
-      "x": 594,
-      "y": 261
+      "x": 18,
+      "y": 318
      },
      {
-      "x": 252,
-      "y": 262
+      "x": 450,
+      "y": 318
      }
     ]
    ],
@@ -6389,20 +6395,20 @@
    "tried": [
     [
      {
-      "x": 543,
-      "y": 317
+      "x": 480,
+      "y": 261
      },
      {
-      "x": 543,
-      "y": 328
+      "x": 546,
+      "y": 281
      },
      {
       "x": 579,
-      "y": 335
+      "y": 283
      },
      {
-      "x": 615,
-      "y": 337
+      "x": 525,
+      "y": 286
      }
     ]
    ],
@@ -6686,9 +6692,27 @@
    "feature": "control",
    "title": "The drawing magnet",
    "given": [],
-   "pass": false,
-   "steps": [],
-   "error": "Cannot read properties of null (reading 'x')"
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "This magnet snaps your drawing points to a candle’s open, high, low or close. Click it to turn it on or off.",
+     "onPrimary": true,
+     "pr": [
+      326,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      322,
+      170,
+      32,
+      30
+     ]
+    }
+   ],
+   "consoleErrors": []
   },
   {
    "id": "C1-164",
@@ -8938,7 +8962,7 @@
      "pr": null,
      "rr": [
       590,
-      835,
+      815,
       141,
       52
      ]
@@ -10119,22 +10143,43 @@
    "given": [
     "board"
    ],
-   "pass": false,
+   "pass": true,
    "steps": [
     {
      "i": 0,
-     "text": "This widget has no extra tabs. This + adds one.",
-     "onPrimary": false,
-     "pr": null,
+     "text": "Click the tab you want to close.",
+     "onPrimary": true,
+     "pr": [
+      904,
+      78,
+      40,
+      19
+     ],
      "rr": [
-      686,
-      76,
-      25,
-      23
+      900,
+      74,
+      48,
+      27
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click its ×, then click again to confirm.",
+     "onPrimary": true,
+     "pr": [
+      937,
+      82,
+      11,
+      11
+     ],
+     "rr": [
+      933,
+      78,
+      19,
+      19
      ]
     }
    ],
-   "why": "last step shows its fallback: This widget has no extra tabs. This + adds one.",
    "consoleErrors": []
   },
   {
@@ -10235,7 +10280,7 @@
    ],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n10:00 AM\nhow do I change a chart tab's link colour // UCT Agent\n10:00 AM\n\nI can’t see the tab’s dot on your screen right now — Chart (SPY) may be scroll",
+   "why": "no walkthrough: Harness\n12:17 PM\nhow do I change a chart tab's link colour // UCT Agent\n12:17 PM\n\nI can’t see the tab’s dot on your screen right now — Chart (SPY) may be scroll",
    "consoleErrors": []
   },
   {
@@ -13330,7 +13375,7 @@
    ],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n10:09 AM\nhow do I send a scan to Journal // UCT Agent\n10:09 AM\n\nSending a scan to the Journal isn’t available yet. It will show in the Scanner widget on",
+   "why": "no walkthrough: Harness\n12:27 PM\nhow do I send a scan to Journal // UCT Agent\n12:27 PM\n\nSending a scan to the Journal isn’t available yet. It will show in the Scanner widget on",
    "consoleErrors": []
   },
   {
@@ -16437,7 +16482,7 @@
    "given": [],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n10:18 AM\nhow do I hide or restore an index // UCT Agent\n10:18 AM\n\nThe Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on.",
+   "why": "no walkthrough: Harness\n12:35 PM\nhow do I hide or restore an index // UCT Agent\n12:35 PM\n\nThe Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on.",
    "consoleErrors": []
   },
   {
@@ -16448,7 +16493,7 @@
    "given": [],
    "pass": false,
    "steps": [],
-   "why": "no walkthrough: Harness\n10:18 AM\nshow me how to send index levels to journal // UCT Agent\n10:18 AM\n\nThe Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s sw",
+   "why": "no walkthrough: Harness\n12:35 PM\nshow me how to send index levels to journal // UCT Agent\n12:35 PM\n\nThe Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s sw",
    "consoleErrors": []
   },
   {
