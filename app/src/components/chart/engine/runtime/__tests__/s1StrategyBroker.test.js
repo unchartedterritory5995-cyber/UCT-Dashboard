@@ -176,11 +176,14 @@ describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [
     expect(cols[0][3]).toBe(0)
     expect(cols[0][4]).toBe(2)
   })
-  it('v6 with no declared size: its default (percent of equity) is not served - the order stops the run', () => {
+  it('v6 with no declared size: percent of equity 100 (W9-T4) needs the symbol\'s minimum contract, which '
+    + 'this run is not told - the order stops the run (Q-S1a)', () => {
+    // The sizing itself, with a stated minimum contract, is railed in w9T4Sizing.test.js.
     const e = stopOf('//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\n'
       + 'plot(strategy.position_size)\n')
     expect(e.guard).toBe(BROKER_UNSETTLED_GUARD)
     expect(e.message).toMatch(/Q-S1a/)
+    expect(e.message).toMatch(/minimum contract is not known/)
   })
   it('v6 with an explicit fixed size is served', () => {
     const { cols } = run('//@version=6\nstrategy("t", default_qty_type = strategy.fixed, default_qty_value = 5)\n'
@@ -189,7 +192,9 @@ describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [
   })
   for (const [decl, what] of [
     ['commission_value = 0.1', 'commission_value'],
-    ['process_orders_on_close = true', 'process_orders_on_close'],
+    // W9-T6: `process_orders_on_close` is now READ (its rule B-POC refuses at run time until pinned,
+    // w9T6FillTiming.test.js); the July-2026 history-tick menu off its default still refuses at build
+    ['calc_on_every_history_tick = true', 'calc_on_every_history_tick'],
     ['slippage = 2', 'slippage'],
     ['close_entries_rule = "ANY"', 'close_entries_rule'],
   ]) {
@@ -202,9 +207,10 @@ describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [
   }
   it('an unserved order command / argument / value refuses by name', () => {
     const cases = [
-      ['strategy.order("o", strategy.long)\n', 'runtime:strategy-option'],
-      ['strategy.exit("x", trail_points = 10, trail_offset = 5)\n', 'runtime:strategy-option'],
-      ['strategy.close("L", qty = 1)\n', 'runtime:strategy-option'],
+      // W9-T7 serves `strategy.order`, `trail_*` and the close's `qty` behind their rules
+      // (w9T7Exits.test.js); an exit's `oca_name` (a reduce group across exit commands) still refuses
+      ['strategy.exit("x", stop = 1, oca_name = "g")\n', 'runtime:strategy-option'],
+      ['strategy.entry("L", strategy.long, qty_percent = 50)\n', 'runtime:strategy-option'],
       ['plot(strategy.max_drawdown)\n', 'runtime:strategy-value'],
     ]
     for (const [line, guard] of cases) {

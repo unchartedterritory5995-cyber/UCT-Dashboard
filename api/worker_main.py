@@ -1020,6 +1020,16 @@ from api.flow_router_mount import mount_flow_routers as _mount_flow_routers  # n
 
 def main():
     log.info("worker boot starting")
+    # An unreadable bars.db makes init_db raise, so repair comes first.
+    try:
+        from api.services import bars_restore as _br
+        _alert_url = _ops_webhook()
+        _br.repair_at_boot(int(os.environ.get("PORT", "8080")),
+                           notify=(lambda m: _post_discord(_alert_url, m)) if _alert_url else None)
+    except Exception as e:
+        log.exception(f"bars.db repair failed: {e}")
+        sys.exit(1)
+
     # Bring up SQLite (needed by the prewarmer)
     try:
         from api.services import bars_sqlite as _bs

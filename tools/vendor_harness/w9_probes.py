@@ -132,6 +132,20 @@ if up
 if strategy.position_size > 0
     strategy.exit("X", "L", limit = math.round_to_mintick(strategy.position_avg_price * 1.001), stop = math.round_to_mintick(strategy.position_avg_price * 0.999))''',
                 decl=FIXED1, notes=["Moves to AMEX:SPY 1D if RDDT shows no tie bar (a bar holding both levels)."]))
+    # W9 integration review N2 (2026-11-08): the S1 rule B-EXIT-BIND serves two full exits on one trade
+    # (each fills if reached first) while B-EXIT-QTY is unpinned; this row makes Q-S1-core's pin WITNESS
+    # that case instead of inferring it. X2 is called second and sits nearer, so it is reached first.
+    s.append(P("q-s1core-two-exits", "Q-S1-core-2x", "two full exits on one trade, the second-called reached first: "
+               "does it fill (S1, served while B-EXIT-QTY is unpinned) or does the first reserve the whole trade (B-EXIT-QTY)", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X1", "L", limit = math.round_to_mintick(strategy.position_avg_price * 1.08), comment = "x1")
+    strategy.exit("X2", "L", stop = math.round_to_mintick(strategy.position_avg_price * 0.98), comment = "x2")
+if dn
+    strategy.close_all(comment = "xall")''', decl=FIXED1,
+                extras=[("X01_last_exit_price", "strategy.closedtrades > 0 ? strategy.closedtrades.exit_price(strategy.closedtrades - 1) : na"),
+                        ("X02_last_entry_price", "strategy.closedtrades > 0 ? strategy.closedtrades.entry_price(strategy.closedtrades - 1) : na")]))
     s.append(P("q-s1d-same-tick", "Q-S1d", "two orders on one bar: which fills first", '''{SC}
 if up
     strategy.entry("A", strategy.long, comment = "ca")

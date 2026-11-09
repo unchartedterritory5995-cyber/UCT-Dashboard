@@ -45,13 +45,50 @@ export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exa
 // under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
 const REL_CHART_ANCHOR = new RegExp(`(?:this|that)\\s+${REL_ANCHOR_NOUN}\\b|\\bthe\\s+(?:selected|clicked|current|highlighted|active|focused)\\b|\\bthe\\s+one\\s`, 'i')
 const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
+// ⭐ 2026-11-07 (pl-auto u5-relation-controls-02, revisited after the owner's conversational-targeting decision): an ANCHORLESS
+// relation — "the chart above", "the one to the right", "the one to its left" — reads from the click (or the conversation's
+// target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
+// followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
+// Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
   const s = String(text || '')
   const m = RELATIVE.exec(s)
-  if (!m) return null
-  if (placesNonChart(s.slice(0, m.index))) return null
-  return REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)) ? m : null
+  // ⛔ AUDIT S2-B: the same rule for an anchored relation — "the alert and the one above it": a bare "one" coordinated with a
+  // non-chart noun stands for that thing, so no chart relation (the click is read as it would be without one)
+  if (m) { const pre = /\b(?:the|that)\s+one\s*$/i.exec(s.slice(0, m.index)); if (pre && oneStandsForAThing(s.slice(0, pre.index))) return null }
+  if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
+  if (m) return null
+  const b = RELATIVE_BARE.exec(s)
+  if (!b) return null
+  // its noun IS the chart related ("a macd on the chart above" puts the MACD on that chart), so nothing placed before it counts —
+  // ⛔ AUDIT S2-A: except a bare "one", which stands for the nearest noun before it: "delete the line and the one below", "move the
+  // alert to the one below", "the level I drew and the one above" relate a line, an alert, a level — not a chart. "chart / cell /
+  // pane / panel / graph" stays unconditional.
+  if (/\bone\b/i.test(b[0]) && oneStandsForAThing(s.slice(0, b.index))) return null
+  return b
+}
+// ⛔ AUDIT S2-B (round 2): a bare "one" stands for a THING only when it is COORDINATED with that thing in the same noun phrase
+// ("the line and the one below", "the level I drew and the one above"). After a preposition (to / on / onto / in / into / for /
+// at / from / over) "the one <relation>" is the PLACE: a chart ("add RSI to the one below"). A word separated from "one" by a
+// verb or a preposition is never its antecedent ("the rsi looks good here, now make the one below weekly": a chart).
+const ONE_THING = /^(?:orders?|positions?|trades?|tickets?|emas?|smas?|mas|setups?|zones?|supports?|resistances?|signals?|bars?|candles?)$/
+const ONE_PREP = /\b(?:to|on|onto|in|into|for|at|from|over)\s*$/i
+const ONE_COORD = /(?:,|\b(?:and|or))\s*$/i
+// the few words a noun phrase may carry between its noun and the "and": a short relative clause ("the level I drew"), adjectives
+const NP_FILLER = /^(?:i|we|you|just|already|drew|drawn|made|added|put|placed|set|have|had|the|a|an|my|that|this|new|old|first|second|last|top|bottom|upper|lower|red|green|blue|yellow|orange|purple|white|black)$/
+function oneStandsForAThing(before) {
+  const s = String(before || '')
+  if (ONE_PREP.test(s) || !ONE_COORD.test(s)) return false
+  const words = s.replace(ONE_COORD, ' ').toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean)
+  for (let i = words.length - 1, n = 0; i >= 0 && n < 5; i--, n++) {
+    const w = words[i]
+    if (CHARTISH.test(w)) return false
+    if (PLACED.test(w) || ONE_THING.test(w) || isIndicatorWord(w)) return true
+    if (!NP_FILLER.test(w)) return false                     // a verb, a preposition or anything else ends the noun phrase
+  }
+  return false
 }
 // pl-auto indicator-add-02: "MACD under this chart", "volume beneath this one", "a line above this chart" place an indicator, a pane,
 // a line, a level — not a chart ("the pane left of it" IS a chart: a pane alone is a chart's cell, an indicator's pane is named by
@@ -476,7 +513,7 @@ const TRUE_POINTER = /\bthis\s+(?:chart|stock|ticker|symbol|one)\b/i
 const ELSE_NAMED = /\b(?:of|showing)\s+[a-z$]/i
 function onlyPointer(text, charts) {
   const s = String(text || '')
-  return TRUE_POINTER.test(s) && !relationMatch(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
+  return TRUE_POINTER.test(s) && !relationMatch(s) && !OTHER_IN_CLAUSE.test(s) && !s.match(POS_WORDS) && !ORD_RE.test(s) && !ELSE_NAMED.test(s) && describedCharts(s, charts) == null
     && !chartNameWord(s, charts) && !chartsNamedBy(s, charts).size
 }
 
@@ -502,8 +539,118 @@ export function closedTabNamed(text, host) {
 // runs where it is planned, and an op on the click itself is asked about.
 const NEG_POINTER = /(?:\b(?:except(?:\s+for)?|not|other\s+than|besides|apart\s+from|aside\s+from|excluding|minus|save\s+for)|\b(?:all|every\w*|them|others?|charts?|ones)\s+but(?:\s+not)?)\s+(?:this|that|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b/i
 export const negatedPointer = (text) => NEG_POINTER.exec(String(text || ''))
-export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability }) {
+// ⭐ round 3 (pl-exec): PER-CLAUSE TARGETS — "make the NVDA chart weekly and this one log". A sentence of several clauses, each
+// naming ONE chart (a description, a ticker, a position) or pointing at the click (this one / this chart / here / it), and each
+// saying ONE change the capability's own instant reader recognises once the chart words are lifted off. Each op of the plan is
+// matched to the one clause that says it (action and arguments); it runs only on that clause's chart. Affirmative clauses only:
+// a negated clause's chart is never a target. Anything not certain — a clause naming two charts or none, an op no clause says,
+// an op two clauses say — is not read here, and the gates below decide as before (they ask).
+const OTHER_IN_CLAUSE = /\bthe other(?:\s+(?:one|chart|cell|pane|ticker|stock))?\b/i
+const CLAUSE_POINTER = /\b(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b|\bhere\b|\bit\b/i
+const CHART_WORDS = new RegExp([
+  String.raw`\b(?:on|to|for|in)\s+(?:the|this|that|my)\s+[a-z0-9.\-]+(?:\s+[a-z0-9.\-]+)?\s+(?:chart|one|cell|pane)\b`,
+  String.raw`\b(?:the|this|that|my)\s+[a-z0-9.\-]+(?:\s+[a-z0-9.\-]+)?\s+(?:chart|one|cell|pane)\b`,
+  String.raw`\b(?:on|to|for|in)\s+(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b`,
+  String.raw`\b(?:this|that)(?:\s+(?:one|chart|ticker|stock|symbol|graph|cell|pane))?\b`, String.raw`\bhere\b`, String.raw`\bit\b`,
+].join('|'), 'gi')
+const FILLER = /\b(?:make|set|put|switch|change|turn|flip|please|and|then|also|too|just|now|to|on|onto|with)\b/gi
+function clauseReads(text, host, parse) {
+  const s = String(text || '')
+  // a negated pointer stays with the audited rules; a RELATION is read in its own clause (below)
+  if (negatedPointer(s)) return null
+  const parts = s.split(CLAUSE_SPLIT).map(x => x.trim()).filter(Boolean)
+  if (parts.length < 2 || typeof parse !== 'function') return null
+  const charts = host?.charts?.list?.() || []
+  const sel = selectedChart(host)
+  const out = []
+  for (const part of parts) {
+    const negated = NEGATION.test(part)
+    // the clause's own chart, never two and never none:
+    //   a relation in it ("the chart below it") → the single neighbour on that side of the click
+    //   "the other one / chart" on a board of two with a click → the chart that is not the click
+    //   a name (one) → that chart; a pointer alone (this one / here / it) → the click
+    const rel = relationMatch(part) ? relativeChart(part, charts, sel) : null
+    const other = OTHER_IN_CLAUSE.test(part) ? (charts.length === 2 && sel ? charts.find(c => c.ref !== sel)?.ref || null : null) : undefined
+    const named = [...chartsNamedBy(part, charts, sel)]
+    const pointer = CLAUSE_POINTER.test(part)
+    const chart = rel ? (rel.hits.length === 1 && !rel.negated ? rel.hits[0].ref : null)
+      : other !== undefined ? other
+        : named.length === 1 && !pointer ? named[0] : !named.length && pointer && sel ? sel : null
+    // the change once the chart words are lifted off (a relation's own words, and the chart it names, too)
+    const bare = rel ? part.replace(rel.match[0], ' ').replace(/\b(?:the|a)\s+(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph)\b/gi, ' ') : part
+    const core = bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(FILLER, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim()
+    let ops = null
+    const read = (t) => { try { const r = t ? parse(t, { host }) : null; return r?.kind === 'ops' && !r.target ? r.ops : null } catch { return null } }
+    // "to the hourly", "on the weekly": the article a chart word left behind is no part of the change
+    ops = read(core) || read(core.replace(/^(?:the|a|an)\s+/i, '')) || read(bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim())
+    out.push({ part, negated, chart, ops, core })
+  }
+  // ⭐ 2026-11-07 (pl-auto u4-clauses-04/06/08/10): ONE change said once for two charts — "the TSLA chart to the hourly and this one
+  // too", "draw a line at 120 on this one and on the TSLA chart", "this one and the one to its left on the weekly". A clause that
+  // names its chart and says NOTHING else (its words are only chart words and fillers) shares the change of the one other
+  // affirmative clause that says one. Two clauses saying changes, or none, leave it unread (the gates decide, as before).
+  const sayers = out.filter(r => !r.negated && r.ops?.length)
+  if (sayers.length === 1) {
+    for (const r of out) if (!r.negated && r.chart && !r.ops && !SHARED_LEFTOVER(r.core)) { r.ops = sayers[0].ops; r.shared = true }
+  }
+  return out
+}
+const SHARED_LEFTOVER = (core) => !!String(core || '').replace(/\b(?:as\s+well|both|same|the|a|one|ones|chart|charts|do|that|please)\b/gi, ' ').trim()
+const sameOp = (a, b) => a.action === b.action && JSON.stringify(a.args || {}) === JSON.stringify(b.args || {})
+/** → { ok: true } when every op is the change of exactly one affirmative clause, on that clause's chart; { ask } when an op
+ *  lands on a chart its clause does not name (or a negated clause's chart); null when the sentence is not read this way. */
+function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse }) {
+  const reads = clauseReads(text, host, parse)
+  if (!reads) return null
+  const excluded = new Set(reads.filter(r => r.negated && r.chart).map(r => r.chart))
+  const affirm = reads.filter(r => !r.negated)
+  // the family itself: one affirmative clause points at the click, another names a different chart
+  const sel = selectedChart(host)
+  if (!affirm.some(r => r.chart && r.chart === sel) || !affirm.some(r => r.chart && r.chart !== sel)) return null
+  let any = false
+  const used = new Set()
+  for (const o of ops || []) {
+    const cap = getCapability(o?.action)
+    const kind = cap ? getTargetKind(cap.target) : null
+    const list = kind ? (kind.list(host) || []) : []
+    const snap = list.find(x => x.ref === o.target)
+    const chart = snap ? chartRefOf(kind, snap) : null
+    if (!chart) continue
+    if (excluded.has(chart)) return { ask: { text: 'You asked me to leave that chart alone. Which chart do you mean?', choices: list.filter(x => !excluded.has(chartRefOf(kind, x))).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    const says = affirm.filter(r => (r.ops || []).some(x => sameOp(x, o)))
+    // a shared change ("… and this one too") is said by each of its clauses: the op is the one whose chart it is on, each once
+    const mine = says.length > 1 ? says.filter(r => r.chart === chart && !used.has(r)) : says
+    if (says.length > 1 && mine.length !== 1) {
+      if (says.some(r => !r.chart)) return null
+      const meant = list.find(x => chartRefOf(kind, x) === says.find(r => !used.has(r))?.chart)
+      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
+    if (mine.length !== 1 || !mine[0].chart) return null                      // not certain: the gates below decide
+    if (mine[0].chart !== chart) {
+      const meant = list.find(x => chartRefOf(kind, x) === mine[0].chart)
+      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
+    any = true
+    used.add(mine[0])
+    o.__clause = mine[0]
+  }
+  // every affirmative clause that says a change has an op for it: a plan that does only part of the sentence is not read here
+  // (the gates ask), so a one-op plan never runs beside a clause it left out
+  const done = new Set((ops || []).map(o => o.__clause).filter(Boolean))
+  for (const o of ops || []) delete o.__clause
+  if (any && affirm.some(r => (r.ops || []).length && !done.has(r))) return null
+  // a clause that names a chart but says no change of its own ("…and the one right of it as well") repeats another's: not certain
+  if (any && affirm.some(r => r.chart && !(r.ops || []).length)) return null
+  return any ? { ok: true } : null
+}
+
+export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
+  {
+    const per = clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
+    if (per?.ask) return per
+    if (per?.ok) return null
+  }
   if (negatedPointer(text)) {
     const sel = selectedChart(host)
     for (const o of ops || []) {
@@ -559,4 +706,13 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     }
   }
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
+}
+
+/** round 3: do the sentence's clauses name DIFFERENT charts ("the TSLA chart … and this one …")? An instant reader that applies
+ *  one target to the whole sentence must then not claim it: the model plans it and the per-clause gate checks each op. */
+export function clausesNameDifferentCharts(text, host) {
+  const reads = clauseReads(text, host, () => null)
+  if (!reads) return false
+  const named = new Set(reads.map(r => r.chart).filter(Boolean))
+  return named.size > 1 || (named.size >= 1 && reads.some(r => !r.chart && (CLAUSE_POINTER.test(r.part) || chartsNamedBy(r.part, host?.charts?.list?.() || [], selectedChart(host)).size)))
 }

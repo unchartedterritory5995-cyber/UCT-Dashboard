@@ -82,7 +82,15 @@ is not the authority (`brokerRules.js` and the ledger are).
 - **D2: implemented, with a rail.** `api/routers/pine_strategy_backtest.py` `_window_of` states
   the window on every answer with `note = "this backtest starts on <date>; TradingView may start
   elsewhere"`, and `fromListing` is always false on the server, so the sentence is always shown.
-  Rail: `tests/test_pine_strategy_backtest.py` asserts the exact sentence. No change made.
+  Rail: `tests/test_pine_strategy_backtest.py` asserts the exact sentence.
+  **Amended 2026-11-08 (W9-T13a r1, coordinator ruling on one authority):** the start date has ONE
+  authority, `strategyRecord.js::startSentenceOf(window.startTime)`. No record carries the symbol's
+  exchange timezone, so the date is the UTC date of the run's start and the sentence says so:
+  "this backtest starts on <date> (UTC); TradingView may start elsewhere". The record carries
+  `window.startDate` / `window.startSentence`; the report reads them and the route serves them
+  verbatim. With no record (a refusal) the route applies its mirror `start_sentence_of` to the
+  bar time it sent, held to the JS function by `tests/fixtures/pine_runtime/w9t13a_start_sentence.json`
+  (written by `w9T13aBrokerReport.test.js`, an ASX session that is the day before in UTC).
 - **D8: not implemented yet.** T13a (`RT/brokerReport.js`) and T13b (the report panel) do not
   exist on master. D8 is their acceptance criterion: an uncomputable metric shows its refusal
   sentence.
