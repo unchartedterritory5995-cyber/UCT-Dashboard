@@ -54,6 +54,12 @@
   "title": "Changing the chart type"
  },
  {
+  "id": "C1-017",
+  "say": "how do I candle colour mode",
+  "feature": "chartSetting",
+  "title": "Changing Candle color mode"
+ },
+ {
   "id": "C1-018",
   "say": "how do I thin bars",
   "feature": "chartSetting",
@@ -207,7 +213,7 @@
   "id": "C1-052",
   "say": "how do I crosshair colour/width/style",
   "feature": "chartSetting",
-  "title": "Changing Crosshair"
+  "title": "Changing Crosshair color"
  },
  {
   "id": "C1-054",
@@ -285,19 +291,25 @@
   "id": "C1-068",
   "say": "how do I swing labels on/off and sensitivity",
   "feature": "chartSetting",
-  "title": "Changing Swing labels"
+  "title": "Changing Swing label sensitivity"
  },
  {
   "id": "C1-069",
   "say": "how do I swing label background, tint, colours",
   "feature": "chartSetting",
-  "title": "Changing Swing label background"
+  "title": "Changing Swing label background color"
  },
  {
   "id": "C1-070",
   "say": "show me how to turn on earnings markers",
   "feature": "chartSetting",
   "title": "Changing Earnings markers"
+ },
+ {
+  "id": "C1-071",
+  "say": "how do I earnings beat/miss and IPO colours",
+  "feature": "chartSetting",
+  "title": "Changing Earnings beat color"
  },
  {
   "id": "C1-072",
@@ -322,6 +334,12 @@
   "say": "how do I bar-close countdown (Shift+C)",
   "feature": "chartSetting",
   "title": "Changing Bar-close countdown"
+ },
+ {
+  "id": "C1-076",
+  "say": "how do I restore defaults",
+  "feature": "panelAction",
+  "title": "Restoring a chart’s defaults"
  },
  {
   "id": "C1-079",
@@ -576,6 +594,18 @@
   "title": "Drawing a Rectangle"
  },
  {
+  "id": "C1-135",
+  "say": "how do I circle",
+  "feature": "drawing",
+  "title": "Drawing a Circle"
+ },
+ {
+  "id": "C1-136",
+  "say": "how do I arrow",
+  "feature": "drawing",
+  "title": "Drawing an Arrow"
+ },
+ {
   "id": "C1-137",
   "say": "how do I fib retracement",
   "feature": "drawing",
@@ -670,6 +700,12 @@
   "say": "show me how to hide bars on the measure",
   "feature": "control",
   "title": "A drawing’s Show bars"
+ },
+ {
+  "id": "C1-155",
+  "say": "how do I edit anchors",
+  "feature": "drawingEdit",
+  "title": "Moving a drawing"
  },
  {
   "id": "C1-156",
