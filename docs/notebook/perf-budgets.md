@@ -1229,3 +1229,7 @@ Master alone read 2,260,770 B, 23 B under the old line, so no version of this fe
 `notebook_first_open.max` moved from 2,264,889 B to **2,275,129 B**. Master read 2,271,183 B at `55ccee8971` against the old 2,260,793 B line, about 10 KB of growth in the entry chunk from the merges between `94505138ae` and that commit (desktop, chart pop-outs, polite reloads, bundled html2canvas). A red here refuses promotion, so no commit could reach production. With Import a tweet merged, master reads **2,274,607 B** at `2fcaa34b35`, leaving 522 B of room.
 
 The owner chose the raise over reworking that code to get the bytes back. The growth was not reviewed for what could move off first open. That review is still worth doing, and it is where the next change that adds to first open should start.
+
+## The command palette left first open, and the 10,240 B came back (2026-11-09)
+
+The command palette (`components/CommandPalette.jsx`, 15 KB of the entry chunk) is drawn only after a press. It now loads on idle through `components/CommandPaletteGate.jsx`, which holds Ctrl/Cmd+K and the search triggers until it lands, then hands the binding over. First open read **2,259,805 B** after the change, 14,802 B less, so `notebook_first_open.max` returned to **2,264,889 B**. Only the 4,096 B raise for Import a tweet remains.
