@@ -422,8 +422,15 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
   useWidgetDoor(() => ({
     options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })), preset: presets.map(p => ({ value: p.id, label: p.name })) }),
-    read: () => ({ search: queryRaw }),
-    write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
+    // C3-140: the saved presets as the Presets menu lists them, what its Rename and Delete act on (one operation each, never the list)
+    read: () => ({ search: queryRaw, presets: presets.map(p => ({ id: p.id, name: p.name })) }),
+    write: (key, v) => {
+      if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80))
+      else if (key === 'presets' && v && typeof v === 'object' && presets.some(p => p.id === v.id)) {
+        if (v.op === 'delete') deletePreset(v.id)
+        else if (v.op === 'rename' && String(v.name || '').trim()) renamePreset(v.id, String(v.name).trim())
+      }
+    },
   }))
 
   return (

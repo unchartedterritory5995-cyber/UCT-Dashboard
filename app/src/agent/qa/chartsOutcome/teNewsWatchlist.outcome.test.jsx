@@ -8,11 +8,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor } from './outcomeHarness'
+import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor, proposalsNow } from './outcomeHarness'
 import { WidgetDoorContext, mountedWidgetDoor } from '../../../pages/charts/widgetDoors'
 import { WorkspaceContext } from '../../../pages/charts/WorkspaceContext'
 import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from '../../agentExecHeldOut7.test.js'
 import { PRESET_HELD_OUT } from '../../agentScanFilterHeldOut.test.js'
+import { PRESET_RENAME_HELD_OUT, PRESET_DELETE_HELD_OUT } from '../../agentPresetManageHeldOut.test.js'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const feed = vi.hoisted(() => {
@@ -174,5 +175,48 @@ describe('C3-140: apply a saved News filter preset by its name', () => {
     const out = await m.say('use my Crypto preset on the news widget', setPreset('Crypto'))
     expect(out).toMatch(/Earnings Watch/)
     expect(optsOf(m).presetId ?? null).toBe(null)
+  }, 60000)
+})
+
+// C3-140 completed (r8-presets): RENAME and DELETE one of the widget's saved filter presets, as its Presets menu's own Rename and
+// Delete do (renamePreset / deletePreset over opts.presets, through its door: one operation each, never the whole list). Rename
+// undoes; delete is always shown first and has no Undo. Missing, ambiguous and taken names are refused with the real names.
+describe('C3-140: rename or delete a saved News filter preset', () => {
+  const PRESETS = [{ id: 'p1', name: 'Earnings Watch', categories: ['Earnings'] }, { id: 'p2', name: 'Macro only', categories: ['Macro'] }, { id: 'p3', name: 'Fed search', categories: [], query: 'Fed' }]
+  const presetOp = (value) => (c) => [{ action: 'widget.setOption', target: must(c.board?.[0]?.ref, 'board'), args: { widget: 'tn', key: 'presets', value } }]
+  const names = (m) => (optsOf(m).presets || []).map(p => p.name)
+  const ready = async () => waitFor(() => expect(mountedWidgetDoor('tn')?.read?.().presets.length).toBe(3))
+  it.each(PRESET_RENAME_HELD_OUT.map(c => [c.text, c]))('"%s": renamed in the widget’s own list (its menu shows it); Undo puts the old name back', async (text, c) => {
+    const m = mount({ presets: PRESETS })
+    await ready()
+    const out = await m.say(text, presetOp(`rename:${c.preset}=>${c.name}`))
+    await waitFor(() => expect(names(m)).toEqual(PRESETS.map(p => (p.name === c.preset ? c.name : p.name))))
+    expect(out).toMatch(new RegExp(`renamed the filter preset “${c.preset}” to “${c.name}”`))
+    expect(mountedWidgetDoor('tn').options().preset.map(o => o.label)).toContain(c.name)
+    await m.say('undo')
+    await waitFor(() => expect(names(m)).toEqual(PRESETS.map(p => p.name)))
+  }, 60000)
+  it.each(PRESET_DELETE_HELD_OUT.map(c => [c.text, c]))('"%s": shown first; nothing deleted before Apply; on Apply it is gone; no Undo', async (text, c) => {
+    const m = mount({ presets: PRESETS, presetId: PRESETS.find(p => p.name === c.preset).id })
+    await ready()
+    await m.say(text, presetOp(`delete:${c.preset}`))
+    expect(proposalsNow()).toHaveLength(1)
+    expect(names(m)).toEqual(PRESETS.map(p => p.name))
+    await m.apply()
+    await waitFor(() => expect(names(m)).toEqual(PRESETS.filter(p => p.name !== c.preset).map(p => p.name)))
+    expect(optsOf(m).presetId ?? null).toBe(null)                   // the deleted preset was the applied one: the menu clears it too
+    const u = await m.say('undo')
+    expect(names(m)).not.toContain(c.preset)
+    expect(u).not.toMatch(/did not change/)
+  }, 60000)
+  it('NEGATIVE: a missing preset, an ambiguous part of a name, a taken name, a name too long: refused with the real names; nothing changes', async () => {
+    const m = mount({ presets: PRESETS })
+    await ready()
+    expect(await m.say('rename my Crypto preset to X', presetOp('rename:Crypto=>X'))).toMatch(/no “Crypto” among your filter presets \(Earnings Watch, Macro only, Fed search\)/)
+    expect(await m.say('delete the a preset', presetOp('delete:a'))).toMatch(/“a” could be “Earnings Watch” or “Macro only” or “Fed search”/)
+    expect(await m.say('rename Macro only to Fed search', presetOp('rename:Macro only=>Fed search'))).toMatch(/already have a filter preset named “Fed search”/)
+    expect(await m.say('rename Macro only to a very long name', presetOp(`rename:Macro only=>${'x'.repeat(41)}`))).toMatch(/at most 40 characters/)
+    expect(names(m)).toEqual(PRESETS.map(p => p.name))
+    expect(proposalsNow()).toHaveLength(0)
   }, 60000)
 })
