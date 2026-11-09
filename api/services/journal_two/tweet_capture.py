@@ -64,6 +64,7 @@ NOTHING_PICKED_SENTENCE = "Pick at least one post to import."
 BAD_POST_ID_SENTENCE = "That is not a post on X."
 NO_WORDS_SENTENCE = "A post from @{handle} has no text to save."
 SAVE_FAILED_SENTENCE = "A post could not be saved."
+REMOVED_POST_SENTENCE = "That post is no longer on X, so it can't be saved again."
 
 #: At most this many posts per import.
 MAX_POSTS_PER_SAVE = 20
@@ -343,6 +344,13 @@ def _save_post(conn, user_id: str, note_id: str, note_ticker: Optional[str],
             created_doc = True
         else:
             doc_id = doc["id"]
+            # A card `tweet_capture_sync` emptied stays empty. The sweep never re-checks it, so
+            # words written back here would stay for good. The `except` below rolls this back.
+            capture = conn.execute(
+                "SELECT removed_at FROM j2_note_tweet_captures WHERE document_id = ? AND user_id = ?",
+                (doc_id, user_id)).fetchone()
+            if capture is not None and capture["removed_at"] is not None:
+                raise TweetCaptureError(REMOVED_POST_SENTENCE, status=409)
 
         page = conn.execute(
             "SELECT text FROM j2_note_document_pages WHERE document_id = ? AND user_id = ? AND page_number = 1",

@@ -10,6 +10,8 @@ copied images are X's, and they go.
   * Never on one miss: two checks at least `CONFIRM_AFTER` apart must both miss the post.
   * The bulk guard: a sweep that misses more than `BULK_MISS_SHARE_PCT` of what it checked, and at
     least `BULK_MISS_MIN`, marks nothing, clears every open mark, and alerts the owner.
+  * The outage rule: a pass (sweep or confirm) where nothing resolved out of `OUTAGE_MIN_CHECKED`
+    or more ids changes nothing but those marks, and alerts the owner.
   * Any `TwitterApiError` makes the pass a no-op; the next night tries again.
   * Each post is one transaction across every member holding it, committed before the next, so a
     crash leaves whole posts removed or untouched. Files are deleted after that commit; a file
@@ -41,6 +43,8 @@ CONFIRM_AFTER = timedelta(minutes=10)
 #: A sweep missing more than this share of what it checked, and at least this many, is the vendor.
 BULK_MISS_SHARE_PCT = 20
 BULK_MISS_MIN = 20
+#: A pass over at least this many ids in which NONE resolved is an outage, not a set of deletions.
+OUTAGE_MIN_CHECKED = 2
 
 ALERT_KEY = "notebook_tweet_bulk_miss"
 
@@ -82,9 +86,13 @@ def _is_bulk(missed: int, checked: int) -> bool:
     return missed >= BULK_MISS_MIN and missed * 100 > checked * BULK_MISS_SHARE_PCT
 
 
-def _alert_owner(missed: int, checked: int) -> None:
+def _is_outage(missed: int, checked: int) -> bool:
+    return checked >= OUTAGE_MIN_CHECKED and missed >= checked
+
+
+def _alert_owner(missed: int, checked: int, job: str = "sweep") -> None:
     """Counts only. A failure here must never reach the job."""
-    message = (f"Notebook tweet sweep: X did not return {missed} of {checked} saved posts. "
+    message = (f"Notebook tweet {job}: X did not return {missed} of {checked} saved posts. "
                "Treated as a vendor problem: nothing was marked or removed.")
     logger.error("[tweet_capture_sync] %s", message)
     try:
@@ -194,7 +202,7 @@ def remove_post(conn, tweet_id: str) -> int:
 def run_sweep() -> dict[str, Any]:
     """Check every saved post once; mark the misses. Never raises."""
     out: dict[str, Any] = {"checked": 0, "missed": 0, "resolved": 0, "marked": 0,
-                           "bulk_guard": False, "vendor_error": False}
+                           "bulk_guard": False, "outage": False, "vendor_error": False}
     if not tweet_capture.enabled():
         return {**out, "skipped": "disabled"}
     try:
@@ -207,12 +215,13 @@ def run_sweep() -> dict[str, Any]:
             out["vendor_error"] = True
             return out
         out["missed"] = len(gone)
-        if _is_bulk(len(gone), len(ids)):
+        outage = _is_outage(len(gone), len(ids))
+        if outage or _is_bulk(len(gone), len(ids)):
             # Decided before any mark is written, so this pass made none. It also clears the
             # marks of earlier nights: nothing a pass this wrong says about a post can be trusted,
             # and a real deletion is only delayed to the next night.
             # The alert goes first: a database failure below must not silence it.
-            out["bulk_guard"] = True
+            out["outage" if outage else "bulk_guard"] = True
             _alert_owner(len(gone), len(ids))
             _write_marks([], _stamp(_now()), ids)
             return out
@@ -227,7 +236,8 @@ def run_sweep() -> dict[str, Any]:
 
 def run_confirm() -> dict[str, Any]:
     """Re-check marks at least `CONFIRM_AFTER` old; remove what is still gone. Never raises."""
-    out: dict[str, Any] = {"checked": 0, "resolved": 0, "removed": 0, "failed": 0, "vendor_error": False}
+    out: dict[str, Any] = {"checked": 0, "resolved": 0, "removed": 0, "failed": 0,
+                           "outage": False, "vendor_error": False}
     if not tweet_capture.enabled():
         return {**out, "skipped": "disabled"}
     try:
@@ -238,6 +248,11 @@ def run_confirm() -> dict[str, Any]:
         gone = _lookup(ids)
         if gone is None:
             out["vendor_error"] = True
+            return out
+        if _is_outage(len(gone), len(ids)):
+            # This pass makes no marks, so there are none of its own to clear.
+            out["outage"] = True
+            _alert_owner(len(gone), len(ids), job="confirm")
             return out
         resolved = [i for i in ids if i not in gone]
         out["resolved"] = len(resolved)

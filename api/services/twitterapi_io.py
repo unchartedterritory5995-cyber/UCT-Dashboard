@@ -407,6 +407,11 @@ def _request_tweets_by_ids(batch: list[str]) -> list[dict]:
         payload = r.json()
     except ValueError as e:
         raise TwitterApiTransientError(f"non-JSON 200 body: {r.text[:200]}") from e
+    # A 200 can carry a failure in its body. It holds no tweets, and for `find_deleted_tweet_ids`
+    # a missing tweet means a deleted one, so it must never read as an answer.
+    if isinstance(payload, dict) and "status" in payload:
+        if str(payload["status"]).strip().lower() not in ("success", "ok"):
+            raise TwitterApiTransientError(f"200 with a failure status: {r.text[:200]}")
     return [t for t in _extract_tweets(payload) if isinstance(t, dict)]
 
 

@@ -389,6 +389,32 @@ def test_find_deleted_tweet_ids_is_unchanged(monkeypatch):
     assert twitterapi_io.find_deleted_tweet_ids([]) == set()
 
 
+@pytest.mark.parametrize("status", ["error", "ERROR", "fail", "", None, 500])
+def test_a_200_whose_status_is_not_success_is_transient(monkeypatch, status):
+    """Without this a 200 error body has no tweets in it, which reads as every post being gone."""
+    monkeypatch.setenv("TWITTERAPI_IO_API_KEY", "k")
+    monkeypatch.setattr(twitterapi_io.requests, "get",
+                        lambda *a, **k: _Resp(200, {"status": status, "message": "try later"}))
+    with pytest.raises(twitterapi_io.TwitterApiTransientError):
+        twitterapi_io.find_deleted_tweet_ids(["1", "2"])
+    with pytest.raises(twitterapi_io.TwitterApiTransientError):
+        twitterapi_io.get_tweets_by_ids(["1"])
+
+
+@pytest.mark.parametrize("body", [
+    {"tweets": [_raw("1")]},                          # no status at all still works
+    {"tweets": [_raw("1")], "status": "success"},
+    {"tweets": [_raw("1")], "status": "SUCCESS"},
+    {"tweets": [_raw("1")], "status": "ok"},
+    {"tweets": [_raw("1")], "status": " OK "},
+])
+def test_a_200_with_a_good_or_absent_status_still_answers(monkeypatch, body):
+    monkeypatch.setenv("TWITTERAPI_IO_API_KEY", "k")
+    monkeypatch.setattr(twitterapi_io.requests, "get", lambda *a, **k: _Resp(200, body))
+    assert twitterapi_io.find_deleted_tweet_ids(["1", "2"]) == {"2"}
+    assert [t["id"] for t in twitterapi_io.get_tweets_by_ids(["1"])] == ["1"]
+
+
 def test_a_200_with_a_non_json_body_is_transient(monkeypatch):
     class _NotJson(_Resp):
         def json(self):

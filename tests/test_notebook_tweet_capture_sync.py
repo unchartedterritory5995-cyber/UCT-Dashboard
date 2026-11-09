@@ -374,7 +374,7 @@ def test_bulk_miss_removes_nothing_and_alerts(notebook, x, clock, alerts, caplog
 
 @pytest.mark.parametrize("total,missed", [
     (100, 20),      # exactly 20% does not exceed it
-    (19, 19),       # over 20%, but fewer than 20
+    (30, 19),       # over 20%, but fewer than 20
 ])
 def test_a_miss_below_either_bulk_bound_is_marked(notebook, x, clock, alerts, total, missed):
     _seed_rows(total)
@@ -411,6 +411,97 @@ def test_the_alert_still_fires_when_the_marks_cannot_be_cleared(notebook, x, clo
     out = sync.run_sweep()
     assert out["bulk_guard"] is True and out["error"] == "RuntimeError"
     assert len(alerts) == 1
+
+
+def test_nothing_resolving_in_sweep_is_an_outage(notebook, x, clock, alerts, caplog):
+    _seed_rows(3)                   # far under the 20-and-20 guard: only this rule can catch it
+    _exec("UPDATE j2_note_tweet_captures SET gone_first_missed_at = ? WHERE tweet_id = '90000'",
+          (T0 - timedelta(days=1)).isoformat(timespec="microseconds"))
+    x["gone"] = {"90000", "90001", "90002"}
+
+    with caplog.at_level("ERROR", logger="api.services.journal_two.tweet_capture_sync"):
+        out = _sync().run_sweep()
+
+    assert out["outage"] is True and out["bulk_guard"] is False and out["marked"] == 0
+    assert _rows("SELECT * FROM j2_note_tweet_captures WHERE gone_first_missed_at IS NOT NULL") == []
+    assert _rows("SELECT * FROM j2_note_tweet_captures WHERE removed_at IS NOT NULL") == []
+    assert len(alerts) == 1 and alerts[0][1] == "critical"
+    assert any(r.levelname == "ERROR" for r in caplog.records)
+
+
+def test_nothing_resolving_in_confirm_removes_nothing(notebook, x, clock, alerts, caplog):
+    note_id = _note()
+    excerpt = _save("7050", note_id)
+    _save("7051", note_id)
+    _save("7052", note_id)          # resolves at the sweep, so the sweep is not itself an outage
+    x["gone"] = {"7050", "7051"}
+    assert _sync().run_sweep()["outage"] is False
+    before = _rows("SELECT * FROM j2_note_tweet_captures ORDER BY tweet_id")
+
+    clock["t"] = T0 + timedelta(minutes=10)
+    with caplog.at_level("ERROR", logger="api.services.journal_two.tweet_capture_sync"):
+        out = _sync().run_confirm()
+
+    assert out["outage"] is True and out["removed"] == 0 and out["checked"] == 2
+    assert _rows("SELECT * FROM j2_note_tweet_captures ORDER BY tweet_id") == before    # no marks either
+    assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?", excerpt["id"])[0]["captured_text"] == WORDS
+    assert len(_rows("SELECT * FROM j2_note_document_pages")) == 3
+    assert len(alerts) == 1 and alerts[0][1] == "critical"
+    assert any(r.levelname == "ERROR" for r in caplog.records)
+
+
+def test_a_single_post_really_gone_is_still_removed_after_both_checks(notebook, x, clock, alerts):
+    """The control: one id checked is not an outage, however it answers."""
+    excerpt = _save("7053", _note())
+    x["gone"] = {"7053"}
+    sweep = _sync().run_sweep()
+    assert sweep["outage"] is False and sweep["marked"] == 1
+    clock["t"] = T0 + timedelta(minutes=10)
+    confirm = _sync().run_confirm()
+    assert confirm["outage"] is False and confirm["removed"] == 1
+    assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?", excerpt["id"])[0]["captured_text"] == ""
+    assert alerts == []
+
+
+def test_resave_of_a_removed_post_is_refused_and_restores_nothing(notebook, x, clock):
+    from api.services import auth_db
+    from api.services.journal_two import notes, tweet_capture as tc
+
+    note_id = _note()
+    excerpt = _save("7054", note_id)
+    c = auth_db.get_connection()
+    try:
+        assert _sync().remove_post(c, "7054") == 1
+    finally:
+        c.close()
+    assert tweet_store.get_tweet("7054") is not None    # the store can still answer: the reachable case
+    before = notes.get_note(UID, note_id)["bodyJson"]
+
+    with pytest.raises(tc.TweetCaptureError) as refused:
+        tc.save(UID, note_id, ["7054"])
+
+    assert refused.value.status == 409
+    assert str(refused.value) == "That post is no longer on X, so it can't be saved again."
+    assert _rows("SELECT * FROM j2_note_document_pages") == []
+    assert _rows("SELECT * FROM j2_note_document_pages_fts_map") == []
+    excerpts = _rows("SELECT id, captured_text FROM j2_note_excerpts")
+    assert excerpts == [{"id": excerpt["id"], "captured_text": ""}]
+    assert notes.get_note(UID, note_id)["bodyJson"] == before
+    assert _capture("7054")["removed_at"] is not None
+
+
+def test_saving_a_removed_post_into_a_new_note_is_a_fresh_card(notebook, x, clock):
+    """The refusal is about the card that was removed; the sweep checks a new one on its own."""
+    from api.services import auth_db
+    _save("7055", _note())
+    c = auth_db.get_connection()
+    try:
+        _sync().remove_post(c, "7055")
+    finally:
+        c.close()
+    fresh = _save("7055", _note())
+    assert fresh["capturedText"] == WORDS
+    assert len(_rows("SELECT 1 FROM j2_note_tweet_captures WHERE tweet_id = '7055' AND removed_at IS NULL")) == 1
 
 
 def test_vendor_error_changes_nothing(notebook, x, clock):
@@ -621,8 +712,11 @@ def test_one_bad_post_does_not_stop_the_others(notebook, x, clock, monkeypatch):
     note_id = _note()
     _save("7041", note_id)
     _save("7042", note_id)
-    x["gone"] = {"7041", "7042"}
+    _save("7044", note_id)          # marked, then back: the confirm must see something resolve
+    _save("7045", note_id)          # never missed: the sweep must see something resolve
+    x["gone"] = {"7041", "7042", "7044"}
     sync.run_sweep()
+    x["gone"] = {"7041", "7042"}
     clock["t"] = T0 + timedelta(minutes=10)
     real = sync.remove_post
 
