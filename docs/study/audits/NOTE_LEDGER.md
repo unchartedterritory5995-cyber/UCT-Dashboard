@@ -141,10 +141,14 @@ Last checked: 2026-11-08, branch `feat/study-focus-status`.
 ## 14. His rulings on questions and examples (the bank)
 
 About 300 more rows in the same file are his rulings on individual questions and chart examples (bank passes 1 to 4,
-the fixtures, the scanner, the Go Signal hourly and the Bear gap sets). Each was applied when it was made: a cut item is
-retired, a fix is re-drafted for his review, a keep is approved. Re-checking all of them against the live bank needs a
-read of the production database, which this session does not do; a repo-side check of the bank files is the next step
-for this section.
+the fixtures, the scanner, the Go Signal hourly and the Bear gap sets). Checked against the bank files 2026-11-08
+(`scripts/study/check_rulings.py`, his latest ruling on each item standing; the rail `tests/test_study_rulings_rail.py`
+keeps it so): all 153 keeps are still in the bank; 90 cuts were still drafts in the bank on no retire list (73 setup
+examples, 7 fixtures, 7 Bear gaps, 3 Go Signal hourly), now listed in `docs/study/audits/2026-11-08/retire_ruled_cuts.json`.
+The live half is one dry run on the pod after the merge
+(`scripts/study/retire_ids.py docs/study/audits/2026-11-08/retire_ruled_cuts.json --dry-run`): it writes nothing and
+names any of the 90 that is not a draft. A cut that is APPROVED there would be shown to members as a good example, so
+that list goes to him before the real run.
 
 ## The open list, in the order it will be built
 
@@ -161,3 +165,4 @@ for this section.
 11. Done 2026-11-08: the replay stops and asks at 2R and 3R (N033); the pointer asks the question at the candle (N068);
     the trade's action items as bar markers (N072, N102).
 12. Drafted 2026-11-08: 19 questions that lead, waiting on his approval (N008).
+13. Checked 2026-11-08: the bank against all his question and example rulings (section 14); 90 cuts to retire on the pod.
