@@ -1,9 +1,11 @@
 // OPTIONS PAYOFF (docs/study/GAMES.md §3, kind 'payoff'): the pure side of the game. Six positions a run, one of each
 // kind: a long call, a long put, a cash-secured put, a covered call (100 shares and one short call), a bull call debit
 // spread and a bear call credit spread. The stock's price on expiry day is given; the member picks the position's profit
-// or loss from four tiles: the right amount and three named mistakes (forgot the x100, forgot the premium, the sign
-// flipped). Every number the game shows or scores comes from here, from a seed (the component seeds once at start;
-// nothing here reads the clock or Math.random).
+// or loss from four tiles built on two of the three classic slips (forgot the x100, left out the premium, the sign
+// flipped), a pair seeded per position: the right amount, each slip alone, and both slips together. The set is closed
+// under its two slips (every tile has the same partners), so the pattern of the four amounts never points at the answer:
+// only the math does. Every number the game shows or scores comes from here, from a seed (the component seeds once at
+// start; nothing here reads the clock or Math.random).
 //
 // The rules it teaches (the course, docs/study/UNITS-foundations.md):
 //   F6.01  one contract is 100 shares
@@ -18,20 +20,29 @@
 // Profit or loss at expiry, one contract: (intrinsic value at expiry − premium paid, or + premium collected) x 100.
 //
 // All prices are whole cents, so the math is exact. One contract is 100 shares, so the position's P/L in dollars is the
-// per-share P/L in cents (cents x 100 shares / 100 cents a dollar). XYZ is a made-up stock: strikes sit on the listed
-// grid ($1 under $60, $5 to $200, $10 above), premiums are priced by Black-Scholes (no rates, no dividends) for 21 to 45
-// days and 28% to 48% implied volatility, rounded to the nickel. Fees are left out.
+// per-share P/L in cents (cents x 100 shares / 100 cents a dollar). The stock is a practice stock with NO ticker (as in
+// Order Ticket: a game never invents a market fact; "XYZ", the textbooks' placeholder, has been a real NYSE listing since
+// January 2025). Strikes sit on a listed-style grid ($1 under $60, $5 to $200, $10 above), premiums are priced by
+// Black-Scholes (no rates, no dividends) for 21 to 45 days and 28% to 48% implied volatility, rounded to the nickel.
+// Fees are left out.
 
 export const PAYOFF_KIND = 'payoff'
 export const PAYOFF_TOTAL = 6
 export const PAYOFF_HEARTS = 3
 export const PAYOFF_BEST_KEY = 'study.payoff.best'
 export const SHARES = 100
-export const TICKER = 'XYZ'
+/** What the copy calls the practice stock (no ticker: see above). */
+export const STOCK = 'the stock'
 export const MINUS = '−'
 export const KINDS = ['long_call', 'long_put', 'short_put', 'covered_call', 'bull_call_debit', 'bear_call_credit']
-/** The four tiles: the right amount and the three named mistakes. */
-export const MISTAKES = ['right', 'x100', 'premium', 'sign']
+/** The three slips a wrong tile makes: the per-share answer (forgot the x100), the options part without the premium
+ *  (left out what was paid or collected), the sign flipped. */
+export const SLIPS = ['x100', 'premium', 'sign']
+/** The pairs of slips a position's four tiles are built on: the right amount, slip A, slip B, and A and B together. */
+export const PAIRS = [['x100', 'sign'], ['x100', 'premium'], ['premium', 'sign']]
+export const PAIR_KEYS = PAIRS.map(([a, b]) => `${a}_${b}`)
+/** Every tile a position can show: the right amount, each slip alone, and each pair of slips together. */
+export const MISTAKES = ['right', ...SLIPS, ...PAIR_KEYS]
 
 const U11 = { unit: 'F6.11', unitName: 'Long calls and long puts' }
 const U12 = { unit: 'F6.12', unitName: 'Debit and credit verticals' }
@@ -52,6 +63,16 @@ export const KIND_INFO = {
 export function rng(seed) {
   let s = Math.abs(Math.floor(Number(seed) || 0)) % 2147483647 || 1
   return () => { s = (s * 48271) % 2147483647; return s / 2147483647 }
+}
+
+/** A seed scrambled (the murmur3 finish), so a position's own generator never runs in step with the run's generator it
+ *  was drawn from: Park-Miller seeded with a state of itself replays its own next draws, which would tie the pair of slips
+ *  and the tiles' order to the zone the expiry price came from. */
+export function mixSeed(seed) {
+  let h = (Math.abs(Math.floor(Number(seed) || 0)) ^ 0x9e3779b9) >>> 0
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0
+  return (h ^ (h >>> 16)) >>> 0
 }
 
 export function shuffled(list, r) {
@@ -181,19 +202,49 @@ export function extremesOf(pos) {
   }
 }
 
-/** The four tiles' amounts in dollars. The mistakes: the per-share answer (forgot the x100); the options part alone
- *  (a buyer forgot to subtract what was paid, a seller forgot to add what was collected); the sign flipped. */
-export function tileValues(pos, S = pos.expiry) {
-  const ps = perShareAt(pos, S)
-  const right = (ps * SHARES) / 100
-  const premiumCents = KIND_INFO[pos.kind].buyer ? -pos.premium : pos.premium
-  return { right, x100: ps / 100, premium: ((ps - premiumCents) * SHARES) / 100, sign: -right }
+/** The position's per share P/L without the premium, in cents: what the options part (and, in a covered call, the shares)
+ *  came to on expiry day. A buyer's P/L is this less what was paid; a seller's is this plus what was collected. */
+export function partAt(pos, S = pos.expiry) {
+  return perShareAt(pos, S) + (KIND_INFO[pos.kind].buyer ? pos.premium : -pos.premium)
 }
 
-/** Four different amounts and a real profit or loss (a breakeven would make the sign tile the same as the answer). */
-export function tilesDiffer(values) {
-  const cents = MISTAKES.map((m) => Math.round(values[m] * 100))
-  return cents[0] !== 0 && new Set(cents).size === cents.length
+const neg = (x) => (x === 0 ? 0 : -x)   // never a negative zero
+
+/** Every tile's amount in dollars: the right one; each slip alone (the per-share answer, forgot the x100; the options
+ *  part alone, a buyer forgot to subtract what was paid or a seller to add what was collected; the sign flipped); and
+ *  each pair of slips together. */
+export function tileValues(pos, S = pos.expiry) {
+  const ps = perShareAt(pos, S)
+  const part = partAt(pos, S)
+  const right = (ps * SHARES) / 100
+  const premium = (part * SHARES) / 100
+  return {
+    right, x100: ps / 100, premium, sign: neg(right),
+    x100_sign: neg(ps / 100), x100_premium: part / 100, premium_sign: neg(premium),
+  }
+}
+
+/** The tiles a pair of slips makes: the right amount, each slip alone, both together. */
+export const tilesOf = (pair) => {
+  const [a, b] = PAIRS[PAIR_KEYS.indexOf(pair)]
+  return ['right', a, b, pair]
+}
+
+/** The tiles name four different amounts (to the cent) and none is $0 (a breakeven would make the sign flipped the same
+ *  as the answer; an option worth nothing would make the premium slip $0). */
+export function tilesDiffer(values, keys) {
+  const cents = keys.map((m) => Math.round(values[m] * 100))
+  return cents.every((c) => c !== 0) && new Set(cents).size === cents.length
+}
+
+/** The pair a position's tiles are built on: the seeded pair first, then the other two in turn, and the first whose four
+ *  amounts all differ and none is $0. Null when none does (the position is then not dealt). */
+export function pickPair(values, first = 0) {
+  for (let k = 0; k < PAIR_KEYS.length; k++) {
+    const pair = PAIR_KEYS[(first + k) % PAIR_KEYS.length]
+    if (tilesDiffer(values, tilesOf(pair))) return pair
+  }
+  return null
 }
 
 /* ── the words of a position ──────────────────────────────────────────────────────────────────────────────────── */
@@ -201,28 +252,26 @@ export function tilesDiffer(values) {
 const strikeName = (K, type) => `${bare(K)} ${type}`
 
 function sentenceOf(p) {
-  const t = p.ticker
   switch (p.kind) {
-    case 'long_call': return `You bought 1 ${t} ${strikeName(p.strike, 'call')} for ${price(p.premium)}.`
-    case 'long_put': return `You bought 1 ${t} ${strikeName(p.strike, 'put')} for ${price(p.premium)}.`
-    case 'short_put': return `You sold 1 ${t} ${strikeName(p.strike, 'put')} for ${price(p.premium)}, cash-secured.`
-    case 'covered_call': return `You own 100 ${t} shares at ${price(p.basis)} and sold 1 ${t} ${strikeName(p.strike, 'call')} against them for ${price(p.premium)}.`
-    case 'bull_call_debit': return `You bought the ${t} ${bare(p.low)}/${bare(p.high)} call spread for ${price(p.premium)}.`
-    case 'bear_call_credit': return `You sold the ${t} ${bare(p.low)}/${bare(p.high)} call spread for ${price(p.premium)}.`
+    case 'long_call': return `You bought one ${strikeName(p.strike, 'call')} for ${price(p.premium)}.`
+    case 'long_put': return `You bought one ${strikeName(p.strike, 'put')} for ${price(p.premium)}.`
+    case 'short_put': return `You sold one ${strikeName(p.strike, 'put')} for ${price(p.premium)}, cash-secured.`
+    case 'covered_call': return `You own 100 shares at ${price(p.basis)} and sold one ${strikeName(p.strike, 'call')} against them for ${price(p.premium)}.`
+    case 'bull_call_debit': return `You bought the ${bare(p.low)}/${bare(p.high)} call spread for ${price(p.premium)}.`
+    case 'bear_call_credit': return `You sold the ${bare(p.low)}/${bare(p.high)} call spread for ${price(p.premium)}.`
     default: return ''
   }
 }
 
 function legsOf(p) {
-  const t = p.ticker
   const [a, b] = p.legPrices || []
   switch (p.kind) {
-    case 'long_call': return [{ side: 'Buy', what: `1 ${t} ${strikeName(p.strike, 'call')}`, at: price(p.premium) }]
-    case 'long_put': return [{ side: 'Buy', what: `1 ${t} ${strikeName(p.strike, 'put')}`, at: price(p.premium) }]
-    case 'short_put': return [{ side: 'Sell', what: `1 ${t} ${strikeName(p.strike, 'put')}`, at: price(p.premium) }]
-    case 'covered_call': return [{ side: 'Own', what: `100 ${t} shares`, at: price(p.basis) }, { side: 'Sell', what: `1 ${t} ${strikeName(p.strike, 'call')}`, at: price(p.premium) }]
-    case 'bull_call_debit': return [{ side: 'Buy', what: `1 ${t} ${strikeName(p.low, 'call')}`, at: price(a ?? p.premium) }, { side: 'Sell', what: `1 ${t} ${strikeName(p.high, 'call')}`, at: b != null ? price(b) : '' }]
-    case 'bear_call_credit': return [{ side: 'Sell', what: `1 ${t} ${strikeName(p.low, 'call')}`, at: price(a ?? p.premium) }, { side: 'Buy', what: `1 ${t} ${strikeName(p.high, 'call')}`, at: b != null ? price(b) : '' }]
+    case 'long_call': return [{ side: 'Buy', what: `1 ${strikeName(p.strike, 'call')}`, at: price(p.premium) }]
+    case 'long_put': return [{ side: 'Buy', what: `1 ${strikeName(p.strike, 'put')}`, at: price(p.premium) }]
+    case 'short_put': return [{ side: 'Sell', what: `1 ${strikeName(p.strike, 'put')}`, at: price(p.premium) }]
+    case 'covered_call': return [{ side: 'Own', what: '100 shares', at: price(p.basis) }, { side: 'Sell', what: `1 ${strikeName(p.strike, 'call')}`, at: price(p.premium) }]
+    case 'bull_call_debit': return [{ side: 'Buy', what: `1 ${strikeName(p.low, 'call')}`, at: price(a ?? p.premium) }, { side: 'Sell', what: `1 ${strikeName(p.high, 'call')}`, at: b != null ? price(b) : '' }]
+    case 'bear_call_credit': return [{ side: 'Sell', what: `1 ${strikeName(p.low, 'call')}`, at: price(a ?? p.premium) }, { side: 'Buy', what: `1 ${strikeName(p.high, 'call')}`, at: b != null ? price(b) : '' }]
     default: return []
   }
 }
@@ -242,15 +291,14 @@ function detailOf(p) {
   return 'Held to expiry. Fees left out.'
 }
 
-/** The premium step of the working: a buyer subtracts what was paid, a seller adds what was collected. */
+/** The premium step of the working, written the way it adds up: a buyer takes what was paid off the option's value
+ *  ("$4.30 − $2.10"); a seller adds what was collected to what is owed ("−$2.20 + $1.35"). */
 function premiumStep(p, v, ps) {
   if (KIND_INFO[p.kind].buyer) {
-    return v > 0
-      ? `Less the ${price(p.premium)} you paid: ${price(v)} ${MINUS} ${price(p.premium)} = ${perShare(ps)} a share.`
-      : `Less the ${price(p.premium)} you paid: ${perShare(ps)} a share.`
+    return `Less the ${price(p.premium)} you paid: ${price(v)} ${MINUS} ${price(p.premium)} = ${perShare(ps)} a share.`
   }
   return v > 0
-    ? `Add the ${price(p.premium)} you collected: ${price(p.premium)} ${MINUS} ${price(v)} = ${perShare(ps)} a share.`
+    ? `Add the ${price(p.premium)} you collected: ${MINUS}${price(v)} + ${price(p.premium)} = ${perShare(ps)} a share.`
     : `You keep the ${price(p.premium)} you collected: ${perShare(ps)} a share.`
 }
 
@@ -287,12 +335,15 @@ export function workingOf(p) {
         : S === p.strike ? `The ${name} you sold is worth $0.00, right on the strike.`
           : `The ${name} you sold expires worthless.`
       const owe = v > 0 ? ` ${MINUS} ${price(v)}` : ''
-      return [
+      const steps = [
         `The shares: ${price(S)} ${MINUS} ${price(p.basis)} = ${perShare(shares)} a share.`,
         second,
         `Add the ${price(p.premium)} you collected: ${perShare(shares)}${owe} + ${price(p.premium)} = ${perShare(ps)} a share.`,
         times,
       ]
+      // F6.13, "assignment is the plan": called away, the shares go at the strike, so the gain stops there
+      if (v > 0) steps.splice(2, 0, `Assigned, you sell your shares at ${price(p.strike)} when they are worth ${price(S)}: the same ${price(v)} a share.`)
+      return steps
     }
     case 'bull_call_debit': case 'bear_call_credit': {
       const sold = p.kind === 'bear_call_credit'
@@ -315,37 +366,63 @@ export function ruleOf(p) {
   switch (p.kind) {
     case 'long_call': return `A long call can lose only what you paid, ${dollars(maxLoss)}. It makes money above the strike plus the premium: ${be}.`
     case 'long_put': return `A long put can lose only what you paid, ${dollars(maxLoss)}. It makes money below the strike minus the premium: ${be}.`
-    case 'short_put': return `A cash-secured put pays you ${dollars(maxGain)} up front. Under ${be}, the strike minus the premium, it loses a dollar for every dollar ${p.ticker} falls.`
+    // one contract: under the breakeven every dollar the stock falls costs 100 dollars (the put's 100 shares)
+    case 'short_put': return `A cash-secured put pays you ${dollars(maxGain)} up front. Under ${be}, the strike minus the premium, it loses $100 for every dollar ${STOCK} falls.`
     case 'covered_call': return `The call caps the trade at the strike: the most it can make is ${dollars(maxGain)}. The premium lowers your breakeven to ${be}.`
     case 'bull_call_debit': return `A debit spread risks what you paid, ${dollars(maxLoss)}. The most it makes is the width less that: ${dollars(maxGain + maxLoss)} ${MINUS} ${dollars(maxLoss)} = ${dollars(maxGain)}.`
-    case 'bear_call_credit': return `A credit spread keeps what you collected, ${dollars(maxGain)}, if ${p.ticker} ends at or under ${price(p.low)}. The most it loses is the width less that: ${dollars(maxGain + maxLoss)} ${MINUS} ${dollars(maxGain)} = ${dollars(maxLoss)}.`
+    case 'bear_call_credit': return `A credit spread keeps what you collected, ${dollars(maxGain)}, if ${STOCK} ends at or under ${price(p.low)}. The most it loses is the width less that: ${dollars(maxGain + maxLoss)} ${MINUS} ${dollars(maxGain)} = ${dollars(maxLoss)}.`
     default: return ''
   }
 }
 
-/** The line that names the mistake a wrong tile makes. */
+/** The line that names the mistake a wrong tile makes, with its numbers. A tile with two slips names both and works
+ *  back to the answer from the amount the member picked. */
 export function mistakeLine(p, mistake) {
   const ps = perShareAt(p, p.expiry)
   const pl = plAt(p, p.expiry)
+  const part = partAt(p, p.expiry)
+  const buyer = KIND_INFO[p.kind].buyer
+  const did = pl > 0 ? 'made money' : 'lost money'
+  const prem = price(p.premium)
+  const what = buyer ? `the ${prem} you paid` : `the ${prem} you collected`
+  const perContract = dollars((p.premium * SHARES) / 100)
+  const op = buyer ? MINUS : '+'
   switch (mistake) {
     case 'x100': return `That is the answer for one share. One contract is 100 shares: ${perShare(ps)} x 100 = ${fmtPL(pl)}.`
-    case 'premium': return KIND_INFO[p.kind].buyer
-      ? `That leaves out the ${price(p.premium)} you paid. A buyer starts ${price(p.premium)} a share down.`
-      : `That leaves out the ${price(p.premium)} you collected. The premium is yours whatever ${p.ticker} does.`
-    case 'sign': return `Right size, wrong sign. This one ${pl > 0 ? 'made money' : 'lost money'}.`
+    case 'premium': return buyer
+      ? `That leaves out ${what}. A buyer starts ${prem} a share down.`
+      : `That leaves out ${what}. The premium is yours whatever ${STOCK} does.`
+    case 'sign': return `Right size, wrong sign. This one ${did}.`
+    case 'x100_sign': return `That is one share, with the sign flipped. This one ${did}: ${perShare(ps)} x 100 = ${fmtPL(pl)}.`
+    case 'x100_premium': return `That leaves out ${what}, and it is for one share. ${perShare(part)} ${op} ${prem} = ${perShare(ps)} a share, x 100 = ${fmtPL(pl)}.`
+    case 'premium_sign': return `That leaves out ${what}, ${perContract} a contract, and flips the sign. ${fmtPL((part * SHARES) / 100)} ${op} ${perContract} = ${fmtPL(pl)}, so this one ${did}.`
     default: return ''
   }
 }
 
 /** The verdict's headline for a tile. */
 export function headlineOf(p, mistake) {
+  const left = KIND_INFO[p.kind].buyer ? 'left out what you paid' : 'left out what you collected'
   switch (mistake) {
     case 'right': return 'Priced it.'
     case 'x100': return 'Forgot the x100.'
-    case 'premium': return KIND_INFO[p.kind].buyer ? 'Left out what you paid.' : 'Left out what you collected.'
+    case 'premium': return `${left[0].toUpperCase()}${left.slice(1)}.`
     case 'sign': return 'Wrong sign.'
+    case 'x100_sign': return 'Wrong sign, and forgot the x100.'
+    case 'x100_premium': return `${left[0].toUpperCase()}${left.slice(1)}, and the x100.`
+    case 'premium_sign': return `Wrong sign, and ${left}.`
     default: return 'Not this one.'
   }
+}
+
+/** The slip a wrong tile made, in a few words, for the run's log: "wrong sign, forgot the x100". Empty when right. */
+export function slipOf(mistake) {
+  const words = { x100: 'forgot the x100', premium: 'left out the premium', sign: 'wrong sign' }
+  if (!mistake || mistake === 'right') return ''
+  if (words[mistake]) return words[mistake]
+  const [a, b] = mistake.split('_')
+  // the sign first, then the premium, then the x100: "wrong sign, left out the premium"
+  return [a, b].sort((x, y) => SLIPS.indexOf(y) - SLIPS.indexOf(x)).map((k) => words[k]).join(', ')
 }
 
 /** The position in a few words for the run log: "50 call", "50/55 calls", "45 put". */
@@ -357,13 +434,14 @@ export function shortName(p) {
 /**
  * One position, every number and every word the game shows for it, from its own inputs (all prices in cents):
  * `{ stock, dte, iv, premium, expiry }` and `strike` (single option, covered call; plus `basis` for the covered call) or
- * `low` and `high` (the spreads; `premium` is the net, `legPrices` the two legs). `order` seeds the tiles' order.
+ * `low` and `high` (the spreads; `premium` is the net, `legPrices` the two legs). `order` seeds the pair of slips the
+ * tiles are built on and the tiles' order; `pair` (one of PAIR_KEYS) names the pair to try first instead.
  */
 export function position(kind, o) {
   const info = KIND_INFO[kind]
   if (!info) throw new Error(`unknown kind ${kind}`)
   const p = {
-    kind, id: o.id || `${kind}-${o.expiry}`, ticker: TICKER, title: info.title, unit: info.unit, unitName: info.unitName,
+    kind, id: o.id || `${kind}-${o.expiry}`, title: info.title, unit: info.unit, unitName: info.unitName,
     buyer: info.buyer, spread: info.spread, stock: o.stock, dte: o.dte ?? 30, iv: o.iv ?? null, premium: o.premium,
     expiry: o.expiry, scenario: o.scenario || null,
     strike: info.spread ? null : o.strike, low: info.spread ? o.low : null, high: info.spread ? o.high : null,
@@ -377,8 +455,16 @@ export function position(kind, o) {
   p.pl = plAt(p, p.expiry)
   Object.assign(p, extremesOf(p))
   p.values = tileValues(p)
-  p.ok = tilesDiffer(p.values)
-  const order = shuffled(MISTAKES, rng(o.order ?? 1))
+  // the position's own seed picks the pair of slips to try first (always drawn, so the tiles' order is the same either way)
+  const r = rng(mixSeed(o.order ?? 1))
+  const drawn = Math.floor(r() * PAIR_KEYS.length)
+  const first = PAIR_KEYS.includes(o.pair) ? PAIR_KEYS.indexOf(o.pair) : drawn
+  const pair = pickPair(p.values, first)
+  p.ok = pair != null
+  p.firstPair = PAIR_KEYS[first]                 // the pair tried first; `pair` is the one dealt
+  p.pair = pair ?? PAIR_KEYS[first]
+  p.tiles = tilesOf(p.pair)
+  const order = shuffled(p.tiles, r)
   p.choices = order.map((m) => ({ mistake: m, value: p.values[m], label: fmtPL(p.values[m]) }))
   p.labels = p.choices.map((c) => c.label)
   p.answer = fmtPL(p.pl)
@@ -386,8 +472,8 @@ export function position(kind, o) {
   p.legs = legsOf(p)
   p.net = netOf(p)
   p.note = noteOf(p)
-  p.context = `Opened with ${p.dte} days to go, ${p.ticker} at ${price(p.stock)}. A made-up stock, real math.`
-  p.question = `${p.ticker} closes at ${price(p.expiry)} on expiry day. What is your profit or loss?`
+  p.context = `Opened with ${p.dte} days to go, the stock at ${price(p.stock)}. Made-up prices, real math.`
+  p.question = `The stock closes at ${price(p.expiry)} on expiry day. What is your profit or loss?`
   p.detail = detailOf(p)
   p.working = workingOf(p)
   p.rule = ruleOf(p)
@@ -395,14 +481,14 @@ export function position(kind, o) {
   return p
 }
 
-/** The mistake a tile label stands for ('right', 'x100', 'premium', 'sign'), or null. */
+/** The mistake a tile label stands for (one of MISTAKES: 'right', a slip, or two slips such as 'x100_sign'), or null. */
 export function mistakeOf(p, label) {
   return p.choices.find((c) => c.label === label)?.mistake || null
 }
 
 /* ── the generator ────────────────────────────────────────────────────────────────────────────────────────────── */
 
-/** Price levels for XYZ, in dollars; each run jitters them by up to a dollar either way. */
+/** Price levels for the practice stock, in dollars; each run jitters them by up to a dollar either way. */
 export const LEVELS = [18, 23, 27, 32, 36, 41, 46, 52, 57, 63, 68, 74, 81, 88, 96, 104, 115, 128, 142, 156, 175, 190, 212, 236, 265]
 export const DTES = [21, 30, 45]
 export const IVS = [0.28, 0.34, 0.4, 0.48]
@@ -518,8 +604,32 @@ function drawTrade(kind, r) {
   return o
 }
 
-/** One position of a kind from the generator: a sensible trade, an expiry price in one of its zones, four different
- *  tiles. Deterministic for the same generator state. */
+/** How often each zone comes up, by kind (relative weights). The buyers (the long call and put, the debit spread) end in
+ *  profit about a third of the time and the sellers (the cash-secured put, the covered call, the credit spread) about
+ *  three times in four, close to how these trades go. The mix is also what keeps the tiles honest (OWNER_PRINCIPLES rule
+ *  10): a buyer's option that expires worthless and a seller's kept premium both deal the x100 and sign tiles (left out,
+ *  the premium would read $0), so they come up about as often as each other, and over all six kinds no guess from the
+ *  four amounts alone (the loss, the smaller amount, the one with a 1/100 partner) beats about one in two. Measured over
+ *  30,000 positions; the unit test holds the line. */
+export const ZONE_WEIGHTS = {
+  long_call: { win: 6, short_of_breakeven: 9, at_strike: 2, worthless: 2 },
+  long_put: { win: 6, short_of_breakeven: 9, at_strike: 2, worthless: 2 },
+  short_put: { keep: 3, at_strike: 1, partial: 14, loss: 7 },
+  covered_call: { called_away: 3, at_strike: 2, between: 4, cushion: 5, loss: 5 },
+  bull_call_debit: { below: 6, at_lower: 4, between_loss: 5, between_win: 2, at_upper: 3, above: 2 },
+  bear_call_credit: { below: 7, at_lower: 3, between_win: 4, between_loss: 2, at_upper: 1, above: 2 },
+}
+
+/** The zone a draw u (0 to 1) lands in, by the kind's weights over the zones this trade has. */
+export function zoneIndex(kind, zones, u) {
+  const w = zones.map((z) => ZONE_WEIGHTS[kind]?.[z.key] ?? 1)
+  let x = u * w.reduce((t, v) => t + v, 0)
+  for (let k = 0; k < w.length; k++) { x -= w[k]; if (x < 0) return k }
+  return w.length - 1
+}
+
+/** One position of a kind from the generator: a sensible trade, an expiry price in one of its zones, a closed set of
+ *  four different tiles. Deterministic for the same generator state. */
 export function makePosition(kind, r, id = '') {
   for (let tries = 0; tries < 60; tries++) {
     const o = drawTrade(kind, r)
@@ -527,7 +637,7 @@ export function makePosition(kind, r, id = '') {
     const zones = zonesFor(kind, o)
     if (!zones.length) continue
     const order = 1 + Math.floor(r() * 2147483640)
-    const z0 = Math.floor(r() * zones.length)
+    const z0 = zoneIndex(kind, zones, r())
     const at = r()
     for (let zi = 0; zi < zones.length; zi++) {
       const zone = zones[(z0 + zi) % zones.length]
@@ -570,7 +680,7 @@ export function axisTicks(lo, hi, target = 4) {
   return out
 }
 
-/** The payoff at expiry as a drawing: x is XYZ's price at expiry (cents), y the P/L (dollars). The line is straight
+/** The payoff at expiry as a drawing: x is the stock's price at expiry (cents), y the P/L (dollars). The line is straight
  *  between the strikes, so its points are the two edges and every strike between them. The range always holds the
  *  strikes, the breakeven, the expiry price and $0. */
 export function payoffChart(p) {

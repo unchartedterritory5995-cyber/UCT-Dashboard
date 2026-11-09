@@ -1,16 +1,23 @@
 // OPTIONS PAYOFF (docs/study/GAMES.md §3, kind 'payoff'; the owner picked it 2026-11-08: "Options Payoff + Earnings
 // Desk"). Six positions, three hearts: a long call, a long put, a cash-secured put, a covered call, a bull call debit
-// spread and a bear call credit spread, one of each in a seeded order. The position is said plainly and XYZ's price on
-// expiry day is given; the member picks the profit or loss from four tiles: the right amount and three named mistakes
-// (forgot the x100, left out the premium, the sign flipped). Then the payoff at expiry draws as a line with the breakeven
-// and the expiry price marked; a miss takes over the screen with the working (intrinsic value at expiry, minus or plus
-// the premium, times 100). Every number is the pure module's (games/optionsPayoff.js), unit tested by hand; XYZ is a
-// made-up stock, so no market fact is invented. The run's XP is the server's (POST /api/study/game-runs, once at the
-// end); a failed post shows the end screen without the level bar.
+// spread and a bear call credit spread, one of each in a seeded order. The position is said plainly and the stock's price
+// on expiry day is given; the member picks the profit or loss from four tiles built on two of the three classic slips
+// (forgot the x100, left out the premium, the sign flipped), seeded per position: the right amount, each slip alone and
+// both together, so the pattern of the amounts never points at the answer (rule 10). Check takes over the screen (rule 15)
+// with the verdict and one line: the rule on a right answer; the slip or slips named, with the numbers, and the hearts
+// left on a miss. The run's log names the slip beside what was said. It stays that short on purpose, the
+// shape Hard mode, Size It and Order Ticket use: the kit's takeover is a fixed, centred box that cannot scroll, so a longer
+// verdict pushes its only button off a phone's screen. The review then draws the payoff at expiry as a gold line with the
+// breakeven and the expiry price marked (a finger, the mouse or the arrow keys read any price along it), and the coach's
+// card gives the working: intrinsic value at expiry, minus or plus the premium, times 100, then the rule and its course
+// unit. Every number is the pure module's (games/optionsPayoff.js), unit tested by hand. The stock is a practice stock
+// with no ticker, so no market fact is invented. The run reports itself once at the end (POST /api/study/game-runs) and
+// the end screen's level bar shows what the server granted; a failed report leaves the end screen whole, without the bar,
+// and says the XP did not save; an answer for an earlier run never lands on a later one. The best run lives on this device.
 //
-// The one design (OWNER_PRINCIPLES rule 21): Hard mode's start arena, status line, answer tiles, verdict takeover, coach's
-// card and end screen. The kit lacks only the position ticket and the payoff drawing: those are OptionsPayoffGame.module.css,
-// on the kit's own tokens.
+// The one design (OWNER_PRINCIPLES rule 21): Hard mode's start arena, status line (the hearts beside it, as in Order
+// Ticket), answer tiles, verdict takeover, coach's card and end screen. The kit lacks only the position ticket and the
+// payoff drawing: those are OptionsPayoffGame.module.css, on the kit's own tokens and colours.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import brandMark from '../../../components/intro/assets/compass-mark.png'
@@ -23,30 +30,37 @@ import { EndHard } from '../ui/EndLooks'
 import { Medal } from '../ui/Medal'
 import Prompt from '../ui/Prompt'
 import Stamp from '../ui/Stamp'
+import StudyButton from '../ui/StudyButton'
 import VerdictTakeover from '../ui/VerdictTakeover'
 import { Confetti } from '../ui/Stage'
 import s from '../ui/study.module.css'
 import { showChart } from './replayTicks'
+import { isSignedOut } from './ChallengeError'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
 import {
   PAYOFF_BEST_KEY, PAYOFF_HEARTS, PAYOFF_KIND, PAYOFF_TOTAL, bare, buildRun, fmtPL, headlineOf, heartsLeft, mistakeLine,
-  freeSpot, mistakeOf, payoffChart, plAt, price, priceAt, runIdOf, runOver,
+  freeSpot, mistakeOf, payoffChart, plAt, price, priceAt, runIdOf, runOver, slipOf,
 } from './games/optionsPayoff'
 import g from './OptionsPayoffGame.module.css'
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const GAME = { kind: PAYOFF_KIND, title: 'Options Payoff', sub: 'Six positions, three hearts. Price each one at expiry.', icon: 'dollar', plate: 'Payoff', accent: 'gold' }
+// eslint-disable-next-line react-refresh/only-export-components -- the build contract (GAMES.md §4): the deck and the sheet register a game from this one export
+export const GAME = { kind: PAYOFF_KIND, title: 'Options Payoff', sub: 'Six positions, three hearts. Price each one at expiry.', icon: 'dollar', plate: 'Payoff', accent: 'gold', group: 'skill' }
 
 const GAME_RUNS_URL = '/api/study/game-runs'
 const readBest = () => { try { return Number(localStorage.getItem(PAYOFF_BEST_KEY)) || 0 } catch { return 0 } }
 const writeBest = (v) => { try { localStorage.setItem(PAYOFF_BEST_KEY, String(v)) } catch { /* no storage */ } }
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+/** The six positions for a seed. The generator never fails on any seed tried (tests and a 60,000-seed sweep), but a
+ *  throw here would blank the screen mid-game, so it lands as an empty run, which shows an honest note and a way back. */
+const dealRun = (seed) => { try { return buildRun(seed) } catch { return [] } }
 
+/** The hearts, in the kit's look (Order Ticket's): a gold shield for each one left, a dim one for each one lost. */
 function Hearts({ left, total = PAYOFF_HEARTS }) {
   return (
-    <span className={g.hearts} role="img" aria-label={`${left} of ${total} hearts left`} data-testid="payoff-hearts" data-left={left}>
+    <span className={g.hearts} role="img" aria-label={`${plural(left, 'heart')} left`} data-testid="payoff-hearts" data-left={left}>
       {Array.from({ length: total }, (_, i) => (
-        <i key={i} className={i < left ? g.heartOn : g.heartOff}><UIcon name="shield" size={17} gold={false} /></i>
+        <i key={i} className={`${g.heart} ${i < left ? g.heartOn : g.lost}`}><UIcon name="shield" size={20} gold={false} /></i>
       ))}
     </span>
   )
@@ -70,12 +84,14 @@ function useBoxWidth(ref, fallback) {
 }
 
 const box = (x, y, w, h) => ({ x, y, w, h })
+/** How far one arrow key moves the reading along the drawing: a thirtieth of its width (always at least a nickel). */
+const KEY_STEP = 1 / 30
 
-/** The payoff at expiry: x is XYZ's price on expiry day, y the position's P/L. Before the answer, only the strikes and the
- *  expiry price; after it, the line draws with the breakeven and the P/L at the expiry price, and a finger or the mouse
- *  reads the P/L at any price along it. The labels live outside the plot (the expiry price and its P/L in the top margin,
- *  the strikes and then the breakeven under the axis), so none can ever sit on the line, at any width; only the faint
- *  Profit and Loss words go inside, and only where there is open space. */
+/** The payoff at expiry: x is the stock's price on expiry day, y the position's P/L. Before the answer, only the strikes
+ *  and the expiry price; after it, the line draws with the breakeven and the P/L at the expiry price, and a finger, the
+ *  mouse or the arrow keys (the drawn chart is a slider) read the P/L at any price along it. The labels live outside the
+ *  plot (the expiry price and its P/L in the top margin, the strikes and then the breakeven under the axis), so none can
+ *  ever sit on the line, at any width; only the faint Profit and Loss words go inside, and only where there is open space. */
 function PayoffPlot({ pos, revealed, drawn, phone }) {
   const chart = useMemo(() => payoffChart(pos), [pos])
   const [hover, setHover] = useState(null)
@@ -110,12 +126,27 @@ function PayoffPlot({ pos, revealed, drawn, phone }) {
     setHover(priceAt(chart, ((((e.clientX - r.left) / r.width) * W) - L) / pw))
   }
   const at = hover ?? pos.expiry
+  const atPL = plAt(pos, at)
+  // the arrow keys walk the reading along the line (Home and End jump to its ends), never past the drawing
+  const nudge = (e) => {
+    if (!drawn || e.altKey || e.ctrlKey || e.metaKey) return
+    const share = (at - chart.x0) / (chart.x1 - chart.x0)
+    const next = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? priceAt(chart, share + KEY_STEP)
+      : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? priceAt(chart, share - KEY_STEP)
+        : e.key === 'Home' ? chart.x0 : e.key === 'End' ? chart.x1 : null
+    if (next == null) return
+    e.preventDefault()
+    setHover(next)
+  }
   const aria = revealed
     ? `Payoff at expiry. Breakeven ${price(pos.breakeven)}. At ${price(pos.expiry)} the position makes ${plLabel}.`
-    : `The strike${two ? 's' : ''} ${pos.strikes.map((k) => bare(k)).join(' and ')} and XYZ's price at expiry, ${price(pos.expiry)}.`
+    : `The strike${two ? 's' : ''} ${pos.strikes.map((k) => bare(k)).join(' and ')} and the stock's price at expiry, ${price(pos.expiry)}.`
+  const slider = drawn
+    ? { role: 'slider', tabIndex: 0, 'aria-valuemin': chart.x0 / 100, 'aria-valuemax': chart.x1 / 100, 'aria-valuenow': at / 100, 'aria-valuetext': `At ${price(at)} on expiry day: ${fmtPL(atPL)}`, onKeyDown: nudge, onBlur: () => setHover(null) }
+    : { role: 'img' }
   return (
     <figure className={g.plot} ref={figRef} data-testid="payoff-plot" data-drawn={drawn ? '1' : '0'}>
-      <svg viewBox={`0 0 ${W} ${H}`} className={g.svg} role="img" aria-label={aria} onPointerMove={read} onPointerDown={read} onPointerLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className={g.svg} aria-label={aria} {...slider} onPointerMove={read} onPointerDown={read} onPointerLeave={() => setHover(null)}>
         {revealed ? (
           <>
             {zeroY > T ? <rect x={L} y={T} width={pw} height={Math.max(0, zeroY - T)} className={g.zoneUp} /> : null}
@@ -177,21 +208,20 @@ function PayoffPlot({ pos, revealed, drawn, phone }) {
       </svg>
       <figcaption className={g.readout} data-testid="payoff-readout">
         {drawn
-          ? <><span>At <b>{price(at)}</b> on expiry day: <b className={plAt(pos, at) >= 0 ? g.up : g.down}>{fmtPL(plAt(pos, at))}</b></span><small>Slide along the chart to read any price.</small></>
-          : <span>Where XYZ closed on expiry day, against the strike{two ? 's' : ''}.</span>}
+          ? <><span>At <b>{price(at)}</b> on expiry day: <b className={atPL >= 0 ? g.up : g.down}>{fmtPL(atPL)}</b></span><small>{phone ? 'Slide along the chart to read any price.' : 'Slide along the chart, or use the arrow keys, to read any price.'}</small></>
+          : <span>Where the stock closed on expiry day, against the strike{two ? 's' : ''}.</span>}
       </figcaption>
     </figure>
   )
 }
 
 /** The position, said plainly: the ticket beside its payoff drawing. */
-function Board({ pos, hearts, state, drawn, phone, boxRef }) {
+function Board({ pos, state, drawn, phone, boxRef }) {
   return (
     <div className={`${s.heroChart} ${g.board}`} ref={boxRef} data-testid="payoff-board">
       <div className={g.ticket}>
         <div className={g.top}>
           <span className={g.plate}>{pos.title}</span>
-          <Hearts left={hearts} />
         </div>
         <p className={g.sentence} data-testid="payoff-position">{pos.sentence}</p>
         {pos.legs.length > 1 ? (
@@ -239,7 +269,7 @@ function Q({ idx, pos, results, prefs, onDone }) {
   const phone = useIsPhone()
   const [pick, setPick] = useState(null)
   const [state, setState] = useState('ask')       // ask | ok | bad
-  const [takeover, setTakeover] = useState(false)
+  const [takeover, setTakeover] = useState(false) // the verdict holds the whole screen until the member opens the review
   const boxRef = useRef(null)
   const rootRef = useRef(null)
   // each position opens at its top (the status line and the position), never where the last Next or Start was pressed
@@ -258,27 +288,31 @@ function Q({ idx, pos, results, prefs, onDone }) {
   }
   // the number keys pick a tile; Enter is the action button's own hotkey (StudyButton), so it fires exactly once
   useEffect(() => {
+    if (state !== 'ask') return undefined
     const onKey = (e) => {
-      if (state !== 'ask' || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return
-      const i = +e.key - 1
-      if (i >= 0 && i < choices.length) setPick(i)
+      if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return
+      const i = Number(e.key) - 1
+      if (Number.isInteger(i) && i >= 0 && i < choices.length) setPick(i)
     }
-    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [state, choices.length])
   const headline = state === 'ask' ? '' : headlineOf(pos, mistake)
-  const outOfHearts = state === 'bad' && hearts === 0
+  const heartLine = hearts > 0 ? `${plural(hearts, 'heart')} left` : 'Out of hearts'
+  // the takeover holds the verdict and one line (it cannot scroll, and its one button must stay on a phone's screen):
+  // the rule on a right answer; on a miss, the mistake named and the hearts. The working is the review's coach card.
   const tkSub = ok
-    ? <span className={g.tkRule}>{pos.rule}</span>
+    ? <span className={g.tkRule} data-testid="payoff-takeover-rule">{pos.rule}</span>
     : (
-      <span className={g.tkWork} data-testid="payoff-takeover-working">
-        <span className={g.tkWhy}>{outOfHearts ? 'That was the last heart. ' : ''}{mistakeLine(pos, mistake)}</span>
-        {pos.working.map((w, i) => <span key={i} className={g.tkStep}><i>{i + 1}</i><span>{w}</span></span>)}
-      </span>
+      <>
+        <span className={g.tkWhy} data-testid="payoff-takeover-why">{mistakeLine(pos, mistake)}</span>
+        <span className={g.tkHearts} data-testid="payoff-takeover-hearts">{heartLine}</span>
+      </>
     )
   const promptSub = ok
     ? <><b>{pos.answer}</b> at {price(pos.expiry)} · {pos.title}</>
-    : <>The answer was <b>{pos.answer}</b> · you said {picked}</>
-  const heartWord = `${hearts} heart${hearts === 1 ? '' : 's'}`
+    : <>The answer was <b>{pos.answer}</b> · you said {picked} · {heartLine}</>
   return (
     <div className={`${s.kit} ${s.screen}`} ref={rootRef} data-testid="payoff-question" data-state={state}>
       {state !== 'ask' ? <span className={`${s.flash} ${ok ? s.ok : s.bad}`} aria-hidden="true" /> : null}
@@ -286,10 +320,13 @@ function Q({ idx, pos, results, prefs, onDone }) {
         <VerdictTakeover ok={ok} title={headline} answer={ok ? picked : pos.answer} sub={tkSub} stampWord={ok ? 'Priced' : null}
           label="See the payoff" onContinue={() => { setTakeover(false); showChart(boxRef.current) }} testId="payoff-takeover" />
       ) : null}
-      <HudCombo label="Payoff" unit="Position" scoreWord="right" step={idx} total={PAYOFF_TOTAL} results={shown} live={state === 'ask'} stepTestId="payoff-step" />
-      <Board pos={pos} hearts={hearts} state={state} drawn={state !== 'ask' && !takeover} phone={phone} boxRef={boxRef} />
+      <div className={g.hudRow}>
+        <HudCombo label="Payoff" unit="position" scoreWord="right" step={idx} total={PAYOFF_TOTAL} results={shown} live={state === 'ask'} stepTestId="payoff-step" />
+        <Hearts left={hearts} />
+      </div>
+      <Board pos={pos} state={state} drawn={state !== 'ask' && !takeover} phone={phone} boxRef={boxRef} />
       <AnswerLessonApp choices={choices} pick={pick} state={state} answer={state === 'ask' ? null : pos.answer} step={idx} total={PAYOFF_TOTAL} hotkey={!takeover}
-        eyebrow={<>Position {idx + 1} of {PAYOFF_TOTAL} · {heartWord}</>} question={pos.question} detail={pos.detail}
+        eyebrow={<>Position {idx + 1} of {PAYOFF_TOTAL} · {plural(hearts, 'heart')}</>} question={pos.question} detail={pos.detail}
         onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
         onNext={() => onDone(ok, picked)} nextLabel={last ? 'See the run' : 'Next'}
         head={<Prompt mood={ok ? 'happy' : 'oops'} tone={state} size={phone ? 40 : 48} title={headline} sub={promptSub}
@@ -307,32 +344,40 @@ export default function OptionsPayoffGame({ profile = null, fetcher = studyFetch
   const [i, setI] = useState(0)
   const [results, setResults] = useState([])
   const [log, setLog] = useState([])
-  const [xp, setXp] = useState(null)              // the server's answer to the run: { gained, before, after } or { failed, status }
+  const [xp, setXp] = useState(null)              // the server's answer to the run: { gained, before, after } or { failed, out }
   const [best, setBest] = useState(readBest)
+  const [bestBefore, setBestBefore] = useState(0) // the best as this run began, so the end screen says "a new best" only when it is
   const alive = useRef(true)
   const current = useRef(null)                    // the run on screen: a late answer for an older run is dropped
+  const posted = useRef(null)                     // the run already reported: one post per run, whatever presses Next twice
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
-  const run = useMemo(() => (seed == null ? [] : buildRun(seed)), [seed])
+  const run = useMemo(() => (seed == null ? [] : dealRun(seed)), [seed])
 
   // the component seeds once at start (GAMES.md §1.7); the pure module never reads the clock
-  const start = () => { const sd = Date.now(); current.current = sd; setSeed(sd); setI(0); setResults([]); setLog([]); setXp(null); setPhase('play') }
+  const start = () => {
+    const sd = Date.now()
+    current.current = sd; posted.current = null
+    setSeed(sd); setI(0); setResults([]); setLog([]); setXp(null); setBestBefore(best); setPhase('play')
+  }
 
   const finish = (all) => {
     const right = all.filter(Boolean).length
     const total = all.length
     const mine = seed
     setPhase('done'); endFeedback(prefs)
-    setBest((b) => { const nb = Math.max(b, right); if (nb !== b) writeBest(nb); return nb })
-    // the run's XP, once (idempotent on run_id on the server); a failed post never breaks the end screen
+    if (right > best) { setBest(right); writeBest(right) }
+    if (posted.current === mine) return
+    posted.current = mine
+    // the run's XP, once (the server is idempotent on run_id too); whatever it answers, the end screen is already up
     Promise.resolve()
       .then(() => fetcher(GAME_RUNS_URL, { method: 'POST', body: { kind: PAYOFF_KIND, run_id: runIdOf(mine), right, total } }))
       .then((r) => {
         if (!alive.current || current.current !== mine) return
-        const after = Number(r?.progress?.xp)
-        const gained = Number(r?.xp_gained ?? r?.progress?.xp_gained ?? 0) || 0
-        setXp(Number.isFinite(after) ? { gained, before: after - gained, after } : { failed: true, gained: 0 })
+        const after = r?.progress?.xp
+        const gained = Number(r?.xp_gained ?? r?.progress?.xp_gained ?? 0)
+        setXp(typeof after === 'number' && Number.isFinite(after) && Number.isFinite(gained) ? { gained, before: after - gained, after } : { failed: true, out: false })
       })
-      .catch((e) => { if (alive.current && current.current === mine) setXp({ failed: true, gained: 0, status: Number(e?.status) || 0 }) })
+      .catch((e) => { if (alive.current && current.current === mine) setXp({ failed: true, out: isSignedOut(e) }) })
   }
 
   if (phase === 'start') {
@@ -344,7 +389,7 @@ export default function OptionsPayoffGame({ profile = null, fetcher = studyFetch
           lead="A call, a put, a covered call or a spread, and where the stock closed on expiry day. What did you make or lose?"
           reward={<><Medal size={40} testId={null} /><span><b>{PAYOFF_TOTAL} for {PAYOFF_TOTAL}</b> lights the Legendary medal · your best <b data-testid="payoff-best">{best}</b></span></>}
           howTo={<HowItPlays mode="payoff" testId="payoff-howto" steps={[
-            { icon: 'document', title: 'Read the position', body: 'Six trades on XYZ, a made-up stock: calls, puts, a covered call and two spreads. One contract is 100 shares.' },
+            { icon: 'document', title: 'Read the position', body: 'Six trades on a practice stock: calls, puts, a covered call and two spreads. One contract is 100 shares.' },
             { icon: 'dollar', title: 'Price it at expiry', body: 'You get the closing price on expiry day. Pick your profit or loss, fees left out. Number keys pick, Enter checks.' },
             { icon: 'equity', title: 'Watch the payoff draw', body: 'The payoff line draws with its breakeven. Miss one and you see the working. Three misses end the run.' },
           ]} />} />
@@ -353,40 +398,59 @@ export default function OptionsPayoffGame({ profile = null, fetcher = studyFetch
   }
 
   if (phase === 'done') {
+    // a run the hearts ended early is scored on the positions played; the medal line shows only on a full run of six
     const right = results.filter(Boolean).length
     const total = results.length
     const perfect = total === PAYOFF_TOTAL && right === total
     const outOfHearts = heartsLeft(results) === 0
+    const newBest = right > 0 && right > bestBefore
     const level = xp && !xp.failed ? { before: xp.before, after: xp.after } : null
-    // a computed game loads nothing, so a lapsed session shows only here: the run is scored, it just earns no XP
-    const lapsed = !!xp?.failed && (xp.status === 401 || xp.status === 403)
+    const lost = !!xp?.failed
     return (
       <>
         {perfect ? <Confetti /> : null}
-        <div className={s.kit}>
+        <div className={`${s.kit} ${g.end}`}>
           <EndHard right={right} total={total} xp={xp?.gained || 0} results={results} log={log} level={level}
             title={outOfHearts ? 'Out of hearts' : null} unit="priced right" doneWord="right" showSetups={false} medal={total === PAYOFF_TOTAL}
             againLabel="Run it again" testIdPrefix="payoff" onAgain={start} onBack={onClose}>
             {perfect
-              ? <>Six positions, six right. <b>That is the payoff, cold.</b></>
+              ? <>Six positions, six right. <b>You know the payoff cold.</b></>
               : outOfHearts
-                ? <>The hearts ran out on position {total} of {PAYOFF_TOTAL}. Intrinsic value at expiry, the premium, then x100.</>
-                : right >= best && right > 0 ? <><b>Your best run.</b> {right} of {PAYOFF_TOTAL} priced right.</> : <>Your best stands at <b>{best}</b> of {PAYOFF_TOTAL}.</>}
+                ? <>The hearts ran out on position <b>{total}</b> of {PAYOFF_TOTAL}.{newBest ? <> <b>A new best</b> all the same: {right} priced right.</> : null} Intrinsic value at expiry, minus or plus the premium, then x100.</>
+                : newBest
+                  ? <><b>A new best:</b> {right} of {PAYOFF_TOTAL} priced right.</>
+                  : <>Your best run stands at <b>{best}</b> of {PAYOFF_TOTAL}.</>}
+            {lost ? (
+              <span className={g.saved} data-testid="payoff-xp-failed">
+                {xp.out ? 'You are signed out, so this run\'s XP did not save.' : 'This run\'s XP did not save.'}
+              </span>
+            ) : null}
           </EndHard>
-          {lapsed ? <p className={g.lapsed} data-testid="payoff-signed-out">You are signed out, so this run earned no XP.</p> : null}
-          {lapsed && signedOut ? signedOut : null}
+          {lost && xp.out && signedOut ? <div className={g.signIn}>{signedOut}</div> : null}
         </div>
       </>
     )
   }
 
   const pos = run[i]
-  if (!pos) return null
+  if (!pos) {
+    return (
+      <div className={`${s.kit} ${g.empty}`} data-testid="payoff-empty">
+        <p>These positions did not deal. Deal a fresh six, or head back to Study.</p>
+        <div className={g.emptyGo}>
+          <StudyButton kind="primary" size="xl" arrow onClick={start} testId="payoff-redeal">Deal again</StudyButton>
+          <StudyButton kind="ghost" onClick={onClose}>Back to Study</StudyButton>
+        </div>
+      </div>
+    )
+  }
   return (
     <Q key={`${seed}-${i}`} idx={i} pos={pos} results={results} prefs={prefs}
       onDone={(ok, said) => {
         const all = [...results, !!ok]
-        const rows = [...log, { name: pos.title, ticker: `${pos.short} · ${price(pos.expiry)}`, ok: !!ok, said: ok ? null : said, was: pos.answer }]
+        // a miss logs what was said and the slip or slips it made: "−$2.20 (wrong sign, forgot the x100)"
+        const slip = ok ? '' : slipOf(mistakeOf(pos, said))
+        const rows = [...log, { name: pos.title, ticker: `${pos.short} · ${price(pos.expiry)}`, ok: !!ok, said: ok ? null : (slip ? `${said} (${slip})` : said), was: pos.answer }]
         setResults(all); setLog(rows)
         if (runOver(all)) finish(all); else setI(i + 1)
       }} />
