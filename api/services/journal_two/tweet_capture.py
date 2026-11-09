@@ -75,8 +75,9 @@ IMAGE_HOST = "pbs.twimg.com"
 #: worker for minutes (the fetch's own deadline covers one download only).
 IMAGE_DEADLINE_S = 15.0
 IMPORT_IMAGES_BUDGET_S = 45.0
-#: One import waits at most this long, in all, for its tickers' bars to refresh.
-PRICE_REFRESH_BUDGET_S = 10.0
+#: One import spends at most this long, in all, on the bars door: starting its tickers' refreshes
+#: (5-10 s each, measured), waiting for them, and every read. Past it only stored bars answer.
+PRICE_REFRESH_BUDGET_S = 12.0
 IDENTITY_PREFIX = "x:"
 
 _ID_RE = re.compile(r"\d{1,25}")
@@ -268,17 +269,21 @@ def _price(post: dict[str, Any], note_ticker: Optional[str], wait_until: Optiona
     return tweet_price.price_at_post(symbol, int(post["postedAt"]), wait_until=wait_until)
 
 
-def _start_price_refreshes(posts: dict[str, Any], note_ticker: Optional[str]) -> None:
+def _start_price_refreshes(posts: dict[str, Any], note_ticker: Optional[str],
+                           wait_until: Optional[float] = None) -> None:
     """Start every recent post's ticker refreshing at once, so one import's shared wait covers
-    them all instead of each ticker starting only when the one before it has finished."""
+    them all instead of each ticker starting only when the one before it has finished. Starting
+    spends the same `wait_until` as the reads, and stops when it is spent."""
     from api.services.journal_two import tweet_price
     started: set[str] = set()
     for post in posts.values():
+        if wait_until is not None and time.monotonic() >= wait_until:
+            return
         symbol = tweet_price.choose_symbol(note_ticker, post.get("tickers") or [], post.get("text") or "")
         if (symbol and symbol not in started and post.get("postedAt")
                 and tweet_price.awaits_refresh(int(post["postedAt"]))):
             started.add(symbol)
-            tweet_price.start_refresh(symbol)
+            tweet_price.start_refresh(symbol, wait_until)
 
 
 def _with_progress(sentence: str, saved: int) -> str:
@@ -527,8 +532,8 @@ def save(user_id: str, note_id: Any, tweet_ids: Any) -> dict[str, Any]:
         warnings: list[str] = []
         stopped: Optional[str] = None
         deadline = time.monotonic() + IMPORT_IMAGES_BUDGET_S
-        _start_price_refreshes(posts, note_ticker)
         price_wait_until = time.monotonic() + PRICE_REFRESH_BUDGET_S
+        _start_price_refreshes(posts, note_ticker, price_wait_until)
         for tweet_id in ids:
             try:
                 post = posts.get(tweet_id)

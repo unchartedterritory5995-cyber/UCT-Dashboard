@@ -6,6 +6,7 @@ WAL mode for concurrent reads during background polling.
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import re
 import sqlite3
@@ -228,6 +229,17 @@ def delete_tweets_by_ids(ids: list[str]) -> int:
         cur = c.execute(f"DELETE FROM tweets WHERE id IN ({placeholders})", ids)
         c.commit()
         return cur.rowcount
+
+
+def oldest_tweet_ids(limit: int, exclude: Iterable[str] = ()) -> list[str]:
+    """The oldest stored tweet ids, leaving out `exclude`. The oldest because the deletion sync has
+    had the longest to drop any that left X."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id FROM tweets WHERE id NOT IN (SELECT value FROM json_each(?))"
+            " ORDER BY created_at, id LIMIT ?",
+            (json.dumps([str(i) for i in exclude]), limit)).fetchall()
+    return [row[0] for row in rows]
 
 
 # ---- account CRUD ----------------------------------------------------------

@@ -1,6 +1,7 @@
 """Import a tweet -- price at post. Bars are seeded through a monkeypatched get_bars_before."""
 from __future__ import annotations
 
+import threading
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -234,10 +235,38 @@ def test_without_a_wait_one_read_decides(bars, monkeypatch):
     assert len(got) == 1
 
 
-def test_a_spent_budget_does_not_wait(bars, monkeypatch):
+def test_a_spent_budget_reads_only_the_store(bars, monkeypatch):
     got = _refresh_after(monkeypatch, 3)
-    tp.price_at_post("AAPL", RECENT_RTH, wait_until=tp.time.monotonic() - 1)
-    assert len(got) == 1
+    bars["D"] = [(20261105, 1, 1, 1, 66.0, 1)]
+    p = tp.price_at_post("AAPL", RECENT_RTH, wait_until=tp.time.monotonic() - 1)
+    assert p == tp.PricePoint("AAPL", 66.0, "close", "2026-11-05")
+    assert got == []
+
+
+def test_a_stuck_read_is_abandoned_at_the_limit(bars, monkeypatch):
+    release = threading.Event()
+    monkeypatch.setattr(tp, "_fetch_bars", lambda *a: release.wait(5) and [])
+    bars["D"] = [(20261105, 1, 1, 1, 66.0, 1)]
+    started = tp.time.monotonic()
+    try:
+        p = tp.price_at_post("AAPL", RECENT_RTH, wait_until=started + 0.2)
+        elapsed = tp.time.monotonic() - started
+    finally:
+        release.set()
+    assert elapsed < 2
+    assert p == tp.PricePoint("AAPL", 66.0, "close", "2026-11-05")
+
+
+def test_a_stuck_refresh_start_is_abandoned_at_the_limit(monkeypatch):
+    release = threading.Event()
+    monkeypatch.setattr(tp, "_fetch_bars", lambda *a: release.wait(5) and [])
+    started = tp.time.monotonic()
+    try:
+        tp.start_refresh("AAPL", started + 0.2)
+        elapsed = tp.time.monotonic() - started
+    finally:
+        release.set()
+    assert elapsed < 2
 
 
 @pytest.mark.parametrize("posted_at", [
