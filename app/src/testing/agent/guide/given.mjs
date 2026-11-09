@@ -11,6 +11,7 @@
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
 //   versions   the server's version store switched on (a layout's Version history)
 //   chartSettings  the chart's own settings pref (custom intervals, compared symbols)
+//   board 'surge' a Volume Surge widget on one of the member's own lists
 //   board 'dock'  the chart with Company Info added and open (its company panel)
 //   teFeed     the TE News feed loaded, on its own /recent route
 //   calendar   a calendar day with reporters and economic events, on the widget's own route
@@ -33,6 +34,9 @@ const BOARDS = {
   tabs: [chart('w-chart-a', 'A', 0, 0, 16, 20, { chartTabs: [{ id: 'ct-2', tf: 'W' }], activeChartTab: 0 }), watch({ wtabs: [{ id: 'wt-2', type: 'news', opts: {} }], activeWtab: 0 })],
   // the chart with Company Info added and its panel open: pages/charts/widgets/chartDock.js normalizeDock (opts.dock)
   dock: [chart('w-chart-a', 'A', 0, 0, 16, 20, { dock: { company: true, open: true, tab: 'overview' } }), watch()],
+  // a Volume Surge widget watching one of the member's own lists (VolumeScanWidget.jsx: opts.volActive; the lists are the
+  // account's own volume_scan_lists pref)
+  surge: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-surge', type: 'volumescan', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { volActive: 'teach-semis' } }],
   // a Scanner widget with a preset scan already open: pages/charts/widgets/ScannerWidget.jsx remembers it in opts.scanKey
   scan: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-scan', type: 'scanner', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { scanKey: SCAN.key, scanName: SCAN.name } }],
 }
@@ -69,6 +73,8 @@ export function givenFor(c) {
   if (/^(Loading a stock from the earnings list|Filtering economic events)$/.test(c.title || '')) g.calendar = true
   // a control of the chart's company panel: the panel is on the chart (Company Info added, open)
   if (c.feature === 'dockAction') g.board = 'dock'
+  // one of the member's own Volume Surge lists, open in the widget
+  if (/Volume Surge list/.test(c.title || '')) { g.board = 'surge'; g.prefs = { ...(g.prefs || {}), volume_scan_lists: JSON.stringify([{ id: 'teach-semis', name: 'Semis', syms: ['NVDA', 'AMD'] }]) } }
   // the TE News feed loaded (lib/tradeExchangeNewsStreamManager.js: GET /recent → { items, epoch, last_seq, first_seq })
   if (/^(Saving a headline|A headline’s actions: \w+|Back to the live feed)$/.test(c.title || '')) g.teFeed = true
   // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
@@ -78,6 +84,8 @@ export function givenFor(c) {
   // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
+  // a grid chart that carries settings of its own (GridChartCell.jsx: `cell.settings` forks it; Reset shows then)
+  if (c.feature === 'gridAction' && /^Resetting a chart in the grid$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, cells: MULTI.cells.map(x => ({ ...x, settings: { chartType: 'line' } })) }) }
   // a grid filled from a group: Multi Chart's flyout shows Prev/Next, Refresh group and Exit Groups only while one is set
   // (pages/charts/grid/MultiChartMenu.jsx `mc.state.group`; gridLayouts.js sanitizeGroup keeps id, by, n, name)
   if (c.feature === 'gridAction' && /^(Stepping through groups|Refreshing a group|Leaving Groups mode)$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, groupsMode: true, group: { id: 'semiconductors', by: 'today', n: 4, name: 'Semiconductors' } }) }
