@@ -13,6 +13,13 @@ Base: ship-2 (stacked; needs ship-1's widget-control machinery). Shared targetin
 - News (Trade Exchange): the watchlist filter over the real widget; a general `text` door control writes its own search box (door: `setQueryRaw`); empty clears it, at most 80 characters.
 - Test only: a strict `earnings.date` oracle (the corpus fixture serves no earnings, so that corpus intent only ever passed on a not-found answer).
 
+## AUDIT round 1 — carried from ship-1, and fixed here
+
+- **S1-C / S1-A for the Notebook create:** a create is ONE operation through the widget's own New control (`{ op: 'create' }`,
+  read back by a new note appearing); it offers no Undo (`undoPatch` null), so "undo" after a create never times out; the door
+  ignores a list handed to it. Rail in `widgetDoorRows.outcome` ("AUDIT S1-C/S1-A").
+- ship-1's S1-A/B/C fixes arrive here through the merge from ship-2.
+
 ## Full suite
 
 Suite on 32f3b9613d (code head): 2240/2243, 3149, 2022/2023, 1839/1841 = 9250 passed, 0 failed, 6 skipped.
