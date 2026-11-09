@@ -123,6 +123,7 @@
   "drawing.setProps": "drawings",
   "drawing.setFibLevels": "drawings",
   "drawing.setAlert": "alerts",
+  "drawingBoard.set": "drawings",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -809,7 +810,8 @@
     "drawing.clear",
     "drawing.setAnchors",
     "drawing.setProps",
-    "drawing.setFibLevels"
+    "drawing.setFibLevels",
+    "drawingBoard.set"
    ],
    "routing": {
     "version": 1,
@@ -1208,6 +1210,7 @@
     "drawing.setProps",
     "drawing.setFibLevels",
     "drawing.setAlert",
+    "drawingBoard.set",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",

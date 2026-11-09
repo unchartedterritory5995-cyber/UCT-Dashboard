@@ -5390,6 +5390,99 @@
       ]
     },
     {
+      "id": "drawingBoard.switch",
+      "source": "pl-exec round 8 (11-09): Drawing Boards (C1-167..170) through the real board store; switching to an empty board leaves the chart with no drawings",
+      "capabilities": [
+        "drawingBoard.set"
+      ],
+      "board": "DRAW",
+      "before": [
+        {
+          "say": "draw a horizontal line at 200",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addLevel",
+                "target": "$drawings[0]",
+                "args": {
+                  "price": 200,
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        },
+        {
+          "say": "make a new drawing board called Swing",
+          "model": {
+            "ops": [
+              {
+                "action": "drawingBoard.set",
+                "target": "$drawingBoards[0]",
+                "args": {
+                  "op": "create",
+                  "board": null,
+                  "name": "Swing"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "drawingBoard.set"
+      ],
+      "needs": [
+        "drawingBoard.set"
+      ],
+      "deterministic": null,
+      "model": {
+        "ops": [
+          {
+            "action": "drawingBoard.set",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "op": "switch",
+              "board": "Swing",
+              "name": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 0
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1
+          }
+        }
+      },
+      "phrasings": [
+        "switch to the Swing drawing board",
+        "use my Swing drawing board",
+        "go to drawing board Swing",
+        "draw on the Swing board"
+      ]
+    },
+    {
       "id": "widget.unlink",
       "source": "Batch E5 (11-04): chart volume pane, indicator listing, drawings visibility, widget link",
       "capabilities": [

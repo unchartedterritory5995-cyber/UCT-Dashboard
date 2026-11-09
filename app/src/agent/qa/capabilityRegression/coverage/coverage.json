@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 176,
-  "withProductionKinds": 167,
+  "all": 177,
+  "withProductionKinds": 168,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 176,
-  "withAnyRegressionCase": 124,
+  "capabilities": 177,
+  "withAnyRegressionCase": 125,
   "perProtection": {
    "nl": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 125,
+    "applicable": 177
    },
    "routing": {
-    "covered": 121,
-    "applicable": 176
+    "covered": 122,
+    "applicable": 177
    },
    "args": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 125,
+    "applicable": 177
    },
    "execution": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 125,
+    "applicable": 177
    },
    "receipt": {
-    "covered": 96,
-    "applicable": 176
+    "covered": 97,
+    "applicable": 177
    },
    "refusal": {
     "covered": 31,
-    "applicable": 176
+    "applicable": 177
    },
    "permission": {
-    "covered": 169,
-    "applicable": 176
+    "covered": 170,
+    "applicable": 177
    },
    "undo": {
-    "covered": 56,
-    "applicable": 111
+    "covered": 57,
+    "applicable": 112
    },
    "multiStep": {
-    "covered": 36,
-    "applicable": 176
+    "covered": 37,
+    "applicable": 177
    },
    "phrasings": {
-    "covered": 120,
-    "applicable": 176
+    "covered": 121,
+    "applicable": 177
    }
   }
  },
@@ -3983,6 +3983,64 @@
     "undo": [],
     "multiStep": [
      "drawing.style: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawingBoard.set": {
+   "domain": "drawingBoard",
+   "group": "drawings",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "drawingBoard.switch: \"switch to the Swing drawing board\"",
+     "drawingBoard.switch: \"use my Swing drawing board\"",
+     "drawingBoard.switch: \"go to drawing board Swing\"",
+     "drawingBoard.switch: \"draw on the Swing board\""
+    ],
+    "routing": [
+     "drawingBoard.switch: \"switch to the Swing drawing board\"",
+     "drawingBoard.switch: \"use my Swing drawing board\"",
+     "drawingBoard.switch: \"go to drawing board Swing\"",
+     "drawingBoard.switch: \"draw on the Swing board\""
+    ],
+    "args": [
+     "corpus drawingBoard.switch"
+    ],
+    "execution": [
+     "drawingBoard.switch (c)"
+    ],
+    "receipt": [
+     "drawingBoard.switch (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawingBoard.switch: undo restores"
+    ],
+    "multiStep": [
+     "drawingBoard.switch: after an earlier turn"
     ],
     "phrasings": []
    }
