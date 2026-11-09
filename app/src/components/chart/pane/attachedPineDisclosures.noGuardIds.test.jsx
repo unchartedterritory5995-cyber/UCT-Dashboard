@@ -109,12 +109,10 @@ export const SITES = [
   ['components/chart/builder/ConciergeBox.jsx', ['item.reason', 'refusal.reason', 'proposal.sentence']],
   ['components/chart/builder/ConverseBox.jsx', ['c.text', 'editability.text']],
   ['components/chart/builder/ImageBox.jsx', ['refusal.reason', 'c.sentence', 'r.reason']],
-  ['components/chart/builder/PineBox.jsx', ['refusal.message', 'shownVerdict.reason', 'n.note', 'v.note', 'n.message', 'condition.reason']],
   ['components/chart/builder/StarterLibrary.jsx', ['entry.sentence']],
   ['components/chart/builder/studio/CreateIndicatorPanel.jsx', ['editability.text', 'conv.dropped.reason', 'o.reason', 'p.text']],
   ['components/chart/builder/studio/SaveReceipt.jsx', ['it.text']],
   ['components/chart/builder/memberPane/MemberPane.jsx', ['built.reason', 'n.note']],
-  ['components/chart/builder/PineEditorStatus.jsx', ['it.why', 'it.reason', 'r.note', 'r.why', 'x.why', 'status.saved.why']],
   ['components/chart/builder/RunsOnLine.jsx', ['s.sentence']],
   ['components/chart/ChartSettingsIndicators.jsx', ['f.why', 'n.sentence']],
   ['components/chart/IndicatorAlertPopover.jsx', ['preflight.reason']],
@@ -122,6 +120,11 @@ export const SITES = [
   ['pages/charts/widgets/ScanObjectCard.jsx', ['item.reason', 'view.reason']],
   ['pages/formulas/FormulaReference.jsx', ['item.sentence', 'item.reason']],
 ]
+// ⭐ RULING 2026-11-08 (coordinator): guard ids are hidden on every member surface EXCEPT the
+// Pine editor proper, where a script author benefits from the code. These two files print the
+// raw id on purpose and are exempt BY NAME; every file in SITES must wrap.
+export const EDITOR_EXEMPT = ['components/chart/builder/PineBox.jsx', 'components/chart/builder/PineEditorStatus.jsx']
+
 /** bare JSX/template prints of `expr`: `{expr}`, `${expr}`, `={expr}` (an attribute) */
 export function barePrints(src, expr) {
   const e = expr.replace(/[.()]/g, (c) => `\\${c}`)
@@ -142,6 +145,18 @@ describe('r1 — census: every composer print site goes through withoutGuardIds'
       expect(barePrints(src, e), `${rel}: bare ${e}`).toEqual([])
       expect(src.includes(`withoutGuardIds(${e})`), `${rel}: ${e} wrapped`).toBe(true)
     }
+  })
+  it('the editor exemption is exactly the two editor files, and they are not in SITES', () => {
+    for (const rel of EDITOR_EXEMPT) {
+      expect(SITES.some(([r]) => r === rel)).toBe(false)
+      expect(fs.readFileSync(path.join(SRC, rel), 'utf8')).not.toContain('withoutGuardIds')
+    }
+  })
+  it('CONTROL: a non-editor bare print fails the census', () => {
+    const rel = 'components/chart/builder/RunsOnLine.jsx'
+    expect(EDITOR_EXEMPT).not.toContain(rel)
+    const src = fs.readFileSync(path.join(SRC, rel), 'utf8').replace('withoutGuardIds(s.sentence)', 's.sentence')
+    expect(barePrints(src, 's.sentence').length).toBeGreaterThan(0)
   })
   it('CONTROL: the census sees a bare print', () => {
     expect(barePrints('<li>{n.note}</li> title={f.why} `x ${r.why}`', 'n.note')).toHaveLength(1)
