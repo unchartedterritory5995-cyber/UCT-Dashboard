@@ -12,6 +12,7 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
+import { namedAnchorRelation, wholeLinesNamed } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -205,8 +206,24 @@ function walkMatch(s) {
   if (m) return at(m, { corner: m[1].toLowerCase() })
   return null
 }
+// AUDIT probe 17 negatives (#988): a relation span never runs across into the NEXT clause's own command ("leave the left column
+// alone AND PUT this chart on weekly" is no relation from the click: "left" belongs to the first clause, "this chart" to the second)
+const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip)\b/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
+  const r = relationMatchIn(text)
+  if (!r) return null
+  const x = CROSS_CLAUSE.exec(r[0])
+  if (!x) return r
+  // the relation, if any, is in the clause that starts at that command: read again from there (index kept on the whole text)
+  const s = possessiveAnchor(text)
+  const start = r.index + x.index + x[0].search(/(?:and|then|but)\s/i)
+  const rest = relationMatch(s.slice(start))
+  if (!rest) return null
+  rest.index += start
+  return rest
+}
+function relationMatchIn(text) {
   const s = possessiveAnchor(text)
   // a MOVE of the click ("move this one up one row", "shift this chart two over") names where it goes, not another chart
   const moving = MOVE_VERB.test(s)
@@ -656,6 +673,16 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     return { ask: { text: rel.hits.length || anchor ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
       choices: pool.map(b => b.c).map(c => ({ ref: c.ref, label: c.label })) } }
   }
+  // AUDIT probe 17 (F-b, #988): a relation from a NAMED anchor ("the chart beside the top-left one", "the one above the
+  // bottom-middle chart") — R1 with the anchor named by position, order or symbol: the anchor is never the target (whether or
+  // not it is the click). One neighbour on that side → it; several or none → asked, without the anchor.
+  const nar = namedAnchorRelation(text, live)
+  if (nar) {
+    const fits = backed.filter(b => nar.hits.includes(b.chart))
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+    const pool = fits.length ? fits : backed.filter(b => b.chart !== nar.anchor)
+    return { ask: { text: 'Which chart do you mean?', choices: pool.map(b => b.c).map(c => ({ ref: c.ref, label: c.label })) } }
+  }
   // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
   // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
   const said = describedCharts(text, live)
@@ -842,7 +869,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
     const list = kind.list(host) || []
     const snap = list.find(s => s.ref === o.target)
     const chart = snap ? chartRefOf(kind, snap) : null
-    if (chart) targets.set(chart, { list, action: o.action })
+    if (chart) targets.set(chart, { list, action: o.action, kind })
   }
   if (!targets.size) return null
   // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
@@ -876,13 +903,19 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // cell with no anchor. Stripping its row / column words (below) must not turn it into a bare command the click answers: the
   // click counts only when it IS that cell (then it is already named).
   const absLine = ordinalChart(words, charts)
-  const lineNamed = !!absLine?.line
+  // AUDIT probe 17 (F-a): a WHOLE absolute line ("the top row", "the left column") names every cell in it — a set, like "both
+  // charts" — and, like a place, it is never a bare command the click answers
+  const lineSet = wholeLinesNamed(words, charts)
+  for (const r of lineSet) named.add(r)
+  const lineNamed = !!absLine?.line || lineSet.size > 0
   if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
-    const { list, action } = targets.get(unnamed[0])
-    return { ask: { text: 'Which chart do you mean? Click a chart to select it, or pick one:', choices: list.map(c => ({ ref: c.ref, label: c.label })), action } }
+    const { list, action, kind } = targets.get(unnamed[0])
+    // a line or a place the words name: only its cells are offered (AUDIT probe 17 F-a), never the whole board
+    const offer = lineNamed ? list.filter(c => named.has(chartRefOf(kind, c))) : []
+    return { ask: { text: offer.length ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: (offer.length ? offer : list).map(c => ({ ref: c.ref, label: c.label })), action } }
   }
   const label = (ref) => charts.find(c => c.ref === ref)?.label || 'a chart'
   return { propose: true, note: `I wasn't sure you meant ${unnamed.map(label).join(' and ')}, so check this first — nothing has changed yet.` }
@@ -1131,7 +1164,8 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (r?.ref && r.ref !== o.target) {
       const meant = list.find(s => s.ref === r.ref)
       // AUDIT (#988): when the words relate a chart to the click, the click is the anchor and is never offered back as a choice
-      const anchor = relationMatch(text) ? selectedChart(host) : null
+      // ...and when they relate it to a NAMED chart (AUDIT probe 17 F-b), that named anchor is never offered either
+      const anchor = relationMatch(text) ? selectedChart(host) : (namedAnchorRelation(text, host?.charts?.list?.() || [])?.anchor ?? null)
       const offer = list.filter(c => !anchor || chartRefOf(kind, c) !== anchor)
       // AUDIT #988 (3): the headline never names the anchor either
       const namesAnchor = !!anchor && chartRefOf(kind, meant) === anchor

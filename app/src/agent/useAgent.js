@@ -26,6 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+import { checkSpatialConstraints } from './spatialCheck'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -2418,9 +2419,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // (policy.js, owner 2026-10-12). A position hint narrows by the positions the kind
         // publishes; anything still ambiguous asks. A lone target needs no hint.
         // ⭐ PHASE 3: "switch em to weekly" — `them` resolved to the charts the conversation last changed (pluralTarget)
-        const allOf = fast.target?.refs ? charts.filter(c => fast.target.refs.includes(c.ref)) : charts
+        // (a set named by CHART refs — a whole line, AUDIT probe 17 F-a — matches each kind's entry through its chart)
+        const allOf = fast.target?.refs ? charts.filter(c => fast.target.refs.includes(c.ref) || fast.target.refs.includes(chartRefOf(kind, c))) : charts
         if (fast.target?.all && allOf.length > 1 && fast.target?.refs) {
           return await execute(allOf.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))), { path: 'fast', mode: 'apply', member: text, voice })
+        }
+        // ⛔ a named set that does not reach two entries here is never widened to every chart below: it is asked
+        if (fast.target?.all && fast.target?.line && allOf.length <= 1) {
+          pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
+          push({ role: 'question', text: 'Which chart do you mean?', choices: (allOf.length ? allOf : charts).map(c => ({ ref: c.ref, label: c.label })), local: true })
+          return
         }
         if (fast.target?.all && charts.length > 1) {
           // ⛔ P2-B: "all four charts" with three on the board (or "both" with four) — the member counted a
@@ -2466,7 +2474,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint || ordAsk) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
-          push({ role: 'question', text: ordAsk || ask, choices: (ordAsk ? charts : candidates).map(c => ({ ref: c.ref, label: c.label })), local: true })
+          // an ask that names its own candidates (a named-anchor relation: never the anchor, AUDIT probe 17 F-b) offers only those
+          const own = fast.target?.ask?.choices?.length ? charts.filter(c => fast.target.ask.choices.some(x => x.ref === c.ref || x.ref === chartRefOf(kind, c))) : []
+          push({ role: 'question', text: ordAsk || ask, choices: (ordAsk ? (own.length ? own : charts) : candidates).map(c => ({ ref: c.ref, label: c.label })), local: true })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
@@ -2934,6 +2944,21 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
         }
         record({ member: null, outcome: unnamed.ask.text, outcomeData: { kind: 'clarify-unnamed-chart', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
+      // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
+      // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
+      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (spatial?.ask) {
+        const kinds = kindsOf(screened.ops)
+        if (kinds.length === 1 && spatial.ask.choices.length) {
+          pendingRef.current = { kind: 'target', ops: screened.ops, path: 'model', mode: disposition, member: text, voice, epoch: epochOf(host) }
+          push({ role: 'question', text: spatial.ask.text, choices: spatial.ask.choices, local: true })
+        } else {
+          push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
+        }
+        record({ member: null, outcome: spatial.ask.text, outcomeData: { kind: 'clarify-spatial', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
       if (unnamed?.propose && disposition === 'apply') {
