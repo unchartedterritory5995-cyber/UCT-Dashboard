@@ -383,6 +383,10 @@
 .choiceLabel.choiceLabel { flex: 1 1 auto; min-width: 0; }
 @media (max-width: 640px) { .choice.choice { min-height: 66px; padding: 15px 18px; font-size: 18px; } .choice .choiceKey.choiceKey { width: 36px; height: 36px; } }
 
+/* 2026-11-08 (real-screen check): in a two-column grid a card whose label wraps to two lines stood taller than its
+   neighbour; every card now fills its grid row, so the pairs line up. */
+.choices > li > .choice, .choicesGrid > li > .choice { height: 100%; }
+
 /* THE LIGHT THEME (2026-11-08, real-screen review of the RS drafts: Yes / No and Line A / Line B read as dark text
    on dark cards). The cards above are the workbench's dark cards with LITERAL surfaces, while their ink is the
    --text-bright TOKEN, which turns near-black on the light theme. The dark look stays exactly as scored; on a light

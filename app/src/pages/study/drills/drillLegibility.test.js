@@ -102,6 +102,11 @@ describe('answer cards follow the theme (light + dark)', () => {
     expect(bad).toEqual([])
   })
 
+  it('a card fills its grid row, so a two-line label never leaves its neighbour shorter (real-screen check)', () => {
+    expect(lastDeclared('.choices > li > .choice', 'height')).toBe('100%')
+    expect(lastDeclared('.choicesGrid > li > .choice', 'height')).toBe('100%')
+  })
+
   it('the light theme exists in the token sheet, and the cards are the classes ChoiceList renders (the wire)', () => {
     expect(THEMES.some((t) => t.name === 'light')).toBe(true)
     expect(JSX).toMatch(/className=\{`\$\{styles\.choice\} \$\{sameAnswer\(choice, rightLabel\) \? styles\.choiceRight : ''\} \$\{sameAnswer\(choice, wrongLabel\) \? styles\.choiceWrong : ''\}`\}/)
