@@ -140,7 +140,8 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       out[sym] = {
         price: Number.isFinite(it.c) ? it.c : null,
         change_pct: Number.isFinite(it.pct) ? it.pct : null,
-        // Raw volume when the payload carries it (`v`); never the RVOL ratio.
+        // Raw volume (`v`); never the RVOL ratio. The recorded-day route fills
+        // `v` from that session's daily bars (the stored lists only hold RVOL).
         volume: Number.isFinite(it.v) ? it.v : null,
       }
     }
@@ -319,8 +320,8 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             //
             // Sharing the global watchlist key was tried and shipped a DEAD
             // column. A watchlist's `Vol` means RAW volume, which works fine on
-            // /charts and can never be filled from a recorded breadth snapshot
-            // (the payload carries the RATIO). With one shared layout, whichever
+            // /charts; a recorded breadth snapshot stores only the RATIO (the
+            // route now adds the shares from that day's bars). With one shared layout, whichever
             // surface the user did not arrange for keeps a column of em-dashes.
             // Its own key lets the drill lead with RVOL — which it CAN fill —
             // while the user's watchlists keep their arrangement untouched.

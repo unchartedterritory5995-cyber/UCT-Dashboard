@@ -29,6 +29,8 @@ _CONSUMERS = {
     "api/services/alert_user_series.py": ("_SYMBOL_MAX_BARS", "RUNTIME_WINDOW_DATE"),
     # W9-T14: the strategy backtest route reads the window inline (design 3.4, "the T14 route")
     "api/routers/pine_strategy_backtest.py": (),
+    # W9-T11-F1: the chart lane reads the window through this endpoint (design 3.4, section 9 item 6)
+    "api/routers/pine_history_window.py": (),
 }
 _DEEP = "api/services/screener/snapshot_builder.py"
 _LITERAL = 5000
