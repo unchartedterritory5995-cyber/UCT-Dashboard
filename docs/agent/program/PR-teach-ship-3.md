@@ -2,6 +2,8 @@
 
 Base: ship-2. Stack position: 3 of 5. Local only; not pushed.
 
+Stacking: this slice stacks on teach-ship-2's tested code head `3a849dab9f`, not on its doc commit, so `PR-teach-ship-2.md` is absent from this slice on purpose. The stack is not broken.
+
 ## Behaviour changes
 - **Words reach `answer()`.** The member's words always travel to `answer()`, which reads the chart they name against the real board (selection oracle flow-ring-named).
 - **T1/T2.** `guide/namedChart.js` calls deixis.js's exported `relativeChart` and `negatedPointer`; there is no copy.
