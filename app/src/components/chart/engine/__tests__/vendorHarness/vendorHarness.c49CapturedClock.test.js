@@ -240,7 +240,12 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
 
   it('the derived captures are sealed and valid; as captured each still refuses on a row outside this lane, by name', () => {
     expect(T.integrity.ok && Q.integrity.ok).toBe(true)
-    expect(gradeCapture(CAP.D_T).verdict.reason).toMatch(/member door refused \(pine:input-kind\)/)
+    // ⚰️ RULING-0927 (2026-11-07): T16 is served now, so D_T no longer refuses on `input.time`.
+    const VERDICT = gradeCapture(CAP.D_T).verdict
+    expect(VERDICT.reason).not.toMatch(/member door refused \(pine:input-kind\)/)
+    const t16 = VERDICT.plots.find((p) => p.title === 'T16_input_time_default_DAYS')
+    expect(t16 && t16.stats, 'T16 was not graded').toBeTruthy()
+    expect([t16.stats.valueMismatches, t16.stats.naMismatches, t16.stats.matching]).toEqual([0, 0, t16.stats.bars])
     expect(gradeCapture(CAP.D_Q).verdict.reason).toMatch(/time_close\("3M"\)/)
   })
 

@@ -1703,6 +1703,19 @@
       "yields": "num",
       "sentence": "the 30-day average volume"
     },
+    "base_pivot_px": {
+      "source": {
+        "store": "screener_rows",
+        "column": "base_pivot_px"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the pivot price the symbol's HEAD base structure's own detection computed (the entry a Flat Base or Base-on-Base names, in dollars); blank when the head structure has no pivot -- never invented"
+    },
     "base_relation_count": {
       "source": {
         "store": "screener_rows",
@@ -2262,6 +2275,19 @@
       "yields": "num",
       "sentence": "the opening gap percentage"
     },
+    "green_on_red_20": {
+      "source": {
+        "store": "screener_rows",
+        "column": "green_on_red_20"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of the last 20 sessions on which the symbol closed up on a day SPY closed down at least 0.5 % -- bought on the market's red days"
+    },
     "gross_margin": {
       "source": {
         "store": "screener_rows",
@@ -2534,6 +2560,32 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the long-term debt to total capital ratio"
+    },
+    "mansfield": {
+      "source": {
+        "store": "screener_rows",
+        "column": "mansfield"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the Mansfield relative strength -- the RS line's percentage distance above (positive) or below (negative) its own 200-day average, two decimals"
+    },
+    "mansfield_cross_bars_ago": {
+      "source": {
+        "store": "screener_rows",
+        "column": "mansfield_cross_bars_ago"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of sessions since Mansfield relative strength last crossed its zero line in either direction, 0 on the newest session; blank when it has not inside the window"
     },
     "market_cap": {
       "source": {
@@ -3159,6 +3211,97 @@
       "yields": "num",
       "sentence": "the return on invested capital"
     },
+    "rs_benchmark_agree": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_benchmark_agree"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the RS line's 20-session slope has the same sign against SPY and against RSP (the equal-weight S&P 500), so the strength is not an artefact of the cap-weighted benchmark"
+    },
+    "rs_cross_up_bars_ago": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_cross_up_bars_ago"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of sessions since the RS line last crossed above its 21-day EMA, 0 on the newest session; blank when it has not inside the window"
+    },
+    "rs_line_above_ma": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_line_above_ma"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the RS line (the symbol's close over SPY's) closed at or above its 21-day EMA on the newest session"
+    },
+    "rs_new_high": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_new_high"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the RS line (the symbol's close over SPY's) closed at a 52-week high on the newest session; a tie counts"
+    },
+    "rs_nh_bars_ago": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_nh_bars_ago"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of sessions since the RS line last made a 52-week high, 0 on the newest session; blank when it has not inside the window"
+    },
+    "rs_nh_before_price": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_nh_before_price"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the RS line made a 52-week high on the newest session while price itself was still more than 2 % under its own 52-week high -- the line leading price"
+    },
+    "rs_nh_red_day": {
+      "source": {
+        "store": "screener_rows",
+        "column": "rs_nh_red_day"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the RS line made a 52-week high on a session SPY closed down at least 0.5 % -- strength shown on a red day"
+    },
     "rs_rank": {
       "source": {
         "store": "screener_rows",
@@ -3493,6 +3636,8 @@
     "base_matches": "TEXT -- every structure the symbol satisfied at once, delimiter-wrapped so the Base Structure filter can test membership. A list is not a number; expressing membership needs a `contains` this table does not declare, exactly as `patterns` and `candle_matches` already record",
     "base_render": "TEXT -- the rendered head, primary (secondary) +N. A display string, not a fact a formula can compute over",
     "rvol_live": "LIVE-ONLY -- volume vs usual by now, written only by the screener's intraday overlay and NULL in every nightly row by design. A scalar is read from `screener_rows` at the snapshot's cadence, so every expression over it would be a hole on every symbol at every hour; the nightly volume reading a formula can use is `vol_ratio`",
+    "premarket_price": "LIVE-ONLY, 2026-11-06 -- the last extended-hours print (pre-market from 04:00 ET, after-hours after the close; the key is historical, the label a member reads is Ext-hrs). It is in `snapshot_db.LIVE_ONLY_COLUMNS`: written only to `screener_premarket` by `premarket.py` and served through query.py's `pm` join, NULL in every nightly `screener_rows` row by design. A scalar is read from `screener_rows` at the snapshot's cadence, so every expression over it would be a hole on every symbol at every hour -- `rvol_live`'s reason. The nightly price a formula can use is `price`",
+    "premarket_chg_pct": "LIVE-ONLY, 2026-11-06 -- the extended-hours print's change vs the prior close, in percent. Same door and same reason as `premarket_price`: `snapshot_db.LIVE_ONLY_COLUMNS`, served only through query.py's `pm` join on `screener_premarket` and NULL in every nightly row, so a scalar over it would be a hole at every hour. The nightly change a formula can use is `chg_pct_1d`",
     "archive_calls_n": "DISPLAY-ONLY ARCHIVE CONTEXT, 2026-10-16 -- written by `archive_join` from the private trader archive and refused as a scalar on purpose: owner decision 3 allows archive context on scanner surfaces only as DISPLAY, never as an input to what fires or how it scores, and a declared scalar would let a formula, a saved scan or an alert condition key on it. It is also blank whenever WISDOM_ARCHIVE_ENABLED is off, so under R8 it cannot be one yet either",
     "archive_traders_n": "DISPLAY-ONLY ARCHIVE CONTEXT, 2026-10-16 -- written by `archive_join` from the private trader archive and refused as a scalar on purpose: owner decision 3 allows archive context on scanner surfaces only as DISPLAY, never as an input to what fires or how it scores, and a declared scalar would let a formula, a saved scan or an alert condition key on it. It is also blank whenever WISDOM_ARCHIVE_ENABLED is off, so under R8 it cannot be one yet either",
     "archive_last_call_date": "TEXT -- the date of the team's newest archived call on the name. DISPLAY-ONLY ARCHIVE CONTEXT, 2026-10-16 -- written by `archive_join` from the private trader archive and refused as a scalar on purpose: owner decision 3 allows archive context on scanner surfaces only as DISPLAY, never as an input to what fires or how it scores, and a declared scalar would let a formula, a saved scan or an alert condition key on it. It is also blank whenever WISDOM_ARCHIVE_ENABLED is off, so under R8 it cannot be one yet either",
@@ -3522,7 +3667,17 @@
     "new_low_lookback": "NOT GRANTED YET -- a scan primitive for the screener (`technicals.scan_primitives`, 2026-11-05). Screens filter on it through the catalog; making it a formula scalar is a separate decision, with its own conformance cases",
     "breakout_20d_age": "NOT GRANTED YET -- a scan primitive for the screener (`technicals.scan_primitives`, 2026-11-05). Screens filter on it through the catalog; making it a formula scalar is a separate decision, with its own conformance cases",
     "high_52w_age": "NOT GRANTED YET -- a scan primitive for the screener (`technicals.scan_primitives`, 2026-11-05). Screens filter on it through the catalog; making it a formula scalar is a separate decision, with its own conformance cases",
-    "low_52w_age": "NOT GRANTED YET -- a scan primitive for the screener (`technicals.scan_primitives`, 2026-11-05). Screens filter on it through the catalog; making it a formula scalar is a separate decision, with its own conformance cases"
+    "low_52w_age": "NOT GRANTED YET -- a scan primitive for the screener (`technicals.scan_primitives`, 2026-11-05). Screens filter on it through the catalog; making it a formula scalar is a separate decision, with its own conformance cases",
+    "rs_rating_ibd": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the IBD-style RS rating, 1-99 (plan §7 item 17). Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rs_rating_chg_5": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the IBD-style rating minus its own value 5 stored sessions earlier, computed on read. Same door and same reason as `rs_rating_ibd`: Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rs_rating_chg_20": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the IBD-style rating minus its own value 20 stored sessions earlier, computed on read. Same door and same reason as `rs_rating_ibd`: Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rs_rating_1m": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the rating's 1-month component, the percentile of the plain 21-bar return. Same door and same reason as `rs_rating_ibd`: Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rs_rating_3m": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the rating's 3-month component, the percentile of the plain 63-bar return. Same door and same reason as `rs_rating_ibd`: Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rs_rating_6m": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the rating's 6-month component, the percentile of the plain 126-bar return. Same door and same reason as `rs_rating_ibd`: Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rs_rating_12m": "DARK, 2026-11-06 (UCT RS Phase 2a, unit 2a-06) -- the rating's 12-month component, the percentile of the plain 252-bar return. Same door and same reason as `rs_rating_ibd`: Read into the nightly row from the `rs_rating_history` side table that `rs_history_nightly` (04:15 ET, web pod; `api/services/screener/rs_history.py`) writes, and that job runs only when RS_HISTORY_ENABLED=1 -- OFF in production -- so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_HISTORY_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "rrg_quadrant": "TEXT, and DARK, 2026-11-07 (UCT RS Phase 3, unit 3-10) -- the RRG-style rotation quadrant against SPY on WEEKLY bars (Leading | Weakening | Lagging | Improving), UCT's formula, the Terminal's (decision D1). Written into the nightly row by `rs_columns.collect_one` (the builder's `bars_rs` step) ONLY when `snapshot_builder.rs_v3_enabled()` is true, and RS_V3_ENABLED is OFF in production, so every nightly `screener_rows` row carries NULL here. ⛔ AND IT STAYS EXCLUDED ONCE FILLED, the `rs_line_trend` reasoning: a quadrant or state name is a verdict, not a magnitude, and the code behind it is not stored as a column; the screener's enum filter is the honest surface",
+    "clenow_score": "DARK, 2026-11-07 (UCT RS Phase 3, unit 3-10) -- the Clenow-style trend score over 90 DAILY closes, annualised slope x R^2, a FRACTION to 4 dp. Written into the nightly row by `rs_columns.collect_one` (the builder's `bars_rs` step) ONLY when `snapshot_builder.rs_v3_enabled()` is true, and RS_V3_ENABLED is OFF in production, so every nightly `screener_rows` row carries NULL here and under R8 the column cannot be a scalar yet: every expression over it would be silently NULL, which reads to a member as a screen that found nothing rather than a vocabulary that holds nothing. RE-ADMIT WHEN RS_V3_ENABLED IS ARMED AND THE ARTIFACT SHOWS THE COLUMN FILLED (SCALAR_POPULATION_ARTIFACT=<screener.db> python -m pytest tests/test_scalar_population_rail.py), moving only the split and never the column total -- the pattern_engine_vcp precedent",
+    "vars_state": "TEXT, and DARK, 2026-11-07 (UCT RS Phase 3, unit 3-10) -- the VARS-style volatility-adjusted RS state against SPY on DAILY bars (Strong, rising | Strong, fading | Weak, improving | Weak, falling). Written into the nightly row by `rs_columns.collect_one` (the builder's `bars_rs` step) ONLY when `snapshot_builder.rs_v3_enabled()` is true, and RS_V3_ENABLED is OFF in production, so every nightly `screener_rows` row carries NULL here. ⛔ AND IT STAYS EXCLUDED ONCE FILLED, the `rs_line_trend` reasoning: a quadrant or state name is a verdict, not a magnitude, and the code behind it is not stored as a column; the screener's enum filter is the honest surface"
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
   "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent.",
@@ -3673,7 +3828,7 @@
     "_realtime": "⛔ ONLY THE NEWEST BAR CAN BE `isrealtime`. Every earlier bar's period ended before the newest one's began, so a per-bar comparison against the clock would answer the same thing at ten times the cost — and would answer it DIFFERENTLY on a fetch whose newest bar is stale, which is the case a member most needs told rather than smoothed over.",
     "_ishistory_is_an_ALIAS_here_and_is_not_one_in_pine": "⚠️ TradingView distinguishes a bar the chart LOADED as history from one it WATCHED form. This engine evaluates a STATIC FETCH: every closed bar arrived the same way, in one response, so the distinction has no referent here and `ishistory` is exactly `isconfirmed`. ⛔ RECORDED AS A DIVERGENCE RATHER THAN HIDDEN — `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` — because a member porting a script that branches on the two would otherwise never learn that one branch is unreachable for us.",
     "refused": {
-      "isnew": "requires per-tick evaluation. `barstate.isnew` is true on the FIRST execution of each bar, which is a fact about how many times the script ran rather than about the bar. This engine evaluates a static fetch once, so every bar would be `isnew` and the answer would be a restatement of the question."
+      "isnew": "requires per-tick evaluation, and the captures pin every bar but the one that matters. RULING-0927 (2026-11-07): `isnew` reads 1 on the four closed bars of the tail of `tests/fixtures/vendor/barstate-full-spy-1d-closed-2026-09-10.json` and on the three timeline rows where the vendor had released the newest bar to history. On the NEWEST bar it equals the vendor's own `ishistory`, which is viewer- and time-dependent: 0 while the vendor still holds the bar realtime (six rows of `barstate-daily-timeline.json`, 16:17-20:55 ET) and 1 once it lets the bar go (three rows, 23:57-07:38 ET), while OUR clock answered \"not forming\" at all nine instants. Nothing this engine receives says which of the two the vendor would show, and the value on a realtime update of a forming bar was never captured, so any column would be a guess on the newest bar. Refused by name on every lane (the runtime lane's ledger producer `isNewByBar` stays unread). TO UNBLOCK: a capture that ties the vendor's release instant to something our calendar derives, plus a forming-bar reading."
     },
     "_the_calendar_authorities": "⛔⛔ BOTH NYSE SETS ARE KNOWN, AND THIS IS WHERE THAT IS WRITTEN DOWN. Census re-taken 2026-09-09: NYSE FULL CLOSURES are `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` (one authority, five readers, served to the browser by `GET /api/market-calendar`), and 1pm ET HALF-DAYS are `liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD` — a REAL frozenset with five read sites and the parity rail `tests/test_nyse_calendar_parity.py`. ⚰️ THIS ENTRY USED TO CALL EARLY CLOSES *\"not known\"*, reasoning from `bars_fetch`'s own comment that half-days are *\"intentionally NOT\"* included. True of that set, false of the repo. `bar_close_state` reads both, so a daily bar on an early-close session correctly stops reading `isrealtime` at 13:00 ET.",
     "_extended_hours_do_not_break_it": "⭐ AND THEY WERE CHECKED RATHER THAN ASSUMED. Our INTRADAY fetch can contain extended-hours bars — `bars_fetch._fetch_intraday_yfinance` asks `prepost=True` and the serve-time filter keeps those prints on purpose — and an intraday bar's period ends `span` seconds after it starts whether or not the regular session is open, so the arithmetic is the same one. ⚠️ DAILY AND ABOVE do NOT carry them: the single `prepost=True` site reads `_YF_CONFIG`, which is intraday-only, and `api/index_bars.py` passes `prepost=False`. Both properties are asserted by `tests/test_bar_close_state.py` rather than by this sentence.",

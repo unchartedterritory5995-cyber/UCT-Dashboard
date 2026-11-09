@@ -1,0 +1,31 @@
+// HONESTY-SWEEP (2026-11-07) - probe Q-HS5 for the capture lane (W6-T9 review N3; sibling of W6-U1 rows U03-U04, U08).
+// Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, AFTER THE CLOSE.
+// The question: does Pine COMPILE a call that hands an array<int> (matrix<int>, map<string, int>) to a parameter
+// declared with `float` elements? A compile error is the reading: record its text and line, comment that row
+// out, and capture the rest. The script may not compile at all; that is the first reading.
+//
+//   A01  plain function f(array<float> id) called with an array<int>
+//   A02  method m(array<float> id) called as ai.m() on an array<int>
+//   A03  method mm(matrix<float> id) on a matrix<int>
+//   A04  method mp(map<string, float> id) on a map<string, int>
+//   A05  CONTROL: f called with an array<float>
+//@version=6
+indicator("vw-hs5-int-array-float-param", overlay = false)
+f(array<float> id) =>
+    id.size() + 1
+method m(array<float> id) =>
+    id.size() + 2
+method mm(matrix<float> id) =>
+    id.rows() + 3
+method mp(map<string, float> id) =>
+    id.size() + 4
+var array<int> ai = array.from(1, 2, 3)
+var array<float> af = array.from(1.5, 2.5)
+var matrix<int> mi = matrix.new<int>(2, 2, 1)
+var map<string, int> pi = map.new<string, int>()
+plot(f(ai), "A01")
+plot(ai.m(), "A02")
+plot(mi.mm(), "A03")
+plot(pi.mp(), "A04")
+plot(f(af), "A05")

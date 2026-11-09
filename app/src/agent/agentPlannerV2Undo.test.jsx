@@ -90,7 +90,9 @@ describe('v2-readiness-2 — agent.undo as a v2 step', () => {
     const { say, board } = p.mount(...TWO())
     await say('retune the left panel to weekly')
     await settled()
-    await say('take back the drawing you made')
+    // (round 3: "take back the drawing you made" is now an instant described Undo; this test is about the planner's step, so the
+    // phrasing is one no instant reader claims)
+    await say('could you take back the drawing you made earlier please')
     await settled()
     expect(srv.results.map(r => r.status)).toEqual(['done', 'refused'])
     expect(tfOf(board, 'cl')).toBe('W')

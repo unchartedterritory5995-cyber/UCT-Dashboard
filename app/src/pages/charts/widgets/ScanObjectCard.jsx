@@ -17,6 +17,7 @@
 // ⚠️ INLINE STYLES over the shared tokens, the ConciergeBox convention: the card
 // is dropped into a widget whose stylesheet belongs to that widget.
 
+import { withoutGuardIds } from '../../../components/chart/engine/ast/guardIdText'
 import { Suspense, lazy, useMemo, useState } from 'react'
 import { readScanObject } from './scanObject'
 
@@ -58,7 +59,7 @@ function GapList({ items, testid, lead }) {
       {items.map((item, i) => (
         <span key={`${testid}-${i}`}>
           {i > 0 ? '; ' : ''}“{(item && (item.clause || item.phrase || item.text)) || ''}”
-          {item && item.reason ? ` — ${item.reason}` : ''}
+          {item && item.reason ? ` — ${withoutGuardIds(item.reason)}` : ''}
         </span>
       ))}
     </div>
@@ -77,7 +78,7 @@ export default function ScanObjectCard({ object }) {
   if (!view.ok) {
     return (
       <div style={S.refusal} role="note" data-testid="scan-object-refusal" data-gate={view.gate}>
-        Could not turn this into a scan you can edit: {view.reason}
+        Could not turn this into a scan you can edit: {withoutGuardIds(view.reason)}
       </div>
     )
   }

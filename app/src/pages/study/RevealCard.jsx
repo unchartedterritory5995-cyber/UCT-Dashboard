@@ -22,10 +22,13 @@
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import StudyMark from '../../components/study/StudyMark'
-import { appendForwardBars, studyFetch } from './useStudySession'
+import { appendForwardBars, normalizeBars, studyFetch } from './useStudySession'
 import { feedbackPrefs, revealFeedback } from './studyFeedback'
 import { FEEDBACK_KINDS, VERDICTS, answerWord, feedbackUrl, lessonParts } from './revealCardHelpers'
 import { brandWords } from './drills/types'
+import Emph from './ui/emphasize'
+import TradeReview from './ui/TradeReview'
+import { setupName } from './challenges/challengeBank'
 import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
@@ -139,6 +142,10 @@ export default function RevealCard({
   const href = lessonHrefFor(reveal)
   const key = answerWord(reveal)
   const forwardCount = Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
+  // the setup's trade, reviewed against what followed (the owner's rule 8, on every screen that teaches a setup):
+  // the plan comes with the reveal (api/services/study_trade.py), the signal is the item's last visible bar
+  const vis = reveal?.trade ? normalizeBars(item?.bars) : []
+  const signal = vis.length ? vis[vis.length - 1] : null
 
   return (
     <section className={`${styles.card} ${className}`.trim()} data-testid="reveal-card" data-correct={correct ? '1' : '0'}>
@@ -163,13 +170,14 @@ export default function RevealCard({
           {parts.map((p) => (
             <div key={p.key} className={styles.part}>
               <dt className={styles.partLabel}>{p.label}</dt>
-              <dd className={styles.partText}>{brandWords(p.text)}</dd>
+              <dd className={styles.partText}><Emph>{brandWords(p.text)}</Emph></dd>
             </div>
           ))}
         </dl>
       ) : (
-        lesson && <p className={styles.lesson}>{brandWords(lesson)}</p>
+        lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>
       )}
+      {reveal?.trade && signal ? <TradeReview plan={reveal.trade} signal={signal} forward={normalizeBars(reveal.forward_bars)} name={setupName(item?.skill_id)} /> : null}
       <details className={styles.why}>
         <summary className={styles.whySummary}>Why</summary>
         <div className={styles.whyBody}>

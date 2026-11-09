@@ -255,15 +255,18 @@ HOUR_SECONDS = 3600
 
 
 def reserve_member_call(market_date: str, ticker: str, model: str, worst_usd: float,
-                        *, max_per_hour: int | None = None,
+                        *, max_per_hour: int | None = None, member_limit_usd: float | None = None,
                         now: float | None = None) -> dict:
     """THE INTERACTIVE GATE AS A RESERVATION: admit one call against its WORST CASE
     and write that worst case to the ledger before the model is called.
 
     Same limits as `may_member_spend`, read from the same functions: no new number.
-    Returns ``{"id": rowid}``, ``{"refused": "spend-cap"}`` or
-    ``{"refused": "hourly", "retry_after": seconds}``. A ledger failure RAISES: the
+    Returns ``{"id": rowid}``, ``{"refused": "spend-cap"}``, ``{"refused": "member-share"}``
+    or ``{"refused": "hourly", "retry_after": seconds}``. A ledger failure RAISES: the
     caller refuses the call, because no paid call runs without a readable ledger.
+
+    `member_limit_usd` is one member's share INSIDE the lane limit, on THIS TICKER's rows
+    in the same transaction: it can only refuse sooner, and the lane's total is unchanged.
 
     ⛔ `max_per_hour` COUNTS THIS TICKER'S LEDGER ROWS, so a restart, a deploy or a
     second instance cannot reset it, and a refused or failed read still uses a place
@@ -288,6 +291,10 @@ def reserve_member_call(market_date: str, ticker: str, model: str, worst_usd: fl
         if round(total + worst_usd, 6) > round(hard, 6) \
                 or round(interactive + worst_usd, 6) > round(limit, 6):
             return {"refused": "spend-cap"}
+        if member_limit_usd is not None:
+            mine = sum(usd for t, usd in rows if t == ticker)
+            if round(mine + worst_usd, 6) > round(member_limit_usd, 6):
+                return {"refused": "member-share"}
         return None
 
     rowid, verdict = store.reserve_cost(

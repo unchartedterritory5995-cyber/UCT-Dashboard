@@ -1,0 +1,40 @@
+//@version=6
+indicator("vw-w6-forin-alias")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-W6T6-A of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md: `b = a` then `for x in a` with `array.remove(b, 0)` in the body; and a
+// DIFFERENT list of the same type changed by `remove` in the body. Two halves, own plots.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: the alias half: how many passes run and which elements are seen when the walked list
+// shrinks through another name (or a runtime error: record the banner). The distinct half: a separate
+// list emptied by `remove` while `c` is walked (expect 4 passes, d empty). A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+// alias: b names the walked list
+a = array.from(1.0, 2.0, 3.0, 4.0)
+b = a
+int aPasses = 0
+float aSeen = 0.0
+for x in a
+    aPasses += 1
+    aSeen += x
+    array.remove(b, 0)
+plot(aPasses, "A01_alias_passes")
+plot(aSeen, "A02_alias_sum_seen")
+plot(array.size(a), "A03_alias_size_after")
+
+// distinct: d is another float list
+c = array.from(1.0, 2.0, 3.0, 4.0)
+d = array.from(10.0, 20.0, 30.0, 40.0)
+int dPasses = 0
+float dSeen = 0.0
+for x in c
+    dPasses += 1
+    dSeen += x
+    array.remove(d, 0)
+plot(dPasses, "D01_distinct_passes")
+plot(dSeen, "D02_distinct_sum_seen")
+plot(array.size(c), "D03_walked_size_after")
+plot(array.size(d), "D04_other_size_after")

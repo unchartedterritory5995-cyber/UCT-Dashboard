@@ -413,14 +413,13 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
     }
   }, T)
 
-  it('volume-profile: the profile lines are moved inside a loop whose bound reads a value the function changes (`loop:bounds` pine:state), and the runtime lane refuses `array.fill` (W4-T2 folded the `simple` `ta.highest` length before it)', () => {
+  it('volume-profile: the profile lines are moved inside a loop whose bound reads a value the function changes (`loop:bounds` pine:state); the runtime lane\'s own-drawings build now compiles (W6-T5 serves `array.fill`, the wall it used to stop at)', () => {
     const c = cap('volume-profile-spy-1d-2026-10-03')
     const d = doorDiagnostics(c)
     expect(d.loopBoundsWhy.some((w) => /pine:state: `va_up` changes as the function `draw` runs/.test(w))).toBe(true)
     expect(d.lostCreates).toEqual(['line'])
     const p = probeRuntimeProgram(c.source.text, { objectsInRun: true })
-    expect(p.refusal.guard).toBe('runtime:array')
-    expect(p.refusal.message).toMatch(/array\.fill/)
+    expect(p.ok, p.refusal && `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
   }, T)
 
   it('vold-market-breadth and position-size-calc: the missing cells read `request.security` of other symbols (breadth tickers; an FX rate)', () => {

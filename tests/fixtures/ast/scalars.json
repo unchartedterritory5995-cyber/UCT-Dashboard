@@ -1636,6 +1636,126 @@
       "asOf": "snapshot_date",
       "cadence": "nightly",
       "yields": "bool"
+    },
+    {
+      "id": "rs_new_high",
+      "scalar": "rs_new_high",
+      "ast": {
+        "type": "series",
+        "name": "rs_new_high"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "rs_nh_before_price",
+      "scalar": "rs_nh_before_price",
+      "ast": {
+        "type": "series",
+        "name": "rs_nh_before_price"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "rs_nh_red_day",
+      "scalar": "rs_nh_red_day",
+      "ast": {
+        "type": "series",
+        "name": "rs_nh_red_day"
+      },
+      "value": 0,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "rs_nh_bars_ago",
+      "scalar": "rs_nh_bars_ago",
+      "ast": {
+        "type": "series",
+        "name": "rs_nh_bars_ago"
+      },
+      "value": 58.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "green_on_red_20",
+      "scalar": "green_on_red_20",
+      "ast": {
+        "type": "series",
+        "name": "green_on_red_20"
+      },
+      "value": 59.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rs_line_above_ma",
+      "scalar": "rs_line_above_ma",
+      "ast": {
+        "type": "series",
+        "name": "rs_line_above_ma"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "rs_cross_up_bars_ago",
+      "scalar": "rs_cross_up_bars_ago",
+      "ast": {
+        "type": "series",
+        "name": "rs_cross_up_bars_ago"
+      },
+      "value": 60.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "mansfield",
+      "scalar": "mansfield",
+      "ast": {
+        "type": "series",
+        "name": "mansfield"
+      },
+      "value": -61.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "mansfield_cross_bars_ago",
+      "scalar": "mansfield_cross_bars_ago",
+      "ast": {
+        "type": "series",
+        "name": "mansfield_cross_bars_ago"
+      },
+      "value": 62.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rs_benchmark_agree",
+      "scalar": "rs_benchmark_agree",
+      "ast": {
+        "type": "series",
+        "name": "rs_benchmark_agree"
+      },
+      "value": 0,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
     }
   ],
   "trees": [

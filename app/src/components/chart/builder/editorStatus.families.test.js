@@ -73,6 +73,8 @@ describe('refusal families', () => {
     expect(familyOf('runtime:nothing-drawn').id).toBe('shape')
     expect(familyOf('runtime:output-map').id).toBe('fault')
     expect(familyOf('runtime:document').id).toBe('fault')
+    expect(familyOf('pine:enum-na').id).toBe('drawing')
+    expect(familyOf('pine:enum-named-call').id).toBe('drawing')
     for (const g of ['runtime:killed', 'runtime:not-yet-graded', 'runtime:repaint-unstated']) {
       expect(familyOf(g).id, g).toBe('unverified')
     }

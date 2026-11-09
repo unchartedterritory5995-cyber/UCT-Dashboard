@@ -224,6 +224,8 @@ const O = (id) => ({ id, agent: 'owned:indicator' })
 const OWNED = [
   O('indicatorInstances'), O('indicators.*'), O('overlays'), O('paneOrder'), O('paneSizes'), O('paneSeriesOrder'),
   O('volumeOverlayIndicators'), O('infoValues'),
+  // ⭐ VA2 — "Save as my default" (the indicator settings dialog and the phone sheet).
+  O('indicatorDefaults.*'),
 ]
 
 // ── known member settings, not Agent-enabled yet (discoverable, refused) ──
