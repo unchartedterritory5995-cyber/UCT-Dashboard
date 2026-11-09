@@ -236,8 +236,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-076": {
-  "feature": "chartSetting",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "panelAction",
+  "title": "Restoring a chart’s defaults",
+  "from": "cov-4 row reviewed by hand 2026-11-09 (was the matrix’s chartSetting: the Restore defaults button is its own control)"
  },
  "C1-079": {
   "feature": "chartThemes",
