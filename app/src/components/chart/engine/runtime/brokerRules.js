@@ -15,6 +15,11 @@
 // ⛔ A rule with `capture: null` has no probe queued yet: it is refused until one is written.
 
 export const UNPINNED_GUARD = 'runtime:strategy-unpinned'
+/** A broker refusal for a behaviour no source settles (`broker.js` re-exports it under the same name).
+ *  Declared HERE, beside UNPINNED_GUARD, so the strategy report (`brokerReport.js`) can name it without
+ *  importing the broker itself: that import split `broker.js` into its own shared chunk and pushed
+ *  bytes.notebook_first_open over budget (engine 40). One authority, two doors. */
+export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 
 export const BROKER_RULES = Object.freeze({
   // the run's execution model

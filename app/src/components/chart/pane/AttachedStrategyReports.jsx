@@ -5,8 +5,8 @@
 // Under each chart pane, beside `AttachedPineDisclosures`: for every strategy this pane DRAWS
 // (a hidden instance draws nothing) whose run carries a `strategy` record (published by the
 // binder into `engine/strategyReportNotice.js`), a collapsed "strategy report" disclosure that
-// opens the panel. The report is `brokerReport.js::strategyReportOf(record)`, computed here at
-// render and never stored.
+// opens the panel. The report is `brokerReport.js::strategyReportOf(record)`, computed at render
+// (in the lazily loaded `StrategyReportsLoaded.jsx`) and never stored.
 //
 // ⛔⛔ DARK, BEHIND THE EXISTING GATE, NO NEW ARMING PATH. This reads
 // `engine/strategyBrokerGate.js::strategyBrokerEnabled` — `VITE_PINE_STRATEGY_BROKER_ENABLED
@@ -15,13 +15,15 @@
 // panel reaches the DOM (rail: `strategyReportPanel.test.jsx`, "gate off"). And off, no strategy
 // is drawn bar by bar at all (W9-T11), so there is no record to show either way.
 // Arming is the owner's act, per W2 stage (ruling D6). Nothing here arms anything.
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { strategyBrokerEnabled } from '../engine/strategyBrokerGate'
 import { strategyRecordFor, onStrategyRecordChange } from '../engine/strategyReportNotice'
-import { strategyReportOf } from '../engine/runtime/brokerReport.js'
 import * as defaultRegistry from '../engine/nativeRegistry'
-import StrategyReportPanel from './StrategyReportPanel'
-import styles from './AttachedStrategyReports.module.css'
+
+// ⛔ ENGINE-40 BYTES: the report itself (brokerReport, the panel, memberCopy through it, the CSS) is
+// loaded ONLY when the gate is on AND a record exists. Gate off: this import never runs.
+// (`notebook_perf_budgets.py` bytes.notebook_first_open; rail: strategyReportPanel.test.jsx "imports nothing".)
+const StrategyReportsLoaded = lazy(() => import('./StrategyReportsLoaded'))
 
 /** The drawn instances of `settings` with a published record, in list order. */
 export function attachedStrategyRecords(settings, registry = defaultRegistry, scope = '') {
@@ -42,22 +44,12 @@ function Reports({ settings, registry, noticeScope }) {
   useEffect(() => onStrategyRecordChange(() => setTick((n) => n + 1)), [])
   const generation = typeof registry.registryGeneration === 'function' ? registry.registryGeneration() : 0
   const items = useMemo(
-    () => attachedStrategyRecords(settings, registry, noticeScope)
-      .map((it) => ({ ...it, report: strategyReportOf(it.record) })),
+    () => attachedStrategyRecords(settings, registry, noticeScope),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings, registry, noticeScope, tick, generation],
   )
   if (!items.length) return null
-  return (
-    <div className={styles.reports} data-testid="strategy-reports">
-      {items.map((it) => (
-        <details key={it.instanceId} className={styles.item}>
-          <summary className={styles.summary}>{it.name}: strategy report</summary>
-          <StrategyReportPanel report={it.report} name={it.name} />
-        </details>
-      ))}
-    </div>
-  )
+  return <Suspense fallback={null}><StrategyReportsLoaded items={items} /></Suspense>
 }
 
 /**

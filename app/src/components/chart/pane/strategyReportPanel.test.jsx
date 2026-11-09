@@ -15,6 +15,13 @@ import { fileURLToPath } from 'node:url'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
 import StrategyReportPanel, { OVERVIEW_KEYS, TABS, memberSentence, metricLabel, formatMetric } from './StrategyReportPanel'
 import AttachedStrategyReports from './AttachedStrategyReports'
+
+// engine-40 bytes rail: count every time the lazily loaded half of the mount is actually imported
+const LOADED = vi.hoisted(() => ({ count: 0 }))
+vi.mock('./StrategyReportsLoaded', async (importOriginal) => {
+  LOADED.count += 1
+  return importOriginal()
+})
 import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
 import {
   strategyReportOf, SERVED_METRICS, REFUSED_METRICS,
@@ -346,17 +353,31 @@ describe('W9-T13b the mount is dark behind VITE_PINE_STRATEGY_BROKER_ENABLED', (
   })
 
   for (const v of [undefined, '', '0', 'true']) {
-    it(`gate ${JSON.stringify(v)}: nothing renders, whatever the store holds`, () => {
+    it(`gate ${JSON.stringify(v)}: nothing renders AND nothing is imported, whatever the store holds`, async () => {
       if (v !== undefined) vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', v)
       const { container } = render(<AttachedStrategyReports settings={SETTINGS} registry={REGISTRY} noticeScope="scopeA" />)
+      await new Promise((r) => setTimeout(r, 30))
       expect(container.innerHTML).toBe('')
+      // engine-40 bytes: the report module (panel, brokerReport, CSS) was never requested. ABSOLUTE 0:
+      // these cases run before any gate-on case in this file, so a static import would already read 1
+      expect(LOADED.count).toBe(0)
     })
   }
 
-  it('gate "1" (CONTROL): the drawn strategy shows its report, the hidden one does not', () => {
+  it('gate "1" but no record: nothing renders and nothing is imported', async () => {
+    vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
+    resetStrategyRecords()
+    const { container } = render(<AttachedStrategyReports settings={SETTINGS} registry={REGISTRY} noticeScope="scopeA" />)
+    await new Promise((r) => setTimeout(r, 30))
+    expect(container.innerHTML).toBe('')
+    expect(LOADED.count).toBe(0)
+  })
+
+  it('gate "1" (CONTROL): the drawn strategy shows its report, the hidden one does not', async () => {
     vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
     const { container } = render(<AttachedStrategyReports settings={SETTINGS} registry={REGISTRY} noticeScope="scopeA" />)
-    expect(screen.getAllByTestId('strategy-report')).toHaveLength(1)
+    expect(await screen.findAllByTestId('strategy-report')).toHaveLength(1)
+    expect(LOADED.count).toBeGreaterThan(0)
     expect(container.querySelector('summary').textContent).toBe('My strategy: strategy report')
     expect(screen.getByTestId('strategy-report-start-sentence').textContent).toBe(START_SENTENCE)
   })
@@ -384,7 +405,15 @@ describe('W9-T13b the mount is dark behind VITE_PINE_STRATEGY_BROKER_ENABLED', (
       walk(src)
       return out.sort()
     }
-    expect(importers('StrategyReportPanel')).toEqual(['AttachedStrategyReports.jsx'])
+    expect(importers('StrategyReportPanel')).toEqual(['StrategyReportsLoaded.jsx'])
     expect(importers('AttachedStrategyReports')).toEqual(['ChartPane.jsx'])
+    // engine-40 bytes: the loaded half is reached ONLY by AttachedStrategyReports' dynamic import,
+    // and the mount imports neither the report module nor the panel statically
+    expect(importers('StrategyReportsLoaded')).toEqual([])
+    const mount = fs.readFileSync(path.join(here, 'AttachedStrategyReports.jsx'), 'utf8')
+    expect(mount).toMatch(/lazy\(\(\) => import\('\.\/StrategyReportsLoaded'\)\)/)
+    expect(mount).not.toMatch(/^import[^\n]*(brokerReport|StrategyReportPanel|\.module\.css)/m)
+    const report = fs.readFileSync(path.join(here, '../engine/runtime/brokerReport.js'), 'utf8')
+    expect(report, 'brokerReport must not import the broker (it split broker.js into a shared chunk)').not.toMatch(/^import[^\n]*from '\.\/broker\.js'/m)
   })
 })
