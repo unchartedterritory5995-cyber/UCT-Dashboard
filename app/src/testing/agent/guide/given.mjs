@@ -9,6 +9,7 @@
 //   breadth    Breadth history and its live row, on the widget's own routes (/api/breadth-monitor, …/live)
 //   savedGrids a saved Multi Chart grid in the layout library (the harness's own ?multichart fixture)
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
+//   versions   the server's version store switched on (a layout's Version history)
 //   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
@@ -53,6 +54,9 @@ export function givenFor(c) {
   if (/Sending News & Catalysts|Filtering catalysts|symbol’s headlines|A headline on the chart/.test(c.title || '')) g.news = true
   if (/Sending Breadth|breadth tiles|Adding or removing a reading/.test(c.title || '')) g.breadth = true
   if (/^(Opening a saved grid|Deleting a saved grid)$/.test(c.title || '')) g.savedGrids = true
+  // a layout's Version history shows only while the server's version store says it is on (components/artifactHistory
+  // ArtifactHistory.jsx probeArtifactVersions: GET /api/artifact-versions/status → { enabled })
+  if (/A layout’s version history/.test(c.title || '')) g.versions = true
   // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
@@ -78,6 +82,7 @@ const THEMES = { themes: [
 export function fixturesFor(g) {
   const routes = []
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  if (g.versions) routes.push({ match: '^GET /api/artifact-versions/status', body: { enabled: true } })
   // pages/charts/widgets/ScannerResults.jsx: { as_of, results: [{ sym }] } from the preset's own route (SCAN_ENDPOINTS)
   if (g.scan) routes.push({ match: '^GET /api/scans/' + SCAN.key, body: { as_of: '2026-11-07T15:00:00-05:00', results: [{ sym: 'NVDA' }, { sym: 'AMD' }, { sym: 'MSFT' }] } })
   // hooks/useThemeSets.js: the preset picker shows only when the server says sets are on (C3-174)
