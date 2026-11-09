@@ -85,6 +85,10 @@ export function documentTextNotice(doc) {
     return scanned ? { tone: 'muted', icon: 'document', name, text: `— ${scanned}` } : null
   }
   if (withText === 0) {
+    // A captured web source (`web:` passage, `x:` post) is not a file, so it cannot be a scan. An
+    // imported post that left X has no page row at all (tweet_capture_sync.remove_post) and its
+    // card already says so; "looks like a scan" would be a false statement about it.
+    if (doc.sourceKind === 'web') return null
     return { tone: 'muted', icon: 'document', name,
              text: 'looks like a scan — no readable text yet, so Search and Ask cannot use it.' }
   }

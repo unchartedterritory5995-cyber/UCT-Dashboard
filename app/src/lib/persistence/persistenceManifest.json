@@ -699,6 +699,17 @@
       ]
     },
     {
+      "key": "uct.deskUsage.sent",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Platform",
+      "kind": "internal",
+      "label": "Daily usage report marker",
+      "files": [
+        "app/src/hooks/useDeskUsage.js"
+      ]
+    },
+    {
       "key": "volume_scan_lists",
       "store": "server-preference",
       "scope": "cross-device",
@@ -1893,6 +1904,18 @@
       "label": "Tickers panel sort",
       "files": [
         "app/src/components/video/VideoDockSlot.jsx"
+      ]
+    },
+    {
+      "key": "uct.desk.v1:*:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Popped-out chart boards, kept so a reload or crash does not lose them",
+      "pattern": true,
+      "files": [
+        "app/src/pages/charts/popout/deskStore.js"
       ]
     },
     {

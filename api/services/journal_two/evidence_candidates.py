@@ -111,6 +111,8 @@ def list_candidates(
             "        ON pg.document_id = e.document_id"
             "       AND pg.page_number = e.page_number"
             " WHERE e.note_id = ? AND e.user_id = ? AND n.deleted_at IS NULL"
+            # A post removed from X keeps its row and loses its words: nothing left to cite.
+            " AND e.captured_text != ''"
         )
         params: list[Any] = [note_id, user_id]
         if q and q.strip():

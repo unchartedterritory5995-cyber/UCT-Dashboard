@@ -10008,7 +10008,7 @@ export default function StockChart({
       // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
       // so the callback form costs zero re-subscribes and zero re-renders.
       const ha = hotkeysActiveRef.current
-      if (typeof ha === 'function' ? !ha() : ha === false) return
+      if (typeof ha === 'function' ? !ha(e) : ha === false) return
       // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
       //
       // This listener is on `document`, so it fires wherever focus happens to be —

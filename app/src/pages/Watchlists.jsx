@@ -28,6 +28,7 @@
 //
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
@@ -1537,6 +1538,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
+    if (isHiddenDeskKey(e)) return
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return

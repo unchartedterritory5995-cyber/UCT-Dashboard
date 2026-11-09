@@ -56,15 +56,21 @@ export default function CapturedSourceSheet({ open, excerpt, onClose, onOpenOwni
       </div>
 
       <div className={styles.section}>
-        <div className={styles.label} id="captured-passage-label">Captured passage</div>
-        <blockquote className={styles.quote} aria-labelledby="captured-passage-label">
-          {excerpt.capturedText}
-        </blockquote>
-        {/* ⛔ Says what we hold, so nobody reads the quotation as the article.
-            This is the same coverage boundary Ask carries on every item. */}
-        <p className={styles.coverage}>
-          This is the passage you kept — not the whole article.
-        </p>
+        {excerpt.tweet?.removed ? (
+          <p className={styles.coverage}>This post is no longer on X.</p>
+        ) : (
+          <>
+            <div className={styles.label} id="captured-passage-label">Captured passage</div>
+            <blockquote className={styles.quote} aria-labelledby="captured-passage-label">
+              {excerpt.capturedText}
+            </blockquote>
+            {/* ⛔ Says what we hold, so nobody reads the quotation as the article.
+                This is the same coverage boundary Ask carries on every item. */}
+            <p className={styles.coverage}>
+              This is the passage you kept — not the whole article.
+            </p>
+          </>
+        )}
       </div>
 
       {excerpt.annotation && (

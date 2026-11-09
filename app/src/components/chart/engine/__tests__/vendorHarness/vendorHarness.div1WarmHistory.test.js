@@ -24,7 +24,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
-import { columnsInWindow } from './ourSide'
+import { columnsInWindow, replayDecisionOf } from './ourSide'
+import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import { RUNTIME_WARMUP_KEY, runtimeWarmupOf } from '../../runtime/runtimeObjects'
 import { columnErrors } from '../../nativeRegistry'
 import { colourWarmupOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -64,6 +65,39 @@ describe('DIV-1 — columnsInWindow', () => {
   })
 })
 
+// ⭐ r1 (review N2) — the replay is never deeper than what the product computes: the
+// standalone daily chart's `fullBarsFor('D')`, read from the product module (one
+// authority). A synthetic over-depth supplier must go cold, by name.
+describe("DIV-1 r1 — replayDecisionOf: replay only what a member's daily chart computes", () => {
+  const DEPTH = fullBarsFor('D')
+  const base = { supplyKind: 'warm', supplyBars: 6677, supplyReason: 'proved', file: 'sup.json', windowBars: 1800, tf: 'D' }
+
+  it("the depth is the product's own constant, and SPY today is inside it", () => {
+    expect(Number.isInteger(DEPTH) && DEPTH > 8477).toBe(true)
+    expect(replayDecisionOf(base)).toMatchObject({ replay: true, kind: 'replayed' })
+    expect(replayDecisionOf(base).why).toMatch(/STANDALONE daily chart/)
+  })
+
+  it("⛔ a synthetic OVER-DEPTH supplier (prehistory + window > fullBarsFor('D')) goes cold, by name", () => {
+    const d = replayDecisionOf({ ...base, supplyBars: DEPTH - 1800 + 1 })
+    expect(d).toMatchObject({ replay: false, kind: 'cold' })
+    expect(d.why).toMatch(new RegExp(`exceed the ${DEPTH} bars a member's daily chart computes`))
+  })
+
+  it('control: exactly at the depth still replays (the product loads that many)', () => {
+    expect(replayDecisionOf({ ...base, supplyBars: DEPTH - 1800 }).replay).toBe(true)
+  })
+
+  it('every other rule, one at a time: no supplier, the listing, intraday, another symbol, a lower timeframe', () => {
+    expect(replayDecisionOf({ ...base, supplyKind: 'cold', supplyReason: 'none' })).toMatchObject({ replay: false, kind: 'cold', why: 'none' })
+    expect(replayDecisionOf({ ...base, supplyKind: 'bar0', supplyReason: 'listing' })).toMatchObject({ replay: false, kind: 'bar0' })
+    expect(replayDecisionOf({ ...base, tf: '30' }).why).toMatch(/not a daily chart/)
+    expect(replayDecisionOf({ ...base, tf: 'W' }).replay).toBe(false)
+    expect(replayDecisionOf({ ...base, readsOtherSymbol: true }).why).toMatch(/another symbol/)
+    expect(replayDecisionOf({ ...base, readsLowerTf: true }).why).toMatch(/a lower timeframe/)
+  })
+})
+
 describe('DIV-1 — colourWarmupOf shrinks the colour reach by the bars replayed', () => {
   it('replayed past the reach: no colour warm-up beyond the value\'s', () => {
     expect(colourWarmupOf({ bar0: false, capture: {}, warmupBars: 0, colorLookback: 2, replayedBars: 6677 })).toBe(0)
@@ -83,6 +117,8 @@ describe('DIV-1 — SPY 1D, replayed over the listing', () => {
   it('our side says which history it computed on: 6,677 bars from the listing supplier', () => {
     const { ours } = grade(MADRID)
     expect(ours.historyReplay).toMatchObject({ kind: 'replayed', file: SUPPLIER, bars: 6677, historyFromListing: true })
+    // ⚠️ review N3 — a replayed MATCH speaks for the standalone daily chart, nothing wider
+    expect(ours.historyReplay.speaksFor).toMatch(/standalone daily chart.*not a grid cell.*W \/ M stay cold/)
     expect(ours.plots.every((p) => p.historyReplayed && p.historyReplayed.bars === 6677)).toBe(true)
     // the window is still the window
     expect(ours.bars.length).toBe(1800)

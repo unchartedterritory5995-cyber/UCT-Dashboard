@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import PopoutWindow from './PopoutWindow'
+import PopoutWindow, { markAppClosing, clearAppClosing, __resetAppClosingForTests } from './PopoutWindow'
+import { reloadNow } from '../../../lib/reloadGuard'
+import { hasOpenPopouts } from '../../../lib/popoutRegistry'
 
 /** A stand-in for the window `window.open` hands back. */
 function makeFakeWindow() {
@@ -27,6 +29,139 @@ describe('PopoutWindow', () => {
   afterEach(() => {
     vi.useRealTimers()
     openSpy?.mockRestore()
+    __resetAppClosingForTests()
+  })
+
+  // Blink dispatches the popup's beforeunload synchronously inside close(). The
+  // ordering is what loses a board, so the fake reproduces it.
+  function makeClosingFake() {
+    const fake = makeFakeWindow()
+    fake.close = vi.fn(function () { this.closed = true; fake._fire('beforeunload') })
+    return fake
+  }
+
+  describe('the opener going away', () => {
+    it('does not report a user close when the opener unloads', () => {
+      const fake = makeClosingFake()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      act(() => {
+        window.dispatchEvent(new Event('beforeunload', { cancelable: true }))
+        window.dispatchEvent(new Event('pagehide'))
+      })
+
+      expect(fake.close).toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('the win.closed poll does not report it either', () => {
+      const fake = makeClosingFake()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      act(() => {
+        window.dispatchEvent(new Event('beforeunload', { cancelable: true }))
+        vi.advanceTimersByTime(2000)
+      })
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('hands the board back if the page is still alive after the unload was cancelled', () => {
+      // "Leave site?" answered Stay (the indicator builder's unsaved-draft guard):
+      // the window is already gone and the page lives on.
+      const fake = makeClosingFake()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      act(() => { window.dispatchEvent(new Event('beforeunload', { cancelable: true })) })
+      expect(onClose).not.toHaveBeenCalled()
+
+      act(() => { vi.advanceTimersByTime(6000) })
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('an unmount inside that wait reports nothing', () => {
+      const fake = makeClosingFake()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      const { unmount } = render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      act(() => { window.dispatchEvent(new Event('beforeunload', { cancelable: true })) })
+      unmount()
+      act(() => { vi.advanceTimersByTime(6000) })
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('markAppClosing', () => {
+    it('stops a window closing first from reporting a user close', () => {
+      const fake = makeFakeWindow()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      markAppClosing()
+      act(() => {
+        fake._fire('beforeunload')
+        fake.closed = true
+        vi.advanceTimersByTime(2000)
+      })
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('clearAppClosing: after a cancelled reload a close is a user close again', () => {
+      const fake = makeFakeWindow()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      markAppClosing()
+      clearAppClosing()
+      act(() => {
+        fake._fire('beforeunload')
+        fake.closed = true
+        vi.advanceTimersByTime(2000)
+      })
+
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('reloadNow: marks closing, and clears it 5s later when the page stayed (Stay on Leave site)', () => {
+      const fake = makeFakeWindow()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+
+      reloadNow({ reload: () => {} })           // real timers faked by this file's useFakeTimers
+      act(() => { fake._fire('beforeunload'); fake.closed = true; vi.advanceTimersByTime(1000) })
+      expect(onClose).not.toHaveBeenCalled()    // while the reload is pending, no dock
+
+      act(() => { vi.advanceTimersByTime(5000) })  // page still alive: flag cleared
+      const fake2 = makeFakeWindow()
+      openSpy.mockReturnValue(fake2)
+      const onClose2 = vi.fn()
+      render(<PopoutWindow onClose={onClose2}><p>y</p></PopoutWindow>)
+      act(() => { fake2._fire('beforeunload'); fake2.closed = true; vi.advanceTimersByTime(2000) })
+      expect(onClose2).toHaveBeenCalled()       // a close docks again
+    })
+
+    it('control: without it the same close is reported', () => {
+      const fake = makeFakeWindow()
+      openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+      const onClose = vi.fn()
+
+      render(<PopoutWindow onClose={onClose}><p>x</p></PopoutWindow>)
+      act(() => { fake._fire('beforeunload') })
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('renders children into the popped window, not the opener', () => {
@@ -49,6 +184,24 @@ describe('PopoutWindow', () => {
     render(<PopoutWindow onBlocked={onBlocked}><p>x</p></PopoutWindow>)
 
     expect(onBlocked).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers an open window and releases it on unmount', () => {
+    const fake = makeFakeWindow()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+
+    const { unmount } = render(<PopoutWindow><p>x</p></PopoutWindow>)
+    expect(hasOpenPopouts()).toBe(true)
+    unmount()
+    expect(hasOpenPopouts()).toBe(false)
+  })
+
+  it('a blocked window.open does not register', () => {
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    const { unmount } = render(<PopoutWindow><p>x</p></PopoutWindow>)
+    expect(hasOpenPopouts()).toBe(false)
+    unmount()
   })
 
   it('calls onClose when the user closes the window', () => {

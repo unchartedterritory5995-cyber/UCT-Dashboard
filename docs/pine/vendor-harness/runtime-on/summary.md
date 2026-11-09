@@ -1,8 +1,8 @@
 # Vendor harness — verdicts
 
-Directories: `tests/fixtures/vendor/harness`
+Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 94, host refusals 94) · objects-only pane ARMED · runtime drew 38, declined 56
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 106, host refusals 106) · objects-only pane ARMED · runtime drew 38, declined 68
 
 ```
 capture                                      symbol/tf        plots  verdict       first divergence / reason
@@ -1091,24 +1091,24 @@ renko-candles-overlay-rddt-1d-2026-10-03     NYSE:RDDT 1D     0      MATCH      
 renko-candles-overlay-spy-1d-2026-10-03      AMEX:SPY 1D      0      MATCH         all 2 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 288 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-request-realtime-alignment-spy-5-2026-10-01  AMEX:SPY 5       8      DIVERGE       R1_close_D_lookahead_ON: bar 0 t=1790605500 na vendor=765.61 ours=na
-    R1_close_D_lookahead_ON                  DIVERGE       cmp 300 ok 0 warm 0/0 steady 300/300 maxRel 0.00e+0 — 300 steady-state bars disagree; first at bar 0 (na: vendor 765.61 vs ours na) — persistent, last at bar 299
-    R2_close_D_lookahead_OFF                 DIVERGE       cmp 300 ok 0 warm 0/0 steady 300/300 maxRel 0.00e+0 — 300 steady-state bars disagree; first at bar 0 (na: vendor 771.35 vs ours na) — persistent, last at bar 299
-    R3_DELTA_on_minus_off                    DIVERGE       cmp 300 ok 0 warm 0/0 steady 300/300 maxRel 0.00e+0 — 300 steady-state bars disagree; first at bar 0 (na: vendor -5.740000000000009 vs ours na) — persistent, last at bar 299
+request-realtime-alignment-spy-5-2026-10-01  AMEX:SPY 5       8      INCONCLUSIVE  5 of 9 items could not be compared
+    R1_close_D_lookahead_ON                  INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    R2_close_D_lookahead_OFF                 INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    R3_DELTA_on_minus_off                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
     R4_isrealtime                            MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     R5_islast                                MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     R6_chart_close                           MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
-    R7_prev_D_close_OFF                      DIVERGE       cmp 300 ok 0 warm 1/1 steady 299/299 maxRel 0.00e+0 — 299 steady-state bars disagree; first at bar 1 (na: vendor 767.18 vs ours na) — persistent, last at bar 299
+    R7_prev_D_close_OFF                      INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
     R8_bar_index_CONTROL                     INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
-request-realtime-alignment-spy-5-b-2026-10-0 AMEX:SPY 5       8      DIVERGE       R1_close_D_lookahead_ON: bar 0 t=1790605500 na vendor=765.61 ours=na
-    R1_close_D_lookahead_ON                  DIVERGE       cmp 301 ok 0 warm 0/0 steady 301/301 maxRel 0.00e+0 — 301 steady-state bars disagree; first at bar 0 (na: vendor 765.61 vs ours na) — persistent, last at bar 300
-    R2_close_D_lookahead_OFF                 DIVERGE       cmp 301 ok 0 warm 0/0 steady 301/301 maxRel 0.00e+0 — 301 steady-state bars disagree; first at bar 0 (na: vendor 771.35 vs ours na) — persistent, last at bar 300
-    R3_DELTA_on_minus_off                    DIVERGE       cmp 301 ok 0 warm 0/0 steady 301/301 maxRel 0.00e+0 — 301 steady-state bars disagree; first at bar 0 (na: vendor -5.740000000000009 vs ours na) — persistent, last at bar 300
+request-realtime-alignment-spy-5-b-2026-10-0 AMEX:SPY 5       8      DIVERGE       R4_isrealtime: bar 299 t=1790884200 value vendor=1 ours=0
+    R1_close_D_lookahead_ON                  INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    R2_close_D_lookahead_OFF                 INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    R3_DELTA_on_minus_off                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
     R4_isrealtime                            DIVERGE       cmp 301 ok 300 warm 0/0 steady 1/301 maxRel 1.00e+0 — 1 steady-state bars disagree; first at bar 299 (value: vendor 1 vs ours 0) — scattered, last at bar 299
     R5_islast                                DIVERGE       cmp 301 ok 300 warm 0/0 steady 1/301 maxRel 1.00e+0 — 1 steady-state bars disagree; first at bar 299 (value: vendor 1 vs ours 0) — scattered, last at bar 299
     R6_chart_close                           MATCH         cmp 301 ok 301 warm 0/0 steady 0/301 maxRel 0.00e+0
-    R7_prev_D_close_OFF                      DIVERGE       cmp 301 ok 0 warm 1/1 steady 300/300 maxRel 0.00e+0 — 300 steady-state bars disagree; first at bar 1 (na: vendor 767.18 vs ours na) — persistent, last at bar 300
+    R7_prev_D_close_OFF                      INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
     R8_bar_index_CONTROL                     INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
 reverse-stochastic-momentum-index-on-chart-r NYSE:RDDT 1D     7      MATCH         all 8 items agree
@@ -1198,10 +1198,10 @@ rvol-spy-1d-2026-10-03                       AMEX:SPY 1D      2      MATCH      
     objects                                  MATCH         neither side draws an object
 sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.95e-16
-    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 sector-rotation-spy-1d-2026-10-03            AMEX:SPY 1D      1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 1800 ok 1799 warm 1/1 steady 0/1799 maxRel 1.95e-16
-    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -1364,8 +1364,8 @@ ultimate-pivot-points-spy-1d-2026-10-03      AMEX:SPY 1D      3      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 102 paired slots; 51 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 vdubus-pattern-gen-v2-restored-refined-rddt- NYSE:RDDT 1D     0      MATCH         all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 122 paired slots; coordinates are NOT compared by v1
-vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
-    objects                                  INCONCLUSIVE  our lines are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree
+vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 710 paired slots; coordinates are NOT compared by v1
 vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
 vold-market-breadth-spy-1d-2026-10-03        AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -1447,7 +1447,7 @@ vw-bar-counters-spy-1-2026-10-02             AMEX:SPY 1       8      DIVERGE    
     C02_na_hist_seeded_counter               DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12010 vs ours na) — persistent, last at bar 9299
     C03_var_compound                         DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12011 vs ours na) — persistent, last at bar 9299
     C04_var_na_seed_counter                  DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12010 vs ours na) — persistent, last at bar 9299
-    C05_ta_cum_1                             DIVERGE       cmp 9300 ok 0 warm 0/0 steady 9300/9300 maxRel 1.00e+0 — 9300 steady-state bars disagree; first at bar 0 (value: vendor 11761 vs ours 1) — persistent, last at bar 9299
+    C05_ta_cum_1                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (running-total:window) — nothing is drawn for it
     C06_n1_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     C07_n2_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
@@ -1457,7 +1457,7 @@ vw-bar-counters-spy-30-2026-10-02            AMEX:SPY 30      8      DIVERGE    
     C02_na_hist_seeded_counter               DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13951 vs ours na) — persistent, last at bar 8299
     C03_var_compound                         DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13952 vs ours na) — persistent, last at bar 8299
     C04_var_na_seed_counter                  DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13951 vs ours na) — persistent, last at bar 8299
-    C05_ta_cum_1                             DIVERGE       cmp 8300 ok 0 warm 0/0 steady 8300/8300 maxRel 1.00e+0 — 8300 steady-state bars disagree; first at bar 0 (value: vendor 13702 vs ours 1) — persistent, last at bar 8299
+    C05_ta_cum_1                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (running-total:window) — nothing is drawn for it
     C06_n1_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     C07_n2_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
@@ -2155,17 +2155,17 @@ vw-time-tf-bitstamp-btcusd-1d-2026-09-30     BITSTAMP:BTCUSD  18     DIVERGE    
     T16_input_time_default_DAYS              INCONCLUSIVE  cmp 5491 ok 5491 warm 0/0 steady 0/5491 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T17_dayofweek                            MATCH         cmp 5491 ok 5491 warm 0/0 steady 0/5491 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-time-tf-eurusd-1d-2026-10-02              FX:EURUSD 1D     18     DIVERGE       T01_timeW_minus_time_DAYS: bar 1 t=31874400 na vendor=-1 ours=na
+vw-time-tf-eurusd-1d-2026-10-02              FX:EURUSD 1D     18     INCONCLUSIVE  16 of 19 items could not be compared
     T00_bar_index_CONTROL                    MATCH         cmp 14330 ok 14330 warm 0/0 steady 0/14330 maxRel 0.00e+0
-    T01_timeW_minus_time_DAYS                DIVERGE       cmp 14330 ok 0 warm 1/1 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 1 (na: vendor -1 vs ours na) — persistent, last at bar 14329
-    T02_timeM_minus_time_DAYS                DIVERGE       cmp 14330 ok 0 warm 1/1 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 1 (na: vendor -4 vs ours na) — persistent, last at bar 14329
-    T03_time3M_minus_time_DAYS               DIVERGE       cmp 14330 ok 0 warm 1/1 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 1 (na: vendor -4 vs ours na) — persistent, last at bar 14329
-    T04_time12M_minus_time_DAYS              DIVERGE       cmp 14330 ok 0 warm 1/1 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 1 (na: vendor -4 vs ours na) — persistent, last at bar 14329
-    T05_timeSelf_minus_time_MUST_BE_0        DIVERGE       cmp 14330 ok 0 warm 0/0 steady 14330/14330 maxRel 0.00e+0 — 14330 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14329
-    T06_time60_minus_time_DAYS               DIVERGE       cmp 14330 ok 0 warm 0/0 steady 14330/14330 maxRel 0.00e+0 — 14330 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14329
-    T07_newWeek                              DIVERGE       cmp 14330 ok 0 warm 2/2 steady 14328/14328 maxRel 0.00e+0 — 14328 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 14329
-    T08_newMonth                             DIVERGE       cmp 14330 ok 0 warm 2/2 steady 14328/14328 maxRel 0.00e+0 — 14328 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 14329
-    T09_newQuarter                           DIVERGE       cmp 14330 ok 0 warm 2/2 steady 14328/14328 maxRel 0.00e+0 — 14328 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 14329
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T06_time60_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T07_newWeek                              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:weekend-bars) — nothing is drawn for it
+    T08_newMonth                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:weekend-bars) — nothing is drawn for it
+    T09_newQuarter                           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:weekend-bars) — nothing is drawn for it
     T10_in_seconds_1                         INCONCLUSIVE  cmp 14330 ok 14330 warm 0/0 steady 0/14330 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T11_in_seconds_60                        INCONCLUSIVE  cmp 14330 ok 14330 warm 0/0 steady 0/14330 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T12_in_seconds_D                         INCONCLUSIVE  cmp 14330 ok 14330 warm 0/0 steady 0/14330 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -2175,17 +2175,17 @@ vw-time-tf-eurusd-1d-2026-10-02              FX:EURUSD 1D     18     DIVERGE    
     T16_input_time_default_DAYS              INCONCLUSIVE  cmp 14330 ok 14330 warm 0/0 steady 0/14330 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T17_dayofweek                            MATCH         cmp 14330 ok 14330 warm 0/0 steady 0/14330 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-time-tf-fx-eurusd-1d-2026-10-01           FX:EURUSD 1D     18     DIVERGE       T01_timeW_minus_time_DAYS: bar 0 t=31788000 na vendor=0 ours=na
+vw-time-tf-fx-eurusd-1d-2026-10-01           FX:EURUSD 1D     18     INCONCLUSIVE  16 of 19 items could not be compared
     T00_bar_index_CONTROL                    MATCH         cmp 14329 ok 14329 warm 0/0 steady 0/14329 maxRel 0.00e+0
-    T01_timeW_minus_time_DAYS                DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14328
-    T02_timeM_minus_time_DAYS                DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor -3 vs ours na) — persistent, last at bar 14328
-    T03_time3M_minus_time_DAYS               DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor -3 vs ours na) — persistent, last at bar 14328
-    T04_time12M_minus_time_DAYS              DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor -3 vs ours na) — persistent, last at bar 14328
-    T05_timeSelf_minus_time_MUST_BE_0        DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14328
-    T06_time60_minus_time_DAYS               DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14328
-    T07_newWeek                              DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14328
-    T08_newMonth                             DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14328
-    T09_newQuarter                           DIVERGE       cmp 14329 ok 0 warm 0/0 steady 14329/14329 maxRel 0.00e+0 — 14329 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 14328
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T06_time60_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:weekend-session) — nothing is drawn for it
+    T07_newWeek                              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:weekend-bars) — nothing is drawn for it
+    T08_newMonth                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:weekend-bars) — nothing is drawn for it
+    T09_newQuarter                           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:weekend-bars) — nothing is drawn for it
     T10_in_seconds_1                         INCONCLUSIVE  cmp 14329 ok 14329 warm 0/0 steady 0/14329 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T11_in_seconds_60                        INCONCLUSIVE  cmp 14329 ok 14329 warm 0/0 steady 0/14329 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T12_in_seconds_D                         INCONCLUSIVE  cmp 14329 ok 14329 warm 0/0 steady 0/14329 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -2215,17 +2215,17 @@ vw-time-tf-rddt-1d-2026-10-02                NYSE:RDDT 1D     18     INCONCLUSIV
     T16_input_time_default_DAYS              INCONCLUSIVE  cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T17_dayofweek                            MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-time-tf-spy-1-2026-10-02                  AMEX:SPY 1       18     DIVERGE       T01_timeW_minus_time_DAYS: bar 1 t=1790710260 na vendor=-1.2506944444444446 ours=na
+vw-time-tf-spy-1-2026-10-02                  AMEX:SPY 1       18     INCONCLUSIVE  17 of 19 items could not be compared
     T00_bar_index_CONTROL                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
-    T01_timeW_minus_time_DAYS                DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -1.2506944444444446 vs ours na) — persistent, last at bar 1199
-    T02_timeM_minus_time_DAYS                DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -28.250694444444445 vs ours na) — persistent, last at bar 1199
-    T03_time3M_minus_time_DAYS               DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -90.25069444444445 vs ours na) — persistent, last at bar 1199
-    T04_time12M_minus_time_DAYS              DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -270.2090277777778 vs ours na) — persistent, last at bar 1199
-    T05_timeSelf_minus_time_MUST_BE_0        DIVERGE       cmp 1200 ok 0 warm 0/0 steady 1200/1200 maxRel 0.00e+0 — 1200 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T06_time60_minus_time_DAYS               DIVERGE       cmp 1200 ok 0 warm 0/0 steady 1200/1200 maxRel 0.00e+0 — 1200 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T07_newWeek                              DIVERGE       cmp 1200 ok 0 warm 2/2 steady 1198/1198 maxRel 0.00e+0 — 1198 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T08_newMonth                             DIVERGE       cmp 1200 ok 0 warm 2/2 steady 1198/1198 maxRel 0.00e+0 — 1198 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T09_newQuarter                           DIVERGE       cmp 1200 ok 0 warm 2/2 steady 1198/1198 maxRel 0.00e+0 — 1198 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1199
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-own:chart-unwitnessed) — nothing is drawn for it
+    T06_time60_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-own:chart-unwitnessed) — nothing is drawn for it
+    T07_newWeek                              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T08_newMonth                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T09_newQuarter                           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
     T10_in_seconds_1                         INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T11_in_seconds_60                        INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T12_in_seconds_D                         INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -2395,17 +2395,17 @@ vw-time-tf-spy-1w-2026-10-02                 AMEX:SPY 1W      18     INCONCLUSIV
     T16_input_time_default_DAYS              INCONCLUSIVE  cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T17_dayofweek                            MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-time-tf-spy-240-2026-10-02                AMEX:SPY 240     18     DIVERGE       T01_timeW_minus_time_DAYS: bar 1 t=1715189400 na vendor=-2.1666666666666665 ours=na
+vw-time-tf-spy-240-2026-10-02                AMEX:SPY 240     18     INCONCLUSIVE  17 of 19 items could not be compared
     T00_bar_index_CONTROL                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
-    T01_timeW_minus_time_DAYS                DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -2.1666666666666665 vs ours na) — persistent, last at bar 1199
-    T02_timeM_minus_time_DAYS                DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -7.166666666666667 vs ours na) — persistent, last at bar 1199
-    T03_time3M_minus_time_DAYS               DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -37.166666666666664 vs ours na) — persistent, last at bar 1199
-    T04_time12M_minus_time_DAYS              DIVERGE       cmp 1200 ok 0 warm 1/1 steady 1199/1199 maxRel 0.00e+0 — 1199 steady-state bars disagree; first at bar 1 (na: vendor -127.125 vs ours na) — persistent, last at bar 1199
-    T05_timeSelf_minus_time_MUST_BE_0        DIVERGE       cmp 1200 ok 0 warm 0/0 steady 1200/1200 maxRel 0.00e+0 — 1200 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T06_time60_minus_time_DAYS               DIVERGE       cmp 1200 ok 0 warm 0/0 steady 1200/1200 maxRel 0.00e+0 — 1200 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T07_newWeek                              DIVERGE       cmp 1200 ok 0 warm 2/2 steady 1198/1198 maxRel 0.00e+0 — 1198 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T08_newMonth                             DIVERGE       cmp 1200 ok 0 warm 2/2 steady 1198/1198 maxRel 0.00e+0 — 1198 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1199
-    T09_newQuarter                           DIVERGE       cmp 1200 ok 0 warm 2/2 steady 1198/1198 maxRel 0.00e+0 — 1198 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1199
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-own:chart-unwitnessed) — nothing is drawn for it
+    T06_time60_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-own:chart-unwitnessed) — nothing is drawn for it
+    T07_newWeek                              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T08_newMonth                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T09_newQuarter                           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
     T10_in_seconds_1                         INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T11_in_seconds_60                        INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T12_in_seconds_D                         INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -2415,17 +2415,17 @@ vw-time-tf-spy-240-2026-10-02                AMEX:SPY 240     18     DIVERGE    
     T16_input_time_default_DAYS              INCONCLUSIVE  cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T17_dayofweek                            MATCH         cmp 1200 ok 1200 warm 0/0 steady 0/1200 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-time-tf-spy-30-2026-10-02                 AMEX:SPY 30      18     DIVERGE       T01_timeW_minus_time_DAYS: bar 1 t=1776708000 na vendor=-0.1875 ours=na
+vw-time-tf-spy-30-2026-10-02                 AMEX:SPY 30      18     INCONCLUSIVE  17 of 19 items could not be compared
     T00_bar_index_CONTROL                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
-    T01_timeW_minus_time_DAYS                DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -0.1875 vs ours na) — persistent, last at bar 1499
-    T02_timeM_minus_time_DAYS                DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -19.1875 vs ours na) — persistent, last at bar 1499
-    T03_time3M_minus_time_DAYS               DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -19.1875 vs ours na) — persistent, last at bar 1499
-    T04_time12M_minus_time_DAYS              DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -108.14583333333333 vs ours na) — persistent, last at bar 1499
-    T05_timeSelf_minus_time_MUST_BE_0        DIVERGE       cmp 1500 ok 0 warm 0/0 steady 1500/1500 maxRel 0.00e+0 — 1500 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1499
-    T06_time60_minus_time_DAYS               DIVERGE       cmp 1500 ok 0 warm 0/0 steady 1500/1500 maxRel 0.00e+0 — 1500 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1499
-    T07_newWeek                              DIVERGE       cmp 1500 ok 0 warm 2/2 steady 1498/1498 maxRel 0.00e+0 — 1498 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1499
-    T08_newMonth                             DIVERGE       cmp 1500 ok 0 warm 2/2 steady 1498/1498 maxRel 0.00e+0 — 1498 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1499
-    T09_newQuarter                           DIVERGE       cmp 1500 ok 0 warm 2/2 steady 1498/1498 maxRel 0.00e+0 — 1498 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1499
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-own:chart-unwitnessed) — nothing is drawn for it
+    T06_time60_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-own:chart-unwitnessed) — nothing is drawn for it
+    T07_newWeek                              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T08_newMonth                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
+    T09_newQuarter                           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-anchor:not-daily) — nothing is drawn for it
     T10_in_seconds_1                         INCONCLUSIVE  cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T11_in_seconds_60                        INCONCLUSIVE  cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T12_in_seconds_D                         INCONCLUSIVE  cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -2455,17 +2455,17 @@ vw-time-tf-spy-5-2026-10-01                  AMEX:SPY 5       18     INCONCLUSIV
     T16_input_time_default_DAYS              INCONCLUSIVE  cmp 3300 ok 3300 warm 0/0 steady 0/3300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T17_dayofweek                            MATCH         cmp 3300 ok 3300 warm 0/0 steady 0/3300 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-time-tf-spy-5-ext-2026-10-02              AMEX:SPY 5       18     DIVERGE       T01_timeW_minus_time_DAYS: bar 1 t=1790159700 na vendor=-2.107638888888889 ours=na
+vw-time-tf-spy-5-ext-2026-10-02              AMEX:SPY 5       18     INCONCLUSIVE  16 of 19 items could not be compared
     T00_bar_index_CONTROL                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
-    T01_timeW_minus_time_DAYS                DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -2.107638888888889 vs ours na) — persistent, last at bar 1499
-    T02_timeM_minus_time_DAYS                DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -22.10763888888889 vs ours na) — persistent, last at bar 1499
-    T03_time3M_minus_time_DAYS               DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -84.10763888888889 vs ours na) — persistent, last at bar 1499
-    T04_time12M_minus_time_DAYS              DIVERGE       cmp 1500 ok 0 warm 1/1 steady 1499/1499 maxRel 0.00e+0 — 1499 steady-state bars disagree; first at bar 1 (na: vendor -264.06597222222223 vs ours na) — persistent, last at bar 1499
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
     T05_timeSelf_minus_time_MUST_BE_0        MATCH         cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0
-    T06_time60_minus_time_DAYS               DIVERGE       cmp 1500 ok 0 warm 0/0 steady 1500/1500 maxRel 0.00e+0 — 1500 steady-state bars disagree; first at bar 0 (na: vendor -0.020833333333333332 vs ours na) — persistent, last at bar 1499
-    T07_newWeek                              DIVERGE       cmp 1500 ok 0 warm 2/2 steady 1498/1498 maxRel 0.00e+0 — 1498 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1499
-    T08_newMonth                             DIVERGE       cmp 1500 ok 0 warm 2/2 steady 1498/1498 maxRel 0.00e+0 — 1498 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1499
-    T09_newQuarter                           DIVERGE       cmp 1500 ok 0 warm 2/2 steady 1498/1498 maxRel 0.00e+0 — 1498 steady-state bars disagree; first at bar 2 (na: vendor 0 vs ours na) — persistent, last at bar 1499
+    T06_time60_minus_time_DAYS               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
+    T07_newWeek                              INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
+    T08_newMonth                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
+    T09_newQuarter                           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (time-clock:outside-session) — nothing is drawn for it
     T10_in_seconds_1                         INCONCLUSIVE  cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T11_in_seconds_60                        INCONCLUSIVE  cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     T12_in_seconds_D                         INCONCLUSIVE  cmp 1500 ok 1500 warm 0/0 steady 0/1500 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -2557,24 +2557,158 @@ zero-lag-ma-trend-levels-rddt-1d-2026-09-27  NYSE:RDDT D      4      MATCH      
     plot_8                                   MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.91e-16
     plot_10                                  MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.95e-16
     objects                                  MATCH         object counts and texts agree; colours agree on 55 paired slots (13 theme-relative); 15 slots on objects neither side draws not graded; coordinates are NOT compared by v1
+adx-14-2026-09-06                            AMEX:SPY D       1      MATCH         all 1 items agree
+    adx                                      MATCH         cmp 273 ok 273 warm 0/193 steady 0/80 maxRel 1.29e-15
+atr-14-2026-09-06                            AMEX:SPY D       1      MATCH         all 1 items agree
+    atr14                                    MATCH         cmp 1314 ok 1314 warm 0/166 steady 0/1148 maxRel 1.24e-15
+ema-close20-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    ema20                                    MATCH         cmp 2012 ok 2012 warm 0/81 steady 0/1931 maxRel 6.09e-16
+hma-close20-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    hma20                                    MATCH         cmp 2009 ok 2009 warm 0/0 steady 0/2009 maxRel 0.00e+0
+macd-hist-12-26-9-2026-09-06                 AMEX:SPY D       1      MATCH         all 1 items agree
+    histLine                                 MATCH         cmp 1998 ok 1998 warm 0/177 steady 0/1821 maxRel 2.71e-9
+macd-line-12-26-2026-09-06                   AMEX:SPY D       1      MATCH         all 1 items agree
+    macdLine                                 MATCH         cmp 2006 ok 2006 warm 0/185 steady 0/1821 maxRel 9.66e-12
+macd-signal-12-26-9-2026-09-06               AMEX:SPY D       1      MATCH         all 1 items agree
+    signalLine                               MATCH         cmp 1998 ok 1998 warm 0/177 steady 0/1821 maxRel 2.97e-11
+minus-di-14-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    minusDI                                  MATCH         cmp 286 ok 286 warm 0/156 steady 0/130 maxRel 7.44e-16
+plus-di-14-2026-09-06                        AMEX:SPY D       1      MATCH         all 1 items agree
+    plusDI                                   MATCH         cmp 286 ok 286 warm 0/156 steady 0/130 maxRel 6.61e-16
+rma-close14-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    rma14                                    MATCH         cmp 2018 ok 2018 warm 0/137 steady 0/1881 maxRel 1.35e-15
+rsi-close14-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    rsi14                                    MATCH         cmp 1314 ok 1314 warm 0/166 steady 0/1148 maxRel 0.00e+0
+sma-close20-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    sma20                                    MATCH         cmp 2012 ok 2012 warm 0/0 steady 0/2012 maxRel 2.32e-15
+stoch-k-14-2026-09-06                        AMEX:SPY D       1      MATCH         all 1 items agree
+    stochK                                   MATCH         cmp 287 ok 287 warm 0/0 steady 0/287 maxRel 2.18e-16
+wma-close20-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
+    wma20                                    MATCH         cmp 2012 ok 2012 warm 0/0 steady 0/2012 maxRel 0.00e+0
+seed-warmup-spy-12m-2026-09-21               SPY 12M          8      MATCH         all 8 items agree
+    N08_ema5_SEED_QUESTION_compare_to_N09_at MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.31e-16
+    N09_sma5_THE_DISCRIMINATOR_FOR_N08       MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.31e-16
+    N10_atr5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.40e-16
+    N11_rma_of_tr5_MUST_EQUAL_N10            MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.40e-16
+    N12_sma_of_tr5_SEED_DISCRIMINATOR        MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.60e-16
+    N13_stdev5_POPULATION_OR_SAMPLE          MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 9.91e-15
+    N15_sum5_PRE_WINDOW_na_or_partial        MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.03e-16
+    N06_change_close_bar0_is_the_reading     MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+vw-alma-spy-1d-2026-09-27                    AMEX:SPY D       0      INCONCLUSIVE  refused on our side: member door refused (pine:arity) [runtime declined: pine:arity]: `ta.alma` with `floor = true` rounds the weights' centre down to a whole bar, and this engine carries only the unrounded weighting — TO UNBLOCK: drop the fifth argument, or write it as `false`
+vw-clock-vwap-spy-1d-2026-09-27              AMEX:SPY D       15     MATCH         all 16 items agree
+    V00_bar_index_CONTROL                    MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V01_year_time_minus_year_MUST_BE_0       MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V02_month_time_minus_month_MUST_BE_0     MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V03_dayofmonth_time_minus_bare_MUST_BE_0 MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V04_dayofweek_time_minus_bare_MUST_BE_0  MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V05_hour_time_minus_hour_MUST_BE_0       MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V06_minute_time_minus_minute_MUST_BE_0   MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V07_vwap_hlc3_minus_vwap_MUST_BE_0       MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V08_vwap_close_minus_vwap_CONTROL_NONZER MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 4.26e-9
+    V09_vwap_bare_RAW                        MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 2.16e-16
+    V10_vwap_hlc3_RAW                        MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 2.16e-16
+    V11_year_time_RAW                        MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V12_dayofweek_time_RAW                   MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V13_year_MUST_SPAN_TWO_VALUES            MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V14_month_MUST_SPAN_SEVERAL_VALUES       MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-int-cast-spy-1d-2026-09-27                AMEX:SPY D       11     DIVERGE       I00_bar_index_CONTROL: bar 0 t=1752845400 value vendor=8172 ours=0
+    I00_bar_index_CONTROL                    DIVERGE       cmp 300 ok 0 warm 0/0 steady 300/300 maxRel 1.00e+0 — 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299
+    I01_int_2p7                              INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    I02_int_neg2p7                           INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    I03_int_2p5                              INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    I04_int_neg2p5                           INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    I05_int_3p5_CONTROL                      INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    I06_int_minus_TRUNC_series               MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    I07_int_minus_FLOOR_series               MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    I08_int_minus_ROUND_series               MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    I09_int_of_na_IS_NA                      INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    I10_x_RAW_so_negatives_are_visible       MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-mintick-aapl-1d-2026-09-27                NASDAQ:AAPL D    0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-aitx-1d-2026-09-27                OTC:AITX D       0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-brka-1d-2026-09-27                NYSE:BRK.A D     0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-btcusdt-1d-2026-09-27             BINANCE:BTCUSDT  0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-es1-1d-2026-09-27                 CME_MINI:ES1! D  0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-eurusd-1d-2026-09-27              FX:EURUSD D      0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-nkla-1d-2026-09-27                NASDAQ:NKLA D    0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-sndl-1d-2026-09-27                NASDAQ:SNDL D    0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-spx-1d-2026-09-27                 SP:SPX D         0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-mintick-spy-1d-2026-09-27                 AMEX:SPY D       0      INCONCLUSIVE  refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `syminfo.pricescale`
+vw-nvi-pvi-spy-1d-full-2026-09-27            AMEX:SPY D       8      MATCH         all 9 items agree
+    P00_bar_index_CONTROL                    MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    P01_nvi_RAW                              MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 1.53e-14
+    P02_pvi_RAW                              MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 7.57e-15
+    P03_nvi_step_resid_MUST_BE_0             MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 1.54e+3
+    P04_pvi_step_resid_MUST_BE_0             MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 4.10e+2
+    P05_first_nonNA_pvi_bar                  MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    P06_corpus_nvi_minus_ema255              MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 2.31e-11
+    P07_corpus_pvi_minus_ema255              MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 7.25e-12
+    objects                                  MATCH         neither side draws an object
+vw-nvi-pvi-spy-1d-truncated-2026-09-27       AMEX:SPY D       8      DIVERGE       P00_bar_index_CONTROL: bar 0 t=1659619800 value vendor=7432 ours=0
+    P00_bar_index_CONTROL                    DIVERGE       cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.00e+0 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039
+    P01_nvi_RAW                              DIVERGE       cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 9.99e-1 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 1408.618771650051 vs ours 1) — persistent, last at bar 1039
+    P02_pvi_RAW                              DIVERGE       cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.48e+2 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 0.006691829727098147 vs ours 1) — persistent, last at bar 1039
+    P03_nvi_step_resid_MUST_BE_0             DIVERGE       cmp 1040 ok 1039 warm 0/0 steady 1/1040 maxRel 1.71e+2 — 1 steady-state bars disagree; first at bar 0 (na: vendor 1.5287250632045613e-17 vs ours na) — scattered, last at bar 0
+    P04_pvi_step_resid_MUST_BE_0             DIVERGE       cmp 1040 ok 1039 warm 0/0 steady 1/1040 maxRel 1.28e+2 — 1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0
+    P05_first_nonNA_pvi_bar                  DIVERGE       cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.00e+0 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039
+    P06_corpus_nvi_minus_ema255              DIVERGE       cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 9.99e-1 — 1040 steady-state bars disagree; first at bar 0 (na: vendor 245.30448032866502 vs ours na) — persistent, last at bar 1039
+    P07_corpus_pvi_minus_ema255              DIVERGE       cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.24e+3 — 1040 steady-state bars disagree; first at bar 0 (na: vendor -0.00190286212815499 vs ours na) — persistent, last at bar 1039
+    objects                                  MATCH         neither side draws an object
+vw-time-session-spy-1d-2026-09-27            AMEX:SPY D       0      INCONCLUSIVE  refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"2000-0000"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
+vw-time-tf-spy-1d-2026-09-27                 AMEX:SPY D       18     INCONCLUSIVE  7 of 19 items could not be compared
+    T00_bar_index_CONTROL                    MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T01_timeW_minus_time_DAYS                MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T02_timeM_minus_time_DAYS                MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T03_time3M_minus_time_DAYS               MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T04_time12M_minus_time_DAYS              MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T05_timeSelf_minus_time_MUST_BE_0        MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T06_time60_minus_time_DAYS               MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T07_newWeek                              MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T08_newMonth                             MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T09_newQuarter                           MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    T10_in_seconds_1                         INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T11_in_seconds_60                        INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T12_in_seconds_D                         INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T13_in_seconds_W                         INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T14_in_seconds_M                         INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T15_in_seconds_12M                       INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T16_input_time_default_DAYS              INCONCLUSIVE  cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T17_dayofweek                            MATCH         cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH         all 14 items agree
+    W01_rsi5_GATED_ON_RMA                    MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W02_highest5                             MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W03_lowest5                              MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W04_wma5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W05_vwma5                                MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 1.69e-16
+    W06_mom5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W07_roc5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W08_dev5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.00e-16
+    W09_linreg5_offset0                      MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 7.86e-16
+    W10_cci5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 1.02e-14
+    W11_stoch5                               MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.20e-16
+    W12_tr_BARE_na_on_bar0                   MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W13_cum_close_FROM_BAR0                  MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+    W14_sma1_DEGENERATE_WINDOW               MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 336 captures — MATCH 155 · DIVERGE 79 · INCONCLUSIVE 102
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 124 captures) — MATCH 155 · DIVERGE 79 · INCONCLUSIVE 102
+TOTAL 369 captures — MATCH 173 · DIVERGE 75 · INCONCLUSIVE 121
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 125 captures) — MATCH 173 · DIVERGE 75 · INCONCLUSIVE 121
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 156 · DIVERGE 75 · INCONCLUSIVE 105
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 174 · DIVERGE 71 · INCONCLUSIVE 124
 CHANGED BY PAINTS (4): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → DIVERGE; supertrend-strategy-spy-1d-2026-10-02 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
-## Runtime declines by code (56)
+## Runtime declines by code (68)
 
-- `pine:function` 14
-- `pine:builtin` 13
+- `pine:builtin` 23
+- `pine:function` 15
 - `lower-tf:store-unmeasured` 5
 - `runtime:library` 5
+- `pine:arity` 3
 - `runtime:conditional-history` 3
 - `runtime:request` 3
 - `lower-tf:unwitnessed` 2
-- `pine:arity` 2
 - `pine:collection` 2
 - `pine:colour-value` 2
 - `pine:drawing` 1
@@ -2583,5 +2717,101 @@ CHANGED BY PAINTS (4): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → D
 - `runtime:history-expression` 1
 - `runtime:loop` 1
 
-## Not comparable (0)
+## Not comparable (96)
 
+- `tests/fixtures/vendor/agen-1d-bars-2000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
+- `tests/fixtures/vendor/aroon-spy-1d-2026-09-10.json` — vendor built-in study — no Pine source exists to run on our side
+- `tests/fixtures/vendor/barstate-daily-timeline.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/barstate-full-spy-1d-closed-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
+- `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/clock-close-tfchange-spy-60-excerpt-2026-09-28.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/divergences.json` — not a capture (schema / divergence register)
+- `tests/fixtures/vendor/divergences.schema.json` — not a capture (schema / divergence register)
+- `tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/fold-numeric-spy-1d-1w-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
+- `tests/fixtures/vendor/groupb-barssince-arity-spy-1d-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
+- `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/groupb-pivot-default-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/groupb-readings-spy-1d-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/groupb-round-max-vwap-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/observations/ta-accdist-delta5-2026-09-06.json` — vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare
+- `tests/fixtures/vendor/observations/ta-bbw-oracle-ambiguity-v3-1-2026-09-05.json` — the observation names no plot (`engine.formula` is empty), so its values cannot be mapped to one of our plots
+- `tests/fixtures/vendor/observations/ta-falling-close3-2026-09-06.json` — vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare
+- `tests/fixtures/vendor/observations/ta-kcw-close20-2-2026-09-06.json` — vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare
+- `tests/fixtures/vendor/observations/ta-median_even_length-oracle-ambiguity-v3-1-2026-09-05.json` — the observation names no plot (`engine.formula` is empty), so its values cannot be mapped to one of our plots
+- `tests/fixtures/vendor/observations/ta-percentrank-oracle-ambiguity-v3-1-2026-09-05.json` — the observation names no plot (`engine.formula` is empty), so its values cannot be mapped to one of our plots
+- `tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json` — vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare
+- `tests/fixtures/vendor/observations/ta-rising-oracle-ambiguity-v3-1-2026-09-05.json` — vendor.values holds 1 readings that are not one plotted number (named candidate readings) — no single plot to compare
+- `tests/fixtures/vendor/p1-top-unmeasured-spy-1d-2026-09-21.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/parity/adx-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/atr-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/ema-close20-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/hma-close20-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/macd-hist-12-26-9-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/macd-line-12-26-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/macd-signal-12-26-9-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/minus-di-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/plus-di-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/rma-close14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/rsi-close14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/sma-close20-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/stoch-k-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/ta-bbw-oracle-ambiguity-v3-1-2026-09-05.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/ta-median_even_length-oracle-ambiguity-v3-1-2026-09-05.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/ta-percentrank-oracle-ambiguity-v3-1-2026-09-05.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/ta-rising-oracle-ambiguity-v3-1-2026-09-05.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/parity/wma-close20-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
+- `tests/fixtures/vendor/r11-alma-spy-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-barssince-spy-1d-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-corr-pct-spy-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-nine-safe-spy-1d-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-nvi-spy-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-time-session-spy-5m-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-time-tf-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-time-tf-spy-1d-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-valuewhen-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/r11-valuewhen-spy-2026-09-11.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/A/clouds-volume-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/A/volume-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/B/clouds-volume-nvda-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/B/volume-nvda-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/C/clouds-volume-spy-1w-150.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/C/volume-spy-1w-150.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/D/clouds-volume-spy-4h-300.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/D/volume-spy-4h-300.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e0-defaults-control-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e1-sma-sma-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e2-sma-high-ema-low-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e3-ema-5-50-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e4-ema-21-8-inverted-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e5-custom-colours-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e6-hide-both-mas-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e7a-fast-calc-true-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e7b-profile-true-spy-1d-250.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/E/e8-sma-sma-nvda-4h-300.meta.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/F/f1-fill-v6.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/F/f2-fill-v4.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/reference/F/f3-linewidth-v6.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/runtime/callsite-state-spy-1d-2026-09-08.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/runtime/finite-window-na-policy-by-member-spy-1d-2026-09-08.json` — market.bars does not carry the vendor's OHLCV with a unix time (bar_index or nulls in `t`/OHLC) — the series cannot be recomputed
+- `tests/fixtures/vendor/runtime/mutable-history-spy-1d-2026-09-08.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/runtime/na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08.json` — market.bars does not carry the vendor's OHLCV with a unix time (bar_index or nulls in `t`/OHLC) — the series cannot be recomputed
+- `tests/fixtures/vendor/runtime/recurrent-callsite-identity-and-event-history-spy-1d-2026-09-08.json` — market.bars does not carry the vendor's OHLCV with a unix time (bar_index or nulls in `t`/OHLC) — the series cannot be recomputed
+- `tests/fixtures/vendor/runtime/recurrent-composites-and-window-closure-spy-1d-2026-09-08.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/runtime/recurrent-na-and-skipped-callsite-spy-1d-2026-09-08.json` — vendor readings are not a per-bar `values` series (split rows or named samples) — nothing contiguous to compare bar by bar
+- `tests/fixtures/vendor/runtime/skipped-callsite-history-spy-1d-2026-09-08.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/runtime/ta-cum-and-context-namespaces-spy-1d-2026-09-08.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/runtime/vw-runtime-error-reached-spy-1d-2026-09-30.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/saved-probe-integrity-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
+- `tests/fixtures/vendor/tuple-security-spy-1d-closed-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
+- `tests/fixtures/vendor/uncharted-volume-v2-agen-1d-hve-2026-09-12.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json` — only 4 hand-read rows and no vendor OHLCV series
+- `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json` — only 4 hand-read rows and no vendor OHLCV series
+- `tests/fixtures/vendor/visual/five-indicators-spy-1d-2026-09-23.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/visual/fvg-boxes-spy-1d-2026-09-22.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json` — vendor readings are not a per-bar `values` series (split rows or named samples) — nothing contiguous to compare bar by bar
+- `tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/w3-format-spy-1d-2026-09-22.json` — no vendor OHLCV series together with per-bar study values and a script source

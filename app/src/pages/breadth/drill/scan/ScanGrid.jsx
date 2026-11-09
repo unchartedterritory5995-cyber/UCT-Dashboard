@@ -1,6 +1,8 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../../components/StockChart'
 import ErrorBoundary from '../../../../components/ErrorBoundary'
+import CompanyLogo from '../../../../components/CompanyLogo'
+import { PANE_LOOK } from '../../../../components/chart/pane/paneLook'
 import { fmtPct } from './scanDeckModel'
 import { GRID_SORTS, sortGridRows } from './gridSort'
 import styles from './ScanDeck.module.css'
@@ -33,14 +35,19 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings }) {
         hideReplay hidePatterns hideCompare hideCountdown disablePatterns
         backgroundWarm={false}
         hotkeysActive={() => false}
-        boldCandles userCandleColors colorByNetChange candlesOnTop ema9MatchCandle
-        volumeMa={50}
-        hidePriceLine hideWatermark hideJournalOverlay
+        // The member's /charts look, from the ONE authority every chart surface
+        // reads: bold candles on the THEME's canvas (userCanvas), not the fixed
+        // Model Book navy a hand-copied prop list fell back to.
+        {...PANE_LOOK}
+        // A card's header already names the stock; the full OHLC/MA legend on
+        // every card buried the candles.
+        alwaysShowLegend={false}
+        hideWatermark
         carryDragPlacement={false}
-        verticalLegend lockWatermark
+        lockWatermark
         rightPadBars={4}
         dailyDefaultBars={tf === 'W' ? 104 : 126}
-        volumeSeparatePane volumePaneHeightPct={14}
+        volumePaneHeightPct={14}
         priceScaleTopMargin={0.1} priceScaleBottomMargin={0.08}
         hideExtHoursToolbarToggle
         // The Focus chart's look (its template), so a card and the big chart match.
@@ -51,7 +58,7 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings }) {
   )
 })
 
-function GridCard({ row, tf, selected, onOpen, settings }) {
+function useNear() {
   const ref = useRef(null)
   // No IntersectionObserver (old browser, test DOM): mount straight away.
   const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined')
@@ -64,21 +71,38 @@ function GridCard({ row, tf, selected, onOpen, settings }) {
     io.observe(el)
     return () => io.disconnect()
   }, [near])
+  return [ref, near]
+}
+
+const metaText = (row) => [row.industry || row.sector, row.theme].filter(Boolean).join(' · ') || '—'
+const fmtPx = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
+
+function GridCard({ row, tf, selected, onOpen, settings }) {
+  const [ref, near] = useNear()
   const up = Number.isFinite(row.pct) && row.pct >= 0
+  const pctCls = `${styles.cardPct} ${up ? styles.up : styles.dn}`
+  const chart = (
+    <div className={styles.cardChart}>
+      {near ? <MiniChart sym={row.sym} tf={tf} settings={settings} /> : <div className={styles.cardEmpty} />}
+    </div>
+  )
+  // Owner pick 2026-11-09 (style B): rounded, spaced cards with a two-line
+  // identity: logo, symbol, price, % change; industry · theme; RVOL on the right.
   return (
-    <div ref={ref} className={styles.card} data-selected={selected || undefined}>
-      <button type="button" className={styles.cardHead} onClick={() => onOpen(row.sym)}
-        title={`Open ${row.sym} in Focus`}>
-        <span className={styles.cardSym}>{row.sym}</span>
-        <span className={`${styles.cardPct} ${up ? styles.up : styles.dn}`}>{fmtPct(row.pct, 2)}</span>
-        <span className={styles.cardMeta}>
-          {[row.industry || row.sector, row.theme].filter(Boolean).join(' · ') || '—'}
+    <div ref={ref} className={`${styles.card} ${styles.cardFloat}`} data-selected={selected || undefined}>
+      <button type="button" className={styles.floatHead} onClick={() => onOpen(row.sym)} title={`Open ${row.sym} in Focus`}>
+        <CompanyLogo sym={row.sym} name={row.name} size={26} round />
+        <span className={styles.floatId}>
+          <span className={styles.floatLine}>
+            <span className={styles.cardSym}>{row.sym}</span>
+            <span className={styles.floatPx}>{fmtPx(row.price)}</span>
+            <span className={pctCls}>{fmtPct(row.pct, 2)}</span>
+          </span>
+          <span className={styles.cardMeta}>{metaText(row)}</span>
         </span>
-        {Number.isFinite(row.rvol) && <span className={styles.cardRvol}>{row.rvol.toFixed(1)}x</span>}
+        {Number.isFinite(row.rvol) && <span className={styles.floatRvol}><b>{row.rvol.toFixed(1)}x</b>RVOL</span>}
       </button>
-      <div className={styles.cardChart}>
-        {near ? <MiniChart sym={row.sym} tf={tf} settings={settings} /> : <div className={styles.cardEmpty} />}
-      </div>
+      {chart}
     </div>
   )
 }
