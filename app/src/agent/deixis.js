@@ -50,7 +50,7 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:one|two|three|four|[1-4])\s+)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
@@ -206,12 +206,37 @@ export function relativeChart(text, charts = [], sel = null) {
   const v = m[1] && m[1].toLowerCase()
   const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
   // "next to / beside": either side; "adjacent to / near": any side. More than one fits → asked (the caller), never a guess
-  const hits = side ? sideOf(charts, s, side)
+  let hits = side ? sideOf(charts, s, side)
     : m[4] ? ['above', 'below', 'left', 'right'].flatMap(x => sideOf(charts, s, x))
       : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  // unseen9 P2: a COUNTED relation ("the chart two to the left", "the one two to the right of this") walks that many cells in the
+  // one direction, one unique neighbour at a time (none, or a fork, → no chart: asked); a PLURAL one ("both charts to the right of
+  // this one", "the two charts to the left of this", "all the charts above it") is every chart on that side in line with the click
+  const { count, plural } = side ? relationAmount(String(text || ''), m) : { count: 1, plural: false }
+  if (side && plural) hits = lineFrom(charts, s, side)
+  else if (side && count > 1) hits = stepFrom(charts, s, side, count)
   if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
   if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
-  return { hits, match: m, ...role, excluded: [] }
+  return { hits, match: m, ...role, excluded: [], plural: !!(side && plural) }
+}
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, 1: 1, 2: 2, 3: 3, 4: 4 }
+function relationAmount(s, m) {
+  const inMatch = /\s(one|two|three|four|[1-4])\s+(?:(?:right|just|directly|immediately)\s+)?(?:above|over|below|under|underneath|beneath|to|on)\b/i.exec(m[0])
+  const before = s.slice(0, m.index)
+  const counted = inMatch || /\b(?:chart|one|cell|pane|panel|graph)\s+(one|two|three|four|[1-4])\s*$/i.exec(before)
+  const plural = /\b(?:both|all(?:\s+(?:of\s+)?the)?|every|the\s+(?:two|three|four|[2-4]))\s+(?:charts|ones|cells|panes|panels|graphs)\s*$/i.test(before)
+  return { count: counted ? NUM_WORD[counted[1].toLowerCase()] || 1 : 1, plural }
+}
+function stepFrom(charts, s, side, n) {
+  let at = s
+  for (let i = 0; i < n; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) return []; at = next[0] }
+  return [at]
+}
+function lineFrom(charts, s, side) {
+  const out = []
+  let at = s
+  for (let i = 0; i < charts.length; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) break; out.push(next[0]); at = next[0] }
+  return side === 'left' || side === 'above' ? out.reverse() : out
 }
 const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
 const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
@@ -340,6 +365,9 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     const refs = new Set(rel.hits.map(c => c.ref))
     const fits = backed.filter(b => refs.has(b.chart))
     if (fits.length === 1) return { ref: fits[0].c.ref }
+    // unseen9 P2: a PLURAL relation ("both charts to the right of this one") means every chart it names: { refs } (the caller
+    // accepts a plan whose targets are among them; one target for all is still asked about)
+    if (rel.plural && fits.length > 1) return { refs: fits.map(b => b.c.ref) }
     return { ask: { text: rel.hits.length || selectedChart(host) ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
       choices: (fits.length ? fits.map(b => b.c) : candidates).map(c => ({ ref: c.ref, label: c.label })) } }
   }
@@ -737,6 +765,21 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   {
+    // unseen9 P2: "every chart except the QQQ chart …" / "all but the QQQ chart …": the charts named after the exception are SET
+    // ASIDE, never the chart meant. A plan that leaves them alone stands; one that changes them is asked about.
+    const aside = exceptAll(text, host?.charts?.list?.() || [], selectedChart(host))
+    if (aside) {
+      for (const o of ops || []) {
+        const cap = getCapability(o?.action)
+        const kind = cap ? getTargetKind(cap.target) : null
+        const list = kind ? (kind.list(host) || []) : []
+        const c = chartRefOf(kind, list.find(x => x.ref === o.target))
+        if (c && aside.has(c)) return { ask: { text: 'You set that chart aside. Which charts do you mean?', choices: list.filter(x => !aside.has(chartRefOf(kind, x))).map(x => ({ ref: x.ref, label: x.label })), action: o.action } }
+      }
+      return null
+    }
+  }
+  {
     const per = clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (per?.ask) return per
     if (per?.ok) return null
@@ -787,6 +830,10 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     // the ticker an op takes as its argument describes no chart here (pl-auto u8-sequences-02)
     const r = resolveDeictic({ host, kind, candidates: list, text: withoutArgTickers(text, ops), chartOp: true })
     if (r?.ask) return { ask: { ...r.ask, action: o.action } }
+    if (r?.refs) {
+      if (r.refs.includes(o.target)) continue
+      return { ask: { text: 'Which chart do you mean?', choices: list.filter(s => r.refs.includes(s.ref)).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
     // "this chart" with a chart clicked is settled: the plan goes there, no question (production 11-05: "Did you mean" the right chart).
     // ⛔ Only then: anything else in the words may be naming another chart, so a plan that disagrees is still asked about.
     const onClicked = !!r?.ref && r.ref !== o.target && chartRefOf(kind, list.find(s => s.ref === r.ref)) === selectedChart(host)
@@ -799,6 +846,17 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
 }
 
+// "all / every / each (chart|one)… but / except (for) / other than / besides / apart from / aside from / excluding X": the charts
+// X names (a ticker, a position, a description, or the click for "this one") → their refs, else null (no exception said)
+const EXCEPT_ALL = /\b(?:all|every|each)\b(?:\s+(?:of\s+)?(?:the\s+|my\s+)?(?:charts?|ones?))?\s+(?:but|except(?:\s+for)?|other\s+than|besides|apart\s+from|aside\s+from|excluding)\s+(.+)$/i
+function exceptAll(text, charts, sel) {
+  const m = EXCEPT_ALL.exec(String(text || ''))
+  if (!m) return null
+  const rest = m[1].split(/[,;.!?]|\b(?:and\s+then|then)\b/i)[0]
+  const named = chartsNamedBy(rest, charts, sel)
+  if (!named.size && sel && /^\s*(?:this|that|it)\b/i.test(rest)) named.add(sel)
+  return named.size ? named : null
+}
 /** round 3: do the sentence's clauses name DIFFERENT charts ("the TSLA chart … and this one …")? An instant reader that applies
  *  one target to the whole sentence must then not claim it: the model plans it and the per-clause gate checks each op. */
 /** The charts the sentence's clauses each name (a pointer clause: the click), when it reads as clauses at all; else an empty set. */
