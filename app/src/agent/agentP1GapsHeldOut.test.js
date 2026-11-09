@@ -72,11 +72,23 @@ export const TOGGLE_HELD_OUT = [
   { row: 'C1-104', text: 'toggle the macd off', defId: 'macd', start: 'hidden', end: 'hidden' },
   { row: 'C1-104', text: 'toggle atr', defId: 'atr', start: 'shown', end: 'hidden' },
 ]
+// C1-144: the Position Calculator's entry / stop / target on ONE chart (the toolbar's calculator: a VIEW, not saved). args =
+// what the plan carries (target null = left empty, as the panel allows); refuse = what the calculator would show as invalid
+// or cannot hold (nothing changes on the chart, the reason is said). Every phrasing must also reach the group that offers it.
+export const POSITION_HELD_OUT = [
+  { row: 'C1-144', text: 'set up the position calculator with entry 182.50, stop 176 and target 198', args: { entry: 182.5, stop: 176, target: 198 } },
+  { row: 'C1-144', text: 'size a long here: in at 50, stop at 47.5, first target 58', args: { entry: 50, stop: 47.5, target: 58 } },
+  { row: 'C1-144', text: 'plan a short with an entry of 120, a stop at 124 and a target of 110', args: { entry: 120, stop: 124, target: 110 } },
+  { row: 'C1-144', text: 'position size this: buy 30 with a 28 stop', args: { entry: 30, stop: 28, target: null } },
+  { row: 'C1-144', text: 'put entry 100, stop 105, target 110 in the position calculator', args: { entry: 100, stop: 105, target: 110 }, refuse: /between/ },
+  { row: 'C1-144', text: 'position calculator: entry 0, stop 2, target 5', args: { entry: 0, stop: 2, target: 5 }, refuse: /above zero|positive/ },
+  { row: 'C1-144', text: 'risk calc with my entry at 50 and my stop at 50', args: { entry: 50, stop: 50, target: null }, refuse: /same/ },
+]
 
 import { describe, it, expect } from 'vitest'
 describe('P1-gap held-out sets are frozen data', () => {
   it('no phrasing appears twice', () => {
-    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT, ...SETTINGS_HELD_OUT, ...SAVED_TF_HELD_OUT, ...RESTORE_HELD_OUT, ...PANE_RESIZE_HELD_OUT, ...TOGGLE_HELD_OUT]
+    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT, ...SETTINGS_HELD_OUT, ...SAVED_TF_HELD_OUT, ...RESTORE_HELD_OUT, ...PANE_RESIZE_HELD_OUT, ...TOGGLE_HELD_OUT, ...POSITION_HELD_OUT]
     expect(new Set(all.map(c => c.text)).size).toBe(all.length)
   })
 })
