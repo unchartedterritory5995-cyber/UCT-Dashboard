@@ -87,6 +87,9 @@ import { toRenderState } from './objectRenderState'
 // publishes a scaled table (`paneFitNotice.js`).
 import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErrors } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
+// W9-T13b: a strategy run's record, published for the (dark) report panel
+import { setStrategyRecord } from './strategyReportNotice'
+import { runtimeStrategyOf } from './runtime/strategyRecord.js'
 import { chartThemeOf } from './objectTheme'
 
 import {
@@ -1490,7 +1493,23 @@ export function createBinder({ chart, LWC, scope = '' }) {
   /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
    *  so a removed, hidden or released instance takes its sentence with it. */
   const stoppedIds = new Set()
+  /** ⭐ W9-T13b — the instances THIS binder has published a strategy record for
+   *  (`strategyReportNotice.js`). Rides every call site of `noteRuntimeErrorStop`, so a
+   *  removed, hidden or recomputed instance takes its record with it. */
+  const strategyIds = new Set()
+  const noteStrategyRecord = (instanceId, cols) => {
+    const rec = cols ? runtimeStrategyOf(cols) : null
+    if (rec) strategyIds.add(instanceId)
+    else if (!strategyIds.has(instanceId)) return
+    else strategyIds.delete(instanceId)
+    attempt(() => setStrategyRecord(instanceId, rec, noticeScope))
+  }
+  const clearStrategyRecords = () => {
+    for (const id of strategyIds) attempt(() => setStrategyRecord(id, null, noticeScope))
+    strategyIds.clear()
+  }
   const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
+    noteStrategyRecord(instanceId, cols)
     const stop = cols ? runtimeErrorStopOf(cols) : null
     let sentence = stop && stop.reached ? stop.sentence : null
     // ⭐⭐ RF — a RUNTIME document whose run computed nothing on this chart says
@@ -1529,6 +1548,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     lastColumnErrors = new Map()
     for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
     stoppedIds.clear()
+    clearStrategyRecords()
     computeMemo = new Map()
     pointMemo = new Map()
     pendingLayout = null
@@ -1644,6 +1664,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
         stoppedIds.clear()
       }
+      clearStrategyRecords()
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -2051,6 +2072,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
     for (const id of [...stoppedIds]) if (!computedIds.has(id)) noteRuntimeErrorStop(id, null)
+    for (const id of [...strategyIds]) if (!computedIds.has(id)) noteStrategyRecord(id, null)
     pruneClock('plots', clockSeen)
     // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
     // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
