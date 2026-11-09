@@ -726,6 +726,12 @@
   "title": "Changing MA’s settings"
  },
  {
+  "id": "C2-026",
+  "say": "show me how to turn off the signal line",
+  "feature": "indicatorEdit",
+  "title": "Changing an indicator’s settings"
+ },
+ {
   "id": "C2-029",
   "say": "show me how to calculate this RSI on the weekly",
   "feature": "indicatorEdit",
@@ -736,6 +742,12 @@
   "say": "show me how to make MACD bars blue when rising",
   "feature": "indicatorColor",
   "title": "Changing the colour of MACD"
+ },
+ {
+  "id": "C2-034",
+  "say": "how do I change plot style",
+  "feature": "indicatorManage",
+  "title": "An indicator’s plot style"
  },
  {
   "id": "C2-039",

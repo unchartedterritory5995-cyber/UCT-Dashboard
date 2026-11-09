@@ -94,7 +94,7 @@ export const GUIDE_FEATURES = [
   // every broader walkthrough that shares one of its words
   CONTROL_FEATURE,
   // ⭐ the action families (guide/actions.js): one row per small action, ahead of the features whose words they share
-  ...actionFeatures({ legendChip: { also: readIndicator, guard: (q) => !INDICATOR_PART.test(q) },indicatorManage: { also: readIndicator }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
+  ...actionFeatures({ legendChip: { also: readIndicator, guard: (q) => !INDICATOR_PART.test(q) }, indicatorManage: { also: (q) => readIndicator(q) || /\bplot style\b/.test(q) }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
   // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)
   // ── ⭐ GUIDE SYSTEM: the nested, multi-step Charts families ──
   {
@@ -117,7 +117,7 @@ export const GUIDE_FEATURES = [
     // the same Inspector, one field of it
     id: 'indicatorEdit', slots: ['ind', 'field'], terms: ['indicator settings'], control: 'the chart’s settings gear', title: 'Changing {ind.label}’s settings', titleAny: 'Changing an indicator’s settings', topic: 'indicators',
     words: [/\b(change|edit|set|adjust|configure|modify|tweak)\w*\b.*\bindicators?\b/, /\bindicators?\b.*\b(settings?|period|length|style|width|source|inputs?)\b/],
-    match: (q) => (/\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) || SETS_A_VALUE.test(q) || CALC_ON.test(q) || INDICATOR_PART.test(q) || DRAWN_AS.test(q)) && !!readIndicator(q),
+    match: (q) => (/\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) || SETS_A_VALUE.test(q) || CALC_ON.test(q) || INDICATOR_PART.test(q) || DRAWN_AS.test(q)) && (!!readIndicator(q) || INDICATOR_PART.test(q)),
     caps: ['indicator.update'],
     explain: 'Every indicator’s own settings are in the chart’s settings: the gear, the Indicators tab, then click the indicator. Its period, source, type, timeframe, pane, visibility and line style are all there.',
     steps: [
