@@ -26,11 +26,37 @@ export const GROUP_HELD_OUT = [
   { row: 'C1-035', text: 'overlay the whole Energy sector on this one', type: 'sector', name: 'Energy' },
   { row: 'C1-035', text: 'add the AI infrastructure theme to the compare', type: 'theme', name: 'AI Infrastructure' },
 ]
+// C1-051 / C1-064 / C1-070 / C1-072: a chart's own on/off or mode SETTINGS (Chart Settings → Canvas crosshair, Header legend,
+// Markers events, Markers prev-day levels) on ONE chart, in words that never name the dialog. tf = the chart's timeframe;
+// the prev-day lines only draw intraday, so on a daily chart the change is saved AND the receipt says it will not show.
+// start = the setting's value before the turn is the opposite of `value` (so the change is a real one).
+export const SETTINGS_HELD_OUT = [
+  { row: 'C1-051', text: 'only show the crosshair while I hold the mouse down', setting: 'crosshair.mode', value: 'hold', tf: 'D' },
+  { row: 'C1-051', text: 'get rid of the crosshair on this chart', setting: 'crosshair.mode', value: 'off', tf: 'D' },
+  { row: 'C1-064', text: 'make the OHLC readout at the top appear only when I press and hold', setting: 'header.legendMode', value: 'hold', tf: 'D' },
+  { row: 'C1-064', text: 'remove the price legend from the top of this chart', setting: 'header.legendMode', value: 'off', tf: 'D' },
+  { row: 'C1-070', text: 'show me where the dividends were paid on this chart', setting: 'markers.dividends', value: true, tf: 'D' },
+  { row: 'C1-070', text: 'stop marking the stock splits', setting: 'markers.splits', value: false, tf: 'D' },
+  { row: 'C1-070', text: 'put the earnings dates on this one', setting: 'markers.earnings', value: true, tf: 'D' },
+  { row: 'C1-072', text: "mark yesterday's high on this 5 minute chart", setting: 'prevDayLevels.high.enabled', value: true, tf: '5' },
+  { row: 'C1-072', text: 'drop the prior session low line', setting: 'prevDayLevels.low.enabled', value: false, tf: '15' },
+  { row: 'C1-072', text: "show the previous day's close level", setting: 'prevDayLevels.close.enabled', value: true, tf: 'D', hiddenOnTf: true },
+]
+// C1-007: switch ONE chart to a timeframe the member already saved in its menu (a custom interval), never adding a duplicate
+export const SAVED_TF_HELD_OUT = [
+  { row: 'C1-007', text: 'go to my 45 minute timeframe', unit: 'minutes', count: 45 },
+  { row: 'C1-007', text: 'flip this chart onto the 2 hour interval I saved', unit: 'hours', count: 2 },
+]
+// C1-076: restore ONE chart's look to the defaults (a proposal first; indicators kept; Undo puts the member's look back)
+export const RESTORE_HELD_OUT = [
+  { row: 'C1-076', text: 'put this chart back to how it looked out of the box' },
+  { row: 'C1-076', text: 'undo all my customising of the colours and markers on this chart' },
+]
 
 import { describe, it, expect } from 'vitest'
 describe('P1-gap held-out sets are frozen data', () => {
   it('no phrasing appears twice', () => {
-    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT]
+    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT, ...SETTINGS_HELD_OUT, ...SAVED_TF_HELD_OUT, ...RESTORE_HELD_OUT]
     expect(new Set(all.map(c => c.text)).size).toBe(all.length)
   })
 })
