@@ -98,15 +98,23 @@ and A1 ("A is good").
 
 **A. Settled ("A is good")**
 - A1. Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.
-  2% is the ceiling; under 1% is normal.
+  Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.
 - A2. Risking the same percent on every trade is also fine: pick one way and write it in the plan.
-- A3. Stop first (by default the day's low or the prior day's low); the size comes from the stop; if the honest stop
-  does not fit the risk, skip the trade.
+- A3. Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop;
+  if the honest stop does not fit the risk, skip the trade.
 - A4. The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).
-- A5. Shares = account × risk % ÷ (entry − stop), rounded down. The full size at one price with one stop; no adding.
+- A5. Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based
+  size and the position cap (A7, or the ladder's cap in a drawdown, A8). The full size at one price with one stop; no
+  adding.
 - A6. Trade shares; options are only a defined-risk alternative.
-- A7. Max position 20% to 25% of the account. A tight stop never justifies a huge position: a gap can jump the stop.
-- A8. Drawdown ladder: max position 10% after a 6% drawdown, 8% after 8%, 5% after 10%.
+- A7. Max position 40% of the account (raised from 20-25% on 2026-11-09: "RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY
+  WITH EARLY TRIMS AT 3-5R THAT IS FINE."). A tight stop never justifies a bigger position than that: a gap can jump
+  the stop. All positions together: up to 200% of the account in a Green market (margin, B24, F60), up to 100%
+  otherwise; so a full book of 10 averages about 20% a position.
+- A8. Drawdown ladder. A drawdown is how far the account is below its highest value, open trades included, checked at
+  least weekly. On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down,
+  5%; 15% down, no new trades (B13). On the way back up: one rung up each time the account wins back half of the
+  drawdown; the normal cap again once the account is within 5% of its peak (B14).
 - A9. Hold 5 to 10 positions.
 - A10. Total open risk and position size by market condition are guides that vary, not hard caps.
 - A11. Sell some into strength and trail the rest under the rising averages.
@@ -121,8 +129,8 @@ and A1 ("A is good").
 - B14. Size comes back one rung of the ladder each time the account recovers half of the drawdown; full size again
   once the account is back within 5% of its peak. ("14, good except full size okat at 5% drawdown again on the way up.")
 - B15. No daily loss limit. ("15, no.")
-- B16. No weekly loss limit; a monthly loss limit of 8%: at 8% down in a month, no new trades for the rest of the
-  month. ("16 no But a monthly loss limit of 8%." Asked what happens when it is hit: "monthly limit, yes.")
+- B16. No weekly loss limit; a monthly loss limit of 8%: at 8% down in a calendar month (from the month's starting
+  value), no new trades for the rest of the month. ("16 no But a monthly loss limit of 8%." Asked what happens when it is hit: "monthly limit, yes.")
 - B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14). ("17, only
   drawdown rule in terms of %.")
 - B18. A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).
@@ -155,14 +163,17 @@ and A1 ("A is good").
 - B27. Journal every trade the same day and review the week every weekend, ideally. ("27, ideally yes..")
 
 **C. Approach (second round, 2026-11-09)**
-- C28. No chasing: never buy more than 4% above the buy point. ("28, make it 4%.")
+- C28. No chasing: never buy more than 4% above the buy point. ("28, make it 4%.") Chasing costs size, not risk: the
+  stop stays under the buy point, so the distance grows and the shares shrink (A5).
 - C29. Too stretched to buy: skip a long that is more than 10% above its 10-day average. ("29, yes.")
 - C30. No time-of-day rule. ("30, no")
 - C31. Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion
-  trades. ("31, yes unless parabolic or mean reversion.")
+  trades. ("31, yes unless parabolic or mean reversion.") Shorts are the mirror (D47): the weakest stocks, an RS
+  rating of 20 or less, in the weakest groups.
 - C32. No news-day rule: Fed and CPI days are traded like any other day. (He declined it as a rule: "not a rule i
   generally ignore that ...")
-- C33. Time stop: a trade that has done nothing in 10 days is sold, freeing the money. ("33, yes.")
+- C33. Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. ("33, yes."; "done
+  nothing" defined in the 2026-11-09 cleanup.)
 - C34. A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call. ("34, yes
   but depends.")
 - C35. We swing trade: days to a few weeks; a winner can be held longer while it keeps working. ("35, yes.")
@@ -221,6 +232,12 @@ and A1 ("A is good").
 - F68. After a market correction, when the reading turns Green again, start with a few positions and add more only as
   the first ones work (the account's number of positions, not adds to one trade, A5). ("yes to all of those")
 - F69. Small accounts hold fewer positions, about 3 to 5, so each is big enough to manage. ("yes to all of those")
+
+**Cleanup (2026-11-09, the owner: "CLEANUP WHAT YOU THINK YOU SHOULD AND LETS FINALZIE THOSE"):** A1 names 1.5% as the
+grades' most and 2% as the ceiling; A3 carries F62's few cents; A5 says the size is the smaller of the risk-based
+size and the cap; A7 adds the book's 200% / 100% limits; A8 defines drawdown and folds B13 and B14 into one ladder;
+B16 runs by calendar month; C28 notes that chasing costs size; C31 gains the short-side mirror; C33 defines "done
+nothing" as under 1R after 10 trading days.
 
 **The account rulebook is complete as of 2026-11-09** (71 rules: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
 F60-F69). The setup plans (TRADE_PLANS.md) are reviewed next, when the owner says so.
