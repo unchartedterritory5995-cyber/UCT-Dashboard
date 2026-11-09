@@ -1215,3 +1215,11 @@ first open for nearly every member. It is therefore a ROOT of `notebook_first_op
 and its static imports are counted, though it stays a dynamic import (asked for in the Notebook's first render, beside
 the preferences read). The budget itself is unchanged. To make room, Research Home (now the opt-in landing,
 `?view=home`) became a `lazyView` and left the first-open closure. The figure is in the Tier 3b report.
+
+## Budget raised by 4,096 B for Import a tweet (owner's call, 2026-11-09)
+
+`notebook_first_open.max` moved from 2,260,793 B to **2,264,889 B**, the first raise since the budget was set. The owner chose this over taking existing master code off first open.
+
+Master alone read 2,260,770 B, 23 B under the old line, so no version of this feature could pass without one or the other. The branch, merged with master at `ac26096ea8`, reads **2,264,592 B** (+3,799 B over the old line), leaving 297 B of room. That weight is the Import a tweet entry points (the button, the toolbar door and `/tweet`), the tweet card, and the guard in `lib/noteContentGuard.js` that stops a keystroke right after opening from deleting a first-block card, image or divider.
+
+⚠️ The 297 B is thin. The next change that adds to first open should pay for itself the way Tier 1a did, by moving a member-action surface onto a lazy chunk, not by raising this line again.
