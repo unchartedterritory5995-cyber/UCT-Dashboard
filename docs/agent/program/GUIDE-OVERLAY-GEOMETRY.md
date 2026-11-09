@@ -108,3 +108,32 @@ transform's y. Same check, same numbers.
   record the distance between the ring's centre and the handle's centre: master versus branch.
 - **Other targets:** a toolbar button, a menu row and a settings row. Ring box against control box (expect `pad` 4 on
   every side, clipped where the control is clipped).
+
+## Round 2: pl-auto's real-browser findings (fdd4d73bd1 vs 871f899c0b) and the fixes (`d2d69e3b93`, rails `869b750056`)
+Real browser (pl-auto): corner-drag centre error max 10.4 → 2.6 px; reflow lag max 806 → 132 ms; static fit at `pad` on
+every target type; tracking stops after done / exit / Escape. Still open, each fixed here (SIMULATED until pl-auto
+re-measures):
+
+1. **The walkthrough ended itself 136–444 ms into a corner drag** (both trees). Cause: a step with no `waitFor` was
+   treated as done `POLL_MS * 2` (240 ms) after the press on its control.
+   - Fix: a control the member drags (`ringGeometry.isDragControl`: a `resize` anchor, or a resize, grab or move
+     cursor) is done when the drag **ends** (`pointerup` / `pointercancel`).
+   - Rail 6 holds an edge, then a corner, for 600 ms: the step stays, and it moves on or ends only on release.
+2. **Reflow and drag lag above tolerance** (max 15.3 px / 132 ms; drag lag max 142 ms).
+   - `trackRing` now measures **inside the ResizeObserver callback**. That runs after layout and before paint, so the
+     ring is written in the same frame; the next rAF frame was one frame late.
+   - It also observes the board (the cell's parent) and the control's offset parent, so a reflow that moves a cell
+     without resizing it is seen.
+   - Measured only by pl-auto: the remaining lag maxima may be main-thread work during the chart's own re-render,
+     which no observer can beat.
+3. **The 120 ms poll kept ticking after the walkthrough's chart closed** (17 ticks in 2 s).
+   - Fix: the interval runs only while the step's control is on screen.
+   - While it is gone, a `MutationObserver` on the page looks again on the next frame after a change: nodes added or
+     removed, or `hidden` / `aria-hidden` / `aria-expanded` / `open` / `class` changes. Each deadline (LATE_MS,
+     LOST_MS, PAUSE_MS) gets one timer.
+   - Rail 7 removes the chart: 600 ms with no measurement at all. When the chart comes back, the ring returns.
+4. **A whole-chart step left the cell's header and toolbar uncovered.**
+   - Fix: `ringGeometry.ringElementOf` rings a `chart.plot` step's **whole board cell**: `[data-grid-cell-id]`, else
+     `[data-widget-id]`.
+   - The card keeps off the cell. The step's target and its click detection are unchanged.
+   - Rail 8: the ring is the cell box ± `pad`.

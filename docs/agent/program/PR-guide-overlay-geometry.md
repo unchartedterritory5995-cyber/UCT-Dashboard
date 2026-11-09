@@ -36,11 +36,14 @@ No walkthrough's steps or targets changed.
 - **Notebook bytes:** master `fdd4d73bd1` 2,252,608 B → `871f899c0b` 2,252,608 B. **Delta 0**, verdict PASS
   (budget 2,264,889 B).
 
+## Round 2 (pl-auto real-browser findings; see GUIDE-OVERLAY-GEOMETRY.md)
+- `d2d69e3b93` fix: a drag finishes its step on release; the poll stops while the step's control is gone (MutationObserver + deadline timers) and resumes on remount; a `chart.plot` step rings the whole chart cell; same-frame measurement in the ResizeObserver callback, and the board observed.
+- `869b750056` test: rails 6–8. Geometry rails 14/14; guide rails (src/agent/agentGuide*, src/agent/guide, AgentPanel) 935/935. SIMULATED.
+- Locked suite and bytes: re-run on the head handed to AUDIT (after pl-auto re-measures).
+
 ## Open
 - pl-auto's real-browser measurements, before (master) and after (this head), as listed at the end of
   `GUIDE-OVERLAY-GEOMETRY.md`.
-- Whether a "chart" step should ring the whole chart cell (header included) rather than `chart.plot`. That is a
-  target choice, for the owner to decide after seeing the measurements; this branch does not make it.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
