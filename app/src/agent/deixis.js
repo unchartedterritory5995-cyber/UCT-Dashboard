@@ -68,7 +68,7 @@ const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph|corner)\b/i.tes
 // unseen10: a TWO-AXIS diagonal step ("diagonally up and to the left of this one") and the FAR END of the click's line ("the chart
 // at the far end from this one")
 const DIAG_STEP = new RegExp(`\\bdiagonally\\s+(up|down|above|below)\\s+(?:and\\s+)?(?:to\\s+the\\s+)?(left|right)(?:\\s+of)?\\s+${REL_ANCHOR}`, 'i')
-const FAR_END = new RegExp(`\\b(?:at\\s+)?the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+(?:from|of)\\s+${REL_ANCHOR}`, 'i')
+const FAR_END = new RegExp(`\\b(?:at\\s+)?the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+(?:(?:of\\s+the\\s+(?:row|column)\\s+)?from|of)\\s+${REL_ANCHOR}`, 'i')
 // AUDIT condition on the STRUCTURAL rule: a CHART reference ("the one / chart / cell / panel … <spatial word> … <anchor>", "both
 // neighbours of this one", "<spatial word> … this one / this chart") with ANY spatial word never resolves to the click; it is only
 // the anchor. A relation word on a non-chart noun (a line, a level, an MA, a price, an alert) is not this rule.
@@ -82,11 +82,35 @@ const STRUCT_TAIL = new RegExp(`\\b${SPATIAL_WORD}\\b[^.;,]{0,24}?\\b(?:this|tha
 // right", "3 over") is a relation from the click even when its shape is not one UCT can place: the click is its anchor, so it is
 // never applied and never offered (the reference resolves to no chart and is asked about without the anchor)
 const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
+// AUDIT #988 (possessive anchor): "its / it's / this one's / this chart's / the selected one's" before a RELATIONAL noun or phrase
+// makes the click a REFERENCE POINT, as R1: "the neighbour on its left" = the cell to the click's left, "its right neighbour", "its
+// diagonal", "its row's far end", "both of its neighbours". Rewritten to the anchored phrase the readers below already resolve; a
+// possessive on any other relational word is still a relation UCT cannot place (asked without the anchor). "its" on a THING ("its
+// level", "its signal line", "its price scale on the right") is no relation.
+const POSS = "(?:its|it['’]s|(?:this|that)\\s+(?:one|chart)['’]s|the\\s+(?:selected|clicked|current|highlighted|active|focused)\\s+(?:one|chart)['’]s)"
+const POSS_SIDE = new RegExp(`\\b(on|to)\\s+${POSS}\\s+(left|right)(?:[-\\s]+hand)?(?:[-\\s]+side)?\\b`, 'gi')
+const POSS_SIDE_NB = new RegExp(`\\b${POSS}\\s+(left|right)(?:[-\\s]+hand)?(?:[-\\s]+side)?\\s+(?:neighbou?r|chart|one|cell|pane|panel)\\b`, 'gi')
+const POSS_NBS = new RegExp(`\\b(?:(?:both|all|each|either)\\s+(?:of\\s+)?)?${POSS}\\s+(?:two\\s+)?neighbou?rs\\b`, 'gi')
+const POSS_FAR = new RegExp(`\\b(?:the\\s+(?:chart|one|cell)\\s+at\\s+)?(?:${POSS}\\s+(row|column)['’]s\\s+(?:far(?:thest)?|other|opposite)\\s+end|the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+of\\s+${POSS}\\s+(row|column))\\b`, 'gi')
+const POSS_DIAG = new RegExp(`\\b${POSS}\\s+(?:diagonal(?:ly\\s+opposite)?|opposite\\s+corner|far\\s+corner|(?:kitty|catty|cater)[-\\s]?corner)(?:\\s+(?:chart|one|cell|pane|panel|neighbou?r))?\\b`, 'gi')
+const POSS_REL = new RegExp(`\\b${POSS}\\s+(?:[a-z-]+\\s+)?(?:(?:left|right)(?=[-\\s]+(?:hand|side|neighbou?r|chart|one|cell))|sides?|neighbou?rs?|corner|diagonal|(?:far|other|opposite)\\s+end|row|column)\\b`, 'i')
+/** The words with a possessive anchor on a relation rewritten to the anchored phrase ("the neighbour on its left" → "the neighbour
+ *  on the left of this one"). Idempotent; words with no such possessive come back unchanged. */
+export function possessiveAnchor(text) {
+  const s = String(text || '')
+  if (!/['’]s\b|\bits\b/i.test(s)) return s
+  return s.replace(POSS_FAR, (m, r1, r2) => `the chart at the far end of the ${(r1 || r2).toLowerCase()} from this one`)
+    .replace(POSS_DIAG, 'the chart diagonally opposite this one')
+    .replace(POSS_NBS, 'both neighbours of this one')
+    .replace(POSS_SIDE_NB, (m, side) => `the chart to the ${side.toLowerCase()} of this one`)
+    .replace(POSS_SIDE, (m, pre, side) => `${pre} the ${side.toLowerCase()} of this one`)
+}
+const FAR_LINE = /\bthe\s+(row|column)\s+from\s+this\s+one\b/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text) {
-  const r = relationMatchOf(text)
+  const s = possessiveAnchor(text)
+  const r = relationMatchOf(s)
   if (r) return r
-  const s = String(text || '')
   const c = COUNT_DIRECTION.exec(s)
   if (c) { c.unplaced = true; return c }
   // the STRUCTURAL rule: a spatial word on a CHART reference anchored on the click (not on a non-chart noun: placesNonChart, and a
@@ -110,6 +134,9 @@ export function relationMatch(text) {
     const ie = IMPLICIT_FAR_END.exec(s)
     if (chartRef(ie)) { ie.farEnd = true; return ie }
   }
+  // a possessive on a relational word the rewrite could not place ("its upper side"): the click is only the anchor
+  const pr = POSS_REL.exec(s)
+  if (pr && !placesNonChart(s.slice(0, pr.index))) { pr.unplaced = true; return pr }
   return null
 }
 // grammar words inside a span are never an indicator's name ("from", "the", "one" appear in indicator titles)
@@ -121,7 +148,7 @@ const ANCHOR_OBJ = '(?:this|that|here|it|the\\s+(?:selected|clicked|current|high
 // redirected onto the click then
 const REF_PP_ANY = new RegExp(`\\b(?:(?:away|up|down|over|across|out)\\s+from|from|than|as|beside|opposite|across|next\\s+to|near|nearest\\s+to|closest\\s+to|beyond|past|around|below|above|under|over|behind)\\s+${ANCHOR_OBJ}\\b`, 'i')
 // …unless what stands before it is a placed thing ("stick the stochastic below this one": a pane on the click, AUDIT's rule)
-const refPointAny = (s) => { const m = REF_PP_ANY.exec(s); return !!m && !placesNonChart(s.slice(0, m.index)) }
+const refPointAny = (t) => { const s = possessiveAnchor(t); const m = REF_PP_ANY.exec(s); return !!m && !placesNonChart(s.slice(0, m.index)) }
 const EITHER_SIDE = new RegExp(`\\b(?:both|the|the\\s+two)\\s+(?:charts?|ones|cells|panels)\\s+(?:on\\s+)?(?:either|each|both)\\s+sides?\\s+of\\s+${ANCHOR_OBJ}\\b`, 'i')
 const REF_POINT = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,4}?(?:chart|one|cell|pane|panel|graph|side|end|corner)s?\\b[^.;,]{0,40}?\\b(?:(?:away|up|down|over|across|out)\\s+from|from|of|than|as|beside|opposite|across|next\\s+to|near|nearest\\s+to|closest\\s+to|beyond|past|around|below|above|under|over|behind)\\s+${ANCHOR_OBJ}\\b`, 'i')
 const IMPLICIT_NEIGHBOUR = /\b(?:the|that)\s+(?:(?:next[-\s]door|neighbou?ring|adjacent|nearby)\s+(?:chart|one|cell|pane|panel)|(?:chart|one|cell|pane|panel)\s+next\s+door)\b/i
@@ -258,6 +285,7 @@ export function relationRole(text, m) {
  *  (hits may be 0 or several), else null. `hits` is what the relation makes the TARGET: none when it is negated or when another
  *  clause points at the click too; `excluded` is what a negated relation names, which nothing may touch. */
 export function relativeChart(text, charts = [], sel = null) {
+  text = possessiveAnchor(text)
   const m = relationMatch(text)
   if (!m) return null
   const role = relationRole(text, m)
@@ -280,7 +308,9 @@ export function relativeChart(text, charts = [], sel = null) {
     else {
       const far = (dir) => { let at = s, last = null; for (let i = 0; i < charts.length; i++) { const n = sideOf(charts, at, dir); if (n.length !== 1) break; last = at = n[0] } return last }
       const row = [far('left'), far('right')].filter(Boolean), col = [far('above'), far('below')].filter(Boolean)
-      hits = row.length === 1 && !col.length ? row : col.length === 1 && !row.length ? col : []
+      const line = FAR_LINE.exec(m[0])?.[1]?.toLowerCase()
+      hits = line === 'row' ? (row.length === 1 ? row : []) : line === 'column' ? (col.length === 1 ? col : [])
+        : row.length === 1 && !col.length ? row : col.length === 1 && !row.length ? col : []
     }
     if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
     if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
