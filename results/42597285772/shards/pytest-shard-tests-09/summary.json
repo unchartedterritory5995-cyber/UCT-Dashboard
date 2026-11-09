@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 4677,
+  "passed": 4669,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 742.52,
+  "failed_files": [
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py",
+    "tests/test_scan_evaluator_off_request_path.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 4669 passed, 5 skipped, 7298 warnings in 742.52s (0:12:22)",
+  "ok": true
+}
