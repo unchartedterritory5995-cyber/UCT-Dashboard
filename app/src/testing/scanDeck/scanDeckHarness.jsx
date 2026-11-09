@@ -2,8 +2,8 @@
  * SCAN DECK — SYNTHETIC HARNESS (dev-server only; see scan-deck-harness.html).
  *
  * Mounts the REAL BreadthDrillModal with a page-local fetch shim that answers
- * every /api request from a seeded generator: fictional tickers, fictional
- * sectors/themes, generated daily bars. Nothing leaves the page.
+ * every /api request from a seeded generator: REAL tickers, names, sectors and
+ * logos (realUniverse.js) with GENERATED prices, moves, volume and bars.
  *
  * window.__sdh = { blocked(), requests(), reopen() }
  */
@@ -13,27 +13,28 @@ import '../../index.css'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 import BreadthDrillModal from '../../pages/breadth/drill/BreadthDrillModal'
+import { REAL_UNIVERSE } from './realUniverse'
+
+// Real company logos: the app asks its own backend (/api/ticker-logo/SYM), which
+// this page does not run, so logo images are pointed at the public UCT logo
+// endpoint instead. Read-only image GETs; nothing else leaves the page.
+const LOGO_HOST = 'https://uctintelligence.com'
+const rwLogo = (v) => (typeof v === 'string' && v.startsWith('/api/ticker-logo/') ? LOGO_HOST + v : v)
+{
+  const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')
+  Object.defineProperty(HTMLImageElement.prototype, 'src', { configurable: true, get() { return d.get.call(this) }, set(v) { d.set.call(this, rwLogo(v)) } })
+  const sa = Element.prototype.setAttribute
+  Element.prototype.setAttribute = function setAttribute(name, value) {
+    return sa.call(this, name, name === 'src' && this instanceof HTMLImageElement ? rwLogo(value) : value)
+  }
+}
 
 // ── seeded RNG ──────────────────────────────────────────────────────────────
 const mul = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 }
 const hash = (s) => [...String(s)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7)
 
-// ── fictional universe ──────────────────────────────────────────────────────
-const KINDS = [
-  ['Technology', 'Semiconductors', 'Semis'], ['Technology', 'Software - Infrastructure', 'Cybersecurity'],
-  ['Technology', 'Electronic Components', 'AI Infrastructure'], ['Healthcare', 'Biotechnology', 'Biotech'],
-  ['Industrials', 'Aerospace & Defense', 'Space'], ['Industrials', 'Specialty Machinery', 'Drones & Defense'],
-  ['Utilities', 'Independent Power', 'Nuclear'], ['Basic Materials', 'Uranium', 'Nuclear'],
-  ['Financial Services', 'Capital Markets', 'Crypto'], ['Energy', 'Oil & Gas E&P', null],
-  ['Consumer Cyclical', 'Apparel Retail', null],
-]
-const SYL = ['QA', 'ZE', 'VO', 'XU', 'KY', 'JO', 'WY', 'QI', 'ZU', 'VY', 'XO', 'KU']
-const UNIVERSE = []
-for (let i = 0; i < SYL.length; i++) for (let j = 0; j < SYL.length; j++) {
-  const t = `${SYL[i]}${SYL[j]}`
-  const k = KINDS[(i * 7 + j * 3) % KINDS.length]
-  UNIVERSE.push({ t, n: `${t[0]}${t.slice(1).toLowerCase()} Sample Co`, sector: k[0], industry: k[1], theme: k[2] })
-}
+// ── universe: REAL names + logos, GENERATED numbers ──────────────────────────
+const UNIVERSE = REAL_UNIVERSE.map(([t, n, sector, industry, theme]) => ({ t, n, sector, industry, theme }))
 const BY_T = Object.fromEntries(UNIVERSE.map(u => [u.t, u]))
 
 // ── sessions ────────────────────────────────────────────────────────────────
@@ -49,19 +50,30 @@ const SESSIONS = []
 const COLS = [
   { key: 'up_4pct_today', label: 'Up 4%+', drillKey: 'up_4pct_today_list', dir: 1 },
   { key: 'down_4pct_today', label: 'Dn 4%+', drillKey: 'down_4pct_today_list', dir: -1 },
-  { key: 'new_52w_highs', label: 'New 52W Highs', drillKey: 'new_52w_highs_list', dir: 1 },
-  { key: 'stage2', label: 'Stage 2', drillKey: 'stage2_list', dir: 1 },
+  { key: 'new_52w_highs', label: 'New 52W Highs', drillKey: 'new_52w_highs_list', dir: 1, n: [6, 22] },
+  { key: 'new_52w_lows', label: 'New 52W Lows', drillKey: 'new_52w_lows_list', dir: -1, n: [2, 10] },
+  { key: 'new_ath', label: 'All-Time Highs', drillKey: 'new_ath_list', dir: 1, n: [3, 12] },
+  { key: 'stage2', label: 'Stage 2', drillKey: 'stage2_list', dir: 1, n: [20, 45] },
+  { key: 'hvc_52w', label: 'HVC 52W', drillKey: 'hvc_52w_list', dir: 1, n: [3, 10] },
+  { key: 'up_20pct_5d', label: 'Up 20% 5D', drillKey: 'up_20pct_5d_list', dir: 1, n: [5, 16] },
 ]
 function listFor(drillKey, date) {
   const col = COLS.find(c => c.drillKey === drillKey)
   const r = mul(hash(drillKey + date))
-  const n = 30 + Math.floor(r() * 60)
+  const n = col?.n ? col.n[0] + Math.floor(r() * (col.n[1] - col.n[0])) : 30 + Math.floor(r() * 40)
   const pool = [...UNIVERSE].sort(() => r() - 0.5).slice(0, n)
   return pool.map(u => {
     const mag = 4 + Math.pow(r(), 2.2) * 40
-    return { t: u.t, n: u.n, pct: +((col?.dir ?? 1) * mag).toFixed(2), c: +(3 + r() * 150).toFixed(2),
-      vr: +(0.6 + Math.pow(r(), 1.7) * 8).toFixed(1), atr: +(2 + r() * 7).toFixed(1), a50: +((r() - 0.3) * 6).toFixed(1) }
+    return { t: u.t, n: u.n, pct: +((col?.dir ?? 1) * mag).toFixed(2), c: closeOn(u.t, date, +(3 + r() * 150).toFixed(2)),
+      vr: +(0.6 + Math.pow(r(), 1.7) * 8).toFixed(1), v: Math.round(3e5 + Math.pow(r(), 2) * 6e7), atr: +(2 + r() * 7).toFixed(1), a50: +((r() - 0.3) * 6).toFixed(1) }
   }).sort((a, b) => (col?.dir ?? 1) * (b.pct - a.pct))
+}
+// The list price is the generated chart's close that day, so list and chart agree.
+const BAR_CACHE = new Map()
+function closeOn(sym, date, fallback) {
+  if (!BAR_CACHE.has(sym)) BAR_CACHE.set(sym, barsFor(sym, 'D'))
+  const b = BAR_CACHE.get(sym).find(x => x.t === date)
+  return b ? b.c : fallback
 }
 const ROWS = SESSIONS.map(date => {
   const row = { date, breadth_score: 30 + (hash(date) & 63) }

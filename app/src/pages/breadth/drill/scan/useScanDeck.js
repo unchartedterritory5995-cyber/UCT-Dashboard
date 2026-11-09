@@ -2,9 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import useGroupMeta from '../../grouping/useGroupMeta'
 import useWatchlistMeta from '../../../../hooks/useWatchlistMeta'
 import { parseMcap } from '../../../Watchlists'
-import {
-  applyFilters, availableFilters, composition, UNCLASSIFIED, readReview, writeReview, reviewKey,
-} from './scanDeckModel'
+import { composition, UNCLASSIFIED, readReview, writeReview, reviewKey } from './scanDeckModel'
+import { emptySelection, applyFacets, facetModel, toggleFacet, activeCount, activeChips } from './scanFacets'
 
 const NO_ITEMS = []
 const up = (s) => String(s || '').toUpperCase()
@@ -81,33 +80,15 @@ export default function useScanDeck(drill, { storage = safeStorage() } = {}) {
     })
   }, [items, metaData, groupMeta, context])
 
-  // ── Filters ───────────────────────────────────────────────────────────────
-  const [active, setActive] = useState(() => new Set())
-  const available = useMemo(() => availableFilters(rows), [rows])
-  const toggleFilter = useCallback((key) => {
-    setActive(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
-      return next
-    })
-  }, [])
-  const clearFilters = useCallback(() => setActive(new Set()), [])
-
-  // ── Groups ────────────────────────────────────────────────────────────────
-  const [groupDim, setGroupDim] = useState('theme')
-  const [groupFocus, setGroupFocus] = useState(null)
-  const labelOf = useCallback((r) => r[groupDim], [groupDim])
-  // Composition is computed over the FILTERED rows (what you are looking at),
-  // before the group focus narrows them, so the bar never collapses to one block.
-  const filteredRows = useMemo(() => applyFilters(rows, active, { dir, available }), [rows, active, dir, available])
-  const groups = useMemo(() => composition(filteredRows, labelOf), [filteredRows, labelOf])
-  const sectorMix = useMemo(() => composition(filteredRows, r => r.sector), [filteredRows])
-  const focusValid = groupFocus && groups.some(g => g.key === groupFocus)
-  const shownRows = useMemo(
-    () => (focusValid ? filteredRows.filter(r => (labelOf(r) || 'Unclassified') === groupFocus) : filteredRows),
-    [filteredRows, focusValid, groupFocus, labelOf],
-  )
-  const setDim = useCallback((d) => { setGroupDim(d); setGroupFocus(null) }, [])
+  // ── Filters (facets) ─────────────────────────────────────────────────────
+  // Held for the life of the window, so stepping to the next session keeps the
+  // same scan applied — that is the point of scanning day after day.
+  const [sel, setSel] = useState(emptySelection)
+  const facetCtx = useMemo(() => ({ date: drill?.live ? null : drill?.date }), [drill?.live, drill?.date])
+  const shownRows = useMemo(() => applyFacets(rows, sel, facetCtx), [rows, sel, facetCtx])
+  const facets = useMemo(() => facetModel(rows, sel, facetCtx), [rows, sel, facetCtx])
+  const toggle = useCallback((facet, value) => setSel(prev => toggleFacet(prev, facet, value)), [])
+  const clearAll = useCallback(() => setSel(emptySelection()), [])
 
   // The ORIGINAL drill items for the shown rows, in the drill's own order, so
   // the watchlist table gets exactly the payload it always got — just fewer rows.
@@ -167,9 +148,7 @@ export default function useScanDeck(drill, { storage = safeStorage() } = {}) {
 
   return {
     dir, rows, rowBySym, shownRows, shownItems, groupMeta, context,
-    filters: { active, available, toggle: toggleFilter, clear: clearFilters },
-    groups: { dim: groupDim, setDim, list: groups, focus: focusValid ? groupFocus : null, setFocus: setGroupFocus },
-    sectorMix,
+    filters: { sel, model: facets, toggle, clear: clearAll, count: activeCount(sel), chips: activeChips(sel) },
     summary,
     review: { seen: review.seen, skipped: review.skipped, markSeen, toggleSkip, reset: resetReview, count: reviewedCount },
   }

@@ -20,14 +20,14 @@ export const CHART_WIDGET_ID = 'drill-chart'
 // charts tab uses, not a bespoke callback.
 export const DRILL_GROUP = 'A'
 
-const DEFAULT_SPLIT = 470   // px, list panel width (Focus: Symbol, Sector, Industry, % Chg)
+const DEFAULT_SPLIT = 372   // px, list panel width: ends on the Vol column's right edge (Symbol, % Chg, Price, Vol)
 
 // ── Scan Deck arrangement ────────────────────────────────────────────────────
 // MODES are arrangements of the SAME list + chart, never different data: Scan is
 // chart-first, Groups opens the group panel above the list, Table gives the list
 // most of the width. Each mode carries its own default list width.
 export const SCAN_MODES = ['focus', 'grid', 'table']
-export const MODE_SPLIT = { focus: 470, grid: 470, table: 1000 }
+export const MODE_SPLIT = { focus: 372, grid: 372, table: 1000 }
 // Modes a stored board may still carry from the first Scan Deck build.
 const LEGACY_MODE = { scan: 'focus', groups: 'focus' }
 // Chart LAYOUTS inside the chart pane: one chart, Daily + Weekly of the same

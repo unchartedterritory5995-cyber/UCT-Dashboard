@@ -7,6 +7,7 @@ import { useWorkspace } from '../../charts/WorkspaceContext'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
 import { useDrillSource } from './DrillSourceContext'
+import { FilterButton, GroupSwitch, FilterChips } from './scan/ScanFilters'
 import styles from './BreadthDrillList.module.css'
 
 // The breadth cell's constituents, rendered through the REAL watchlist table.
@@ -28,12 +29,16 @@ const NO_ITEMS = []
 // First-run column layout. Sorted by % change desc because that is what a
 // breadth cell IS — the stocks that moved — and it matches the order the
 // endpoint already returns.
+// Focus list (owner, 2026-11-08): Symbol, % Chg, Price, Vol — in that order —
+// with the three number columns one width, so the table ends on the Vol edge.
+export const DRILL_NUM_COL_W = 76
 const DRILL_DEFAULT_COLS = {
-  order: ['flag', 'sym', 'sector', 'industry', 'chg'],
+  order: ['flag', 'sym', 'chg', 'price', 'vol'],
   sort: { key: 'chg', dir: 'desc' },
+  widths: { chg: DRILL_NUM_COL_W, price: DRILL_NUM_COL_W, vol: DRILL_NUM_COL_W },
 }
 // Namespaced off the watchlist key the same way the scanner namespaces its own.
-const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.list`
+const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.focus6`
 // The Scan Deck's TABLE mode gives the list most of the window, so it opens with
 // the columns a screener would: who the company is, where it sits, how big, and
 // how stretched. Its OWN key, so arranging Table never rearranges the compact
@@ -134,7 +139,8 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       out[sym] = {
         price: Number.isFinite(it.c) ? it.c : null,
         change_pct: Number.isFinite(it.pct) ? it.pct : null,
-        volume: null,
+        // Raw volume when the payload carries it (`v`); never the RVOL ratio.
+        volume: Number.isFinite(it.v) ? it.v : null,
       }
     }
     return out
@@ -180,7 +186,14 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   }, [])
 
   const stockCount = items.length
-  const scanFooter = (
+  const fullCount = Number.isFinite(drill?.total) ? drill.total : stockCount
+  const scanFooter = drill?.deckHosted ? (
+    <div className={styles.footer}>
+      <span className={styles.count}>
+        {stockCount !== fullCount ? `${stockCount.toLocaleString()} of ${fullCount.toLocaleString()} stocks` : `${stockCount.toLocaleString()} ${stockCount === 1 ? 'stock' : 'stocks'}`}
+      </span>
+    </div>
+  ) : (
     <div className={styles.footer}>
       <span className={styles.count}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'}</span>
       {drill?.live
@@ -188,6 +201,23 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
         : drill?.date && <span className={styles.when}>· {drill.date}</span>}
     </div>
   )
+
+  // In the Scan Deck the window already names the list, so the list's title row
+  // carries the scan controls instead: Filters, and how to group.
+  const groupValue = viewMode === 'grouped' ? dimension : 'none'
+  const onGroup = (k) => {
+    if (k === 'none') { setViewMode('list'); return }
+    setDimension(k)
+    setViewMode('grouped')
+  }
+  const deckFilters = drill?.deckHosted ? drill.filters : null
+  const titleSlot = deckFilters ? (
+    <div className={styles.deckControls}>
+      <FilterButton filters={deckFilters} total={fullCount} shown={stockCount} />
+      <GroupSwitch value={groupValue} onChange={onGroup} />
+    </div>
+  ) : null
+  const subHeader = deckFilters ? <FilterChips filters={deckFilters} /> : null
 
   // ⛔ A FAILED LOAD IS NOT AN EMPTY RESULT. Rendering the table here would show
   // "No stocks matched this filter" — a confident, wrong answer that reads as a
@@ -270,7 +300,9 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             defaultColCfg={tableMode ? DRILL_TABLE_DEFAULT_COLS : DRILL_DEFAULT_COLS}
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
-            scanFooter={drill?.deckHosted ? null : scanFooter}
+            scanFooter={scanFooter}
+            pickTitleSlot={titleSlot}
+            pickSubHeader={subHeader}
             onScanVisibleSyms={warmVisible}
             // `loading` is "not answered yet"; a genuinely empty answer is the
             // only thing allowed to say nothing matched.

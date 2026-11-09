@@ -128,3 +128,6 @@
   .title { font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .when { display: none; }
 }
+
+/* Applied filters inline in the Grid toolbar: no strip of their own. */
+.gridChips { border: 0; padding: 0; background: transparent; flex-wrap: nowrap; overflow: hidden; min-width: 0; }

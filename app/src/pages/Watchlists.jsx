@@ -723,7 +723,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickSubHeader = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -2930,7 +2930,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {/* Back-to-list-picker button only when there IS a picker to return to
                 (onExitPick set). Custom-Period Sort has none, so it shows no dead button. */}
             {onExitPick && <button data-guide="watchlist.lists" className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
-            <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
+            {/* A host may put its own controls where the title sits (the breadth
+                drill: group-by + filters, since its window already names the list). */}
+            {pickTitleSlot ?? <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               {/* Add a symbol — only on lists you own (community lists aren't yours).
                   Opens the same predictive inline add row used everywhere else. */}
@@ -2996,6 +2998,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             >Community</button>
           </div>
         )}
+        {pickList && pickSubHeader}
 
         {/* Sub-header (hidden in single-list pick mode) */}
         {!pickList && (

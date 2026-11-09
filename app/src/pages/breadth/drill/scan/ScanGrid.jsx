@@ -16,7 +16,7 @@ import styles from './ScanDeck.module.css'
 const SIZES = [['l', 'Large'], ['m', 'Medium'], ['s', 'Small']]
 const TFS = [['D', 'Daily'], ['W', 'Weekly']]
 
-const MiniChart = memo(function MiniChart({ sym, tf }) {
+const MiniChart = memo(function MiniChart({ sym, tf, settings }) {
   return (
     <ErrorBoundary fallback={<div className={styles.cardEmpty}>Chart unavailable</div>}>
       <StockChart
@@ -37,12 +37,14 @@ const MiniChart = memo(function MiniChart({ sym, tf }) {
         volumeSeparatePane volumePaneHeightPct={14}
         priceScaleTopMargin={0.1} priceScaleBottomMargin={0.08}
         hideExtHoursToolbarToggle
+        // The Focus chart's look (its template), so a card and the big chart match.
+        settingsOverride={settings || undefined}
       />
     </ErrorBoundary>
   )
 })
 
-function GridCard({ row, tf, selected, onOpen }) {
+function GridCard({ row, tf, selected, onOpen, settings }) {
   const ref = useRef(null)
   // No IntersectionObserver (old browser, test DOM): mount straight away.
   const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined')
@@ -68,13 +70,13 @@ function GridCard({ row, tf, selected, onOpen }) {
         {Number.isFinite(row.rvol) && <span className={styles.cardRvol}>{row.rvol.toFixed(1)}x</span>}
       </button>
       <div className={styles.cardChart}>
-        {near ? <MiniChart sym={row.sym} tf={tf} /> : <div className={styles.cardEmpty} />}
+        {near ? <MiniChart sym={row.sym} tf={tf} settings={settings} /> : <div className={styles.cardEmpty} />}
       </div>
     </div>
   )
 }
 
-export default function ScanGrid({ rows, dir = 1, selectedSym, onOpen, toolbarStart = null }) {
+export default function ScanGrid({ rows, dir = 1, selectedSym, onOpen, toolbarStart = null, chartSettings = null }) {
   const sortId = useId()
   const [sortKey, setSortKey] = useState('pct')
   const [size, setSize] = useState('m')
@@ -103,7 +105,7 @@ export default function ScanGrid({ rows, dir = 1, selectedSym, onOpen, toolbarSt
           ? (
             <div className={styles.gridSheet} data-size={size}>
               {sorted.map(r => (
-                <GridCard key={r.sym} row={r} tf={tf} selected={r.sym === selectedSym} onOpen={onOpen} />
+                <GridCard key={r.sym} row={r} tf={tf} selected={r.sym === selectedSym} onOpen={onOpen} settings={chartSettings} />
               ))}
             </div>
           )

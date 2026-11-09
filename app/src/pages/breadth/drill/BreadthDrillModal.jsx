@@ -20,6 +20,8 @@ import useScanDeck from './scan/useScanDeck'
 import { dayContext, stepDate } from './scan/scanDeckModel'
 import { ScanHeader } from './scan/ScanDeckParts'
 import ScanGrid from './scan/ScanGrid'
+import { FilterButton, FilterChips } from './scan/ScanFilters'
+import { DRILL_POPOVER_ATTR } from './scan/scanFacets'
 import BreadthDateNav from '../BreadthDateNav'
 import styles from './BreadthDrillModal.module.css'
 
@@ -271,7 +273,11 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     // The Scan Deck owns grouping (Groups mode) and the count (masthead), so the
     // list drops its own List|Grouped bar and footer.
     deckHosted: true,
-  }), [drill, latestDate, onRetry, deck.shownItems, deck.groupMeta, board.mode])
+    // The scan filters (the list's title row draws them) and the full count, so
+    // the footer can say "12 of 38".
+    filters: deck.filters,
+    total: drill?.items?.length ?? 0,
+  }), [drill, latestDate, onRetry, deck.shownItems, deck.groupMeta, deck.filters, board.mode])
 
   // Escape closes — but NOT while a widget menu is open (its own Escape handler
   // runs first on `document`; see BreadthDrillModal.a11y.test.jsx).
@@ -281,6 +287,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
       if (document.querySelector(WIDGET_MENU_SELECTOR)) return
       // The date box calendar closes itself on Escape; the window stays.
       if (document.querySelector('[role="dialog"][aria-label="Go to date"]')) return
+      if (document.querySelector(`[${DRILL_POPOVER_ATTR}]`)) return
       onClose?.()
     }
     window.addEventListener('keydown', onKey)
@@ -386,6 +393,13 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
                 dir={deck.dir}
                 selectedSym={selectedSym}
                 onOpen={(sym) => { setSym('A', sym); setMode('focus') }}
+                chartSettings={board.widgets.find(w => w.id === CHART_WIDGET_ID)?.opts?.settings || null}
+                toolbarStart={(
+                  <>
+                    <FilterButton filters={deck.filters} total={total} shown={deck.shownRows.length} />
+                    <FilterChips filters={deck.filters} className={styles.gridChips} />
+                  </>
+                )}
               />
             ) : (
             <BreadthDrillBoard
