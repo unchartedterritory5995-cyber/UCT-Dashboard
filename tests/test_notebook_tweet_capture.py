@@ -471,15 +471,30 @@ def prices(monkeypatch):
     from api.services.journal_two import tweet_price
     box = {"point": None, "calls": [], "hook": None}
 
-    def fake(symbol, posted_at):
+    def fake(symbol, posted_at, wait_until=None):
         box["calls"].append((symbol, posted_at))
+        box["wait_until"] = wait_until
         if box["hook"]:
             box["hook"]()
         return box["point"]
 
     monkeypatch.setattr(tweet_price, "price_at_post", fake)
     monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: True)
+    monkeypatch.setattr(tweet_price, "start_refresh", lambda symbol: box.setdefault("refreshed", []).append(symbol))
     return box
+
+
+def test_start_price_refreshes_asks_once_per_recent_ticker(prices, monkeypatch):
+    from api.services.journal_two import tweet_capture as tw, tweet_price
+    monkeypatch.setattr(tweet_price, "awaits_refresh", lambda posted_at: posted_at == 100)
+    posts = {
+        "1": {"tickers": ["AAPL"], "text": "$AAPL up", "postedAt": 100},
+        "2": {"tickers": ["AAPL"], "text": "$AAPL again", "postedAt": 100},
+        "3": {"tickers": ["NVDA"], "text": "$NVDA old", "postedAt": 5},
+        "4": {"tickers": [], "text": "no cashtag", "postedAt": 100},
+    }
+    tw._start_price_refreshes(posts, None)
+    assert prices["refreshed"] == ["AAPL"]
 
 
 @pytest.fixture

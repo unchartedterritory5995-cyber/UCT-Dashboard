@@ -135,7 +135,8 @@ def _tweet_fields(row: sqlite3.Row) -> dict[str, Any]:
 
     price = None
     symbol, amount = row["price_symbol"], row["price_at_post"]
-    if symbol and amount is not None and tweet_price.still_comparable(symbol, row["posted_at"], amount):
+    if symbol and amount is not None and tweet_price.still_comparable(
+            symbol, row["posted_at"], amount, row["price_label"], row["price_session_date"]):
         price = {"symbol": symbol, "price": amount, "label": row["price_label"],
                  "sessionDate": row["price_session_date"]}
     try:

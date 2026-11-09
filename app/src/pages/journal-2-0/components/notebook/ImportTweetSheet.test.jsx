@@ -258,6 +258,27 @@ describe('Import a tweet', () => {
     expect(createNoteViaApi).toHaveBeenCalledTimes(1)
   })
 
+  it('closing after every attempt failed trashes the note the sheet made', async () => {
+    const calls = installFetch([FEED, [/\/tweets\/save$/, 'POST', [503, { detail: 'X is not answering right now.' }]]])
+    await openFromButton({ onOpenNote: vi.fn() })
+    fireEvent.click(await rowFor('Alder Street Desk'))
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await screen.findByText('X is not answering right now.')
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(calls.find((c) => c.method === 'DELETE')?.url).toBe('/api/j2/notes/n-new'))
+  })
+
+  it('a note that received posts is never trashed on close', async () => {
+    const calls = installFetch([FEED, [/\/tweets\/save$/, 'POST', [200, { ...SAVED, note: { id: 'n-new', updatedAt: 'x' } }]]])
+    await openFromButton({ onOpenNote: vi.fn() })
+    fireEvent.click(await rowFor('Alder Street Desk'))
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  })
+
   it('a warning from the server is shown after import', async () => {
     const out = { ...SAVED, warnings: ['An image from @alderstreetdesk could not be copied.'] }
     installFetch([FEED, [/\/tweets\/save$/, 'POST', [200, out]]])
