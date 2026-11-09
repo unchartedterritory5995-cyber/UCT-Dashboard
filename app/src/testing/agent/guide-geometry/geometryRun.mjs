@@ -149,20 +149,22 @@ function analyse(samples, tRelease) {
   const fr = samples.filter(s => s[1] && s[2])
   const c = (b) => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]
   const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1])
+  const off0 = fr.length ? [c(fr[0][1])[0] - c(fr[0][2])[0], c(fr[0][1])[1] - c(fr[0][2])[1]] : [0, 0]
   const rows = fr.map(([ts, r, t], i) => {
-    const rc = c(r), o = d(rc, c(t))
+    const rc = c(r), o = d(rc, c(t)), drift = Math.hypot(rc[0] - c(t)[0] - off0[0], rc[1] - c(t)[1] - off0[1])
     let lag = 0
-    if (o > 1) { lag = null; for (let j = i; j >= 0; j--) if (d(rc, c(fr[j][2])) <= 1) { lag = ts - fr[j][0]; break } }
-    return { ts, o, lag, during: tRelease == null || ts <= tRelease }
+    if (o > 2) { lag = null; for (let j = i; j >= 0; j--) if (d(rc, c(fr[j][2])) <= 1) { lag = ts - fr[j][0]; break } }
+    return { ts, o, drift, lag, during: tRelease == null || ts <= tRelease }
   })
   const pct = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1) + 0.5))].toFixed(1) }
   const dur = rows.filter(r => r.during)
-  const offs = dur.map(r => r.o), lags = dur.map(r => r.lag).filter(x => x != null)
+  const offs = dur.map(r => r.o), lags = dur.map(r => r.lag).filter(x => x != null), drifts = dur.map(r => r.drift)
   let settle = null
   if (tRelease != null) { const after = rows.filter(r => r.ts > tRelease); const k = after.findIndex((r, i) => after.slice(i).every(x => x.o <= 1)); settle = k >= 0 ? +(after[k].ts - tRelease).toFixed(0) : 'never (within the window)' }
   const mean = (a) => a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : null
-  return { frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), mean: mean(offs), p50: pct(offs, 0.5) },
-    lagMs: { max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), mean: mean(lags), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
+  const raw = samples.map(([ts, a, b]) => [Math.round(ts), a && a.map(v => Math.round(v * 10) / 10), b && b.map(v => Math.round(v * 10) / 10)])
+  return { raw, frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), mean: mean(offs), p50: pct(offs, 0.5) },
+    driftPx: { max: drifts.length ? +Math.max(...drifts).toFixed(1) : null, p95: pct(drifts, 0.95), mean: mean(drifts) }, lagMs: { note: 'frames more than 2 px off only', max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), mean: mean(lags), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
 }
 
 async function runCase(ctx, c) {
@@ -186,7 +188,7 @@ async function runCase(ctx, c) {
     for (const s of T.steps) {
       if (s[0] === 'next') { await p.button('Next', '[data-testid="guide-card"]'); await sleep(700) }
       if (s[0] === 'clickRinged') { const at = await p.b.evaluate(`(() => { const ring = document.querySelector('[data-testid="guide-ring"]').getBoundingClientRect(); const c = [...document.querySelectorAll(${q(s[1])})].filter(e => e.getBoundingClientRect().width > 0); let b = null, bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left + r.width / 2 - ring.left - ring.width / 2, r.top + r.height / 2 - ring.top - ring.height / 2); if (d < bd) { b = r; bd = d } } return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null })()`); if (!at) throw new Error(`nothing ringed to click: ${s[1]}`); await p.b.click(at.x, at.y); await sleep(800) }
-      if (s[0] === 'waitRingOn') { const ok = await p.b.waitFor(`(() => { const g = document.querySelector('[data-testid="guide-ring"]')?.getBoundingClientRect(); if (!g) return false; return [...document.querySelectorAll(${q(s[1])})].some(e => { const r = e.getBoundingClientRect(); return r.width > 0 && Math.abs((r.left + r.right) / 2 - (g.left + g.right) / 2) < 40 && Math.abs(r.top - g.top) < 40 && g.bottom > r.top + 40 }) })()`, { timeout: 5000 }); if (!ok) throw new Error(`the ring never reached ${s[1]}`); await sleep(700) }
+      if (s[0] === 'waitRingOn') { const ok = await p.b.waitFor(`(() => { const g = document.querySelector('[data-testid="guide-ring"]')?.getBoundingClientRect(); if (!g) return false; return [...document.querySelectorAll(${q(s[1])})].some(e => { const r = e.getBoundingClientRect(); return r.width > 0 && g.left <= r.left + 6 && g.right >= r.right - 6 && g.top <= r.top + 6 && g.top >= r.top - 140 && g.bottom >= Math.min(r.bottom, innerHeight) - 130 }) })()`, { timeout: 5000 }); if (!ok) throw new Error(`the ring never reached ${s[1]}`); await sleep(700) }
       if (s[0] === 'clickRing') { const g = await p.b.evaluate(`(() => { const r = document.querySelector('[data-testid="guide-ring"]')?.getBoundingClientRect(); return r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null })()`); if (!g) throw new Error('no ring to click'); await p.b.click(g.x, g.y) }
       if (s[0] === 'wait') await sleep(s[1])
       if (s[0] === 'waitSel') { if (!(await p.b.waitFor(`!!document.querySelector(${q(s[1])})`, { timeout: 5000 }))) throw new Error(`never appeared: ${s[1]}`); await sleep(700) }
