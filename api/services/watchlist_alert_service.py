@@ -384,9 +384,12 @@ def _deliver_alert(alert: dict, current_price: float, *,
     there is no second attempt in this lane and nothing anywhere said a member
     missed the alert they had asked for.
 
-    ⛔ THE DEDUP IS UNTOUCHED, AND IT IS NOT A CAS HERE. This lane fires once
-    because `_trigger_alert` sets `is_active = 0` before any channel runs, so
-    the next poll cycle no longer selects the row. That ordering is deliberate —
+    ⛔ THE DEDUP ORDER IS UNTOUCHED. This lane fires once because `_trigger_alert`
+    deactivates the row before any channel runs, so the next poll cycle no longer
+    selects it. Since desktop Task 7 that deactivation is also a COMPARE-AND-SET
+    (`WHERE is_active = 1`, loser gets None): when `/api/live-prices` and the
+    scheduled `price_alert_evaluator` both read the row as armed, only one of them
+    delivers. (It was an unconditional UPDATE before, so both did.) That ordering is deliberate —
     an alert that fired must never re-fire because a channel was slow — and
     nothing below moves it. ⚠️ It also means a failed delivery is NOT retried,
     which is exactly why the report has to exist: the failure is permanent and

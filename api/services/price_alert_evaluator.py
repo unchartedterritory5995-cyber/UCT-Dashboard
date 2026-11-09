@@ -9,12 +9,21 @@ them to ``watchlist_alert_service.check_alerts_against_prices``.
 
 Design rules (this runs on the production web pod):
 
-* DARK: ``PRICE_ALERT_EVALUATOR_ENABLED`` must be exactly "1". Read per cycle, so
-  the kill switch needs no restart. The thread is always started (it just sleeps)
-  so a flag flip takes effect on the next cycle.
-* LIGHT: no armed alerts -> no fetch. At most ``MAX_SYMBOLS_PER_CYCLE`` symbols
-  per cycle (rotating so the tail is not starved), in batches of ``BATCH_SIZE``,
-  and a ``MAX_CYCLE_SEC`` deadline checked between batches.
+* DARK: ``PRICE_ALERT_EVALUATOR_ENABLED`` must be exactly "1", read from
+  ``os.environ`` each cycle. ``os.environ`` is fixed at process start, so a
+  Railway change only reaches this code on a NEW BOOT: to stop it, ``--set
+  PRICE_ALERT_EVALUATOR_ENABLED=0`` (which redeploys), or after a ``variable
+  delete`` run ``railway redeploy --service web --yes``, and confirm the fresh
+  boot from the pod. The thread always starts (it just sleeps).
+* LIGHT: no armed alerts -> no fetch. Fully closed market (weekend, holiday,
+  20:00-04:00 ET) -> no fetch. At most ``MAX_SYMBOLS_PER_CYCLE`` symbols per cycle
+  (rotating so the tail is not starved), in batches of ``BATCH_SIZE``, and a
+  ``MAX_CYCLE_SEC`` deadline checked between batches. The extended-hours volume
+  warm is suppressed for this caller and fetched rows are NOT written back to the
+  shared price cache (they carry a placeholder volume).
+* OBSERVABLE: a failed fetch raises into ``run_cycle`` (a warning per cycle), and a
+  summary line is logged every ``HEARTBEAT_SEC`` while enabled, so a dead
+  evaluator is distinguishable from a quiet one.
 * EXACTLY ONCE: the fire-once guard is ``watchlist_alert_service._trigger_alert``,
   a compare-and-set on ``is_active`` in the existing store; a racing
   ``/api/live-prices`` check that loses delivers nothing.
@@ -35,12 +44,15 @@ FLAG = "PRICE_ALERT_EVALUATOR_ENABLED"
 BATCH_SIZE = 50
 MAX_SYMBOLS_PER_CYCLE = 200
 MAX_CYCLE_SEC = 20.0
+HEARTBEAT_SEC = 900.0
 
 _monotonic = time.monotonic
 _cycle_lock = threading.Lock()
 _running = threading.Event()
 _thread: threading.Thread | None = None
 _cursor = 0  # rotation offset when armed symbols exceed the per-cycle cap
+_stats: dict = {}
+_last_heartbeat: float | None = None
 
 
 def enabled() -> bool:
@@ -48,9 +60,39 @@ def enabled() -> bool:
     return os.environ.get("PRICE_ALERT_EVALUATOR_ENABLED", "0") == "1"
 
 
+def _reset_stats() -> None:
+    _stats.clear()
+    _stats.update({"cycles": 0, "ran": 0, "skipped": {}, "symbols": 0,
+                   "fetched": 0, "triggered": 0, "errors": 0, "last_error": None})
+
+
 def _reset_for_tests() -> None:
-    global _cursor
+    global _cursor, _last_heartbeat
     _cursor = 0
+    _last_heartbeat = None
+    _reset_stats()
+
+
+_reset_stats()
+
+
+def _market_open_now() -> bool:
+    """False when nothing can trade: weekend, NYSE holiday, or 20:00-04:00 ET.
+
+    The day check is the repo's own ``massive._today_et_is_a_trading_day``; only
+    the 04:00-20:00 ET extended-hours window is added here. Unreadable -> True
+    (fail open: a missed alert is worse than one extra cycle).
+    """
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from api.services.massive import _today_et_is_a_trading_day
+        if not _today_et_is_a_trading_day():
+            return False
+        now = datetime.now(ZoneInfo("America/New_York"))
+        return 400 <= now.hour * 100 + now.minute < 2000
+    except Exception:  # noqa: BLE001
+        return True
 
 
 def _armed_symbols() -> list[str]:
@@ -82,9 +124,11 @@ def default_fetch_prices(symbols: list[str]) -> dict:
     """Prices for ``symbols`` via live_prices' own cache + valve + snapshot fetch.
 
     Mirrors the endpoint's tier 2: serve the shared per-ticker cache, fetch only
-    the misses under the endpoint's semaphore, write results back to that cache.
-    Returns {} when the provider is unavailable (the caller treats it as a
-    failed cycle that fires nothing).
+    the misses under the endpoint's semaphore. RAISES on every failure branch
+    (no client, valve timeout, vendor did not answer) so ``run_cycle`` logs it;
+    returning {} would read as a healthy quiet cycle. Does NOT write fetched rows
+    back to the shared cache (placeholder volume) and suppresses the
+    extended-hours volume warm for this thread.
     """
     from api.routers import live_prices as lp
     from api.services import breadth_symbols
@@ -101,19 +145,58 @@ def default_fetch_prices(symbols: list[str]) -> dict:
             missing.append(tk)
     if not missing:
         return out
-    client = lp._get_client()
-    if client is None:
-        return out
-    if not lp._MASSIVE_SEM.acquire(timeout=lp._SEM_WAIT_S):
-        return out
     try:
-        fetched = lp._fetch_snapshots(client, missing, lp._detect_session())
+        client = lp._get_client()
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError(f"market-data client unavailable: {type(e).__name__}: {e}")
+    if client is None:
+        raise RuntimeError("market-data client unavailable (None)")
+    if not lp._MASSIVE_SEM.acquire(timeout=lp._SEM_WAIT_S):
+        raise RuntimeError("massive semaphore timeout (upstream saturated)")
+    try:
+        lp._FETCH_STATUS.last = None
+        lp._SUPPRESS_EXVOL_WARM.on = True
+        try:
+            fetched = lp._fetch_snapshots(client, missing, lp._detect_session())
+        finally:
+            lp._SUPPRESS_EXVOL_WARM.on = False
+        st = getattr(lp._FETCH_STATUS, "last", None) or {}
     finally:
         lp._MASSIVE_SEM.release()
-    for tk, val in fetched.items():
-        lp.cache.set(lp._px_key(tk), val, ttl=lp._CACHE_TTL)
-        out[tk] = val
+    if not st.get("answered"):
+        raise RuntimeError("vendor snapshot degraded or empty (not answered)")
+    out.update(fetched)
     return out
+
+
+def _count(report: dict) -> None:
+    _stats["cycles"] += 1
+    if report["skipped"]:
+        sk = _stats["skipped"]
+        sk[report["skipped"]] = sk.get(report["skipped"], 0) + 1
+    else:
+        _stats["ran"] += 1
+    _stats["symbols"] += report["symbols"]
+    _stats["fetched"] += report["fetched"]
+    _stats["triggered"] += report["triggered"]
+    if report["error"]:
+        _stats["errors"] += 1
+        _stats["last_error"] = report["error"]
+
+
+def _heartbeat(force: bool = False) -> bool:
+    """Log a summary at most every HEARTBEAT_SEC (the first call logs at once).
+    Returns True if a line was emitted."""
+    global _last_heartbeat
+    now = _monotonic()
+    if not force and _last_heartbeat is not None and now - _last_heartbeat < HEARTBEAT_SEC:
+        return False
+    _last_heartbeat = now
+    _logger.info("[price-alert-eval] heartbeat: %s", dict(_stats))
+    last = _stats.get("last_error")
+    _reset_stats()
+    _stats["last_error"] = last
+    return True
 
 
 def run_cycle(fetch_prices, now: float) -> dict:
@@ -123,8 +206,13 @@ def run_cycle(fetch_prices, now: float) -> dict:
     if not enabled():
         report["skipped"] = "disabled"
         return report
+    if not _market_open_now():
+        report["skipped"] = "market_closed"
+        _count(report)
+        return report
     if not _cycle_lock.acquire(blocking=False):
         report["skipped"] = "cycle_in_progress"
+        _count(report)
         return report
     try:
         symbols = _select(_armed_symbols())
@@ -177,11 +265,14 @@ def run_cycle(fetch_prices, now: float) -> dict:
         return report
     finally:
         _cycle_lock.release()
+        _count(report)
 
 
 def _tick() -> None:
     try:
-        run_cycle(default_fetch_prices, time.time())
+        report = run_cycle(default_fetch_prices, time.time())
+        if report.get("skipped") != "disabled":
+            _heartbeat()
     except Exception:  # noqa: BLE001
         _logger.exception("[price-alert-eval] tick failed")
 

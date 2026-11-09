@@ -24,6 +24,7 @@ def tmp_db(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
     monkeypatch.setenv(FLAG, "1")
+    monkeypatch.setattr(ev, "_market_open_now", lambda: True)
     ev._reset_for_tests()
     return db_path
 
@@ -179,3 +180,183 @@ def test_start_is_idempotent_and_stoppable(tmp_db, monkeypatch):
     ev.stop_evaluator()
     t.join(timeout=5)
     assert not t.is_alive()
+
+
+# ---- fix round 1 -----------------------------------------------------------
+
+import logging
+import types
+
+from api.routers import live_prices as lp
+
+
+def test_fully_closed_market_skips_without_fetching(tmp_db, monkeypatch):
+    wls.create_alert("u1", "ZZZQ", 100.0, "above")
+    monkeypatch.setattr(ev, "_market_open_now", lambda: False)
+
+    def fetch(syms):
+        raise AssertionError("no fetch when the market is fully closed")
+    r = ev.run_cycle(fetch, 1.0)
+    assert r["skipped"] == "market_closed"
+
+
+def test_market_open_now_uses_the_calendar_and_fails_open(monkeypatch):
+    import api.services.massive as massive
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: False)
+    assert ev._market_open_now() is False
+
+    def boom():
+        raise RuntimeError("calendar unreadable")
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", boom)
+    assert ev._market_open_now() is True
+
+
+class _FakeClient:
+    def __init__(self, value=None, degraded=None):
+        self.value, self.degraded, self.calls = value, degraded, []
+
+    def get_batch_quotes(self, tickers):
+        self.calls.append(list(tickers))
+        return types.SimpleNamespace(value=self.value, degraded=self.degraded)
+
+
+def _snap(c=101.0):
+    return {"day": {"c": c, "o": 100, "h": 102, "l": 99, "v": 1000},
+            "prevDay": {"c": 100.0}, "lastTrade": {"p": c}, "min": {"av": 5}}
+
+
+@pytest.fixture
+def lpenv(monkeypatch):
+    monkeypatch.setattr(lp, "_session_closes", lambda: ({}, {}))
+    sem_calls = {"acquire": 0, "release": 0}
+
+    class Sem:
+        def acquire(self, timeout=None):
+            sem_calls["acquire"] += 1
+            return True
+
+        def release(self):
+            sem_calls["release"] += 1
+    monkeypatch.setattr(lp, "_MASSIVE_SEM", Sem())
+    warms = []
+    monkeypatch.setattr(lp, "_warm_extended_volumes_async", lambda t: warms.append(list(t)))
+    return types.SimpleNamespace(sem=sem_calls, warms=warms)
+
+
+def test_default_fetch_runs_the_real_path_and_releases_the_semaphore(lpenv, monkeypatch):
+    client = _FakeClient(value={"FTCHA": _snap(101.0)})
+    monkeypatch.setattr(lp, "_get_client", lambda: client)
+    monkeypatch.setattr(lp, "_detect_session", lambda: "regular")
+    out = ev.default_fetch_prices(["FTCHA"])
+    assert out["FTCHA"]["price"] == 101.0
+    assert lpenv.sem == {"acquire": 1, "release": 1}
+    assert lp.cache.get(lp._px_key("FTCHA")) is None, "must not write the shared cache"
+
+
+def test_default_fetch_suppresses_the_extended_hours_volume_warm(lpenv, monkeypatch):
+    client = _FakeClient(value={"FTCHB": _snap(101.0)})
+    monkeypatch.setattr(lp, "_get_client", lambda: client)
+    monkeypatch.setattr(lp, "_detect_session", lambda: "pre_market")
+    ev.default_fetch_prices(["FTCHB"])
+    assert lpenv.warms == [], "evaluator must not queue per-ticker aggregate fetches"
+    # the request path is unchanged: the same fetch without the opt-out warms
+    lp._FETCH_STATUS.last = None
+    lp._fetch_snapshots(client, ["FTCHB"], "pre_market")
+    assert lpenv.warms == [["FTCHB"]]
+
+
+def test_default_fetch_skips_breadth_symbols(lpenv, monkeypatch):
+    client = _FakeClient(value={})
+    monkeypatch.setattr(lp, "_get_client", lambda: client)
+    from api.services import breadth_symbols
+    monkeypatch.setattr(breadth_symbols, "is_breadth_symbol", lambda t: t == "UCTAX")
+    assert ev.default_fetch_prices(["UCTAX"]) == {}
+    assert client.calls == [], "a breadth-only batch must not reach the vendor"
+
+
+def test_default_fetch_real_market_closed_row_is_dropped_by_the_cycle(
+        tmp_db, lpenv, delivered, monkeypatch):
+    degraded = {"day": {}, "prevDay": {"c": 140.0}, "lastTrade": {}, "min": {}}
+    client = _FakeClient(value={"FTCHC": degraded})
+    monkeypatch.setattr(lp, "_get_client", lambda: client)
+    monkeypatch.setattr(lp, "_detect_session", lambda: "post_market")
+    monkeypatch.setattr(lp, "_session_closes", lambda: ({"FTCHC": 150.0}, {"FTCHC": 140.0}))
+    rows = ev.default_fetch_prices(["FTCHC"])
+    assert rows["FTCHC"].get("market_closed") is True
+    wls.create_alert("u1", "FTCHC", 100.0, "above")
+    r = ev.run_cycle(ev.default_fetch_prices, 1.0)
+    assert delivered == [] and r["triggered"] == 0
+
+
+def _raise(exc):
+    def f():
+        raise exc
+    return f
+
+
+@pytest.mark.parametrize("why,getter,needle", [
+    ("no client", lambda: None, "client unavailable"),
+    ("client raises", _raise(RuntimeError("k")), "client unavailable"),
+    ("vendor degraded", lambda: _FakeClient(degraded="boom"), "not answered"),
+])
+def test_default_fetch_failure_branches_raise_and_the_cycle_logs_them(
+        tmp_db, lpenv, delivered, monkeypatch, caplog, why, getter, needle):
+    monkeypatch.setattr(lp, "_get_client", getter)
+    monkeypatch.setattr(lp, "_detect_session", lambda: "regular")
+    wls.create_alert("u1", "FTCHD", 100.0, "above")
+    with pytest.raises(RuntimeError, match=needle):
+        ev.default_fetch_prices(["FTCHD"])
+    caplog.set_level(logging.WARNING)
+    r = ev.run_cycle(ev.default_fetch_prices, 1.0)
+    assert r["error"] and needle in r["error"], why
+    assert any("price fetch failed" in m for m in caplog.messages)
+    assert delivered == []
+    assert ev._stats["errors"] == 1
+
+
+def test_semaphore_timeout_raises_and_nothing_is_released(lpenv, monkeypatch):
+    class Busy:
+        def acquire(self, timeout=None):
+            return False
+
+        def release(self):
+            raise AssertionError("must not release a semaphore it never took")
+    monkeypatch.setattr(lp, "_MASSIVE_SEM", Busy())
+    monkeypatch.setattr(lp, "_get_client", lambda: _FakeClient(value={}))
+    with pytest.raises(RuntimeError, match="semaphore timeout"):
+        ev.default_fetch_prices(["FTCHE"])
+
+
+def test_semaphore_is_released_when_the_vendor_call_raises(lpenv, monkeypatch):
+    class Exploding(_FakeClient):
+        def get_batch_quotes(self, tickers):
+            raise ValueError("socket")
+    monkeypatch.setattr(lp, "_get_client", lambda: Exploding())
+    monkeypatch.setattr(lp, "_detect_session", lambda: "regular")
+    with pytest.raises(ValueError):
+        ev.default_fetch_prices(["FTCHF"])
+    assert lpenv.sem == {"acquire": 1, "release": 1}
+    assert getattr(lp._SUPPRESS_EXVOL_WARM, "on", False) is False
+
+
+def test_heartbeat_is_periodic_and_reports_counts(tmp_db, caplog, monkeypatch):
+    caplog.set_level(logging.INFO)
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(ev, "_monotonic", lambda: clock["t"])
+    monkeypatch.setattr(ev, "default_fetch_prices", lambda s: {})
+    ev._tick()
+    assert sum("heartbeat" in m for m in caplog.messages) == 1  # first tick logs at once
+    clock["t"] += 60
+    ev._tick()
+    assert sum("heartbeat" in m for m in caplog.messages) == 1  # not yet
+    clock["t"] += ev.HEARTBEAT_SEC
+    ev._tick()
+    assert sum("heartbeat" in m for m in caplog.messages) == 2
+    assert "no_armed_alerts" in " ".join(caplog.messages)
+
+
+def test_disabled_ticks_are_silent(tmp_db, caplog, monkeypatch):
+    monkeypatch.setenv(FLAG, "0")
+    caplog.set_level(logging.INFO)
+    ev._tick()
+    assert not any("price-alert-eval" in m for m in caplog.messages)

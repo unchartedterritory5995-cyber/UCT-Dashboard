@@ -4806,8 +4806,11 @@ async def lifespan(app: FastAPI):
 
     # Price alerts: scheduled server-side evaluation, so an alert on a symbol no
     # client is polling still fires. The thread always starts and sleeps; every
-    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off), so the kill
-    # switch needs no restart.
+    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off) from os.environ,
+    # which is fixed at process start: a Railway change takes effect only on a
+    # new boot. Stop it with `--set ...=0` (redeploys), or after a `variable
+    # delete` run `railway redeploy --service web --yes` and confirm the fresh
+    # boot from the pod.
     try:
         from api.services import price_alert_evaluator
         price_alert_evaluator.start_evaluator(interval_sec=60)
