@@ -22,4 +22,6 @@
 - `TradeExchangeNewsWidget.test.jsx` and `TradeExchangeNewsWidget.terminal.test.jsx`: 89/89.
 - Full app vitest suite through the suite lock: see the report.
 
+**Known dev-only effect.** Under React StrictMode's development double-mount, a flash timer set before the simulated unmount is cleared, so a flash shown at that moment can stick until the next headline arrives. Production (no double-mount) is unaffected.
+
 **Scope.** Nothing else changes. Options-flow and bars code are not touched.
