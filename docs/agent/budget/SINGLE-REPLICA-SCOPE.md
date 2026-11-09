@@ -35,3 +35,13 @@ in CI. The dashboard stays the authority until then.
 2. Prove it with the same shape as `tests/test_uct_agent_limits_two_processes.py`, on separate machines, not separate
    processes.
 3. Only then flip `SHARED_STORE_EXISTS` and raise `numReplicas`.
+
+## Owner decision 2026-11-09: the repo pin is the authority
+
+- The `"numReplicas": 1` pin in `railway.web.json` was approved by the owner on 2026-11-09, to keep the AI-spending safeguards
+  correct (they hold only on one web replica; see above).
+- From now on the pin in the repo is the authority for the replica count. This supersedes "the dashboard stays the authority"
+  in the section above. Do NOT change the replica count by hand in the Railway dashboard: the next deploy applies the repo's
+  config, so a dashboard value that differs is silently overridden.
+- Scaling beyond one replica requires BOTH a reviewed config change AND a review of the AI-spending architecture, including
+  whether the spending limits are enforced globally across replicas (the steps in "Before scaling horizontally").
