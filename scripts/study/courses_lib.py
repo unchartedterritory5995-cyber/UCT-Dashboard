@@ -325,6 +325,16 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
                     out.append(f"answer {ans!r} does not show the calc's result {want!r}")
         except Exception as e:  # noqa: BLE001
             out.append(f"calc failed: {e}")
+    chart = q.get("chart")
+    if chart is not None:
+        if not re.fullmatch(r"[A-Z][A-Z0-9.^-]{0,9}", str(chart.get("sym") or "")):
+            out.append("chart.sym must be an upper-case ticker")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(chart.get("asof") or "")):
+            out.append("chart.asof must be YYYY-MM-DD (the last visible day)")
+        if not 20 <= int(chart.get("window", 120)) <= 400 or not 0 <= int(chart.get("forward", 20)) <= 250:
+            out.append("chart.window must be 20-400 bars and chart.forward 0-250")
+        if str(chart.get("sym") or "").upper() in (q.get("q") or "").upper().split():
+            out.append("the question names the chart's ticker (a member must not see it before answering)")
     if not (q.get("why") or "").strip():
         out.append("no why")
     ll = q.get("lesson_line") or ""
@@ -541,6 +551,11 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         }
         if q.get("wrong"):
             reveal["wrong"] = {dedash(k): dedash(v) for k, v in q["wrong"].items()}
+        chart = q.get("chart") or None
+        if chart:
+            # a real chart under the question (History Detective, a dated example): the importer resolves the bars from
+            # bars.db by this spec (get_bars_before, split-adjusted); the ticker never reaches a member before scoring
+            prompt["chart"] = {"window_bars": int(chart.get("window", 120)), "tf": "D"}
         it = {
             "id": item_id(ref_base, f"q:{key}"), "version": 1, "type": "scenario" if fmt == "scenario" else "recall",
             "skill_id": q.get("skill"), "module": track, "difficulty": _difficulty(int(q.get("rung") or 1)),
@@ -549,6 +564,10 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             "lesson_text": (why + " " + line).strip(), "lesson_origin": "session", "review_status": "draft",
             "_key": key,
         }
+        if chart:
+            it.update(sym=str(chart["sym"]).upper(), asof=chart["asof"], adjustment_basis="split-adjusted",
+                      bars={"sym": str(chart["sym"]).upper(), "tf": "D", "asof": chart["asof"],
+                            "window": int(chart.get("window", 120)), "forward": int(chart.get("forward", 20))})
         items.append(it)
     return items
 

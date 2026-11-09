@@ -83,6 +83,12 @@ mean?" question has the word as `term` and the short meaning as its `answer` (40
 Match tile); a "which word is this?" question has the word as both `term` and `answer`. Word Match pairs only the
 first kind.
 
+**A real chart under a question** (History Detective, a dated example): add
+`"chart": {"sym": "SPY", "asof": "2020-03-23", "window": 120, "forward": 20}`. The importer pulls those bars from our
+own price history (split-adjusted), the member sees the chart without the ticker until they answer, and the reveal
+names it. The question must never name the ticker or give the date away. Facts about the chart (how far it fell, the
+dates) still come from cited quotes or a `calc`, never from reading the picture.
+
 **Rungs** 1 to 9: Learn 1-3 (recognise the idea), Practise 4-6 (use it on a case), Prove 7-9 (a real-world case, a
 trap, a judgment). Spread each unit across all three levels, about a third each.
 

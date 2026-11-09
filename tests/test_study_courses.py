@@ -140,6 +140,20 @@ def test_validator_catches(mutate, expect):
     assert any(expect in p for p in probs), probs
 
 
+def test_a_chart_question_ships_a_bars_spec_and_never_names_its_ticker():
+    d = copy.deepcopy(_unit())
+    _first(d, "q01")["chart"] = {"sym": "SPY", "asof": "2020-03-23", "window": 120, "forward": 30}
+    assert cl.unit_problems(d) == []
+    it = next(i for i in cl.build_items(d) if i["_key"] == "q01")
+    assert it["bars"] == {"sym": "SPY", "tf": "D", "asof": "2020-03-23", "window": 120, "forward": 30}
+    assert it["sym"] == "SPY" and it["asof"] == "2020-03-23" and it["prompt_json"]["chart"]["window_bars"] == 120
+    _first(d, "q01").update(q="Which price is the most a buyer of SPY will pay?")
+    assert any("names the chart's ticker" in p for p in cl.unit_problems(d))
+    _first(d, "q01")["chart"].update(sym="spy", asof="March 2020")
+    probs = cl.unit_problems(d)
+    assert any("upper-case ticker" in p for p in probs) and any("YYYY-MM-DD" in p for p in probs)
+
+
 def test_mix_and_rungs_are_enforced():
     d = copy.deepcopy(_unit())
     for q in d["questions"]:
