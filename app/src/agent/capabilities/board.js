@@ -235,7 +235,7 @@ export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], itemOps: [] }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
@@ -255,11 +255,16 @@ export const boardKind = {
     if (Object.keys(set).length) p.set = set
     if (!same(before.layoutTheme, after.layoutTheme)) p.layoutTheme = after.layoutTheme
     // what only the widget's own writer can set
+    // ⛔ AUDIT S1-A: a widget's own LIST of the member's items (ITEM_LISTS) is never written whole: each change is ONE operation
+    // (delete id X / rename id X to N) through the widget's own control, so an item made since the plan is never touched
+    const opKeys = new Set((after.itemOps || []).map(o => `${o.widget}\u0000${o.key}`))
     for (const [id, vals] of Object.entries(after.doors || {})) {
       for (const [k, v] of Object.entries(vals)) {
+        if (opKeys.has(`${id}\u0000${k}`)) continue
         if (!same(v, before.doors?.[id]?.[k])) { p.doors ||= {}; p.doors[id] = { ...p.doors[id], [k]: clone(v) } }
       }
     }
+    if ((after.itemOps || []).length) p.itemOps = clone(after.itemOps)
     // A NEW widget (watchlist.open with none on the board): added through handleAddWidget, alone.
     if ((after.adds || []).length) return { add: clone(after.adds) }
     return Object.keys(p).length ? p : null
@@ -287,7 +292,8 @@ export const boardKind = {
       return { undoData: { added } }
     }
     if (patch.sends) return sendToJournal(host, patch.sends)
-    const { doors, ...rest } = patch
+    const { doors, itemOps, ...rest } = patch
+    if (itemOps) await writeItemOps(host, itemOps)
     if (doors) await writeDoors(host, doors)
     if (Object.keys(rest).length) host.widgets.applyBoard(rest)
     return true
@@ -308,6 +314,7 @@ export const boardKind = {
     }
     if ('layoutTheme' in patch && !same(snap.layoutTheme ?? null, patch.layoutTheme ?? null)) return false
     for (const [id, vals] of Object.entries(patch.doors || {})) for (const [k, v] of Object.entries(vals)) if (!sameDoorValue(snap.doors?.[id]?.[k] ?? null, v ?? null)) return false
+    for (const o of patch.itemOps || []) if (!itemOpLanded(Array.isArray(snap.doors?.[o.widget]?.[o.key]) ? snap.doors[o.widget][o.key] : [], o)) return false
     return true
   },
   // Undo: the touched widgets exactly as they were — a removed one re-inserted whole.
@@ -319,7 +326,10 @@ export const boardKind = {
     if (p.sends) return null                       // a capture stays until the member deletes it, as at the door
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
+    // ⛔ AUDIT S1-C: an item delete (or create) offers NO Undo; a rename goes back by the inverse rename of that one item
+    if ((p.itemOps || []).some(o => o.op !== 'rename')) return null
     const out = {}
+    if ((p.itemOps || []).length) out.itemOps = [...p.itemOps].reverse().map(o => ({ ...o, name: o.was, was: o.name, label: o.name }))
     const restore = before.filter(w => (p.remove || []).includes(w.id))
     if (restore.length) out.restore = clone(restore)
     const set = {}
@@ -345,7 +355,10 @@ export const boardKind = {
     if ('layoutTheme' in p) out.layoutTheme = item.before?.layoutTheme ?? null
     return Object.keys(out).length ? out : null
   },
-  fingerprint: (s) => JSON.stringify(s.raw.map(w => [w.id, ...GEOM.map(k => w[k]), w.color, fieldFp(w, 'opts')])),
+  // AUDIT S1-A: the member's own item lists (ITEM_LISTS, read through the widgets' doors) are part of the board a plan was made
+  // on: an item made, renamed or deleted since the plan makes it stale, like any other change
+  fingerprint: (s) => JSON.stringify([s.raw.map(w => [w.id, ...GEOM.map(k => w[k]), w.color, fieldFp(w, 'opts')]),
+    s.raw.filter(w => ITEM_LISTS[w.type]).map(w => [w.id, ...ITEM_LISTS[w.type].map(l => s.doors?.[w.id]?.[l.key] ?? null)])]),
   // Undo is stale only if a widget THIS change touched has changed since (or a removed one is back).
   fingerprintFor(host, s, item) {
     const p = item.patch || {}
@@ -361,10 +374,10 @@ export const boardKind = {
         return w ? [id, ...FIELDS.map(f => (f !== 'opts' ? JSON.stringify(w[f] ?? null) : added ? addedChartOpts(w) : reusedChartOpts(w))), sym] : [id, 'gone']
       }))
     }
-    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...Object.keys(p.doors || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
+    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...Object.keys(p.doors || {}), ...(p.itemOps || []).map(o => o.widget), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
-      const own = Object.keys(p.doors?.[id] || {}).map(k => s.doors?.[id]?.[k] ?? null)
+      const own = [...Object.keys(p.doors?.[id] || {}), ...(p.itemOps || []).filter(o => o.widget === id).map(o => o.key)].map(k => s.doors?.[id]?.[k] ?? null)
       return w ? [id, ...FIELDS.map(f => fieldFp(w, f)), ...own] : [id, 'gone']
     }))
   },
@@ -401,6 +414,19 @@ async function writeDoors(host, doors) {
       door.write(key, value)
       if (!(await settle(() => sameDoorValue(host.widgets.door?.(id)?.read?.()?.[key] ?? null, value ?? null)))) throw new Error(`“${key}” did not change`)
     }
+  }
+}
+// AUDIT S1-A: ONE operation on a widget's own item list, through its door ({ op, id, name }), read back by its effect only (the
+// item gone; the item renamed). Any other item, one the member made meanwhile included, is never touched nor required.
+const itemOpLanded = (list, o) => (o.op === 'delete' ? !list.some(x => x.id === o.id)
+  : o.op === 'create' ? list.some(x => x.id && !(o.ids || []).includes(x.id)) : list.some(x => x.id === o.id && x.name === o.name))
+async function writeItemOps(host, ops) {
+  for (const o of ops) {
+    const door = host.widgets.door?.(o.widget)
+    if (!door?.write) throw new Error('that widget is no longer showing')
+    door.write(o.key, { op: o.op, id: o.id, name: o.name ?? null })
+    const list = () => { const v = host.widgets.door?.(o.widget)?.read?.()?.[o.key]; return Array.isArray(v) ? v : [] }
+    if (!(await settle(() => itemOpLanded(list(), o)))) throw new Error(`the ${o.op} of “${o.label}” did not go through`)
   }
 }
 // The door's own capture and the Journal's one send path. The receipt is the Journal's own line; a refusal fails the change.
@@ -1162,12 +1188,18 @@ export function registerBoardCapabilities() {
   function itemApply(st, t, key, value, env) {
     const io = itemOp(value)
     if (io.op === 'create') {
+      // ONE operation, as the widget's own New control does it (AUDIT S1-A): read back by a new item appearing
       const l = listFor(t, key)
-      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...itemsNow(st, t, l), { id: null, name: l.blank || 'Untitled' }] } } }
+      const items = itemsNow(st, t, l)
+      const op = { widget: t.id, key: l.key, op: 'create', id: null, name: l.blank || 'Untitled', was: null, label: l.blank || 'Untitled', ids: items.map(x => x.id) }
+      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...items, { id: null, name: l.blank || 'Untitled' }] } }, itemOps: [...(st.itemOps || []), op] }
     }
     const { l, items, it } = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
-    const next = io.op === 'delete' ? items.filter(x => x.id !== it.id) : items.map(x => (x.id === it.id ? { ...x, name: String(io.name).trim() } : x))
-    return same(next, items) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: next } } }
+    const name = io.op === 'rename' ? String(io.name).trim() : null
+    const next = io.op === 'delete' ? items.filter(x => x.id !== it.id) : items.map(x => (x.id === it.id ? { ...x, name } : x))
+    if (same(next, items)) return st
+    const op = { widget: t.id, key: l.key, op: io.op, id: it.id, name, was: it.name, label: it.name }
+    return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: next } }, itemOps: [...(st.itemOps || []), op] }
   }
   const itemCheck = (st, { widget, list, item }, env, op) => {
     const t = widgetOf(st, widget)
@@ -1226,7 +1258,10 @@ export function registerBoardCapabilities() {
         const io = itemOp(value)
         if (same(b.doors?.[o.id]?.[key], a.doors?.[o.id]?.[key]) || !io) return null
         if (io.op === 'create') return `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
-        return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${io.item}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${io.item}” to “${String(io.name).trim()}”`
+        // ⛔ AUDIT S1-B: the item the words RESOLVED to ("mine" → "Mine growth"), as the card and the receipt must name it
+        const it = pickItem(itemsNow(b, o, l), io.item).item
+        const what = it ? it.name : io.item
+        return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${what}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${what}” to “${String(io.name).trim()}”`
       }
       const f = controlFor(o, key)
       const was = valueOf(f, o, b.doors), now = valueOf(f, n, a.doors)

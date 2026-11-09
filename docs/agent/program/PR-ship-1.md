@@ -17,6 +17,18 @@ Shared targeting core touched: `host.js` (widget item names for routing), `routi
 - `chart.setTimeframe` takes `next` / `previous`: one rung on the timeframe keys' own order, ends said, never wrapped. Manifest +3 bytes.
 - Golden files changed: `contract/manifest.golden.json` and `api/services/uct_agent/scan/sat/section_b_requests.json` (the two entries above). pytest for the v2 cost rail is owed (server input +6 bytes).
 
+## AUDIT round 1 (CHANGES REQUIRED) — fixed
+
+- **S1-A (member data loss):** the Theme Tracker door no longer reconciles the whole set list. Each change is ONE operation
+  (`{ op: 'delete' | 'rename', id, name }`) through the set menu's own `deleteSet` / `renameSet`, read back by its own effect
+  only; a whole list handed to the door does nothing. The board's freshness fingerprint now covers the door item lists
+  (ITEM_LISTS), so an item made, renamed or deleted between plan and commit makes the plan stale. Rails
+  (`themeTracker.outcome`, "AUDIT S1"): a set created while a delete card is open survives the Apply; a set created during the
+  model call survives a rename; the door ignores the old whole-list form.
+- **S1-B:** the card and the receipt name the set the words resolved to ("mine" → "Mine growth"), never the fragment.
+- **S1-C:** an item delete offers no Undo (`undoPatch` returns null, the `undoable` contract); a rename is undone by the inverse
+  rename of that one set. "undo" after a delete never times out on it.
+
 ## Full suite
 
 Suite on 122e08a071 (code head; this doc commit adds only this file): shards 2223/2226, 3101/3102, 1974/1975, 1821/1823 = 9119 passed, 1 failed, 6 skipped. The one failure, agentGuidePages "W2-C2 /screener SHOW where do I change the filters", passed 18/18 twice when re-run alone on this head and passes in every later slice: a load flake, not this slice.
