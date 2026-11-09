@@ -52,11 +52,31 @@ export const RESTORE_HELD_OUT = [
   { row: 'C1-076', text: 'put this chart back to how it looked out of the box' },
   { row: 'C1-076', text: 'undo all my customising of the colours and markers on this chart' },
 ]
+// C1-094: resize ONE indicator pane on ONE chart (what dragging its divider does). size = pane.resize's own size word or
+// percent; refuse = the change the chart cannot make (nothing is written, the reason is said).
+export const PANE_RESIZE_HELD_OUT = [
+  { row: 'C1-094', text: 'give the RSI pane more room', pane: 'rsi', size: 'bigger' },
+  { row: 'C1-094', text: 'shrink the macd panel down to 15 percent of the chart', pane: 'macd', size: 15 },
+  { row: 'C1-094', text: 'let the rsi pane size itself again', pane: 'rsi', size: 'auto' },
+  { row: 'C1-094', text: 'make the rsi pane take up 95% of the chart', pane: 'rsi', size: 95, refuse: true },
+  { row: 'C1-094', text: 'make the 50 sma pane taller', pane: '#50', size: 'bigger', refuse: true },
+]
+// C1-104: an indicator TOGGLED, as the chart's chords do it (Ctrl+I / Ctrl+O / Ctrl+B / Alt+U) — and as a family, any
+// indicator: shown → hidden (kept), hidden → shown, absent → added. start = the indicator's state before the turn;
+// end = the state after (an explicit "on" / "off" that already holds changes nothing).
+export const TOGGLE_HELD_OUT = [
+  { row: 'C1-104', text: 'toggle RSI', defId: 'rsi', start: 'absent', end: 'shown' },
+  { row: 'C1-104', text: 'toggle the MACD', defId: 'macd', start: 'shown', end: 'hidden' },
+  { row: 'C1-104', text: 'toggle bollinger bands', defId: 'bb', start: 'hidden', end: 'shown' },
+  { row: 'C1-104', text: 'flip vwap on', defId: 'vwap', start: 'absent', end: 'shown' },
+  { row: 'C1-104', text: 'toggle the macd off', defId: 'macd', start: 'hidden', end: 'hidden' },
+  { row: 'C1-104', text: 'toggle atr', defId: 'atr', start: 'shown', end: 'hidden' },
+]
 
 import { describe, it, expect } from 'vitest'
 describe('P1-gap held-out sets are frozen data', () => {
   it('no phrasing appears twice', () => {
-    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT, ...SETTINGS_HELD_OUT, ...SAVED_TF_HELD_OUT, ...RESTORE_HELD_OUT]
+    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT, ...SETTINGS_HELD_OUT, ...SAVED_TF_HELD_OUT, ...RESTORE_HELD_OUT, ...PANE_RESIZE_HELD_OUT, ...TOGGLE_HELD_OUT]
     expect(new Set(all.map(c => c.text)).size).toBe(all.length)
   })
 })
