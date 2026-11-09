@@ -18,7 +18,9 @@ vi.mock('../../lib/noteCreation', () => ({
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
-import { TWEET_EVENT, consumePendingFocus, groupByDay, tweetImportEnabled } from '../../lib/tweetImport'
+import {
+  TWEET_EVENT, consumePendingFocus, groupByDay, isPostLink, postHref, tweetImportEnabled,
+} from '../../lib/tweetImport'
 import { ImportTweetButton, TweetInsertHost } from './TweetDoors'
 
 const NOW = Math.floor(Date.now() / 1000)
@@ -134,6 +136,35 @@ describe('Import a tweet', () => {
     expect(screen.getByText('From your link')).toBeInTheDocument()
     expect(calls.find((c) => c.method === 'POST').body).toEqual({ url: LINK })
     expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled()
+  })
+
+  it.each([
+    'https://x.com/i/web/status/2001',
+    'https://twitter.com/i/web/status/2001?s=20',
+  ])('a share link with no handle reaches the resolve call: %s', async (url) => {
+    const calls = installFetch([FEED, [/\/tweets\/resolve$/, 'POST', [200, { post: LINKED }]]])
+    await openFromButton()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Link to a post on X' }), { target: { value: url } })
+    expect(await rowFor('Fieldnote Research')).toHaveAttribute('aria-checked', 'true')
+    expect(calls.find((c) => c.method === 'POST').body).toEqual({ url })
+  })
+
+  it('postHref keeps a share link with no handle, and the host rules are unchanged', () => {
+    expect(postHref('https://x.com/i/web/status/2001')).toBe('https://x.com/i/web/status/2001')
+    expect(postHref('twitter.com/i/web/status/2001')).toBe('https://twitter.com/i/web/status/2001')
+    expect(postHref('https://mobile.twitter.com/i/web/status/2001/photo/1'))
+      .toBe('https://mobile.twitter.com/i/web/status/2001/photo/1')
+    for (const bad of [
+      'https://x.com.evil.test/i/web/status/2001',
+      'https://notx.com/i/web/status/2001',
+      'https://evil.test/x.com/i/web/status/2001',
+      'https://x.com@evil.test/i/web/status/2001',
+      'https://x.com/i/web/status/abc',
+      'https://x.com/i/web/2001',
+    ]) {
+      expect(isPostLink(bad)).toBe(false)
+      expect(postHref(bad)).toBeNull()
+    }
   })
 
   it('an invalid link shows the sentence and changes nothing', async () => {

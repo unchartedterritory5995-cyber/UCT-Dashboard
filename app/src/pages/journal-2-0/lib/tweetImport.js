@@ -42,7 +42,7 @@ export const saveTweets = ({ noteId, tweetIds }) =>
   call(`${BASE}/save`, { method: 'POST', body: { noteId, tweetIds } })
 
 /** The same shape the server's `parse_status_id` accepts, so the sentence can answer at once. */
-const STATUS_LINK = /^(?:https?:\/\/)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\/[A-Za-z0-9_]{1,15}\/status(?:es)?\/\d{1,25}(?:[/?#].*)?$/i
+const STATUS_LINK = /^(?:https?:\/\/)?(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\/(?:[A-Za-z0-9_]{1,15}\/status(?:es)?|i\/web\/status)\/\d{1,25}(?:[/?#].*)?$/i
 
 export const isPostLink = (url) => STATUS_LINK.test(String(url || '').trim())
 
