@@ -233,6 +233,10 @@ and A1 ("A is good").
   the first ones work (the account's number of positions, not adds to one trade, A5). ("yes to all of those")
 - F69. Small accounts hold fewer positions, about 3 to 5, so each is big enough to manage. ("yes to all of those")
 
+**Declined after the cleanup (2026-11-09):** leveraged ETFs count at face value, not at their leverage (71, "NO");
+a big position may wait for 5R like any other, no forced first trim at 3R (73, "NO"); no limit on how many
+positions can be over 25% at once (74, "NO").
+
 **Cleanup (2026-11-09, the owner: "CLEANUP WHAT YOU THINK YOU SHOULD AND LETS FINALZIE THOSE"):** A1 names 1.5% as the
 grades' most and 2% as the ceiling; A3 carries F62's few cents; A5 says the size is the smaller of the risk-based
 size and the cap; A7 adds the book's 200% / 100% limits; A8 defines drawdown and folds B13 and B14 into one ladder;
