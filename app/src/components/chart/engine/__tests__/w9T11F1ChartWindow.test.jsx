@@ -15,7 +15,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { renderHook, waitFor, cleanup } from '@testing-library/react'
+import { render, renderHook, waitFor, cleanup } from '@testing-library/react'
 
 vi.mock('../runtime/brokerPins.js', () => ({ pinned: () => true }))
 vi.setConfig({ testTimeout: 120000 })
@@ -28,8 +28,9 @@ import { runtimeColumnsFor } from '../runtime/runtimeColumns'
 import { strategyRecordShapeErrors, startSentenceOf, startDateOf } from '../runtime/strategyRecord'
 import { strategyRecordFor, resetStrategyRecords } from '../strategyReportNotice'
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from '../runtimeErrorNotice'
+import AttachedStrategyReports from '../../pane/AttachedStrategyReports'
 import {
-  STRATEGY_WINDOW_URL, loadStrategyHistoryWindow, strategyHistoryWindowNow, resetStrategyHistoryWindow,
+  STRATEGY_WINDOW_URL, FAILURE_RETRY_MS, loadStrategyHistoryWindow, strategyHistoryWindowNow, resetStrategyHistoryWindow,
   windowOfPayload,
 } from '../strategyWindow'
 import useStrategyHistoryWindow from '../../../../hooks/useStrategyHistoryWindow'
@@ -52,10 +53,12 @@ const flags = (broker) => {
   if (broker) vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
 }
 const inst = (defId = DEF_ID, id = 'i1') => ({ instanceId: id, defId, inputs: {}, hidden: false })
-const ctxFor = (instances, { bars, listing = true, window, reg = registry }) => ({
-  enabled: true, instances, registry: reg, bars, tf: 'D', newestBarIsForming: false,
+const ctxFor = (instances, { bars, listing = true, window, pending, reg = registry, tf = 'D', frames }) => ({
+  enabled: true, instances, registry: reg, bars, tf, sym: 'RDDT', newestBarIsForming: false,
   historyFromListing: listing, symbol: { ticker: 'RDDT', exchange: 'NYSE' },
   ...(window !== undefined ? { historyWindowBars: window } : {}),
+  ...(pending !== undefined ? { historyWindowPending: pending } : {}),
+  ...(frames ? { frames } : {}),
   adjustTime: (t) => t, plan: { fresh: true },
   applyData: (series, data) => { if (series && data) series.setData(data) },
   resolvePlacement: (i) => ({ paneIndex: 0, scaleId: i.defId, scaleOptions: {} }),
@@ -119,32 +122,74 @@ describe('W9-T11-F1 the window comes from the server, once, and only with the ga
     expect(strategyHistoryWindowNow()).toBe(SERVER_WINDOW)
   })
 
-  it('no default: a bad answer or a failed request is no window, and the next ask tries again', async () => {
+  it('no default: a bad answer or a failed request is no window, and the next ask after the failure period tries again', async () => {
     flags(true)
     for (const bad of [0, -1, 1.5, '5000', null, undefined]) expect(windowOfPayload({ historyWindowBars: bad })).toBe(null)
     expect(windowOfPayload(null)).toBe(null)
-    expect(await loadStrategyHistoryWindow(okFetch('5000'))).toBe(null)
-    expect(await loadStrategyHistoryWindow(vi.fn(async () => ({ ok: false, json: async () => ({ historyWindowBars: SERVER_WINDOW }) })))).toBe(null)
-    expect(await loadStrategyHistoryWindow(vi.fn(async () => { throw new Error('offline') }))).toBe(null)
-    expect(strategyHistoryWindowNow()).toBe(null)
-    expect(await loadStrategyHistoryWindow(okFetch(SERVER_WINDOW))).toBe(SERVER_WINDOW)
+    let t = 1_000_000
+    const now = () => t
+    const fails = [okFetch('5000'), vi.fn(async () => ({ ok: false, json: async () => ({ historyWindowBars: SERVER_WINDOW }) })),
+      vi.fn(async () => { throw new Error('offline') })]
+    for (const f of fails) {
+      expect(await loadStrategyHistoryWindow(f, now)).toBe(null)
+      expect(f).toHaveBeenCalledTimes(1)
+      expect(strategyHistoryWindowNow()).toBe(null)
+      t += FAILURE_RETRY_MS
+    }
+    expect(await loadStrategyHistoryWindow(okFetch(SERVER_WINDOW), now)).toBe(SERVER_WINDOW)
   })
 
-  it('the chart hook: gate off null with no request; gate on the server value', async () => {
+  it('r1 (N1): a 401 is asked once, then answered "no window" with no request for the failure period', async () => {
+    flags(true)
+    let t = 5_000_000
+    const now = () => t
+    const unauth = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({ detail: 'Not authenticated' }) }))
+    expect(await loadStrategyHistoryWindow(unauth, now)).toBe(null)
+    expect(unauth).toHaveBeenCalledTimes(1)
+    t += FAILURE_RETRY_MS - 1
+    for (let i = 0; i < 3; i++) expect(await loadStrategyHistoryWindow(unauth, now)).toBe(null)
+    expect(unauth).toHaveBeenCalledTimes(1)
+    t += 1
+    const ok = okFetch(SERVER_WINDOW)
+    expect(await loadStrategyHistoryWindow(ok, now)).toBe(SERVER_WINDOW)
+    expect(ok).toHaveBeenCalledTimes(1)
+  })
+
+  it('the chart hook: gate off, or a chart with no strategy, asks nothing; gate on with a strategy is pending, then the value', async () => {
     flags(false)
     const f = okFetch(SERVER_WINDOW)
     vi.stubGlobal('fetch', f)
-    const off = renderHook(() => useStrategyHistoryWindow())
+    const off = renderHook(() => useStrategyHistoryWindow(true))
     await Promise.resolve()
-    expect(off.result.current).toBe(null)
-    expect(f).not.toHaveBeenCalled()
+    expect(off.result.current).toEqual({ bars: null, pending: false })
     off.unmount()
 
     flags(true)
-    const on = renderHook(() => useStrategyHistoryWindow())
-    await waitFor(() => expect(on.result.current).toBe(SERVER_WINDOW))
+    // r1 (N1): a chart that holds only indicators never asks
+    const ind = renderHook(() => useStrategyHistoryWindow(false))
+    await Promise.resolve()
+    expect(ind.result.current).toEqual({ bars: null, pending: false })
+    ind.unmount()
+    expect(f).not.toHaveBeenCalled()
+
+    const on = renderHook(() => useStrategyHistoryWindow(true))
+    // r1 (N3): asked and not answered yet is PENDING, not a missing window
+    expect(on.result.current).toEqual({ bars: null, pending: true })
+    await waitFor(() => expect(on.result.current).toEqual({ bars: SERVER_WINDOW, pending: false }))
     expect(f).toHaveBeenCalledTimes(1)
     expect(f.mock.calls[0][1]).toEqual({ credentials: 'include' })
+  })
+
+  it('the chart hook after a 401: pending, then no window (the named refusal), and a second chart within the period asks nothing', async () => {
+    flags(true)
+    const f = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }))
+    vi.stubGlobal('fetch', f)
+    const a = renderHook(() => useStrategyHistoryWindow(true))
+    expect(a.result.current).toEqual({ bars: null, pending: true })
+    await waitFor(() => expect(a.result.current).toEqual({ bars: null, pending: false }))
+    const b = renderHook(() => useStrategyHistoryWindow(true))
+    await waitFor(() => expect(b.result.current).toEqual({ bars: null, pending: false }))
+    expect(f).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -245,6 +290,105 @@ describe('W9-T11-F1 the binder hands a strategy run the chart\'s window', () => 
     expect(strategyRecordFor('i1').window.historyWindowBars).toBe(50)
   })
 
+  it('r1 (N3): while the window is PENDING the run is held: no record, no refusal notice, no report', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    const bars = makeBars(40)
+    binder.sync(ctxFor([inst()], { bars, pending: true }))
+    expect(strategyRecordFor('i1')).toBe(null)
+    expect(runtimeErrorNoticeFor('i1')).toBe(null)
+    const { container } = render(<AttachedStrategyReports settings={{ indicatorInstances: [inst()] }} />)
+    expect(container.innerHTML).toBe('')
+    cleanup()
+    // the answer lands: the run computes and publishes
+    binder.sync(ctxFor([inst()], { bars, window: SERVER_WINDOW, pending: false }))
+    expect(strategyRecordFor('i1')).not.toBe(null)
+    expect(runtimeErrorNoticeFor('i1')).toBe(null)
+  })
+
+  it('r1 (N3): a window in hand wins over a pending flag: the run computes (pending only means "no answer yet")', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    binder.sync(ctxFor([inst()], { bars: makeBars(40), window: SERVER_WINDOW, pending: true }))
+    expect(strategyRecordFor('i1')).not.toBe(null)
+  })
+
+  it('r1 (N3): once the ask has FAILED (not pending, no window) the run refuses by name', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    const bars = makeBars(40)
+    binder.sync(ctxFor([inst()], { bars, pending: true }))
+    expect(runtimeErrorNoticeFor('i1')).toBe(null)
+    binder.sync(ctxFor([inst()], { bars, pending: false }))
+    expect(strategyRecordFor('i1')).toBe(null)
+    expect(runtimeErrorNoticeFor('i1')).toMatch(/runtime:strategy-start/)
+  })
+
+  it('r1 (N3): pending holds only a strategy; an indicator beside it computes as before', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    install(IND, IND_ID, 'Plain indicator')
+    const seen = []
+    const spy = { ...registry, computeFor: (def, b, inputs, c) => { seen.push(def.id); return registry.computeFor(def, b, inputs, c) } }
+    binder.sync(ctxFor([inst(), inst(IND_ID, 'i2')], { bars: makeBars(40), pending: true, reg: spy }))
+    expect(seen).toContain(IND_ID)
+    expect(seen).not.toContain(DEF_ID)
+  })
+
+  // r1 (N2) — "only the chart's own series". A runtime document (every strategy) is never framed
+  // (`calcTimeframeCapability`: kind 'runtime' refuses a calculation timeframe), so the product case
+  // is the first rail; the binder's own `!frame` rule is held by the second, on a frameable
+  // definition stamped `strategy-window`, with an unframed control beside it.
+  const dailyBars = () => {
+    const out = []
+    for (let d = Date.UTC(2026, 0, 5), i = 0; out.length < 40; d += 86400000, i++) {
+      if (new Date(d).getUTCDay() % 6 !== 0) out.push({ t: new Date(d).toISOString().slice(0, 10), o: 10 + i, h: 11 + i, l: 9 + i, c: 10 + i, v: 1000 })
+    }
+    return out
+  }
+
+  it('r1 (N2): a strategy asked for another timeframe is not framed: it runs on the chart series the window describes', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    const frames = new Map([['D|RDDT', { bars: dailyBars(), status: 'available', newestBarIsForming: false }]])
+    const seen = []
+    const spy = { ...registry, computeFor: (def, b, inputs, c) => { seen.push([def.id, b, c]); return registry.computeFor(def, b, inputs, c) } }
+    const chartBars = makeBars(40)
+    binder.sync(ctxFor([{ ...inst(), calculationTimeframe: 'D' }], { bars: chartBars, tf: '60', window: SERVER_WINDOW, frames, reg: spy }))
+    const strat = seen.filter(([id]) => id === DEF_ID)
+    expect(strat.length).toBeGreaterThan(0)
+    for (const [, b, c] of strat) {
+      expect(c.framed).toBe(false)
+      expect(b).toBe(chartBars)
+      expect(c.historyWindowBars).toBe(SERVER_WINDOW)
+    }
+  })
+
+  it('r1 (N2): the binder hands the window to the chart own series only: a FRAMED stamped instance never gets it', () => {
+    flags(true)
+    const base = registry.getDefinition('movingAverage')
+    const stamped = { ...base, meta: { ...(base.meta || {}), runtimeHistory: 'strategy-window' } }
+    const seen = []
+    const spy = {
+      ...registry,
+      getDefinition: (id) => (id === 'movingAverage' ? stamped : registry.getDefinition(id)),
+      computeFor: (def, b, inputs, c) => { seen.push([def === stamped, c]); return registry.computeFor(def, b, inputs, c) },
+    }
+    const frames = new Map([['D|RDDT', { bars: dailyBars(), status: 'available', newestBarIsForming: false }]])
+    const avg = (id, extra = {}) => ({ instanceId: id, defId: 'movingAverage', inputs: { source: 'close', period: 5, maType: 'sma' }, hidden: false, ...extra })
+    binder.sync(ctxFor([avg('framed', { calculationTimeframe: 'D' }), avg('own')], {
+      bars: makeBars(40), tf: '60', window: SERVER_WINDOW, frames, reg: spy,
+    }))
+    const calls = seen.filter(([isStamped]) => isStamped).map(([, c]) => c)
+    const framed = calls.filter((c) => c.framed === true)
+    const own = calls.filter((c) => c.framed === false)
+    expect(framed.length).toBeGreaterThan(0)
+    expect(own.length).toBeGreaterThan(0)
+    for (const c of framed) expect('historyWindowBars' in c).toBe(false)
+    // control: the same stamped document on the chart's own series IS handed the window
+    for (const c of own) expect(c.historyWindowBars).toBe(SERVER_WINDOW)
+  })
+
   it('only a strategy document is handed the window: an indicator\'s ctx is unchanged', () => {
     flags(true)
     install(SRC, DEF_ID, 'Window strategy')
@@ -269,17 +413,22 @@ describe('W9-T11-F1 StockChart hands the binder the window from the hook', () =>
   const count = (re) => (SRC.match(re) || []).length
   it('reads the window from the hook, passes it in the binder ctx, and recomputes when it lands', () => {
     expect(count(/import useStrategyHistoryWindow from '\.\.\/hooks\/useStrategyHistoryWindow'/g)).toBe(1)
-    expect(count(/const strategyHistoryWindow = useStrategyHistoryWindow\(\)/g)).toBe(1)
+    expect(count(/const \{ bars: strategyHistoryWindow, pending: strategyWindowPending \} = useStrategyHistoryWindow\(_holdsStrategyWindow\)/g)).toBe(1)
+    // r1 (N1): asked only when a stored instance's definition is a strategy (the shared reader)
+    expect(count(/\.some\(\(i\) => isStrategyWindowDefinition\(_defOf\(i && i\.defId\)\)\)/g)).toBe(1)
+    expect(SRC).toMatch(/const _holdsStrategyWindow = useMemo\(/)
     const sync = SRC.indexOf('engineRef.current.binder.sync({')
     const line = SRC.indexOf('historyWindowBars: strategyHistoryWindow,')
     expect(sync).toBeGreaterThan(-1)
     expect(line).toBeGreaterThan(sync)
     expect(count(/historyWindowBars:/g)).toBe(1)
+    expect(SRC.indexOf('historyWindowPending: strategyWindowPending,')).toBeGreaterThan(sync)
     // the sync effect's dependency list carries it, so a window that lands re-syncs the binder
     // (the first effect close after the ctx line is the sync effect's: it also lists `historyFromListing`)
     const deps = SRC.slice(line).match(/\n {2}\}, \[([^\]]*)\]\)/)
     const names = deps ? deps[1].split(',').map((x) => x.trim()) : []
     expect(names).toContain('historyFromListing')
     expect(names).toContain('strategyHistoryWindow')
+    expect(names).toContain('strategyWindowPending')
   })
 })

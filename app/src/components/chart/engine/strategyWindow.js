@@ -15,16 +15,31 @@
 // ⛔ DARK. With `VITE_PINE_STRATEGY_BROKER_ENABLED` off nothing is fetched and the answer is null,
 // so no chart ever asks the server, and no runtime ctx carries a window.
 //
+// ⭐ ASKED ONLY FOR A CHART THAT HOLDS A STRATEGY (r1, review N1): the caller decides that
+// (`isStrategyWindowDefinition`, `useStrategyHistoryWindow(enabled)`); a chart of indicators never asks.
+//
 // ⭐ FIXED FOR THE TAB. The first good answer is kept for the life of the page: every chart load in
 // this tab hands its strategy runs the same window, and no refetch can move it under an open chart.
-// A failed fetch keeps nothing, so the next mount asks again.
+// ⭐ A FAILURE IS REMEMBERED BRIEFLY (r1, N1): a 401 or a failed request answers "no window" to every
+// ask for `FAILURE_RETRY_MS` without a request, so a signed-out or failing page does not ask on every
+// chart mount; after that the next ask tries again.
 
 import { strategyBrokerEnabled } from './strategyBrokerGate'
+import { STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord.js'
 
 export const STRATEGY_WINDOW_URL = '/api/pine/history-window'
+/** How long a failed ask answers "no window" without asking again. */
+export const FAILURE_RETRY_MS = 60_000
 
 let _window = null
+let _failedAt = null
 let _inflight = null
+
+/** Is this document a strategy that runs over the window (stamped `strategy-window`)? One reader,
+ *  shared by the binder (who is handed the window) and the chart (whether to ask for it). */
+export function isStrategyWindowDefinition(def) {
+  return !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+}
 
 /** The window in a payload, or null (only a positive safe integer is a window). */
 export function windowOfPayload(payload) {
@@ -38,14 +53,16 @@ export function strategyHistoryWindowNow() {
 }
 
 /**
- * The window, asked once per tab. Resolves null with the broker gate off (no request) or when the
- * server gives no window.
+ * The window, asked once per tab. Resolves null with the broker gate off (no request), when the
+ * server gives no window, or inside the failure period after one (no request).
  * @param {typeof fetch} [fetchImpl]
+ * @param {() => number} [now]
  * @returns {Promise<number|null>}
  */
-export function loadStrategyHistoryWindow(fetchImpl) {
+export function loadStrategyHistoryWindow(fetchImpl, now = Date.now) {
   if (!strategyBrokerEnabled()) return Promise.resolve(null)
   if (_window !== null) return Promise.resolve(_window)
+  if (_failedAt !== null && now() - _failedAt < FAILURE_RETRY_MS) return Promise.resolve(null)
   if (!_inflight) {
     const f = fetchImpl || (typeof fetch === 'function' ? fetch : null)
     _inflight = Promise.resolve()
@@ -54,15 +71,16 @@ export function loadStrategyHistoryWindow(fetchImpl) {
       .then(windowOfPayload, () => null)
       .then((w) => {
         _inflight = null
-        if (w !== null) _window = w
+        if (w !== null) { _window = w; _failedAt = null } else _failedAt = now()
         return _window
       })
   }
   return _inflight
 }
 
-/** Tests only: forget the tab's window. */
+/** Tests only: forget the tab's window and any remembered failure. */
 export function resetStrategyHistoryWindow() {
   _window = null
+  _failedAt = null
   _inflight = null
 }

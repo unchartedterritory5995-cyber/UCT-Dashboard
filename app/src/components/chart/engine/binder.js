@@ -89,7 +89,8 @@ import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErr
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
-import { runtimeStrategyOf, STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord.js'
+import { runtimeStrategyOf } from './runtime/strategyRecord.js'
+import { isStrategyWindowDefinition } from './strategyWindow'
 import { chartThemeOf } from './objectTheme'
 
 import {
@@ -1923,8 +1924,19 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⛔ Every other document is handed nothing, so an indicator's ctx and memo key are unchanged.
       // ⛔ The value is forwarded as held: what is not a window is the VM's to refuse by name
       // (`vm.js`, `runtime:strategy-start`), one author, never a second check here.
-      const strategyWindow = !frame && def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY
-        && ctx.historyWindowBars != null ? ctx.historyWindowBars : null
+      const ownStrategy = !frame && isStrategyWindowDefinition(def)
+      const strategyWindow = ownStrategy && ctx.historyWindowBars != null ? ctx.historyWindowBars : null
+      // ⭐ r1 (review N3) — THE WINDOW HAS BEEN ASKED FOR AND NOT ANSWERED YET
+      // (`ctx.historyWindowPending`, `useStrategyHistoryWindow`). The run is HELD, not refused: no
+      // columns, no record, no notice, so first paint never flashes `runtime:strategy-start`. When
+      // the answer lands the caller re-syncs and the run computes; when the ask FAILS, pending is
+      // false with no window, and the run refuses by name.
+      if (ownStrategy && strategyWindow === null && ctx.historyWindowPending === true) {
+        computeMemo.delete(inst.instanceId)
+        noteRuntimeErrorStop(inst.instanceId, null)
+        runCols.set(inst.instanceId, null)
+        continue
+      }
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')

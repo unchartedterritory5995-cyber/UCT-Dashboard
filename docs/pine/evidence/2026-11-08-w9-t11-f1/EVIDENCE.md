@@ -93,3 +93,66 @@ the effect dependency; route returns a literal; route unauthenticated.
 4. **Scroll-back on a long history.** A symbol whose daily history exceeds the window (most listed
    stocks) refuses Q-S1n on the chart whatever is loaded, until the Q-S1n capture rules on non-listing
    windows. Only young listings (RDDT-like, method (a)) can show a backtest.
+
+## r1 (review GO-WITH-NOTES @ba89bdc606, dsk/reviews/W9-T11-F1.md)
+- **N1, ask only for a chart that holds a strategy; remember a failure briefly.**
+  - `StockChart` computes `_holdsStrategyWindow` from the stored instances' definitions. It uses the
+    shared reader `strategyWindow.js::isStrategyWindowDefinition` (the binder uses the same reader).
+  - `useStrategyHistoryWindow(enabled)` asks only when `enabled` is true and the gate is on. A chart
+    of indicators makes no request.
+  - A failed ask (a 401, a non-ok answer, a bad payload or a thrown fetch) answers "no window" with
+    no request for `FAILURE_RETRY_MS` (60 s). After that, the next ask tries again.
+- **N2, the chart's own series only.** Two rails:
+  - The product case: a strategy asked for another timeframe is not framed, because
+    `calcTimeframeCapability` refuses runtime documents. It runs on the chart's bars and is handed
+    the window.
+  - The binder rule: a frameable definition stamped `strategy-window` is never handed the window
+    when framed. The same document unframed is (the control). The reviewer's K2 now dies.
+- **N3, pending, not refused.**
+  - The hook reports `pending` while the ask is in flight, and StockChart passes it as
+    `ctx.historyWindowPending`.
+  - While it is pending, the binder holds a strategy run on the chart's own series: no columns, no
+    record, no notice, and the T13b mount renders nothing.
+  - When the window lands, the run computes. When the ask fails, pending turns false with no
+    window, and the run refuses `runtime:strategy-start` by name.
+  - Pending holds only strategy documents: an indicator beside one computes as before. A window
+    already in hand wins over a pending flag.
+
+r1 checks (Node 20, `--maxWorkers=1`):
+- New rail: 22/22.
+- Focused run: 7 files, 418/418. These are the new rail, w9T11Record, w9T13bReportWire,
+  strategyReportPanel, binder.test, stockChartWiring and binderCalcFrames.
+- Neighbours: 124 files, 2478 passed, 3 failed. The 3 are the same base failures as before
+  (focusWarmStep, firstVisitFraming, sourcesAreText).
+- HP-1 GREEN 166/166 on Node 24.
+
+r1 mutants (copy, mutate, run, restore by copy, filecmp; tree unchanged after): the control
+survived, and all 23 others were killed:
+- binder:
+  - never forwards the window;
+  - forwards it to every document;
+  - forwards it to framed instances (K2);
+  - window missing from the memo key.
+- pending in the binder:
+  - never holds;
+  - holds every document;
+  - holds even when the window is known (killed by the rail added in r1).
+- fetch:
+  - ignores the gate;
+  - refetches every time;
+  - accepts any number;
+  - keeps a failure as a window;
+  - failure not cached;
+  - failure cached forever.
+- hook:
+  - ignores `enabled`;
+  - never pending;
+  - never loads.
+- StockChart:
+  - always asks;
+  - drops the window ctx key;
+  - drops the pending ctx key;
+  - drops the effect dependency.
+- route:
+  - returns a literal;
+  - unauthenticated.
