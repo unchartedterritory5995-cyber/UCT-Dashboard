@@ -55,6 +55,9 @@ const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?
 export function relationMatch(text) {
   const s = String(text || '')
   const m = RELATIVE.exec(s)
+  // ⛔ AUDIT S2-B: the same rule for an anchored relation — "the alert and the one above it": a bare "one" coordinated with a
+  // non-chart noun stands for that thing, so no chart relation (the click is read as it would be without one)
+  if (m) { const pre = /\b(?:the|that)\s+one\s*$/i.exec(s.slice(0, m.index)); if (pre && oneStandsForAThing(s.slice(0, pre.index))) return null }
   if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
   if (m) return null
   const b = RELATIVE_BARE.exec(s)
