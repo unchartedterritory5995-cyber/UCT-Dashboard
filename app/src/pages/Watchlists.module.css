@@ -1691,3 +1691,7 @@
   }
   .listRow { min-height: var(--tap-min, 44px); }
 }
+
+/* A host-coloured left edge on a group member row (the breadth drill sections). */
+.accentRow { position: relative; }
+.accentRow::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }

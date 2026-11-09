@@ -22,7 +22,7 @@ import { ScanHeader } from './scan/ScanDeckParts'
 import ScanGrid from './scan/ScanGrid'
 import { FilterButton, FilterChips } from './scan/ScanFilters'
 import { DRILL_POPOVER_ATTR } from './scan/scanFacets'
-import BreadthDateNav from '../BreadthDateNav'
+import JoinedDateNav from './JoinedDateNav'
 import styles from './BreadthDrillModal.module.css'
 
 const FOCUSABLE = [
@@ -241,7 +241,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   }, [settledDates, colKey, onNavigate])
   const goYear = useCallback((y) => goDate(`${y}-12-31`), [goDate])
   const dateNav = onNavigate && settledDates.length ? (
-    <BreadthDateNav
+    <JoinedDateNav
       topDate={drillLive ? settledDates[0] : drillDate}
       minDate={settledDates[settledDates.length - 1]}
       maxDate={settledDates[0]}
@@ -249,7 +249,6 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
       onStep={step}
       onPickDate={goDate}
       onPickYear={goYear}
-      variant="joined"
     />
   ) : null
   const pickMetric = useCallback((key) => {

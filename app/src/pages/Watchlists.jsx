@@ -3077,7 +3077,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 })
                 const accent = item.isMember && groupAccent ? groupAccent(String(item.id).split('::')[0]) : null
                 return accent
-                  ? <div style={{ position: 'relative' }}>{row}<span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: accent, pointerEvents: 'none' }} /></div>
+                  ? <div className={styles.accentRow} style={{ '--accent': accent }}>{row}</div>
                   : row
               }}
               emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
