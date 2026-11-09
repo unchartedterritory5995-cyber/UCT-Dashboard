@@ -20,11 +20,17 @@ export const THEME_ALL_HELD_OUT = [
   { row: 'C1-080', text: 'make all my charts use the Midnight theme', theme: 'midnight' },
   { row: 'C1-080', text: 'switch the whole board to the Graphite chart theme', theme: 'graphite' },
 ]
+// C1-035: a WHOLE GROUP (a theme / sector / industry from the Compare panel's own group lists) overlaid on ONE chart
+export const GROUP_HELD_OUT = [
+  { row: 'C1-035', text: 'compare this chart against the semiconductors industry', type: 'industry', name: 'Semiconductors' },
+  { row: 'C1-035', text: 'overlay the whole Energy sector on this one', type: 'sector', name: 'Energy' },
+  { row: 'C1-035', text: 'add the AI infrastructure theme to the compare', type: 'theme', name: 'AI Infrastructure' },
+]
 
 import { describe, it, expect } from 'vitest'
 describe('P1-gap held-out sets are frozen data', () => {
   it('no phrasing appears twice', () => {
-    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT]
+    const all = [...AUTOSCALE_HELD_OUT, ...COMPARE_REMOVE_HELD_OUT, ...THEME_ALL_HELD_OUT, ...GROUP_HELD_OUT]
     expect(new Set(all.map(c => c.text)).size).toBe(all.length)
   })
 })
