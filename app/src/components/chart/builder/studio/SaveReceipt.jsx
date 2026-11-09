@@ -9,7 +9,7 @@
 // until the member dismisses it — it is announced as an alert, never a toast that
 // slides away before it is read.
 
-import { withoutGuardIds } from '../../../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../../engine/ast/sentence'
 import { useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './SaveReceipt.module.css'

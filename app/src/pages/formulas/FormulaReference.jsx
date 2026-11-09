@@ -25,7 +25,7 @@
 // from having typed it wrong. No rival's reference does this; ours can, because
 // the manifest already records a reason for all 103 of them.
 
-import { withoutGuardIds } from '../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../../components/chart/engine/ast/sentence'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 

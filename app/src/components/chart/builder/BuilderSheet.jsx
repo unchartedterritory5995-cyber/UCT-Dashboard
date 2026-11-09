@@ -73,7 +73,7 @@
 // definition the chart is already drawing is never re-installed. A broken edit
 // must not brick a working indicator.
 
-import { withoutGuardIds } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds } from '../engine/ast/sentence'
 import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
 import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'

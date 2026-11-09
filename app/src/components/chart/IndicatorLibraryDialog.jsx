@@ -62,7 +62,7 @@
 // consumers. It is rendered here, VERBATIM, because this is the surface whose
 // job is to offer a member their own formulas and therefore the surface that
 // owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
-import { withoutGuardIds } from '../../lib/presentation/memberCopy'
+import { withoutGuardIds } from './engine/ast/sentence'
 import { orderCategories } from './technicalCategories'
 import { useState, useMemo, useRef, useEffect, useCallback, useId } from 'react'
 import Sheet from '../mobile/Sheet'

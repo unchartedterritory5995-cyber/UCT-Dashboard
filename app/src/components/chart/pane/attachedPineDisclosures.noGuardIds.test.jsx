@@ -10,13 +10,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../engine/runtimeErrorNotice'
 import { runtimeRunStopOf } from '../engine/nativeRegistry'
-import { withoutGuardIds, GUARD_NAMESPACES } from '../../../lib/presentation/memberCopy'
+import { withoutGuardIds, GUARD_NAMESPACES } from '../engine/ast/sentence'
 import RunsOnLine from '../builder/RunsOnLine'
 import SaveReceipt from '../builder/studio/SaveReceipt'
 import fs from 'node:fs'
 import path from 'node:path'
 
-// built from memberCopy's one namespace list, never retyped here
+// built from ast/sentence.js's one namespace list (moved from memberCopy.js, engine-40 bytes), never retyped here
 const GUARD_RE = new RegExp(`\\b(?:${GUARD_NAMESPACES.join('|')}):[a-zA-Z0-9]`)
 
 const STRAT_WHY = 'a strategy run takes the most recent bars of its history window, and this run is over a window that slides with each new bar, so its trades would move. Nothing is drawn.'
@@ -244,7 +244,7 @@ describe('r4 — drift rail: guard namespaces', () => {
     }
     expect(seen.size).toBeGreaterThan(10) // the scan found the engine, not nothing
     const unknown = [...seen].filter(([ns]) => !GUARD_NAMESPACES.includes(ns) && !INTERNAL_ONLY.includes(ns))
-    expect(unknown, 'add these to memberCopy.GUARD_NAMESPACES').toEqual([])
+    expect(unknown, 'add these to ast/sentence.js GUARD_NAMESPACES').toEqual([])
   })
   it('CONTROL: a new namespace is caught', () => {
     const ns = namespacesIn("x = { guard: 'brandnew:thing' }; throw refusal('pine:x', 'y'); const FOO_GUARD = 'runtime:z'")
