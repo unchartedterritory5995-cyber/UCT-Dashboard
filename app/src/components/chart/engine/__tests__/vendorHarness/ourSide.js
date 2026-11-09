@@ -33,6 +33,8 @@ import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+import { NOT_SHOWN, runtimeWithheldWhy } from '../../ast/objectLoss'
+import { MERGED_HEAD_REWRITE_SENTENCE } from '../../objectCells.js'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY } from '../../runtime/runtimeObjects'
@@ -679,7 +681,13 @@ function runtimeObjectsReport(def, bars, ctx, cols) {
   }
   const run = { live: payload.live, pineVersion: payload.pineVersion }
   const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: payload.pineVersion })
+  // ⭐ OZ — a family the run withheld whole is graded as a gap with a name, the
+  // way the host lane's are (the member reads the same sentence, `runtimeWithheldWhy`).
+  const rtWhy = runtimeWithheldWhy(payload.withheld, [MERGED_HEAD_REWRITE_SENTENCE])
+  const rtFams = rtWhy ? Object.keys(rtWhy).sort() : []
   return { ...heldReport(run.live, state, payload.pineVersion), lane: 'runtime',
+    ...(rtFams.length ? { withheldFamilies: rtFams, withheldGuards: [NOT_SHOWN.UNMEASURED],
+      withheldWhy: [...new Set(Object.values(rtWhy))].join(' ') } : {}),
     runStatus: payload.status, runReason: payload.reason || null, runWithheld: payload.withheld || {},
     undrawnProps: payload.undrawnProps || {}, chartClock: [] }
 }
@@ -739,6 +747,23 @@ function drawingWithheldBy(built) {
   return {
     guard: 'pine:object-ops-refused',
     reason: `the program carried none of its ${d.attemptedOps} drawing steps (dropped: ${reasons.join(', ') || 'none named'}${why.length ? `; ${[...new Set(why)].join(', ')}` : ''})`,
+  }
+}
+
+/** ⭐ OZ — the families a run withheld by name with nothing of them drawn
+ *  (`NOT_SHOWN` guards), merged into the collector's `withheldFamilies`, with the
+ *  guards and the member's sentence(s) for the verdict's reason. */
+function notShownReport(withheldBy, withheldWhy, base = null) {
+  const by = withheldBy || {}
+  const guards = Object.values(NOT_SHOWN).filter((g) => Array.isArray(by[g]) && by[g].length)
+  if (!guards.length) return {}
+  const fams = new Set([...(by['objects:collector'] || []), ...(base || [])])
+  for (const g of guards) for (const f of by[g]) fams.add(f)
+  const why = [...new Set(guards.flatMap((g) => by[g]).map((f) => (withheldWhy || {})[f]).filter(Boolean))]
+  return {
+    withheldFamilies: [...fams].sort(),
+    withheldGuards: [...(by['objects:collector'] ? ['objects:collector'] : []), ...guards],
+    withheldWhy: why.join(' '),
   }
 }
 
@@ -829,6 +854,9 @@ function objectsOf(def, bars, ctx, cols, built = null) {
       // (`objectRuntime.js`, `withheldBy['objects:collector']`): graded as a gap.
       ...(run.withheldBy && run.withheldBy['objects:collector']
         ? { withheldFamilies: [...run.withheldBy['objects:collector']] } : {}),
+      // ⭐ OZ — and a family the run drew NONE of for a cause of the engine's own
+      // (`objectRuntime.js`, `notShown`), by the same name the member reads.
+      ...notShownReport(run.withheldBy, run.withheldWhy),
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }

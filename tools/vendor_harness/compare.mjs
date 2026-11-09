@@ -992,10 +992,17 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
     : false
   if (withheldHeld && !diverge && !shownColourDiffers) {
     const names = rows.filter((r) => r.withheld).map((r) => r.family).join(', ')
+    // ⭐ OZ — a family withheld by another named guard (`withheldGuards`) says that
+    // guard and the member's sentence; the collector-only reason is unchanged.
+    const guards = Array.isArray(ourObjs.withheldGuards) && ourObjs.withheldGuards.length
+      ? ourObjs.withheldGuards : ['objects:collector']
+    const onlyCollector = guards.length === 1 && guards[0] === 'objects:collector'
     return {
       verdict: 'INCONCLUSIVE',
-      withheld: 'objects:collector',
-      reason: `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree`,
+      withheld: guards.join(','),
+      reason: onlyCollector
+        ? `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree`
+        : `our ${names} are withheld by name (${guards.join(', ')}: ${ourObjs.withheldWhy || 'no sentence'}); every other object family's counts and texts agree`,
       counts: rows,
       texts: textRows,
     }

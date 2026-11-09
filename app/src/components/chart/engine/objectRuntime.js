@@ -46,6 +46,7 @@ const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { writeCell, spanned, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
+import { NOT_SHOWN, notShownSentence } from './ast/objectLoss.js'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -2159,21 +2160,55 @@ export function beginObjects(program, ctx) {
     .sort((a, b) => a.id - b.id)
   const cellsDropped = stopped ? 0 : ordered.reduce((n, o) => (o.family === 'table'
     ? n + cellsOf(cells.get(o.id)).length - cellsHeld(o.id).length : n), 0)
+  // ⭐⭐ OZ — A FAMILY THIS RUN DRAWS NONE OF, FOR A REASON OF THE ENGINE'S OWN, IS
+  // SAID BY NAME. Measured (DIVERGE triage 2026-11-08, lane 5): seven scripts ran
+  // `ok`, withheld nothing by name, and drew no line / label / box where TradingView
+  // draws dozens, because the translation lost the creates (`lostCreates`: a loop
+  // guarded by a multi-statement block, an unresolved `request.security`, a user
+  // type's field) or because every create this run reached was withheld, or every
+  // object it made carries a value it could not compute (C17). An empty family with
+  // no word reads as "the script draws none here", a claim this run cannot make.
+  // ⛔ ONLY A FAMILY NOTHING OF WHICH IS DRAWN: naming it hides nothing that was
+  // shown (a partly drawn family keeps the translation's "incomplete" note). A
+  // family already withheld by name above keeps its own sentence.
+  const notShown = { [NOT_SHOWN.NOT_CARRIED]: [], [NOT_SHOWN.NOT_COMPUTABLE]: [] }
+  if (!stopped) {
+    const drawnFams = new Set(ordered.map((o) => o.family))
+    const taintFams = new Set([...taintHeld].map((id) => live.get(id).family))
+    for (const fam of Object.keys(counts)) {
+      if (withheldFams.has(fam) || drawnFams.has(fam)) continue
+      if (lost.has(fam)) notShown[NOT_SHOWN.NOT_CARRIED].push(fam)
+      else if (famUnknown.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
+    }
+  }
+  const notShownBy = Object.fromEntries(Object.entries(notShown).filter(([, fs]) => fs.length))
+  const notShownWhy = {}
+  for (const [guard, fs] of Object.entries(notShownBy)) {
+    const t = notShownSentence(fs, guard)
+    for (const f of fs) notShownWhy[f] = t
+  }
+  const whyOut = {
+    ...notShownWhy,
+    ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { table: MERGED_HEAD_REWRITE_SENTENCE } : {}),
+  }
 
   return {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
-    ...(offListingFams.size || (collectorShown.length && !stopped) || cellGuards.size ? { withheldBy: {
+    ...(offListingFams.size || (collectorShown.length && !stopped) || cellGuards.size || Object.keys(notShownBy).length ? { withheldBy: {
       ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
       // ⛔ only a family that held something here: an empty one hides nothing
       ...(collectorShown.length && !stopped ? { 'objects:collector': collectorShown } : {}),
       // ⭐ DIV-3 r1 — a `table.cell` rewrote a merged head (`objectCells.js`)
       ...Object.fromEntries([...cellGuards].map((g) => [g, ['table']])),
+      // ⭐ OZ — a family drawn as none for an engine-side cause (`notShown` above)
+      ...notShownBy,
     } } : {}),
     // ⭐ DIV-3 r2 — the member's sentence per family withheld by a cell guard; the
     // binder carries it to the drawing note (`publishDrops`, `withRenderDrops`).
-    ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { withheldWhy: { table: MERGED_HEAD_REWRITE_SENTENCE } } : {}),
+    // ⭐ OZ — and per family drawn as none for an engine-side cause (`notShownSentence`).
+    ...(Object.keys(whyOut).length ? { withheldWhy: whyOut } : {}),
     // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
     // vendor harness's window analysis); never drawn — the binder reads `live`.
     ...(offListingFams.size && !stopped ? { offListingLive: [...live.values()]

@@ -114,6 +114,8 @@ import { setChartClockNotes } from './chartClockNotice'
 import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
+import { runtimeWithheldWhy, NOT_SHOWN } from './ast/objectLoss'
+import { MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -1137,6 +1139,20 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (n || fams.length || whyN) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
+  // ⭐ OZ — the host run's sentences, less a `objects:not-computable` one where this
+  // chart's clock note already says why (C36: a drawing that reads `time(<tf>)` is
+  // withheld on this chart, `publishClock`): one cause, one sentence.
+  // ⚠️ The run does not say WHICH unknown withheld a family, so with a clock note
+  // present a family withheld for another unknown is not named twice, nor at all.
+  const hostWithheldWhy = (run, chartClock) => {
+    const why = run && run.withheldWhy
+    if (!why) return null
+    const clockSaid = Array.isArray(chartClock) && chartClock.length
+      ? new Set(((run.withheldBy || {})[NOT_SHOWN.NOT_COMPUTABLE]) || []) : null
+    if (!clockSaid || !clockSaid.size) return why
+    const out = Object.fromEntries(Object.entries(why).filter(([f]) => !clockSaid.has(f)))
+    return Object.keys(out).length ? out : null
+  }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
   // member surface that shows it (T13b). Zero calls for a chart with no strategy on it.
   const markersPublished = new Set()
@@ -1216,7 +1232,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
         if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
-        publishDrops(inst.instanceId, rstate)
+        // ⭐ OZ — a family the RUN withheld whole draws none; its name reaches the
+        // member's drawing note on this lane too (`runtimeWithheldWhy`).
+        publishDrops(inst.instanceId, rstate, null,
+          runtimeWithheldWhy(payload.withheld, [MERGED_HEAD_REWRITE_SENTENCE]))
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
         const rset = attempt(() => rlayer.set(rstate, rsig, {
@@ -1383,7 +1402,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         } else markersCleared()
       }
       publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null,
-        built.value.run.withheldWhy || null)
+        hostWithheldWhy(built.value.run, built.value.chartClock))
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {

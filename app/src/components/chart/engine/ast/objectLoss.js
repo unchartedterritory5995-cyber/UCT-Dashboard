@@ -477,8 +477,10 @@ export function withRenderDrops(note, drops) {
   const n = drops && Number.isInteger(drops.dropped) ? drops.dropped : 0
   const fams = drops && Array.isArray(drops.families) ? drops.families : []
   // ⭐ DIV-3 r2 — a family the run withheld whole by a named guard, with its own sentence
+  // ⭐ OZ — several families can share one sentence (`notShownSentence` names them
+  // all), so a sentence is said once.
   const why = drops && drops.why && typeof drops.why === 'object'
-    ? Object.keys(drops.why).sort().map((f) => drops.why[f]).filter((t) => typeof t === 'string' && t) : []
+    ? [...new Set(Object.keys(drops.why).sort().map((f) => drops.why[f]).filter((t) => typeof t === 'string' && t))] : []
   if (n <= 0 && !fams.length && !why.length) return note || null
   const parts = note ? [note.note] : []
   if (n > 0) {
@@ -569,4 +571,63 @@ export function hiddenFamiliesSentence(families) {
   return `No ${list} is shown: the script keeps some of them where this chart can't follow yet `
     + '(in a list or in a field of its own type), so which ones TradingView would show, and where, '
     + "can't be known."
+}
+
+/** ⭐⭐ OZ — WHY A FAMILY THIS CHART DREW NONE OF IS EMPTY, WHEN THE REASON IS THE
+ *  ENGINE'S OWN. A drawing that comes out empty with no word reads as "the script
+ *  draws nothing here", which is a confident claim the engine cannot make when it
+ *  dropped or withheld the very steps that make those drawings.
+ *  The causes, each named by a guard on the run (`withheldBy`):
+ *    · `objects:not-carried`    — the translation lost a create of the family
+ *                                 (`program.lostCreates`, host lane);
+ *    · `objects:not-computable` — every create of it this run reached was withheld,
+ *                                 or every object it made carries a value it could
+ *                                 not compute (C17, host lane);
+ *    · `objects:unmeasured`     — the run withheld the family whole by a rule of its
+ *                                 own whose TradingView result is not measured
+ *                                 (`runtime/objectStore.js` `withhold`, runtime lane). */
+export const NOT_SHOWN = Object.freeze({
+  NOT_CARRIED: 'objects:not-carried',
+  NOT_COMPUTABLE: 'objects:not-computable',
+  UNMEASURED: 'objects:unmeasured',
+})
+
+const NOT_SHOWN_BECAUSE = Object.freeze({
+  [NOT_SHOWN.NOT_CARRIED]: "the script makes them in steps this chart can't follow yet, so none are "
+    + 'drawn here, though TradingView may draw some.',
+  [NOT_SHOWN.NOT_COMPUTABLE]: "whether and where the script draws them depends on values this chart can't "
+    + 'work out here, so none are drawn rather than a guess.',
+  [NOT_SHOWN.UNMEASURED]: 'the script handles them in a way whose result on TradingView has not been '
+    + 'measured yet, so none are drawn rather than a guess.',
+})
+
+/** The member's sentence for families shown as NONE for one engine-side cause. */
+export function notShownSentence(families, cause) {
+  const because = NOT_SHOWN_BECAUSE[cause]
+  if (!because || !Array.isArray(families) || !families.length) return null
+  const fs = families.map((f) => (f === 'linefill' ? 'fill between lines' : f))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
+  return `No ${list} is shown on this chart: ${because}`
+}
+
+/** ⭐⭐ OZ — THE RUNTIME LANE'S WITHHELD FAMILIES, AS THE MEMBER'S SENTENCES. The run
+ *  (`runtime/objectStore.js`) withholds a family WHOLE by name (`withheld`: family →
+ *  the engine's reason) and draws none of it; until now that name stopped at the
+ *  layer and the member saw the family vanish. A reason that is already a member
+ *  sentence (`memberSentences`, e.g. the merged-head rewrite) is said as written, the
+ *  same words the host lane says; every other family is said in ONE sentence
+ *  (`NOT_SHOWN.UNMEASURED`). Answers family → sentence, the binder's `why`. */
+export function runtimeWithheldWhy(withheld, memberSentences = []) {
+  if (!withheld || typeof withheld !== 'object') return null
+  const own = new Set(memberSentences)
+  const out = {}
+  const rest = []
+  for (const fam of Object.keys(withheld).sort()) {
+    const why = withheld[fam]
+    if (typeof why === 'string' && own.has(why)) out[fam] = why
+    else rest.push(fam)
+  }
+  const t = notShownSentence(rest, NOT_SHOWN.UNMEASURED)
+  for (const fam of rest) out[fam] = t
+  return Object.keys(out).length ? out : null
 }

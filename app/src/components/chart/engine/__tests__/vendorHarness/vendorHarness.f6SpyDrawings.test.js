@@ -417,7 +417,11 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
       expect(d.unsupported).toEqual([])
       expect(d.dropReasons).toEqual({})
       const v = graded(id)
-      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([2, 0])
+      // ⭐ OZ RE-PIN (2026-11-09): the 40 labels are now withheld BY NAME
+      // (`objects:not-computable`, every one carries a value the run could not compute)
+      // rather than counted as 0 — a stated refusal, not a silent zero.
+      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([2, null])
+      expect(family(v, 'labels').withheld).toBe(true)
       // ⭐ P2b — and the RENDER state draws them (the grade counts what the script holds)
       const o = ours(id)
       expect(o.objects.drawn.lines, id).toBe(2)
@@ -438,7 +442,10 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
       const o = ours(id)
       expect(o.notes.some((n) => /other symbol XAUUSD: refused \(other-symbol:bare\)/.test(n)), id).toBe(true)
       const v = graded(id)
-      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([0, 0])
+      // ⭐ OZ RE-PIN (2026-11-09): nothing of either is drawn, now withheld BY NAME
+      // (the creates the refused symbol reaches are lost: `objects:not-carried`).
+      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([null, null])
+      expect([family(v, 'lines').withheld, family(v, 'labels').withheld]).toEqual([true, true])
     }
   }, T)
 
