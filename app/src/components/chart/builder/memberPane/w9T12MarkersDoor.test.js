@@ -8,6 +8,11 @@
 //   1. While W9-MK1 is open the binder draws NO marker and publishes the refusal by name.
 //   2. CONTROL: an indicator publishes nothing and its layer is unchanged.
 //   3. Behind the test pin (the look pinned), a served record's markers reach the render state.
+//   4. (review F1) A strategy whose drawings come from the HOST object program draws exactly what
+//      the same document draws without the strategy stamp (the base path), markers refused or not.
+//   5. (review F2) The published outcome is scoped by binder: two binders on one instance id.
+//   6. (review F4) The repaint signature carries the markers: same count, other text => another
+//      signature; the same markers => the same signature.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 
 // the broker's own rules pinned (so the run produces a record); the marker look follows a test flag
@@ -54,10 +59,11 @@ function build(source) {
 }
 
 /** The real binder over the recording chart, fed `cols`; returns the render states handed to the layer. */
-function bind(def, cols) {
+function bind(def, cols, scope = '') {
   const fake = createFakeChart()
-  const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+  const binder = createBinder({ chart: fake.chart, LWC: fake.LWC, scope })
   const layers = []
+  const sigs = []
   const instanceId = `inst:${def.id}:1`
   binder.sync({
     enabled: true,
@@ -71,9 +77,9 @@ function bind(def, cols) {
     bars: BARS, tf: 'D', adjustTime: (t) => t, plan: { fresh: true },
     applyData: (series, data) => series.setData(data),
     resolvePlacement: () => ({ paneIndex: 0, scaleId: 's', scaleOptions: {} }),
-    createObjectLayer: () => ({ set: (state) => layers.push(state), clear: () => {} }),
+    createObjectLayer: () => ({ set: (state, sig) => { layers.push(state); sigs.push(sig) }, clear: () => {} }),
   })
-  return { binder, instanceId, layers }
+  return { binder, instanceId, layers, sigs }
 }
 
 describe('W9-T12 the markers at the member door', () => {
@@ -123,5 +129,115 @@ describe('W9-T12 the markers at the member door', () => {
       [t.exitTime, t.exitPrice, 'arrowdown', `Close entry(s) order L\n-${t.qty}`],
     ])
     m.binder.teardown()
+  })
+})
+
+/** A strategy run's columns with the order log W9-T7 adds (hand-made), entry comment `c`. */
+function served(def, c = null) {
+  const cols = computeRuntimeColumns(def, BARS, CTX)
+  const rec = JSON.parse(JSON.stringify(runtimeStrategyOf(cols)))
+  for (const t of rec.trades) t.exitId = t.open ? null : 'XL'
+  const fills = []
+  for (const t of rec.trades) {
+    fills.push({ id: t.entryId, status: 'filled', fillTime: t.entryTime, comment: c })
+    if (!t.open) fills.push({ id: 'XL', status: 'filled', fillTime: t.exitTime, comment: null })
+  }
+  rec.orders = fills
+  delete rec.unserved.orders
+  delete rec.unserved['trades.exitId']
+  return withStrategyRecord({ ...cols }, rec)
+}
+
+const HOSTED = {
+  'line.new every bar': 'line.new(bar_index, low, bar_index + 1, high)',
+  'label.new every bar': 'label.new(bar_index, high, "x")',
+  'var line once': 'var line ln = line.new(0, 100, 5, 120)',
+}
+const hostedSrc = (draw) => ['//@version=5', 'strategy("t", overlay = true)', 'if bar_index == 3',
+  '    strategy.entry("L", strategy.long)', 'if bar_index == 8', '    strategy.close("L")', draw,
+  'plot(strategy.position_size, "pos")', ''].join(NL)
+const drawn = (states) => {
+  const s = states.filter(Boolean).pop()
+  return s ? { lines: (s.lines || []).length, labels: (s.labels || []).length } : { lines: 0, labels: 0 }
+}
+
+describe('W9-T12 4 (review F1) a strategy drawn by the HOST object program keeps its drawings', () => {
+  for (const [name, draw] of Object.entries(HOSTED)) {
+    it(`${name}: the strategy draws what the same document draws on the base path`, () => {
+      const def = build(hostedSrc(draw))
+      // the case under test: the host program draws, the run does not
+      expect(def.meta.runtimeHistory).toBe('strategy-window')
+      expect(def.compute.objects).toBeFalsy()
+      expect(def.objects).toBeTruthy()
+      const cols = computeRuntimeColumns(def, BARS, CTX)
+      // the base path: the SAME document with the strategy stamp off (drawsTradeMarkers false),
+      // which is exactly the branch master takes for it
+      const baseDef = { ...def, meta: { ...def.meta, runtimeHistory: 'listing' } }
+      const base = bind(baseDef, cols)
+      const want = drawn(base.layers)
+      base.binder.teardown()
+      expect(want.lines + want.labels).toBeGreaterThan(0)
+      const tip = bind(def, cols)
+      expect(drawn(tip.layers)).toEqual(want)
+      // and the markers' refusal is still published for it
+      expect(tradeMarkersFor(tip.instanceId).capture).toBe('W9-MK1')
+      tip.binder.teardown()
+    })
+  }
+
+  it('behind the test pin, served markers JOIN the host picture (labels = host + markers)', () => {
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const base = drawn(bind({ ...def, meta: { ...def.meta, runtimeHistory: 'listing' } }, computeRuntimeColumns(def, BARS, CTX)).layers)
+    globalThis.__w9t12LookPinned = true
+    const m = bind(def, served(def))
+    const s = m.layers.filter(Boolean).pop()
+    expect(s.lines.length).toBe(base.lines)
+    expect(s.labels.map((l) => l.style)).toEqual(['arrowup', 'arrowdown'])
+    m.binder.teardown()
+  })
+})
+
+describe('W9-T12 5 (review F2) the published outcome is scoped by binder', () => {
+  it('two binders on one instance id: each reads its own, and one teardown leaves the other', () => {
+    const def = build(SRC)
+    globalThis.__w9t12LookPinned = true
+    const a = bind(def, served(def), 'chart-A')
+    globalThis.__w9t12LookPinned = false
+    const b = bind(def, served(def), 'chart-B')
+    expect(a.instanceId).toBe(b.instanceId)
+    expect(tradeMarkersFor(a.instanceId, 'chart-A').status).toBe('ok')
+    expect(tradeMarkersFor(b.instanceId, 'chart-B').status).toBe('refused')
+    expect(tradeMarkersFor(a.instanceId)).toBe(null)   // the unscoped store holds neither
+    b.binder.teardown()
+    expect(tradeMarkersFor(b.instanceId, 'chart-B')).toBe(null)
+    expect(tradeMarkersFor(a.instanceId, 'chart-A').status).toBe('ok')
+    a.binder.teardown()
+    expect(tradeMarkersFor(a.instanceId, 'chart-A')).toBe(null)
+  })
+})
+
+describe('W9-T12 6 (review F4) the repaint signature carries the markers', () => {
+  it('same marker count, other text: another signature; the same markers: the same signature', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(SRC)
+    const one = bind(def, served(def, 'first'))
+    const two = bind(def, served(def, 'second'))
+    const again = bind(def, served(def, 'first'))
+    const last = (m) => m.sigs.filter((x, i) => m.layers[i]).pop()
+    const n = (m) => m.layers.filter(Boolean).pop().labels.length
+    expect(n(one)).toBe(n(two))
+    expect(last(one)).not.toBe(last(two))
+    expect(last(one)).toBe(last(again))
+    for (const m of [one, two, again]) m.binder.teardown()
+  })
+
+  it('the host path too: same count, other text => another signature', () => {
+    globalThis.__w9t12LookPinned = true
+    const def = build(hostedSrc(HOSTED['var line once']))
+    const one = bind(def, served(def, 'first'))
+    const two = bind(def, served(def, 'second'))
+    const last = (m) => m.sigs.filter((x, i) => m.layers[i]).pop()
+    expect(last(one)).not.toBe(last(two))
+    for (const m of [one, two]) m.binder.teardown()
   })
 })

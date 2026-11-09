@@ -23,10 +23,10 @@
 // `data.isPinned` and `brokerReport.js`), never a second argument to `pinned`; the member door
 // (`memberTradeMarkers`) passes neither.
 //
-// ⛔ PINNING W9-MK1 IS ONE LEDGER ENTRY PLUS ITS NAME: the T1 rail (`w9T1Broker.test.js`) holds
-// the ledger to `BROKER_RULE_IDS`, so the coordinator merge that pins `MARKER_RULE` also names it
-// there (or widens that rail to `MARKER_RULE`). Until then the ledger cannot hold it, and the
-// markers refuse.
+// ⭐ `MARKER_RULE` IS A PRESENTATION RULE (`brokerRules.js::PRESENTATION_RULES`, the one authority
+// over its id and capture row), never an emulator rule. The ledger may name it (T1 rail:
+// `isLedgerRuleId`), so pinning W9-MK1 is the ledger entry plus the `SCRIPT_ENGINE_VERSION` bump
+// (design rule 7) and nothing else.
 //
 // ⛔ AN INDICATOR HAS NO RECORD AND GETS NO MARKERS: `null`, never a refusal (a sentence about a
 // backtest on a chart that ran none would be a sentence about nothing).
@@ -35,12 +35,13 @@
 // read whole (its shape, a fill after `asOfBar`, a fill with no order in the log) refuses whole.
 
 import { pinned } from './brokerPins.js'
-import { UNPINNED_GUARD } from './brokerRules.js'
+import { UNPINNED_GUARD, MARKER_RULE, PRESENTATION_RULES } from './brokerRules.js'
 import { STRATEGY_WINDOW_HISTORY, runtimeStrategyOf, strategyRecordShapeErrors } from './strategyRecord.js'
 
-/** The presentation rule the markers rest on, and the capture row that pins it (design 5.2). */
-export const MARKER_RULE = 'MK-LOOK'
-export const MARKER_CAPTURE = 'W9-MK1'
+/** The presentation rule the markers rest on, and the capture row that pins it (design 5.2),
+ *  both read from the one table (`brokerRules.js`). */
+export { MARKER_RULE }
+export const MARKER_CAPTURE = PRESENTATION_RULES[MARKER_RULE].capture
 /** The input is not a v1 strategy record the markers can read whole. */
 export const MARKER_RECORD_GUARD = 'runtime:strategy-markers-record'
 /** The record does not carry a field every marker needs (the order log, the exit's id). */
@@ -83,6 +84,13 @@ export const MARKER_UNPINNED_SENTENCE = 'Trade markers are not drawn: how Tradin
   + `entry and exit markers (shape, colour, text and placement) has not been measured yet (capture row ${MARKER_CAPTURE}). `
   + 'The script\'s plots are not affected.'
 
+/** ⛔ MEMBER SENTENCES SAY WHAT IS MISSING IN WORDS: the field paths and the raw shape errors
+ *  stay on the refusal (`fields`, `errors`) for a reader that diagnoses, never in the sentence. */
+export const MARKER_UNRECORDED_SENTENCE = 'Trade markers are not drawn: each marker is labelled with the order '
+  + "that filled, and this backtest does not keep a log of its orders yet. The script's plots are not affected."
+export const MARKER_RECORD_SENTENCE = "Trade markers are not drawn: this backtest's list of trades could not be read "
+  + "in full, and markers are never shown with a trade missing. The script's plots are not affected."
+
 const sideOf = (role, dir) => ((role === 'entry') === (dir === 'long') ? 'buy' : 'sell')
 
 /**
@@ -98,8 +106,7 @@ export function tradeMarkersOf(record, opts = {}) {
   const errs = strategyRecordShapeErrors(record)
   const asOfBar = record && record.window ? record.window.asOfBar : null
   if (errs.length) {
-    return refusal(MARKER_RECORD_GUARD, 'Trade markers are not drawn: the backtest record could not be read whole '
-      + `(${errs.slice(0, 3).join(', ')}).`, { errors: errs.slice() }, asOfBar)
+    return refusal(MARKER_RECORD_GUARD, MARKER_RECORD_SENTENCE, { errors: errs.slice() }, asOfBar)
   }
   // ⭐⭐ D1: the look is asked of the committed ledger, at the moment markers are asked for
   const isPinned = typeof opts.isPinned === 'function' ? opts.isPinned : (id) => pinned(id)
@@ -109,9 +116,8 @@ export function tradeMarkersOf(record, opts = {}) {
   const unserved = record.unserved || {}
   const missing = ['orders', 'trades.exitId'].filter((k) => Object.prototype.hasOwnProperty.call(unserved, k))
   if (missing.length) {
-    return refusal(MARKER_UNRECORDED_GUARD, 'Trade markers are not drawn: each marker names its order, and the '
-      + `backtest record does not carry ${missing.join(' and ')} yet.`,
-    { fields: missing, owners: missing.map((k) => unserved[k]) }, asOfBar)
+    return refusal(MARKER_UNRECORDED_GUARD, MARKER_UNRECORDED_SENTENCE,
+      { fields: missing, owners: missing.map((k) => unserved[k]) }, asOfBar)
   }
   const orders = Array.isArray(record.orders) ? record.orders : []
   const fills = new Map()
@@ -136,8 +142,7 @@ export function tradeMarkersOf(record, opts = {}) {
     if (!t.open) addFill('exit', t, t.exitId, t.exitTime, t.exitPrice)
   }
   if (bad.length) {
-    return refusal(MARKER_RECORD_GUARD, 'Trade markers are not drawn: the backtest record could not be read whole '
-      + `(${bad.slice(0, 3).join(', ')}).`, { errors: bad }, asOfBar)
+    return refusal(MARKER_RECORD_GUARD, MARKER_RECORD_SENTENCE, { errors: bad }, asOfBar)
   }
   // fill order: by bar time, an exit before an entry on the same bar (a fill closes before it opens)
   const markers = [...fills.values()].sort((a, b) => (a.time - b.time)
@@ -205,16 +210,48 @@ export function memberTradeMarkers(cols) {
   return tradeMarkersOf(runtimeStrategyOf(cols))
 }
 
-// ─── the outcome a member surface reads (the report panel, T13b): per chart instance ─────────
+// ─── the outcome a member surface reads (the report panel, T13b) ───────────────────────────
+//
+// ⭐ SCOPED BY BINDER, THEN BY INSTANCE (as `objectRenderNotice.js`): one instance id can be drawn
+// by several binders at once (a grid cell, a workspace widget, a popup), so an instance-only key
+// let chart A's sync or teardown overwrite or erase chart B's outcome. An absent scope is `''`.
+// ⭐ EMITS ONLY ON A CHANGE BY VALUE: `tradeMarkersOf` builds a fresh object every sync, so an
+// identity check would re-render a listener on every sync with nothing changed.
+
+/** scope → instanceId → `{ result, key }` */
 const published = new Map()
 const listeners = new Set()
-export function publishTradeMarkers(instanceId, result) {
-  const had = published.has(instanceId)
-  if (result) published.set(instanceId, result)
-  else if (had) published.delete(instanceId)
-  else return
-  for (const fn of listeners) { try { fn(instanceId) } catch { /* a listener never breaks the chart */ } }
+const valueKey = (r) => JSON.stringify(r)
+const emit = (instanceId, scope) => {
+  for (const fn of [...listeners]) { try { fn(instanceId, scope) } catch { /* a listener never breaks the chart */ } }
 }
-export function tradeMarkersFor(instanceId) { return published.get(instanceId) || null }
+
+/** Record (or clear, with null) one instance's marker outcome in one binder's scope. */
+export function publishTradeMarkers(instanceId, result, scope = '') {
+  if (!instanceId) return
+  const sc = scope || ''
+  const own = published.get(sc)
+  const had = own ? own.get(instanceId) : undefined
+  if (!result) {
+    if (!had) return
+    own.delete(instanceId)
+    if (!own.size) published.delete(sc)
+    emit(instanceId, sc)
+    return
+  }
+  const key = valueKey(result)
+  if (had && had.key === key) return
+  if (own) own.set(instanceId, { result, key })
+  else published.set(sc, new Map([[instanceId, { result, key }]]))
+  emit(instanceId, sc)
+}
+/** One instance's outcome in one binder's scope, or null. */
+export function tradeMarkersFor(instanceId, scope = '') {
+  const own = published.get(scope || '')
+  const hit = own ? own.get(instanceId) : undefined
+  return hit ? hit.result : null
+}
+/** ⭐ Subscribe; returns the unsubscribe. */
 export function onTradeMarkersChange(fn) { listeners.add(fn); return () => listeners.delete(fn) }
+/** ⛔ TEST SEAM. */
 export function resetTradeMarkers() { published.clear(); listeners.clear() }

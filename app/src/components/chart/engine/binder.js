@@ -1128,7 +1128,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
   const markersPublished = new Set()
   const publishMarkers = (instanceId, result) => {
     if (!result && !markersPublished.has(instanceId)) return
-    attempt(() => publishTradeMarkers(instanceId, result))
+    attempt(() => publishTradeMarkers(instanceId, result, noticeScope))
     if (result) markersPublished.add(instanceId)
     else markersPublished.delete(instanceId)
   }
@@ -1163,15 +1163,23 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
       // draws nothing — never a stale picture, never the host program's.
-      // ⭐⭐ W9-T12 — A STRATEGY'S TRADE MARKERS ride the same layer: asked of the committed
-      // ledger at the member door (`memberTradeMarkers`), drawn only when served. ⛔ An indicator
-      // never reaches `memberTradeMarkers` (`drawsTradeMarkers` is false), so its path is unchanged.
+      // ⭐⭐ W9-T12 — A STRATEGY'S TRADE MARKERS: asked of the committed ledger at the member door
+      // (`memberTradeMarkers`) and published BEFORE either drawing path, then merged into
+      // WHICHEVER layer draws this instance (the run's objects below, or the host program's).
+      // ⛔ An indicator never reaches `memberTradeMarkers` (`drawsTradeMarkers` is false), so its
+      // path is unchanged. ⚰️ The first cut sent every strategy into the run's branch, and a
+      // strategy whose drawings come from the HOST program (`definition.objects`, no
+      // `compute.objects`) drew nothing at all (review F1).
       const markersHere = drawsTradeMarkers(def)
-      if (drawsRuntimeObjects(def) || markersHere) {
+      const marks = markersHere
+        ? attempt(() => memberTradeMarkers((computeMemo.get(inst.instanceId) || {}).cols)).value || null : null
+      if (markersHere) publishMarkers(inst.instanceId, marks)
+      const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
+      const markSig = markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : ''
+      // the run's branch: a document whose run draws its objects, or a strategy with no host program
+      if (drawsRuntimeObjects(def) || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
         const memo = computeMemo.get(inst.instanceId)
-        const marks = markersHere ? attempt(() => memberTradeMarkers(memo && memo.cols)).value || null : null
-        if (markersHere) publishMarkers(inst.instanceId, marks)
         if (typeof make !== 'function') continue
         let rlayer = objectLayers.get(inst.instanceId)
         if (!rlayer) {
@@ -1180,7 +1188,6 @@ export function createBinder({ chart, LWC, scope = '' }) {
           if (!rlayer) continue
           objectLayers.set(inst.instanceId, rlayer)
         }
-        const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
         const objPayload = runtimeObjectsOf(memo && memo.cols)
         const payload = objPayload && !markLive.length ? objPayload
           : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
@@ -1192,7 +1199,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         if (!rstate) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         publishDrops(inst.instanceId, rstate)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
-          + (markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : '')
+          + markSig
         attempt(() => rlayer.set(rstate, rsig, {
           liveIds: payload.live.map((o) => o.id),
           createdBars: payload.live.map((o) => o.createdBar),
@@ -1341,8 +1348,17 @@ export function createBinder({ chart, LWC, scope = '' }) {
           dropped: built.value.state.dropped,
         },
       }
-      publishDrops(inst.instanceId, built.value.state)
-      attempt(() => layer.set(built.value.state, sig, meta))
+      // ⭐ W9-T12 — served markers join the host program's picture (one layer per instance)
+      let hstate = built.value.state
+      if (markLive.length) {
+        const mstate = attempt(() => toRenderState(markLive, { bars, tf: ctx.tf, theme })).value
+        if (mstate) {
+          hstate = { ...hstate, labels: (hstate.labels || []).concat(mstate.labels) }
+          meta.liveIds = meta.liveIds.concat(markLive.map((o) => o.id))
+        }
+      }
+      publishDrops(inst.instanceId, hstate)
+      attempt(() => layer.set(hstate, sig + markSig, meta))
     }
     for (const [id, layer] of objectLayers) {
       if (alive.has(id)) continue

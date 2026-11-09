@@ -13,10 +13,11 @@ import { describe, it, expect } from 'vitest'
 import {
   tradeMarkersOf, tradeMarkerObjects, memberTradeMarkers, drawsTradeMarkers, markerText,
   MARKER_RULE, MARKER_CAPTURE, MARKER_RECORD_GUARD, MARKER_UNRECORDED_GUARD, MARKER_LOOK_HYPOTHESES,
-  MARKER_UNPINNED_SENTENCE,
+  MARKER_UNPINNED_SENTENCE, MARKER_UNRECORDED_SENTENCE, MARKER_RECORD_SENTENCE,
+  publishTradeMarkers, tradeMarkersFor, onTradeMarkersChange, resetTradeMarkers,
 } from '../tradeMarkers.js'
 import { strategyRecordOf, withStrategyRecord, strategyRecordShapeErrors, STRATEGY_WINDOW_HISTORY } from '../strategyRecord.js'
-import { UNPINNED_GUARD, BROKER_RULE_IDS } from '../brokerRules.js'
+import { UNPINNED_GUARD, BROKER_RULE_IDS, PRESENTATION_RULES, MARKER_RULE as RULES_MARKER_RULE } from '../brokerRules.js'
 import RESOLVED from '../brokerPins.resolved.json'
 import { toRenderState } from '../../objectRenderState.js'
 
@@ -107,8 +108,26 @@ describe('W9-T12 2 — the member door refuses by name until W9-MK1 is pinned', 
     expect(out.owners).toEqual(['W9-T7', 'W9-T7'])
   })
 
-  it('MK-LOOK is not a broker rule: pinning it is its own ledger entry (follow-up recorded in the module)', () => {
+  it('MK-LOOK is a presentation rule, read from the one table in brokerRules.js, never a broker rule', () => {
     expect(BROKER_RULE_IDS).not.toContain(MARKER_RULE)
+    expect(MARKER_RULE).toBe(RULES_MARKER_RULE)
+    expect(MARKER_CAPTURE).toBe(PRESENTATION_RULES[MARKER_RULE].capture)
+  })
+
+  it('member sentences carry no field path and no raw shape error (those stay on the refusal)', () => {
+    const fieldPath = /\b[a-z][A-Za-z]*\.[a-z][A-Za-z_]*\b/
+    const unrec = tradeMarkersOf(rawRecord([tr('L', 1, 1, 2, 10, 5, 12)]), PIN)
+    const bad = tradeMarkersOf({ schema: 'nope' })
+    expect(unrec.sentence).toBe(MARKER_UNRECORDED_SENTENCE)
+    expect(bad.sentence).toBe(MARKER_RECORD_SENTENCE)
+    expect(bad.errors.length).toBeGreaterThan(0)
+    for (const sentence of [MARKER_UNPINNED_SENTENCE, MARKER_UNRECORDED_SENTENCE, MARKER_RECORD_SENTENCE]) {
+      expect(sentence).not.toMatch(fieldPath)
+      expect(sentence).not.toMatch(/exitId|window\.|trades\.|trades\[/)
+    }
+    // CONTROL: the pattern does catch the shapes the first cut put in a sentence
+    expect('does not carry orders and trades.exitId yet').toMatch(fieldPath)
+    expect('(window.startDate, schema)').toMatch(fieldPath)
   })
 })
 
@@ -248,5 +267,40 @@ describe('W9-T12 4 — a record the markers cannot read whole refuses whole', ()
   it('a record that is not v1, refused before the pin is asked', () => {
     const out = tradeMarkersOf({ schema: 'nope' }, { isPinned: () => { throw new Error('asked') } })
     expect(out.guard).toBe(MARKER_RECORD_GUARD)
+  })
+})
+
+describe('W9-T12 5 the published outcome (review F2, F3)', () => {
+  const rec = () => servedRecord([tr('L', 1, 3, 2, 10, 5, 12)], ['XL'], [ord('L', 2), ord('XL', 5)])
+
+  it('is scoped by binder: one instance id in two scopes holds two outcomes; clearing one keeps the other', () => {
+    resetTradeMarkers()
+    const a = tradeMarkersOf(rec(), PIN)
+    const b = tradeMarkersOf(rec())
+    publishTradeMarkers('i1', a, 'A')
+    publishTradeMarkers('i1', b, 'B')
+    expect(tradeMarkersFor('i1', 'A').status).toBe('ok')
+    expect(tradeMarkersFor('i1', 'B').status).toBe('refused')
+    expect(tradeMarkersFor('i1')).toBe(null)
+    publishTradeMarkers('i1', null, 'B')
+    expect(tradeMarkersFor('i1', 'B')).toBe(null)
+    expect(tradeMarkersFor('i1', 'A').status).toBe('ok')
+    resetTradeMarkers()
+  })
+
+  it('emits only when the outcome changes BY VALUE (a fresh equal object each sync emits nothing)', () => {
+    resetTradeMarkers()
+    const seen = []
+    onTradeMarkersChange((id, scope) => seen.push(`${scope}:${id}`))
+    publishTradeMarkers('i1', tradeMarkersOf(rec(), PIN), 'A')
+    publishTradeMarkers('i1', tradeMarkersOf(rec(), PIN), 'A')   // equal by value, a new object
+    publishTradeMarkers('i1', tradeMarkersOf(rec(), PIN), 'A')
+    expect(seen).toEqual(['A:i1'])
+    // CONTROL: a different outcome emits, and so does a clear; a second clear does not
+    publishTradeMarkers('i1', tradeMarkersOf(rec()), 'A')
+    publishTradeMarkers('i1', null, 'A')
+    publishTradeMarkers('i1', null, 'A')
+    expect(seen).toEqual(['A:i1', 'A:i1', 'A:i1'])
+    resetTradeMarkers()
   })
 })
