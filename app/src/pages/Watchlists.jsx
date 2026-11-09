@@ -118,6 +118,7 @@ import { chordById, matchesChord } from './command/chords.js'
 import fetcher from '../utils/jsonFetcher'
 import { readSuccessBody } from '../lib/responseBody'
 import { nextSort } from '../lib/presentation/dataGrid'
+import { useWatchlistsAgentHost } from '../agent/hosts/usePageAgentHosts'
 
 // TERM-065: a column-header click asks the DataGrid seed which way the sort turns
 // (same column flips; a new column starts Symbol A→Z, numbers high→low). The frozen
@@ -729,6 +730,8 @@ function CompareSearch({ onPick, baseSym }) {
 }
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false }) {
+  // the Agent on the Watchlists page (teaching only: a read-only host), never in the Charts widget's embedded list
+  useWatchlistsAgentHost({ embedded })
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -2595,6 +2598,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           ) : (
             <span
               className={styles.wlName}
+              data-guide={embedded ? undefined : 'watchlist.listName'}
               onContextMenu={e => handleContextMenu(e, wl.id, isOwner, items.map(i => i.sym))}
               {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: wl.id, isOwner, symbols: items.map(i => i.sym) }))}
             >{wl.name}</span>
@@ -2888,6 +2892,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   return (
     <div
       ref={pageRef}
+      data-guide={embedded ? undefined : 'watchlists.page'}
       className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}
       style={wlStyle}
       onPointerDown={markActiveWidget}

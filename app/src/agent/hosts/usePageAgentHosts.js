@@ -10,13 +10,14 @@
 //   Breadth:                       useBreadthAgentHost({ tab, days, topDate, rowCount, columns, live, loading })
 //   Calendar:                      useCalendarAgentHost({ data, weekLabel, view, loading })
 //   JournalLayout:                 useJournalAgentHost({ notes?, refresh? })
+//   Watchlists (the page only):    useWatchlistsAgentHost({ embedded })   read-only, teaching only
 
 import { useEffect, useState } from 'react'
 import { mutate as globalMutate } from 'swr'
 import { useAgentPageHost, useAgentApp } from '../agentApp'
 import useSavedScreens from '../../pages/screener/hooks/useSavedScreens'
 import useJ2Notes from '../../pages/journal-2-0/hooks/useJ2Notes'
-import { buildScreenerPageHost, buildBreadthPageHost, buildCalendarPageHost, buildJournalPageHost } from './pageHosts'
+import { buildScreenerPageHost, buildBreadthPageHost, buildCalendarPageHost, buildJournalPageHost, buildPageHost } from './pageHosts'
 
 const here = () => { try { return window.location.pathname } catch { return null } }
 
@@ -105,4 +106,20 @@ export function useJournalAgentHost(values = {}) {
   }))
   useAgentPageHost('journal', host)
   return host
+}
+
+/**
+ * The Watchlists page's Agent (pl-teach cov-4 item 8): TEACHING ONLY. A read-only host with no capabilities of its own, so a
+ * walkthrough the member said Yes to on Charts can start here; never registered for the Charts widget's embedded list.
+ * It carries no watchlist doors (no `watchlists` library, no list writers): nothing here can change a list.
+ */
+export function useWatchlistsAgentHost({ embedded = false } = {}) {
+  const app = useAgentApp()
+  const host = useLiveHost(app, { app }, (live) => buildPageHost({
+    surface: 'watchlists',
+    location: () => here() || '/watchlists',
+    navigate: (to) => live().app?.navigate(to),
+  }))
+  useAgentPageHost('watchlists', embedded ? null : host)
+  return embedded ? null : host
 }
