@@ -1,5 +1,5 @@
 """Import a tweet, Task 2 -- the read side (`api/services/journal_two/tweet_capture.py`, the
-`tweets_router` in `api/routers/notebook_research_capture.py`, `twitterapi_io.get_tweets_by_ids`).
+`tweets_router` in `api/routers/notebook_tweet_capture.py`, `twitterapi_io.get_tweets_by_ids`).
 
 What each section proves:
   * THE LINK: only a post link on exactly x.com / twitter.com (optionally www. / mobile.) yields
@@ -81,7 +81,7 @@ def flag_on(monkeypatch):
 
 @pytest.fixture
 def client(store, monkeypatch):
-    from api.routers import notebook_research_capture as r
+    from api.routers import notebook_tweet_capture as r
     app = FastAPI()
     app.include_router(r.tweets_router)
     user = {"id": UID, "role": "member", "plan": "pro"}
@@ -303,7 +303,7 @@ def test_resolve_route(client, flag_on, store, vendor):
 
 def test_resolve_rate_limit_is_its_own_429(client, flag_on, store, vendor, monkeypatch):
     from api.limiter import limiter
-    from api.routers import notebook_research_capture as r
+    from api.routers import notebook_tweet_capture as r
     monkeypatch.setattr(limiter, "enabled", True)
     monkeypatch.setattr(r, "TWEET_RESOLVE_RATE", "2/minute")
     monkeypatch.setattr(r, "SCOPE_TWEET_RESOLVE", f"notebook-tweet-resolve-test-{time.time_ns()}")

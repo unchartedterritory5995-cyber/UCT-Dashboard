@@ -12,11 +12,6 @@ Two capabilities, two routers in one module (both always on: their flags were re
     POST    /api/j2/research-capture/passed-setups          add a name by hand
     DELETE  /api/j2/research-capture/passed-setups/{id}     remove one from the list
 
-  tweets (import a tweet; DARK behind NOTEBOOK_TWEET_IMPORT_ENABLED, 404 while off)
-    GET   /api/j2/research-capture/tweets/recent?symbol=&scope=     posts UCT holds, last 168 h
-    POST  /api/j2/research-capture/tweets/resolve                   a pasted X link -> a post
-    POST  /api/j2/research-capture/tweets/save                      posts -> cited excerpts in a note
-
 The rules (the template gallery's, `notebook_template_gallery.py`, and 13C's):
   * PAID, on every route (transcripts are paid data on the Calendar; bars likewise).
   * Services: `journal_two/transcript_capture.py`, `journal_two/passed_setups.py`. Zero model
@@ -26,13 +21,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import request_body_cap as body_cap
 from api.services.journal_two import passed_setups as ps
 from api.services.journal_two import transcript_capture as tc
-from api.services.journal_two import tweet_capture as tw
 
 
 transcripts_router = APIRouter(
@@ -44,27 +38,6 @@ passed_router = APIRouter(
     prefix="/api/j2/research-capture/passed-setups",
     tags=["journal-2-0", "notebook-research-capture"],
 )
-
-
-def _require_tweet_import() -> None:
-    """Router-level: an off gate answers like no route (FastAPI's own unknown-route body),
-    before the plan check, the body read or any work."""
-    if not tw.enabled():
-        raise HTTPException(status_code=404, detail="Not Found")
-
-
-tweets_router = APIRouter(
-    prefix="/api/j2/research-capture/tweets",
-    tags=["journal-2-0", "notebook-research-capture"],
-    dependencies=[Depends(_require_tweet_import)],
-)
-
-#: `POST /tweets/resolve` -- one vendor call per press, so its own bucket. PER-PROCESS state
-#: (api/limiter.py's in-memory storage): a second web process doubles it (CLAUDE.md roster).
-TWEET_RESOLVE_RATE = "30/minute"
-SCOPE_TWEET_RESOLVE = "notebook-tweet-resolve"
-TWEET_RESOLVE_RATE_SENTENCE = "That's a lot of links at once. Try again in a minute."
-MAX_LINK_CHARS = 2048
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -166,50 +139,3 @@ def remove_passed(item_id: str, user: dict = Depends(require_paid)) -> dict[str,
     if not ps.dismiss(str(user["id"]), item_id):
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
-
-
-# ── tweets ───────────────────────────────────────────────────────────────────
-
-@tweets_router.get("/recent")
-def recent_tweets(symbol: str | None = Query(None, max_length=32),
-                  scope: str = Query("all", max_length=16),
-                  user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """Posts UCT already holds from the last 168 hours: `scope=ticker` needs `symbol`,
-    `scope=all` is the curated feed. A plain read of `tweets.db`; no vendor call."""
-    try:
-        return {"posts": tw.recent(symbol, scope)}
-    except tw.TweetCaptureError as e:
-        raise _fail(e) from e
-
-
-@tweets_router.post("/resolve")
-def resolve_tweet(payload: dict[str, Any] = Depends(_json(dict[str, Any])),
-                  user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """A pasted X link as a post. The server fetches by the link's numeric id only, never the
-    link; a post fetched this way is not stored. 30/minute per member (a vendor call per press)."""
-    from api.services.journal_two import public_note_payload as public
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="A JSON object is required")
-    url = payload.get("url")
-    if not isinstance(url, str) or not url.strip() or len(url) > MAX_LINK_CHARS:
-        raise HTTPException(status_code=400, detail=tw.NOT_A_LINK_SENTENCE)
-    # The limiter's own 429 is its own response: it is raised OUTSIDE the try below.
-    public.enforce_rate(TWEET_RESOLVE_RATE, SCOPE_TWEET_RESOLVE, f"member:{user['id']}",
-                        TWEET_RESOLVE_RATE_SENTENCE, public=False)
-    try:
-        return {"post": tw.resolve_link(url)}
-    except tw.TweetCaptureError as e:
-        raise _fail(e) from e
-
-
-@tweets_router.post("/save")
-def save_tweets(payload: dict[str, Any] = Depends(_json(dict[str, Any])),
-                user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """Posts by id into a note, as cited excerpts. A sync route (threadpool): each post is
-    re-read server-side, and nothing the client sent about a post is stored."""
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="A JSON object is required")
-    try:
-        return tw.save(str(user["id"]), payload.get("noteId"), payload.get("tweetIds"))
-    except tw.TweetCaptureError as e:
-        raise _fail(e) from e

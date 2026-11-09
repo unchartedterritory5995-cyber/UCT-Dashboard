@@ -146,6 +146,8 @@ from api.routers import notebook_entry_context as notebook_entry_context_router
 # excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
 # flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
+# Import a tweet (/api/j2/research-capture/tweets/*), dark behind NOTEBOOK_TWEET_IMPORT_ENABLED.
+from api.routers import notebook_tweet_capture as notebook_tweet_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
 # always on (its flag was retired 2026-11-04).
@@ -10792,7 +10794,7 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
-app.include_router(notebook_research_capture_router.tweets_router)
+app.include_router(notebook_tweet_capture_router.tweets_router)
 
 # Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
