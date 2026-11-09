@@ -143,6 +143,7 @@ and A1 ("A is good").
   teach as ours; the setup review (TRADE_PLANS.md) follows it.
 - B20. A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is
   the new stop. ("gap against stop use 30 minute rules (let first 30 minute low of gap down day define new stop.")
+  With a ceiling: if the first 30 minutes take the loss past 2R, get out. (G70, "70 yes")
 - B21. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.
   ("21, yes.")
 - B22. No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.
@@ -233,7 +234,8 @@ and A1 ("A is good").
   the first ones work (the account's number of positions, not adds to one trade, A5). ("yes to all of those")
 - F69. Small accounts hold fewer positions, about 3 to 5, so each is big enough to manage. ("yes to all of those")
 
-**Declined after the cleanup (2026-11-09):** leveraged ETFs count at face value, not at their leverage (71, "NO");
+**Declined after the cleanup (2026-11-09):** a position over 25% needs no A+ grade or Green market (72, "72 no");
+leveraged ETFs count at face value, not at their leverage (71, "NO");
 a big position may wait for 5R like any other, no forced first trim at 3R (73, "NO"); no limit on how many
 positions can be over 25% at once (74, "NO").
 
@@ -243,5 +245,5 @@ size and the cap; A7 adds the book's 200% / 100% limits; A8 defines drawdown and
 B16 runs by calendar month; C28 notes that chasing costs size; C31 gains the short-side mirror; C33 defines "done
 nothing" as under 1R after 10 trading days.
 
-**The account rulebook is complete as of 2026-11-09** (71 rules: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
+**The account rulebook is closed as of 2026-11-09** (71 rules, B20 now with the 2R ceiling: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
 F60-F69). The setup plans (TRADE_PLANS.md) are reviewed next, when the owner says so.
