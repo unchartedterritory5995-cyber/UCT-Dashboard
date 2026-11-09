@@ -84,7 +84,60 @@ from it; `houseSizing.json` becomes a cap layer the Method mentions once.
 
 ## 8. Open for the owner
 
-1. Confirm the drawdown ladder numbers in §4 as the house protocol.
-2. Confirm "under 1% is normal" as the default risk the drills assume when the question does not
-   state one.
+1. ~~Confirm the drawdown ladder numbers in §4 as the house protocol.~~ Settled 2026-11-09 (§9 A8).
+2. ~~Confirm "under 1% is normal" as the default risk the drills assume when the question does not
+   state one.~~ Settled 2026-11-09 (§9 A1).
 3. Confirm the 3% "position loss" line as a taught guideline, not a rule.
+
+## 9. The account rulebook (the owner, 2026-11-09)
+
+The owner asked to "finalize all possible and good high quality account rules" before the setup rules. This section
+is the single list the courses and games teach as ours; where it and an earlier section disagree, this section wins.
+His words are in `docs/study/audits/2026-10-24/owner_verdicts.jsonl` (2026-11-09). §8 items 1 and 2 are settled by A8
+and A1 ("A is good").
+
+**A. Settled ("A is good")**
+- A1. Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.
+  2% is the ceiling; under 1% is normal.
+- A2. Risking the same percent on every trade is also fine: pick one way and write it in the plan.
+- A3. Stop first (by default the day's low or the prior day's low); the size comes from the stop; if the honest stop
+  does not fit the risk, skip the trade.
+- A4. The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).
+- A5. Shares = account × risk % ÷ (entry − stop), rounded down. The full size at one price with one stop; no adding.
+- A6. Trade shares; options are only a defined-risk alternative.
+- A7. Max position 20% to 25% of the account. A tight stop never justifies a huge position: a gap can jump the stop.
+- A8. Drawdown ladder: max position 10% after a 6% drawdown, 8% after 8%, 5% after 10%.
+- A9. Hold 5 to 10 positions.
+- A10. Total open risk and position size by market condition are guides that vary, not hard caps.
+- A11. Sell some into strength and trail the rest under the rising averages.
+- A12. Plan every trade as Entry, Stop, Trim, Trail, Advance.
+
+**B. Added**
+- B13. At a 15% drawdown, stop opening new trades and review before trading again. ("13, good.")
+- B14. Size comes back one rung of the ladder each time the account recovers half of the drawdown; full size again
+  once the account is back within 5% of its peak. ("14, good except full size okat at 5% drawdown again on the way up.")
+- B15. No daily loss limit. ("15, no.")
+- B16. No weekly loss limit; a monthly loss limit of 8%. ("16 no But a monthly loss limit of 8%.")
+- B18. A market filter decides when the account trades. ("18, yes there is a market filter for sure yes.") Its
+  definition is still to come from the owner.
+- B19. Move the stop to breakeven at 2R to 5R, ideally; the first trim at 3R to 6R, ideally. ("19 breakeven stop at
+  2-5R ideally.First trim at 3-6R ideally.") This replaces the setup plans' "take some off at 2R and 3R" in what the
+  courses teach as ours; the setup review (TRADE_PLANS.md) follows it.
+- B20. A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is
+  the new stop. ("gap against stop use 30 minute rules (let first 30 minute low of gap down day define new stop.")
+- B21. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.
+  ("21, yes.")
+- B22. No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.
+  ("22 change it to 3 days and only hold if up 5R.")
+- B23. Trade only stocks at $10 or more that trade at least $20 million a day. ("23, yes.")
+- B24. Margin: total long positions up to 200% of the account. Risk per trade is still a percent of the account.
+  (His words named his account size; it is kept out of this public repo. The rule is the 200%.)
+- B25. Options occasionally; no further rules. The premium paid is the stop. ("25, occassionally but dont need any
+  rules, premium paid is stop.")
+- B26. The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only
+  below the 200-day, never above it unless it is a parabolic short. ("SHort I will only do if below the 200SMA. No
+  longs below 200SMA (unless parabolic long) no shorts above 200SMA unless parabolic short.")
+
+**Still open (asked 2026-11-09):** a losing-streak rule (17); the market filter's definition (18); what happens when
+the monthly 8% limit is hit; what counts as parabolic (B26); journaling and review (27); whether "I almost never take a
+loss greater than 3%" and "read charts in percents" belong in A.
