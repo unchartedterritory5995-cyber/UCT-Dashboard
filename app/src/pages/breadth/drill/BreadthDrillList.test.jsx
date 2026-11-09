@@ -116,7 +116,7 @@ describe('BreadthDrillList — it feeds the REAL table, it does not build one', 
     const w = lastProps.defaultColCfg.widths
     expect(w.chg).toBe(w.price)
     expect(w.price).toBe(w.vol)
-    expect(lastProps.colStorageKey).toMatch(/breadthDrill\.focus6$/)
+    expect(lastProps.colStorageKey).toMatch(/breadthDrill\.focus7$/)
   })
 
   it('⛔ Vol is RAW volume from the payload (`v`) on a recorded day — never the RVOL ratio', () => {

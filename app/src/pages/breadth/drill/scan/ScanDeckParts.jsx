@@ -70,6 +70,7 @@ const RANGE_LS = 'uct.breadthDrill.sparkRange'
 function readRange() {
   try { const v = localStorage.getItem(RANGE_LS); return RANGES.some(r => r.key === v) ? v : '3M' } catch { return '3M' }
 }
+const shownValIsOne = (n) => n === 1
 const fmtDay = (d) => {
   if (!d) return 'today'
   const [y, m, dd] = d.split('-').map(Number)
@@ -89,7 +90,10 @@ function CountHistory({ count, ctx }) {
   const pick = (k) => { setRange(k); setHover(null); try { localStorage.setItem(RANGE_LS, k) } catch { /* private mode */ } }
 
   const shownVal = hover != null ? vals[hover] : count
-  const shownDay = hover != null && hover !== last ? fmtDay(days[hover]) : (days[last] ? fmtDay(days[last]) : 'today')
+  // The open day's date is already in the box to the left; only a hovered past
+  // bar names its day.
+  const past = hover != null && hover !== last
+  const shownDay = past ? fmtDay(days[hover]) : (shownValIsOne(count) ? 'stock' : 'stocks')
   const finite = vals.filter(Number.isFinite)
   const max = Math.max(...finite, 1)
   return (
@@ -104,7 +108,7 @@ function CountHistory({ count, ctx }) {
       </span>
       <span className={styles.tileVal}>
         <b>{Number.isFinite(shownVal) ? shownVal.toLocaleString() : '—'}</b>
-        <small className={styles.countDay} data-past={hover != null && hover !== last ? true : undefined}>{shownDay}</small>
+        <small className={styles.countDay} data-past={past || undefined}>{shownDay}</small>
         {finite.length > 1 && (
           <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 24`} preserveAspectRatio="none"
             role="img" aria-label={`Stocks on this list each day, ${r.words}`} onMouseLeave={() => setHover(null)}>

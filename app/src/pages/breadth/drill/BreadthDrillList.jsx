@@ -35,14 +35,14 @@ const NO_ITEMS = []
 // endpoint already returns.
 // Focus list (owner, 2026-11-08): Symbol, % Chg, Price, Vol — in that order —
 // with the three number columns one width, so the table ends on the Vol edge.
-export const DRILL_NUM_COL_W = 76
+export const DRILL_NUM_COL_W = 73
 const DRILL_DEFAULT_COLS = {
   order: ['flag', 'sym', 'chg', 'price', 'vol'],
   sort: { key: 'chg', dir: 'desc' },
   widths: { chg: DRILL_NUM_COL_W, price: DRILL_NUM_COL_W, vol: DRILL_NUM_COL_W },
 }
 // Namespaced off the watchlist key the same way the scanner namespaces its own.
-const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.focus6`
+const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill.focus7`
 // The Scan Deck's TABLE mode gives the list most of the window, so it opens with
 // the columns a screener would: who the company is, where it sits, how big, and
 // how stretched. Its OWN key, so arranging Table never rearranges the compact
@@ -310,6 +310,8 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             // independently collapsible.
             groupExpand={drill?.deckHosted ? 'accordion' : 'multi'}
             openFirstGroup={!!drill?.deckHosted}
+            numbersRight={!!drill?.deckHosted}
+            stableGutter={!!drill?.deckHosted}
             renderGroupRow={drill?.deckHosted ? renderGroupRow : null}
             groupAccent={drill?.deckHosted ? groupAccent : null}
             // ⛔ The drill keeps its OWN column layout, and that is the
