@@ -4,6 +4,9 @@
   background: var(--bg-surface);
   border-radius: 10px;
   overflow: hidden;
+  max-width: 740px;
+  /* The note's body is serif; a post is someone else's words, set in the app's own face. */
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   user-select: text;
@@ -112,6 +115,8 @@
   display: block;
   width: 100%;
   height: auto;
+  max-height: 420px;
+  object-fit: contain;
 }
 
 .cfoot {
