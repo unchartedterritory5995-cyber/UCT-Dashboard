@@ -16,7 +16,7 @@ import { join } from 'node:path'
 
 const { values: A } = parseArgs({ options: {
   vitest: { type: 'string' }, acceptance: { type: 'string', multiple: true, default: [] }, autotest: { type: 'string', multiple: true, default: [] }, selection: { type: 'string', multiple: true, default: [] },
-  raises: { type: 'string', default: '' }, source: { type: 'string', default: '' }, retag: { type: 'boolean', default: false }, exclude: { type: 'string', default: '' }, out: { type: 'string', default: '' }, repo: { type: 'string', default: '..' },
+  raises: { type: 'string', default: '' }, source: { type: 'string', default: '' }, 'teach-repo': { type: 'string', default: '' }, retag: { type: 'boolean', default: false }, exclude: { type: 'string', default: '' }, out: { type: 'string', default: '' }, repo: { type: 'string', default: '..' },
 } })
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'))
 const doc = (f) => readFileSync(join(A.repo, 'docs', 'agent', f), 'utf8').split(/\r?\n/)
@@ -30,7 +30,9 @@ const rows = {}
 for (const l of execLines.slice(start)) { const c = cells(l); if (isRow(c)) rows[c[1]] = { area: c[2], action: c[3], state: c[4], evidence: c[5] } }
 for (const l of doc('CHARTS_COVERAGE_MATRIX.md')) { const c = cells(l); if (isRow(c) && rows[c[1]]) rows[c[1]].pri = c.at(-2) }
 const teach = {}
-for (const l of doc('CHARTS_TEACH_STATUS.md')) { const c = cells(l); if (isRow(c)) teach[c[1]] = c[4] }
+// walkthroughs may be developed on another tree than execution: --teach-repo reads that tree's teach document
+const teachLines = A['teach-repo'] ? readFileSync(join(A['teach-repo'], 'docs', 'agent', 'CHARTS_TEACH_STATUS.md'), 'utf8').split(/\r?\n/) : doc('CHARTS_TEACH_STATUS.md')
+for (const l of teachLines) { const c = cells(l); if (isRow(c)) teach[c[1]] = c[4] }
 const scope = Object.keys(rows).filter(id => rows[id].state !== 'NOT ON /CHARTS')
 
 // what really passed
