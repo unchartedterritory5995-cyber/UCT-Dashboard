@@ -46,6 +46,10 @@ from it; `houseSizing.json` becomes a cap layer the Method mentions once.
   → Taught as the firm's drawdown protocol: **normal max 20% · after −6% → 10% max · after −8% →
   8% max · after −10% → 5% max.** ⚑ Owner to confirm these as the house numbers (the dossier's
   M13 says "−5% halve, −10% pilot-only"; the owner's published ladder is more specific).
+- **Owner, 2026-11-09**, asked whether Size It's 25% position cap or the ladder's "normal max 20%" is the
+  house number: *"20-25% is max yeah"* → the normal max position is **20% to 25% of the account**
+  (the table's A 20 and A+ 25). Size It keeps every position at or under 25%. The lower ladder steps
+  (after −6%, −8%, −10%) still wait on his confirmation.
 
 ## 5. Portfolio layer
 
