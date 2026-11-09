@@ -56,6 +56,21 @@ export const splitCashtags = (text) => String(text || '').split(/(\$[A-Z]{1,5}\b
 export const saveTake = (excerptId, annotation) =>
   call(`/api/j2/excerpts/${encodeURIComponent(excerptId)}`, { method: 'PATCH', body: { annotation } })
 
+/** The same write for a page that is going away: `keepalive` outlives it, and no one is left to tell. */
+export function saveTakeOnLeave(excerptId, annotation) {
+  fetch(`/api/j2/excerpts/${encodeURIComponent(excerptId)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    keepalive: true,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ annotation }),
+  }).catch(() => {})
+}
+
+/** Trash a note an import created and then put nothing in. */
+export const discardEmptyNote = (noteId) =>
+  call(`/api/j2/notes/${encodeURIComponent(noteId)}`, { method: 'DELETE' })
+
 export const snapshotKey = (symbol) => `/api/snapshot/${encodeURIComponent(symbol)}`
 
 /** The latest price in a `/api/snapshot/{ticker}` answer: `ext_price`, else `close`, else null. */

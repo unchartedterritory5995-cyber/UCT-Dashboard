@@ -4653,6 +4653,7 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 # "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
     BAR_INDEX_LEAVES, reads_bar_index, bar_index_class, bar_index_verdict, threshold_unknown,
+    RUNNING_TOTAL_CALLS, reads_running_total,
 )
 
 
@@ -4675,9 +4676,12 @@ def bar_index_mask(tree: Any, bars: List[dict],
         return None
     verdict = bar_index_verdict(tree)
     n = len(bars)
+    early = set()
 
     def whole() -> List[int]:
-        _name_chart_clock(opts, ["bar-index:window"])
+        # 2026-11-09 -- named by what the tree reads from before the window
+        _name_chart_clock(opts, (["bar-index:window"] if reads_bar_index(tree) else [])
+                          + (["running-total:window"] if reads_running_total(tree) else []))
         return [1] * n
     if verdict["cls"] == "dep" or (verdict["cls"] == "pos" and o.get("barIndexUse") != "position"):
         return whole()
@@ -4715,6 +4719,7 @@ def bar_index_mask(tree: Any, bars: List[dict],
         gap = _interpret_column({"type": "op", "name": "-", "args": [node["args"][0], node["args"][1]]},
                                 bars, inputs, budget, scalars, inner)
         reach = max(0, root_reach - max_lookback(node))
+        code = "running-total:early-bars" if reads_running_total(node) else "bar-index:early-bars"
         last = -math.inf
         for i in range(n):
             if threshold_unknown(node["name"], sign, gap[i]):
@@ -4722,9 +4727,10 @@ def bar_index_mask(tree: Any, bars: List[dict],
             if last != -math.inf and (unbounded or i - last <= reach):
                 mask[i] = 1
                 held = True
+                early.add(code)
     if not held:
         return None
-    _name_chart_clock(opts, ["bar-index:early-bars"])
+    _name_chart_clock(opts, sorted(early))
     return mask
 
 
@@ -4881,6 +4887,8 @@ CHART_CLOCK_WHOLE = (
     "bar-index:window",
     # 2026-10-31 -- a time-of-day read on an FX-shaped daily chart
     "time-clock:weekend-session",
+    # 2026-11-09 -- a running total off the listing (``bar_index_mask``)
+    "running-total:window",
 )
 
 #: The clock leaves that read the TIME OF DAY rather than the date. Mirrors
@@ -4892,7 +4900,7 @@ SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
                         "lastbarhour", "lastbarminute")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
-    "bar-index:early-bars",
+    "bar-index:early-bars", "running-total:early-bars",
 )
 
 

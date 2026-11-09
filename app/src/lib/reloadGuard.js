@@ -4,7 +4,7 @@
 // own that must never reload itself. While either is true, an automatic reload is deferred and the
 // member is shown the "new version ready" toast instead (components/UpdateReadyToast.jsx).
 import { hasOpenPopouts } from './popoutRegistry'
-import { markAppClosing, clearAppClosing } from '../pages/charts/popout/PopoutWindow'
+import { markAppClosing, clearAppClosing } from './appClosing'
 
 export const UPDATE_REQUIRED_EVENT = 'uct:update-required'
 const STAY_CHECK_MS = 5000

@@ -75,6 +75,8 @@ IMAGE_HOST = "pbs.twimg.com"
 #: worker for minutes (the fetch's own deadline covers one download only).
 IMAGE_DEADLINE_S = 15.0
 IMPORT_IMAGES_BUDGET_S = 45.0
+#: One import waits at most this long, in all, for its tickers' bars to refresh.
+PRICE_REFRESH_BUDGET_S = 10.0
 IDENTITY_PREFIX = "x:"
 
 _ID_RE = re.compile(r"\d{1,25}")
@@ -257,13 +259,26 @@ def _permalink(post: dict[str, Any]) -> str:
     return f"https://x.com/{post.get('handle') or 'i'}/status/{post['id']}"
 
 
-def _price(post: dict[str, Any], note_ticker: Optional[str]):
+def _price(post: dict[str, Any], note_ticker: Optional[str], wait_until: Optional[float] = None):
     """The post's PricePoint, or None. Called BEFORE the write transaction: it can read bars."""
     from api.services.journal_two import tweet_price
     symbol = tweet_price.choose_symbol(note_ticker, post.get("tickers") or [], post.get("text") or "")
     if not symbol or not post.get("postedAt"):
         return None
-    return tweet_price.price_at_post(symbol, int(post["postedAt"]))
+    return tweet_price.price_at_post(symbol, int(post["postedAt"]), wait_until=wait_until)
+
+
+def _start_price_refreshes(posts: dict[str, Any], note_ticker: Optional[str]) -> None:
+    """Start every recent post's ticker refreshing at once, so one import's shared wait covers
+    them all instead of each ticker starting only when the one before it has finished."""
+    from api.services.journal_two import tweet_price
+    started: set[str] = set()
+    for post in posts.values():
+        symbol = tweet_price.choose_symbol(note_ticker, post.get("tickers") or [], post.get("text") or "")
+        if (symbol and symbol not in started and post.get("postedAt")
+                and tweet_price.awaits_refresh(int(post["postedAt"]))):
+            started.add(symbol)
+            tweet_price.start_refresh(symbol)
 
 
 def _with_progress(sentence: str, saved: int) -> str:
@@ -306,7 +321,7 @@ def _undo(conn, user_id: str, excerpt_id: str, doc_id: str, created_doc: bool, c
 
 
 def _save_post(conn, user_id: str, note_id: str, note_ticker: Optional[str],
-               post: dict[str, Any]) -> tuple[str, str, bool]:
+               post: dict[str, Any], price_wait_until: Optional[float] = None) -> tuple[str, str, bool]:
     """One post, in its own transaction, into `note_id`. Returns (excerpt id, document id,
     whether this call created the document). Raises TweetCaptureError on every refusal."""
     from api.services.journal_two import note_excerpts, notes as notes_service
@@ -331,7 +346,7 @@ def _save_post(conn, user_id: str, note_id: str, note_ticker: Optional[str],
     held = conn.execute(
         "SELECT 1 FROM j2_note_documents WHERE user_id = ? AND note_id = ? AND attachment_url = ?",
         (user_id, note_id, identity)).fetchone()
-    price = None if held else _price(post, note_ticker)
+    price = None if held else _price(post, note_ticker, price_wait_until)
 
     created_doc = created_page = False
     doc_id = None
@@ -512,12 +527,15 @@ def save(user_id: str, note_id: Any, tweet_ids: Any) -> dict[str, Any]:
         warnings: list[str] = []
         stopped: Optional[str] = None
         deadline = time.monotonic() + IMPORT_IMAGES_BUDGET_S
+        _start_price_refreshes(posts, note_ticker)
+        price_wait_until = time.monotonic() + PRICE_REFRESH_BUDGET_S
         for tweet_id in ids:
             try:
                 post = posts.get(tweet_id)
                 if post is None:
                     raise TweetCaptureError(NOT_FOUND_SENTENCE, status=404)
-                excerpt_id, doc_id, created = _save_post(conn, user_id, note_id, note_ticker, post)
+                excerpt_id, doc_id, created = _save_post(conn, user_id, note_id, note_ticker, post,
+                                                         price_wait_until)
             except TweetCaptureError as e:
                 if not saved:
                     raise

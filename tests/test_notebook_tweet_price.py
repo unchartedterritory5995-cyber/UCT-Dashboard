@@ -149,11 +149,103 @@ def test_choose_symbol_none_without_cashtag():
 
 
 def test_still_comparable_false_after_split(bars):
-    post = et(2026, 11, 6, 11, 0)
-    bars["D"] = [(20261106, 1, 1, 1, 100.0, 1)]
+    post = et(2026, 11, 5, 11, 0)
+    bars["D"] = [(20261105, 95, 110, 90, 100.0, 1)]
     assert tp.still_comparable("NVDA", post, 1000.0) is False
-    assert tp.still_comparable("NVDA", post, 110.0) is True
+    assert tp.still_comparable("NVDA", post, 105.0) is True
+
+
+def test_a_three_for_two_split_is_caught(bars):
+    post = et(2026, 11, 5, 11, 0)
+    bars["D"] = [(20261105, 66, 70, 64, 66.0, 1)]    # restated from a 100-ish session
+    assert tp.still_comparable("NVDA", post, 100.0, "posted", None) is False
+
+
+def test_a_big_real_day_stays_comparable(bars):
+    post = et(2026, 11, 5, 15, 0)
+    bars["D"] = [(20261105, 70, 130, 65, 125.0, 1)]
+    assert tp.still_comparable("NVDA", post, 120.0, "posted", None) is True
+
+
+def test_an_extended_hours_price_may_sit_outside_the_regular_range(bars):
+    post = et(2026, 11, 5, 7, 0)
+    bars["D"] = [(20261105, 100, 110, 100, 105.0, 1)]
+    assert tp.still_comparable("NVDA", post, 92.0, "premarket", None) is True
+    assert tp.still_comparable("NVDA", post, 80.0, "premarket", None) is False
+
+
+def test_a_close_is_checked_against_its_own_session(bars):
+    post = et(2026, 11, 6, 8, 0)
+    bars["D"] = [(20261105, 95, 105, 95, 100.0, 1), (20261106, 60, 70, 55, 62.0, 1)]
+    assert tp.still_comparable("NVDA", post, 100.0, "close", "2026-11-05") is True
+
+
+def test_todays_session_is_always_comparable(bars):
+    post = et(2026, 11, 7, 11, 0)     # the fixture's clock is this day
+    bars["D"] = [(20261107, 10, 11, 9, 10.0, 1)]
+    assert tp.still_comparable("NVDA", post, 500.0, "posted", None) is True
+
+
+def test_a_missing_session_bar_does_not_borrow_an_older_one(bars):
+    post = et(2026, 11, 6, 11, 0)
+    bars["D"] = [(20261105, 10, 11, 9, 10.0, 1)]
+    assert tp.still_comparable("NVDA", post, 500.0, "posted", None) is True
+
+
+def test_a_saturday_bar_never_becomes_a_close(bars):
+    bars["D"] = [(20261106, 1, 1, 1, 610.15, 1), (20261107, 1, 1, 1, 610.09, 1)]
+    p = tp.price_at_post("META", et(2026, 11, 9, 11, 0))
+    assert p == tp.PricePoint("META", 610.15, "close", "2026-11-06")
 
 
 def test_still_comparable_true_without_daily_bar(bars):
     assert tp.still_comparable("NVDA", et(2026, 11, 6, 11, 0), 1000.0) is True
+
+
+# ── a ticker nobody has charted lately: the first read serves stale bars and refreshes behind it ──
+
+RECENT_RTH = et(2026, 11, 6, 13, 0)   # 23 h before the fixture's clock
+
+
+def _refresh_after(monkeypatch, reads_until_fresh):
+    got = []
+
+    def fetch(symbol, tf, count):
+        got.append(tf)
+        return [row(RECENT_RTH - 300, 33.0)] if len(got) >= reads_until_fresh else []
+
+    monkeypatch.setattr(tp, "_fetch_bars", fetch)
+    monkeypatch.setattr(tp.time, "sleep", lambda s: None)
+    return got
+
+
+def test_a_recent_post_waits_for_its_ticker_to_refresh(bars, monkeypatch):
+    got = _refresh_after(monkeypatch, 3)
+    p = tp.price_at_post("AAPL", RECENT_RTH, wait_until=tp.time.monotonic() + 5)
+    assert p == tp.PricePoint("AAPL", 33.0, "posted", None)
+    assert len(got) == 3
+
+
+def test_without_a_wait_one_read_decides(bars, monkeypatch):
+    got = _refresh_after(monkeypatch, 3)
+    bars["D"] = [(20260905, 1, 1, 1, 66.0, 1)]
+    p = tp.price_at_post("AAPL", RECENT_RTH)
+    assert p is None or p.label == "close"
+    assert len(got) == 1
+
+
+def test_a_spent_budget_does_not_wait(bars, monkeypatch):
+    got = _refresh_after(monkeypatch, 3)
+    tp.price_at_post("AAPL", RECENT_RTH, wait_until=tp.time.monotonic() - 1)
+    assert len(got) == 1
+
+
+@pytest.mark.parametrize("posted_at", [
+    et(2026, 11, 6, 23, 0),     # overnight: no bar exists to wait for
+    et(2026, 11, 7, 11, 0),     # Saturday
+    et(2026, 11, 5, 13, 0),     # older than a day
+])
+def test_no_wait_where_no_refresh_can_help(bars, monkeypatch, posted_at):
+    got = _refresh_after(monkeypatch, 3)
+    tp.price_at_post("AAPL", posted_at, wait_until=tp.time.monotonic() + 5)
+    assert len(got) == 1

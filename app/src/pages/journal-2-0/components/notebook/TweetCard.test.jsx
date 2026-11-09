@@ -54,7 +54,7 @@ beforeEach(() => {
   requests = []
   setPendingFocus(null)
   vi.stubGlobal('fetch', vi.fn(async (url, init = {}) => {
-    requests.push({ url: String(url), method: init.method || 'GET', body: init.body })
+    requests.push({ url: String(url), method: init.method || 'GET', body: init.body, keepalive: init.keepalive })
     if (String(url).startsWith('/api/snapshot/')) {
       return new Response(JSON.stringify(snapshot), { status: 200 })
     }
@@ -315,6 +315,21 @@ describe('TweetCard', () => {
     await waitFor(() => expect(screen.getAllByText(/Now/)).toHaveLength(2))
     expect(snapshotCalls()).toHaveLength(1)
     expect(snapshotCalls()[0].url).toBe('/api/snapshot/NVDA')
+  })
+
+  it('closing the tab with an unsaved take sends it with keepalive', () => {
+    renderCard()
+    fireEvent.change(take(), { target: { value: 'Typed, then the tab closed' } })
+    fireEvent(window, new Event('pagehide'))
+    const sent = requests.filter((r) => r.method === 'PATCH')
+    expect(sent).toHaveLength(1)
+    expect(sent[0].keepalive).toBe(true)
+  })
+
+  it('closing the tab with nothing typed sends nothing', () => {
+    renderCard()
+    fireEvent(window, new Event('pagehide'))
+    expect(patches()).toHaveLength(0)
   })
 })
 

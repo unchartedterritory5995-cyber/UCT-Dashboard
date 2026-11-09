@@ -30,8 +30,12 @@ INTRADAY_TFS = (("1", 60), ("5", 300))
 STALE_AFTER_S = 1800
 FETCH_MAX_AGE_S = 60 * 86400
 DAILY_MAX_GAP_DAYS = 7
-SPLIT_TOLERANCE = 0.40
+DAILY_LOOKBACK = 5
+SESSION_RANGE_PAD = 0.02
+EXTENDED_RANGE_PAD = 0.12
 FETCH_BARS_CAP = 5000
+REFRESH_POLL_S = 1.0
+REFRESH_WINDOW_S = 86400
 
 LABELS = ("posted", "premarket", "after_hours", "close")
 
@@ -117,7 +121,8 @@ def _parse_ymd(k: int) -> date:
 def _daily_pick(rows: list, key: int) -> Optional[tuple]:
     best = None
     for r in rows or []:
-        if r[0] <= key and (best is None or r[0] > best[0]):
+        # A market has no Saturday. A stray weekend row in the store must not become a "close".
+        if r[0] <= key and _parse_ymd(int(r[0])).weekday() < 5 and (best is None or r[0] > best[0]):
             best = r
     if best is None:
         return None
@@ -136,7 +141,28 @@ def _closed_session_key(posted_at: int) -> int:
     return _ymd(d - timedelta(days=1))
 
 
-def price_at_post(symbol: str, posted_at: int) -> Optional[PricePoint]:
+def awaits_refresh(posted_at: int) -> bool:
+    """True when a read that found nothing is worth repeating: a post from the last day, on a
+    weekday, inside the hours that have bars. A night or weekend post has no bar to wait for."""
+    posted_at = int(posted_at)
+    return (time.time() - posted_at < REFRESH_WINDOW_S
+            and datetime.fromtimestamp(posted_at, ET).weekday() < 5
+            and _label_for(posted_at) is not None)
+
+
+def start_refresh(symbol: str) -> None:
+    """Ask for `symbol`'s bars so a stale store starts refreshing. Serving a ticker nobody has
+    charted lately answers with what is stored and refreshes behind the answer (5-10 s, measured
+    on production 2026-11-09), so the read that starts it cannot be the read that uses it."""
+    try:
+        _fetch_bars(_norm(symbol), "5", 200)
+    except Exception:
+        log.warning("tweet_price: start_refresh failed", exc_info=True)
+
+
+def price_at_post(symbol: str, posted_at: int, wait_until: Optional[float] = None) -> Optional[PricePoint]:
+    """`wait_until` (a `time.monotonic()` instant, shared across one import) lets a recent post
+    wait for its ticker's refresh. Without it, one read decides."""
     try:
         sym = _norm(symbol)
         posted_at = int(posted_at)
@@ -156,13 +182,17 @@ def price_at_post(symbol: str, posted_at: int) -> Optional[PricePoint]:
             age_days = max(0.0, (time.time() - posted_at) / 86400)
             count = min(FETCH_BARS_CAP, int(age_days * 80) + 200)
             picked = _intraday_pick(_fetch_bars(sym, "5", count), 300, posted_at)
+            while (not picked and wait_until is not None and awaits_refresh(posted_at)
+                   and time.monotonic() < wait_until):
+                time.sleep(REFRESH_POLL_S)
+                picked = _intraday_pick(_fetch_bars(sym, "5", count), 300, posted_at)
         if picked:
             label = _label_for(int(picked[0]))
             if label:
                 return PricePoint(sym, float(picked[4]), label, None)
 
         key = _closed_session_key(posted_at)
-        daily = _daily_pick(bars_sqlite.get_bars_before(sym, "D", 1, key), key)
+        daily = _daily_pick(bars_sqlite.get_bars_before(sym, "D", DAILY_LOOKBACK, key), key)
         if not daily and fetchable and not fetched:
             age_days = max(0.0, (time.time() - posted_at) / 86400)
             daily = _daily_pick(_fetch_bars(sym, "D", int(age_days) + 20), key)
@@ -175,20 +205,31 @@ def price_at_post(symbol: str, posted_at: int) -> Optional[PricePoint]:
         return None
 
 
-def still_comparable(symbol: str, posted_at: int, price: float) -> bool:
-    """False when `price` is more than 40% away from that session's daily close (a split
-    happened since). True when there is no daily bar to compare with."""
+def still_comparable(symbol: str, posted_at: int, price: float,
+                     label: Optional[str] = None, session_date: Optional[str] = None) -> bool:
+    """False when a split has happened since the price was stored: daily bars are restated for a
+    split and the stored price is not, so the price falls outside its own session's restated
+    range. A 3-for-2 moves it 33%, too little for a flat percentage to tell from a big day. True
+    when no bar for that exact session exists, and for today's session, whose bar is still
+    forming and which no split can have followed."""
     try:
         sym = _norm(symbol)
-        d = datetime.fromtimestamp(int(posted_at), ET).date()
-        key = _ymd(d)
-        daily = _daily_pick(bars_sqlite.get_bars_before(sym, "D", 1, key), key)
-        if not daily:
+        if label == "close" and session_date:
+            day = date.fromisoformat(session_date)
+        else:
+            day = datetime.fromtimestamp(int(posted_at), ET).date()
+        if day >= datetime.fromtimestamp(time.time(), ET).date():
             return True
-        close = float(daily[4])
-        if close <= 0:
+        key = _ymd(day)
+        rows = bars_sqlite.get_bars_before(sym, "D", 1, key)
+        bar = rows[-1] if rows else None
+        if not bar or int(bar[0]) != key:
             return True
-        return abs(float(price) / close - 1.0) <= SPLIT_TOLERANCE
+        high, low = float(bar[2]), float(bar[3])
+        if low <= 0:
+            return True
+        pad = SESSION_RANGE_PAD if label in ("posted", "close") else EXTENDED_RANGE_PAD
+        return low * (1 - pad) <= float(price) <= high * (1 + pad)
     except Exception:
         log.warning("tweet_price: still_comparable failed", exc_info=True)
         return False

@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, lazy as plainLazy } from 'react'
 // Route-level Suspense fallback: BrandSplash as before, plus a recovery panel
 // after ~20s of continuous mounting — a lazy chunk that never settles (503
 // storm, dropped connection) otherwise strands "Loading page" forever, and
@@ -22,7 +22,6 @@ import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
 import LogoPrewarm from './components/LogoPrewarm'
-import DeskUsageReporter from './components/DeskUsageReporter'
 import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // Journal 2.0 P4 runtime shell kill-switch (Task A1). Eager (tiny — only imports
 // react) so window.__uctJ2Shell is wired at app boot and the /journal selector
@@ -75,6 +74,9 @@ function lazyPage(path, importer) {
   return lazy(importer)
 }
 
+// Off first load, so it costs the Notebook's byte budget nothing. Plain lazy with a null fallback:
+// a usage report must never reload the page or reach an error screen.
+const DeskUsageReporter = plainLazy(() => import('./components/DeskUsageReporter').catch(() => ({ default: () => null })))
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
 const Login = lazy(() => import('./pages/Login'))
@@ -448,7 +450,7 @@ export default function App() {
             Null render; no-op when logged out. */}
         <LogoPrewarm />
         {/* Desktop-plan G2 measurement: one coarse usage report per member per day. Null render. */}
-        <DeskUsageReporter />
+        <Suspense fallback={null}><DeskUsageReporter /></Suspense>
         {/* Persistent Desk video player — one instance, survives all routing. */}
         <GlobalVideoLayer />
         <AgentProvider>

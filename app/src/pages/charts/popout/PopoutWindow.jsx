@@ -1,27 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { registerPopout } from '../../../lib/popoutRegistry'
+import { isAppClosing } from '../../../lib/appClosing'
+
+export { markAppClosing, clearAppClosing, __resetAppClosingForTests } from '../../../lib/appClosing'
 
 // How long a page that started to unload may still be running before it is
 // treated as having stayed (a cancelled "Leave site?"). A page that really is
 // leaving but slow to commit reaching this is harmless: the board docks, and its
 // desk record goes only after the save lands.
 const OPENER_STAYED_MS = 5000
-
-let appClosing = false
-
-/**
- * The whole app is going away (desktop quit, a forced reload), so a window closing
- * now is part of that and not the member closing it. Stops the close from docking
- * the board, which would delete the record the next launch needs.
- */
-export function markAppClosing() { appClosing = true }
-
-/** The reload did not happen (the member answered Stay on a Leave site prompt): closes dock boards again. */
-export function clearAppClosing() { appClosing = false }
-
-/** Tests only. */
-export function __resetAppClosingForTests() { appClosing = false }
 
 /**
  * Renders `children` into a real, separate browser window the user can drag to
@@ -106,7 +94,7 @@ export default function PopoutWindow({
 
     let done = false
     const finish = () => {
-      if (done || appClosing) return
+      if (done || isAppClosing()) return
       done = true
       onCloseRef.current?.()
     }

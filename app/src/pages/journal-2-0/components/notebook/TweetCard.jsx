@@ -5,7 +5,7 @@ import { formatWeekdayDateTimeEt } from '../../../../lib/presentation/presentati
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import {
   authorInitials, avatarTint, consumePendingFocus, nowPriceOf, postHref, priceLineParts,
-  saveTake, snapshotKey, splitCashtags,
+  saveTake, saveTakeOnLeave, snapshotKey, splitCashtags,
 } from '../../lib/tweetImportHelpers'
 import { call } from '../../lib/researchCapture'
 import styles from './TweetCard.module.css'
@@ -122,6 +122,16 @@ function MyTake({ excerpt, noteId }) {
 
   useEffect(() => {
     if (consumePendingFocus(excerpt.id)) fieldRef.current?.focus()
+  }, [excerpt.id])
+
+  // Closing the tab fires no blur and unmounts nothing, and an ordinary request would not finish.
+  useEffect(() => {
+    const leave = () => {
+      const text = current.current.trim()
+      if (text !== saved.current.trim()) saveTakeOnLeave(excerpt.id, text)
+    }
+    window.addEventListener('pagehide', leave)
+    return () => window.removeEventListener('pagehide', leave)
   }, [excerpt.id])
 
   // Leaving the note without a blur still saves the words.
