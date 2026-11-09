@@ -1725,6 +1725,8 @@ def get_drill_list(date_str: str, metric_key: str,
     items = svc.get_drill_list(date_str, metric_key)
     if items is None:
         raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
+    # The stored lists carry RVOL, not shares: fill the Vol column from that day's bars.
+    items = svc.fill_drill_volumes(date_str, items)
     # Fire-and-forget: warm Daily bars for the first 30 tickers in the list.
     # By the time the user navigates to any of them (usually >5 s away), the
     # Massive API call will have completed and the chart loads instantly.
@@ -1817,6 +1819,12 @@ async def breadth_industries(request: Request,
     # Same posture as the industries lookup above: never break the drill over
     # enrichment. _primary_themes catches internally, and this catches the case
     # where it cannot even be called — an ungrouped drill beats no drill.
+    # `fields` without "theme" = the FAST answer: sectors and industries come from
+    # one in-memory map, themes cost a SQLite query per ticker (500 ≈ 3 s). The
+    # scan window asks for the fast half first so its sector mix paints at once.
+    fields = body.get("fields")
+    if isinstance(fields, list) and "theme" not in fields:
+        return {"industries": industries, "sectors": sectors}
     try:
         themes = await _primary_themes(tickers)
     except Exception as e:
