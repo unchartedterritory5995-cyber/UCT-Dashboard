@@ -1261,6 +1261,95 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
+# ── Corrupt-page resilience (2026-11-09 incident) ────────────────────────────
+# flow.db's TABLE b-tree can carry a corrupt page region. Observed 2026-11-09:
+# ~195 rows at id 47750390-47750585, written ~10:21 ET. SQLite then raises
+# "database disk image is malformed" on ANY scan whose b-tree traversal crosses
+# that region, which took down the curated feed, the Market Read, the
+# by-contract panel AND the whole Discord auto-push scheduler for 1h+ while
+# ingestion stayed perfectly healthy (massive_ws_worker kept writing).
+#
+# Neither obvious remedy works:
+#   • DELETE on the bad span fails — the delete must READ the page it chokes on.
+#   • Shrinking the scan LIMIT does not dodge it — the curated subset still
+#     reaches back past the span (LIMIT 20000 failed), and the ask ledger has
+#     no LIMIT at all.
+# What DOES work is an explicitly-bounded seek: `WHERE id >= ? AND id < ?` over
+# a range that excludes the bad window reads cleanly, because SQLite can descend
+# straight to those rowids instead of traversing across the damage.
+#
+# So: run each scan normally, and only if it reports a malformed image, re-run it
+# as bounded newest-first id windows, bisecting a failing window down to
+# _FLOW_SCAN_MIN_WINDOW so we drop only the genuinely unreadable ids. Losing a
+# few hundred prints beats losing every alert for the rest of the session. The
+# skipped spans are logged loudly so the real repair (rebuild flow.db off-hours)
+# still gets done.
+_FLOW_SCAN_WINDOW = int(os.environ.get("MASSIVE_FLOW_SCAN_WINDOW", "25000"))
+_FLOW_SCAN_MIN_WINDOW = int(os.environ.get("MASSIVE_FLOW_SCAN_MIN_WINDOW", "256"))
+
+
+def _is_malformed_db(e: Exception) -> bool:
+    """True for SQLite's corrupt-page error, which is what a damaged flow.db page
+    raises. Any OTHER DatabaseError (locked, I/O, schema) must still propagate —
+    silently windowing around those would hide real faults."""
+    return isinstance(e, sqlite3.DatabaseError) and "malformed" in str(e).lower()
+
+
+def _fetch_id_window(run, lo: int, hi: int, skipped: list):
+    """Fetch [lo, hi) via `run`, bisecting on corruption so only the unreadable
+    sub-span is dropped. Newer half first so DESC ordering survives."""
+    try:
+        return list(run(" AND id >= ? AND id < ?", (lo, hi)))
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        if hi - lo <= _FLOW_SCAN_MIN_WINDOW:
+            skipped.append((lo, hi))
+            return []
+        mid = (lo + hi) // 2
+        out = _fetch_id_window(run, mid, hi, skipped)
+        out.extend(_fetch_id_window(run, lo, mid, skipped))
+        return out
+
+
+def _resilient_fetch(conn, run, source_clause: str, today: str, sym_clause: str,
+                     sym_params, limit: int | None = None, label: str = "flow-scan"):
+    """Run `run(id_clause, id_params)` unbounded; on a corrupt-page error, retry
+    as bounded id windows and skip what stays unreadable. Returns the rows."""
+    try:
+        return list(run("", ()))
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        logging.getLogger(__name__).error(
+            "[massive] %s hit a corrupt flow.db page — retrying in bounded id windows", label)
+
+    # Index-only bounds (idx_flow_source_date_id covers source,CreatedDate,id), so
+    # this does not touch the damaged table pages.
+    try:
+        lo_id, hi_id = conn.execute(
+            f"SELECT MIN(id), MAX(id) FROM flow WHERE {source_clause} AND CreatedDate = ?{sym_clause}",
+            (today, *sym_params)).fetchone()
+    except sqlite3.DatabaseError:
+        lo_id, hi_id = None, None
+    if lo_id is None or hi_id is None:
+        return []
+
+    rows: list = []
+    skipped: list = []
+    hi = int(hi_id) + 1
+    lo_id = int(lo_id)
+    while hi > lo_id and (limit is None or len(rows) < limit):
+        lo = max(lo_id, hi - _FLOW_SCAN_WINDOW)
+        rows.extend(_fetch_id_window(run, lo, hi, skipped))
+        hi = lo
+    if skipped:
+        logging.getLogger(__name__).error(
+            "[massive] %s SKIPPED %d corrupt id span(s), ~%d ids: %s — rebuild flow.db off-hours",
+            label, len(skipped), sum(b - a for a, b in skipped), skipped[:5])
+    return rows[:limit] if limit else rows
+
+
 def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
                      sym_params=()) -> tuple:
     """(thresholds, gross_before, ask_prem_ledger, ask_vol_ledger) for one day —
@@ -1284,14 +1373,19 @@ def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
     ask_accum_on = th.get("ask_accum_enabled", True)
     if not (close_on or alpha_leaps_on or ask_accum_on):
         return th, {}, {}, {}
-    ledger_rows = conn.execute(f"""
-        SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
-          FROM flow
-         WHERE {source_clause} AND CreatedDate = ?{sym_clause}
-           AND (Side IN ('A','AA','B','BB')
-                OR (COALESCE(Side,'') = ''
-                    AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
-    """, (today, *sym_params)).fetchall()
+    def _run_ledger(id_clause, id_params):
+        return conn.execute(f"""
+            SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
+              FROM flow
+             WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+               AND (Side IN ('A','AA','B','BB')
+                    OR (COALESCE(Side,'') = ''
+                        AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
+               {id_clause}
+        """, (today, *sym_params, *id_params)).fetchall()
+
+    ledger_rows = _resilient_fetch(conn, _run_ledger, source_clause, today,
+                                   sym_clause, sym_params, label="session-ledger")
     presume = bool(th.get("sweep_empty_side_as_ask", True))
     gross_before = _build_session_long_ledger(ledger_rows) if close_on else {}
     prem = (_build_session_ask_premium_ledger(ledger_rows, presume_sweep_ask=presume)
@@ -3098,18 +3192,26 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             sym_clause = " AND Symbol IN (%s)" % ",".join("?" for _ in only_symbols)
             sym_params = [str(s).upper() for s in only_symbols]
         def _scan(src_clause):
-            return conn.execute(f"""
-                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-                  FROM flow
-                 WHERE {src_clause}
-                   AND CreatedDate = ?{sym_clause}
-                   AND (Color IN ('MAGENTA', 'YELLOW')
-                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-                 ORDER BY id DESC
-                 LIMIT ?
-            """, (today, *sym_params, override_sql_floor, sql_limit)).fetchall()
+            # Corrupt-page resilient (2026-11-09): a damaged table page in flow.db
+            # used to raise "database disk image is malformed" here and take the
+            # ENTIRE curated feed + auto-push scheduler down for the session.
+            def _run(id_clause, id_params):
+                return conn.execute(f"""
+                    SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                           Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                           Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+                      FROM flow
+                     WHERE {src_clause}
+                       AND CreatedDate = ?{sym_clause}
+                       AND (Color IN ('MAGENTA', 'YELLOW')
+                            OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+                       {id_clause}
+                     ORDER BY id DESC
+                     LIMIT ?
+                """, (today, *sym_params, override_sql_floor, *id_params, sql_limit)).fetchall()
+
+            return _resilient_fetch(conn, _run, src_clause, today, sym_clause,
+                                    sym_params, limit=sql_limit, label="curated-scan")
 
         if etf_enabled and past_closed:
             # PAST date, market closed: one LIMIT PER SOURCE (2026-10-03). A heal
