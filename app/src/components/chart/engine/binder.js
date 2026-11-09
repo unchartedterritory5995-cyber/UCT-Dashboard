@@ -76,6 +76,8 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 import { evaluateObjects } from './objectRuntime'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
 import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
+// ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
+import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers } from './runtime/tradeMarkers.js'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
@@ -1121,6 +1123,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (n) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
+  // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
+  // member surface that shows it (T13b). Zero calls for a chart with no strategy on it.
+  const markersPublished = new Set()
+  const publishMarkers = (instanceId, result) => {
+    if (!result && !markersPublished.has(instanceId)) return
+    attempt(() => publishTradeMarkers(instanceId, result))
+    if (result) markersPublished.add(instanceId)
+    else markersPublished.delete(instanceId)
+  }
+  const pruneMarkers = (keep) => {
+    for (const id of [...markersPublished]) if (!keep || !keep.has(id)) publishMarkers(id, null)
+  }
   const pruneDrops = (keep) => {
     for (const id of [...dropsPublished]) if (!keep || !keep.has(id)) publishDrops(id, null)
   }
@@ -1149,8 +1163,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
       // draws nothing — never a stale picture, never the host program's.
-      if (drawsRuntimeObjects(def)) {
+      // ⭐⭐ W9-T12 — A STRATEGY'S TRADE MARKERS ride the same layer: asked of the committed
+      // ledger at the member door (`memberTradeMarkers`), drawn only when served. ⛔ An indicator
+      // never reaches `memberTradeMarkers` (`drawsTradeMarkers` is false), so its path is unchanged.
+      const markersHere = drawsTradeMarkers(def)
+      if (drawsRuntimeObjects(def) || markersHere) {
         alive.add(inst.instanceId)
+        const memo = computeMemo.get(inst.instanceId)
+        const marks = markersHere ? attempt(() => memberTradeMarkers(memo && memo.cols)).value || null : null
+        if (markersHere) publishMarkers(inst.instanceId, marks)
         if (typeof make !== 'function') continue
         let rlayer = objectLayers.get(inst.instanceId)
         if (!rlayer) {
@@ -1159,14 +1180,19 @@ export function createBinder({ chart, LWC, scope = '' }) {
           if (!rlayer) continue
           objectLayers.set(inst.instanceId, rlayer)
         }
-        const memo = computeMemo.get(inst.instanceId)
-        const payload = runtimeObjectsOf(memo && memo.cols)
+        const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
+        const objPayload = runtimeObjectsOf(memo && memo.cols)
+        const payload = objPayload && !markLive.length ? objPayload
+          : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
+            : markLive.length ? { live: markLive, withheld: {}, reason: null, stats: { nextId: `mk${markLive.length}` }, pineVersion: null }
+              : null
         if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
         if (!rstate) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         publishDrops(inst.instanceId, rstate)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
+          + (markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : '')
         attempt(() => rlayer.set(rstate, rsig, {
           liveIds: payload.live.map((o) => o.id),
           createdBars: payload.live.map((o) => o.createdBar),
@@ -1325,6 +1351,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     }
     pruneClock('objects', alive)
     pruneDrops(alive)
+    pruneMarkers(alive)
   }
 
   /** instanceId → `{registry, def, bars, sig, cols}`. */
@@ -1468,6 +1495,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     pruneClock('plots', null)
     pruneClock('objects', null)
     pruneDrops(null)
+    pruneMarkers(null)
     held = []
     lastColumnErrors = new Map()
     for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
@@ -1579,6 +1607,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       pruneClock('plots', null)
       pruneClock('objects', null)
       pruneDrops(null)
+      pruneMarkers(null)
       // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
       // that drew nothing binds NO series, so `held` is empty exactly when there
       // is a "not drawn because …" sentence to take down. Zero calls when none.
