@@ -26,14 +26,25 @@
   - Locked suite at `c47b1d0001`: 3 failed / 9,832 passed, the same `src/pages/command` reds.
   - Bytes delta 0.
 
-## ⚠ For AUDIT: cov-4-wl's Watchlists-page walkthroughs are inert
+## cov-4-wl's Watchlists-page walkthroughs: REVERTED in this packet (`a7397ec6e3`)
 - cov-4-wl added the "ask, then go to the Watchlists page" walkthroughs: `guide/pageWalk.js` and the `watchlistPage`
   family.
-- The owner has since decided to teach those controls in the Charts widget instead. `/watchlists` redirects to Charts
-  on master, and the page host branch stays unmerged.
-- So the code ships inert: `pageReady('watchlists')` is false, and the navigate path is never taken.
-- Two options, AUDIT's call: keep it inert as shipped, or add a revert commit to this packet before it merges.
-- The teaching that replaces it is `agent/pl/teach-wl-widget` (its own PR), with the title menu (#1005) underneath.
+- The owner then chose to teach those controls inside the Charts widget. `/watchlists` redirects to Charts on master,
+  and the page host branch stays unmerged.
+- So the Lead decided to revert them rather than ship inert navigation scope. One labelled commit, `a7397ec6e3`,
+  reverts:
+  - `d2774db57e`: `pageWalkOffer`, `WATCHLIST_PAGE_ACTIONS`, the `watchlistPage` family, `useAgent`'s ask, Yes and
+    landing hooks, and `pageWalk.js` (deleted);
+  - `d2d1eb41ca` and the test part of `7239234843`: `agentGuideWatchlistsPage.test.jsx` (deleted) and its two rail
+    edits;
+  - `894b48b6d1`: the `guide.show` enum's `watchlistPage` entry, in `manifest.golden.json` and
+    `section_b_requests.json`.
+    - The goldens were regenerated afterwards with their own tools (`UPDATE_AGENT_GOLDEN=1`, `UPDATE_SAT1_REQUESTS=1`):
+      no content change.
+    - This removes the enum growth that was owed pytest.
+- Kept as history: the design note and the unapplied patch.
+- Related tests after the revert: 1151 passed (guide, contracts, Sat1 requests, AgentPanel, useAgent).
+- Replaced by `agent/pl/teach-wl-widget` (its own PR), with the title menu (#1005) underneath.
 
 ## Owed before this PR merges (V1 / V4)
 - One locked full suite on the combined head handed to AUDIT, quiet machine.
