@@ -158,6 +158,50 @@ def test_without_delta_mode_there_is_one_loop_and_no_forced_base(rig):
     assert r.delta_calls == 0
 
 
+def _hold_deltas(monkeypatch, r, result="1794300001"):
+    release = threading.Event()
+
+    def held():
+        if r.stopping:
+            raise SystemExit
+        r.delta_calls += 1
+        r.delta_shipped.set()
+        release.wait(5)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(data_sync, "upload_delta", held)
+    return release
+
+
+def test_the_base_waits_for_the_first_delta_of_the_boot(rig, monkeypatch):
+    r = rig()
+    release = _hold_deltas(monkeypatch, r)
+    worker_main._start_uploader()
+    assert r.delta_shipped.wait(3)
+    assert not r.base_entered.wait(0.2), "the base started beside the first delta"
+    release.set()
+    assert r.base_entered.wait(3), "the base never started after the delta"
+
+
+def test_a_failed_first_delta_still_lets_the_base_run(rig, monkeypatch):
+    r = rig()
+    release = _hold_deltas(monkeypatch, r, result=RuntimeError("r2 down"))
+    release.set()
+    worker_main._start_uploader()
+    assert r.base_entered.wait(3), "a failed delta blocked the base"
+
+
+def test_a_stuck_first_delta_cannot_block_the_base_forever(rig, monkeypatch):
+    monkeypatch.setattr(worker_main, "BASE_WAITS_FOR_DELTA_SECONDS", 0.05)
+    r = rig()
+    release = _hold_deltas(monkeypatch, r)
+    worker_main._start_uploader()
+    assert r.base_entered.wait(3), "a stuck delta blocked the base"
+    release.set()
+
+
 def test_health_reports_the_running_base(monkeypatch):
     from fastapi.testclient import TestClient
 
