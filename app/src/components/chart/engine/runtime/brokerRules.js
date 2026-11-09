@@ -43,8 +43,8 @@ export const BROKER_RULES = Object.freeze({
   // the values
   'B-VAL': Object.freeze({ capture: 'Q-S1-core', what: 'the strategy.* values and per-trade reads' }),
   // ── W9-T6: fill timing (`broker.js` tick routine and `endBar`, `vm.js` step order) ──
-  // (The July-2026 defaults, W9-J1, are NOT a rule: they are a precondition on Q-S1-core's fixtures in the
-  // pin resolver, `evidence_engine.py::resolve_pins`. `backtest_fill_limits_assumption` other than 0 is
+  // (The July-2026 defaults, W9-J1, are NOT a rule: every pin fixture's settings read-back must show what
+  // its own source declares, defaults for the rest - a precondition in `evidence_engine.py::resolve_pins`. `backtest_fill_limits_assumption` other than 0 is
   // refused at build, `ast/strategyBroker.js`: no capture is queued for it.)
   'B-POC': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close: a market order (entry, close, close_all) placed on bar t fills at t\'s close, after the script ran on t; the script reads that fill from bar t+1' }),
   'B-POC-PRICE': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close: a price order placed on bar t gets one attempt at t\'s close and fills there only if the close meets its level; otherwise it is live from the next open' }),

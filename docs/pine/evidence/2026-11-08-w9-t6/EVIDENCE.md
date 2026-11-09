@@ -163,3 +163,39 @@ runtimeHardeningP1, objectDoorGate, runtimeAllowlistParity, hostNeutralClosure, 
 differences against the pre-T6 base in all three lanes; 16 strategy rows differ (T4's sizing and T6's timing,
 strategy-only).
 
+
+## r2 (review GO-WITH-NOTES @985e804408): the settings read-back precondition on EVERY pin fixture
+
+The r1 precondition covered Q-S1-core only. Design 5.1 says every capture reads its settings back, so
+`evidence_engine.py::resolve_pins` now checks every MATCH row of every fixture a pin rests on (Q-S1a..m, W9-D1,
+every W9-* row, Q-S1-core included). A row counts as MATCH only when:
+
+- its `sourceSha256` names a committed source (a probe or the committed corpus; hashed as text, LF, as
+  `adapters.mjs` hashes it), and an unknown or uncommitted source fails closed;
+- it carries a read-back (`provenance.strategySettings.properties`);
+- for each of the six timing settings (`process_orders_on_close`, `calc_on_order_fills`, `calc_on_every_tick`,
+  `backtest_fill_limits_assumption`, `use_bar_magnifier`, `calc_on_every_history_tick`) the read-back shows
+  EXACTLY what the capture's own `strategy()` declares as a literal, and the R6 default for each it does not
+  declare. A declaration that is not a literal (an input) fails closed. The expected values are derived from the
+  source; the Properties names, each setting's `strategy()` parameter and how its literal is read come from
+  `strategy_capture.mjs::PROPERTY_TABLE`. Only the six R6 defaults are stated in Python.
+
+So W9-P1 (`process_orders_on_close = true`) must read POC back as true and the other five at their defaults;
+W9-P3 must read `calc_on_every_tick` true; Q-S1-core (no timing declared) must read all six at defaults.
+
+Rails (`tests/test_broker_pins_resolve.py`, 38): the T2 rails now carry an agreeing default read-back; a
+default-timing row with any of the six moved is not MATCH; a W9-P1 row with POC true read back pins and POC false
+does not; a W9-P1 row with an undeclared setting moved is not MATCH; no read-back (three shapes), one setting
+missing, unknown / missing / non-literal / no-strategy sources are not MATCH; a DIVERGE stays DIVERGE; rows no pin
+rests on are not checked; comments inside the argument list and a commented-out `strategy(` are not declarations;
+the committed probes are found by their text sha.
+
+Mutants (`mutate_t6_r2pins.py`, copy/restore): `muts_r2pins.json` control SURVIVED; KILLED: precondition off,
+Q-S1-core-only scope (the r1 scope), declaration ignored, non-literal served as default, unknown source passes, a
+missing property passes, one checked setting dropped. "Comments not skipped" SURVIVED, so two rails were added
+(a comment inside the argument list, a commented-out call); `muts_r2pins_b.json`: control SURVIVED, both comment
+mutants KILLED.
+
+`evidence_engine.py pins --check` PASS (the committed ledger pins nothing, so the resolution is unchanged).
+Pytest `test_broker_pins_resolve.py` + `test_evidence_engine.py` + `test_w9_probes.py`: 91/91. HP-1 166/166 on
+Node 24 (r2 touches no runtime code; one comment in `brokerRules.js`).
