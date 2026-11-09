@@ -288,6 +288,12 @@
   "title": "The legend’s bar values"
  },
  {
+  "id": "C1-067",
+  "say": "how do I header colours",
+  "feature": "chartSetting",
+  "title": "Changing Header colors"
+ },
+ {
   "id": "C1-068",
   "say": "how do I swing labels on/off and sensitivity",
   "feature": "chartSetting",
@@ -780,6 +786,12 @@
   "title": "Drawing boards: Delete"
  },
  {
+  "id": "C1-173",
+  "say": "show me how to 2x2 grid",
+  "feature": "multiChart",
+  "title": "Setting up a 2×2 chart grid"
+ },
+ {
   "id": "C2-001",
   "say": "how do I open indicator library",
   "feature": "indicators",
@@ -834,6 +846,12 @@
   "title": "Toggling an indicator from the keyboard"
  },
  {
+  "id": "C2-011",
+  "say": "show me how to turn on moving average 3",
+  "feature": "indicators",
+  "title": "Adding MA"
+ },
+ {
   "id": "C2-014",
   "say": "how do I delete indicator from legend",
   "feature": "legendChip",
@@ -842,6 +860,12 @@
  {
   "id": "C2-016",
   "say": "show me how to remove the 9 EMA",
+  "feature": "legendChip",
+  "title": "Removing an indicator"
+ },
+ {
+  "id": "C2-017",
+  "say": "how do I remove an unavailable indicator",
   "feature": "legendChip",
   "title": "Removing an indicator"
  },
@@ -1104,16 +1128,40 @@
   "title": "Linking charts and widgets"
  },
  {
+  "id": "C3-007",
+  "say": "how do I change a tool panel's colour group",
+  "feature": "link",
+  "title": "Linking charts and widgets"
+ },
+ {
   "id": "C3-008",
   "say": "how do I float a widget over another",
   "feature": "widgetHeader",
   "title": "Widget controls: Float"
  },
  {
+  "id": "C3-009",
+  "say": "how do I drag or resize a floating widget",
+  "feature": "widgetResize",
+  "title": "Resizing a chart or widget"
+ },
+ {
+  "id": "C3-011",
+  "say": "how do I move a floating widget into another widget's tabs",
+  "feature": "widgetMove",
+  "title": "Moving a chart or widget"
+ },
+ {
   "id": "C3-012",
   "say": "how do I pop a widget into its own window",
   "feature": "widgetHeader",
   "title": "Widget controls: Pop out"
+ },
+ {
+  "id": "C3-015",
+  "say": "how do I close a popped widget",
+  "feature": "widgetHeader",
+  "title": "Widget controls: Close"
  },
  {
   "id": "C3-016",
@@ -1718,6 +1766,12 @@
  {
   "id": "C3-174",
   "say": "how do I pick, rename or delete a theme set",
+  "feature": "widgetAction",
+  "title": "Theme presets"
+ },
+ {
+  "id": "C3-175",
+  "say": "how do I edit a set (add, hide, reset, custom theme)",
   "feature": "widgetAction",
   "title": "Theme presets"
  },

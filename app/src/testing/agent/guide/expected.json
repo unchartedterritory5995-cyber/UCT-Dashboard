@@ -1512,5 +1512,46 @@
   "feature": "control",
   "title": "A headline on the chart",
   "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C1-067": {
+  "feature": "chartSetting",
+  "title": "Changing Header colors",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Changing Header colors rings Chart Settings → Header → Title color, the row’s own control)"
+ },
+ "C1-173": {
+  "feature": "multiChart",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example (“2x2 grid”) reaches Setting up a chart grid, the grid layout the row cycles)"
+ },
+ "C2-011": {
+  "feature": "indicators",
+  "title": "Adding MA",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example reaches Adding MA, which turns the moving average on in the indicator list)"
+ },
+ "C2-017": {
+  "feature": "legendChip",
+  "title": "Removing an indicator",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Removing an indicator ends on the chip menu’s Remove, the same control for an unavailable one)"
+ },
+ "C3-007": {
+  "feature": "link",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Linking charts and widgets ends on the widget’s link-colour control, which sets a panel’s colour group)"
+ },
+ "C3-009": {
+  "feature": "widgetResize",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Resizing a chart or widget ends on the widget’s resize handle)"
+ },
+ "C3-011": {
+  "feature": "widgetMove",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Moving a chart or widget ends on the header bar you drag into another widget’s tabs)"
+ },
+ "C3-015": {
+  "feature": "widgetHeader",
+  "title": "Widget controls: Close",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Widget controls: Close ends on the widget’s own Close)"
+ },
+ "C3-175": {
+  "feature": "widgetAction",
+  "title": "Theme presets",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Theme presets ends on the Themes widget’s sets control, where a set is edited)"
  }
 }
