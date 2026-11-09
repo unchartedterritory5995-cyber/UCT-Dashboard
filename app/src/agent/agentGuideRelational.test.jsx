@@ -66,8 +66,8 @@ describe('guide: a negated reference never rings the clicked chart (PENDING)', (
   })
 })
 describe('guide: an unclear relation is asked about (PENDING)', () => {
-  // PENDING: deixis reads "the other chart" (OTHER_CHART) but does not export it; namedChart will call it once exported, never copy it
-  it.skip.each(AMBIGUOUS.slice(1))('%s (clicked %s) — PENDING deixis export of OTHER_CHART', (q, clicked) => { expect(ask(q, clicked)).toMatch(/which/i) })
+  // "the other chart": read by deixis's exported saysOtherChart (round 6), never a copy
+  it.each(AMBIGUOUS.slice(1))('%s (clicked %s)', (q, clicked) => { expect(ask(q, clicked)).toMatch(/which/i) })
 })
 describe('guide: a bare "this" stays the click (holds today)', () => {
   it.each(BARE_THIS)('%s (clicked %s)', (q, clicked) => { onlyAbout(ask(q, clicked), clicked) })
@@ -88,5 +88,47 @@ describe('one authority: the guide and execution read the same chart from the sa
     if (exec.length === 1) expect(guide?.chart?.ref, 'execution names one chart: the guide must ring that one').toBe(exec[0])
     else if (negated) { expect(guide?.chart ?? null).toBeNull(); expect(guide?.say).toBeTruthy() }   // never the click, never a pick
     else expect(guide?.chart ?? null, 'execution names none: the guide picks none either').toBeNull()
+  })
+})
+
+// AUDIT T1b (2026-11-07): "the other chart" / "a different chart" — read by deixis's exported saysOtherChart, never a copy.
+// Exactly ONE other chart → that chart; several → asked; NEVER the click.
+import { saysOtherChart } from './deixis'
+describe('T1b: the other chart, a different chart', () => {
+  const TWO = [FOUR[0], FOUR[1]]   // top-left SPY, top-right QQQ
+  const askOn = (q, charts, clicked) => {
+    const show = getCapability('guide.show')
+    const a = show.fast({ raw: q, host: { surface: 'charts' } })
+    return show.answer(null, { feature: a.feature, detail: a.detail ?? null }, { surface: 'charts', charts: { list: () => charts, selected: () => clicked } })
+  }
+  it.each([
+    ['how do I add RSI to the other chart', TWO, 'tl', 'tr'],
+    ['how do I add RSI to a different chart', TWO, 'tl', 'tr'],
+    ['how do I change the timeframe on not this chart but the other one', TWO, 'tl', 'tr'],
+  ])('%s (two charts, clicked %s) → the one other chart', (q, charts, clicked, want) => {
+    const said = askOn(q, charts, clicked)
+    expect(said).toContain(FOUR.find(c => c.ref === want).label)
+    expect(said).not.toMatch(/Which/)
+  })
+  it.each([
+    ['how do I change the timeframe on the other chart', 'bl'],
+    ['how do I add RSI to a different chart', 'tl'],
+  ])('%s (four charts, clicked %s) → asked, never the click', (q, clicked) => {
+    const said = askOn(q, FOUR, clicked)
+    expect(said).toMatch(/Which/)
+    expect(said).not.toContain(label(clicked) + ' —')
+    for (const c of FOUR.filter(x => x.ref !== clicked)) expect(said).toContain(c.label)
+  })
+  // T2 for these words: deixis's reading decides; the guide agrees and never returns the click
+  it.each([
+    ['how do I add RSI to the other chart', 2, 'tl'], ['how do I add RSI to a different chart', 2, 'tr'],
+    ['how do I change the timeframe on the other chart', 4, 'bl'], ['how do I add RSI to another chart', 4, 'br'],
+  ])('agreement: %s (%i charts, clicked %s)', (q, n, clicked) => {
+    const charts = n === 2 ? TWO : FOUR
+    expect(saysOtherChart(q)).toBe(true)
+    const guide = namedChart(q, charts, clicked)
+    expect(guide?.chart?.ref ?? null).not.toBe(clicked)
+    if (charts.length === 2) expect(guide?.chart?.ref).toBe(charts.find(c => c.ref !== clicked).ref)
+    else { expect(guide?.chart ?? null).toBeNull(); expect(guide?.say).toMatch(/Which/) }
   })
 })

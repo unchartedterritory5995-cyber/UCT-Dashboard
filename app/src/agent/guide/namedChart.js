@@ -11,7 +11,7 @@
 // exactly like walking the right one. Nothing here is a phrase rule: it only reads which chart, once a walkthrough is chosen.
 // ⭐ ONE CHART IS THE EXCEPTION: there is nothing to choose, so it walks there, and says so when the words named another.
 
-import { ordinalChart, relativeChart, negatedPointer } from '../deixis'
+import { ordinalChart, relativeChart, negatedPointer, saysOtherChart } from '../deixis'
 import { readIndicator } from './slots'
 
 const POSITION = /\b(?:the\s+)?((?:top|bottom|upper|lower)[- ]?(?:left|right)|left|right|top|bottom|upper|lower)(?:[- ]hand)?(?:[- ]side)?\s+(?:chart|cell|one)\b/i
@@ -112,9 +112,14 @@ export function namedChart(words, charts = [], sel = null) {
     if (!rel.hits.length) return { say: `There’s no chart ${where} here. Your charts are: ${listOf(charts)}.` }
     if (rel.hits.length > 1) return { say: `More than one chart is ${where}. Which one do you mean: ${listOf(rel.hits)}?` }
     names.add(rel.hits[0].ref)
+  } else if (saysOtherChart(s)) {
+    // "the other chart": one chart only on a board of two (the one not clicked); with more, it fits several — asked
+    if (charts.length === 2 && clicked) names.add(others[0].ref)
+    else return { say: `Which other chart do you mean: ${listOf(others)}?` }
   } else if (negatedPointer(s)) {
-    // never the click: the walkthrough is about one chart, and the member left this one out
-    return { say: `A walkthrough shows one chart at a time, and you left out the one you clicked. Which one do you mean: ${listOf(others)}?` }
+    // never the click: the walkthrough is about one chart, and the member left this one out. Exactly one left → that one
+    if (clicked && others.length === 1) names.add(others[0].ref)
+    else return { say: `A walkthrough shows one chart at a time, and you left out the one you clicked. Which one do you mean: ${listOf(others)}?` }
   }
   const ord = ordinalChart(s, charts)
   if (ord && /chart/i.test(ord.match[0])) {
