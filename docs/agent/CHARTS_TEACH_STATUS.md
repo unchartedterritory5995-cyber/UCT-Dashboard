@@ -522,3 +522,13 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-221 | Workspace | Open the Agent | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-222 | Workspace | Change a widget's UCT theme section | NO ASSIGNED WALKTHROUGH |  | The words reach chartThemes; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-223 | Workspace | Toggle the journal shortcut (Ctrl+Alt+J) | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
+
+## Held-out KNOWN MISSES (not passes)
+
+Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES in app/src/agent/agentGuideHeldOutCov3.test.js.
+
+| Set | Words | Named | Reaches | Why |
+|---|---|---|---|---|
+| cov-3 | how do I only see call options with a big premium | Flow filters | Options Flow: minimum premium | the Options Flow catalog control is more specific than the row the held-out named |
+| cov-3 | how do I open the options flow then filter it to puts | Flow filters | Options Flow: calls or puts | the Options Flow catalog control is more specific than the row the held-out named |
+| cov-3 | how do I add a horizontal line and then lock it | Locking a drawing | Drawing a Horizontal Line, then locking a drawing | a two-part walkthrough's title lowercases its second part |

@@ -1,0 +1,8 @@
+{
+ "note": "Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES in app/src/agent/agentGuideHeldOutCov3.test.js.",
+ "misses": [
+  { "set": "cov-3", "say": "how do I only see call options with a big premium", "named": "Flow filters", "reaches": "Options Flow: minimum premium", "why": "the Options Flow catalog control is more specific than the row the held-out named" },
+  { "set": "cov-3", "say": "how do I open the options flow then filter it to puts", "named": "Flow filters", "reaches": "Options Flow: calls or puts", "why": "the Options Flow catalog control is more specific than the row the held-out named" },
+  { "set": "cov-3", "say": "how do I add a horizontal line and then lock it", "named": "Locking a drawing", "reaches": "Drawing a Horizontal Line, then locking a drawing", "why": "a two-part walkthrough's title lowercases its second part" }
+ ]
+}

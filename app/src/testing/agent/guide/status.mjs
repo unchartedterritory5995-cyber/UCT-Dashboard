@@ -43,4 +43,13 @@ out.push(`| All | ${count().join(' | ')} |`, '')
 out.push('- VERIFIED: proved in the browser, as above.', '- ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.', '- ASSIGNED / NOT REACHED: a walkthrough is assigned, but the inventory\'s own words do not reach it. Other words may.', '- NO ASSIGNED WALKTHROUGH: the words reach some walkthrough, or a question, that no person has judged right for this row.', '- NO WALKTHROUGH: nothing.', '')
 out.push('| ID | Area | Action | Teach status | Assigned walkthrough | Evidence | 11-05 |', '|---|---|---|---|---|---|---|')
 for (const r of rows) out.push(`| ${r.id} | ${cell(r.area)} | ${cell(r.action)} | ${r.status} | ${cell(r.feature)} | ${cell(r.evidence)} | ${cell(r.prior)} |`)
+// ⭐ held-out KNOWN MISSES (knownMisses.json): asserted both ways in their held-out file, so they pass as tests — named here so
+// nobody reads them as passes
+try {
+  const km = JSON.parse(readFileSync(path.join(HERE, 'knownMisses.json'), 'utf8'))
+  if (km.misses?.length) {
+    out.push('', '## Held-out KNOWN MISSES (not passes)', '', km.note, '', '| Set | Words | Named | Reaches | Why |', '|---|---|---|---|---|')
+    for (const m of km.misses) out.push(`| ${cell(m.set)} | ${cell(m.say)} | ${cell(m.named)} | ${cell(m.reaches)} | ${cell(m.why)} |`)
+  }
+} catch { /* none */ }
 process.stdout.write(out.join('\n') + '\n')
