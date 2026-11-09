@@ -1054,8 +1054,8 @@
   },
   "difficulty": 2,
   "id": "si_50f9258199fd",
-  "lesson_origin": "template",
-  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family. Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -1078,6 +1078,7 @@
    "fires": true,
    "fixture": "uct_gap_support real trigger AAPL 20240508",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Gap Support",
    "source": "tests/fixtures/uct_gap_support/pos_1_AAPL_20240508.json",
@@ -2146,8 +2147,8 @@
   },
   "difficulty": 2,
   "id": "si_37c613d04d6f",
-  "lesson_origin": "template",
-  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family. Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -2170,6 +2171,7 @@
    "fires": true,
    "fixture": "uct_gap_support real trigger MSFT 20250804",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Gap Support",
    "source": "tests/fixtures/uct_gap_support/pos_2_MSFT_20250804.json",
@@ -3238,8 +3240,8 @@
   },
   "difficulty": 2,
   "id": "si_5c25c5671bfc",
-  "lesson_origin": "template",
-  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family. Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -3262,6 +3264,7 @@
    "fires": true,
    "fixture": "uct_gap_support real trigger NVDA 20230302",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Gap Support",
    "source": "tests/fixtures/uct_gap_support/pos_3_NVDA_20230302.json",
@@ -4330,8 +4333,8 @@
   },
   "difficulty": 2,
   "id": "si_84abd2c5179c",
-  "lesson_origin": "template",
-  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family. Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -4354,6 +4357,7 @@
    "fires": true,
    "fixture": "uct_gap_support real trigger AMZN 20221118",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Gap Support",
    "source": "tests/fixtures/uct_gap_support/pos_4_AMZN_20221118.json",
@@ -5422,8 +5426,8 @@
   },
   "difficulty": 2,
   "id": "si_3df3abe319fe",
-  "lesson_origin": "template",
-  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family. Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -5446,6 +5450,7 @@
    "fires": true,
    "fixture": "uct_gap_support real trigger META 20230224",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Gap Support",
    "source": "tests/fixtures/uct_gap_support/pos_5_META_20230224.json",
@@ -6514,8 +6519,8 @@
   },
   "difficulty": 2,
   "id": "si_33a576eb6eb0",
-  "lesson_origin": "template",
-  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Gap Support belongs to the Gaps & Catalysts family. Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -6538,6 +6543,7 @@
    "fires": true,
    "fixture": "uct_gap_support real trigger GOOGL 20230207",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited is nothing (owner rulings 2026-10-26/27).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Gap Support",
    "source": "tests/fixtures/uct_gap_support/pos_6_GOOGL_20230207.json",
@@ -7606,8 +7612,8 @@
   },
   "difficulty": 2,
   "id": "si_5476524836a8",
-  "lesson_origin": "template",
-  "lesson_text": "Go Signal belongs to the Intraday family.",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal belongs to the Intraday family. Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -7630,6 +7636,7 @@
    "fires": true,
    "fixture": "uct_go_signal real trigger AAPL 20230217",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Go Signal",
    "source": "tests/fixtures/uct_go_signal/pos_1_AAPL_20230217.json",
@@ -8698,8 +8705,8 @@
   },
   "difficulty": 2,
   "id": "si_04c3e50ee4de",
-  "lesson_origin": "template",
-  "lesson_text": "Go Signal belongs to the Intraday family.",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal belongs to the Intraday family. Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -8722,6 +8729,7 @@
    "fires": true,
    "fixture": "uct_go_signal real trigger MSFT 20221117",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Go Signal",
    "source": "tests/fixtures/uct_go_signal/pos_2_MSFT_20221117.json",
@@ -9790,8 +9798,8 @@
   },
   "difficulty": 2,
   "id": "si_0b161eae8c26",
-  "lesson_origin": "template",
-  "lesson_text": "Go Signal belongs to the Intraday family.",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal belongs to the Intraday family. Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -9814,6 +9822,7 @@
    "fires": true,
    "fixture": "uct_go_signal real trigger NVDA 20220725",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Go Signal",
    "source": "tests/fixtures/uct_go_signal/pos_3_NVDA_20220725.json",
@@ -10882,8 +10891,8 @@
   },
   "difficulty": 2,
   "id": "si_5daa73fce026",
-  "lesson_origin": "template",
-  "lesson_text": "Go Signal belongs to the Intraday family.",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal belongs to the Intraday family. Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -10906,6 +10915,7 @@
    "fires": true,
    "fixture": "uct_go_signal real trigger AMZN 20220818",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Go Signal",
    "source": "tests/fixtures/uct_go_signal/pos_4_AMZN_20220818.json",
@@ -11974,8 +11984,8 @@
   },
   "difficulty": 2,
   "id": "si_e6abaa93ce18",
-  "lesson_origin": "template",
-  "lesson_text": "Go Signal belongs to the Intraday family.",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal belongs to the Intraday family. Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -11998,6 +12008,7 @@
    "fires": true,
    "fixture": "uct_go_signal real trigger META 20220809",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Go Signal",
    "source": "tests/fixtures/uct_go_signal/pos_5_META_20220809.json",
@@ -13066,8 +13077,8 @@
   },
   "difficulty": 2,
   "id": "si_46697ce699ab",
-  "lesson_origin": "template",
-  "lesson_text": "Go Signal belongs to the Intraday family.",
+  "lesson_origin": "source",
+  "lesson_text": "Go Signal belongs to the Intraday family. Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -13090,6 +13101,7 @@
    "fires": true,
    "fixture": "uct_go_signal real trigger GOOGL 20221116",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby support, and buyers turned it to a strong close.",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Go Signal",
    "source": "tests/fixtures/uct_go_signal/pos_6_GOOGL_20221116.json",
@@ -15518,8 +15530,8 @@
   },
   "difficulty": 2,
   "id": "si_1fea964778a8",
-  "lesson_origin": "template",
-  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family. High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -15542,6 +15554,7 @@
    "fires": true,
    "fixture": "uct_hve real trigger AAPL 20240229",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "High Volume Edge",
    "source": "tests/fixtures/uct_hve/pos_1_AAPL_20240229.json",
@@ -17970,8 +17983,8 @@
   },
   "difficulty": 2,
   "id": "si_2954e9ca1424",
-  "lesson_origin": "template",
-  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family. High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -17994,6 +18007,7 @@
    "fires": true,
    "fixture": "uct_hve real trigger MSFT 20241220",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "High Volume Edge",
    "source": "tests/fixtures/uct_hve/pos_2_MSFT_20241220.json",
@@ -20422,8 +20436,8 @@
   },
   "difficulty": 2,
   "id": "si_9706df601931",
-  "lesson_origin": "template",
-  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family. High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -20446,6 +20460,7 @@
    "fires": true,
    "fixture": "uct_hve real trigger NVDA 20230525",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "High Volume Edge",
    "source": "tests/fixtures/uct_hve/pos_3_NVDA_20230525.json",
@@ -22874,8 +22889,8 @@
   },
   "difficulty": 2,
   "id": "si_e632a2c1e92f",
-  "lesson_origin": "template",
-  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family. High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -22898,6 +22913,7 @@
    "fires": true,
    "fixture": "uct_hve real trigger AMZN 20251031",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "High Volume Edge",
    "source": "tests/fixtures/uct_hve/pos_4_AMZN_20251031.json",
@@ -25326,8 +25342,8 @@
   },
   "difficulty": 2,
   "id": "si_84c76b228770",
-  "lesson_origin": "template",
-  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family. High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -25350,6 +25366,7 @@
    "fires": true,
    "fixture": "uct_hve real trigger META 20251030",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "High Volume Edge",
    "source": "tests/fixtures/uct_hve/pos_5_META_20251030.json",
@@ -27778,8 +27795,8 @@
   },
   "difficulty": 2,
   "id": "si_80a1e326a4ee",
-  "lesson_origin": "template",
-  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "High Volume Edge belongs to the Gaps & Catalysts family. High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -27802,6 +27819,7 @@
    "fires": true,
    "fixture": "uct_hve real trigger GOOGL 20250205",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "High Volume Edge: an up day on a volume that DWARFS everything before it, ten times normal and above the prior record, often on a lesser-known name, the start of a new story; an earnings day counts when the volume is truly massive. That day's close is a LEVEL to mark on the chart, the price the biggest participants committed at; price may trade under it later. It is not an HVC (any high-volume close) and not a PEG (an earnings gap on big but ordinary volume); OPEX and month-end sessions do not count (owner rulings 2026-10-23/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "High Volume Edge",
    "source": "tests/fixtures/uct_hve/pos_6_GOOGL_20250205.json",
@@ -28790,8 +28808,8 @@
   },
   "difficulty": 2,
   "id": "si_618b9df9c384",
-  "lesson_origin": "template",
-  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family. Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -28814,6 +28832,7 @@
    "fires": true,
    "fixture": "uct_kicker real trigger AAPL 20220712",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Kicker Candle",
    "source": "tests/fixtures/uct_kicker/pos_1_AAPL_20220712.json",
@@ -29802,8 +29821,8 @@
   },
   "difficulty": 2,
   "id": "si_90fc9a594143",
-  "lesson_origin": "template",
-  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family. Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -29826,6 +29845,7 @@
    "fires": true,
    "fixture": "uct_kicker real trigger MSFT 20220718",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Kicker Candle",
    "source": "tests/fixtures/uct_kicker/pos_2_MSFT_20220718.json",
@@ -30814,8 +30834,8 @@
   },
   "difficulty": 2,
   "id": "si_fb0a0f1bc1ae",
-  "lesson_origin": "template",
-  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family. Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -30838,6 +30858,7 @@
    "fires": true,
    "fixture": "uct_kicker real trigger NVDA 20220719",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Kicker Candle",
    "source": "tests/fixtures/uct_kicker/pos_3_NVDA_20220719.json",
@@ -31826,8 +31847,8 @@
   },
   "difficulty": 2,
   "id": "si_17cee3286270",
-  "lesson_origin": "template",
-  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family. Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -31850,6 +31871,7 @@
    "fires": true,
    "fixture": "uct_kicker real trigger AMZN 20220719",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Kicker Candle",
    "source": "tests/fixtures/uct_kicker/pos_4_AMZN_20220719.json",
@@ -32838,8 +32860,8 @@
   },
   "difficulty": 2,
   "id": "si_6aaf076cd5d4",
-  "lesson_origin": "template",
-  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family. Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -32862,6 +32884,7 @@
    "fires": true,
    "fixture": "uct_kicker real trigger META 20220715",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Kicker Candle",
    "source": "tests/fixtures/uct_kicker/pos_5_META_20220715.json",
@@ -33850,8 +33873,8 @@
   },
   "difficulty": 2,
   "id": "si_7c99190b7e4d",
-  "lesson_origin": "template",
-  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Kicker Candle belongs to the Gaps & Catalysts family. Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -33874,6 +33897,7 @@
    "fires": true,
    "fixture": "uct_kicker real trigger GOOGL 20220718",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Kicker: the stock is already set up, in an uptrend or a clean base; the day before closes red and WEAK near its low, an almost-failed breakdown with a real body (about 1-5% of price); then the next day gaps up and follows through with a strong green candle that closes above the red day's high and near its own high, usually on a volume surge. The sellers from the red day are trapped. It is short-term positioning and rarely an earnings day: an earnings-day gap is an earnings gapper, a baby red candle before a gap is just a breakout, and a gap against a downtrend is a different setup (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Kicker Candle",
    "source": "tests/fixtures/uct_kicker/pos_6_GOOGL_20220718.json",
@@ -35582,8 +35606,8 @@
   },
   "difficulty": 2,
   "id": "si_ae0bf761d576",
-  "lesson_origin": "template",
-  "lesson_text": "Launchpad belongs to the Bases & Breakouts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad belongs to the Bases & Breakouts family. Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -35606,6 +35630,7 @@
    "fires": true,
    "fixture": "uct_launch_pad real trigger AAPL 20221123",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Launchpad",
    "source": "tests/fixtures/uct_launch_pad/pos_1_AAPL_20221123.json",
@@ -37314,8 +37339,8 @@
   },
   "difficulty": 2,
   "id": "si_87f8174e409f",
-  "lesson_origin": "template",
-  "lesson_text": "Launchpad belongs to the Bases & Breakouts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad belongs to the Bases & Breakouts family. Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -37338,6 +37363,7 @@
    "fires": true,
    "fixture": "uct_launch_pad real trigger MSFT 20230123",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Launchpad",
    "source": "tests/fixtures/uct_launch_pad/pos_2_MSFT_20230123.json",
@@ -39046,8 +39072,8 @@
   },
   "difficulty": 2,
   "id": "si_cac0f4a34580",
-  "lesson_origin": "template",
-  "lesson_text": "Launchpad belongs to the Bases & Breakouts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad belongs to the Bases & Breakouts family. Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -39070,6 +39096,7 @@
    "fires": true,
    "fixture": "uct_launch_pad real trigger NVDA 20230110",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Launchpad",
    "source": "tests/fixtures/uct_launch_pad/pos_3_NVDA_20230110.json",
@@ -40778,8 +40805,8 @@
   },
   "difficulty": 2,
   "id": "si_25e824e21e2e",
-  "lesson_origin": "template",
-  "lesson_text": "Launchpad belongs to the Bases & Breakouts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad belongs to the Bases & Breakouts family. Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -40802,6 +40829,7 @@
    "fires": true,
    "fixture": "uct_launch_pad real trigger AMZN 20230315",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Launchpad",
    "source": "tests/fixtures/uct_launch_pad/pos_4_AMZN_20230315.json",
@@ -42510,8 +42538,8 @@
   },
   "difficulty": 2,
   "id": "si_eb0448301959",
-  "lesson_origin": "template",
-  "lesson_text": "Launchpad belongs to the Bases & Breakouts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad belongs to the Bases & Breakouts family. Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -42534,6 +42562,7 @@
    "fires": true,
    "fixture": "uct_launch_pad real trigger META 20230905",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Launchpad",
    "source": "tests/fixtures/uct_launch_pad/pos_5_META_20230905.json",
@@ -44242,8 +44271,8 @@
   },
   "difficulty": 2,
   "id": "si_2d2977c8c77b",
-  "lesson_origin": "template",
-  "lesson_text": "Launchpad belongs to the Bases & Breakouts family.",
+  "lesson_origin": "source",
+  "lesson_text": "Launchpad belongs to the Bases & Breakouts family. Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -44266,6 +44295,7 @@
    "fires": true,
    "fixture": "uct_launch_pad real trigger GOOGL 20221205",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Launchpad: after a real correction the 8, 21 and 50-day averages chunk up into a tight bundle at or near the 200-day while price lives UNDER and through the bundle for weeks in a long flat base, dangling and retesting it; the launch is the FIRST bar that closes above every average, the bundle and the 200-day alike, as they stack into 8 > 21 > 50. It is the convergence and the dangle, not a breakout: a stock riding on top of its averages that breaks out is a base breakout (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Launchpad",
    "source": "tests/fixtures/uct_launch_pad/pos_6_GOOGL_20221205.json",
@@ -45254,8 +45284,8 @@
   },
   "difficulty": 2,
   "id": "si_26836eaa6e55",
-  "lesson_origin": "template",
-  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family. Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -45278,6 +45308,7 @@
    "fires": true,
    "fixture": "uct_oops_reversal real trigger AAPL 20220809",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Oops Reversal",
    "source": "tests/fixtures/uct_oops_reversal/pos_1_AAPL_20220809.json",
@@ -46266,8 +46297,8 @@
   },
   "difficulty": 2,
   "id": "si_f8c4445ad517",
-  "lesson_origin": "template",
-  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family. Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -46290,6 +46321,7 @@
    "fires": true,
    "fixture": "uct_oops_reversal real trigger MSFT 20220714",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Oops Reversal",
    "source": "tests/fixtures/uct_oops_reversal/pos_2_MSFT_20220714.json",
@@ -47278,8 +47310,8 @@
   },
   "difficulty": 2,
   "id": "si_81b502f8ff9c",
-  "lesson_origin": "template",
-  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family. Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -47302,6 +47334,7 @@
    "fires": true,
    "fixture": "uct_oops_reversal real trigger NVDA 20220705",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Oops Reversal",
    "source": "tests/fixtures/uct_oops_reversal/pos_3_NVDA_20220705.json",
@@ -48290,8 +48323,8 @@
   },
   "difficulty": 2,
   "id": "si_91f91b45ae41",
-  "lesson_origin": "template",
-  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family. Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -48314,6 +48347,7 @@
    "fires": true,
    "fixture": "uct_oops_reversal real trigger AMZN 20220629",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Oops Reversal",
    "source": "tests/fixtures/uct_oops_reversal/pos_4_AMZN_20220629.json",
@@ -49302,8 +49336,8 @@
   },
   "difficulty": 2,
   "id": "si_dfeb9c79bf6f",
-  "lesson_origin": "template",
-  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family. Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -49326,6 +49360,7 @@
    "fires": true,
    "fixture": "uct_oops_reversal real trigger META 20220713",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Oops Reversal",
    "source": "tests/fixtures/uct_oops_reversal/pos_5_META_20220713.json",
@@ -50314,8 +50349,8 @@
   },
   "difficulty": 2,
   "id": "si_5a0085307fa8",
-  "lesson_origin": "template",
-  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Oops Reversal belongs to the Reversals & Reclaims family. Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -50338,6 +50373,7 @@
    "fires": true,
    "fixture": "uct_oops_reversal real trigger GOOGL 20220705",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Oops Reversal (scanner version): opens below the prior close, trades under the prior day's low, then reverses and closes above the prior close. A Williams Oops opens below the prior LOW and rallies back above it. A Super Oops closes above the prior day's HIGH, engulfing the whole day. LOCATION is the main thing: it comes at the end of an orderly drift lower, a flag, a wedge, a double bottom or the end of a downtrend, into a buyable spot, with orderly days before it (no news gap, no outsized red bar) and a technical, not news-sized, Oops day; the Oops-day low must never break afterwards (owner rulings 2026-10-23/24).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Oops Reversal",
    "source": "tests/fixtures/uct_oops_reversal/pos_6_GOOGL_20220705.json",
@@ -51326,8 +51362,8 @@
   },
   "difficulty": 2,
   "id": "si_f46a0fb62985",
-  "lesson_origin": "template",
-  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family. Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -51350,6 +51386,7 @@
    "fires": true,
    "fixture": "uct_slingshot real trigger AAPL 20221130",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Slingshot",
    "source": "tests/fixtures/uct_slingshot/pos_1_AAPL_20221130.json",
@@ -52338,8 +52375,8 @@
   },
   "difficulty": 2,
   "id": "si_07dd4072b069",
-  "lesson_origin": "template",
-  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family. Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -52362,6 +52399,7 @@
    "fires": true,
    "fixture": "uct_slingshot real trigger MSFT 20220727",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Slingshot",
    "source": "tests/fixtures/uct_slingshot/pos_2_MSFT_20220727.json",
@@ -53350,8 +53388,8 @@
   },
   "difficulty": 2,
   "id": "si_ba8294235717",
-  "lesson_origin": "template",
-  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family. Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -53374,6 +53412,7 @@
    "fires": true,
    "fixture": "uct_slingshot real trigger NVDA 20220727",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Slingshot",
    "source": "tests/fixtures/uct_slingshot/pos_3_NVDA_20220727.json",
@@ -54362,8 +54401,8 @@
   },
   "difficulty": 2,
   "id": "si_25f735ec15c0",
-  "lesson_origin": "template",
-  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family. Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -54386,6 +54425,7 @@
    "fires": true,
    "fixture": "uct_slingshot real trigger AMZN 20220810",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Slingshot",
    "source": "tests/fixtures/uct_slingshot/pos_4_AMZN_20220810.json",
@@ -55374,8 +55414,8 @@
   },
   "difficulty": 2,
   "id": "si_54c869172719",
-  "lesson_origin": "template",
-  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family. Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -55398,6 +55438,7 @@
    "fires": true,
    "fixture": "uct_slingshot real trigger META 20220810",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Slingshot",
    "source": "tests/fixtures/uct_slingshot/pos_5_META_20220810.json",
@@ -56386,8 +56427,8 @@
   },
   "difficulty": 2,
   "id": "si_bdcfa8e5e2c3",
-  "lesson_origin": "template",
-  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family.",
+  "lesson_origin": "source",
+  "lesson_text": "Slingshot belongs to the Reversals & Reclaims family. Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
   "module": null,
   "prompt_json": {
    "chart": {
@@ -56410,6 +56451,7 @@
    "fires": true,
    "fixture": "uct_slingshot real trigger GOOGL 20220727",
    "note_on_supply": "fixture: seed only (C15)",
+   "owner_definition": "Slingshot: a drive first, usually an earnings gapper (it is mostly the way into a power earnings gap after its first pause), sometimes a strong rally; THEN a tight orderly pullback of three to seven sessions, about 5-12% deep, with the closes under the 4-day average of the highs; THEN the trigger, the first close back above that average, a decisive day that closes near its high and needs no gap. The gap day or rally day itself is never the trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
    "quote": "real daily bars; the detector's rule holds on the last session",
    "setup": "Slingshot",
    "source": "tests/fixtures/uct_slingshot/pos_6_GOOGL_20220727.json",

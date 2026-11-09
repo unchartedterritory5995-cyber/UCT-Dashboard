@@ -3,30 +3,20 @@
 // primary button live in ONE centred card, so there is never a void between the text and the button; the fixed
 // footer is not used on a start screen. One StartButton for every mode: a wide pill of brushed gold with a lit
 // edge, a breathing glow, an icon, a caps label with a small subline, a shimmer, a pressed state; Enter starts it.
-import { useEffect } from 'react'
+import StudyButton from '../pages/study/ui/StudyButton'
 import d5 from './duo.module.css'
 
-const ICONS = {
-  play: <path d="M8 5v14l11-7z" />,
-  timer: <><circle cx="12" cy="13" r="8" /><path d="M12 9v4l3 2M9 2h6" /></>,
-  crown: <path d="M3 18h18l-2-10-5 4-2-7-2 7-5-4z" />,
-  medal: <><circle cx="12" cy="14" r="6" /><path d="M8 3l4 6 4-6" /></>,
-  pen: <path d="M4 20l4-1 11-11-3-3L5 16z" />,
-  eye: <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
-}
 
+// Kit v2 (2026-11-08): the lesson player, the reveal, the end card and the Blitz, Boss and Kicker challenges all press
+// this, so it is the product's one button (pages/study/ui/StudyButton, the owner's rule 17 in
+// docs/study/OWNER_PRINCIPLES.md). Same props as before; the tone picks the kind.
 export function StartButton({ icon = 'play', label, sub, onClick, tone = 'gold', hotkey = true, className = '', ariaLabel = null, disabled = false, testId = null }) {
-  useEffect(() => {
-    if (!hotkey || disabled) return undefined
-    const k = (e) => { if (e.key === 'Enter' && !e.repeat && !(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) onClick?.() }
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
-  }, [onClick, hotkey, disabled])
+  void icon
+  const kind = tone === 'red' ? 'bad' : tone === 'dark' ? 'secondary' : 'primary'
   return (
-    <button type="button" className={`${d5.startBtn} ${tone === 'red' ? d5.startRed : tone === 'dark' ? d5.startDark : ''} ${disabled ? d5.startDisabled : ''} ${className}`} onClick={onClick} aria-label={ariaLabel || undefined} disabled={disabled} data-testid={testId || undefined}>
-      <span className={d5.startIcon}><svg viewBox="0 0 24 24" width="22" height="22" fill={icon === 'play' || icon === 'crown' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{ICONS[icon] || ICONS.play}</svg></span>
-      <span className={d5.startText}><b>{label}</b>{sub ? <small>{sub}</small> : null}</span>
-      <span className={d5.startKey}>↵</span>
-    </button>
+    <StudyButton kind={kind} size="xl" arrow sub={sub || null} hotkey={hotkey ? 'Enter' : null} disabled={disabled} onClick={onClick} className={className} ariaLabel={ariaLabel} testId={testId}>
+      {label}
+    </StudyButton>
   )
 }
 

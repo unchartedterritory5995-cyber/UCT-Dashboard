@@ -1,0 +1,41 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_T15_LOOP_BREAK_VALUE", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row W4-T15-a
+// (docs/pine/capture-queue-2026-11-05-w4-t15-t17.md). NEVER COMPILED ON TRADINGVIEW.
+// The VALUE of a loop that ends via `break` / `continue`, read as a function's last statement (the
+// form the runtime lane serves for a loop with neither). The body's last line is a plain value.
+//   F01  for i = 0 to 5, `break` when i == 3      last value line run: i = 2 -> 20 (or na / 30?)
+//   F02  for i = 0 to 5, `continue` when i == 5   last value line run: i = 4 -> 40 (or na / 50?)
+//   F03  while j < 6, `break` when j == 3         last value line run: j = 2 -> 20 (or na / 30?)
+// Every bar carries the same values; one bar settles it. If a row does not compile, the error
+// names its line: split that row out and capture the rest.
+// CHART: the row names none (the queue marks it NEEDS_CHART). Inputs at defaults.
+
+fBreak() =>
+    for i = 0 to 5
+        if i == 3
+            break
+        v = i * 10
+        v
+
+fContinue() =>
+    for i = 0 to 5
+        if i == 5
+            continue
+        v = i * 10
+        v
+
+fWhileBreak() =>
+    j = 0
+    while j < 6
+        if j == 3
+            break
+        v = j * 10
+        j += 1
+        v
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(fBreak(), "F01_for_break_value")
+plot(fContinue(), "F02_for_continue_value")
+plot(fWhileBreak(), "F03_while_break_value")

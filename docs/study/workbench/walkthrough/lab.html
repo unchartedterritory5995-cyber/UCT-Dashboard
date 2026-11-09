@@ -132,6 +132,17 @@ function renderHist(hist) {
 }
 function piece() { return pieces[i]; }
 function parts() { return Array.isArray(piece().parts) ? piece().parts : []; }
+// A draft of the ranks lives in this browser until Save (2026-11-05: an hour of batch-18 ranks was lost to a tab that
+// never reached the gold button). A reload or a closed tab picks up where the owner left off; Save clears the draft.
+const draftKey = () => 'wb-draft:' + piece().id;
+function persistDraft() { try { localStorage.setItem(draftKey(), JSON.stringify({ ranks, words, score: $('score').value, note: $('note').value })); } catch (e) {} }
+function restoreDraft() {
+  let d = null; try { d = JSON.parse(localStorage.getItem(draftKey()) || 'null'); } catch (e) {}
+  if (!d) return;
+  ranks = d.ranks || {}; words = d.words || {}; $('score').value = d.score || 50; $('scoreOut').value = $('score').value; $('note').value = d.note || '';
+  const list = parts(); const first = list.findIndex(x => !ranks[x.id]); k = first >= 0 ? first : list.length;
+  $('saved').textContent = 'Picked up where you left off. Nothing is sent until you press Save.';
+}
 function showPiece() {
   const p = piece();
   $('title').textContent = p.title; $('what').textContent = p.what;
@@ -139,6 +150,7 @@ function showPiece() {
   const src = (p.url || ('/' + p.file)).replace('127.0.0.1:5232', location.hostname + ':5232');
   $('frame').src = src; $('open').href = src;
   k = 0; ranks = {}; words = {}; $('score').value = 50; $('scoreOut').value = 50; $('note').value = ''; $('saved').textContent = '';
+  restoreDraft();
   $('list').innerHTML = pieces.map((x, j) => `<button type="button" class="${j === i ? 'cur' : ''} ${done.has(x.id) ? 'done' : ''}" data-j="${j}">${esc(x.title)}</button>`).join('');
   $('list').querySelectorAll('button').forEach(b => b.onclick = () => { i = +b.dataset.j; showPiece(); });
   showPart();
@@ -161,9 +173,9 @@ function showPart() {
       <textarea id="pw" placeholder="Words for this part, if a number is not enough.">${esc(words[pt.id] || '')}</textarea>
       <div class="nav"><button class="b" id="prev" type="button" ${k === 0 ? 'disabled' : ''}>Back</button><button class="b gold" id="next" type="button">${ranks[pt.id] ? 'Next part' : 'Skip this part'}</button></div>
     </div>`;
-  $('partView').querySelectorAll('.ranks button').forEach(b => b.onclick = () => { ranks[pt.id] = +b.dataset.n; words[pt.id] = $('pw').value.trim(); k += 1; showPart(); });
-  $('pw').oninput = () => { words[pt.id] = $('pw').value.trim(); };
-  $('next').onclick = () => { words[pt.id] = $('pw').value.trim(); k += 1; showPart(); };
+  $('partView').querySelectorAll('.ranks button').forEach(b => b.onclick = () => { ranks[pt.id] = +b.dataset.n; words[pt.id] = $('pw').value.trim(); persistDraft(); k += 1; showPart(); });
+  $('pw').oninput = () => { words[pt.id] = $('pw').value.trim(); persistDraft(); };
+  $('next').onclick = () => { words[pt.id] = $('pw').value.trim(); persistDraft(); k += 1; showPart(); };
   $('prev').onclick = () => { words[pt.id] = $('pw').value.trim(); k = Math.max(0, k - 1); showPart(); };
   if ($('thumb')) { $('thumb').onclick = () => { $('bigImg').src = $('thumb').src; $('big').classList.add('on'); }; if (mode === 'shot') { $('shotImg').src = $('thumb').src; } }
   if (mode === 'shot' && !s.url) setMode('live');
@@ -176,6 +188,7 @@ function showWhole() {
   const low = list.filter(x => ranks[x.id] && ranks[x.id] <= 2).map(x => x.label);
   $('summary').innerHTML = list.length ? `<b>${n} of ${list.length}</b> parts ranked${low.length ? `. Low: ${esc(low.join(', '))}` : ''}.` : 'No parts listed for this piece.';
   $('save').textContent = i < pieces.length - 1 ? 'Save and next piece' : 'Save';
+  if (n) $('saved').textContent = 'Nothing is sent until you press Save.';
   $('backToParts').onclick = () => { k = Math.max(0, list.length - 1); showPart(); };
 }
 function setMode(m) { mode = m; document.querySelectorAll('.mode button').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $('frameWrap').classList.toggle('showShot', m === 'shot'); if (m === 'shot' && $('thumb')) $('shotImg').src = $('thumb').src; }
@@ -185,7 +198,8 @@ document.querySelectorAll('.sz button').forEach(b => b.onclick = () => {
   vp = b.dataset.sz; $('frameWrap').classList.toggle('phone', vp === 'phone'); showPart();
 });
 $('big').onclick = () => $('big').classList.remove('on');
-$('score').oninput = () => $('scoreOut').value = $('score').value;
+$('score').oninput = () => { $('scoreOut').value = $('score').value; persistDraft(); };
+$('note').oninput = () => persistDraft();
 document.addEventListener('keydown', (e) => {
   if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
   if (/^[1-5]$/.test(e.key) && $('partView').style.display !== 'none') { const b = $('partView').querySelector(`.ranks button[data-n="${e.key}"]`); if (b) b.click(); }
@@ -198,7 +212,8 @@ $('save').onclick = async () => {
   $('save').disabled = true;
   try {
     await fetch('/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    done.add(p.id); renderHist(await fetch('/feedback', {cache:'no-store'}).then(r => r.json()));
+    done.add(p.id); try { localStorage.removeItem(draftKey()); } catch (e) {}
+    renderHist(await fetch('/feedback', {cache:'no-store'}).then(r => r.json()));
     if (i < pieces.length - 1) { i++; showPiece(); $('saved').textContent = 'Saved. Next piece.'; }
     else { pickBatch(batch); $('saved').textContent = 'Saved. That was the last of this batch; pick another batch above, or I will read it all and come back.'; }
   } catch (e) { $('saved').textContent = 'Could not save: ' + e; }

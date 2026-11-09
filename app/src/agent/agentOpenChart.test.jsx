@@ -111,6 +111,14 @@ const askNasdaq = async (say) => {
   await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
 }
 const choiceButtons = () => [...(screen.queryAllByTestId('agent-question').at(-1)?.querySelectorAll('button') || [])]
+// ⛔ A card's button is rendered DISABLED while the panel is still busy with the turn that drew it, and enabled one render later.
+// A click on a disabled button is dropped (no handler runs), so waiting for the button to EXIST was not enough: under a loaded
+// full run the click landed in that one-render gap and the next waitFor ran out (the 9.1 s "full board … refused" failure).
+// Press only once the button can be pressed: no product change, no timeout raised.
+const press = async (buttons, i) => {
+  await waitFor(() => { const b = buttons()[i]; expect(b).toBeTruthy(); expect(b.disabled).toBe(false) }, { timeout: 8000 })
+  fireEvent.click(buttons()[i])
+}
 
 describe('Open chart REUSES a chart — one chart switches, several ask, none adds', () => {
   it('ONE chart: it switches to NASDAQ:A50 at once — same widget, place, size, timeframe; no approval; Undo restores QQQ', async () => {
@@ -118,7 +126,7 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     board.state.widgets[0].opts = { tf: 'W' }
     await askNasdaq(say)
     const before = JSON.stringify(board.state.widgets)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50']), { timeout: 8000 })
     expect(JSON.stringify(board.state.widgets)).toBe(before)                     // the widget itself is untouched
     expect(board.host.charts.list()[0].tf).toBe('W')
@@ -138,7 +146,7 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
   it('ONE chart on a FULL board: the switch still succeeds (nothing to place)', async () => {
     const { board, say } = mount(ONE_FULL, { B: 'QQQ' })
     await askNasdaq(say)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50']), { timeout: 8000 })
     expect(board.state.widgets).toHaveLength(1)
     expect(transcript()).not.toMatch(/no empty space/)
@@ -148,14 +156,14 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     const { board, say } = mount(TWO, { A: 'NVDA' })
     board.state.widgets[1].color = 'C'; board.state.groupSyms.C = 'SPY'
     await askNasdaq(say)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1), { timeout: 8000 })
     expect(screen.getByTestId('agent-question').textContent).toMatch(/Which chart should show NASDAQ:A50\?/)
     const labels = choiceButtons().map(b => b.textContent)
     expect(labels).toHaveLength(3)
     expect(labels[0]).toMatch(/NVDA/); expect(labels[1]).toMatch(/SPY/); expect(labels[2]).toBe('Cancel')
     expect(charts(board)).toEqual(['NVDA', 'SPY'])                                 // nothing changes before the pick
-    fireEvent.click(choiceButtons()[1])
+    await press(choiceButtons, 1)
     await waitFor(() => expect(charts(board)).toEqual(['NVDA', 'NASDAQ:A50']), { timeout: 8000 })
     expect(board.state.widgets).toHaveLength(2)
     expect(turns).toHaveLength(0)
@@ -165,11 +173,11 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     const W = [{ id: 'a', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'N' }, { id: 'b', type: 'chart', x: 8, y: 0, w: 8, h: 20, color: 'N' }]
     const { board, say } = mount(W, { 'N:a': 'QQQ', 'N:b': 'QQQ' })
     await askNasdaq(say)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1), { timeout: 8000 })
     const labels = choiceButtons().slice(0, -1).map(b => b.textContent)
     expect(new Set(labels).size).toBe(2)
-    fireEvent.click(choiceButtons()[0])
+    await press(choiceButtons, 0)
     await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50', 'QQQ']), { timeout: 8000 })
   }, 30000)
 
@@ -177,9 +185,9 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     const { board, say } = mount(TWO, { A: 'NVDA' })
     await askNasdaq(say)
     const before = JSON.stringify(board.state)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(choiceButtons().length).toBe(3), { timeout: 8000 })
-    fireEvent.click(choiceButtons()[2])
+    await press(choiceButtons, 2)
     await waitFor(() => expect(transcript()).toMatch(/Okay — nothing changed\./), { timeout: 8000 })
     expect(JSON.stringify(board.state)).toBe(before)
   }, 20000)
@@ -187,14 +195,14 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
   it('NO chart: one new chart is added through the safe add; a full board with no chart is refused, unchanged', async () => {
     const { board, say } = mount(NONE)
     await askNasdaq(say)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(charts(board)).toEqual(['NASDAQ:A50']), { timeout: 8000 })
     expect(board.state.widgets).toHaveLength(2)
     cleanup()
     const full = mount([{ id: 'w', type: 'watchlist', x: 0, y: 0, w: 24, h: 20 }])
     await askNasdaq(full.say)
     const before = JSON.stringify(full.board.state.widgets)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(transcript()).toMatch(/no empty space for a Chart/), { timeout: 8000 })
     expect(JSON.stringify(full.board.state.widgets)).toBe(before)
   }, 30000)
@@ -203,7 +211,7 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     const { board, say } = mount(TWO, { A: 'NASDAQ:A50' })
     await askNasdaq(say)
     const before = JSON.stringify(board.state)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(transcript()).toMatch(/NASDAQ:A50 is already on your board/), { timeout: 8000 })
     expect(JSON.stringify(board.state)).toBe(before)
   }, 20000)
@@ -216,7 +224,7 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
     const before = JSON.stringify(board.state.widgets)
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(transcript()).toMatch(/protected layout/), { timeout: 8000 })
     expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
     expect(JSON.stringify(board.state.widgets)).toBe(before)
@@ -229,7 +237,7 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     try {
       await say('what % of us stocks are above the 50 day')
       await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
-      fireEvent.click(chartButtons()[0])
+      await press(chartButtons, 0)
       await waitFor(() => expect(transcript()).toMatch(/UCT has no symbol “US:GONE”/), { timeout: 8000 })
       expect(charts(board)).toEqual(['QQQ'])
     } finally { SERIES['us:pct_above_50sma'] = 'US:A50' }
@@ -239,7 +247,7 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     const { board, say } = mount(ONE, { B: 'QQQ' })
     await say('when was the last time nyse a200 was below 10%')
     await waitFor(() => expect(chartButtons()).toHaveLength(1), { timeout: 8000 })
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(charts(board)).toEqual(['NYSE:A200']), { timeout: 8000 })
   }, 20000)
 
@@ -336,7 +344,7 @@ describe('stock answers chart their ticker', () => {
     await say('tell me about QQQ')
     await waitFor(() => expect(chartButtons().length).toBeGreaterThan(0), { timeout: 8000 })
     expect(chartButtons()[0].getAttribute('aria-label')).toBe('Open chart: QQQ')
-    fireEvent.click(chartButtons()[0])
+    await press(chartButtons, 0)
     await waitFor(() => expect(charts(board)).toEqual(['QQQ']), { timeout: 8000 })
   }, 20000)
 })
