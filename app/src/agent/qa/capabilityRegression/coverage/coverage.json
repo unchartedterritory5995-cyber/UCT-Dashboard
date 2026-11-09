@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 179,
-  "withProductionKinds": 170,
+  "all": 180,
+  "withProductionKinds": 171,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 179,
-  "withAnyRegressionCase": 127,
+  "capabilities": 180,
+  "withAnyRegressionCase": 128,
   "perProtection": {
    "nl": {
-    "covered": 127,
-    "applicable": 179
+    "covered": 128,
+    "applicable": 180
    },
    "routing": {
-    "covered": 124,
-    "applicable": 179
+    "covered": 125,
+    "applicable": 180
    },
    "args": {
-    "covered": 127,
-    "applicable": 179
+    "covered": 128,
+    "applicable": 180
    },
    "execution": {
-    "covered": 127,
-    "applicable": 179
+    "covered": 128,
+    "applicable": 180
    },
    "receipt": {
-    "covered": 98,
-    "applicable": 179
+    "covered": 99,
+    "applicable": 180
    },
    "refusal": {
     "covered": 31,
-    "applicable": 179
+    "applicable": 180
    },
    "permission": {
-    "covered": 171,
-    "applicable": 179
+    "covered": 172,
+    "applicable": 180
    },
    "undo": {
-    "covered": 58,
-    "applicable": 113
+    "covered": 59,
+    "applicable": 114
    },
    "multiStep": {
     "covered": 38,
-    "applicable": 179
+    "applicable": 180
    },
    "phrasings": {
-    "covered": 123,
-    "applicable": 179
+    "covered": 124,
+    "applicable": 180
    }
   }
  },
@@ -2541,6 +2541,60 @@
     "permission": [],
     "undo": [
      "chartSetup.setMovingAverages: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.setPosition": {
+   "domain": "chartSetup",
+   "group": "positionCalc",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartSetup.setPosition: \"set up the position calculator with entry 50, stop 47.5 and target 58\"",
+     "chartSetup.setPosition: \"position size this: entry 50, stop 47.5, target 58\"",
+     "chartSetup.setPosition: \"size a long here: in at 50, stop 47.5, target 58\""
+    ],
+    "routing": [
+     "chartSetup.setPosition: \"set up the position calculator with entry 50, stop 47.5 and target 58\"",
+     "chartSetup.setPosition: \"position size this: entry 50, stop 47.5, target 58\"",
+     "chartSetup.setPosition: \"size a long here: in at 50, stop 47.5, target 58\""
+    ],
+    "args": [
+     "corpus chartSetup.setPosition"
+    ],
+    "execution": [
+     "chartSetup.setPosition (c)"
+    ],
+    "receipt": [
+     "chartSetup.setPosition (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.setPosition: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

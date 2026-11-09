@@ -45,8 +45,8 @@ function withCalculator(h, start = {}) {
 const drawingsOf = (board) => JSON.stringify(board.state.drawings ?? null)
 
 describe('C1-144: the Position Calculator\'s entry / stop / target', () => {
-  it('the action is in the chartSetup group (the NL-1 core does not grow) and takes the closed all-required grammar', () => {
-    expect(groupOfAction('chartSetup.setPosition')).toBe('chartSetup')
+  it('the action is in its own positionCalc group (neither the NL-1 core nor chartSetup grows) and takes the closed all-required grammar', () => {
+    expect(groupOfAction('chartSetup.setPosition')).toBe('positionCalc')
     const a = getCapability('chartSetup.setPosition').args
     expect(a.required).toEqual(['entry', 'stop', 'target'])
     expect(a.additionalProperties).toBe(false)
@@ -54,7 +54,7 @@ describe('C1-144: the Position Calculator\'s entry / stop / target', () => {
   it.each(POSITION_HELD_OUT.map(c => [c.text]))('held-out "%s" routes to the group that offers it', (t) => {
     const r = selectGroups(t)
     expect(r.matched, t).toBe(true)
-    expect(r.selected, t).toContain('chartSetup')
+    expect(r.selected, t).toContain('positionCalc')
   })
 
   it.each(POSITION_HELD_OUT.filter(c => !c.refuse).map(c => [c.text, c]))('held-out "%s": the calculator reads back open with those prices; Undo closes it again', async (t, c) => {

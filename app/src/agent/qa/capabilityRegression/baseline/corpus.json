@@ -10456,6 +10456,60 @@
       ]
     },
     {
+      "id": "chartSetup.setPosition",
+      "source": "pl-exec P1 gaps (C1-144): the Position Calculator filled with an entry, stop and target; done only when the chart reads it back open with those prices; Undo closes it again",
+      "capabilities": [
+        "chartSetup.setPosition"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.setPosition"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.setPosition",
+            "target": "$charts[0]",
+            "args": {
+              "entry": 50,
+              "stop": 47.5,
+              "target": 58
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "position": {
+            "open": true,
+            "entry": 50,
+            "stop": 47.5,
+            "target": 58
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "position": {
+              "open": false,
+              "entry": null,
+              "stop": null,
+              "target": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "set up the position calculator with entry 50, stop 47.5 and target 58",
+        "position size this: entry 50, stop 47.5, target 58",
+        "size a long here: in at 50, stop 47.5, target 58"
+      ]
+    },
+    {
       "id": "chartSetup.resetView",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [
