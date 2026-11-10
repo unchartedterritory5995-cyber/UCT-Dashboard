@@ -6,5 +6,7 @@
  {"id":"HG-05","say":"how do I rename my note","feature":"control","title":"Editing a note","given":["noteOpen"]},
  {"id":"HG-06","say":"how do I change the text of this note","feature":"control","title":"Editing a note","given":["noteOpen"]},
  {"id":"HG-07","say":"how do I leave replay mode","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]},
- {"id":"HG-08","say":"how do I stop the replay and go back to live","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]}
+ {"id":"HG-08","say":"how do I stop the replay and go back to live","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]},
+ {"id":"HG-09","say":"how do I add one of my own indicators to the chart","feature":"indicatorManage","title":"Adding your own indicator","given":["savedIndicator"]},
+ {"id":"HG-10","say":"how do I put my saved indicator on this chart","feature":"indicatorManage","title":"Adding your own indicator","given":["savedIndicator"]}
 ]
