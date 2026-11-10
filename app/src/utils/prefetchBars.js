@@ -355,6 +355,33 @@ export async function prepareForDisplay(sym, tf) {
 }
 
 /**
+ * Daily/weekly/monthly analogue of `prepareForDisplay` for the symbol handoff: get the
+ * set the chart will paint into the synchronous memory cache, without replacing it.
+ * A cached set is promoted with its own saved time (so the paint gate still judges it
+ * by when it was written); an uncached symbol asks for the chart's own URL, so the
+ * chart's fetch shares the answer rather than repeating it. Never stores a shed, a
+ * delta, or another symbol's answer.
+ */
+export async function prepareDailyForDisplay(sym, tf) {
+  if (!sym || !tf) return 'error'
+  try {
+    const have = await idbGet(sym, tf)
+    if (have?.bars?.length) {
+      memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
+      return 'current'
+    }
+    const json = _noteWarmResult(await preload(_url(sym, tf, false), warmFetcher))
+    if (!_isAuthoritativeAnswer(json, sym, tf).ok) return 'error'
+    if (json.delta || !json.bars.length) return 'nodata'
+    memPut(sym, tf, json.bars)
+    idbPut(sym, tf, json.bars)
+    return 'current'
+  } catch {
+    return 'error'
+  }
+}
+
+/**
  * Did this response genuinely come from the authority, FOR THIS REQUEST?
  *
  * ⛔ EVERY CLAUSE HERE EXISTS BECAUSE ITS ABSENCE WOULD MANUFACTURE A FALSE
