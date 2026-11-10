@@ -1196,6 +1196,18 @@ def _buzz_poll() -> None:
         log.warning("[buzz] digest catch-up error: %s", e)
 
 
+def _llm_budget_watch() -> None:
+    """AI-spend watchdog (api/services/llm_budget.py): posts to the ops channel once per
+    (day, budget, level) at 80% / 100% / projected-over. Never raises."""
+    try:
+        from api.services import llm_budget
+        sent = llm_budget.watch()
+        if sent:
+            logging.getLogger(__name__).warning("[llm-budget] alerts sent: %s", [s["door"] for s in sent])
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] watch failed", exc_info=True)
+
+
 def _tsdr_lessons_tick() -> None:
     """One #tsdr video-lessons pass (scan → recap/post → YouTube). Never raises."""
     log = logging.getLogger(__name__)
@@ -8167,6 +8179,13 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=300, max_instances=1, coalesce=True,
             )
             print("[startup] tsdr video lessons scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_budget_watch,
+                trigger=CronTrigger(minute="2,17,32,47", timezone=_ET),
+                id="llm_budget_watch", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] AI-spend budget watchdog scheduled (every 15 min)")
         except Exception as e:
             print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
