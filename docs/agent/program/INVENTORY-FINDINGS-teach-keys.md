@@ -7,7 +7,7 @@
 | row | class | in one line |
 |---|---|---|
 | C3-223 | documentation mismatch | the key exists, but it captures a chart to the Journal; it toggles nothing |
-| C1-123 | alternative access path | the desktop /charts right-click menu never had Add indicator; other ways in exist |
+| C1-123 | alternative access path → **present, pending merge** (owner-approved 2026-11-10) | the desktop /charts right-click menu never had Add indicator; the owner approved adding it, built on `agent/pl/chart-menu-add-indicator` (not yet on master) |
 | C1-175 | documentation mismatch | Esc is declared and teachable; the row says it has no walkthrough and is BLOCKED |
 | C3-080 | intentional removal, dead residue | "Remove starred" lost its only trigger on purpose in `72482c8400`; the code and CLAUDE.md line are leftovers |
 
@@ -113,6 +113,19 @@ guide change, because rows are built from SHORTCUTS.
   - The widget menu's row-order tests and goldens would change.
   - The C1-123 row would flip from "alternative access path" to "present".
   - This is a product change: the owner decides whether spec §6 stands for desktop /charts.
+
+**(d) Owner decision and build (2026-11-10): APPROVED, built, NOT YET MERGED**
+- The owner approved adding "Add indicator" to the desktop /charts right-click menu (spec §6 stands for desktop).
+- Built on `agent/pl/chart-menu-add-indicator` off master `96230b5598`, in the shape (c) proposed:
+  - `handleBarContextMenu` keeps StockChart's own `ind-add` item from `p.sections` (a handler is required); the row
+    `data-menu-id="ind-add"`, just above Chart settings, calls that item's `onSelect` and closes the menu. No new
+    launcher, no new gate. Absent wherever StockChart omits the item (read-only, no drawing tools, the price or time axis).
+  - jsdom rails 5/5, written first (BEFORE 3 failed); 4 mutations each fail a rail.
+  - REAL BROWSER (LOCAL harness): right-clicks in the price area offer the row and `elementFromPoint` at its centre is
+    the row; the price axis menu has no row; a real click opens the indicator library (attempt-2; attempt-1 kept).
+  - The walkthrough: C1-123 now assigned to `chartMenu` (right-click inside the chart, then Add indicator…, naming
+    Alt+Shift+A as the other way in). Browser 1/1 + held-out 5/5 (LOCAL, BROWSER-MOCK-MODEL).
+- Until that branch merges, master still matches (a)-(c) above: no row on desktop /charts.
 
 ## C1-175: "Escape to cursor / cancel", cited at KS:112
 
