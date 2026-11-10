@@ -1,0 +1,113 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:36:58.544Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C3-198",
+   "say": "show me how to save that answer",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This saves the answer so you can reopen it later from Saved answers.",
+     "onPrimary": true,
+     "pr": [
+      636,
+      203,
+      45,
+      20
+     ],
+     "rr": [
+      632,
+      199,
+      53,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-199",
+   "say": "how do I copy or speak an answer",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This copies the answer’s text.",
+     "onPrimary": true,
+     "pr": [
+      523,
+      203,
+      46,
+      20
+     ],
+     "rr": [
+      519,
+      199,
+      54,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-200",
+   "say": "how do I send the conversation to Journal",
+   "feature": "control",
+   "title": "Sending AI Search to the Journal",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This sends the AI Search widget to your Journal. The arrow beside it chooses where it goes.",
+     "onPrimary": true,
+     "pr": [
+      851,
+      106,
+      17,
+      17
+     ],
+     "rr": [
+      847,
+      102,
+      25,
+      25
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  }
+ ]
+}
