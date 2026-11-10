@@ -34,3 +34,22 @@ describe('a value on the click is not a chart relation', () => {
     expect(relationMatch(s), s).not.toBeNull()
   })
 })
+
+// AUDIT control (unit, the exclusion reader): ", not <X>" / "rather than <X>" excludes a chart or a position, never a value or a
+// setting — even when the value word also DESCRIBES a chart on the board ("the weekly" = the one weekly chart, here the click).
+// (The panel over-asks on these on master and on this head by another path — a follow-up, not this rail's claim.)
+import { excludedCharts } from './spatialCheck'
+const mk = (ref, x, y, position, tf, symbol) => ({ ref, label: `Chart (${ref})`, cell: { x, y, w: 8, h: 10 }, position, tf, symbol })
+const BOARD = [mk('c0', 0, 0, 'top-left', 'D', 'SPY'), mk('c1', 8, 0, 'top-right', 'W', 'QQQ'), mk('c2', 0, 10, 'bottom-left', 'D', 'NVDA'), mk('c3', 8, 10, 'bottom-right', 'D', 'TSLA')]
+describe('", not <a value>" excludes nothing; ", not <a chart>" excludes it', () => {
+  it.each(['log scale on this one, not the weekly', 'put this one on log scale rather than the weekly', 'make it log, not linear',
+    'make this weekly, not daily', 'show the 50, not the 200', 'log scale on this one instead of the weekly'])('"%s" → no exclusion', (t) => {
+    expect([...excludedCharts(t, BOARD, 'c1')], t).toEqual([])
+  })
+  it.each([['make this weekly, not the left one', null], ['log on this one, not the top-left one', 'c0'], ['log on this one, not the bottom-left', 'c2'],
+    ['log on this one rather than the NVDA one', 'c2'], ['log on this one, not TSLA', 'c3']])('"%s" → excludes %s', (t, ex) => {
+    const out = [...excludedCharts(t, BOARD, 'c1')]
+    if (ex) expect(out, t).toContain(ex)
+    else expect(out.length, t).toBeGreaterThan(0)
+  })
+})

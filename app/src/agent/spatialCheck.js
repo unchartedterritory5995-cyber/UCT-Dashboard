@@ -422,6 +422,14 @@ export function excludedCharts(text, charts = [], sel = null) {
     if (/^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|it|the\s+(?:selected|clicked)\s+(?:one|chart))$/i.test(phrase)) { if (sel) out.add(sel); continue }
     const a = namedAnchor(/\b(?:chart|one)$/i.test(phrase) ? phrase : `${phrase} chart`, charts) || namedAnchor(phrase, charts)
     if (a) { out.add(a.ref); continue }
+    // (#988, AUDIT control) a position that fits SEVERAL charts ("not the left one" on a 2×2): every chart it fits is excluded —
+    // never none (a plan there would run) and never the whole plan asked (the click elsewhere is still meant)
+    const pw = String(phrase).toLowerCase().match(/\b(?:top|bottom|upper|lower|left|right)\b/g)
+    if (pw && /^(?:the\s+)?(?:(?:top|bottom|upper|lower|left|right)[\s-]*){1,2}(?:one|chart|cell|pane|panel|graph|side)?s?$/i.test(phrase)) {
+      const parts = pw.map(w => w.replace('upper', 'top').replace('lower', 'bottom'))
+      const fit = charts.filter(c => c.position && parts.every(p => String(c.position).split('-').includes(p)))
+      if (fit.length) { for (const c of fit) out.add(c.ref); continue }
+    }
     // ⛔ (pl-auto u14-g3-05) a ticker on SEVERAL charts ("this row except the TSLA one", TSLA twice on the board) is the one in
     // the line the request is scoped to; none or several there → UNPLACED (the plan is asked). Never silently no exclusion.
     const multi = symbolCharts(phrase, charts)
