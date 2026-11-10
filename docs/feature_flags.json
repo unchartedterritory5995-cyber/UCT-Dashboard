@@ -3198,6 +3198,14 @@
       "since": "2026-11-10",
       "where": [],
       "note": "PR #1012 (feat/schwab-token-replication, commit 25e78dbf2d): the RECEIVE half on flow-worker. Read in api/schwab_token_replica.py (receive_enabled), default '0'; POST /api/flow/schwab-token/install (admin-gated). Strips the refresh token unconditionally so flow-worker can never refresh or invalidate web's grant; refuses a replay, a token already expired on arrival, and a future saved_at. Ships DARK on purpose; pairs with SCHWAB_TOKEN_PUSH_ENABLED on web. While dark, flow-worker keeps its own (stale) token and falls back to Massive OI as before. Entry added 2026-11-10 because the gate merged without one."
+    },
+    "PRECOMPRESSED_ASSETS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "KILL SWITCH, DEFAULT ON: unset means precompressed serving is ON. Status is dark only because no service sets it (same shape as ALERT_ROUTING_ENABLED); 'armed' here means set on a service. Read per request in api/services/static_assets.py (precompressed_enabled). 0, false or no serves every /assets JS and CSS file plain, with no Content-Encoding and no Vary. Rails: tests/test_precompressed_static_assets.py. Rollback: railway variables --service web --set PRECOMPRESSED_ASSETS_ENABLED=0, then PURGE /assets AT CLOUDFLARE: these files are immutable for a year, so encoded bytes already at the edge survive any origin change. Report: docs/speed/speed-4-report.md."
     }
   },
   "retired": {
