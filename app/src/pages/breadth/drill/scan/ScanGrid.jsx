@@ -1,8 +1,10 @@
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import StockChart from '../../../../components/StockChart'
 import ErrorBoundary from '../../../../components/ErrorBoundary'
 import CompanyLogo from '../../../../components/CompanyLogo'
 import { PANE_LOOK } from '../../../../components/chart/pane/paneLook'
+import { mergeChartSettings, mergeSettingsOverride } from '../../../../components/chart/chartDefaults'
+import usePreferences from '../../../../hooks/usePreferences'
 import { prefetchListDeep } from '../../../../utils/prefetchBars'
 import { fmtPct } from './scanDeckModel'
 import { GRID_SORTS, sortGridRows } from './gridSort'
@@ -14,10 +16,13 @@ import styles from './ScanDeck.module.css'
 // member's /charts look), so a glance down the sheet shows which setups are worth
 // a closer look.
 //
-// ⭐ OWNER RULES (2026-11-09):
+// ⭐ OWNER RULES (2026-11-09, round 2 the same evening):
 //  • The scroll wheel SCROLLS THE SHEET, wherever the mouse is. A chart only takes
-//    the wheel (zoom), drags and clicks once the member CLICKS it; that card goes
-//    gold. Moving to another card and scrolling scrolls the sheet again.
+//    the wheel (zoom) and a press-and-drag (pan) once the member CLICKS it; that
+//    card goes gold. The selecting click itself never reaches the chart, so
+//    letting go and moving the mouse does NOT pan (only a held drag does).
+//  • The mouse leaving the card lets the chart go (gold off): the wheel scrolls
+//    the sheet again.
 //  • The corner button ENLARGES the chart in place (the classic UCT chart); a card
 //    click no longer jumps to Focus.
 //  • Smooth with 900+ names: only the rows on or near the screen exist at all
@@ -37,13 +42,22 @@ const WARM_AHEAD_ROWS = 3 // rows whose bars are warmed past the bottom of the s
 
 const chartLook = { ...PANE_LOOK }
 
-const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false }) {
-  // A card borrows the Focus chart's look; an edit on a card (legend chip,
-  // right-click) stays on that card for the session, never in global settings.
+// The full Chart Settings window, for the enlarged chart's gear. Loaded on first
+// open only.
+const ChartSettingsModal = lazy(() => import('../../../../components/chart/ChartSettingsModal'))
+
+const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false, onPersist = null }) {
+  // A card borrows the grid's look (the Focus chart's template); an edit on a
+  // card (legend chip, right-click) stays on that card for the session, never in
+  // global settings. The enlarged chart's edits go to the grid's look instead
+  // (`onPersist`), the same place its settings gear writes.
   // (Inline, not useSessionChartSettings: importing that would split it into a
   // shared chunk the app's entry lists, which costs the Notebook byte budget.)
   const [edited, setEdited] = useState(null)
-  const onSettingsPersist = useCallback((next) => setEdited(next && typeof next === 'object' ? next : null), [])
+  const onSettingsPersist = useCallback((next) => {
+    const v = next && typeof next === 'object' ? next : null
+    if (onPersist) { if (v) onPersist(v) } else setEdited(v)
+  }, [onPersist])
   return (
     <ErrorBoundary fallback={<div className={styles.cardEmpty}>Chart unavailable</div>}>
       <StockChart
@@ -63,6 +77,7 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false }) {
         // classic always-on legend.
         alwaysShowLegend={big}
         legendFlush
+        compactAxes
         hideWatermark={!big}
         carryDragPlacement={false}
         lockWatermark
@@ -72,20 +87,29 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false }) {
         priceScaleTopMargin={0.1} priceScaleBottomMargin={0.08}
         hideExtHoursToolbarToggle
         // The Focus chart's look (its template), so a card and the big chart match.
-        settingsOverride={edited || settings || undefined}
+        settingsOverride={(!onPersist && edited) || settings || undefined}
         onSettingsPersist={onSettingsPersist}
       />
     </ErrorBoundary>
   )
 })
 
-const metaText = (row) => [row.industry || row.sector, row.theme].filter(Boolean).join(' · ') || '—'
+// "Sector · Industry" after the % change (a name repeated is shown once).
+const metaText = (row) => {
+  const parts = []
+  for (const v of [row.sector, row.industry]) {
+    const t = typeof v === 'string' ? v.trim() : ''
+    if (t && !parts.some(p => p.toLowerCase() === t.toLowerCase())) parts.push(t)
+  }
+  return parts.join(' · ')
+}
 const fmtPx = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
 
 // Events a chart must NOT see until its card is active. The wheel passes on to
 // the sheet (it scrolls); a press activates the card instead of panning.
 const PRESS_EVENTS = ['pointerdown', 'mousedown', 'touchstart']
 const AFTER_PRESS_EVENTS = ['pointerup', 'mouseup', 'touchend', 'click', 'dblclick', 'contextmenu']
+const END_EVENTS = ['pointerup', 'mouseup', 'touchend', 'pointercancel', 'touchcancel']
 
 function useChartGate(active, onActivate) {
   const ref = useRef(null)
@@ -98,22 +122,37 @@ function useChartGate(active, onActivate) {
   useEffect(() => {
     const el = ref.current
     if (!el) return undefined
+    // While the SELECTING press is in progress, EVERY event of it is kept from
+    // the chart, until the button is let go. ⛔ It used to check "is the card
+    // active?" per event: the press's pointerdown activated the card, React
+    // re-rendered in the microtask before the mousedown, so the mousedown went
+    // through to the chart (start of a drag) while the mouseup was still
+    // swallowed. The chart never saw the release and panned with the mouse
+    // afterwards (owner, 2026-11-09).
     let swallowing = false
+    let endTimer = 0
+    const endPress = () => {
+      if (!swallowing || endTimer) return
+      // After this tick: the press's own mouseup / click are dispatched first.
+      endTimer = setTimeout(() => { endTimer = 0; swallowing = false }, 0)
+    }
     // Capture phase on the card, so the chart's own listeners never fire. The
     // wheel is NOT prevented: the browser scrolls the sheet as if the chart
     // were not there.
     const onWheel = (e) => { if (!activeRef.current) e.stopPropagation() }
     const onPress = (e) => {
+      if (swallowing) { e.stopPropagation(); return }
       if (activeRef.current) return
       e.stopPropagation()
-      if (!swallowing) { swallowing = true; activateRef.current?.() }
+      swallowing = true
+      // The release can land outside the card; the window always sees it.
+      for (const t of END_EVENTS) window.addEventListener(t, endPress, { capture: true, once: true })
+      activateRef.current?.()
     }
     const onAfter = (e) => {
       if (!swallowing) return
       e.stopPropagation()
-      if (e.type === 'click' || e.type === 'touchend' || e.type === 'contextmenu') {
-        setTimeout(() => { swallowing = false }, 0)
-      }
+      if (e.type === 'click' || e.type === 'contextmenu') endPress()
     }
     el.addEventListener('wheel', onWheel, { capture: true, passive: true })
     for (const t of PRESS_EVENTS) el.addEventListener(t, onPress, { capture: true })
@@ -122,6 +161,8 @@ function useChartGate(active, onActivate) {
       el.removeEventListener('wheel', onWheel, { capture: true })
       for (const t of PRESS_EVENTS) el.removeEventListener(t, onPress, { capture: true })
       for (const t of AFTER_PRESS_EVENTS) el.removeEventListener(t, onAfter, { capture: true })
+      for (const t of END_EVENTS) window.removeEventListener(t, endPress, { capture: true })
+      if (endTimer) clearTimeout(endTimer)
     }
   }, [])
   return ref
@@ -152,34 +193,42 @@ function useMountTicket(cardRef, scrollRef) {
   return granted
 }
 
-const GridCard = memo(function GridCard({ row, tf, active, onActivate, onExpand, settings, scrollRef }) {
+const GridCard = memo(function GridCard({ row, tf, active, onActivate, onRelease, onExpand, settings, scrollRef }) {
   const cardRef = useRef(null)
   const activate = useCallback(() => onActivate(row.sym), [onActivate, row.sym])
+  // Leaving the card lets the chart go. Mid-drag (a button held), wait for the
+  // release so the drag is not cut off.
+  const onPointerLeave = useCallback((e) => {
+    if (!active) return
+    if (!e.buttons) { onRelease(row.sym); return }
+    window.addEventListener('pointerup', () => {
+      if (!cardRef.current?.matches(':hover')) onRelease(row.sym)
+    }, { once: true })
+  }, [active, onRelease, row.sym])
   const chartRef = useChartGate(active, activate)
   const granted = useMountTicket(cardRef, scrollRef)
   const up = Number.isFinite(row.pct) && row.pct >= 0
   const pctCls = `${styles.cardPct} ${up ? styles.up : styles.dn}`
-  // Owner pick 2026-11-09 (style B): rounded, spaced cards with a two-line
-  // identity (logo, symbol, price, % change; industry · theme) and an Enlarge
-  // button in the corner.
+  const meta = metaText(row)
+  // Owner pick 2026-11-09 (style B), thinned the same evening: ONE line —
+  // logo, symbol, price, % change — sector · industry — and an Enlarge button.
   return (
-    <div ref={cardRef} className={`${styles.card} ${styles.cardFloat}`} data-selected={active || undefined}>
+    <div ref={cardRef} className={`${styles.card} ${styles.cardFloat}`} data-selected={active || undefined}
+      onPointerLeave={onPointerLeave}>
       <div className={styles.floatHead}>
         <button type="button" className={styles.floatIdBtn} onClick={activate}
           aria-pressed={active} title={active ? `${row.sym} selected` : `Select ${row.sym}`}>
-          <CompanyLogo sym={row.sym} name={row.name} size={26} round />
-          <span className={styles.floatId}>
-            <span className={styles.floatLine}>
-              <span className={styles.cardSym}>{row.sym}</span>
-              <span className={styles.floatPx}>{fmtPx(row.price)}</span>
-              <span className={pctCls}>{fmtPct(row.pct, 2)}</span>
-            </span>
-            <span className={styles.cardMeta}>{metaText(row)}</span>
+          <CompanyLogo sym={row.sym} name={row.name} size={20} round />
+          <span className={styles.floatLine}>
+            <span className={styles.cardSym}>{row.sym}</span>
+            <span className={styles.floatPx}>{fmtPx(row.price)}</span>
+            <span className={pctCls}>{fmtPct(row.pct, 2)}</span>
+            {meta && <span className={styles.cardMeta}><span className={styles.metaDash} aria-hidden="true">—</span>{meta}</span>}
           </span>
         </button>
         <button type="button" className={styles.expandBtn} onClick={() => onExpand(row.sym)}
           title={`Enlarge ${row.sym}`} aria-label={`Enlarge ${row.sym} chart`}>
-          <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
             <path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" fill="none" stroke="currentColor"
               strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -192,17 +241,43 @@ const GridCard = memo(function GridCard({ row, tf, active, onActivate, onExpand,
   )
 })
 
-function ExpandedChart({ row, tf, settings, onClose }) {
+function ExpandedChart({ row, tf, settings, onSettingsChange, onClose }) {
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const gearRef = useRef(null)
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key !== 'Escape') return
+      // The settings window owns Escape while it is open.
+      if (e.key !== 'Escape' || settingsOpen) return
       e.preventDefault()
       onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, settingsOpen])
+  // The settings window edits the look the grid's charts draw with: the
+  // member's chart settings with the grid's template over them, exactly what
+  // StockChart resolves for these charts.
+  const { prefs, setPref } = usePreferences()
+  const modalCs = useMemo(() => mergeSettingsOverride(mergeChartSettings(prefs.chart_settings), settings || null),
+    [prefs.chart_settings, settings])
+  const savedColors = useMemo(() => {
+    try {
+      const raw = prefs.chart_saved_colors
+      const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return Array.isArray(arr) ? arr : []
+    } catch { return [] }
+  }, [prefs.chart_saved_colors])
+  const saveColor = useCallback((hex) => {
+    if (!hex) return
+    const h = String(hex).toLowerCase()
+    setPref('chart_saved_colors', JSON.stringify([h, ...savedColors.filter(c => String(c).toLowerCase() !== h)].slice(0, 24)))
+  }, [savedColors, setPref])
+  const deleteColor = useCallback((hex) => {
+    const h = String(hex).toLowerCase()
+    setPref('chart_saved_colors', JSON.stringify(savedColors.filter(c => String(c).toLowerCase() !== h)))
+  }, [savedColors, setPref])
   const up = Number.isFinite(row.pct) && row.pct >= 0
+  const meta = metaText(row)
   return (
     // The drill window ignores Escape while this attribute is on screen, so
     // Escape closes the enlarged chart, not the whole window.
@@ -216,8 +291,16 @@ function ExpandedChart({ row, tf, settings, onClose }) {
             <span className={`${styles.cardPct} ${up ? styles.up : styles.dn}`}>{fmtPct(row.pct, 2)}</span>
             {row.name && <span className={styles.cardMeta}>{row.name}</span>}
           </span>
-          <span className={styles.cardMeta}>{metaText(row)}</span>
+          {meta && <span className={styles.cardMeta}>{meta}</span>}
         </span>
+        <button ref={gearRef} type="button" className={styles.expandClose} onClick={() => setSettingsOpen(true)}
+          title="Chart settings" aria-label="Chart settings" aria-haspopup="dialog">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
         <button type="button" className={styles.expandClose} onClick={onClose} title="Back to the grid (Esc)" aria-label="Close enlarged chart">
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
             <path d="M3.5 12.5 7 9M3.5 9H7v3.5M12.5 3.5 9 7M9 3.5V7h3.5" fill="none" stroke="currentColor"
@@ -226,8 +309,24 @@ function ExpandedChart({ row, tf, settings, onClose }) {
         </button>
       </div>
       <div className={styles.expandedChart}>
-        <MiniChart sym={row.sym} tf={tf} settings={settings} big />
+        <MiniChart sym={row.sym} tf={tf} settings={settings} big onPersist={onSettingsChange} />
       </div>
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <ChartSettingsModal
+            open
+            onClose={() => setSettingsOpen(false)}
+            returnFocusRef={gearRef}
+            chartTf={tf}
+            settings={modalCs}
+            onChange={onSettingsChange}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
+            volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
@@ -280,7 +379,7 @@ function useRowWindow(scrollRef, rowCount, rowH) {
   return { width: state.width, first: fallback.first, last: Math.min(fallback.last, rowCount - 1), onScroll, measure }
 }
 
-export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null, chartSettings = null }) {
+export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null, chartSettings = null, onChartSettingsChange = null }) {
   const sortId = useId()
   const [sortKey, setSortKey] = useState('pct')
   const [size, setSize] = useState('m')
@@ -288,6 +387,17 @@ export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null,
   const [activeSym, setActiveSym] = useState(null)
   const [expandedSym, setExpandedSym] = useState(null)
   const scrollRef = useRef(null)
+  // The grid's look: the host's (the Focus chart's template). With no host to
+  // keep an edit (the harness), the edit stays here.
+  const [localCs, setLocalCs] = useState(null)
+  const gridCs = (!onChartSettingsChange && localCs) || chartSettings
+  const onChartSettingsChangeRef = useRef(onChartSettingsChange)
+  useLayoutEffect(() => { onChartSettingsChangeRef.current = onChartSettingsChange }, [onChartSettingsChange])
+  const changeGridCs = useCallback((next) => {
+    if (!next || typeof next !== 'object') return
+    if (onChartSettingsChangeRef.current) onChartSettingsChangeRef.current(next)
+    else setLocalCs(next)
+  }, [])
   const sorted = useMemo(() => sortGridRows(rows, sortKey, dir), [rows, sortKey, dir])
 
   const g = GEOM[size] || GEOM.m
@@ -339,6 +449,7 @@ export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null,
     onSelectRef.current?.(sym)
     setExpandedSym(sym)
   }, [])
+  const onRelease = useCallback((sym) => setActiveSym(prev => (prev === sym ? null : prev)), [])
   const closeExpanded = useCallback(() => setExpandedSym(null), [])
   // A press on the sheet's empty space (between or around cards) lets go of
   // the selected card, so nothing holds the wheel.
@@ -375,14 +486,14 @@ export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null,
                 {shown.map(r => (
                   <div key={r.sym} data-grid-card="" className={styles.cardSlot}>
                     <GridCard row={r} tf={tf} active={r.sym === activeSym}
-                      onActivate={onActivate} onExpand={onExpand} settings={chartSettings} scrollRef={scrollRef} />
+                      onActivate={onActivate} onRelease={onRelease} onExpand={onExpand} settings={gridCs} scrollRef={scrollRef} />
                   </div>
                 ))}
               </div>
             )
             : <div className={styles.gridEmpty}>No stocks matched this filter.</div>}
         </div>
-        {expandedRow && <ExpandedChart row={expandedRow} tf={tf} settings={chartSettings} onClose={closeExpanded} />}
+        {expandedRow && <ExpandedChart row={expandedRow} tf={tf} settings={gridCs} onSettingsChange={changeGridCs} onClose={closeExpanded} />}
       </div>
     </div>
   )

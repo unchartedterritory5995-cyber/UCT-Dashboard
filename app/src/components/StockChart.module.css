@@ -1161,6 +1161,22 @@
   transition: background 0.12s ease, color 0.12s ease, opacity 0.12s ease;
 }
 
+/* A small card (breadth drill grid, owner 2026-11-09: "way too big"): the
+   chips shrink to fit the card. The full-size chips above stay the default
+   on every other chart. */
+.scaleToggleCompact {
+  right: 6px;
+  padding: 0 1px;
+  border-radius: 4px;
+}
+.scaleToggleCompact .scaleToggleBtn {
+  min-width: 16px;
+  min-height: 15px;
+  font-size: 9px;
+  letter-spacing: 0.2px;
+  padding: 0 2px;
+}
+
 .scaleToggleBtn:hover {
   color: var(--chart-panel-text-strong-low, #e2dfd6);
   opacity: 1;
