@@ -1,0 +1,554 @@
+# cmd: npx vitest run src/agent/agentGuide src/agent/guide src/testing/agent/guide | head=eeb10ae8a7 | start 16:18:18
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-teach-wops/app[39m
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mthe overlay[2m > [22m[2m🔴 Skip on a step the next depends on stays put and says why: never the lost notice
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2ma pressed control finishes its step, even when it stays on screen[2m > [22m[2ma middle step moves on, and the last step ends the walkthrough: no ring is left behind
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2ma pressed control finishes its step, even when it stays on screen[2m > [22m[2ma right-click on the control does not count as the click the step asked for
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2ma walkthrough stays on ITS chart and ends when it should[2m > [22m[2mP2 another chart opening its settings window does not advance this chart’s step; its own gear does
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mpressing another chart ends the walkthrough[2m > [22m[2ma press on its own chart does not end it
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mpressing another chart ends the walkthrough[2m > [22m[2ma press on a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on) does not end it
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mpressing another chart ends the walkthrough[2m > [22m[2ma press on a menu outside any board cell does not end it
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideHeldOutWidgetOps.test.js [2m([22m[2m18 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutWlTitleMenu.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 56[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mpressing another chart ends the walkthrough[2m > [22m[2ma board-level walkthrough (no chart) is not ended by pressing a chart
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mpressing another chart ends the walkthrough[2m > [22m[2ma board-level walkthrough (no chart) is not ended by pressing a chart
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mthe walkthrough chart loads another symbol from outside[2m > [22m[2ma walkthrough whose own steps change the symbol (the symbol search) carries on
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideSystem.test.jsx[2m > [22m[2mpressing another chart on a six-chart board ends the walkthrough[2m > [22m[2ma press on its own chart (top-left) does not end it
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideSystem.test.jsx [2m([22m[2m50 tests[22m[2m)[22m[33m 7744[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Skip on a step the next depends on stays put and says why: never the lost notice [33m 1100[2mms[22m[39m
+     [33m[2m✓[22m[39m Do it for me while the Agent is busy says so on the card, and a later press goes through [33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m a middle step moves on, and the last step ends the walkthrough: no ring is left behind [33m 1060[2mms[22m[39m
+     [33m[2m✓[22m[39m a right-click on the control does not count as the click the step asked for [33m 517[2mms[22m[39m
+     [33m[2m✓[22m[39m P2 another chart opening its settings window does not advance this chart’s step; its own gear does [33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m a press on its own chart does not end it [33m 405[2mms[22m[39m
+     [33m[2m✓[22m[39m a press on a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on) does not end it [33m 400[2mms[22m[39m
+     [33m[2m✓[22m[39m a press on a menu outside any board cell does not end it [33m 419[2mms[22m[39m
+     [33m[2m✓[22m[39m a board-level walkthrough (no chart) is not ended by pressing a chart [33m 494[2mms[22m[39m
+     [33m[2m✓[22m[39m a walkthrough whose own steps change the symbol (the symbol search) carries on [33m 515[2mms[22m[39m
+     [33m[2m✓[22m[39m a press on its own chart (top-left) does not end it [33m 396[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideLifecycleRails.test.jsx[2m > [22m[2m1 · agent.guideEscapeBoard: window capture, never prevents or stops[2m > [22m[2ma selected drawing (it deselects): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideLifecycleRails.test.jsx[2m > [22m[2m1 · agent.guideEscapeBoard: window capture, never prevents or stops[2m > [22m[2man armed drawing tool (it disarms): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideAbsentRow.test.jsx[2m > [22m[2ma menu row that is not offered here[2m > [22m[2ma step without `absent` keeps waiting when its menu opens without the row
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideAbsentRow.test.jsx[2m > [22m[2ma menu row that is not offered here[2m > [22m[2ma step without `absent` keeps waiting when its menu opens without the row
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideLifecycleRails.test.jsx[2m > [22m[2m1 · agent.guideEscapeBoard: window capture, never prevents or stops[2m > [22m[2man open dialog (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideAbsentRow.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 3927[2mms[22m[39m
+     [33m[2m✓[22m[39m menu open, row absent: said and ended (no ring, no waiting) [33m 1774[2mms[22m[39m
+     [33m[2m✓[22m[39m a step without `absent` keeps waiting when its menu opens without the row [33m 1994[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideLifecycleRails.test.jsx[2m > [22m[2m1 · agent.guideEscapeBoard: window capture, never prevents or stops[2m > [22m[2mfocus in a textarea: the walkthrough stays and the field still acts (it clears)
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideControls.test.js [2m([22m[2m112 tests[22m[2m)[22m[33m 5170[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideDesktopSelection.test.jsx[2m > [22m[2ma drawing selected on desktop owns Escape[2m > [22m[2mselected: Escape leaves the walkthrough on screen, and the chart still deselects
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideP3.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 7676[2mms[22m[39m
+     [33m[2m✓[22m[39m "how do I link my charts?" [33m 1188[2mms[22m[39m
+     [33m[2m✓[22m[39m "how do i hide my drawings" [33m 1017[2mms[22m[39m
+     [33m[2m✓[22m[39m "where do I change the chart background?" [33m 990[2mms[22m[39m
+     [33m[2m✓[22m[39m the Canvas walkthrough starts at the Canvas tab when Chart Settings is already open [33m 1003[2mms[22m[39m
+     [33m[2m✓[22m[39m "how do I link my charts?" → "do it for me" → which colour? → Blue: the chart's link colour is set; Undo puts it back [33m 1451[2mms[22m[39m
+     [33m[2m✓[22m[39m hiding drawings says what to ask for — nothing runs on a guess [33m 1025[2mms[22m[39m
+     [33m[2m✓[22m[39m through the panel: "What does the bar-close countdown do?" — instant, and nothing changes [33m 987[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideDesktopSelection.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2347[2mms[22m[39m
+     [33m[2m✓[22m[39m selected: Escape leaves the walkthrough on screen, and the chart still deselects [33m 1306[2mms[22m[39m
+     [33m[2m✓[22m[39m nothing selected (the bin disabled): Escape ends the walkthrough [33m 1034[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideLifecycleRails.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 11185[2mms[22m[39m
+     [33m[2m✓[22m[39m plain Escape on the board ends the walkthrough, and no handler prevented or stopped the key [33m 1312[2mms[22m[39m
+     [33m[2m✓[22m[39m a selected drawing (it deselects): the walkthrough stays and the owner still acts, with the key never prevented or stopped [33m 1111[2mms[22m[39m
+     [33m[2m✓[22m[39m an armed drawing tool (it disarms): the walkthrough stays and the owner still acts, with the key never prevented or stopped [33m 1086[2mms[22m[39m
+     [33m[2m✓[22m[39m an open menu (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped [33m 1069[2mms[22m[39m
+     [33m[2m✓[22m[39m an open dialog (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped [33m 1089[2mms[22m[39m
+     [33m[2m✓[22m[39m focus in an input: the walkthrough stays and the field still acts (it clears) [33m 1074[2mms[22m[39m
+     [33m[2m✓[22m[39m focus in a textarea: the walkthrough stays and the field still acts (it clears) [33m 1074[2mms[22m[39m
+     [33m[2m✓[22m[39m a command ends the walkthrough exactly once: no step, ring or card left [33m 1159[2mms[22m[39m
+     [33m[2m✓[22m[39m a new how-to ends the old walkthrough once and keeps the one it starts [33m 1182[2mms[22m[39m
+     [33m[2m✓[22m[39m with no walkthrough on screen it is called once and ends nothing [33m 1022[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideWlWidgetRails.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[33m 11619[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I start a new watchlist from one of my templates → Creating a list from a template: rings a real control, names the member's step, and writes nothing [33m 1185[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I save my watchlist look as a template → A saved watchlist look: rings a real control, names the member's step, and writes nothing [33m 1033[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I change the colours of my watchlist → Changing a watchlist’s look: rings a real control, names the member's step, and writes nothing [33m 1017[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I see the attention facts for a ticker in my watchlist → A ticker’s attention facts: rings a real control, names the member's step, and writes nothing [33m 1031[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I drag columns around in my list → Reordering a list’s columns: rings a real control, names the member's step, and writes nothing [33m 1034[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I change the name of my watchlist → Renaming a list: rings a real control, names the member's step, and writes nothing [33m 1036[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I download my watchlist as a spreadsheet → Exporting a list: rings a real control, names the member's step, and writes nothing [33m 1031[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I get back an older version of my watchlist → A list’s version history: rings a real control, names the member's step, and writes nothing [33m 1039[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I share my watchlist with everyone → Sharing a list with the community: rings a real control, names the member's step, and writes nothing [33m 1073[2mms[22m[39m
+     [33m[2m✓[22m[39m Escape on the board ends it, with nothing left on screen [33m 993[2mms[22m[39m
+     [33m[2m✓[22m[39m a new request ends it [33m 1145[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuidePages.test.jsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1271[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideTarget.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[32m 193[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideNamed.test.jsx [2m([22m[2m292 tests[22m[2m)[22m[33m 1176[2mms[22m[39m
+[90mstdout[2m | src/agent/agentGuideInventory.test.js[2m > [22m[2mteach coverage probe (inventory phrasings, routing only)[2m > [22m[2masks every inventory row and reports what it reaches
+[22m[39mteach probe: 439/499 rows reach a walkthrough {"VERIFIED":{"rows":314,"reached":314},"ASSIGNED / NOT REACHED":{"rows":53,"reached":33},"NO WALKTHROUGH":{"rows":39,"reached":0},"NO ASSIGNED WALKTHROUGH":{"rows":63,"reached":63},"ROUTED / BROWSER FAILED":{"rows":24,"reached":24},"NOT IN PRODUCT":{"rows":6,"reached":5}}
+
+ [32m✓[39m src/agent/agentGuideInventory.test.js [2m([22m[2m1 test[22m[2m)[22m[33m 346[2mms[22m[39m
+     [33m[2m✓[22m[39m asks every inventory row and reports what it reaches [33m 335[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideRelational.test.jsx [2m([22m[2m69 tests[22m[2m)[22m[32m 133[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideFamilies.test.js [2m([22m[2m54 tests[22m[2m)[22m[32m 104[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutCov5.test.js [2m([22m[2m18 tests[22m[2m)[22m[32m 74[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideWatchlistCreate.test.jsx[2m > [22m[2mWL · the whole path, every step on the real control[2m > [22m[2ma failed create is not called a success: the form says so and the card stays on Create
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideHeldOutCov2.test.js [2m([22m[2m26 tests[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutControls.test.js [2m([22m[2m59 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideTargets.test.js [2m([22m[2m71 tests[22m[2m)[22m[33m 16507[2mms[22m[39m
+     [33m[2m✓[22m[39m gridAction: each target is rendered by the product [33m 742[2mms[22m[39m
+     [33m[2m✓[22m[39m watchlistAction: each target is rendered by the product [33m 4138[2mms[22m[39m
+     [33m[2m✓[22m[39m widgetAction: each target is rendered by the product [33m 3332[2mms[22m[39m
+     [33m[2m✓[22m[39m compareAction: each target is rendered by the product [33m 378[2mms[22m[39m
+     [33m[2m✓[22m[39m chartMenu: each target is rendered by the product [33m 437[2mms[22m[39m
+     [33m[2m✓[22m[39m legendChip: each target is rendered by the product [33m 1612[2mms[22m[39m
+     [33m[2m✓[22m[39m widgetSettings: each target is rendered by the product [33m 1706[2mms[22m[39m
+     [33m[2m✓[22m[39m widgetAdd: each target is rendered by the product [33m 520[2mms[22m[39m
+     [33m[2m✓[22m[39m chartSetting: each target is rendered by the product [33m 618[2mms[22m[39m
+     [33m[2m✓[22m[39m drawing: each target is rendered by the product [33m 502[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOut.test.js [2m([22m[2m40 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideWatchlistCreate.test.jsx[2m > [22m[2mWL · the whole path, every step on the real control[2m > [22m[2ma picker already on the board: it starts at ＋ New and says so; "do it for me" asks for the name and creates nothing
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideRelease.test.jsx [2m([22m[2m20 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutCov1.test.js [2m([22m[2m27 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideListRefsNoLookbehind.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutListNames.test.js [2m([22m[2m11 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideSequence.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [31m❯[39m src/agent/agentGuideHeldOutCov3.test.js [2m([22m[2m21 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 87[2mms[22m[39m
+     [32m✓[39m how do I take AMD off the comparison → Removing a compared symbol[32m 16[2mms[22m[39m
+     [32m✓[39m how do I get rid of the sector overlay → Removing a group[32m 5[2mms[22m[39m
+     [32m✓[39m how do I put a compared stock on its own scale → A compared symbol’s scale[32m 1[2mms[22m[39m
+     [32m✓[39m how do I hide my main symbol and just show the overlays → Showing the group only[32m 1[2mms[22m[39m
+     [32m✓[39m how do I clear every overlay off the chart → Clearing all comparisons[32m 0[2mms[22m[39m
+     [32m✓[39m how do I throw away my indicator draft → Discarding a draft[32m 0[2mms[22m[39m
+     [32m✓[39m how do I undo the last change on my draft → Undoing a draft step[32m 0[2mms[22m[39m
+     [32m✓[39m how do I give my draft a name → Naming a formula[32m 0[2mms[22m[39m
+     [32m✓[39m how do I show a dot under the bar when my condition is true → Signal markers and colours[32m 0[2mms[22m[39m
+     [32m✓[39m how do I paint the candles when the signal is true → Signal markers and colours[32m 0[2mms[22m[39m
+     [32m✓[39m how do I sort the themes from worst to best → Ranking themes by period[32m 0[2mms[22m[39m
+     [32m✓[39m how do I measure the themes from the open → The today basis[32m 0[2mms[22m[39m
+     [32m✓[39m how do I see annual numbers in fundamentals → Switching the fundamentals view[32m 0[2mms[22m[39m
+     [32m✓[39m how do I hide a breadth reading → Adding or removing a reading[32m 0[2mms[22m[39m
+     [32m✓[39m how do I add the Russell to new highs and lows → New highs and lows universes[32m 0[2mms[22m[39m
+     [32m✓[39m how do I jump to a date on the chart → goToDate[32m 9[2mms[22m[39m
+     [32m✓[39m how do I go to a year like 2020 on the chart → goToDate[32m 4[2mms[22m[39m
+     [32m✓[39m how do I add a comparison and then put it on its own scale → A compared symbol’s scale[32m 20[2mms[22m[39m
+[31m     [31m×[31m a recorded miss: how do I only see call options with a big premium (named Flow filters)[39m[32m 6[2mms[22m[39m
+     [32m✓[39m a recorded miss: how do I add a horizontal line and then lock it (named Locking a drawing)[32m 4[2mms[22m[39m
+[31m     [31m×[31m a recorded miss: how do I open the options flow then filter it to puts (named Flow filters)[39m[32m 3[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutWlWidget.test.js [2m([22m[2m19 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutCov4.test.js [2m([22m[2m12 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideWatchlistCreate.test.jsx[2m > [22m[2mWL · the whole path, every step on the real control[2m > [22m[2m🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuideHeldOutCov4b.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutListColumns.test.js [2m([22m[2m8 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutControls2.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutFlow.test.js [2m([22m[2m8 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutPriceScale.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideHeldOutRowColumn.test.js [2m([22m[2m9 tests[22m[2m | [22m[33m8 skipped[39m[2m)[22m[32m 2[2mms[22m[39m
+[90mstderr[2m | src/agent/agentGuideWatchlistCreate.test.jsx[2m > [22m[2mWL · Back and Next[2m > [22m[2mNext and Back move between steps; 🔴 Back onto a step whose waitFor is already met stays there
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuideWatchlistCreate.test.jsx[2m > [22m[2mWL · Back and Next[2m > [22m[2mafter Back, the step still moves by itself once its waitFor goes away and comes back
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuide.test.jsx[2m > [22m[2mS · Show me highlights the real control and changes nothing[2m > [22m[2mS6b Escape is one press, one action[2m > [22m[2ma sheet owns the press, whether or not it stays open
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuide.test.jsx[2m > [22m[2mS · Show me highlights the real control and changes nothing[2m > [22m[2mS6b Escape is one press, one action[2m > [22m[2mthe palette or a dialog owns the press, whether or not it stays open
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/agentGuide.test.jsx[2m > [22m[2mS · Show me highlights the real control and changes nothing[2m > [22m[2mS6b Escape is one press, one action[2m > [22m[2ma popup that closes on Escape owns the press, whether or not it stays open
+[22m[39mAn update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/agentGuide.test.jsx [2m([22m[2m42 tests[22m[2m)[22m[33m 49153[2mms[22m[39m
+     [33m[2m✓[22m[39m What's the difference between a chart indicator and a condition? [33m 1077[2mms[22m[39m
+     [33m[2m✓[22m[39m what is a layout? [33m 976[2mms[22m[39m
+     [33m[2m✓[22m[39m what are link colours [33m 988[2mms[22m[39m
+     [33m[2m✓[22m[39m explain the drawing tools [33m 973[2mms[22m[39m
+     [33m[2m✓[22m[39m What is RSI? [33m 956[2mms[22m[39m
+     [33m[2m✓[22m[39m Explain RSI [33m 976[2mms[22m[39m
+     [33m[2m✓[22m[39m What does ADR mean? [33m 970[2mms[22m[39m
+     [33m[2m✓[22m[39m What is MACD? [33m 961[2mms[22m[39m
+     [33m[2m✓[22m[39m What is an EMA? [33m 962[2mms[22m[39m
+     [33m[2m✓[22m[39m rsi vs macd [33m 982[2mms[22m[39m
+     [33m[2m✓[22m[39m more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is the difference between an ema and an sma [33m 1036[2mms[22m[39m
+     [33m[2m✓[22m[39m more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what does a dead cat bounce mean? [33m 1039[2mms[22m[39m
+     [33m[2m✓[22m[39m more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is rsi telling me about nvda right now [33m 1029[2mms[22m[39m
+     [33m[2m✓[22m[39m more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what's a good setting for rsi on the 5 minute [33m 995[2mms[22m[39m
+     [33m[2m✓[22m[39m the model can ask for UCT's own catalog wording (guide.explain) — a query: an answer, no receipt, no change [33m 1074[2mms[22m[39m
+     [33m[2m✓[22m[39m S1 "Where do I change the timeframe?" — the real timeframe bar, two steps, Next / Done; the board is untouched [33m 1517[2mms[22m[39m
+     [33m[2m✓[22m[39m S2 several charts: the walkthrough is on the chart the member clicked, and says which [33m 1033[2mms[22m[39m
+     [33m[2m✓[22m[39m S3 a control that is NOT on screen is never claimed — it says so and explains instead [33m 996[2mms[22m[39m
+     [33m[2m✓[22m[39m S4 a step that needs the member: "open the gear" waits for THEIR click (the settings opening), then moves on by itself [33m 1270[2mms[22m[39m
+     [33m[2m✓[22m[39m S4b context-aware: with Chart settings ALREADY open on the Indicators tab, the walkthrough starts at its search box — never "open the gear" [33m 1015[2mms[22m[39m
+     [33m[2m✓[22m[39m S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing) [33m 5697[2mms[22m[39m
+     [33m[2m✓[22m[39m a new command typed to the Agent mid-walkthrough ends the walkthrough [33m 1130[2mms[22m[39m
+       [33m[2m✓[22m[39m with nothing else open, it ends the guide [33m 1010[2mms[22m[39m
+       [33m[2m✓[22m[39m with focus still in the Agent's message box after asking, it ends the guide [33m 998[2mms[22m[39m
+       [33m[2m✓[22m[39m Ctrl, Alt, Meta or Shift + Escape is not the guide's [33m 1021[2mms[22m[39m
+       [33m[2m✓[22m[39m a text field's Escape is the field's [33m 1028[2mms[22m[39m
+       [33m[2m✓[22m[39m a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase [33m 1030[2mms[22m[39m
+       [33m[2m✓[22m[39m a sheet owns the press, whether or not it stays open [33m 1077[2mms[22m[39m
+       [33m[2m✓[22m[39m the palette or a dialog owns the press, whether or not it stays open [33m 1146[2mms[22m[39m
+       [33m[2m✓[22m[39m a popup that closes on Escape owns the press, whether or not it stays open [33m 1074[2mms[22m[39m
+       [33m[2m✓[22m[39m a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide [33m 1008[2mms[22m[39m
+       [33m[2m✓[22m[39m an armed drawing tool owns the press: the guide stays [33m 1020[2mms[22m[39m
+       [33m[2m✓[22m[39m a menu the press closed had it: the Widgets menu goes, the guide stays [33m 1031[2mms[22m[39m
+       [33m[2m✓[22m[39m a menu that ignores Escape does not keep the guide from ending [33m 974[2mms[22m[39m
+       [33m[2m✓[22m[39m after the layer has gone, the next Escape ends the guide [33m 1057[2mms[22m[39m
+     [33m[2m✓[22m[39m S6 Escape and Exit end it; a new walkthrough replaces the old one [33m 1399[2mms[22m[39m
+     [33m[2m✓[22m[39m S7 the card never takes a click away from the board: the ring is pointer-events none, the card is not modal [33m 1001[2mms[22m[39m
+     [33m[2m✓[22m[39m D1 "Where do I change the timeframe?" → "Now do it for me" → which timeframe? → Weekly: changed, receipted, undoable [33m 1321[2mms[22m[39m
+     [33m[2m✓[22m[39m D2 a feature whose action needs the member's words says what to say — nothing runs on a guess [33m 1031[2mms[22m[39m
+     [33m[2m✓[22m[39m D3 "do it for me" with no walkthrough shown is NOT a guide action — nothing changes [33m 994[2mms[22m[39m
+     [33m[2m✓[22m[39m D4 a direct command is just done — "Change my chart to the weekly timeframe" (no walkthrough) [33m 1040[2mms[22m[39m
+     [33m[2m✓[22m[39m D5 the indicator walkthrough → do it for me → RSI: added through indicator.add (receipt, Undo) [33m 1239[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideWatchlistCreate.test.jsx [2m([22m[2m45 tests[22m[2m)[22m[33m 63017[2mms[22m[39m
+     [33m[2m✓[22m[39m Show me how to create a watchlist [33m 1182[2mms[22m[39m
+     [33m[2m✓[22m[39m show me how to make a watchlist [33m 975[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I create a watchlist? [33m 998[2mms[22m[39m
+     [33m[2m✓[22m[39m how can i make a new watchlist [33m 999[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I add a new watchlist [33m 990[2mms[22m[39m
+     [33m[2m✓[22m[39m walk me through creating a watchlist [33m 986[2mms[22m[39m
+     [33m[2m✓[22m[39m teach me how to make my own watchlist [33m 975[2mms[22m[39m
+     [33m[2m✓[22m[39m guide me through building a watch list [33m 992[2mms[22m[39m
+     [33m[2m✓[22m[39m how do I start a new list [33m 996[2mms[22m[39m
+     [33m[2m✓[22m[39m where do I create a watchlist [33m 977[2mms[22m[39m
+     [33m[2m✓[22m[39m from a board with no Watchlist widget: Widgets ▾ → Watchlist → ＋ New → name → Create → the list; only the member creates it [33m 1841[2mms[22m[39m
+     [33m[2m✓[22m[39m pressing Enter in the name box creates it too: the walkthrough follows, it does not report a lost control [33m 1571[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed create is not called a success: the form says so and the card stays on Create [33m 2029[2mms[22m[39m
+     [33m[2m✓[22m[39m a picker already on the board: it starts at ＋ New and says so; "do it for me" asks for the name and creates nothing [33m 1175[2mms[22m[39m
+     [33m[2m✓[22m[39m a Watchlist widget already showing a list: ‹ Lists opens the picker and the walkthrough carries on from ＋ New [33m 1268[2mms[22m[39m
+     [33m[2m✓[22m[39m …or Next takes the Widgets route instead [33m 1064[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps [33m 1946[2mms[22m[39m
+     [33m[2m✓[22m[39m Next and Back move between steps; 🔴 Back onto a step whose waitFor is already met stays there [33m 1937[2mms[22m[39m
+     [33m[2m✓[22m[39m after Back, the step still moves by itself once its waitFor goes away and comes back [33m 1937[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Back passes over a step whose control has gone (the closed menu) to the nearest one on screen [33m 1296[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 the Widgets menu closing on mouse-leave returns to "Open Widgets ▾" and reopening it carries on [33m 3464[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Cancel on the form returns to ＋ New rather than reporting a lost control [33m 3759[2mms[22m[39m
+     [33m[2m✓[22m[39m Exit on Open Widgets [33m 1077[2mms[22m[39m
+     [33m[2m✓[22m[39m Exit on Click Watchlist [33m 1117[2mms[22m[39m
+     [33m[2m✓[22m[39m Exit on ＋ New [33m 1273[2mms[22m[39m
+     [33m[2m✓[22m[39m Exit on the name [33m 1426[2mms[22m[39m
+     [33m[2m✓[22m[39m Exit on Create [33m 1491[2mms[22m[39m
+     [33m[2m✓[22m[39m Exit on the finished list [33m 1808[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape on Open Widgets, with focus anywhere [33m 987[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape on Click Watchlist, with focus anywhere [33m 1115[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape on ＋ New, with focus anywhere [33m 1260[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape on the name, with focus anywhere [33m 1359[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape on Create, with focus anywhere [33m 1441[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape on the finished list, with focus anywhere [33m 1594[2mms[22m[39m
+     [33m[2m✓[22m[39m a finished or cancelled walkthrough leaves nothing bound: the next one starts and Escape ends it [33m 1102[2mms[22m[39m
+     [33m[2m✓[22m[39m 🔴 Escape in the name box is the field's: the form closes and the walkthrough steps back to ＋ New [33m 3640[2mms[22m[39m
+     [33m[2m✓[22m[39m Escape does nothing of the guide's once no walkthrough is on screen [33m 999[2mms[22m[39m
+     [33m[2m✓[22m[39m the widget is closed while ＋ New is highlighted → it returns to Widgets ▾ rather than stopping [33m 3502[2mms[22m[39m
+     [33m[2m✓[22m[39m the widget is closed on the name step: no earlier control left to return to but Widgets ▾, so it returns there [33m 3494[2mms[22m[39m
+     [33m[2m✓[22m[39m the Widgets menu is not on screen at all (grid mode) → it says so and explains, and starts nothing [33m 970[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/agent/agentGuideHeldOutCov3.test.js[2m > [22mheld-out cov-3: comparisons, the indicator draft, widget controls, dates, two-part asks[2m > [22ma recorded miss: how do I only see call options with a big premium (named Flow filters)
+[31m[1mAssertionError[22m: expected 'Showing only calls in the flow | {"wi…' to contain 'Options Flow: minimum premium'[39m
+
+Expected: [32m"Options Flow: minimum premium"[39m
+Received: [31m"Showing only calls in the flow | {"within":"flow.filter.cp","label":"Calls"}"[39m
+
+[36m [2m❯[22m src/agent/agentGuideHeldOutCov3.test.js:[2m62:21[22m[39m
+    [90m 60| [39m  it.each(COV3_HELD_OUT.filter(([q]) => COV3_MISSES[q]))('a recorded m…
+    [90m 61| [39m    [34mexpect[39m([34mseen[39m(q))[33m.[39mnot[33m.[39m[34mtoContain[39m(want)
+    [90m 62| [39m    [34mexpect[39m([34mseen[39m(q))[33m.[39m[34mtoContain[39m([33mCOV3_MISSES[39m[q])
+    [90m   | [39m                    [31m^[39m
+    [90m 63| [39m  })
+    [90m 64| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/agent/agentGuideHeldOutCov3.test.js[2m > [22mheld-out cov-3: comparisons, the indicator draft, widget controls, dates, two-part asks[2m > [22ma recorded miss: how do I open the options flow then filter it to puts (named Flow filters)
+[31m[1mAssertionError[22m: expected 'Showing only puts in the flow | {"wit…' to contain 'Options Flow: calls or puts'[39m
+
+Expected: [32m"[7mOptions Flow: calls or p[27muts"[39m
+Received: [31m"[7mShowing only puts in the flow | {"within":"flow.filter.cp","label":"P[27muts[7m"}[27m"[39m
+
+[36m [2m❯[22m src/agent/agentGuideHeldOutCov3.test.js:[2m62:21[22m[39m
+    [90m 60| [39m  it.each(COV3_HELD_OUT.filter(([q]) => COV3_MISSES[q]))('a recorded m…
+    [90m 61| [39m    [34mexpect[39m([34mseen[39m(q))[33m.[39mnot[33m.[39m[34mtoContain[39m(want)
+    [90m 62| [39m    [34mexpect[39m([34mseen[39m(q))[33m.[39m[34mtoContain[39m([33mCOV3_MISSES[39m[q])
+    [90m   | [39m                    [31m^[39m
+    [90m 63| [39m  })
+    [90m 64| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m35 passed[39m[22m[90m (36)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m1145 passed[39m[22m[2m | [22m[33m8 skipped[39m[90m (1155)[39m
+[2m   Start at [22m 16:18:19
+[2m   Duration [22m 72.06s[2m (transform 40.01s, setup 7.59s, import 92.82s, tests 182.82s, environment 24.51s)[22m
+
+# exit=1 end 16:19:31
