@@ -7,8 +7,9 @@
 // The answer now lives at module scope. These tests pin both halves of that trade: a repeat
 // navigation does not wait, and maintenance mode still lands.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { Profiler } from 'react'
-import { render, screen, act } from '@testing-library/react'
+import { Profiler, useLayoutEffect } from 'react'
+import { createRoot } from 'react-dom/client'
+import { render, screen, act, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import RouteErrorBoundary from './RouteErrorBoundary'
 
@@ -33,6 +34,10 @@ function stubMaintenance() {
   vi.stubGlobal('fetch', fetchMock)
   return {
     fetchMock,
+    // No act and no flush: for a test that needs the promise chain to run on its own schedule.
+    release: (body) => {
+      pending.shift().resolve({ ok: true, json: () => Promise.resolve(body) })
+    },
     answer: async (body) => {
       const p = pending.shift()
       await act(async () => {
@@ -230,6 +235,53 @@ describe('AuthGuard maintenance answer: what does not count as an answer', () =>
     expect(m.fetchMock).toHaveBeenCalledTimes(1)
     await m.answer({ maintenance: false })
     expect(screen.getByTestId('page').textContent).toBe('charts')
+  })
+})
+
+// React runs a commit's layout effects first and this component's passive effect later, in its own
+// task. A request that was already out can finish in that gap: this mount rendered with no answer,
+// and its effect then finds one. RTL's act() flushes both together, so this renders outside it.
+describe('AuthGuard maintenance answer: a request landing between render and effect', () => {
+  function mountSecond(m, body) {
+    function LandInThisCommit() {
+      useLayoutEffect(() => { m.release(body) }, [])
+      return null
+    }
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false
+    root.render(
+      <MemoryRouter initialEntries={['/charts']}>
+        <Routes>
+          <Route element={<AuthGuard />}>
+            <Route path="/charts" element={<Page name="charts" />} />
+          </Route>
+        </Routes>
+        <LandInThisCommit />
+      </MemoryRouter>,
+    )
+    return { host, cleanup: () => { root.unmount(); host.remove(); globalThis.IS_REACT_ACT_ENVIRONMENT = true } }
+  }
+
+  it('a fresh "not in maintenance" does not strand the second mount at the splash', async () => {
+    const m = stubMaintenance()
+    render(<App />)
+    const { host, cleanup } = mountSecond(m, { maintenance: false })
+    try {
+      await waitFor(() => expect(within(host).getByTestId('page').textContent).toBe('charts'))
+      expect(within(host).queryByRole('status')).toBeNull()
+    } finally { cleanup() }
+  })
+
+  it('a "maintenance on" answer reaches the second mount as the maintenance screen', async () => {
+    const m = stubMaintenance()
+    render(<App />)
+    const { host, cleanup } = mountSecond(m, { maintenance: true })
+    try {
+      await waitFor(() => expect(within(host).queryByText(/back shortly/i)).toBeTruthy())
+      expect(within(host).queryByTestId('page')).toBeNull()
+    } finally { cleanup() }
   })
 })
 

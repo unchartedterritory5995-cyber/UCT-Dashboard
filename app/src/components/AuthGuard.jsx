@@ -84,6 +84,12 @@ export default function AuthGuard() {
 
   useEffect(() => {
     const known = maintenanceAnswer
+    // A request already out can land between this mount's render and this effect, so the state from
+    // render may be behind `known`. Both setters are no-ops when the render already had it.
+    if (known) {
+      setMaintenance(known.value === true)
+      setMaintenanceChecked(true)
+    }
     if (known && !known.value && Date.now() - known.at < MAINTENANCE_FRESH_MS) return
     askMaintenance().then(() => {
       // Set only what changed, so a re-check that agrees with the screen commits nothing.
