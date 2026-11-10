@@ -16,7 +16,7 @@
 // walkthrough works on this harness; it says nothing about the real planner, production data or production layout.
 // Each case runs in its own node process with a hard timeout, so one hung page can never stall the run.
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -110,6 +110,21 @@ const REGIONS = `((ref, text) => {
   else { for (const fy of [0.4, 0.5, 0.3, 0.6]) out.push(at(p0, 0.5, fy)) }
   return out
 })`
+// ⭐ R-RAW evidence (TEACH_EVIDENCE_DIR set): for every right-click the runner makes, the point, what document.elementFromPoint
+// hits there, the step's text and ring, the menu that is open, and a screenshot before and after the press; the case's own
+// record is written beside them as <id>.json. Off unless the variable is set.
+const EVID = process.env.TEACH_EVIDENCE_DIR || null
+const DESC = "(el) => el ? { tag: el.tagName.toLowerCase(), guide: el.getAttribute('data-guide'), aria: el.getAttribute('aria-label'), title: el.getAttribute('title'), text: (el.textContent || '').trim().slice(0, 40) } : null"
+const MENU = "(() => { const m = document.querySelector('[data-guide=\"watchlist.rowMenu\"],[role=\"menu\"],div[data-guide$=\"Menu\"]'); return m ? { guide: m.getAttribute('data-guide'), rows: [...m.querySelectorAll('button')].map(b => b.textContent.trim()).slice(0, 12) } : null })()"
+async function evidence(pt, s, phase) {
+  if (!EVID) return null
+  mkdirSync(EVID, { recursive: true })
+  const png = c.id + '-rightclick-' + phase + '.png'
+  writeFileSync(path.join(EVID, png), await p.b.shot())
+  const hit = await p.b.evaluate('(' + DESC + ')(document.elementFromPoint(' + pt.x + ', ' + pt.y + '))')
+  const menu = await p.b.evaluate(MENU)
+  return { phase, screenshot: png, point: pt, elementFromPoint: hit, stepIndex: s.index, stepText: s.stepText, ring: s.ring || null, menu }
+}
 async function rightClickRegion(s) {
   // a right-click on a control that is not the chart (a list's row, a layout on the bar) lands on that control
   const pts = s.onChart ? await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`) : [s.ring, ...(s.kids || [])]
@@ -118,8 +133,11 @@ async function rightClickRegion(s) {
     // a person's pointer arrives first: the drawing layer takes the click only once it has seen the pointer over a drawing
     await p.b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pt.x, y: pt.y, button: 'none' })
     await sleep(250)
+    const ev0 = await evidence(pt, s, 'before')
     for (const type of ['mousePressed', 'mouseReleased']) await p.b.send('Input.dispatchMouseEvent', { type, x: pt.x, y: pt.y, button: 'right', clickCount: 1 })
     await sleep(450)
+    const ev1 = await evidence(pt, s, 'after')
+    if (ev0) rec.evidence = (rec.evidence || []).concat([ev0, ev1])
     let now = await p.b.evaluate(STATE)
     // a menu opened without the row: the guide may be saying the row is not offered here (GuideOverlay ABSENT_MS), as a
     // person who opened the menu and waited would see. Wait for that before trying the next point
@@ -202,5 +220,6 @@ try {
   try { await p?.close() } catch { /* */ }
   R.close()
 }
+if (EVID) { try { writeFileSync(path.join(EVID, c.id + '.json'), JSON.stringify(rec, null, 1)) } catch { /* evidence only */ } }
 console.log(JSON.stringify(rec))
 process.exit(0)
