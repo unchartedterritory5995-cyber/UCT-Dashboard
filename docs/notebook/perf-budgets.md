@@ -1233,3 +1233,7 @@ The owner chose the raise over reworking that code to get the bytes back. The gr
 ## The command palette left first open, and the 10,240 B came back (2026-11-09)
 
 The command palette (`components/CommandPalette.jsx`, 15 KB of the entry chunk) is drawn only after a press. It now loads on idle through `components/CommandPaletteGate.jsx`, which holds Ctrl/Cmd+K and the search triggers until it lands, then hands the binding over. First open read **2,259,805 B** after the change, 14,802 B less, so `notebook_first_open.max` returned to **2,264,889 B**. Only the 4,096 B raise for Import a tweet remains.
+
+## The original line is back: 2,260,793 B (owner approval, 2026-11-09)
+
+`notebook_first_open.max` returns to the rule's value, floor(2,153,137 × 1.05) = **2,260,793 B**. Neither of the day's two hand raises was approved by the owner. The growth behind them has since left first open: #996 put the command palette on idle, and `da9d1ea845` took the desk reload code and usage reporting off first load. CI measured master at **2,252,214 B** (runs on `46f28be66c`, `3724976afd` and `fdd4d73bd1`), which is 8,579 B under the original line. AUDIT confirmed the numbers from CI's own logs. The owner approved this restoration only, not further changes. From now on, any raise needs a measured diff in its PR and a named owner approval recorded in that PR.

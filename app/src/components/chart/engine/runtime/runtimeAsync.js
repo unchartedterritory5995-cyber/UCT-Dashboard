@@ -55,6 +55,7 @@ function errorOf(e) {
   const err = new Error(e && e.message ? e.message : 'the runtime lane failed')
   err.name = (e && e.name) || 'Error'
   if (e && e.guard) err.guard = e.guard
+  if (e && typeof e.limit === 'string') err.limit = e.limit
   if (e && Number.isInteger(e.bar)) err.bar = e.bar
   if (e && Number.isFinite(e.ms)) err.ms = e.ms
   return err
@@ -107,8 +108,8 @@ export function runtimeStopBeaconOf(def, rows, err, ms, lane) {
     lane: lane === 'main' ? 'main' : 'worker',
   }
   if (guard === RUNTIME_LIMIT_GUARD) {
-    const m = /\(([A-Z_]+): at most /.exec(String(err.message || ''))
-    if (m && LIMIT_NAMES.includes(m[1])) body.limit = m[1]
+    // the NAME rides the refusal as a field; the member's sentence carries none
+    if (LIMIT_NAMES.includes(err.limit)) body.limit = err.limit
   }
   return body
 }

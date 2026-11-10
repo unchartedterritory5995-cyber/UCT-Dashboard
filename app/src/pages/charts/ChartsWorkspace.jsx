@@ -59,7 +59,9 @@ import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToas
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
-import { saveRecord, listOrphans, confirmRestored, holdOwnerLock } from './popout/deskStore'
+import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, boardWindowName, widgetWindowName, planDeskRepop } from './popout/deskStore'
+import { hasDesktopFeature } from '../../lib/desktopBridge'
+import { announceDeskLaunchBlocked, finishDeskLaunch } from '../../lib/popoutRegistry'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
@@ -334,6 +336,12 @@ const WIDGET_DEFAULTS = Object.fromEntries(
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
+// A lock the browser never grants must not strand the desk behind it.
+const DESK_LOCK_WAIT_MS = 3000
+// Restoring the desk needs a quit that keeps its records, so a bridge without it behaves as a browser.
+const deskRestoresItself = () => hasDesktopFeature('before-quit')
+// A widget's own desk record, kept in the desktop app so its window comes back at launch.
+const widgetRecordId = (widgetId) => `pw-${widgetId}`
 const POPOUT_NOT_CRASH_SAFE_MSG = 'This pop-out is not crash-safe: it could not be recorded on this device, so a reload or crash would lose it. Close the window to bring the board back here.'
 const DESK_RECORD_SAVE_MS = 500
 
@@ -2567,17 +2575,26 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // `popoutRemoveWidgetId` (./popout/popoutState.js) — named and tested so a
   // future caller has a stable shape to call rather than re-deriving these two
   // one-liners. Byte-identical to the inline callbacks these replaced.
+  const saveWidgetRecord = useCallback((id) => {
+    saveRecord(deskUidRef.current, { kind: 'widget', id: widgetRecordId(id), widgetId: id, windowName: widgetWindowName(id) }, deskOwnerRef.current)
+  }, [])
+  const dropWidgetRecord = useCallback((id) => {
+    if (deskRestoresItself()) confirmRestored(deskUidRef.current, widgetRecordId(id), deskOwnerRef.current)
+  }, [])
   const handlePopOutWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutAddWidgetId(prev, id))
-  }, [])
+    if (deskRestoresItself()) saveWidgetRecord(id)
+  }, [saveWidgetRecord])
   const handleDockWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
-  }, [])
+    dropWidgetRecord(id)
+  }, [dropWidgetRecord])
   // Closing a widget from inside its own window should delete it, not dock it.
   const handleRemovePoppedWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
+    dropWidgetRecord(id)
     handleRemoveWidget(id)
-  }, [handleRemoveWidget])
+  }, [handleRemoveWidget, dropWidgetRecord])
 
   // ── In-canvas float: pop a widget onto another widget, dock it back, move it
   //    into another widget's tabs, or close it. Mirrors the pop-out handlers. ──
@@ -2632,8 +2649,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const deskSaveTimerRef = useRef(null)
   const flushDeskRecordsRef = useRef(null)
   const notCrashSafeRef = useRef(new Set())   // boards the member has already been told about
+  const deskLockRef = useRef(null)            // resolves once this mount holds its owner lock
   const saveBoardRecord = useCallback((id, widgets) => {
-    const ok = saveRecord(deskUidRef.current, { kind: 'board', id, widgets, windowName: `uct-board-${id}` }, deskOwnerRef.current)
+    const ok = saveRecord(deskUidRef.current, { kind: 'board', id, widgets, windowName: boardWindowName(id) }, deskOwnerRef.current)
     if (ok) notCrashSafeRef.current.delete(id)
     else if (!notCrashSafeRef.current.has(id)) {
       notCrashSafeRef.current.add(id)
@@ -2651,7 +2669,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (!deskUid) return undefined
     let gone = false
     let release = null
-    holdOwnerLock(deskUid, deskOwnerRef.current).then((r) => { if (gone) r(); else release = r })
+    const lock = holdOwnerLock(deskUid, deskOwnerRef.current)
+    deskLockRef.current = lock
+    lock.then((r) => { if (gone) r(); else release = r })
     const flush = () => flushDeskRecordsRef.current?.()
     window.addEventListener('beforeunload', flush)
     return () => {
@@ -2989,7 +3009,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   offerDeskRestoreRef.current = async () => {
     const uid = deskUidRef.current
     const owner = deskOwnerRef.current
-    const orphans = (await listOrphans(uid, owner)).filter(r => r.kind === 'board' && Array.isArray(r.widgets))
+    const all = await listOrphans(uid, owner)
+    // A widget's record means nothing here: the widget never left the layout.
+    for (const r of all) if (r.kind === 'widget') confirmRestored(uid, r.id, owner)
+    const orphans = all.filter(r => r.kind === 'board' && Array.isArray(r.widgets))
     for (const r of orphans) if (!r.widgets.length) confirmRestored(uid, r.id, owner)   // nothing to bring back
     const rec = orphans.find(r => r.widgets.length)
     if (!rec) return
@@ -2999,10 +3022,50 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       action: { label: 'Restore', run: () => restoreDeskRecord(rec.id) },
     })
   }
+  // ── The desktop app brings the desk back by itself. ──
+  // Boards return to their named windows, placed by the shell, and no widget touches the main
+  // board, so nothing is written. A window the shell refuses comes back through onBlocked and
+  // docks, which keeps its record until that save lands.
+  const deskRepopStartedRef = useRef(false)
+  const [deskRepopSettled, setDeskRepopSettled] = useState(false)
+  const repopDeskRef = useRef(null)
+  repopDeskRef.current = async () => {
+    if (deskRepopStartedRef.current) return
+    deskRepopStartedRef.current = true
+    try {
+      // A re-popped board writes its record, which needs this page's lock granted first.
+      await Promise.race([deskLockRef.current, new Promise(resolve => setTimeout(resolve, DESK_LOCK_WAIT_MS))])
+      const uid = deskUidRef.current
+      const owner = deskOwnerRef.current
+      const op = beginPrefsOp()
+      const orphans = await listOrphans(uid, owner)
+      if (op.stale()) return
+      const plan = planDeskRepop(orphans, layoutRef.current.widgets.map(w => w.id))
+      for (const id of plan.drop) confirmRestored(uid, id, owner)
+      for (const { id, widgets } of plan.boards) {
+        poppedBoardsRef.current.set(id, widgets)
+        saveBoardRecord(id, widgets)                // re-owned by this page: no longer an orphan
+      }
+      if (plan.boards.length) setPoppedLayouts(ls => [...ls, ...plan.boards])
+      if (plan.widgetIds.length) {
+        plan.widgetIds.forEach(saveWidgetRecord)
+        setPoppedWidgetIds(prev => plan.widgetIds.reduce(popoutAddWidgetId, prev))
+      }
+    } finally {
+      setDeskRepopSettled(true)
+    }
+  }
   useEffect(() => {
     if (!deskRestoreReady || !deskUid || isMobile) return
-    offerDeskRestoreRef.current?.()
+    if (deskRestoresItself()) repopDeskRef.current?.()
+    else offerDeskRestoreRef.current?.()
   }, [deskRestoreReady, deskUid, isMobile])
+  // ⛔ An effect, not the finally above: this runs after the commit that mounts the windows, and a
+  // child's effect (registerPopout) runs before its parent's. Clearing the signal sooner lets
+  // ChartsDeskHost see no signal and no window, and unmount the desk it was asked to hold.
+  useEffect(() => {
+    if (deskRepopSettled || isMobile || storedLayoutUnreadable) finishDeskLaunch()
+  }, [deskRepopSettled, isMobile, storedLayoutUnreadable])
 
   const runNamedSave = useCallback(() => {
     namedSaveRef.current?.()
@@ -3702,6 +3765,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     )
   }
 
+  // The board's notice shows only with the board, so a refusal behind another page goes to the
+  // app-level toast. The workspace itself may unmount right after, taking the notice with it.
+  const showPopupBlocked = () => {
+    setPopoutNotice(POPUP_BLOCKED_MSG)
+    if (boardHidden) announceDeskLaunchBlocked()
+  }
+
   const mainGridHandlers = {
     onLayoutChange: handleLayoutChange,
     onDragStart: handleDragStart,
@@ -4042,10 +4112,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           <PopoutWindow
             key={w.id}
             title={`UCT — ${WIDGET_LABELS[w.type] || w.type}`}
+            windowName={widgetWindowName(w.id)}
             width={900}
             height={700}
             onClose={() => handleDockWidget(w.id)}
-            onBlocked={() => { handleDockWidget(w.id); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onBlocked={() => { handleDockWidget(w.id); showPopupBlocked() }}
           >
             <PopoutShell theme={chartsTheme}>
               <WidgetHost
@@ -4064,6 +4135,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           <PoppedLayout
             key={pl.id}
             title="UCT — Layout"
+            windowName={boardWindowName(pl.id)}
             theme={chartsTheme}
             initialWidgets={pl.widgets}
             renderGrid={renderGrid}
@@ -4071,7 +4143,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             initialRowHeight={rowHeight}
             merged={merged}
             onClose={(widgets) => handleDockLayout(pl.id, widgets)}
-            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); showPopupBlocked() }}
             onWidgetsChange={(widgets) => trackPoppedBoard(pl.id, widgets)}
           />
         ))}

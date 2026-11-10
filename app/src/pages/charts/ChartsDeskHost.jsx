@@ -15,7 +15,7 @@
 import { Suspense, useState, useSyncExternalStore } from 'react'
 import { useLocation } from 'react-router-dom'
 import lazy from '../../utils/lazyWithRetry'
-import { subscribePopouts, hasOpenPopouts } from '../../lib/popoutRegistry'
+import { subscribePopouts, hasOpenPopouts, isDeskLaunchPending } from '../../lib/popoutRegistry'
 import { importChartsWorkspace } from './chartsWorkspaceImporter'
 
 const ChartsWorkspace = lazy(importChartsWorkspace)
@@ -29,9 +29,11 @@ export function ChartsRouteSlot() { return null }
 export default function ChartsDeskHost({ fallback = null }) {
   const { pathname } = useLocation()
   const windowOpen = useSyncExternalStore(subscribePopouts, hasOpenPopouts)
+  // Desktop app only: the desk has records to bring back. Hidden here until the windows exist.
+  const launchPending = useSyncExternalStore(subscribePopouts, isDeskLaunchPending)
   const onCharts = isChartsPath(pathname)
   const [held, setHeld] = useState(false)
-  const mounted = onCharts || (held && windowOpen)
+  const mounted = onCharts || launchPending || (held && windowOpen)
   // Adjusting state during render (not an effect) so the workspace is never rendered once more on
   // a page it no longer belongs to. Settles in one pass: `held` only ever follows `mounted`.
   if (held !== mounted) setHeld(mounted)

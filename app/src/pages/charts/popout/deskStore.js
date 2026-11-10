@@ -26,6 +26,14 @@ const LOCK_PREFIX = 'uct.desk.owner:'
 // One id per page load. Not crypto.randomUUID: that is secure-context-only.
 const PAGE_TAB_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
+const WINDOW_ID = /^[A-Za-z0-9_-]{1,64}$/
+
+/** The desktop shell's name for a board's window: uct-board-<id>, or '' for an id it would reject. */
+export const boardWindowName = (id) => (WINDOW_ID.test(String(id)) ? `uct-board-${id}` : '')
+
+/** The desktop shell's name for one widget's window: uct-widget-<id>, or '' for an id it would reject. */
+export const widgetWindowName = (id) => (WINDOW_ID.test(String(id)) ? `uct-widget-${id}` : '')
+
 const lockName = (uid, tabId) => `${LOCK_PREFIX}${uid}:${tabId}`
 
 // uids whose owner lock this page currently holds.
@@ -92,6 +100,20 @@ function readRecords(uid, store) {
   return out
 }
 
+/** Any record for this member, read or unread: the cheap launch check. Never throws. */
+export function hasDeskRecords(uid, opts = {}) {
+  if (!uid) return false
+  try {
+    const store = opts.storage ?? localStorage
+    const prefix = `${KEY_PREFIX}${uid}:`
+    for (let i = 0; i < store.length; i += 1) {
+      const key = store.key(i)
+      if (key && key.startsWith(prefix)) return true
+    }
+  } catch { /* blocked storage reads as nothing to restore */ }
+  return false
+}
+
 /** Records whose owner tab is gone. Read-only. */
 export async function listOrphans(uid, opts = {}) {
   if (!uid) return []
@@ -118,6 +140,36 @@ export async function listOrphans(uid, opts = {}) {
     && rec.tabId !== tabId
     && !held.has(lockName(uid, rec.tabId))
   ))
+}
+
+/**
+ * What the desktop app does with this launch's orphans. A pure decision over the records and the
+ * ids on the loaded board, so the board can be re-checked without a window in sight.
+ *   boards:    re-pop into their named windows, without any widget now on the main board.
+ *   widgetIds: re-pop singly, each still in the layout.
+ *   drop:      record ids with nothing left to bring back. Unknown kinds are left alone.
+ */
+export function planDeskRepop(orphans, boardWidgetIds) {
+  const onBoard = new Set(boardWidgetIds)
+  const placed = new Set(boardWidgetIds)
+  const boards = []
+  const widgetIds = []
+  const drop = []
+  for (const rec of orphans) {
+    if (rec.kind === 'widget') {
+      if (onBoard.has(rec.widgetId) && !widgetIds.includes(rec.widgetId)) widgetIds.push(rec.widgetId)
+      else drop.push(rec.id)
+    } else if (rec.kind === 'board' && Array.isArray(rec.widgets)) {
+      const widgets = rec.widgets.filter((w) => {
+        if (!w?.id || placed.has(w.id)) return false
+        placed.add(w.id)
+        return true
+      })
+      if (widgets.length) boards.push({ id: rec.id, widgets })
+      else drop.push(rec.id)
+    }
+  }
+  return { boards, widgetIds, drop }
 }
 
 /** The only deleter: call once a record has been restored. */

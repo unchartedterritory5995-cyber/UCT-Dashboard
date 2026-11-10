@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { registerPopout } from '../../../lib/popoutRegistry'
 import { isAppClosing } from '../../../lib/appClosing'
+import { isDesktopApp } from '../../../lib/desktopBridge'
 
 export { markAppClosing, clearAppClosing, __resetAppClosingForTests } from '../../../lib/appClosing'
 
@@ -30,6 +31,9 @@ export default function PopoutWindow({
   title = 'UCT Intelligence',
   width = 1200,
   height = 800,
+  // `uct-board-<id>` or `uct-widget-<id>`. Used only inside the desktop app, whose main process
+  // looks the name up to put the window back where it was; a browser keeps opening anonymously.
+  windowName = '',
   onClose,
   onBlocked,
   children,
@@ -43,16 +47,18 @@ export default function PopoutWindow({
   useEffect(() => { onBlockedRef.current = onBlocked }, [onBlocked])
 
   useEffect(() => {
+    // In the app the shell owns where a named window goes, so the page's own placement stands down.
+    const shellPlaced = windowName && isDesktopApp() ? windowName : ''
     const features = [
       `width=${width}`, `height=${height}`,
       // Anchor at the screen's top-left so a full-size window isn't pushed partly
       // off-screen (Chrome otherwise offsets a new popup from the opener).
-      'left=0', 'top=0',
+      ...(shellPlaced ? [] : ['left=0', 'top=0']),
       'popup=yes', 'menubar=no', 'toolbar=no',
       'location=no', 'status=no', 'resizable=yes', 'scrollbars=yes',
     ].join(',')
 
-    const win = window.open('', '', features)
+    const win = window.open('', shellPlaced, features)
     if (!win) {
       // Blocked. This only happens when the call isn't tied to a user gesture,
       // or the user has popups blocked for the site — surface it, don't fail mute.
@@ -61,6 +67,10 @@ export default function PopoutWindow({
     }
 
     const unregister = registerPopout()
+
+    // A named window that has not finished closing is handed back by window.open still holding
+    // the last mount, so a re-pop in the same tick starts from an empty document.
+    if (shellPlaced) clearReusedWindow(win)
 
     win.document.title = title
     relabelAddressBar(win)
@@ -79,11 +89,11 @@ export default function PopoutWindow({
         if (overhang > 0) win.resizeTo(win.outerWidth, win.outerHeight - overhang)
       } catch { /* cross-origin-ish or resize refused — leave it */ }
     }
-    fitToWorkArea()
+    if (!shellPlaced) fitToWorkArea()
     // Chrome reports outerHeight a tick late on a fresh popup. The timer belongs to
     // the OPENER, not the popup: `win` here can be any window-like object and only
     // the opener's timers are guaranteed to exist and to be clearable on unmount.
-    const fitTimer = setTimeout(fitToWorkArea, 120)
+    const fitTimer = shellPlaced ? null : setTimeout(fitToWorkArea, 120)
 
     const mount = win.document.createElement('div')
     mount.className = 'uct-popout-root'
@@ -165,6 +175,15 @@ export default function PopoutWindow({
  * SPA and boot a second copy of the app in every popped window, each with its own
  * stream pool, which is the whole thing the portal approach avoids.
  */
+function clearReusedWindow(win) {
+  try {
+    const stale = win.document.querySelectorAll('.uct-popout-root')
+    if (!stale.length) return
+    stale.forEach((node) => node.remove())
+    win.document.head.replaceChildren()
+  } catch { /* window closing under us: the new mount simply appends */ }
+}
+
 function relabelAddressBar(win) {
   try {
     win.history.replaceState({}, '', `${window.location.origin}/charts`)

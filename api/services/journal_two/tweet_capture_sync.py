@@ -14,6 +14,8 @@ copied images are X's, and they go.
     or more ids changes nothing but those marks, and alerts the owner. The confirm's own ids are
     the ones that already missed, so several real deletions look like an outage on their own: it
     also looks up up to `CONFIRM_CANARIES` unmarked posts, only ever as evidence that X is up.
+    Before calling it an outage, a pass looks up `FEED_CANARIES` posts from the curated feed that
+    it has not just asked about: one resolving says X is up, so the misses are real deletions.
   * Any `TwitterApiError` makes the pass a no-op; the next night tries again.
   * Each post is one transaction across every member holding it, committed before the next, so a
     crash leaves whole posts removed or untouched. Files are deleted after that commit; a file
@@ -34,7 +36,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
 
-from api.services import twitterapi_io
+from api.services import tweet_store, twitterapi_io
 from api.services.auth_db import get_connection
 from api.services.journal_two import media_policy, tweet_capture
 
@@ -49,6 +51,8 @@ BULK_MISS_MIN = 20
 OUTAGE_MIN_CHECKED = 2
 #: How many unmarked posts the confirm looks up beside the marked ones.
 CONFIRM_CANARIES = 5
+#: How many curated-feed posts are looked up when nothing else resolved.
+FEED_CANARIES = 5
 
 ALERT_KEY = "notebook_tweet_bulk_miss"
 
@@ -95,8 +99,23 @@ def _is_bulk(missed: int, checked: int) -> bool:
     return missed >= BULK_MISS_MIN and missed * 100 > checked * BULK_MISS_SHARE_PCT
 
 
-def _is_outage(missed: int, checked: int) -> bool:
-    return checked >= OUTAGE_MIN_CHECKED and missed >= checked
+def _feed_resolves(looked_up: list[str]) -> bool:
+    """True when X returned a curated-feed post this pass has not already asked about. No such
+    post, a failed read or a failed lookup is no evidence, and the outage rule stands."""
+    try:
+        canaries = tweet_store.oldest_tweet_ids(FEED_CANARIES, exclude=looked_up)
+    except Exception:  # noqa: BLE001
+        logger.exception("[tweet_capture_sync] could not read the feed canaries")
+        return False
+    if not canaries:
+        return False
+    gone = _lookup(canaries)
+    return gone is not None and len(gone) < len(canaries)
+
+
+def _is_outage(gone: set[str], looked_up: list[str]) -> bool:
+    return (len(looked_up) >= OUTAGE_MIN_CHECKED and len(gone) >= len(looked_up)
+            and not _feed_resolves(looked_up))
 
 
 def _alert_owner(missed: int, checked: int, job: str = "sweep") -> None:
@@ -224,7 +243,7 @@ def run_sweep() -> dict[str, Any]:
             out["vendor_error"] = True
             return out
         out["missed"] = len(gone)
-        outage = _is_outage(len(gone), len(ids))
+        outage = _is_outage(gone, ids)
         if outage or _is_bulk(len(gone), len(ids)):
             # Decided before any mark is written, so this pass made none. It also clears the
             # marks of earlier nights: nothing a pass this wrong says about a post can be trusted,
@@ -262,7 +281,7 @@ def run_confirm() -> dict[str, Any]:
         if gone is None:
             out["vendor_error"] = True
             return out
-        if _is_outage(len(gone), len(looked_up)):
+        if _is_outage(gone, looked_up):
             # This pass makes no marks, so there are none of its own to clear.
             out["outage"] = True
             _alert_owner(len(gone), len(looked_up), job="confirm")

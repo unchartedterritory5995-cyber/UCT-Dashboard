@@ -384,6 +384,24 @@ DEFAULT_THRESHOLDS = {
     # side_confirm for alpha_leaps/ask_accum only; single-print tiers keep it.
     "aggregate_side_enabled": True,
     "aggregate_side_min": 0.67,                 # dominant premium fraction required
+    # ── Fair-NBBO ask aggregate (2026-11-09) — DARK by default ─────────────
+    # The Alpha LEAPS / Ask Accumulation aggregates are summed from the stored
+    # `Side`, which on a busy day is ~86% blank from Q-pool churn. The ledger
+    # admits blank-side SWEEPs but not blank-side BLOCKs, so a real build can
+    # grade at a fraction of its size: measured 2026-11-09, CRWD 280C 12/17/27
+    # summed to $5.57M of a true $13.31M (the missing $7.75M was blank blocks)
+    # and PANW 410C 12/17/27 to $6.87M of $10.29M. The tier then also fired on
+    # whichever SMALL print happened to carry an A side ($713K on CRWD).
+    # When enabled, a contract whose WHOLE-TAPE premium clears
+    # fair_ask_min_total_premium is re-measured against NBBO-at-fill via
+    # _session_fair_dominant (same method the push veto already trusts); if the
+    # tape is ask-dominant at >= aggregate_side_min, its fair ask premium
+    # replaces the stored-Side aggregate and any non-bid print on it becomes
+    # tier-eligible. Fail-OPEN: no tape/quotes = stored behaviour, unchanged.
+    # Costs REST calls, so it is candidate-gated in SQL and capped per scan.
+    "fair_ask_aggregate_enabled": False,        # ⚠️ DARK — arm after backtest
+    "fair_ask_min_total_premium": 3_000_000,    # contract must clear this on the WHOLE tape
+    "fair_ask_max_lookups": 12,                 # max REST-measured contracts per scan
     "aggregate_side_unclean_suppress": False,   # False = neutral card; True = drop
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
@@ -1576,7 +1594,8 @@ def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) ->
 
 
 def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None,
-                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
+                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0,
+                       fair_ask_dominant: bool = False):
     """Returns (alertName, tier_key, tier_priority), or None if the row
     is a WHITE color that didn't qualify for premium-override promotion.
 
@@ -1634,6 +1653,19 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
 
     is_leaps = dte >= 180
     side_is_ask = side in ("A", "AA")
+    # Fair-NBBO contract override (2026-11-09, DARK behind fair_ask_aggregate_enabled).
+    # The aggregate tiers grade a CONTRACT but gate on the PRINT's own side, so a
+    # build whose big prints came back blank from Q-pool churn fired on whichever
+    # small print happened to carry an A — CRWD 280C 12/17/27 surfaced as a $713K
+    # alert on a $13.31M position, and MRNA 370C 3/19/27 had NO A-sided print at
+    # all so no tier could ever fire. When the whole-tape NBBO measurement says
+    # this contract is an ask-dominant build, a BLANK print on it counts as part
+    # of that build.
+    # ⛔ A CONFIRMED bid print (B/BB) is never flipped — ask-dominance is a
+    # property of the contract, not evidence about a fill we actually sided, and
+    # flipping it would invent a buyer out of a measured seller.
+    if fair_ask_dominant and not side_is_ask and side not in ("B", "BB"):
+        side_is_ask = True
 
     # Direction-aware tier key: Bull → "bullish", Bear → "bearish".
     # Both share priority 3 in TIER_PRIORITY, just rendered in different
@@ -1969,7 +2001,8 @@ def _compute_conviction(premium: int, oi: int, volume: int,
 
 def _row_to_alert(row: dict, require_direction: bool = True,
                   agg_ask_premium: float = 0.0,
-                  agg_ask_volume: float = 0.0) -> dict | None:
+                  agg_ask_volume: float = 0.0,
+                  fair_ask_dominant: bool = False) -> dict | None:
     """Translate a FlowDB row to the alert shape LiveFlow.jsx expects.
     Returns None if the row should be skipped (e.g., unclassified side).
 
@@ -2273,7 +2306,8 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     else:
         result = _derive_alert_name(row, direction, money_pct=money_pct,
                                     agg_ask_premium=agg_ask_premium,
-                                    agg_ask_volume=agg_ask_volume)
+                                    agg_ask_volume=agg_ask_volume,
+                                    fair_ask_dominant=fair_ask_dominant)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
@@ -3051,7 +3085,8 @@ def _incr_prepare(today: str):
             _alert_cache_day = today
 
 
-def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
+def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0,
+                   fair_ask_dominant: bool = False):
     """Cached _row_to_alert. Reuse the classification only when the row is
     byte-unchanged since last seen (hash of its column values); re-classify on any
     change. Returns a COPY so downstream mutation (net-flow demote, _hitCount) can't
@@ -3066,13 +3101,19 @@ def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0)
     was the live-feed blocker that kept the PPTA build off /live-massive even after
     the ledger fix (incremental_scan is ON in prod)."""
     rid = r["id"]
-    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2)))
+    # fair_ask_dominant is part of the fingerprint for the same reason the
+    # aggregates are: it accrues during the session (a contract becomes
+    # ask-dominant partway through), so a row cached as "not a build" before the
+    # tape tipped must reclassify once it has.
+    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2),
+              bool(fair_ask_dominant)))
     ent = _alert_cache.get(rid)
     if ent is not None and ent[0] == h:
         cached = ent[1]
         return dict(cached) if cached is not None else None
     fresh = _row_to_alert(dict(r), agg_ask_premium=agg_ask_premium,
-                          agg_ask_volume=agg_ask_volume)
+                          agg_ask_volume=agg_ask_volume,
+                          fair_ask_dominant=fair_ask_dominant)
     _alert_cache[rid] = (h, fresh)
     return dict(fresh) if fresh is not None else None
 
@@ -3235,6 +3276,13 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # projection; cache it (watermark) if it ever strains RTH.
         _close_th, _gross_before, _ask_prem_ledger, _ask_vol_ledger = _session_ledgers(
             conn, source_clause, today, sym_clause, sym_params)
+        # Fair-NBBO ask aggregate for the session's BIG contracts (2026-11-09).
+        # Resolved ONCE PER CONTRACT here, never per row: it makes REST calls, and
+        # _row_to_alert runs over up to 80k rows (a per-row call would re-create the
+        # ~70s classify pin that wedged the WS keepalive on 2026-08-05). Returns {}
+        # when the feature is dark, so the row loop below is unchanged by default.
+        _fair_ask_by_contract = _fair_ask_ledger(
+            conn, source_clause, today, _close_th, sym_clause, sym_params)
     finally:
         conn.close()
 
@@ -3261,9 +3309,18 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
         _r_ap = _ask_prem_ledger.get(r["id"], 0.0)
         _r_av = _ask_vol_ledger.get(r["id"], 0.0)
-        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av)
+        # Fair-NBBO override: the tape says this contract is an ask-dominant build,
+        # so grade its REAL ask size instead of the blank-crippled stored-Side sum,
+        # and let this row qualify on the contract's side rather than its own.
+        _r_fair = _fair_ask_by_contract.get(
+            (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])) if _fair_ask_by_contract else None
+        if _r_fair and _r_fair > _r_ap:
+            _r_ap = _r_fair
+        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av,
+                            fair_ask_dominant=bool(_r_fair))
              if _incremental
-             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av))
+             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av,
+                                fair_ask_dominant=bool(_r_fair)))
         if a is None:
             skipped_unclassified += 1
             continue
@@ -6444,7 +6501,12 @@ def _session_fair_dominant(occ: str, ts_hint_ns: int, tol: float = 0.01):
     dirp = ask + bid
     if dirp <= 0:
         return None
-    return (max(ask, bid) / dirp, "ask" if ask >= bid else "bid", n)
+    # 2026-11-09: also return the ask/bid DOLLARS. The fraction alone answers
+    # "does the tape confirm this direction"; the dollars answer "how big is the
+    # ask-side build really", which is what the Alpha LEAPS / Ask Accumulation
+    # aggregates need when our stored Side is mostly blank. Tuple is appended to,
+    # never reordered, so existing unpack sites keep working.
+    return (max(ask, bid) / dirp, "ask" if ask >= bid else "bid", n, ask, bid)
 
 
 def _aggregate_side_decision(dom_frac: float, dom_side: str, direction: str, cp: str, min_frac: float) -> bool:
@@ -6489,9 +6551,110 @@ def _aggregate_side_clean(a: dict, thr: dict) -> bool:
         _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
     if not res:
         return True   # fail-open: no tape/quotes -> never drop a real build
-    dom_frac, dom_side, _n = res
+    dom_frac, dom_side, _n = res[0], res[1], res[2]
     min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
     return _aggregate_side_decision(dom_frac, dom_side, direction, a.get("cp"), min_frac)
+
+
+def _fair_side_cached(occ: str, ts_ns: int):
+    """`_session_fair_dominant` behind the shared (occ, day) memo. Returns the
+    5-tuple (dom_frac, dom_side, n, ask_prem, bid_prem) or None."""
+    try:
+        daykey = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc).astimezone(ET).strftime("%Y-%m-%d")
+    except Exception:
+        return None
+    mkey = (occ, daykey)
+    now = time.time()
+    hit = _AGG_SIDE_MEMO.get(mkey)
+    if hit and now < hit[0]:
+        return hit[1]
+    res = _session_fair_dominant(occ, ts_ns)
+    if len(_AGG_SIDE_MEMO) > 20000:
+        _AGG_SIDE_MEMO.clear()
+    _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
+    return res
+
+
+def _fair_ask_ledger(conn, source_clause: str, today: str, thr: dict,
+                     sym_clause: str = "", sym_params=()) -> dict:
+    """{(Symbol, CallPut, Strike, ExpirationDate) -> fair ask premium} for the
+    session's BIG contracts, measured against NBBO-at-fill instead of our stored
+    Side.
+
+    WHY (2026-11-09, measured on CRWD 280C 12/17/27 and PANW 410C 12/17/27):
+    `_build_session_ask_premium_ledger` sums the stored `Side`, and on a busy day
+    ~86% of premium lands blank because of Q-pool churn. It admits blank-side
+    SWEEPs (the 2026-09-05 PPTA fix) but NOT blank-side BLOCKs, so CRWD's build
+    summed to $5.57M of a real $13.31M -- $7.75M of it blank blocks contributing
+    zero -- and PANW's to $6.87M of $10.29M. The tier then graded the wrong
+    number, and separately fired on whichever small print happened to carry an
+    A side.
+
+    This asks the tape instead. `_session_fair_dominant` already classifies EVERY
+    print of a contract against the prevailing NBBO-at-fill (the same method the
+    SMR / side-gate audits use, and the one the push veto already trusts), so it
+    is blind to our Q-pool coverage entirely.
+
+    COST CONTROL -- this makes REST calls, so it must never run per-row:
+      * SQL does the candidate selection (GROUP BY + HAVING), so only contracts
+        whose WHOLE-TAPE premium already clears the floor are considered.
+      * at most `fair_ask_max_lookups` contracts per scan, biggest first.
+      * memoized per (occ, day) for `_AGG_SIDE_TTL`, shared with the push gate.
+      * ML/ is excluded -- multi-leg is non-directional by design.
+    Fail-OPEN everywhere: any gap just leaves the stored-Side aggregate in place.
+    """
+    if not thr.get("fair_ask_aggregate_enabled", False):
+        return {}
+    try:
+        floor = float(thr.get("fair_ask_min_total_premium", 3_000_000) or 0)
+        max_lookups = int(thr.get("fair_ask_max_lookups", 12) or 0)
+        min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
+    except (TypeError, ValueError):
+        return {}
+    if floor <= 0 or max_lookups <= 0:
+        return {}
+
+    try:
+        cands = conn.execute(f"""
+            SELECT Symbol, CallPut, Strike, ExpirationDate,
+                   SUM(CAST(Premium AS REAL)) AS tot, MAX(ts_ns) AS ts
+              FROM flow
+             WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+               AND UPPER(COALESCE(Type,'')) NOT LIKE '%ML%'
+             GROUP BY Symbol, CallPut, Strike, ExpirationDate
+            HAVING tot >= ?
+             ORDER BY tot DESC
+             LIMIT ?
+        """, (today, *sym_params, floor, max_lookups)).fetchall()
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        logging.getLogger(__name__).error(
+            "[massive] fair-ask candidate scan hit a corrupt page — skipping this cycle")
+        return {}
+
+    out: dict = {}
+    for row in cands:
+        sym, cp, strike, exp = row[0], row[1], row[2], row[3]
+        ts = row[5]
+        if not ts:
+            continue
+        occ = _alert_occ({"ticker": sym, "exp": exp, "cp": cp, "strike": strike})
+        if not occ:
+            continue
+        res = _fair_side_cached(occ, int(ts))
+        if not res or len(res) < 5:
+            continue
+        dom_frac, dom_side, _n, ask_prem, _bid_prem = res
+        # only override when the tape is clearly ask-dominant; a mixed or
+        # bid-dominant contract keeps the conservative stored-Side number.
+        if dom_side != "ask" or dom_frac < min_frac:
+            continue
+        out[(sym, cp, strike, exp)] = float(ask_prem or 0)
+    if out:
+        logging.getLogger(__name__).info(
+            "[massive] fair-ask ledger: %d/%d candidate contract(s) ask-dominant", len(out), len(cands))
+    return out
 
 
 def _next_ex_div(sym: str):
@@ -7606,6 +7769,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "block_darkpool_hedge_suppress",
         # Aggregate fair-NBBO side gate (2026-11-05): Alpha LEAPS / Ask Accumulation
         "aggregate_side_enabled", "aggregate_side_min", "aggregate_side_unclean_suppress",
+        "fair_ask_aggregate_enabled", "fair_ask_min_total_premium", "fair_ask_max_lookups",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top

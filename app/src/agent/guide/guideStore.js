@@ -75,12 +75,13 @@ export function pinWidget(widgetRef) {
   emit()
 }
 /** reason: 'done' | 'exit' | 'lost' (its control is gone) | 'chartGone' (the chart it was on closed) | 'replaced' (a new request) | 'closed' (the Agent went away) */
-export function endGuide(reason = 'exit') {
+export function endGuide(reason = 'exit', said = null) {
   if (!state) return
   ended = { featureId: state.feature.id, reason, at: Date.now() }
   state = null
-  if (reason === 'lost' || reason === 'chartGone') {
-    notice = reason === 'chartGone'
+  if (reason === 'lost' || reason === 'chartGone' || reason === 'absent') {
+    notice = reason === 'absent' ? said
+      : reason === 'chartGone'
       ? 'The chart this walkthrough was on is gone, so the guide stopped. Ask me again on the chart you want.'
       : 'I can’t see that control on screen any more, so the guide stopped. Ask me to show you again when it’s back.'
     clearTimeout(noticeTimer)
