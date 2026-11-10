@@ -146,6 +146,8 @@ try {
   await p.openPanel()
   // ⭐ GIVEN: the state the case needs, built in the page through the app's own routes and stores (guide/given.mjs)
   if (given.setup) { const said = await p.b.evaluate(given.setup); rec.setup = said; await sleep(1200) }
+  // ⭐ DECLARED GIVENS' member acts (givens.mjs prelude): real input on the app's own control, before the words are typed
+  if (given.declared?.length) { const { runPreludes } = await import('./givens.mjs'); const acts = await runPreludes(given.declared, { b: p.b, sleep }); if (acts.length) { rec.prelude = acts; await sleep(800) } }
   await p.say(c.say)
   await p.idle(20000)
   await sleep(800)
