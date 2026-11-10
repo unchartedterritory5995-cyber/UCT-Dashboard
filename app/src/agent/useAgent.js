@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
-import { checkSpatialConstraints, excludedCharts } from './spatialCheck'
+import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED } from './spatialCheck'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -2907,10 +2907,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
         : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse })
-      // ⛔ AUDIT probe 18 (G3): a chart the words EXCLUDE ("everything in this row except SPY") is never offered by any question
+      // ⛔ AUDIT probe 18 (G3) / GO bar (3): a chart the words EXCLUDE ("everything in this row except SPY"), or a relation's ANCHOR
+      // that is not a target, is never offered by any question — the constraint check's own exclusions (spatialCheck)
       const dropExcluded = (ask) => {
         try {
-          const ex = excludedCharts(text, host?.charts?.list?.() || [], selectedChart(host))
+          const live = host?.charts?.list?.() || []
+          const ex = new Set([...excludedCharts(text, live, selectedChart(host)), ...spatialConstraints(text, live, selectedChart(host)).excluded])
+          ex.delete(UNPLACED)
           if (!ex.size || !Array.isArray(ask?.choices)) return ask
           const k = getTargetKind(getCapability(screened.ops[0]?.action)?.target)
           const list = k?.list(host) || []

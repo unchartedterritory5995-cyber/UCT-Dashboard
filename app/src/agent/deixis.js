@@ -219,7 +219,7 @@ export function relationMatch(text0) {
   // nothing they can place, or only an unordered corner pair (spatialCheck.clickLineMatch / clickLineHits)
   const cl0 = clickLineMatch(possessiveAnchor(text)) || clickLineMatch(text)
   const cl = cl0 && !(cl0.clickLine.kind === 'step' && MOVE_VERB.test(String(text || ''))) ? cl0 : null   // a move of the click names its destination
-  const r = cl && (!r0 || r0.unplaced || (cl.clickLine.kind === 'corner' && r0.corner) || ['appos', 'counted', 'lineRel'].includes(cl.clickLine.kind) || (cl.clickLine.kind === 'rest' && cl.clickLine.n != null)) ? cl : r0
+  const r = cl && (!r0 || r0.unplaced || (cl.clickLine.kind === 'corner' && r0.corner) || ['appos', 'counted', 'lineRel', 'diag2'].includes(cl.clickLine.kind) || (cl.clickLine.kind === 'rest' && cl.clickLine.n != null)) ? cl : r0
   if (!r) return null
   const x = CROSS_CLAUSE.exec(r[0])
   if (!x) return r
@@ -730,7 +730,8 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
 // own words, click or answer identified — on a board of several charts, never the model's guess ──
 const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top right|bottom left|bottom right|left|right|top|bottom|upper|lower)\b/gi
 // "both", "all (four) charts", "every chart", "all of them" — a SET of charts (never "remove all comparisons")
-const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
+// (probe 19) "everything (but / except …)", "all of these": the whole board, an exclusion taken out by the constraint check
+const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b|everything\b(?!\s+(?:else\s+)?(?:in|on|along)\s+(?:this|that|its|my)\b)|all\s+of\s+(?:these|them)\b)/i
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
 const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 // …and "a different chart", "another chart", "some other chart": a chart that is NOT the clicked one, not yet which

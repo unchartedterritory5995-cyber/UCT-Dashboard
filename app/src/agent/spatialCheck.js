@@ -21,7 +21,7 @@ const INERT = /\b(?:fine|alone|already|leave|leaving|left alone|can stay|stays?|
 const CLAUSES = /[,;.!?]|\b(?:and then|but|then|while|also|plus|although|though)\b/i
 const MOVE = /\b(?:move|moving|shift|drag|slide|swap|put (?:it|this|this one|this chart) (?:in|on|into))\b/i
 // a line / place introduced by these is not the change's target (a comparison, a source, a neighbour's anchor, a destination)
-const NOT_TARGET_PREP = /\b(?:like|as|than|from|beside|next to|near|above|below|under(?:neath)?|over|beneath|left of|right of|to the (?:left|right) of|on top of|into|onto)\s*$/i
+const NOT_TARGET_PREP = /\b(?:except(?:\s+for)?|but(?:\s+not)?|other than|apart from|excluding|save for|minus|like|as|than|from|beside|next to|near|above|below|under(?:neath)?|over|beneath|left of|right of|to the (?:left|right) of|on top of|into|onto)\s*$/i
 
 const ROW_WORD = { top: 'first', upper: 'first', first: 'first', bottom: 'last', lower: 'last', last: 'last', middle: 'middle', center: 'middle', centre: 'middle', second: 1, third: 2 }
 const COL_WORD = { left: 'first', first: 'first', right: 'last', last: 'last', middle: 'middle', center: 'middle', centre: 'middle', second: 1, third: 2 }
@@ -182,6 +182,11 @@ const SIDE_OF = { 'right of': 'right', 'left of': 'left', below: 'below', under:
 const CL_SIDE = '(to the right of|to the left of|right of|left of|below|under(?:neath)?|beneath|above|over)'
 const CL_COUNTED = new RegExp(String.raw`\bthe\s+(two|three|four|2|3|4)\s+(?:charts|ones|cells|panes)\s+` + CL_SIDE + String.raw`\s+(?:this|it)(?:\s+(?:one|chart))?\b`, 'i')
 const CL_LINE_REL = new RegExp(String.raw`\bthe\s+(?:(pair|two|three|four|2|3|4)\s+)?(?:(?:charts|ones|cells|panes)\s+)?(?:directly\s+)?` + CL_SIDE + String.raw`\s+(?:this|that|my|the\s+clicked\s+chart['’]s)\s+(row|column)\b`, 'i')
+// "put this row on weekly", "this row except the TSLA one", "the whole of this column": the click's whole line as the object
+const CL_THIS_LINE = /(?:^|[,;:]\s*|\b(?:put|make|set|switch|turn|change|flip|get|have)\s+)(?:all\s+of\s+|the\s+(?:whole|entire)\s+(?:of\s+)?)?(?:this|that)\s+(row|column)\b(?!['’]s)(?=\s+(?:except|but|other|apart|excluding|on|to|into|in|at|weekly|daily|monthly|hourly|log|linear|please|$)|\s*[,.;!?]|\s*$)/i
+// (H4, probe 19) a TWO-AXIS diagonal from the click: "diagonally below and to the right of this", "up and to the right
+// diagonally from this" — that one cell, or none (off the board: never wrapped)
+const CL_DIAG2 = /\b(?:diagonally\s+)?(above|below|up|down|under(?:neath)?|over)\s+and\s+(?:to\s+the\s+)?(left|right)(?:\s+diagonally)?\s+(?:of|from)\s+(?:this|it)\b/i
 const CL_SAME_OTHER = /\bsame\s+(row|column)\s*[,:;]?\s*(?:(?:but|and)\s+)?(?:the\s+|a\s+)?(?:other|another|different|opposite)\s+(row|column)\b/i
 const CL_FAR_END = /\b(?:same\s+(row|column)\s*[,:;]?\s*(?:at\s+)?(?:the\s+)?(?:far|other|opposite)\s+end|(?:the\s+)?(?:other|far|opposite)\s+(?:end|side)\s+of\s+(?:the|this|its|my)\s+(?:(top|bottom|middle|upper|lower|left|right|first|last|same)\s+)?(row|column)(?:\s+(?:from|to)\s+(?:this|it)(?:\s+(?:one|chart))?)?)\b/i
 const CL_CORNER = /\b(top|bottom|upper|lower)\s+corner\s+(?:on|in|along|at)\s+the\s+same\s+(?:side|column)\s+as\s+(?:this|it)\b/i
@@ -198,6 +203,8 @@ export function clickLineMatch(text) {
   if (m) return tag(m, { kind: 'appos', pos: m[1].toLowerCase(), axis: m[2].toLowerCase() })
   // (H1, probe 19) COUNTED plural relations from the click: "the two charts to the left of this one" — the line that way, and
   // exactly that many (a count the board has not is asked)
+  m = CL_DIAG2.exec(s)
+  if (m) return tag(m, { kind: 'diag2', v: /^(?:above|up|over)$/i.test(m[1]) ? 'above' : 'below', h: m[2].toLowerCase() })
   m = CL_COUNTED.exec(s)
   if (m) return tag(m, { kind: 'counted', n: N_COUNT[m[1].toLowerCase()], dir: SIDE_OF[m[2].toLowerCase().replace(/^to the |^on the /, '')] })
   // (H3, probe 19) a plural relation to a whole LINE: "the charts under this row", "the pair to the left of this column"
@@ -205,7 +212,7 @@ export function clickLineMatch(text) {
   if (m) return tag(m, { kind: 'lineRel', n: m[1] ? N_COUNT[m[1].toLowerCase()] : null, dir: SIDE_OF[m[2].toLowerCase().replace(/^to the |^on the /, '')], axis: m[3].toLowerCase() })
   m = CL_REST.exec(s)
   if (m) return tag(m, { kind: 'rest', axis: m[3].toLowerCase(), one: !m[1] && !!m[2] && !/s$/i.test(m[2]), n: m[1] ? N_COUNT[m[1].toLowerCase()] : null })
-  m = CL_ALL.exec(s)
+  m = CL_ALL.exec(s) || CL_THIS_LINE.exec(s)
   if (m) return tag(m, { kind: 'all', axis: m[1].toLowerCase() })
   m = CL_SAME_OTHER.exec(s)
   if (m && m[1].toLowerCase() !== m[2].toLowerCase()) return tag(m, { kind: 'sameOther', axis: m[1].toLowerCase() })
@@ -232,6 +239,11 @@ export function clickLineHits(m, charts, s) {
   const ex = (k.kind === 'rest' || k.kind === 'all') ? excludedCharts(m.input, charts, s.ref) : new Set()
   const counted = (hits, n) => (n != null && hits.length !== n ? { hits: [], plural: false, onClick: false, countOff: { said: n, has: hits.length } } : { hits, plural: hits.length > 1, onClick: false })
   if (k.kind === 'rest') { const hits = clickLine(charts, s, k.axis).filter(c => c.ref !== s.ref && !ex.has(c.ref)); return k.n != null ? counted(hits, k.n) : { hits, plural: !k.one, onClick: false } }
+  if (k.kind === 'diag2') {
+    const v = neighbours(charts, s, k.v)
+    const hit = v.length === 1 ? neighbours(charts, v[0], k.h) : []
+    return { hits: hit.length === 1 ? hit : [], plural: false, onClick: false, offBoard: !hit.length }
+  }
   if (k.kind === 'counted') {
     const hits = []
     let at = s
@@ -284,8 +296,10 @@ export function clickLineHits(m, charts, s) {
 const REL_CLICK = /\b(beside|next to|alongside|above|over|on top of|below|under(?:neath)?|beneath|(?:to the |on the )?left of|(?:to the |on the )?right of)\s+(?:this(?:\s+(?:one|chart))?|it|the (?:selected|clicked) (?:one|chart))\b/i
 
 /** The target-bearing clauses: inert ones ("… looks fine", "leave … alone", "not …") dropped. */
+// "everything BUT the bottom row" is an exclusion, never a clause boundary (read as "except")
+const exceptForm = (t) => String(t || '').replace(/\b(everything|all|charts|ones|them|these|row|column|board)\s+but\b(?!\s+not\b)/gi, '$1 except')
 function targetClauses(text) {
-  return String(text || '').split(CLAUSES).map(s => s.trim()).filter(s => s && !INERT.test(s))
+  return exceptForm(text).split(CLAUSES).map(s => s.trim()).filter(s => s && !INERT.test(s))
 }
 // (H5, probe 19) a clause that only says how a chart already IS ("the chart below it already is", "the two to its right are fine")
 // relates nothing: blanked out, position for position, before a relation is read from the words (a negation is NOT blanked — it
@@ -302,12 +316,18 @@ export function activeText(text) {
 // ── AUDIT probe 18 (#988) ──
 // (G3) an EXCLUSION: "everything in this row except SPY", "all the charts but not the QQQ one", "other than this one" — the
 // charts it names are never targets (a plan that includes one is asked, on the apply AND the proposal path)
-const EXCEPT = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|excluding|save\s+for|minus)\s+((?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?|(?:the\s+)?[A-Za-z0-9 -]{1,30}?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
+const EXCEPT = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|excluding|save\s+for|minus|(?<=\b(?:everything|all|charts|ones|them|these|row|column|board))\s+but(?!\s+not\b))\s+((?:the\s+)?(?:top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(?:row|column)|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?|(?:the\s+)?[A-Za-z0-9 -]{1,30}?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
-  for (const m of String(text || '').matchAll(EXCEPT)) {
+  for (const m of exceptForm(text).matchAll(EXCEPT)) {
     const phrase = m[1].trim()
+    const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)
+    if (wl) {
+      const line = pickLine(linesOf(charts, wl[2].toLowerCase()), wl[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), wl[2].toLowerCase())
+      if (line) { for (const c of line) out.add(c.ref) } else out.add(UNPLACED)
+      continue
+    }
     const side = /^(?:the\s+)?(?:(two|three|four|pair|2|3|4)\s+)?(?:charts?\s+|ones?\s+)?(?:on|at|along)\s+the\s+(left|right|top|bottom)(?:\s+(?:side|edge|row|column))?$/i.exec(phrase)
     if (side) {
       const axis = /^(?:left|right)$/i.test(side[2]) ? 'column' : 'row'
