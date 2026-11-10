@@ -19,6 +19,7 @@ import { writeFlagged } from '../../../hooks/flaggedStore'
 import { getCapability } from '../../capabilities'
 import { mountedListViews } from '../../../pages/watchlist/watchlistViews'
 import { ChartsSymContext } from '../../../pages/charts/ChartsSymContext'
+import { MOVE_HELD_OUT, WIDTH_HELD_OUT, COLUMNS_REFUSE_HELD_OUT } from '../../agentWatchlistColumnsHeldOut.test.js'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 vi.mock('../../../components/StockChart', () => ({ default: () => null }))
@@ -735,5 +736,36 @@ describe('the widget unmounting takes its target with it', () => {
     const out = await m.say('undo')
     expect(out).not.toMatch(/Undid/)
     expect(JSON.stringify(cols())).toBe(before)
+  })
+})
+
+// pl-widget, watchlist group C (C3-085 / C3-086): a column moved as the header drag drops it, a width as the gridline sets it —
+// through watchlist.arrangeColumns, over the widget's own results (movedColCfg / resizedColCfg). Held-out: agentWatchlistColumnsHeldOut.
+describe('3. move a column, set its width (the header drag and the gridline)', () => {
+  it.each(MOVE_HELD_OUT.map(c => [c.text, c]))('held-out "%s": the stored order and the header follow; Undo restores the columns exactly', async (text, c) => {
+    const m = board()
+    const before = headers()
+    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect((cols()?.order || []).filter(k => k !== 'flag')).toEqual(c.order))
+    expect(headers()).not.toEqual(before)
+    expect(headers().length).toBe(before.length)
+    expect(m.lastReceipt().textContent).toMatch(/On “Momentum”: moved/)
+    await m.say('undo')
+    await waitFor(() => expect(cols() ?? {}).toEqual({}))
+    expect(headers()).toEqual(before)
+  })
+  it.each(WIDTH_HELD_OUT.map(c => [c.text, c]))('held-out "%s": the stored width is that; Undo restores the columns exactly', async (text, c) => {
+    const m = board()
+    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect(cols()?.widths?.[c.key]).toBe(c.px))
+    expect(m.lastReceipt().textContent).toMatch(new RegExp(`to ${c.px} px wide`))
+    await m.say('undo')
+    await waitFor(() => expect(cols() ?? {}).toEqual({}))
+  })
+  it.each(COLUMNS_REFUSE_HELD_OUT.map(c => [c.text, c]))('NEGATIVE held-out "%s": refused in words; the columns are untouched', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    expect(out).toMatch(c.refuse)
+    expect(cols()).toBe(null)
   })
 })
