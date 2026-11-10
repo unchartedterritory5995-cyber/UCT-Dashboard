@@ -9,7 +9,7 @@ import { positionWord } from './host'
 const SHOW_ACTIONS = new Set(['watchlist.showList', 'watchlist.exportList'])
 const POS = /\b(top|bottom|upper|lower|left|right|first|second|other)(?:[\s-]+(left|right))?\s+(?:watch ?list|list widget|watch ?list widget|one)\b/gi
 // words that set the widget named right after them aside
-const NEGATED = /(?:not|except|but|besides|without|other than|instead of)(?:\s+(?:in|on|to|for|the|my|that))*\s*$/i
+const NEGATED = /\b(?:not|except|but|besides|without|other than|instead of)\b(?:\s+(?:in|on|to|for|the|my|that))*\s*$/i
 
 /** → null (nothing to screen) | { ops } (aimed at the widget the words name) | { ask: text } (nothing runs). */
 export function screenWatchlistWidget({ host, ops, text }) {
