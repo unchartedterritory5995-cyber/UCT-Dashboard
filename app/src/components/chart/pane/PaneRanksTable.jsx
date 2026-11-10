@@ -39,10 +39,15 @@ const BAND_CLASS = Object.freeze({
 // label's do (`--legend-ink-*-low`, held >= 4.5:1 by `legendInk.js`), and the band
 // inks take the light theme's darker gain / warn / loss on a light canvas (real-
 // screen check, 2026-11-08: the dark-theme green and amber read ~2:1 on white).
-const PaneRanksTable = forwardRef(function PaneRanksTable({ table, paneKey, canvas = 'dark' }, ref) {
+// ⭐ `host` ('pane' | 'price', UCT RS split U2): on the PRICE pane the strip sits at
+// the top of the canvas beside the price legend, so it takes the legend's own
+// top-sample inks and panel ground (`data-host="price"` in the stylesheet); in a
+// pane it keeps the low sample. Same markup either way.
+const PaneRanksTable = forwardRef(function PaneRanksTable({ table, paneKey, canvas = 'dark', host = 'pane' }, ref) {
   if (!table || !Array.isArray(table.columns) || !table.columns.length) return null
   return (
     <div ref={ref} className={styles.legendRanksTable} data-pane-table={paneKey || ''}
+      data-host={host === 'price' ? 'price' : 'pane'}
       data-canvas={canvas === 'light' ? 'light' : 'dark'} role="group" aria-label={table.label}>
       <dl className={styles.legendRankList}>
         {table.columns.map((c) => {
