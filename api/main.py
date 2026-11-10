@@ -146,6 +146,8 @@ from api.routers import notebook_entry_context as notebook_entry_context_router
 # excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
 # flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
+# Import a tweet (/api/j2/research-capture/tweets/*), dark behind NOTEBOOK_TWEET_IMPORT_ENABLED.
+from api.routers import notebook_tweet_capture as notebook_tweet_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
 # always on (its flag was retired 2026-11-04).
@@ -4804,6 +4806,20 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
 
+    # Price alerts: scheduled server-side evaluation, so an alert on a symbol no
+    # client is polling still fires. The thread always starts and sleeps; every
+    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off) from os.environ,
+    # which is fixed at process start: a Railway change takes effect only on a
+    # new boot. Stop it with `--set ...=0` (redeploys), or after a `variable
+    # delete` run `railway redeploy --service web --yes` and confirm the fresh
+    # boot from the pod.
+    try:
+        from api.services import price_alert_evaluator
+        price_alert_evaluator.start_evaluator(interval_sec=60)
+        logging.getLogger(__name__).info("[startup] price alert evaluator thread started (flag-gated)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] price alert evaluator failed to start")
+
     # Awareness Engine (M1): durable regime-label ledger. Cheap + idempotent;
     # initialized unconditionally (like indicator_alert_service) so local
     # dev/tests never need AWARENESS_ENGINE_ENABLED=1 just to read/write it.
@@ -5135,6 +5151,45 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
+    # ── Schwab proactive token refresh ───────────────────────────────────────
+    #
+    # ⚰️ `schwab_service.start_auto_refresh()` HAS EXISTED AND HAS NEVER BEEN CALLED.
+    # Measured 2026-11-09: zero callers anywhere in the tree, while
+    # `_auto_refresh_loop`'s own docstring claims "As long as the app is running, users
+    # never need to re-authenticate." Two separate false claims in one function — the
+    # loop never ran, AND Schwab caps the refresh token at 7 days regardless, so a
+    # weekly manual OAuth is unavoidable either way.
+    #
+    # The observable consequence, measured the same evening: web's access token sat
+    # **53.4 minutes old** with an unchanged value, i.e. expired (they live 1800s),
+    # because the ONLY thing that ever refreshed was an on-demand `get_valid_token()`
+    # call and nothing had asked after hours.
+    #
+    # ⛔ WHY IT MATTERS NOW, AND WHY IT IS HERE RATHER THAN IN THE PUSHER. The token
+    # replication added alongside this ships ONLY the access token to flow-worker, and
+    # flow-worker cannot refresh by design (it never holds a refresh token). So
+    # flow-worker's coverage is exactly as fresh as web's last refresh. The pusher
+    # deliberately refuses to ship an expired token, so without a proactive refresh on
+    # web there are windows where there is nothing good to send. Refreshing from the
+    # pusher was rejected: it runs on a BackgroundScheduler THREAD, and driving an
+    # async refresh from there means a second event loop touching `_TOKEN_REFRESH_LOCK`
+    # — a second authority over the one thing that must stay single-flight.
+    #
+    # ⛔ MUST be created here, inside the async lifespan: `start_auto_refresh` calls
+    # `asyncio.create_task`, which needs the running loop.
+    #
+    # DARK by default — arm with the replication flags, not before, since its only
+    # purpose here is keeping the replicated token fresh.
+    try:
+        if os.environ.get("SCHWAB_AUTO_REFRESH_ENABLED", "0") == "1":
+            from api import schwab_service as _schwab
+            _schwab.start_auto_refresh()
+            logging.getLogger(__name__).info(
+                "[startup] schwab auto-refresh task started (25 min cadence)")
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            "[startup] failed to start schwab auto-refresh: %s", e)
 
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
@@ -7267,6 +7322,52 @@ async def lifespan(app: FastAPI):
                                id="optionsflow_etf_replica_reconcile",
                                max_instances=1, coalesce=True, replace_existing=True)
 
+        # ── Schwab access token -> flow-worker ────────────────────────────────
+        #
+        # ⚰️ WHY THIS EXISTS. Schwab's OAuth callback can only land on `web`, and
+        # `/data/schwab_token.json` is on a PER-SERVICE volume. Measured 2026-11-09,
+        # minutes after a successful re-auth: web's token 0.0 days old, flow-worker's
+        # **113.4 days** old and failing `invalid_grant` on every cycle, silently
+        # covered by the Massive OI fallback. The owner read that as "every deploy I
+        # have to log in again" — the login fixed the pod they were looking at and
+        # never the one serving the data. `/data` survives deploys; nothing propagated.
+        #
+        # ⛔ NOT FOLDED INTO THE TICKER_TYPES BLOCK ABOVE, and not under its flag.
+        # Those carry datasets on a daily/30-min cadence; this carries a 30-MINUTE
+        # CREDENTIAL and must run far more often. Its own flag, its own job id, its
+        # own try/except — a fault in either must not stop the other.
+        #
+        # ⛔ A PUSH IS NOT THE PRIMARY PATH — `save_tokens` already pushes on every
+        # login and every refresh. This is the self-healing cadence, and it is what
+        # covers the case the owner actually hits: a flow-worker DEPLOY, which boots
+        # with whatever token the volume last held and cannot pull (web is IPv4-only
+        # on an IPv6 private network, so pull was disproved). A current pod costs one
+        # status probe and transfers nothing.
+        #
+        # ⚠️ THIS DOES NOT REMOVE THE WEEKLY RE-AUTH. Schwab caps the refresh token at
+        # 7 days and refreshing does not extend it. One manual OAuth per week on web
+        # is unavoidable; what this removes is the per-pod and per-deploy half.
+        #
+        # DARK until SCHWAB_TOKEN_PUSH_ENABLED=1 on web AND
+        # SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+        try:
+            def _schwab_token_push():
+                try:
+                    from api.services import schwab_token_push
+                    schwab_token_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[schwab-token-push] reconcile raised: %s", _e)
+
+            _scheduler.add_job(
+                _schwab_token_push, "interval",
+                minutes=int(os.environ.get("SCHWAB_TOKEN_PUSH_INTERVAL_MIN", "5")),
+                id="schwab_token_replica_push",
+                max_instances=1, coalesce=True, replace_existing=True)
+        except Exception as _e:
+            logging.getLogger(__name__).warning(
+                "[schwab-token-push] could not register job: %s", _e)
+
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
         # Levels are cached per session day, keyed on the last completed
@@ -8151,6 +8252,13 @@ async def lifespan(app: FastAPI):
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
+            # returns at once while NOTEBOOK_TWEET_IMPORT_ENABLED is off (read per run).
+            from api.services.journal_two import tweet_capture_sync as _tw_capture_sync
+            _scheduler.add_job(_tw_capture_sync.run_sweep, trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
+                               id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+                               id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
         # -- The Desk -> Substack articles poller -------------------------------
@@ -10387,6 +10495,36 @@ def _process_rss_mb():
     return None
 
 
+_BUILD_ID_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def _bundle_build_id() -> str:
+    """The SPA entry bundle path (e.g. ``assets/index-abc123.js``), read once.
+
+    Source: the ``isEntry`` row for ``index.html`` in ``<DIST>/.vite/manifest.json``
+    (``DIST`` is the same ``app/dist`` the SPA catch-all serves index.html from).
+    Normalised to no leading slash so it equals ``getClientBuildId`` on the page.
+    Railway's healthcheck calls this: it caches the first answer, and returns ""
+    on ANY failure -- it must never raise.
+    """
+    global _BUILD_ID_CACHE
+    cached = _BUILD_ID_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        import json as _json
+
+        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
+            row = _json.load(f).get("index.html")
+        if isinstance(row, dict) and row.get("isEntry") and isinstance(row.get("file"), str):
+            result = row["file"].lstrip("/")
+    except Exception:
+        result = ""
+    _BUILD_ID_CACHE = result
+    return result
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -10399,6 +10537,8 @@ def health():
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
+        # Bundle identity for the "new version available" watcher.
+        "build_id": _bundle_build_id(),
     }
 
 
@@ -10796,6 +10936,7 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
+app.include_router(notebook_tweet_capture_router.tweets_router)
 
 # Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.

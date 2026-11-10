@@ -26,6 +26,7 @@ import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
+import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
 import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
@@ -298,6 +299,19 @@ export const ITEMS = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
       editor.view.dom.dispatchEvent(new CustomEvent(TRANSCRIPT_EVENT, { bubbles: true }))
+    },
+  },
+  {
+    // Import a tweet: /tweet opens the sheet for this note and the cards land at the caret. Dark
+    // behind `notebook_tweet_import_enabled`, dispatched on this editor's own DOM root (I5); the
+    // sheet is TweetDoors' TweetInsertHost, mounted by the editor page.
+    title: 'Tweet',
+    description: 'Bring in a post from X, kept with its author, link and date',
+    keywords: ['tweet', 'twitter', 'x', 'post', 'import'],
+    available: () => tweetImportEnabled(),
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true }))
     },
   },
   {

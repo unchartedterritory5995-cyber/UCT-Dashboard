@@ -723,8 +723,13 @@ export function compareCapture(capture, ours, opts = {}) {
       if (row) return notDrawn(row[v.column])
       return sparseNative ? null : undefined
     })
-    if (!o.column) {
+    // ⭐ 2026-11-09 — a plot our side WITHHELD BY NAME on every bar (`withheldBy`, a
+    // chart-clock code) is graded the way a missing column is: not compared, with the
+    // reason. ⚰️ Graded as its all-`na` column it read DIVERGE — the verdict a WRONG
+    // value gets — on 13 captures (triage lane WN, 2026-11-08).
+    if (!o.column || o.withheldBy) {
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
+        ...(o.withheldBy ? { withheld: o.withheldBy } : {}),
         reason: `our side produced no column for this plot${o.missingReason ? ` — ${o.missingReason}` : ''}` })
       continue
     }
@@ -998,6 +1003,9 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
       reason: `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree`,
       counts: rows,
       texts: textRows,
+      // the colours of what we DO draw, paired with TradingView's, are still graded
+      // (a differing one would have made this a DIVERGE above)
+      ...(colour ? { colours: objectColourRows(colour), colourUnpaired: colour.unpaired || null } : {}),
     }
   }
   if (!colour) {

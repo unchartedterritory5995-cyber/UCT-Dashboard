@@ -55,7 +55,8 @@
    "docs/pine/capture-queue-2026-11-06-w6.md",
    "docs/pine/capture-queue-2026-11-07-honesty-sweep.md",
    "docs/pine/capture-queue-2026-11-07-i6a-n4.md",
-   "docs/pine/capture-queue-2026-11-09-div3-merged-head.md"
+   "docs/pine/capture-queue-2026-11-09-div3-merged-head.md",
+   "docs/pine/capture-queue-2026-11-10-c22-array-gc.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
@@ -80,19 +81,19 @@
   }
  },
  "counts": {
-  "targets": 300,
+  "targets": 301,
   "byStatus": {
    "CAPTURED": 78,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 181
+   "QUEUED": 182
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 65,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 148
+    "QUEUED": 149
    },
    "W1": {
     "QUEUED": 6
@@ -115,7 +116,7 @@
     "CAPTURED": 61,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 166
+    "QUEUED": 167
    },
    "1-2": {
     "CAPTURED": 17,
@@ -138,6 +139,9 @@
    },
    "b1-paints": {
     "CAPTURED": 2
+   },
+   "c22-array-gc": {
+    "QUEUED": 1
    },
    "c45": {
     "CAPTURED": 8
@@ -14371,6 +14375,48 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-c22-array-gc@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-c22-array-gc.pine",
+   "sourceKind": "probe",
+   "sha256": "f1642cc037e606a2dba3d9bd8e3ec18056a270bb847f98669d5a1d25e19135f7",
+   "bytes": 1863,
+   "stem": "vw-c22-array-gc",
+   "captureStem": "vw-c22-array-gc",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "c22-array-gc"
+   ],
+   "oldestDoc": "2026-11-10",
+   "rows": [
+    "capture-queue-2026-11-10-c22-array-gc#Q-C22-1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -16408,6 +16454,12 @@
    "doc": "docs/pine/capture-queue-2026-11-09-div3-merged-head.md",
    "wave": "div3-merged-head",
    "rows": 2,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-10-c22-array-gc.md",
+   "wave": "c22-array-gc",
+   "rows": 1,
    "contextTables": 0
   }
  ]

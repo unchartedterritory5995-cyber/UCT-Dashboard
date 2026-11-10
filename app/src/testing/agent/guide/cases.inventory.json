@@ -1,0 +1,1910 @@
+[
+ {
+  "id": "C1-001",
+  "say": "how do I change ticker by search pick",
+  "feature": "symbol",
+  "title": "Changing a chart’s symbol"
+ },
+ {
+  "id": "C1-005",
+  "say": "how do I flag current ticker (Shift+F)",
+  "feature": "chartView",
+  "title": "Flagging the chart’s ticker"
+ },
+ {
+  "id": "C1-006",
+  "say": "how do I pick preset timeframe on bar",
+  "feature": "timeframe",
+  "title": "Changing the timeframe"
+ },
+ {
+  "id": "C1-007",
+  "say": "how do I pick from full timeframe menu",
+  "feature": "timeframe",
+  "title": "Changing the timeframe"
+ },
+ {
+  "id": "C1-008",
+  "say": "how do I add custom interval",
+  "feature": "timeframeCustom",
+  "title": "Adding a custom timeframe"
+ },
+ {
+  "id": "C1-009",
+  "say": "how do I delete custom interval",
+  "feature": "panelAction",
+  "title": "Deleting a custom timeframe"
+ },
+ {
+  "id": "C1-010",
+  "say": "how do I star a favourite timeframe",
+  "feature": "panelAction",
+  "title": "Starring a timeframe"
+ },
+ {
+  "id": "C1-011",
+  "say": "how do I timeframe keys with repeat-press cycle",
+  "feature": "timeframe",
+  "title": "Changing the timeframe"
+ },
+ {
+  "id": "C1-013",
+  "say": "how do I choose chart type in settings",
+  "feature": "chartType",
+  "title": "Changing the chart type"
+ },
+ {
+  "id": "C1-017",
+  "say": "how do I candle colour mode",
+  "feature": "chartSetting",
+  "title": "Changing Candle color mode"
+ },
+ {
+  "id": "C1-018",
+  "say": "how do I thin bars",
+  "feature": "chartSetting",
+  "title": "Changing Thin bars"
+ },
+ {
+  "id": "C1-019",
+  "say": "how do I regular/extended on intraday",
+  "feature": "chartView",
+  "title": "Regular or extended hours"
+ },
+ {
+  "id": "C1-020",
+  "say": "how do I regular/extended on D/W/M",
+  "feature": "chartView",
+  "title": "Regular or extended hours"
+ },
+ {
+  "id": "C1-022",
+  "say": "show me how to log scale",
+  "feature": "chartView",
+  "title": "Log, percent or arithmetic scale"
+ },
+ {
+  "id": "C1-024",
+  "say": "how do I invert scale (Alt+I)",
+  "feature": "chartView",
+  "title": "Inverting the scale"
+ },
+ {
+  "id": "C1-025",
+  "say": "how do I auto-scale",
+  "feature": "chartView",
+  "title": "Auto-scale"
+ },
+ {
+  "id": "C1-027",
+  "say": "how do I reset view",
+  "feature": "chartMenu",
+  "title": "Resetting the view"
+ },
+ {
+  "id": "C1-028",
+  "say": "how do I zoom in/out (+/-)",
+  "feature": "chartView",
+  "title": "Zooming the chart"
+ },
+ {
+  "id": "C1-029",
+  "say": "how do I range buttons (3M/6M/YTD/1Y/5Y)",
+  "feature": "chartView",
+  "title": "Showing a set range"
+ },
+ {
+  "id": "C1-030",
+  "say": "how do I type a date in Time Navigator",
+  "feature": "goToDate",
+  "title": "Going to a date"
+ },
+ {
+  "id": "C1-031",
+  "say": "show me how to go to 2020",
+  "feature": "goToDate",
+  "title": "Going to a date"
+ },
+ {
+  "id": "C1-034",
+  "say": "show me how to compare with AMD",
+  "feature": "compare",
+  "title": "Comparing symbols on a chart"
+ },
+ {
+  "id": "C1-035",
+  "say": "show me how to compare against the semis group",
+  "feature": "compareAction",
+  "title": "Comparing a whole group"
+ },
+ {
+  "id": "C1-037",
+  "say": "show me how to remove the semis overlay",
+  "feature": "compareAction",
+  "title": "Removing a compared symbol"
+ },
+ {
+  "id": "C1-038",
+  "say": "how do I clear all comparisons",
+  "feature": "compareAction",
+  "title": "Clearing all comparisons"
+ },
+ {
+  "id": "C1-039",
+  "say": "how do I same/new scale per symbol",
+  "feature": "compareAction",
+  "title": "A compared symbol’s scale"
+ },
+ {
+  "id": "C1-040",
+  "say": "how do I same/new scale for a group",
+  "feature": "compareAction",
+  "title": "A group’s scale"
+ },
+ {
+  "id": "C1-041",
+  "say": "show me how to show only the comparisons",
+  "feature": "compareAction",
+  "title": "Showing the group only"
+ },
+ {
+  "id": "C1-042",
+  "say": "show me how to replay from Oct 15",
+  "feature": "replay",
+  "title": "Replaying the market"
+ },
+ {
+  "id": "C1-043",
+  "say": "how do I choose replay timeframe",
+  "feature": "replay",
+  "title": "Replaying the market"
+ },
+ {
+  "id": "C1-045",
+  "say": "how do I exit replay",
+  "feature": "panelAction",
+  "title": "Leaving replay"
+ },
+ {
+  "id": "C1-047",
+  "say": "how do I toggle grid",
+  "feature": "chartSetting",
+  "title": "Changing Grid lines"
+ },
+ {
+  "id": "C1-048",
+  "say": "how do I solid/gradient background",
+  "feature": "chartSetting",
+  "title": "Changing Gradient background"
+ },
+ {
+  "id": "C1-049",
+  "say": "how do I solid background colour",
+  "feature": "control",
+  "title": "The chart’s background"
+ },
+ {
+  "id": "C1-050",
+  "say": "how do I gradient colours",
+  "feature": "chartSetting",
+  "title": "Changing Gradient background"
+ },
+ {
+  "id": "C1-051",
+  "say": "how do I crosshair mode",
+  "feature": "chartSetting",
+  "title": "Changing Crosshair"
+ },
+ {
+  "id": "C1-052",
+  "say": "how do I crosshair colour/width/style",
+  "feature": "chartSetting",
+  "title": "Changing Crosshair color"
+ },
+ {
+  "id": "C1-054",
+  "say": "how do I price labels / MA labels",
+  "feature": "chartSetting",
+  "title": "Changing Price labels on the axis"
+ },
+ {
+  "id": "C1-055",
+  "say": "how do I scale text size and colour",
+  "feature": "chartSetting",
+  "title": "Changing Scale text size"
+ },
+ {
+  "id": "C1-056",
+  "say": "how do I watermark on/off (Alt+Shift+W)",
+  "feature": "chartSetting",
+  "title": "Changing Watermark"
+ },
+ {
+  "id": "C1-057",
+  "say": "how do I watermark lines",
+  "feature": "chartSetting",
+  "title": "Changing Watermark"
+ },
+ {
+  "id": "C1-058",
+  "say": "how do I watermark alignment",
+  "feature": "control",
+  "title": "Aligning the watermark"
+ },
+ {
+  "id": "C1-059",
+  "say": "how do I watermark size/weight/colour/opacity",
+  "feature": "chartSetting",
+  "title": "Changing Watermark size"
+ },
+ {
+  "id": "C1-060",
+  "say": "how do I move watermark",
+  "feature": "control",
+  "title": "Moving the watermark"
+ },
+ {
+  "id": "C1-061",
+  "say": "how do I reset watermark to centre",
+  "feature": "control",
+  "title": "Centring the watermark"
+ },
+ {
+  "id": "C1-062",
+  "say": "how do I title shows ticker/company/both",
+  "feature": "chartSetting",
+  "title": "Changing Title shows"
+ },
+ {
+  "id": "C1-063",
+  "say": "how do I day change beside title",
+  "feature": "chartSetting",
+  "title": "Changing Day change beside the title"
+ },
+ {
+  "id": "C1-064",
+  "say": "how do I legend mode",
+  "feature": "chartSetting",
+  "title": "Changing Chart legend"
+ },
+ {
+  "id": "C1-065",
+  "say": "how do I legend bar-info fields",
+  "feature": "control",
+  "title": "The legend’s bar values"
+ },
+ {
+  "id": "C1-067",
+  "say": "how do I header colours",
+  "feature": "chartSetting",
+  "title": "Changing Header colors"
+ },
+ {
+  "id": "C1-068",
+  "say": "how do I swing labels on/off and sensitivity",
+  "feature": "chartSetting",
+  "title": "Changing Swing label sensitivity"
+ },
+ {
+  "id": "C1-069",
+  "say": "how do I swing label background, tint, colours",
+  "feature": "chartSetting",
+  "title": "Changing Swing label background color"
+ },
+ {
+  "id": "C1-070",
+  "say": "show me how to turn on earnings markers",
+  "feature": "chartSetting",
+  "title": "Changing Earnings markers"
+ },
+ {
+  "id": "C1-071",
+  "say": "how do I earnings beat/miss and IPO colours",
+  "feature": "chartSetting",
+  "title": "Changing Earnings beat color"
+ },
+ {
+  "id": "C1-072",
+  "say": "show me how to show the prior day high",
+  "feature": "chartSetting",
+  "title": "Changing Prev-day high line"
+ },
+ {
+  "id": "C1-073",
+  "say": "show me how to dash the prior day low",
+  "feature": "chartSetting",
+  "title": "Changing Prev-day low line"
+ },
+ {
+  "id": "C1-074",
+  "say": "how do I dark-pool levels",
+  "feature": "chartSetting",
+  "title": "Changing Dark-pool levels"
+ },
+ {
+  "id": "C1-075",
+  "say": "how do I bar-close countdown (Shift+C)",
+  "feature": "chartSetting",
+  "title": "Changing Bar-close countdown"
+ },
+ {
+  "id": "C1-076",
+  "say": "how do I restore defaults",
+  "feature": "panelAction",
+  "title": "Restoring a chart’s defaults"
+ },
+ {
+  "id": "C1-078",
+  "say": "how do I light/dark palette (Shift+T)",
+  "feature": "chartView",
+  "title": "Light or dark chart"
+ },
+ {
+  "id": "C1-079",
+  "say": "how do I apply a theme to one chart",
+  "feature": "chartThemes",
+  "title": "Applying a chart theme"
+ },
+ {
+  "id": "C1-080",
+  "say": "how do I apply a theme to all charts",
+  "feature": "panelAction",
+  "title": "A theme on all charts"
+ },
+ {
+  "id": "C1-081",
+  "say": "how do I apply a theme to all widgets",
+  "feature": "panelAction",
+  "title": "A theme on all widgets"
+ },
+ {
+  "id": "C1-082",
+  "say": "how do I apply a template",
+  "feature": "chartTemplate",
+  "title": "Chart templates"
+ },
+ {
+  "id": "C1-083",
+  "say": "how do I save a template",
+  "feature": "chartTemplate",
+  "title": "Chart templates"
+ },
+ {
+  "id": "C1-084",
+  "say": "how do I delete a template",
+  "feature": "chartTemplate",
+  "title": "Chart templates"
+ },
+ {
+  "id": "C1-086",
+  "say": "how do I show/hide volume (Ctrl+V, menu)",
+  "feature": "chartView",
+  "title": "Showing or hiding volume"
+ },
+ {
+  "id": "C1-087",
+  "say": "how do I remove volume",
+  "feature": "chartView",
+  "title": "Showing or hiding volume"
+ },
+ {
+  "id": "C1-088",
+  "say": "show me how to put volume in its own pane",
+  "feature": "chartMenu",
+  "title": "Volume settings"
+ },
+ {
+  "id": "C1-089",
+  "say": "how do I resize volume pane by drag",
+  "feature": "chartView",
+  "title": "Resizing a pane"
+ },
+ {
+  "id": "C1-090",
+  "say": "how do I hVC highlight",
+  "feature": "chartMenu",
+  "title": "Volume settings"
+ },
+ {
+  "id": "C1-091",
+  "say": "how do I volume colours, MA, label, bar style",
+  "feature": "chartMenu",
+  "title": "Volume settings"
+ },
+ {
+  "id": "C1-094",
+  "say": "how do I resize a pane",
+  "feature": "chartView",
+  "title": "Resizing a pane"
+ },
+ {
+  "id": "C1-097",
+  "say": "how do I hide/show an indicator from chip",
+  "feature": "legendChip",
+  "title": "Hiding or showing an indicator"
+ },
+ {
+  "id": "C1-098",
+  "say": "how do I display in another pane from chip",
+  "feature": "legendChip",
+  "title": "Moving an indicator to another pane"
+ },
+ {
+  "id": "C1-099",
+  "say": "show me how to duplicate the 20 EMA",
+  "feature": "legendChip",
+  "title": "Duplicating an indicator"
+ },
+ {
+  "id": "C1-100",
+  "say": "show me how to show RSI value in the header",
+  "feature": "legendChip",
+  "title": "An indicator’s value in the header"
+ },
+ {
+  "id": "C1-101",
+  "say": "how do I add alert from chip",
+  "feature": "legendChip",
+  "title": "An alert from the legend"
+ },
+ {
+  "id": "C1-102",
+  "say": "how do I delete indicator from chip",
+  "feature": "legendChip",
+  "title": "Removing an indicator"
+ },
+ {
+  "id": "C1-103",
+  "say": "how do I hide all indicators (Alt+Shift+I)",
+  "feature": "chartView",
+  "title": "Hiding all indicators"
+ },
+ {
+  "id": "C1-105",
+  "say": "how do I toggle moving averages (Ctrl+M)",
+  "feature": "chartView",
+  "title": "Toggling moving averages"
+ },
+ {
+  "id": "C1-107",
+  "say": "how do I bars & Time",
+  "feature": "drawing",
+  "title": "Drawing a Bars & Time"
+ },
+ {
+  "id": "C1-109",
+  "say": "how do I price Move",
+  "feature": "drawing",
+  "title": "Drawing a Price Move"
+ },
+ {
+  "id": "C1-110",
+  "say": "how do I open share popover (Alt+S)",
+  "feature": "chartView",
+  "title": "Sharing a chart"
+ },
+ {
+  "id": "C1-111",
+  "say": "how do I download PNG",
+  "feature": "control",
+  "title": "Sharing: Download PNG"
+ },
+ {
+  "id": "C1-112",
+  "say": "how do I copy image",
+  "feature": "control",
+  "title": "Sharing: Copy to Clipboard"
+ },
+ {
+  "id": "C1-113",
+  "say": "how do I copy share link",
+  "feature": "control",
+  "title": "Sharing: Copy Share URL"
+ },
+ {
+  "id": "C1-115",
+  "say": "how do I alert on a line, following it",
+  "feature": "drawingEdit",
+  "title": "An alert on a line"
+ },
+ {
+  "id": "C1-116",
+  "say": "how do I alert at a line's fixed level",
+  "feature": "drawingEdit",
+  "title": "An alert on a line"
+ },
+ {
+  "id": "C1-119",
+  "say": "how do I pause/resume indicator alert",
+  "feature": "alertAction",
+  "title": "Pausing an indicator alert"
+ },
+ {
+  "id": "C1-120",
+  "say": "how do I delete indicator alert",
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert"
+ },
+ {
+  "id": "C1-121",
+  "say": "how do I move a level line",
+  "feature": "drawingEdit",
+  "title": "Moving a drawing"
+ },
+ {
+  "id": "C1-124",
+  "say": "how do I open indicator settings",
+  "feature": "indicatorEdit",
+  "title": "Changing an indicator’s settings"
+ },
+ {
+  "id": "C1-125",
+  "say": "how do I clear all drawings",
+  "feature": "chartMenu",
+  "title": "Clearing all drawings"
+ },
+ {
+  "id": "C1-126",
+  "say": "how do I hide all drawings",
+  "feature": "hideDrawings",
+  "title": "Hiding and showing drawings"
+ },
+ {
+  "id": "C1-127",
+  "say": "how do I open chart settings (Alt+,, gear)",
+  "feature": "settings",
+  "title": "Finding chart settings"
+ },
+ {
+  "id": "C1-128",
+  "say": "how do I trendline",
+  "feature": "drawing",
+  "title": "Drawing a Trendline"
+ },
+ {
+  "id": "C1-130",
+  "say": "how do I extended line",
+  "feature": "drawing",
+  "title": "Drawing an Extended Line"
+ },
+ {
+  "id": "C1-131",
+  "say": "how do I horizontal line",
+  "feature": "drawing",
+  "title": "Drawing a Horizontal Line"
+ },
+ {
+  "id": "C1-132",
+  "say": "how do I horizontal ray",
+  "feature": "drawing",
+  "title": "Drawing a Horizontal Ray"
+ },
+ {
+  "id": "C1-133",
+  "say": "how do I vertical line",
+  "feature": "drawing",
+  "title": "Drawing a Vertical Line"
+ },
+ {
+  "id": "C1-134",
+  "say": "how do I rectangle",
+  "feature": "drawing",
+  "title": "Drawing a Rectangle"
+ },
+ {
+  "id": "C1-135",
+  "say": "how do I circle",
+  "feature": "drawing",
+  "title": "Drawing a Circle"
+ },
+ {
+  "id": "C1-136",
+  "say": "how do I arrow",
+  "feature": "drawing",
+  "title": "Drawing an Arrow"
+ },
+ {
+  "id": "C1-137",
+  "say": "how do I fib retracement",
+  "feature": "drawing",
+  "title": "Drawing a Fibonacci Retracement"
+ },
+ {
+  "id": "C1-138",
+  "say": "how do I fib extension",
+  "feature": "drawing",
+  "title": "Drawing a Fibonacci Extension"
+ },
+ {
+  "id": "C1-139",
+  "say": "how do I pitchfork",
+  "feature": "drawing",
+  "title": "Drawing a Pitchfork"
+ },
+ {
+  "id": "C1-140",
+  "say": "how do I parallel channel",
+  "feature": "drawing",
+  "title": "Drawing a Parallel Channel"
+ },
+ {
+  "id": "C1-141",
+  "say": "how do I cup curve",
+  "feature": "drawing",
+  "title": "Drawing a Cup Curve"
+ },
+ {
+  "id": "C1-142",
+  "say": "how do I anchored VWAP",
+  "feature": "drawing",
+  "title": "Drawing an Anchored VWAP"
+ },
+ {
+  "id": "C1-143",
+  "say": "how do I text note",
+  "feature": "drawing",
+  "title": "Drawing a Text Note"
+ },
+ {
+  "id": "C1-144",
+  "say": "how do I position calculator",
+  "feature": "drawing",
+  "title": "Drawing a Position Calculator"
+ },
+ {
+  "id": "C1-145",
+  "say": "how do I eraser",
+  "feature": "drawingEdit",
+  "title": "The eraser"
+ },
+ {
+  "id": "C1-146",
+  "say": "show me how to remove that trendline",
+  "feature": "drawingEdit",
+  "title": "Deleting a drawing"
+ },
+ {
+  "id": "C1-147",
+  "say": "show me how to make that line pink",
+  "feature": "drawingEdit",
+  "title": "Recolouring a drawing"
+ },
+ {
+  "id": "C1-148",
+  "say": "how do I width and line style",
+  "feature": "drawingEdit",
+  "title": "A drawing’s width and line style"
+ },
+ {
+  "id": "C1-149",
+  "say": "show me how to shade that box blue",
+  "feature": "control",
+  "title": "A drawing’s Fill"
+ },
+ {
+  "id": "C1-150",
+  "say": "show me how to make the note bold",
+  "feature": "control",
+  "title": "A drawing’s Bold"
+ },
+ {
+  "id": "C1-151",
+  "say": "how do I fib levels and fills",
+  "feature": "drawingEdit",
+  "title": "Fibonacci levels and fills"
+ },
+ {
+  "id": "C1-152",
+  "say": "show me how to reset the fib levels",
+  "feature": "control",
+  "title": "A drawing’s Reset levels"
+ },
+ {
+  "id": "C1-153",
+  "say": "show me how to hide bars on the measure",
+  "feature": "control",
+  "title": "A drawing’s Show bars"
+ },
+ {
+  "id": "C1-154",
+  "say": "show me how to show the price on that line",
+  "feature": "control",
+  "title": "A drawing’s Show price label"
+ },
+ {
+  "id": "C1-155",
+  "say": "how do I edit anchors",
+  "feature": "drawingEdit",
+  "title": "Moving a drawing"
+ },
+ {
+  "id": "C1-156",
+  "say": "show me how to flatten that line",
+  "feature": "control",
+  "title": "A drawing’s Make horizontal"
+ },
+ {
+  "id": "C1-157",
+  "say": "show me how to copy that line",
+  "feature": "control",
+  "title": "A drawing’s Duplicate"
+ },
+ {
+  "id": "C1-158",
+  "say": "show me how to lock that line",
+  "feature": "drawingEdit",
+  "title": "Locking a drawing"
+ },
+ {
+  "id": "C1-159",
+  "say": "show me how to hide that fib",
+  "feature": "drawingEdit",
+  "title": "Hiding one drawing"
+ },
+ {
+  "id": "C1-162",
+  "say": "how do I undo/redo a drawing",
+  "feature": "drawingEdit",
+  "title": "Undoing a drawing"
+ },
+ {
+  "id": "C1-163",
+  "say": "how do I magnet for drawing",
+  "feature": "control",
+  "title": "The drawing magnet"
+ },
+ {
+  "id": "C1-164",
+  "say": "how do I repeat drawing mode",
+  "feature": "control",
+  "title": "Repeat drawing"
+ },
+ {
+  "id": "C1-165",
+  "say": "how do I customise tool favourites",
+  "feature": "control",
+  "title": "Choosing your drawing tools"
+ },
+ {
+  "id": "C1-166",
+  "say": "how do I nudge selected with arrows",
+  "feature": "control",
+  "title": "Nudging a drawing from the keyboard"
+ },
+ {
+  "id": "C1-167",
+  "say": "how do I switch drawing board",
+  "feature": "control",
+  "title": "Drawing boards: a board"
+ },
+ {
+  "id": "C1-168",
+  "say": "how do I create a board",
+  "feature": "control",
+  "title": "Drawing boards: New board"
+ },
+ {
+  "id": "C1-169",
+  "say": "how do I rename a board",
+  "feature": "control",
+  "title": "Drawing boards: Rename"
+ },
+ {
+  "id": "C1-170",
+  "say": "how do I delete a board",
+  "feature": "control",
+  "title": "Drawing boards: Delete"
+ },
+ {
+  "id": "C1-173",
+  "say": "show me how to 2x2 grid",
+  "feature": "multiChart",
+  "title": "Setting up a 2×2 chart grid"
+ },
+ {
+  "id": "C2-001",
+  "say": "how do I open indicator library",
+  "feature": "indicators",
+  "title": "Adding and configuring an indicator"
+ },
+ {
+  "id": "C2-002",
+  "say": "how do I search indicators by name or purpose",
+  "feature": "indicators",
+  "title": "Adding and configuring an indicator"
+ },
+ {
+  "id": "C2-003",
+  "say": "show me how to what momentum indicators do you have",
+  "feature": "indicators",
+  "title": "Adding MOM"
+ },
+ {
+  "id": "C2-004",
+  "say": "how do I add built-in indicator",
+  "feature": "indicators",
+  "title": "Adding and configuring an indicator"
+ },
+ {
+  "id": "C2-005",
+  "say": "show me how to add a 20 EMA",
+  "feature": "indicators",
+  "title": "Adding EMA"
+ },
+ {
+  "id": "C2-006",
+  "say": "show me how to add another 20 EMA",
+  "feature": "indicatorManage",
+  "title": "Adding a second copy"
+ },
+ {
+  "id": "C2-007",
+  "say": "how do I add own saved indicator",
+  "feature": "indicatorManage",
+  "title": "Adding your own indicator"
+ },
+ {
+  "id": "C2-008",
+  "say": "how do I add a symbol as a data series from search",
+  "feature": "indicatorManage",
+  "title": "Adding a symbol as a series"
+ },
+ {
+  "id": "C2-010",
+  "say": "how do I keyboard chord toggles RSI, MACD, BB, VWAP",
+  "feature": "chartView",
+  "title": "Toggling an indicator from the keyboard"
+ },
+ {
+  "id": "C2-011",
+  "say": "show me how to turn on moving average 3",
+  "feature": "indicators",
+  "title": "Adding MA"
+ },
+ {
+  "id": "C2-014",
+  "say": "how do I delete indicator from legend",
+  "feature": "legendChip",
+  "title": "Removing an indicator"
+ },
+ {
+  "id": "C2-016",
+  "say": "show me how to remove the 9 EMA",
+  "feature": "legendChip",
+  "title": "Removing an indicator"
+ },
+ {
+  "id": "C2-017",
+  "say": "how do I remove an unavailable indicator",
+  "feature": "legendChip",
+  "title": "Removing an indicator"
+ },
+ {
+  "id": "C2-018",
+  "say": "how do I hide indicator",
+  "feature": "legendChip",
+  "title": "Hiding or showing an indicator"
+ },
+ {
+  "id": "C2-019",
+  "say": "how do I show indicator",
+  "feature": "legendChip",
+  "title": "Hiding or showing an indicator"
+ },
+ {
+  "id": "C2-020",
+  "say": "how do I hide or show volume",
+  "feature": "chartView",
+  "title": "Showing or hiding volume"
+ },
+ {
+  "id": "C2-022",
+  "say": "show me how to what indicators are on this chart",
+  "feature": "indicatorManage",
+  "title": "Seeing what’s on a chart"
+ },
+ {
+  "id": "C2-024",
+  "say": "show me how to make RSI 7",
+  "feature": "indicatorEdit",
+  "title": "Changing RSI’s settings"
+ },
+ {
+  "id": "C2-025",
+  "say": "how do I change select setting (MA type, source)",
+  "feature": "indicatorEdit",
+  "title": "Changing MA’s settings"
+ },
+ {
+  "id": "C2-026",
+  "say": "show me how to turn off the signal line",
+  "feature": "indicatorEdit",
+  "title": "Changing an indicator’s settings"
+ },
+ {
+  "id": "C2-029",
+  "say": "show me how to calculate this RSI on the weekly",
+  "feature": "indicatorEdit",
+  "title": "Changing RSI’s settings"
+ },
+ {
+  "id": "C2-031",
+  "say": "show me how to make MACD bars blue when rising",
+  "feature": "indicatorColor",
+  "title": "Changing the colour of MACD"
+ },
+ {
+  "id": "C2-034",
+  "say": "how do I change plot style",
+  "feature": "indicatorManage",
+  "title": "An indicator’s plot style"
+ },
+ {
+  "id": "C2-039",
+  "say": "how do I resize pane by divider",
+  "feature": "chartView",
+  "title": "Resizing a pane"
+ },
+ {
+  "id": "C2-041",
+  "say": "show me how to show RSI's value in the header",
+  "feature": "legendChip",
+  "title": "An indicator’s value in the header"
+ },
+ {
+  "id": "C2-042",
+  "say": "show me how to duplicate the 20 EMA",
+  "feature": "legendChip",
+  "title": "Duplicating an indicator"
+ },
+ {
+  "id": "C2-043",
+  "say": "show me how to make my own copy of MACD",
+  "feature": "legendChip",
+  "title": "A custom copy of an indicator"
+ },
+ {
+  "id": "C2-048",
+  "say": "how do I indicator undo and redo buttons",
+  "feature": "indicatorManage",
+  "title": "Undoing an indicator change"
+ },
+ {
+  "id": "C2-055",
+  "say": "how do I open Create Indicator",
+  "feature": "indicatorManage",
+  "title": "Creating an indicator"
+ },
+ {
+  "id": "C2-056",
+  "say": "how do I describe an indicator, get a draft",
+  "feature": "indicatorManage",
+  "title": "Creating an indicator"
+ },
+ {
+  "id": "C2-059",
+  "say": "how do I undo a draft step",
+  "feature": "builderAction",
+  "title": "Undoing a draft step"
+ },
+ {
+  "id": "C2-061",
+  "say": "how do I save draft, acknowledge warnings",
+  "feature": "builderAction",
+  "title": "Saving a formula"
+ },
+ {
+  "id": "C2-062",
+  "say": "how do I discard draft",
+  "feature": "builderAction",
+  "title": "Discarding a draft"
+ },
+ {
+  "id": "C2-066",
+  "say": "how do I enter a formula",
+  "feature": "builderAction",
+  "title": "Entering a formula"
+ },
+ {
+  "id": "C2-070",
+  "say": "show me how to put a green arrow under the bar when true",
+  "feature": "builderAction",
+  "title": "Signal markers and colours"
+ },
+ {
+  "id": "C2-071",
+  "say": "show me how to paint the candles gold when true",
+  "feature": "builderAction",
+  "title": "Signal markers and colours"
+ },
+ {
+  "id": "C2-072",
+  "say": "how do I name the draft",
+  "feature": "builderAction",
+  "title": "Naming a formula"
+ },
+ {
+  "id": "C2-073",
+  "say": "how do I ask for an alert from the builder",
+  "feature": "builderAction",
+  "title": "Asking for an alert from the builder"
+ },
+ {
+  "id": "C2-076",
+  "say": "how do I paste Pine or thinkScript",
+  "feature": "builderAction",
+  "title": "Importing a script"
+ },
+ {
+  "id": "C2-088",
+  "say": "how do I open indicator alerts popover",
+  "feature": "alertIndicator",
+  "title": "Setting an indicator alert"
+ },
+ {
+  "id": "C2-089",
+  "say": "show me how to alert me when RSI goes above 70",
+  "feature": "alertIndicator",
+  "title": "Setting an indicator alert"
+ },
+ {
+  "id": "C2-090",
+  "say": "how do I create MA cross alert",
+  "feature": "alertAction",
+  "title": "An alert on a moving average cross"
+ },
+ {
+  "id": "C2-091",
+  "say": "show me how to alert on the MACD signal line",
+  "feature": "alertAction",
+  "title": "Which line an alert watches"
+ },
+ {
+  "id": "C2-092",
+  "say": "how do I alert on a yes/no signal with trigger policy",
+  "feature": "alertAction",
+  "title": "When a signal alert fires"
+ },
+ {
+  "id": "C2-093",
+  "say": "how do I alert on another timeframe",
+  "feature": "alertAction",
+  "title": "An alert on another timeframe"
+ },
+ {
+  "id": "C2-096",
+  "say": "show me how to the alert on the 9 EMA, left chart",
+  "feature": "alertIndicator",
+  "title": "Setting an indicator alert"
+ },
+ {
+  "id": "C2-097",
+  "say": "show me how to show my indicator alerts",
+  "feature": "alertAction",
+  "title": "Seeing your indicator alerts"
+ },
+ {
+  "id": "C2-098",
+  "say": "how do I pause or resume alert",
+  "feature": "alertAction",
+  "title": "Pausing an indicator alert"
+ },
+ {
+  "id": "C2-099",
+  "say": "show me how to delete the RSI alert",
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert"
+ },
+ {
+  "id": "C2-100",
+  "say": "how do I see why an alert cannot fire",
+  "feature": "alertAction",
+  "title": "Why an alert can’t fire"
+ },
+ {
+  "id": "C3-001",
+  "say": "how do I add a widget from Widgets ▾",
+  "feature": "widgetAdd",
+  "title": "Adding a widget"
+ },
+ {
+  "id": "C3-002",
+  "say": "how do I drag a widget to move it, or nudge it",
+  "feature": "widgetMove",
+  "title": "Moving a chart or widget"
+ },
+ {
+  "id": "C3-003",
+  "say": "how do I drag a widget edge or merged seam to resize",
+  "feature": "widgetResize",
+  "title": "Resizing a chart or widget"
+ },
+ {
+  "id": "C3-004",
+  "say": "how do I close a widget",
+  "feature": "widgetHeader",
+  "title": "Widget controls: Close"
+ },
+ {
+  "id": "C3-005",
+  "say": "how do I merge or unmerge widgets (lock board, drop borders)",
+  "feature": "widgetMerge",
+  "title": "Merging your widgets"
+ },
+ {
+  "id": "C3-006",
+  "say": "how do I cycle a widget's link colour",
+  "feature": "link",
+  "title": "Linking charts and widgets"
+ },
+ {
+  "id": "C3-007",
+  "say": "how do I change a tool panel's colour group",
+  "feature": "link",
+  "title": "Linking charts and widgets"
+ },
+ {
+  "id": "C3-008",
+  "say": "how do I float a widget over another",
+  "feature": "widgetHeader",
+  "title": "Widget controls: Float"
+ },
+ {
+  "id": "C3-009",
+  "say": "how do I drag or resize a floating widget",
+  "feature": "widgetResize",
+  "title": "Resizing a chart or widget"
+ },
+ {
+  "id": "C3-011",
+  "say": "how do I move a floating widget into another widget's tabs",
+  "feature": "widgetMove",
+  "title": "Moving a chart or widget"
+ },
+ {
+  "id": "C3-012",
+  "say": "how do I pop a widget into its own window",
+  "feature": "widgetHeader",
+  "title": "Widget controls: Pop out"
+ },
+ {
+  "id": "C3-015",
+  "say": "how do I close a popped widget",
+  "feature": "widgetHeader",
+  "title": "Widget controls: Close"
+ },
+ {
+  "id": "C3-016",
+  "say": "how do I add a widget as a tab",
+  "feature": "widgetHeader",
+  "title": "Widget controls: Add a tab"
+ },
+ {
+  "id": "C3-017",
+  "say": "how do I switch a widget tab",
+  "feature": "tabAction",
+  "title": "Switching widget tabs"
+ },
+ {
+  "id": "C3-018",
+  "say": "how do I rename a widget tab",
+  "feature": "control",
+  "title": "Renaming a widget tab"
+ },
+ {
+  "id": "C3-019",
+  "say": "how do I close a widget tab",
+  "feature": "tabAction",
+  "title": "Closing a widget tab"
+ },
+ {
+  "id": "C3-020",
+  "say": "how do I add a chart tab",
+  "feature": "chartTab",
+  "title": "Adding a chart tab"
+ },
+ {
+  "id": "C3-021",
+  "say": "how do I switch a chart tab",
+  "feature": "tabAction",
+  "title": "Switching chart tabs"
+ },
+ {
+  "id": "C3-022",
+  "say": "how do I rename a chart tab",
+  "feature": "control",
+  "title": "Renaming a chart tab"
+ },
+ {
+  "id": "C3-023",
+  "say": "how do I change a chart tab's link colour",
+  "feature": "control",
+  "title": "A chart tab’s link colour"
+ },
+ {
+  "id": "C3-024",
+  "say": "how do I close a chart tab",
+  "feature": "tabAction",
+  "title": "Closing a chart tab"
+ },
+ {
+  "id": "C3-025",
+  "say": "how do I open a saved layout",
+  "feature": "layouts",
+  "title": "Saving and switching layouts"
+ },
+ {
+  "id": "C3-026",
+  "say": "how do I see which layout is open",
+  "feature": "layoutAction",
+  "title": "Seeing which layout is open"
+ },
+ {
+  "id": "C3-027",
+  "say": "how do I undo a layout switch from the toast",
+  "feature": "layoutAction",
+  "title": "Undoing a layout switch"
+ },
+ {
+  "id": "C3-028",
+  "say": "how do I create a new layout from the dock",
+  "feature": "layouts",
+  "title": "Saving and switching layouts"
+ },
+ {
+  "id": "C3-029",
+  "say": "how do I start a new blank board from the Layouts menu",
+  "feature": "layouts",
+  "title": "Saving and switching layouts"
+ },
+ {
+  "id": "C3-030",
+  "say": "show me how to save my layout",
+  "feature": "layoutSave",
+  "title": "Saving a layout"
+ },
+ {
+  "id": "C3-031",
+  "say": "how do I save as a new layout",
+  "feature": "layoutSave",
+  "title": "Saving a layout"
+ },
+ {
+  "id": "C3-033",
+  "say": "how do I rename a layout",
+  "feature": "layoutAction",
+  "title": "Renaming a layout"
+ },
+ {
+  "id": "C3-034",
+  "say": "how do I duplicate a layout",
+  "feature": "layoutAction",
+  "title": "Duplicating a layout"
+ },
+ {
+  "id": "C3-035",
+  "say": "how do I delete a layout",
+  "feature": "control",
+  "title": "Deleting a layout"
+ },
+ {
+  "id": "C3-037",
+  "say": "how do I pin a layout to the bar",
+  "feature": "control",
+  "title": "Putting a layout on the bar"
+ },
+ {
+  "id": "C3-039",
+  "say": "how do I remove a layout from the bar",
+  "feature": "layoutAction",
+  "title": "Taking a layout off the bar"
+ },
+ {
+  "id": "C3-040",
+  "say": "how do I view a layout's version history",
+  "feature": "layoutAction",
+  "title": "A layout’s version history"
+ },
+ {
+  "id": "C3-041",
+  "say": "how do I restore a layout version",
+  "feature": "layoutAction",
+  "title": "A layout’s version history"
+ },
+ {
+  "id": "C3-042",
+  "say": "show me how to use the 3x3 multi chart",
+  "feature": "multiChart",
+  "title": "Setting up a 3×3 chart grid"
+ },
+ {
+  "id": "C3-043",
+  "say": "show me how to multi chart 2 by 5",
+  "feature": "multiChart",
+  "title": "Setting up a 2×2 chart grid"
+ },
+ {
+  "id": "C3-044",
+  "say": "how do I exit Multi Chart",
+  "feature": "gridAction",
+  "title": "Leaving Multi Chart"
+ },
+ {
+  "id": "C3-045",
+  "say": "show me how to sync the crosshairs",
+  "feature": "gridAction",
+  "title": "Syncing the crosshair"
+ },
+ {
+  "id": "C3-046",
+  "say": "show me how to sync the time range",
+  "feature": "gridAction",
+  "title": "Syncing the time range"
+ },
+ {
+  "id": "C3-047",
+  "say": "how do I turn on Groups mode",
+  "feature": "gridAction",
+  "title": "Groups mode"
+ },
+ {
+  "id": "C3-048",
+  "say": "how do I pick a group for the grid",
+  "feature": "gridAction",
+  "title": "Picking a group"
+ },
+ {
+  "id": "C3-049",
+  "say": "show me how to next group",
+  "feature": "gridAction",
+  "title": "Stepping through groups"
+ },
+ {
+  "id": "C3-050",
+  "say": "how do I refresh the group",
+  "feature": "gridAction",
+  "title": "Refreshing a group"
+ },
+ {
+  "id": "C3-051",
+  "say": "how do I exit Groups",
+  "feature": "gridAction",
+  "title": "Leaving Groups mode"
+ },
+ {
+  "id": "C3-052",
+  "say": "how do I apply a saved grid",
+  "feature": "gridAction",
+  "title": "Opening a saved grid"
+ },
+ {
+  "id": "C3-053",
+  "say": "how do I save a grid",
+  "feature": "gridAction",
+  "title": "Saving a grid"
+ },
+ {
+  "id": "C3-054",
+  "say": "how do I save a grid as global (admin)",
+  "feature": "gridAction",
+  "title": "Saving a prebuilt grid"
+ },
+ {
+  "id": "C3-055",
+  "say": "how do I delete a saved grid",
+  "feature": "gridAction",
+  "title": "Deleting a saved grid"
+ },
+ {
+  "id": "C3-056",
+  "say": "how do I set a cell's timeframe",
+  "feature": "gridAction",
+  "title": "One chart’s timeframe in the grid"
+ },
+ {
+  "id": "C3-057",
+  "say": "how do I set a cell's chart style",
+  "feature": "gridAction",
+  "title": "One chart’s style in the grid"
+ },
+ {
+  "id": "C3-058",
+  "say": "how do I toggle a cell's session",
+  "feature": "gridAction",
+  "title": "One chart’s session in the grid"
+ },
+ {
+  "id": "C3-059",
+  "say": "how do I reset a cell to my chart",
+  "feature": "gridAction",
+  "title": "Resetting a chart in the grid"
+ },
+ {
+  "id": "C3-060",
+  "say": "how do I maximize or restore a cell",
+  "feature": "gridAction",
+  "title": "Maximizing a chart in the grid"
+ },
+ {
+  "id": "C3-061",
+  "say": "how do I open shared grid settings",
+  "feature": "gridAction",
+  "title": "The grid’s shared settings"
+ },
+ {
+  "id": "C3-062",
+  "say": "how do I set an alert from a cell",
+  "feature": "gridAction",
+  "title": "An alert from a grid chart"
+ },
+ {
+  "id": "C3-063",
+  "say": "show me how to show my Momentum list",
+  "feature": "watchlistAction",
+  "title": "Opening one of your lists"
+ },
+ {
+  "id": "C3-064",
+  "say": "how do I open a prebuilt or community list",
+  "feature": "watchlistAction",
+  "title": "Opening a prebuilt list"
+ },
+ {
+  "id": "C3-065",
+  "say": "how do I open the Flagged list",
+  "feature": "watchlistAction",
+  "title": "Opening the Flagged list"
+ },
+ {
+  "id": "C3-067",
+  "say": "how do I go back to the list picker",
+  "feature": "control",
+  "title": "Going back to the list picker"
+ },
+ {
+  "id": "C3-068",
+  "say": "how do I click a row to load the symbol",
+  "feature": "watchlistAction",
+  "title": "Loading a ticker from a list"
+ },
+ {
+  "id": "C3-069",
+  "say": "how do I walk the list with arrow keys or space",
+  "feature": "watchlistAction",
+  "title": "Walking a list from the keyboard"
+ },
+ {
+  "id": "C3-070",
+  "say": "how do I create a list",
+  "feature": "watchlistCreate",
+  "title": "Creating a watchlist"
+ },
+ {
+  "id": "C3-075",
+  "say": "how do I delete a list",
+  "feature": "control",
+  "title": "Deleting a watchlist"
+ },
+ {
+  "id": "C3-077",
+  "say": "how do I add to Flagged",
+  "feature": "watchlistAction",
+  "title": "Flagging a ticker"
+ },
+ {
+  "id": "C3-078",
+  "say": "how do I flag or unflag a row (star)",
+  "feature": "watchlistAction",
+  "title": "Flagging a ticker"
+ },
+ {
+  "id": "C3-082",
+  "say": "show me how to sort my watchlist by RVOL",
+  "feature": "watchlistAction",
+  "title": "Sorting a list"
+ },
+ {
+  "id": "C3-098",
+  "say": "how do I set a price alert from a row",
+  "feature": "watchlistAction",
+  "title": "A price alert from the list"
+ },
+ {
+  "id": "C3-099",
+  "say": "how do I delete an alert from the row popover",
+  "feature": "watchlistAction",
+  "title": "Removing a ticker from a list"
+ },
+ {
+  "id": "C3-100",
+  "say": "how do I open Full Research or AI from a row",
+  "feature": "watchlistAction",
+  "title": "Research on a ticker"
+ },
+ {
+  "id": "C3-101",
+  "say": "how do I compare from a row",
+  "feature": "watchlistAction",
+  "title": "Comparing a ticker from the list"
+ },
+ {
+  "id": "C3-107",
+  "say": "how do I pick a preset scan",
+  "feature": "widgetAction",
+  "title": "Picking a preset scan"
+ },
+ {
+  "id": "C3-108",
+  "say": "how do I leave a scan, back to the picker",
+  "feature": "control",
+  "title": "Back to the list of scans"
+ },
+ {
+  "id": "C3-110",
+  "say": "how do I read a scan's conditions",
+  "feature": "widgetAction",
+  "title": "Reading a scan’s conditions"
+ },
+ {
+  "id": "C3-111",
+  "say": "how do I read a scan's results",
+  "feature": "widgetAction",
+  "title": "Reading a scan’s results"
+ },
+ {
+  "id": "C3-112",
+  "say": "how do I refresh a scan",
+  "feature": "control",
+  "title": "Refreshing a scan"
+ },
+ {
+  "id": "C3-113",
+  "say": "how do I sort a scan",
+  "feature": "widgetAction",
+  "title": "Sorting a scan"
+ },
+ {
+  "id": "C3-114",
+  "say": "how do I change scan columns",
+  "feature": "widgetAction",
+  "title": "Choosing a scan’s columns"
+ },
+ {
+  "id": "C3-120",
+  "say": "how do I send a scan to Journal",
+  "feature": "widgetAction",
+  "title": "Sending a scan to the Journal"
+ },
+ {
+  "id": "C3-122",
+  "say": "how do I create, rename or delete a scope list",
+  "feature": "control",
+  "title": "Deleting a Volume Surge list"
+ },
+ {
+  "id": "C3-123",
+  "say": "how do I add a ticker to a scope list",
+  "feature": "control",
+  "title": "Adding a ticker to a Volume Surge list"
+ },
+ {
+  "id": "C3-125",
+  "say": "show me how to show logos on volume surge",
+  "feature": "control",
+  "title": "Logos on Volume Surge"
+ },
+ {
+  "id": "C3-127",
+  "say": "how do I see my alerts",
+  "feature": "widgetAction",
+  "title": "Seeing your alerts"
+ },
+ {
+  "id": "C3-128",
+  "say": "how do I create a price alert",
+  "feature": "alertPrice",
+  "title": "Setting a price alert"
+ },
+ {
+  "id": "C3-129",
+  "say": "how do I delete an alert",
+  "feature": "widgetAction",
+  "title": "Deleting an alert"
+ },
+ {
+  "id": "C3-131",
+  "say": "how do I change Alerts widget appearance",
+  "feature": "widgetSettings",
+  "title": "Alerts widget settings"
+ },
+ {
+  "id": "C3-132",
+  "say": "how do I send alerts to Journal",
+  "feature": "control",
+  "title": "Sending Alerts to the Journal"
+ },
+ {
+  "id": "C3-133",
+  "say": "how do I filter catalysts up, down or all",
+  "feature": "widgetAction",
+  "title": "Filtering catalysts"
+ },
+ {
+  "id": "C3-134",
+  "say": "how do I read stored headlines for a symbol",
+  "feature": "widgetAction",
+  "title": "Reading a symbol’s headlines"
+ },
+ {
+  "id": "C3-136",
+  "say": "how do I change News widget appearance",
+  "feature": "widgetSettings",
+  "title": "News widget settings"
+ },
+ {
+  "id": "C3-137",
+  "say": "how do I send the feed to Journal",
+  "feature": "control",
+  "title": "Sending News & Catalysts to the Journal"
+ },
+ {
+  "id": "C3-138",
+  "say": "how do I search headlines",
+  "feature": "widgetAction",
+  "title": "Reading a symbol’s headlines"
+ },
+ {
+  "id": "C3-139",
+  "say": "show me how to only show headlines on my watchlist",
+  "feature": "widgetAction",
+  "title": "Reading a symbol’s headlines"
+ },
+ {
+  "id": "C3-141",
+  "say": "how do I save or unsave a headline",
+  "feature": "control",
+  "title": "Saving a headline"
+ },
+ {
+  "id": "C3-144",
+  "say": "how do I add a headline's ticker to a watchlist",
+  "feature": "control",
+  "title": "A headline’s actions: list"
+ },
+ {
+  "id": "C3-145",
+  "say": "how do I explain a headline or ask about it",
+  "feature": "widgetAction",
+  "title": "Reading a symbol’s headlines"
+ },
+ {
+  "id": "C3-146",
+  "say": "show me how to back to live news",
+  "feature": "control",
+  "title": "Back to the live feed"
+ },
+ {
+  "id": "C3-147",
+  "say": "how do I send a headline to Notebook",
+  "feature": "control",
+  "title": "A headline’s actions: notebook"
+ },
+ {
+  "id": "C3-149",
+  "say": "how do I ask who reports on a day from Charts",
+  "feature": "widgetAction",
+  "title": "Who reports on a day"
+ },
+ {
+  "id": "C3-150",
+  "say": "how do I ask when a stock reports from Charts",
+  "feature": "dockAction",
+  "title": "When a stock reports"
+ },
+ {
+  "id": "C3-151",
+  "say": "how do I filter economic events by stars",
+  "feature": "widgetAction",
+  "title": "Filtering economic events"
+ },
+ {
+  "id": "C3-155",
+  "say": "how do I click an earnings row",
+  "feature": "widgetAction",
+  "title": "Loading a stock from the earnings list"
+ },
+ {
+  "id": "C3-156",
+  "say": "how do I send a day to Journal",
+  "feature": "control",
+  "title": "Sending UCT Terminal to the Journal"
+ },
+ {
+  "id": "C3-157",
+  "say": "how do I read breadth tiles",
+  "feature": "widgetAction",
+  "title": "Reading the breadth tiles"
+ },
+ {
+  "id": "C3-163",
+  "say": "show me how to send breadth to journal",
+  "feature": "control",
+  "title": "Sending Breadth to the Journal"
+ },
+ {
+  "id": "C3-164",
+  "say": "show me how to flow for this symbol only",
+  "feature": "widgetAction",
+  "title": "Market or symbol flow"
+ },
+ {
+  "id": "C3-167",
+  "say": "how do I read the flow",
+  "feature": "widgetAction",
+  "title": "Reading the flow"
+ },
+ {
+  "id": "C3-169",
+  "say": "show me how to show themes by week",
+  "feature": "widgetAction",
+  "title": "Ranking themes by period"
+ },
+ {
+  "id": "C3-170",
+  "say": "show me how to sort themes worst first",
+  "feature": "widgetAction",
+  "title": "Ranking themes by period"
+ },
+ {
+  "id": "C3-171",
+  "say": "show me how to measure from the open",
+  "feature": "widgetAction",
+  "title": "The today basis"
+ },
+ {
+  "id": "C3-172",
+  "say": "how do I open a theme or pick a holding",
+  "feature": "widgetAction",
+  "title": "Opening a theme"
+ },
+ {
+  "id": "C3-173",
+  "say": "how do I search themes or tickers",
+  "feature": "widgetAction",
+  "title": "Searching themes"
+ },
+ {
+  "id": "C3-174",
+  "say": "how do I pick, rename or delete a theme set",
+  "feature": "widgetAction",
+  "title": "Theme presets"
+ },
+ {
+  "id": "C3-175",
+  "say": "how do I edit a set (add, hide, reset, custom theme)",
+  "feature": "widgetAction",
+  "title": "Theme presets"
+ },
+ {
+  "id": "C3-177",
+  "say": "how do I send the ranking to Journal",
+  "feature": "control",
+  "title": "Sending Theme Tracker to the Journal"
+ },
+ {
+  "id": "C3-181",
+  "say": "how do I read profile and earnings table",
+  "feature": "widgetAction",
+  "title": "Reading a company profile"
+ },
+ {
+  "id": "C3-183",
+  "say": "how do I hide or restore an index",
+  "feature": "control",
+  "title": "Hiding an index"
+ },
+ {
+  "id": "C3-184",
+  "say": "show me how to send index levels to journal",
+  "feature": "control",
+  "title": "Sending Indexes to the Journal"
+ },
+ {
+  "id": "C3-187",
+  "say": "show me how to add the Nasdaq 100 to new highs",
+  "feature": "widgetAction",
+  "title": "New highs and lows universes"
+ },
+ {
+  "id": "C3-196",
+  "say": "show me how to ask AI search about NVDA",
+  "feature": "widgetAction",
+  "title": "Asking AI Search"
+ },
+ {
+  "id": "C3-198",
+  "say": "show me how to save that answer",
+  "feature": "control",
+  "title": "Saving an answer"
+ },
+ {
+  "id": "C3-199",
+  "say": "how do I copy or speak an answer",
+  "feature": "control",
+  "title": "Copying an answer"
+ },
+ {
+  "id": "C3-200",
+  "say": "how do I send the conversation to Journal",
+  "feature": "control",
+  "title": "Sending AI Search to the Journal"
+ },
+ {
+  "id": "C3-201",
+  "say": "how do I open or search a note",
+  "feature": "widgetAction",
+  "title": "Finding a note"
+ },
+ {
+  "id": "C3-203",
+  "say": "how do I edit a note's title or body",
+  "feature": "control",
+  "title": "Editing a note"
+ },
+ {
+  "id": "C3-205",
+  "say": "how do I start a custom-period sort",
+  "feature": "periodSort",
+  "title": "Custom-period sort"
+ },
+ {
+  "id": "C3-209",
+  "say": "how do I start replay at a date",
+  "feature": "replay",
+  "title": "Replaying the market"
+ },
+ {
+  "id": "C3-210",
+  "say": "how do I exit replay",
+  "feature": "panelAction",
+  "title": "Leaving replay"
+ },
+ {
+  "id": "C3-212",
+  "say": "how do I set replay timeframe",
+  "feature": "replay",
+  "title": "Replaying the market"
+ },
+ {
+  "id": "C3-217",
+  "say": "show me how to hide the company panel",
+  "feature": "dockAction",
+  "title": "Opening or collapsing the company panel"
+ },
+ {
+  "id": "C3-219",
+  "say": "how do I open ETF holdings",
+  "feature": "dockAction",
+  "title": "An ETF’s holdings"
+ }
+]

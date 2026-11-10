@@ -328,6 +328,36 @@ const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top r
 const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
 const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
+// …and "a different chart", "another chart", "some other chart": a chart that is NOT the clicked one, not yet which
+const DIFFERENT_CHART = /\b(?:a|another|some|any)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b|\bone\s+other\b/i
+/** "the other chart" / "a different chart": the words mean a chart that is NOT the clicked one (pl-teach round 6 / AUDIT T1b:
+ *  the guide reads it here, never a copy). One other chart on the board → that one; several → which one is asked.
+ *  ⛔ AUDIT T1c/T1d/T1e (2026-11-07), matching execution's OTHER_CHART:
+ *   • DEFINITE "the / my / that other one" is the other chart, as execution reads it — unless the sentence names another thing
+ *     the "one" can stand for (a drawing, an indicator, an alert…: "two lines … delete the other one").
+ *   • INDEFINITE "another one" / "one other" / "a different one" names a chart only beside a chart word in its own clause that is
+ *     NOT the click itself: "another one of my charts" counts; "draw another one on this chart" is another drawing on the click. */
+const ONE_STANDS_FOR = /\b(?:drawings?|lines?|trend ?lines?|rays?|rectangles?|boxe?s?|circles?|arrows?|fibs?|fibonacci|channels?|notes?|labels?|indicators?|studies|study|alerts?|levels?|tabs?|layouts?|lists?|watchlists?|widgets?|templates?|panes?|colou?rs?)\b/i
+const CLICK_CHART = /\b(?:this|that|the|my|current|selected|clicked|active|same)\s+(?:chart|one)\b(?!s)/gi
+export function saysOtherChart(text) {
+  const s = String(text || '')
+  const definite = OTHER_CHART.exec(s)
+  if (definite) {
+    if (/chart/i.test(definite[0])) return true
+    // ⛔ AUDIT T1f: after a preposition "the other one" is the LOCATION — the other chart, whatever the sentence adds there
+    // ("add an indicator to the other one", "draw a trendline on the other one"). Only as the verb's OBJECT, with a thing of
+    // that kind named BEFORE it ("I drew two lines, how do I delete the other one"), does "one" stand for that thing
+    const before = s.slice(0, definite.index)
+    if (/\b(?:on|to|onto|from|in|into|for|of|at|over)\s*$/i.test(before)) return true
+    if (!ONE_STANDS_FOR.test(before)) return true
+  }
+  const m = DIFFERENT_CHART.exec(s)
+  if (!m) return false
+  if (/chart/i.test(m[0])) return true
+  const [a, b] = clauseAt(s, m.index)
+  const rest = (s.slice(a, m.index) + ' ' + s.slice(m.index + m[0].length, b)).replace(CLICK_CHART, ' ')
+  return /\bcharts?\b/i.test(rest)
+}
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

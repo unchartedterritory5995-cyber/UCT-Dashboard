@@ -39,19 +39,23 @@ const emit = () => { for (const fn of [...listeners]) { try { fn() } catch { /* 
 
 /** Record (or clear, with a zero count) what ONE instance's render state dropped
  *  out of the objects its program held on the last bar. Emits only on a change. */
-export function setObjectRenderDrops(instanceId, dropped, held, scope = '', families = [], why = null) {
+/** `opts`: NAMED, so later fields merge by name (r5 N-h) — `families` (partly held
+ *  back, `withheldBy['objects:collector']`), `familiesAll` (withheld whole), `why`
+ *  (DIV-3 r2: family → the member's sentence for a family a named guard withheld). */
+export function setObjectRenderDrops(instanceId, dropped, held, scope = '', { families = [], familiesAll = [], why = null } = {}) {
   if (!instanceId) return
   const d = Number.isInteger(dropped) && dropped > 0 ? dropped : 0
   const h = Number.isInteger(held) && held >= d ? held : d
-  const fams = [...new Set((Array.isArray(families) ? families : []).filter((f) => typeof f === 'string' && f))].sort()
-  // ⭐ DIV-3 r2 — family → sentence, for a family withheld whole by a named guard
-  // (`withheldWhy`); kept in family order so equal inputs are equal entries.
+  const clean = (list) => [...new Set((Array.isArray(list) ? list : []).filter((f) => typeof f === 'string' && f))].sort()
+  const fams = clean(families)
+  const all = clean(familiesAll)
+  // ⭐ DIV-3 r2 — kept in family order so equal inputs are equal entries.
   const whyE = why && typeof why === 'object'
     ? Object.entries(why).filter(([f, t]) => typeof f === 'string' && f && typeof t === 'string' && t).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     : []
   const own = scoped(scope)
   const had = own ? own.get(instanceId) : undefined
-  if (!d && !fams.length && !whyE.length) {
+  if (!d && !fams.length && !all.length && !whyE.length) {
     if (had) {
       own.delete(instanceId)
       if (!own.size) drops.delete(scope || '')
@@ -59,10 +63,10 @@ export function setObjectRenderDrops(instanceId, dropped, held, scope = '', fami
     }
     return
   }
-  const entry = { dropped: d, held: h, ...(fams.length ? { families: fams } : {}),
+  const entry = { dropped: d, held: h, ...(fams.length ? { families: fams } : {}), ...(all.length ? { familiesAll: all } : {}),
     ...(whyE.length ? { why: Object.fromEntries(whyE) } : {}) }
   if (had && had.dropped === d && had.held === h
-    && (had.families || []).join(',') === fams.join(',')
+    && (had.families || []).join(',') === fams.join(',') && (had.familiesAll || []).join(',') === all.join(',')
     && JSON.stringify(had.why || {}) === JSON.stringify(entry.why || {})) return
   if (own) own.set(instanceId, entry)
   else drops.set(scope || '', new Map([[instanceId, entry]]))
@@ -74,7 +78,8 @@ export function objectRenderDropsFor(instanceId, scope = '') {
   const own = scoped(scope)
   if (!own || !own.has(instanceId)) return null
   const e = own.get(instanceId)
-  return { ...e, ...(e.families ? { families: [...e.families] } : {}), ...(e.why ? { why: { ...e.why } } : {}) }
+  return { ...e, ...(e.families ? { families: [...e.families] } : {}), ...(e.familiesAll ? { familiesAll: [...e.familiesAll] } : {}),
+    ...(e.why ? { why: { ...e.why } } : {}) }
 }
 
 /** ⭐ Subscribe; returns the unsubscribe. */

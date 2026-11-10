@@ -41,6 +41,38 @@ import {
   formatDateTimeEt,
   formatFreshnessAsOf,
 } from './presentationPrimitives'
+import { formatWeekdayDateTimeEt, formatSessionDate } from './presentationDates'
+
+describe('formatWeekdayDateTimeEt', () => {
+  const plain = (s) => (s === null ? s : s.replace(/ /g, ' '))
+
+  it('reads the instant in New York, whatever the zone of the viewer', () => {
+    // 01:30 UTC on Saturday is still Friday evening in New York.
+    expect(plain(formatWeekdayDateTimeEt(Date.UTC(2026, 10, 7, 1, 30) / 1000))).toBe('Fri Nov 6, 8:30 PM')
+    expect(plain(formatWeekdayDateTimeEt(Date.UTC(2026, 10, 6, 20, 47) / 1000))).toBe('Fri Nov 6, 3:47 PM')
+  })
+
+  it('takes a zone suffix and an absent value', () => {
+    expect(plain(formatWeekdayDateTimeEt(Date.UTC(2026, 10, 6, 20, 47) / 1000, { zoneSuffix: 'ET' })))
+      .toBe('Fri Nov 6, 3:47 PM ET')
+    expect(formatWeekdayDateTimeEt(null)).toBeNull()
+    expect(formatWeekdayDateTimeEt(undefined, { absent: '' })).toBe('')
+  })
+})
+
+describe('formatSessionDate', () => {
+  it('names the day it was given', () => {
+    expect(formatSessionDate('2026-10-14')).toBe('Oct 14')
+    expect(formatSessionDate('2026-01-01')).toBe('Jan 1')
+  })
+
+  it('gives the absent value for anything that is not a real date', () => {
+    expect(formatSessionDate('2026-13-40')).toBe('')
+    expect(formatSessionDate('2026-02-31')).toBe('')
+    expect(formatSessionDate(null, { absent: 'x' })).toBe('x')
+    expect(formatSessionDate('soon')).toBe('')
+  })
+})
 
 // ──────────────────────────────────────────────────────────────────────────
 // THE FROZEN PRE-S10 IMPLEMENTATIONS. Copied character-for-character from the

@@ -19,7 +19,7 @@ describe('⭐ objectRenderNotice — a sentence change is a change, a repeat is 
     onObjectRenderDropsChange(() => { emits += 1 })
     const S1 = 'This table is not shown: one.'
     const S2 = 'This table is not shown: two.'
-    const step = (why) => { const before = emits; setObjectRenderDrops('i1', 1, 2, 's', [], why); return emits - before }
+    const step = (why) => { const before = emits; setObjectRenderDrops('i1', 1, 2, 's', { why }); return emits - before }
 
     expect(step(null)).toBe(1)
     expect(objectRenderDropsFor('i1', 's')).toEqual({ dropped: 1, held: 2 })
@@ -38,7 +38,7 @@ describe('⭐ objectRenderNotice — a sentence change is a change, a repeat is 
 
     // and it clears
     const before = emits
-    setObjectRenderDrops('i1', 0, 0, 's', [], null)
+    setObjectRenderDrops('i1', 0, 0, 's', {})
     expect(emits - before).toBe(1)
     expect(objectRenderDropsFor('i1', 's')).toBe(null)
   })
