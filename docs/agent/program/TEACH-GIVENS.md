@@ -30,13 +30,26 @@ Evidence is under `evidence/teach-givens/`. Raw runner output was committed befo
 - **Routing family fix** (`words.js` `answer`): an AI answer named indirectly ("the response", "what the AI said / wrote / told me") went from 0/5 to 5/5 (HG-03 and HG-18 to HG-21). C3-198 to C3-200 still pass after it.
   - Known widening: "response" now carries the answer concept, so a request like "response time" does too. It routes nowhere new in the 30 guide rail files.
 
-## Still failing, and why (findings, nothing fixed)
-- **C2-070 and C2-071 (builder signal options): a walkthrough gap, not a given.**
-  - The options show only after the member types a yes/no formula and picks Signal inside the sheet the walkthrough itself opens (New formula resets it).
-  - Proposal: add a "type a formula such as close > open" step and a "choose Signal" step before the last step.
-- **C3-122 (Volume Surge Delete or Rename list): a walkthrough gap, not a product bug.**
-  - The member's list is present (the existing `volume_scan_lists` rule). Delete list and Rename are inside the list picker's menu (`VolumeScanLists.jsx`, `open &&`), which is portaled to `document.body`.
-  - The walkthrough has no step that opens the picker, and its target is scoped to the widget (`w()` adds `widgetType`), so it can't find the portaled row.
-  - Proposal: an `open` step on the existing `data-guide="volumeScan.scope"`, and a final target that is not widget-scoped. No new attribute is needed.
-- **C3-219 (ETF holdings):** not investigated.
-- **Harness defect (test-only):** `agentHarness.jsx ?defs=1` answers GET `/api/user-definitions` with a bare array. The app's fetcher requires `{ definitions: [...] }` and rejects anything else as malformed. In the teach runner the live relay also takes every `/api/user-definitions` call first.
+## Walkthrough-gap families (after the first doc, 2026-11-10)
+Held-out first (`4001ec8cd0`), BEFORE raw (`ea3689276a`), fixes in `c5586a7b1c` and `4111ddec2a`, AFTER raw with attempts 1-4 kept.
+- **A signal's in-sheet steps (C2-070, C2-071).** The walkthrough types a yes/no formula ("such as close > open") and chooses Signal, by the choice's own label (`INTENT_LABELS.signal`, railed), before the last step.
+- **Portaled widget menus (C3-122).** `w()` has a `portaled` flag: the target is found in a menu on the page, outside every board cell, and never in another widget. The Volume Surge walkthrough opens the list picker first.
+- **Which line an alert watches (`ALERT_LINE_ASK`).** "Which line / plot / series an alert watches" is an indicator's line (the alert form's Plot), never a drawn line.
+- **Runner (test-only, `4111ddec2a`).**
+  - It types real keys into the one visible editor inside a ring. CodeMirror reads key input, not a value.
+  - It wheels a covered control clear before clicking.
+  - The `intent-*` test-id branch of `agentGuideTargets` was removed with the target that used it. The Signal step is now a label, railed against the product's own copy in `agentGuideGapFamilies`.
+
+## Final numbers (LOCAL, BROWSER-MOCK-MODEL, fresh Vite)
+| set | head | result | evidence |
+|---|---|---|---|
+| the 14 pre-state rows | `4111ddec2a` | **13/14**. C3-219 is still failing: its last step shows the fallback "View Holdings shows on a chart of an ETF or an index", so the harness chart is not one. It needs an ETF-chart given, not built. | `final/inventory.results.json` |
+| held-out (`cases.givens.heldout.json`) | `4111ddec2a` | **24/27**. HG-14, HG-15 and HG-17 are why-questions about an alert. They reach no walkthrough (a routing family, not givens). | `final/heldout.results.json` |
+| the runner change: the 24 cases with a typing step that last passed (runs 11-07..11-09, matched by id) | `4111ddec2a` | **24/24**. None missing, none extra. | `final/runner-regression-typing.results.json` |
+| the runner change: the whole inventory (318 cases) | `4111ddec2a` | **308/318**. **0 newly failing** against `runs/2026-11-09.cov5b`, compared by id. 13 newly passing: C1-045, C2-007, C2-070, C2-071, C2-091, C2-092, C2-100, C3-122, C3-198, C3-199, C3-200, C3-203, C3-210. | `final/inventory-full-318.results.json` |
+
+**Known failures, all pre-existing** (failing in every run since 2026-11-07, from `final` through `cov5b`): C1-152 and C1-153 (no point of the named region opens the row), C3-023, C3-058, C3-120, C3-136, C3-146, C3-183, C3-184 and C3-219.
+
+## Findings still open (nothing fixed)
+- **C3-219 (ETF holdings):** it needs a given for an ETF or index chart. Not built.
+- **Harness defect (test-only): FIXED in `c5586a7b1c`.** `agentHarness.jsx ?defs=1` answered GET `/api/user-definitions` with a bare array. It now answers `{ definitions: [...] }`, the shape the app's fetcher requires. In the teach runner the live relay still takes every `/api/user-definitions` call first, so `savedIndicator` serves its row on that route.
