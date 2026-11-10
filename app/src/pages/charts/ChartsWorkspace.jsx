@@ -60,8 +60,8 @@ import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
 import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, boardWindowName, widgetWindowName, planDeskRepop } from './popout/deskStore'
-import { isDesktopApp } from '../../lib/desktopBridge'
-import { finishDeskLaunch } from '../../lib/popoutRegistry'
+import { hasDesktopFeature } from '../../lib/desktopBridge'
+import { announceDeskLaunchBlocked, finishDeskLaunch } from '../../lib/popoutRegistry'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
@@ -338,6 +338,8 @@ const WIDGET_DEFAULTS = Object.fromEntries(
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 // A lock the browser never grants must not strand the desk behind it.
 const DESK_LOCK_WAIT_MS = 3000
+// Restoring the desk needs a quit that keeps its records, so a bridge without it behaves as a browser.
+const deskRestoresItself = () => hasDesktopFeature('before-quit')
 // A widget's own desk record, kept in the desktop app so its window comes back at launch.
 const widgetRecordId = (widgetId) => `pw-${widgetId}`
 const POPOUT_NOT_CRASH_SAFE_MSG = 'This pop-out is not crash-safe: it could not be recorded on this device, so a reload or crash would lose it. Close the window to bring the board back here.'
@@ -2577,11 +2579,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     saveRecord(deskUidRef.current, { kind: 'widget', id: widgetRecordId(id), widgetId: id, windowName: widgetWindowName(id) }, deskOwnerRef.current)
   }, [])
   const dropWidgetRecord = useCallback((id) => {
-    if (isDesktopApp()) confirmRestored(deskUidRef.current, widgetRecordId(id), deskOwnerRef.current)
+    if (deskRestoresItself()) confirmRestored(deskUidRef.current, widgetRecordId(id), deskOwnerRef.current)
   }, [])
   const handlePopOutWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutAddWidgetId(prev, id))
-    if (isDesktopApp()) saveWidgetRecord(id)
+    if (deskRestoresItself()) saveWidgetRecord(id)
   }, [saveWidgetRecord])
   const handleDockWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
@@ -3055,15 +3057,15 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   }
   useEffect(() => {
     if (!deskRestoreReady || !deskUid || isMobile) return
-    if (isDesktopApp()) repopDeskRef.current?.()
+    if (deskRestoresItself()) repopDeskRef.current?.()
     else offerDeskRestoreRef.current?.()
   }, [deskRestoreReady, deskUid, isMobile])
   // ⛔ An effect, not the finally above: this runs after the commit that mounts the windows, and a
   // child's effect (registerPopout) runs before its parent's. Clearing the signal sooner lets
   // ChartsDeskHost see no signal and no window, and unmount the desk it was asked to hold.
   useEffect(() => {
-    if (deskRepopSettled || isMobile) finishDeskLaunch()
-  }, [deskRepopSettled, isMobile])
+    if (deskRepopSettled || isMobile || storedLayoutUnreadable) finishDeskLaunch()
+  }, [deskRepopSettled, isMobile, storedLayoutUnreadable])
 
   const runNamedSave = useCallback(() => {
     namedSaveRef.current?.()
@@ -3763,6 +3765,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     )
   }
 
+  // The board's notice shows only with the board, so a refusal behind another page goes to the
+  // app-level toast. The workspace itself may unmount right after, taking the notice with it.
+  const showPopupBlocked = () => {
+    setPopoutNotice(POPUP_BLOCKED_MSG)
+    if (boardHidden) announceDeskLaunchBlocked()
+  }
+
   const mainGridHandlers = {
     onLayoutChange: handleLayoutChange,
     onDragStart: handleDragStart,
@@ -4107,7 +4116,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             width={900}
             height={700}
             onClose={() => handleDockWidget(w.id)}
-            onBlocked={() => { handleDockWidget(w.id); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onBlocked={() => { handleDockWidget(w.id); showPopupBlocked() }}
           >
             <PopoutShell theme={chartsTheme}>
               <WidgetHost
@@ -4134,7 +4143,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             initialRowHeight={rowHeight}
             merged={merged}
             onClose={(widgets) => handleDockLayout(pl.id, widgets)}
-            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); showPopupBlocked() }}
             onWidgetsChange={(widgets) => trackPoppedBoard(pl.id, widgets)}
           />
         ))}

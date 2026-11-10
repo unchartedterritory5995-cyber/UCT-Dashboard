@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import DesktopBridgeSync, { QUIT_STILL_ALIVE_MS } from './DesktopBridgeSync'
 import { __resetAppClosingForTests, isAppClosing } from '../lib/appClosing'
-import { finishDeskLaunch, isDeskLaunchPending } from '../lib/popoutRegistry'
+import { announceDeskLaunchBlocked, finishDeskLaunch, isDeskLaunchBlocked, isDeskLaunchPending, withdrawDeskLaunch } from '../lib/popoutRegistry'
 import { __resetPrefsSessionForTests, publishPrefsUser } from '../lib/prefsSession'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
-beforeEach(() => { delete window.uctDesktop; localStorage.clear(); __resetPrefsSessionForTests(); finishDeskLaunch(); window.opener = null })
-afterEach(() => { cleanup(); delete window.uctDesktop; vi.useRealTimers(); __resetAppClosingForTests(); __resetPrefsSessionForTests(); finishDeskLaunch(); localStorage.clear(); window.opener = null; window.history.replaceState({}, '', '/') })
+beforeEach(() => { delete window.uctDesktop; localStorage.clear(); __resetPrefsSessionForTests(); withdrawDeskLaunch(); window.opener = null })
+afterEach(() => { cleanup(); delete window.uctDesktop; vi.useRealTimers(); __resetAppClosingForTests(); __resetPrefsSessionForTests(); withdrawDeskLaunch(); localStorage.clear(); window.opener = null; window.history.replaceState({}, '', '/') })
 
 function makeBridge(overrides = {}) {
   const quit = new Set()
@@ -42,6 +42,10 @@ describe('DesktopBridgeSync', () => {
 })
 
 describe('the desktop app quitting', () => {
+  it('stays closing for a full minute, longer than a member sits on a Leave or Stay dialog', () => {
+    expect(QUIT_STILL_ALIVE_MS).toBe(60000)
+  })
+
   it('marks the app closing and only then acks, so no window closing can dock a board', () => {
     const bridge = makeBridge({ ackBeforeQuit: vi.fn(() => { expect(isAppClosing()).toBe(true) }) })
     window.uctDesktop = bridge
@@ -138,6 +142,23 @@ describe('the launch restore signal', () => {
     expect(isDeskLaunchPending()).toBe(false)
   })
 
+  it('a leaf arriving after the workspace already settled cannot leave the signal stuck', () => {
+    inShell()
+    seed('A')
+    publishPrefsUser('A')
+    finishDeskLaunch()                                        // the workspace answered first
+    render(<DesktopBridgeSync />)                             // the leaf's chunk lands late
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
+  it('a bridge without the before-quit methods asks for nothing, as a browser would', () => {
+    window.uctDesktop = makeBridge({ capabilities: ['window-state'] })
+    seed('A')
+    render(<DesktopBridgeSync />)
+    act(() => publishPrefsUser('A'))
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
   it('a sign-out withdraws a pending restore', () => {
     inShell()
     seed('A')
@@ -145,6 +166,19 @@ describe('the launch restore signal', () => {
     act(() => publishPrefsUser('A'))
     act(() => publishPrefsUser(null))
     expect(isDeskLaunchPending()).toBe(false)
+  })
+})
+
+describe('a board that could not reopen at launch while on another page', () => {
+  it('tells the member outside the board, and the toast dismisses', () => {
+    window.uctDesktop = makeBridge()
+    render(<DesktopBridgeSync />)
+    expect(screen.queryByTestId('desk-launch-blocked-toast')).toBeNull()
+    act(() => announceDeskLaunchBlocked())
+    expect(screen.getByTestId('desk-launch-blocked-toast')).toHaveTextContent(/back on your Charts page/i)
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /dismiss/i })) })
+    expect(screen.queryByTestId('desk-launch-blocked-toast')).toBeNull()
+    expect(isDeskLaunchBlocked()).toBe(false)
   })
 })
 

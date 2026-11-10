@@ -35,11 +35,11 @@ export function hasDesktopFeature(name) {
   return methods.every((m) => typeof b[m] === 'function')
 }
 
-function subscribe(feature, method, cb) {
+function subscribe(feature, call) {
   if (!hasDesktopFeature(feature)) return noop
   let off
   try {
-    off = getBridge()[method](cb)
+    off = call(getBridge())
   } catch {
     return noop
   }
@@ -49,9 +49,9 @@ function subscribe(feature, method, cb) {
   }
 }
 
-export function onWindowState(cb) { return subscribe('window-state', 'onWindowState', cb) }
+export function onWindowState(cb) { return subscribe('window-state', (b) => b.onWindowState(cb)) }
 
-export function onBeforeQuit(cb) { return subscribe('before-quit', 'onBeforeQuit', cb) }
+export function onBeforeQuit(cb) { return subscribe('before-quit', (b) => b.onBeforeQuit(cb)) }
 
 export function ackBeforeQuit() {
   if (!hasDesktopFeature('before-quit')) return

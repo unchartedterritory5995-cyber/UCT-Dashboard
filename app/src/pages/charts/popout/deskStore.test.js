@@ -288,7 +288,7 @@ describe('planDeskRepop', () => {
     ])
   })
 
-  it('a widget whose id is on a popped board does not also re-pop singly', () => {
+  it('a widget on the main board re-pops singly, and the board holding only that widget is dropped', () => {
     const plan = planDeskRepop([board('pl-1', 'a1'), single('a1')], ['a1'])
     expect(plan.widgetIds).toEqual(['a1'])
     expect(plan.drop).toEqual(['pl-1'])

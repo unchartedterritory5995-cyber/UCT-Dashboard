@@ -57,7 +57,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 import ChartsWorkspace from './ChartsWorkspace'
 import { publishPrefsUser, __resetPrefsSessionForTests } from '../../lib/prefsSession'
 import { markAppClosing, __resetAppClosingForTests } from '../../lib/appClosing'
-import { requestDeskLaunch, finishDeskLaunch, isDeskLaunchPending, hasOpenPopouts } from '../../lib/popoutRegistry'
+import { requestDeskLaunch, withdrawDeskLaunch, isDeskLaunchPending, isDeskLaunchBlocked, hasOpenPopouts } from '../../lib/popoutRegistry'
 
 const widget = (id, x = 0) => ({ id, type: 'scanner', color: 'C', x, y: 0, w: 6, h: 10, opts: {} })
 const board = (...widgets) => JSON.stringify({ widgets, cols: 24, version: 1 })
@@ -172,7 +172,7 @@ afterEach(() => {
   delete navigator.locks
   __resetPrefsSessionForTests()
   __resetAppClosingForTests()
-  finishDeskLaunch()
+  withdrawDeskLaunch()
   delete window.uctDesktop
   window.history.replaceState({}, '', '/')
 })
@@ -555,7 +555,16 @@ describe('two members on one machine', () => {
 })
 
 describe('launch restore in the desktop app', () => {
-  const inShell = () => { window.uctDesktop = { bridgeVersion: 1, capabilities: ['window-state', 'before-quit'] } }
+  const inShell = () => {
+    window.uctDesktop = {
+      bridgeVersion: 1,
+      capabilities: ['window-state', 'before-quit'],
+      onBeforeQuit: () => () => {},
+      ackBeforeQuit: () => {},
+      onWindowState: () => () => {},
+      getInfo: async () => ({}),
+    }
+  }
   const seedWidget = (uid, widgetId) => localStorage.setItem(recordKey(uid, `pw-${widgetId}`), JSON.stringify({
     kind: 'widget', id: `pw-${widgetId}`, widgetId, windowName: `uct-widget-${widgetId}`, tabId: 'a-page-that-is-gone',
   }))
@@ -698,11 +707,56 @@ describe('launch restore in the desktop app', () => {
     expect(isDeskLaunchPending()).toBe(false)
   })
 
+  test('an unreadable stored layout clears the signal, and opens nothing', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1')])
+    requestDeskLaunch()
+    mockPrefs = { charts_workspace_layout: '{ this is not a layout' }
+    await renderWS()
+    expect(isDeskLaunchPending()).toBe(false)
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(recordKeys()).toHaveLength(1)
+  })
+
+  test('a null window.open while the board is hidden tells the member outside the board', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1', 12)])
+    openSpy.mockImplementation(() => null)
+    render(<MemoryRouter><ChartsWorkspace hidden /></MemoryRouter>)
+    await flush()
+    expect(isDeskLaunchBlocked()).toBe(true)
+  })
+
+  test('a null window.open on the visible board stays with the board notice alone', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1', 12)])
+    openSpy.mockImplementation(() => null)
+    await renderWS()
+    expect(screen.getByRole('alert')).toHaveTextContent(/blocked/i)
+    expect(isDeskLaunchBlocked()).toBe(false)
+  })
+
   test('a launch with nothing orphaned clears the signal', async () => {
     requestDeskLaunch()
     await renderWS()
     expect(isDeskLaunchPending()).toBe(false)
     expect(openSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('a bridge without the before-quit methods behaves as a browser', () => {
+  const partial = () => { window.uctDesktop = { bridgeVersion: 1, capabilities: ['window-state'], onWindowState: () => () => {} } }
+
+  test('a board is offered through the notice, and no window opens', async () => {
+    partial()
+    seedOrphan('A', 'pl-1', [widget('r1')])
+    await renderWS()
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(restoreButton()).toBeTruthy()
+  })
+
+  test('popping a widget writes no record', async () => {
+    partial()
+    await renderWS()
+    act(() => { fireEvent.click(screen.getByTestId('popout-a1')) })
+    expect(recordKeys()).toEqual([])
   })
 })
 

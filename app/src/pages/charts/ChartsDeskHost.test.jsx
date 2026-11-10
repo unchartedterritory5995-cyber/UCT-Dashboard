@@ -28,7 +28,7 @@ vi.mock('./ChartsWorkspace', async () => {
 })
 
 import ChartsDeskHost, { ChartsRouteSlot } from './ChartsDeskHost'
-import { registerPopout, requestDeskLaunch, finishDeskLaunch } from '../../lib/popoutRegistry'
+import { registerPopout, requestDeskLaunch, finishDeskLaunch, withdrawDeskLaunch, isDeskLaunchPending } from '../../lib/popoutRegistry'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
@@ -56,7 +56,7 @@ async function renderAt(route) {
 const go = (to) => act(async () => { navigate(to) })
 
 beforeEach(() => { counters.renders = 0; counters.mounts = 0; counters.unmounts = 0 })
-afterEach(() => { cleanup(); finishDeskLaunch() })
+afterEach(() => { cleanup(); withdrawDeskLaunch() })
 
 describe('ChartsDeskHost', () => {
   it('mounts the workspace visible on /charts and nowhere else when nothing is popped', async () => {
@@ -134,6 +134,14 @@ describe('ChartsDeskHost', () => {
       expect(screen.getByTestId('workspace').dataset.hidden).toBe('y')
       expect(counters.mounts).toBe(1)
       act(() => release())
+      expect(screen.queryByTestId('workspace')).toBeNull()
+    })
+
+    it('a request that lands after the workspace settled does not hold it', async () => {
+      finishDeskLaunch()
+      requestDeskLaunch()
+      expect(isDeskLaunchPending()).toBe(false)
+      await renderAt('/dashboard')
       expect(screen.queryByTestId('workspace')).toBeNull()
     })
 

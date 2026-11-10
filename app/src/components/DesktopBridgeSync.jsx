@@ -6,15 +6,17 @@
 // shared context, because a shared render loop froze navigation app-wide for 4.5 hours in September.
 import { useEffect, useSyncExternalStore } from 'react'
 import DesktopStaleBanner from './DesktopStaleBanner'
-import { ackBeforeQuit, onBeforeQuit } from '../lib/desktopBridge'
+import DesktopDeskToast from './DesktopDeskToast'
+import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit } from '../lib/desktopBridge'
 import { clearAppClosing, markAppClosing } from '../lib/appClosing'
-import { finishDeskLaunch, requestDeskLaunch } from '../lib/popoutRegistry'
+import { requestDeskLaunch, withdrawDeskLaunch } from '../lib/popoutRegistry'
 import { onPrefsUserChange, prefsUser } from '../lib/prefsSession'
 import { isTerminalPopoutChild } from '../lib/reloadGuard'
 import { hasDeskRecords } from '../pages/charts/popout/deskStore'
 
-// A real quit closes well within this (the shell waits at most 500 ms for the ack).
-export const QUIT_STILL_ALIVE_MS = 10000
+// A real quit closes well within this, and a Leave or Stay dialog over unsaved text is what can
+// hold one open. Clearing inside that wait would dock boards a Leave is about to carry through.
+export const QUIT_STILL_ALIVE_MS = 60000
 
 export default function DesktopBridgeSync() {
   // A quit must not dock boards: the windows closing are part of it, and docking would delete the
@@ -38,12 +40,17 @@ export default function DesktopBridgeSync() {
   const uid = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser) ?? null
   useEffect(() => {
     if (!uid) {
-      finishDeskLaunch()
+      withdrawDeskLaunch()
       return
     }
-    if (window.opener || isTerminalPopoutChild()) return
+    if (!hasDesktopFeature('before-quit') || window.opener || isTerminalPopoutChild()) return
     if (hasDeskRecords(uid)) requestDeskLaunch()
   }, [uid])
 
-  return <DesktopStaleBanner />
+  return (
+    <>
+      <DesktopStaleBanner />
+      <DesktopDeskToast />
+    </>
+  )
 }
