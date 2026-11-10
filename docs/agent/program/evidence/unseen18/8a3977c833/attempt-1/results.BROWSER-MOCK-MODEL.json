@@ -1,0 +1,1104 @@
+{
+ "MODE": "BROWSER-MOCK-MODEL",
+ "statement": "BROWSER-MOCK-MODEL (real UI in headless Chrome, SCRIPTED model). Proves the plan executes on real components. Proves nothing about whether a model picks that plan.",
+ "meta": {
+  "partial": false,
+  "set": "unseen18",
+  "hash": "6846cf3d6b04afb8eba2f8b1b7c846ff6a77ae4848b305a00f9fa87ffb6db8f5",
+  "stopped": null
+ },
+ "totals": {
+  "requests": 42,
+  "passed": 29,
+  "failed": 13,
+  "notRunInThisMode": 0,
+  "publicRequests": 42,
+  "heldoutRequests": 0,
+  "heldoutPassed": 0,
+  "modelCalls": 51,
+  "localOnly": 0,
+  "checksGraded": 175,
+  "checksNotReadable": 0,
+  "byLayer": {
+   "read-back": 4,
+   "interpretation": 3,
+   "primitive": 5,
+   "validation": 1
+  }
+ },
+ "failureFamilies": [
+  {
+   "family": "primitive|watchlist.arrangeColumns|one undo restores the board",
+   "layer": "primitive",
+   "action": "watchlist.arrangeColumns",
+   "check": "one undo restores the board",
+   "count": 5,
+   "requests": [
+    "u18-cols-01",
+    "u18-cols-02",
+    "u18-cols-03",
+    "u18-cols-04",
+    "u18-cols-06"
+   ],
+   "sample": "u18-cols-01"
+  },
+  {
+   "family": "interpretation|widget.setOption|no success receipt",
+   "layer": "interpretation",
+   "action": "widget.setOption",
+   "check": "no success receipt",
+   "count": 2,
+   "requests": [
+    "u18-refresh-10",
+    "u18-look-07"
+   ],
+   "sample": "u18-refresh-10"
+  },
+  {
+   "family": "read-back|widget.setOption|scanGets.byRoute./api/scans/ipo-Ny changed",
+   "layer": "read-back",
+   "action": "widget.setOption",
+   "check": "scanGets.byRoute./api/scans/ipo-1y changed",
+   "count": 1,
+   "requests": [
+    "u18-refresh-06"
+   ],
+   "sample": "u18-refresh-06"
+  },
+  {
+   "family": "read-back|widget.setOption|faces.watchlist re Top Ideas",
+   "layer": "read-back",
+   "action": "widget.setOption",
+   "check": "faces.watchlist re Top Ideas",
+   "count": 1,
+   "requests": [
+    "u18-flagged-01"
+   ],
+   "sample": "u18-flagged-01"
+  },
+  {
+   "family": "read-back|widget.setOption|faces.watchlist re Shortlist",
+   "layer": "read-back",
+   "action": "widget.setOption",
+   "check": "faces.watchlist re Shortlist",
+   "count": 1,
+   "requests": [
+    "u18-flagged-02"
+   ],
+   "sample": "u18-flagged-02"
+  },
+  {
+   "family": "interpretation|watchlist.arrangeColumns|nothing changed",
+   "layer": "interpretation",
+   "action": "watchlist.arrangeColumns",
+   "check": "nothing changed",
+   "count": 1,
+   "requests": [
+    "u18-cols-07"
+   ],
+   "sample": "u18-cols-07"
+  },
+  {
+   "family": "validation|watchlist.showList|written re watchKey\\W+user:lN",
+   "layer": "validation",
+   "action": "watchlist.showList",
+   "check": "written re watchKey\\W+user:l1",
+   "count": 1,
+   "requests": [
+    "u18-show-05"
+   ],
+   "sample": "u18-show-05"
+  },
+  {
+   "family": "read-back|watchlist.exportList|a receipt reports the change",
+   "layer": "read-back",
+   "action": "watchlist.exportList",
+   "check": "a receipt reports the change",
+   "count": 1,
+   "requests": [
+    "u18-export-04"
+   ],
+   "sample": "u18-export-04"
+  }
+ ],
+ "heldoutFailuresByFamilyAndLayer": {},
+ "rows": [
+  {
+   "id": "u18-refresh-01",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3361,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-02",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3690,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-03",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-208"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3358,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-04",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-208"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3680,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-05",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA",
+   "inventory": [
+    "C3-208"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3374,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-06",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3404,
+   "path": "model",
+   "layer": "read-back",
+   "why": "a success receipt with no change on the board",
+   "firstCheck": "scanGets.byRoute./api/scans/ipo-1y changed",
+   "failed": [
+    {
+     "name": "scanGets.byRoute./api/scans/ipo-1y changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "scanGets.period same",
+     "detail": "got 2 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "the receipt is backed by a real change",
+     "detail": "a receipt, and nothing changed on the board",
+     "tag": "readback"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "don't touch the period sort, just reload the scanner"
+   ]
+  },
+  {
+   "id": "u18-refresh-07",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3400,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-08",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-108"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3393,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-09",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3365,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-10",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3357,
+   "path": "model",
+   "layer": "interpretation",
+   "why": "it acted or answered where it had to ask",
+   "firstCheck": "no success receipt",
+   "failed": [
+    {
+     "name": "no success receipt",
+     "detail": "Refreshed the Scanner",
+     "tag": "receipt"
+    },
+    {
+     "name": "it asked",
+     "detail": "Harness\n3:05 PM\nrefresh the scanner // UCT Agent\n3:05 PM\nRefreshed the Scanner",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "refresh the scanner"
+   ]
+  },
+  {
+   "id": "u18-look-01",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3368,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-02",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3854,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-03",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3385,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-04",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3391,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-05",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "combo",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3548,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-06",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3355,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-07",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 6,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3381,
+   "path": "model",
+   "layer": "interpretation",
+   "why": "it acted or answered where it had to ask",
+   "firstCheck": "no success receipt",
+   "failed": [
+    {
+     "name": "no success receipt",
+     "detail": "The Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)",
+     "tag": "receipt"
+    },
+    {
+     "name": "it asked",
+     "detail": "Harness\n3:07 PM\nmake the watchlist background black // UCT Agent\n3:07 PM\nThe Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)",
+     "tag": "clarify"
+    },
+    {
+     "name": "written notRe #000000",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "make the watchlist background black"
+   ]
+  },
+  {
+   "id": "u18-look-08",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3394,
+   "path": "model"
+  },
+  {
+   "id": "u18-looks-01",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3978,
+   "path": "model"
+  },
+  {
+   "id": "u18-looks-02",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3392,
+   "path": "model"
+  },
+  {
+   "id": "u18-looks-03",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3963,
+   "path": "model"
+  },
+  {
+   "id": "u18-looks-04",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3403,
+   "path": "model"
+  },
+  {
+   "id": "u18-flagged-01",
+   "set": "unseen18",
+   "family": "u18-flagged",
+   "kind": "phrasing",
+   "board": "DATAF",
+   "inventory": [
+    "C3-074"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3679,
+   "path": "model",
+   "layer": "read-back",
+   "why": "a success receipt with no change on the board",
+   "firstCheck": "faces.watchlist re Top Ideas",
+   "failed": [
+    {
+     "name": "faces.watchlist re Top Ideas",
+     "detail": "got WATCHLIST\n+\n▣\n⧉\n‹ Lists\nFlagged\n⋯\nSymbol\nPrice\nVol\n% Chg\nNo flagged tickers. Press Shift+F on any chart.\n0 stocks",
+     "tag": "state"
+    },
+    {
+     "name": "the receipt is backed by a real change",
+     "detail": "a receipt, and nothing changed on the board",
+     "tag": "readback"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "rename flagged to Top Ideas"
+   ]
+  },
+  {
+   "id": "u18-flagged-02",
+   "set": "unseen18",
+   "family": "u18-flagged",
+   "kind": "phrasing",
+   "board": "DATAF",
+   "inventory": [
+    "C3-074"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3684,
+   "path": "model",
+   "layer": "read-back",
+   "why": "a success receipt with no change on the board",
+   "firstCheck": "faces.watchlist re Shortlist",
+   "failed": [
+    {
+     "name": "faces.watchlist re Shortlist",
+     "detail": "got WATCHLIST\n+\n▣\n⧉\n‹ Lists\nFlagged\n⋯\nSymbol\nPrice\nVol\n% Chg\nNo flagged tickers. Press Shift+F on any chart.\n0 stocks",
+     "tag": "state"
+    },
+    {
+     "name": "the receipt is backed by a real change",
+     "detail": "a receipt, and nothing changed on the board",
+     "tag": "readback"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "call my flagged list Shortlist instead"
+   ]
+  },
+  {
+   "id": "u18-flagged-03",
+   "set": "unseen18",
+   "family": "u18-flagged",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-074"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3666,
+   "path": "model"
+  },
+  {
+   "id": "u18-cols-01",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3373,
+   "path": "model",
+   "layer": "primitive",
+   "why": "Undo did not restore the board",
+   "firstCheck": "one undo restores the board",
+   "failed": [
+    {
+     "name": "one undo restores the board",
+     "detail": "{\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78 -> {\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78",
+     "tag": "undo"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "put % change right before price on my watchlist"
+   ]
+  },
+  {
+   "id": "u18-cols-02",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3357,
+   "path": "model",
+   "layer": "primitive",
+   "why": "Undo did not restore the board",
+   "firstCheck": "one undo restores the board",
+   "failed": [
+    {
+     "name": "one undo restores the board",
+     "detail": "{\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78 -> {\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78",
+     "tag": "undo"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "move volume to the end of the watchlist columns"
+   ]
+  },
+  {
+   "id": "u18-cols-03",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-086"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3826,
+   "path": "model",
+   "layer": "primitive",
+   "why": "Undo did not restore the board",
+   "firstCheck": "one undo restores the board",
+   "failed": [
+    {
+     "name": "one undo restores the board",
+     "detail": "{\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78 -> {\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78",
+     "tag": "undo"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "widen the symbol column to 150 px"
+   ]
+  },
+  {
+   "id": "u18-cols-04",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-086"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3399,
+   "path": "model",
+   "layer": "primitive",
+   "why": "Undo did not restore the board",
+   "firstCheck": "one undo restores the board",
+   "failed": [
+    {
+     "name": "one undo restores the board",
+     "detail": "{\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78 -> {\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-psort@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch@739,72,357,78",
+     "tag": "undo"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "make the price column 70 wide"
+   ]
+  },
+  {
+   "id": "u18-cols-05",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-086"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3716,
+   "path": "model"
+  },
+  {
+   "id": "u18-cols-06",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3390,
+   "path": "model",
+   "layer": "primitive",
+   "why": "Undo did not restore the board",
+   "firstCheck": "one undo restores the board",
+   "failed": [
+    {
+     "name": "one undo restores the board",
+     "detail": "{\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-scan2@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch2@739,469,357, -> {\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,null]\"},\"widgets\":[\"w-chart-a@12,72,357,788\",\"w-scan2@375,469,357,391\",\"w-scan@375,72,357,391\",\"w-watch2@739,469,357,",
+     "tag": "undo"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "on the Swing list, move volume right after symbol"
+   ]
+  },
+  {
+   "id": "u18-cols-07",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3380,
+   "path": "model",
+   "layer": "interpretation",
+   "why": "it acted or answered where it had to ask",
+   "firstCheck": "nothing changed",
+   "failed": [
+    {
+     "name": "nothing changed",
+     "detail": "{\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,\\\"74dc3e39.78d45515.a2854f78.2f88a865.31adb1b5.eaeb276d.6c048974.9c547bd5.165b933f.eb93c465.eb93c -> {\"charts\":{\"A\":\"[\\\"SPY\\\",\\\"D\\\",\\\"linear\\\",\\\"RTH\\\",true,[\\\"EMA 9\\\",\\\"EMA 20\\\",\\\"SMA 50\\\",\\\"SMA 200\\\"],3,\\\"74dc3e39.78d45515.a2854f78.2f88a865.31adb1b5.eaeb276d.6c048974.9c547bd5.165b933f.eb93c465.eb93c",
+     "tag": "unchanged"
+    },
+    {
+     "name": "no success receipt",
+     "detail": "On “Momentum”: moved Volume after Symbol",
+     "tag": "receipt"
+    },
+    {
+     "name": "it asked",
+     "detail": "Harness\n3:10 PM\nmove the volume column after the symbol // UCT Agent\n3:10 PM\nOn “Momentum”: moved Volume after Symbol",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "move the volume column after the symbol"
+   ]
+  },
+  {
+   "id": "u18-show-01",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-068"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3350,
+   "path": "model"
+  },
+  {
+   "id": "u18-show-02",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3353,
+   "path": "model"
+  },
+  {
+   "id": "u18-show-03",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-067"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3381,
+   "path": "model"
+  },
+  {
+   "id": "u18-show-04",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3400,
+   "path": "model"
+  },
+  {
+   "id": "u18-show-05",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3678,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n3:11 PM\nput Long Term on the Swing watchlist widget // UCT Agent\n3:11 PM\n\nYou have 2 Watchlist widgets — which o",
+   "firstCheck": "written re watchKey\\W+user:l1",
+   "failed": [
+    {
+     "name": "written re watchKey\\W+user:l1",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n3:11 PM\nput Long Term on the Swing watchlist widget // UCT Agent\n3:11 PM\n\nYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.showList"
+   ],
+   "say": [
+    "put Long Term on the Swing watchlist widget"
+   ]
+  },
+  {
+   "id": "u18-show-06",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": true,
+   "graded": 6,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3363,
+   "path": "model"
+  },
+  {
+   "id": "u18-export-01",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-095"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3385,
+   "path": "model"
+  },
+  {
+   "id": "u18-export-02",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-094"
+   ],
+   "pass": true,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3375,
+   "path": "model"
+  },
+  {
+   "id": "u18-export-03",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-095"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3367,
+   "path": "model"
+  },
+  {
+   "id": "u18-export-04",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-095"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3408,
+   "path": "model",
+   "layer": "read-back",
+   "why": "it says /CSV[^.]*Swing|Swing[^.]*CSV/",
+   "firstCheck": "a receipt reports the change",
+   "failed": [
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n3:13 PM\n\nYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet. // Not done: I can’t export to Excel or other files from UCT Agent.",
+     "tag": "receipt"
+    },
+    {
+     "name": "it says /CSV[^.]*Swing|Swing[^.]*CSV/",
+     "detail": "UCT Agent\n3:13 PM\n\nYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet. // Not done: I can’t export to Excel or other files from UCT Agent.",
+     "tag": "says"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.exportList"
+   ],
+   "say": [
+    "export the Swing watchlist as a csv file"
+   ]
+  }
+ ]
+}

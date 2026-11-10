@@ -1,0 +1,151 @@
+[bn] free memory GB: 38.9
+[BROWSER-MOCK-MODEL] 42 requests, set unseen18, out C:\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\pl-auto\runs\u13\b2300e547d\unseen18
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-01 model [validation] scanGets.byRoute./api/scans/ipo-1y changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 0/1 passed; 1 model calls; 1 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-02 model [validation] scanGets.byRoute./api/scans/ipo-1y changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 0/2 passed; 3 model calls; 1 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-03 model [validation] scanGets.period changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 0/3 passed; 4 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-04 model [validation] scanGets.period changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 0/4 passed; 6 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-05 model [validation] scanGets.period changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 0/5 passed; 7 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-06 model [validation] scanGets.byRoute./api/scans/ipo-1y changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 0/6 passed; 9 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-07 model
+[BROWSER-MOCK-MODEL] 1/7 passed; 10 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-08 model [validation] written re scanKey\W+null: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 1/8 passed; 12 model calls; 3 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-09 model [validation] scanGets.byRoute./api/scans/top-gainers-30d changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 1/9 passed; 14 model calls; 4 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-10 model [interpretation] it asked: Harness
+12:56 PM
+refresh the scanner // UCT Agent
+12:56 PM
+
+I didn't change anything: The Scanner has no options I can change here.
+[BROWSER-MOCK-MODEL] 1/10 passed; 15 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-01 model [validation] written re showLogos\W+false: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 1/11 passed; 16 model calls; 6 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-02 model [validation] written re tint\w*\W+false: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 1/12 passed; 18 model calls; 7 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-03 model [validation] written re #000000: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 1/13 passed; 20 model calls; 8 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-04 model [validation] written re #cccccc: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 1/14 passed; 22 model calls; 9 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-05 model [composition] written re #00c853: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 1/15 passed; 24 model calls; 10 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-06 model
+[BROWSER-MOCK-MODEL] 2/16 passed; 26 model calls; 10 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-07 model [interpretation] it asked: Harness
+12:58 PM
+make the watchlist background black // UCT Agent
+12:58 PM
+
+I didn't change anything: The Watchlist has no option “canvasColor” — its options ar
+[BROWSER-MOCK-MODEL] 2/17 passed; 28 model calls; 10 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-08 model [validation] written re showLogos\W+false: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 2/18 passed; 29 model calls; 10 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-looks-01 model [validation] written re Desk Dark: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 2/19 passed; 31 model calls; 11 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-looks-02 model [validation] written re 1f2328: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 2/20 passed; 33 model calls; 12 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-looks-03 model [validation] written re watchlist_templates\W+\[\]: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 2/21 passed; 35 model calls; 13 failure families
+[BROWSER-MOCK-MODEL] PASS u18-looks-04 model
+[BROWSER-MOCK-MODEL] 3/22 passed; 37 model calls; 13 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-flagged-01 model [validation] faces.watchlist re Top Ideas: got WATCHLIST
++
+▣
+⧉
+‹ Lists
+Flagged
+⋯
+Symbol
+Price
+Vol
+% Chg
+No flagged tickers. Press Shift+F on any chart.
+0 stocks
+[BROWSER-MOCK-MODEL] 3/23 passed; 39 model calls; 14 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-flagged-02 model [validation] faces.watchlist re Shortlist: got WATCHLIST
++
+▣
+⧉
+‹ Lists
+Flagged
+⋯
+Symbol
+Price
+Vol
+% Chg
+No flagged tickers. Press Shift+F on any chart.
+0 stocks
+[BROWSER-MOCK-MODEL] 3/24 passed; 41 model calls; 15 failure families
+[BROWSER-MOCK-MODEL] PASS u18-flagged-03 model
+[BROWSER-MOCK-MODEL] 4/25 passed; 43 model calls; 15 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-01 model [capability] wlCols re "order":\["flag","sym","chg","price","vol"\]: got {"uct.watchlist.cols.scanner.ipo-1y.ipodate1":1}
+[BROWSER-MOCK-MODEL] 4/26 passed; 44 model calls; 16 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-02 model [capability] wlCols re "order":\["flag","sym","price","chg","vol"\]: got {"uct.watchlist.cols.scanner.ipo-1y.ipodate1":1}
+[BROWSER-MOCK-MODEL] 4/27 passed; 45 model calls; 17 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-03 model [capability] wlCols re "sym":150: got {"uct.watchlist.cols.scanner.ipo-1y.ipodate1":1}
+[BROWSER-MOCK-MODEL] 4/28 passed; 47 model calls; 18 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-04 model [capability] wlCols re "price":70: got {"uct.watchlist.cols.scanner.ipo-1y.ipodate1":1}
+[BROWSER-MOCK-MODEL] 4/29 passed; 48 model calls; 19 failure families
+[BROWSER-MOCK-MODEL] PASS u18-cols-05 model
+[BROWSER-MOCK-MODEL] 5/30 passed; 50 model calls; 19 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-06 model [capability] wlCols re "order":\["flag","sym","vol","price","chg"\]: got {"uct.watchlist.cols.scanner.ipo-1y.ipodate1":1}
+[BROWSER-MOCK-MODEL] 5/31 passed; 51 model calls; 20 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-07 model [capability] it asked: Harness
+1:01 PM
+move the volume column after the symbol // UCT Agent
+1:01 PM
+
+the model was not given: watchlist.arrangeColumns
+[BROWSER-MOCK-MODEL] 5/32 passed; 53 model calls; 21 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-show-01 model [capability] written re watchKey\W+user:s1: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 5/33 passed; 54 model calls; 22 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-show-02 model [capability] written re watchKey\W+flagged: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 5/34 passed; 55 model calls; 23 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-show-03 model [capability] written re watchKey\W+null: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 5/35 passed; 56 model calls; 24 failure families
+[BROWSER-MOCK-MODEL] PASS u18-show-04 model
+[BROWSER-MOCK-MODEL] 6/36 passed; 57 model calls; 24 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-show-05 model [capability] written re watchKey\W+user:l1: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 6/37 passed; 58 model calls; 25 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-show-06 model [capability] it asked: UCT Agent
+1:03 PM
+
+Hello. // Harness
+1:03 PM
+show the Long Term list in the watchlist
+[BROWSER-MOCK-MODEL] 6/38 passed; 59 model calls; 26 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-export-01 model [capability] a receipt reports the change: no receipt; said: UCT Agent
+1:03 PM
+
+Hello. // Harness
+1:03 PM
+download this watchlist as a csv
+[BROWSER-MOCK-MODEL] 6/39 passed; 60 model calls; 27 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-export-02 model [capability] a receipt reports the change: no receipt; said: UCT Agent
+1:03 PM
+
+Hello. // Harness
+1:03 PM
+copy the tickers on my watchlist so I can paste them
+[BROWSER-MOCK-MODEL] 6/40 passed; 61 model calls; 27 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-export-03 model [capability] it asked: UCT Agent
+1:03 PM
+
+Hello. // Harness
+1:03 PM
+export my watchlist to csv
+[BROWSER-MOCK-MODEL] 6/41 passed; 62 model calls; 28 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-export-04 model [capability] a receipt reports the change: no receipt; said: UCT Agent
+1:04 PM
+
+Hello. // Harness
+1:04 PM
+export the Swing watchlist as a csv file
+[BROWSER-MOCK-MODEL] 6/42 passed; 63 model calls; 28 failure families
+[BROWSER-MOCK-MODEL] 6/42 passed; 63 model calls; 28 failure families

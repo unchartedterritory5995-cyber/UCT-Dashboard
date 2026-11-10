@@ -1,0 +1,1786 @@
+{
+ "MODE": "BROWSER-MOCK-MODEL",
+ "statement": "BROWSER-MOCK-MODEL (real UI in headless Chrome, SCRIPTED model). Proves the plan executes on real components. Proves nothing about whether a model picks that plan.",
+ "meta": {
+  "partial": false,
+  "set": "unseen18",
+  "hash": "6846cf3d6b04afb8eba2f8b1b7c846ff6a77ae4848b305a00f9fa87ffb6db8f5",
+  "stopped": null
+ },
+ "totals": {
+  "requests": 42,
+  "passed": 6,
+  "failed": 36,
+  "notRunInThisMode": 0,
+  "publicRequests": 42,
+  "heldoutRequests": 0,
+  "heldoutPassed": 0,
+  "modelCalls": 63,
+  "localOnly": 0,
+  "checksGraded": 172,
+  "checksNotReadable": 0,
+  "byLayer": {
+   "validation": 18,
+   "interpretation": 2,
+   "composition": 1,
+   "capability": 15
+  }
+ },
+ "failureFamilies": [
+  {
+   "family": "validation|widget.setOption|scanGets.byRoute./api/scans/ipo-Ny changed",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "scanGets.byRoute./api/scans/ipo-1y changed",
+   "count": 3,
+   "requests": [
+    "u18-refresh-01",
+    "u18-refresh-02",
+    "u18-refresh-06"
+   ],
+   "sample": "u18-refresh-01"
+  },
+  {
+   "family": "validation|widget.setOption|scanGets.period changed",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "scanGets.period changed",
+   "count": 3,
+   "requests": [
+    "u18-refresh-03",
+    "u18-refresh-04",
+    "u18-refresh-05"
+   ],
+   "sample": "u18-refresh-03"
+  },
+  {
+   "family": "capability|watchlist.exportList|a receipt reports the change",
+   "layer": "capability",
+   "action": "watchlist.exportList",
+   "check": "a receipt reports the change",
+   "count": 3,
+   "requests": [
+    "u18-export-01",
+    "u18-export-02",
+    "u18-export-04"
+   ],
+   "sample": "u18-export-01"
+  },
+  {
+   "family": "interpretation|widget.setOption|it asked",
+   "layer": "interpretation",
+   "action": "widget.setOption",
+   "check": "it asked",
+   "count": 2,
+   "requests": [
+    "u18-refresh-10",
+    "u18-look-07"
+   ],
+   "sample": "u18-refresh-10"
+  },
+  {
+   "family": "validation|widget.setOption|written re showLogos\\W+false",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re showLogos\\W+false",
+   "count": 2,
+   "requests": [
+    "u18-look-01",
+    "u18-look-08"
+   ],
+   "sample": "u18-look-01"
+  },
+  {
+   "family": "validation|widget.setOption|written re scanKey\\W+null",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re scanKey\\W+null",
+   "count": 1,
+   "requests": [
+    "u18-refresh-08"
+   ],
+   "sample": "u18-refresh-08"
+  },
+  {
+   "family": "validation|widget.setOption|scanGets.byRoute./api/scans/top-gainers-Nd changed",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "scanGets.byRoute./api/scans/top-gainers-30d changed",
+   "count": 1,
+   "requests": [
+    "u18-refresh-09"
+   ],
+   "sample": "u18-refresh-09"
+  },
+  {
+   "family": "validation|widget.setOption|written re tint\\w*\\W+false",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re tint\\w*\\W+false",
+   "count": 1,
+   "requests": [
+    "u18-look-02"
+   ],
+   "sample": "u18-look-02"
+  },
+  {
+   "family": "validation|widget.setOption|written re #N",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re #000000",
+   "count": 1,
+   "requests": [
+    "u18-look-03"
+   ],
+   "sample": "u18-look-03"
+  },
+  {
+   "family": "validation|widget.setOption|written re #cccccc",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re #cccccc",
+   "count": 1,
+   "requests": [
+    "u18-look-04"
+   ],
+   "sample": "u18-look-04"
+  },
+  {
+   "family": "composition|widget.setOption|written re #NcN",
+   "layer": "composition",
+   "action": "widget.setOption",
+   "check": "written re #00c853",
+   "count": 1,
+   "requests": [
+    "u18-look-05"
+   ],
+   "sample": "u18-look-05"
+  },
+  {
+   "family": "validation|widget.setOption|written re Desk Dark",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re Desk Dark",
+   "count": 1,
+   "requests": [
+    "u18-looks-01"
+   ],
+   "sample": "u18-looks-01"
+  },
+  {
+   "family": "validation|widget.setOption|written re NfN",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re 1f2328",
+   "count": 1,
+   "requests": [
+    "u18-looks-02"
+   ],
+   "sample": "u18-looks-02"
+  },
+  {
+   "family": "validation|widget.setOption|written re watchlist_templates\\W+\\[\\]",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "written re watchlist_templates\\W+\\[\\]",
+   "count": 1,
+   "requests": [
+    "u18-looks-03"
+   ],
+   "sample": "u18-looks-03"
+  },
+  {
+   "family": "validation|widget.setOption|faces.watchlist re Top Ideas",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "faces.watchlist re Top Ideas",
+   "count": 1,
+   "requests": [
+    "u18-flagged-01"
+   ],
+   "sample": "u18-flagged-01"
+  },
+  {
+   "family": "validation|widget.setOption|faces.watchlist re Shortlist",
+   "layer": "validation",
+   "action": "widget.setOption",
+   "check": "faces.watchlist re Shortlist",
+   "count": 1,
+   "requests": [
+    "u18-flagged-02"
+   ],
+   "sample": "u18-flagged-02"
+  },
+  {
+   "family": "capability|watchlist.arrangeColumns|wlCols re \"order\":\\[\"flag\",\"sym\",\"chg\",\"price\",\"vol\"\\]",
+   "layer": "capability",
+   "action": "watchlist.arrangeColumns",
+   "check": "wlCols re \"order\":\\[\"flag\",\"sym\",\"chg\",\"price\",\"vol\"\\]",
+   "count": 1,
+   "requests": [
+    "u18-cols-01"
+   ],
+   "sample": "u18-cols-01"
+  },
+  {
+   "family": "capability|watchlist.arrangeColumns|wlCols re \"order\":\\[\"flag\",\"sym\",\"price\",\"chg\",\"vol\"\\]",
+   "layer": "capability",
+   "action": "watchlist.arrangeColumns",
+   "check": "wlCols re \"order\":\\[\"flag\",\"sym\",\"price\",\"chg\",\"vol\"\\]",
+   "count": 1,
+   "requests": [
+    "u18-cols-02"
+   ],
+   "sample": "u18-cols-02"
+  },
+  {
+   "family": "capability|watchlist.arrangeColumns|wlCols re \"sym\":N",
+   "layer": "capability",
+   "action": "watchlist.arrangeColumns",
+   "check": "wlCols re \"sym\":150",
+   "count": 1,
+   "requests": [
+    "u18-cols-03"
+   ],
+   "sample": "u18-cols-03"
+  },
+  {
+   "family": "capability|watchlist.arrangeColumns|wlCols re \"price\":N",
+   "layer": "capability",
+   "action": "watchlist.arrangeColumns",
+   "check": "wlCols re \"price\":70",
+   "count": 1,
+   "requests": [
+    "u18-cols-04"
+   ],
+   "sample": "u18-cols-04"
+  },
+  {
+   "family": "capability|watchlist.arrangeColumns|wlCols re \"order\":\\[\"flag\",\"sym\",\"vol\",\"price\",\"chg\"\\]",
+   "layer": "capability",
+   "action": "watchlist.arrangeColumns",
+   "check": "wlCols re \"order\":\\[\"flag\",\"sym\",\"vol\",\"price\",\"chg\"\\]",
+   "count": 1,
+   "requests": [
+    "u18-cols-06"
+   ],
+   "sample": "u18-cols-06"
+  },
+  {
+   "family": "capability|watchlist.arrangeColumns|it asked",
+   "layer": "capability",
+   "action": "watchlist.arrangeColumns",
+   "check": "it asked",
+   "count": 1,
+   "requests": [
+    "u18-cols-07"
+   ],
+   "sample": "u18-cols-07"
+  },
+  {
+   "family": "capability|watchlist.showList|written re watchKey\\W+user:sN",
+   "layer": "capability",
+   "action": "watchlist.showList",
+   "check": "written re watchKey\\W+user:s1",
+   "count": 1,
+   "requests": [
+    "u18-show-01"
+   ],
+   "sample": "u18-show-01"
+  },
+  {
+   "family": "capability|watchlist.showList|written re watchKey\\W+flagged",
+   "layer": "capability",
+   "action": "watchlist.showList",
+   "check": "written re watchKey\\W+flagged",
+   "count": 1,
+   "requests": [
+    "u18-show-02"
+   ],
+   "sample": "u18-show-02"
+  },
+  {
+   "family": "capability|watchlist.showList|written re watchKey\\W+null",
+   "layer": "capability",
+   "action": "watchlist.showList",
+   "check": "written re watchKey\\W+null",
+   "count": 1,
+   "requests": [
+    "u18-show-03"
+   ],
+   "sample": "u18-show-03"
+  },
+  {
+   "family": "capability|watchlist.showList|written re watchKey\\W+user:lN",
+   "layer": "capability",
+   "action": "watchlist.showList",
+   "check": "written re watchKey\\W+user:l1",
+   "count": 1,
+   "requests": [
+    "u18-show-05"
+   ],
+   "sample": "u18-show-05"
+  },
+  {
+   "family": "capability|watchlist.showList|it asked",
+   "layer": "capability",
+   "action": "watchlist.showList",
+   "check": "it asked",
+   "count": 1,
+   "requests": [
+    "u18-show-06"
+   ],
+   "sample": "u18-show-06"
+  },
+  {
+   "family": "capability|watchlist.exportList|it asked",
+   "layer": "capability",
+   "action": "watchlist.exportList",
+   "check": "it asked",
+   "count": 1,
+   "requests": [
+    "u18-export-03"
+   ],
+   "sample": "u18-export-03"
+  }
+ ],
+ "heldoutFailuresByFamilyAndLayer": {},
+ "rows": [
+  {
+   "id": "u18-refresh-01",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3561,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:54 PM\nrerun the scanner // UCT Agent\n12:54 PM\n\nI didn't change anything: The Scanner has no options I can cha",
+   "firstCheck": "scanGets.byRoute./api/scans/ipo-1y changed",
+   "failed": [
+    {
+     "name": "scanGets.byRoute./api/scans/ipo-1y changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:54 PM\nrerun the scanner // UCT Agent\n12:54 PM\n\nI didn't change anything: The Scanner has no options I can change here.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "rerun the scanner"
+   ]
+  },
+  {
+   "id": "u18-refresh-02",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3802,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:54 PM\npull fresh results into the IPO scan // UCT Agent\n12:54 PM\n\nI didn't change anything: The Scanner has n",
+   "firstCheck": "scanGets.byRoute./api/scans/ipo-1y changed",
+   "failed": [
+    {
+     "name": "scanGets.byRoute./api/scans/ipo-1y changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:54 PM\npull fresh results into the IPO scan // UCT Agent\n12:54 PM\n\nI didn't change anything: The Scanner has no options I can change here.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "pull fresh results into the IPO scan"
+   ]
+  },
+  {
+   "id": "u18-refresh-03",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-208"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3449,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:54 PM\nrefresh the period sort // UCT Agent\n12:54 PM\n\nI didn't change anything: The Period Sort has no option ",
+   "firstCheck": "scanGets.period changed",
+   "failed": [
+    {
+     "name": "scanGets.period changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:54 PM\nrefresh the period sort // UCT Agent\n12:54 PM\n\nI didn't change anything: The Period Sort has no option “refresh” — its options are group.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "refresh the period sort"
+   ]
+  },
+  {
+   "id": "u18-refresh-04",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-208"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3740,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:55 PM\nupdate the custom period ranking // UCT Agent\n12:55 PM\n\nI didn't change anything: The Period Sort has n",
+   "firstCheck": "scanGets.period changed",
+   "failed": [
+    {
+     "name": "scanGets.period changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:55 PM\nupdate the custom period ranking // UCT Agent\n12:55 PM\n\nI didn't change anything: The Period Sort has no option “refresh” — its options are group.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "update the custom period ranking"
+   ]
+  },
+  {
+   "id": "u18-refresh-05",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA",
+   "inventory": [
+    "C3-208"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3479,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:55 PM\nleave the scanner alone and refresh the period sort // UCT Agent\n12:55 PM\n\nI didn't change anything: Th",
+   "firstCheck": "scanGets.period changed",
+   "failed": [
+    {
+     "name": "scanGets.period changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:55 PM\nleave the scanner alone and refresh the period sort // UCT Agent\n12:55 PM\n\nI didn't change anything: The Period Sort has no option “refresh” — its options are group.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "leave the scanner alone and refresh the period sort"
+   ]
+  },
+  {
+   "id": "u18-refresh-06",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3797,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:55 PM\ndon't touch the period sort, just reload the scanner // UCT Agent\n12:55 PM\n\nI didn't change anything: T",
+   "firstCheck": "scanGets.byRoute./api/scans/ipo-1y changed",
+   "failed": [
+    {
+     "name": "scanGets.byRoute./api/scans/ipo-1y changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:55 PM\ndon't touch the period sort, just reload the scanner // UCT Agent\n12:55 PM\n\nI didn't change anything: The Period Sort has no option “refresh” — its options are group.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "don't touch the period sort, just reload the scanner"
+   ]
+  },
+  {
+   "id": "u18-refresh-07",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": true,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3590,
+   "path": "model"
+  },
+  {
+   "id": "u18-refresh-08",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-108"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3814,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:56 PM\ntake the scanner back to the list of scans // UCT Agent\n12:56 PM\n\nI didn't change anything: The Scanner",
+   "firstCheck": "written re scanKey\\W+null",
+   "failed": [
+    {
+     "name": "written re scanKey\\W+null",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:56 PM\ntake the scanner back to the list of scans // UCT Agent\n12:56 PM\n\nI didn't change anything: The Scanner has no options I can change here.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "take the scanner back to the list of scans"
+   ]
+  },
+  {
+   "id": "u18-refresh-09",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3753,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:56 PM\nrefresh the top gainers scanner // UCT Agent\n12:56 PM\n\nI didn't change anything: The Scanner has no opt",
+   "firstCheck": "scanGets.byRoute./api/scans/top-gainers-30d changed",
+   "failed": [
+    {
+     "name": "scanGets.byRoute./api/scans/top-gainers-30d changed",
+     "detail": "got 1 was 1",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:56 PM\nrefresh the top gainers scanner // UCT Agent\n12:56 PM\n\nI didn't change anything: The Scanner has no options I can change here.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "refresh the top gainers scanner"
+   ]
+  },
+  {
+   "id": "u18-refresh-10",
+   "set": "unseen18",
+   "family": "u18-refresh",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-112"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3404,
+   "path": "model",
+   "layer": "interpretation",
+   "why": "it acted or answered where it had to ask",
+   "firstCheck": "it asked",
+   "failed": [
+    {
+     "name": "it asked",
+     "detail": "Harness\n12:56 PM\nrefresh the scanner // UCT Agent\n12:56 PM\n\nI didn't change anything: The Scanner has no options I can change here.",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "refresh the scanner"
+   ]
+  },
+  {
+   "id": "u18-look-01",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3377,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:56 PM\nno company logos on my watchlist // UCT Agent\n12:56 PM\n\nI didn't change anything: The Watchlist has no ",
+   "firstCheck": "written re showLogos\\W+false",
+   "failed": [
+    {
+     "name": "written re showLogos\\W+false",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:56 PM\nno company logos on my watchlist // UCT Agent\n12:56 PM\n\nI didn't change anything: The Watchlist has no option “showLogos” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "no company logos on my watchlist"
+   ]
+  },
+  {
+   "id": "u18-look-02",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3713,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:57 PM\nstop the watchlist rows flashing on every tick // UCT Agent\n12:57 PM\n\nI didn't change anything: The Wat",
+   "firstCheck": "written re tint\\w*\\W+false",
+   "failed": [
+    {
+     "name": "written re tint\\w*\\W+false",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:57 PM\nstop the watchlist rows flashing on every tick // UCT Agent\n12:57 PM\n\nI didn't change anything: The Watchlist has no option “tint” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "stop the watchlist rows flashing on every tick"
+   ]
+  },
+  {
+   "id": "u18-look-03",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3724,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:57 PM\nwatchlist background to pure black // UCT Agent\n12:57 PM\n\nI didn't change anything: The Watchlist has n",
+   "firstCheck": "written re #000000",
+   "failed": [
+    {
+     "name": "written re #000000",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:57 PM\nwatchlist background to pure black // UCT Agent\n12:57 PM\n\nI didn't change anything: The Watchlist has no option “canvasColor” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "watchlist background to pure black"
+   ]
+  },
+  {
+   "id": "u18-look-04",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3710,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:57 PM\nmake the watchlist text a light grey, #cccccc // UCT Agent\n12:57 PM\n\nI didn't change anything: The Watc",
+   "firstCheck": "written re #cccccc",
+   "failed": [
+    {
+     "name": "written re #cccccc",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:57 PM\nmake the watchlist text a light grey, #cccccc // UCT Agent\n12:57 PM\n\nI didn't change anything: The Watchlist has no option “textColor” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "make the watchlist text a light grey, #cccccc"
+   ]
+  },
+  {
+   "id": "u18-look-05",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "combo",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3676,
+   "path": "model",
+   "layer": "composition",
+   "why": "a multi-step plan landed partly or was refused whole",
+   "firstCheck": "written re #00c853",
+   "failed": [
+    {
+     "name": "written re #00c853",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "written re #d50000",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:57 PM\ngreen for up names and red for down names on the watchlist // UCT Agent\n12:57 PM\n\nI didn't change anything:\n- The Watchlist has no option “gainColor” — its options are source.\n- The W",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption",
+    "widget.setOption"
+   ],
+   "say": [
+    "green for up names and red for down names on the watchlist"
+   ]
+  },
+  {
+   "id": "u18-look-06",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3697,
+   "path": "model"
+  },
+  {
+   "id": "u18-look-07",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 6,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3691,
+   "path": "model",
+   "layer": "interpretation",
+   "why": "it acted or answered where it had to ask",
+   "firstCheck": "it asked",
+   "failed": [
+    {
+     "name": "it asked",
+     "detail": "Harness\n12:58 PM\nmake the watchlist background black // UCT Agent\n12:58 PM\n\nI didn't change anything: The Watchlist has no option “canvasColor” — its options are source.",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "make the watchlist background black"
+   ]
+  },
+  {
+   "id": "u18-look-08",
+   "set": "unseen18",
+   "family": "u18-look",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-103"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3404,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:58 PM\non the Swing watchlist, hide the logos // UCT Agent\n12:58 PM\n\nI didn't change anything: The Watchlist h",
+   "firstCheck": "written re showLogos\\W+false",
+   "failed": [
+    {
+     "name": "written re showLogos\\W+false",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:58 PM\non the Swing watchlist, hide the logos // UCT Agent\n12:58 PM\n\nI didn't change anything: The Watchlist has no option “showLogos” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "on the Swing watchlist, hide the logos"
+   ]
+  },
+  {
+   "id": "u18-looks-01",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3715,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:58 PM\nkeep this watchlist styling as a look named Desk Dark // UCT Agent\n12:58 PM\n\nI didn't change anything: ",
+   "firstCheck": "written re Desk Dark",
+   "failed": [
+    {
+     "name": "written re Desk Dark",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:58 PM\nkeep this watchlist styling as a look named Desk Dark // UCT Agent\n12:58 PM\n\nI didn't change anything: The Watchlist has no option “looks” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "keep this watchlist styling as a look named Desk Dark"
+   ]
+  },
+  {
+   "id": "u18-looks-02",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3706,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:59 PM\nput the Paper look on my watchlist // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist has n",
+   "firstCheck": "written re 1f2328",
+   "failed": [
+    {
+     "name": "written re 1f2328",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:59 PM\nput the Paper look on my watchlist // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist has no option “look” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "put the Paper look on my watchlist"
+   ]
+  },
+  {
+   "id": "u18-looks-03",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3722,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:59 PM\nremove the Paper look from my saved looks // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlis",
+   "firstCheck": "written re watchlist_templates\\W+\\[\\]",
+   "failed": [
+    {
+     "name": "written re watchlist_templates\\W+\\[\\]",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:59 PM\nremove the Paper look from my saved looks // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist has no option “looks” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "remove the Paper look from my saved looks"
+   ]
+  },
+  {
+   "id": "u18-looks-04",
+   "set": "unseen18",
+   "family": "u18-looks",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-104"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3717,
+   "path": "model"
+  },
+  {
+   "id": "u18-flagged-01",
+   "set": "unseen18",
+   "family": "u18-flagged",
+   "kind": "phrasing",
+   "board": "DATAF",
+   "inventory": [
+    "C3-074"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3690,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:59 PM\nrename flagged to Top Ideas // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist has no optio",
+   "firstCheck": "faces.watchlist re Top Ideas",
+   "failed": [
+    {
+     "name": "faces.watchlist re Top Ideas",
+     "detail": "got WATCHLIST\n+\n▣\n⧉\n‹ Lists\nFlagged\n⋯\nSymbol\nPrice\nVol\n% Chg\nNo flagged tickers. Press Shift+F on any chart.\n0 stocks",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:59 PM\nrename flagged to Top Ideas // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist has no option “flaggedName” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "rename flagged to Top Ideas"
+   ]
+  },
+  {
+   "id": "u18-flagged-02",
+   "set": "unseen18",
+   "family": "u18-flagged",
+   "kind": "phrasing",
+   "board": "DATAF",
+   "inventory": [
+    "C3-074"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3709,
+   "path": "model",
+   "layer": "validation",
+   "why": "refused a valid plan: Harness\n12:59 PM\ncall my flagged list Shortlist instead // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist h",
+   "firstCheck": "faces.watchlist re Shortlist",
+   "failed": [
+    {
+     "name": "faces.watchlist re Shortlist",
+     "detail": "got WATCHLIST\n+\n▣\n⧉\n‹ Lists\nFlagged\n⋯\nSymbol\nPrice\nVol\n% Chg\nNo flagged tickers. Press Shift+F on any chart.\n0 stocks",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n12:59 PM\ncall my flagged list Shortlist instead // UCT Agent\n12:59 PM\n\nI didn't change anything: The Watchlist has no option “flaggedName” — its options are source.",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "widget.setOption"
+   ],
+   "say": [
+    "call my flagged list Shortlist instead"
+   ]
+  },
+  {
+   "id": "u18-flagged-03",
+   "set": "unseen18",
+   "family": "u18-flagged",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-074"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3695,
+   "path": "model"
+  },
+  {
+   "id": "u18-cols-01",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3385,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.arrangeColumns",
+   "firstCheck": "wlCols re \"order\":\\[\"flag\",\"sym\",\"chg\",\"price\",\"vol\"\\]",
+   "failed": [
+    {
+     "name": "wlCols re \"order\":\\[\"flag\",\"sym\",\"chg\",\"price\",\"vol\"\\]",
+     "detail": "got {\"uct.watchlist.cols.scanner.ipo-1y.ipodate1\":1}",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:00 PM\n\nHello. // Harness\n1:00 PM\nput % change right before price on my watchlist",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "put % change right before price on my watchlist"
+   ]
+  },
+  {
+   "id": "u18-cols-02",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3390,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.arrangeColumns",
+   "firstCheck": "wlCols re \"order\":\\[\"flag\",\"sym\",\"price\",\"chg\",\"vol\"\\]",
+   "failed": [
+    {
+     "name": "wlCols re \"order\":\\[\"flag\",\"sym\",\"price\",\"chg\",\"vol\"\\]",
+     "detail": "got {\"uct.watchlist.cols.scanner.ipo-1y.ipodate1\":1}",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:00 PM\n\nHello. // Harness\n1:00 PM\nmove volume to the end of the watchlist columns",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "move volume to the end of the watchlist columns"
+   ]
+  },
+  {
+   "id": "u18-cols-03",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-086"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3741,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.arrangeColumns",
+   "firstCheck": "wlCols re \"sym\":150",
+   "failed": [
+    {
+     "name": "wlCols re \"sym\":150",
+     "detail": "got {\"uct.watchlist.cols.scanner.ipo-1y.ipodate1\":1}",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: Harness\n1:00 PM\nwiden the symbol column to 150 px // UCT Agent\n1:00 PM\n\nthe model was not given: watchlist.arrangeColumns",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "widen the symbol column to 150 px"
+   ]
+  },
+  {
+   "id": "u18-cols-04",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "params",
+   "board": "DATA",
+   "inventory": [
+    "C3-086"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3453,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.arrangeColumns",
+   "firstCheck": "wlCols re \"price\":70",
+   "failed": [
+    {
+     "name": "wlCols re \"price\":70",
+     "detail": "got {\"uct.watchlist.cols.scanner.ipo-1y.ipodate1\":1}",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:01 PM\n\nHello. // Harness\n1:01 PM\nmake the price column 70 wide",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "make the price column 70 wide"
+   ]
+  },
+  {
+   "id": "u18-cols-05",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-086"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3700,
+   "path": "model"
+  },
+  {
+   "id": "u18-cols-06",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3380,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.arrangeColumns",
+   "firstCheck": "wlCols re \"order\":\\[\"flag\",\"sym\",\"vol\",\"price\",\"chg\"\\]",
+   "failed": [
+    {
+     "name": "wlCols re \"order\":\\[\"flag\",\"sym\",\"vol\",\"price\",\"chg\"\\]",
+     "detail": "got {\"uct.watchlist.cols.scanner.ipo-1y.ipodate1\":1}",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:01 PM\n\nHello. // Harness\n1:01 PM\non the Swing list, move volume right after symbol",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "on the Swing list, move volume right after symbol"
+   ]
+  },
+  {
+   "id": "u18-cols-07",
+   "set": "unseen18",
+   "family": "u18-cols",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-085"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 2,
+   "usd": null,
+   "ms": 3701,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.arrangeColumns",
+   "firstCheck": "it asked",
+   "failed": [
+    {
+     "name": "it asked",
+     "detail": "Harness\n1:01 PM\nmove the volume column after the symbol // UCT Agent\n1:01 PM\n\nthe model was not given: watchlist.arrangeColumns",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.arrangeColumns"
+   ],
+   "say": [
+    "move the volume column after the symbol"
+   ]
+  },
+  {
+   "id": "u18-show-01",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-068"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3382,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.showList",
+   "firstCheck": "written re watchKey\\W+user:s1",
+   "failed": [
+    {
+     "name": "written re watchKey\\W+user:s1",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:02 PM\n\nHello. // Harness\n1:02 PM\nswitch my watchlist widget to the Swing list",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.showList"
+   ],
+   "say": [
+    "switch my watchlist widget to the Swing list"
+   ]
+  },
+  {
+   "id": "u18-show-02",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3362,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.showList",
+   "firstCheck": "written re watchKey\\W+flagged",
+   "failed": [
+    {
+     "name": "written re watchKey\\W+flagged",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:02 PM\n\nHello. // Harness\n1:02 PM\nshow my flagged names in the watchlist",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.showList"
+   ],
+   "say": [
+    "show my flagged names in the watchlist"
+   ]
+  },
+  {
+   "id": "u18-show-03",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-067"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3436,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.showList",
+   "firstCheck": "written re watchKey\\W+null",
+   "failed": [
+    {
+     "name": "written re watchKey\\W+null",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:02 PM\n\nHello. // Harness\n1:02 PM\nback to the list chooser on the watchlist widget",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.showList"
+   ],
+   "say": [
+    "back to the list chooser on the watchlist widget"
+   ]
+  },
+  {
+   "id": "u18-show-04",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "invalid",
+   "board": "DATA",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": true,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3397,
+   "path": "model"
+  },
+  {
+   "id": "u18-show-05",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": false,
+   "graded": 4,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3347,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.showList",
+   "firstCheck": "written re watchKey\\W+user:l1",
+   "failed": [
+    {
+     "name": "written re watchKey\\W+user:l1",
+     "detail": "got {\"charts_layout_dock\":\"{\\\"pins\\\":[\\\"uct-default\\\"],\\\"known\\\":[\\\"uct-default\\\"],\\\"hidden\\\":false}\",\"charts_workspace_layout\":\"{\\\"version\\\":1,\\\"cols\\\":24,\\\"widgets\\\":[{\\\"id\\\":\\\"w-chart-a\\\",\\\"type\\\":\\\"ch",
+     "tag": "state"
+    },
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:02 PM\n\nHello. // Harness\n1:03 PM\nput Long Term on the Swing watchlist widget",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.showList"
+   ],
+   "say": [
+    "put Long Term on the Swing watchlist widget"
+   ]
+  },
+  {
+   "id": "u18-show-06",
+   "set": "unseen18",
+   "family": "u18-show",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-065"
+   ],
+   "pass": false,
+   "graded": 6,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3390,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.showList",
+   "firstCheck": "it asked",
+   "failed": [
+    {
+     "name": "it asked",
+     "detail": "UCT Agent\n1:03 PM\n\nHello. // Harness\n1:03 PM\nshow the Long Term list in the watchlist",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.showList"
+   ],
+   "say": [
+    "show the Long Term list in the watchlist"
+   ]
+  },
+  {
+   "id": "u18-export-01",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-095"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3366,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.exportList",
+   "firstCheck": "a receipt reports the change",
+   "failed": [
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:03 PM\n\nHello. // Harness\n1:03 PM\ndownload this watchlist as a csv",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.exportList"
+   ],
+   "say": [
+    "download this watchlist as a csv"
+   ]
+  },
+  {
+   "id": "u18-export-02",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "phrasing",
+   "board": "DATA",
+   "inventory": [
+    "C3-094"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3364,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.exportList",
+   "firstCheck": "a receipt reports the change",
+   "failed": [
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:03 PM\n\nHello. // Harness\n1:03 PM\ncopy the tickers on my watchlist so I can paste them",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.exportList"
+   ],
+   "say": [
+    "copy the tickers on my watchlist so I can paste them"
+   ]
+  },
+  {
+   "id": "u18-export-03",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-095"
+   ],
+   "pass": false,
+   "graded": 5,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3394,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.exportList",
+   "firstCheck": "it asked",
+   "failed": [
+    {
+     "name": "it asked",
+     "detail": "UCT Agent\n1:03 PM\n\nHello. // Harness\n1:03 PM\nexport my watchlist to csv",
+     "tag": "clarify"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.exportList"
+   ],
+   "say": [
+    "export my watchlist to csv"
+   ]
+  },
+  {
+   "id": "u18-export-04",
+   "set": "unseen18",
+   "family": "u18-export",
+   "kind": "target",
+   "board": "DATA2",
+   "inventory": [
+    "C3-095"
+   ],
+   "pass": false,
+   "graded": 3,
+   "na": 0,
+   "modelCalls": 1,
+   "usd": null,
+   "ms": 3406,
+   "path": "model",
+   "layer": "capability",
+   "why": "no capability: watchlist.exportList",
+   "firstCheck": "a receipt reports the change",
+   "failed": [
+    {
+     "name": "a receipt reports the change",
+     "detail": "no receipt; said: UCT Agent\n1:04 PM\n\nHello. // Harness\n1:04 PM\nexport the Swing watchlist as a csv file",
+     "tag": "receipt"
+    }
+   ],
+   "expectedActions": [
+    "watchlist.exportList"
+   ],
+   "say": [
+    "export the Swing watchlist as a csv file"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,95 @@
+[
+ {
+  "family": "primitive|watchlist.arrangeColumns|one undo restores the board",
+  "layer": "primitive",
+  "action": "watchlist.arrangeColumns",
+  "check": "one undo restores the board",
+  "count": 5,
+  "requests": [
+   "u18-cols-01",
+   "u18-cols-02",
+   "u18-cols-03",
+   "u18-cols-04",
+   "u18-cols-06"
+  ],
+  "sample": "u18-cols-01"
+ },
+ {
+  "family": "interpretation|widget.setOption|no success receipt",
+  "layer": "interpretation",
+  "action": "widget.setOption",
+  "check": "no success receipt",
+  "count": 2,
+  "requests": [
+   "u18-refresh-10",
+   "u18-look-07"
+  ],
+  "sample": "u18-refresh-10"
+ },
+ {
+  "family": "read-back|widget.setOption|scanGets.byRoute./api/scans/ipo-Ny changed",
+  "layer": "read-back",
+  "action": "widget.setOption",
+  "check": "scanGets.byRoute./api/scans/ipo-1y changed",
+  "count": 1,
+  "requests": [
+   "u18-refresh-06"
+  ],
+  "sample": "u18-refresh-06"
+ },
+ {
+  "family": "read-back|widget.setOption|faces.watchlist re Top Ideas",
+  "layer": "read-back",
+  "action": "widget.setOption",
+  "check": "faces.watchlist re Top Ideas",
+  "count": 1,
+  "requests": [
+   "u18-flagged-01"
+  ],
+  "sample": "u18-flagged-01"
+ },
+ {
+  "family": "read-back|widget.setOption|faces.watchlist re Shortlist",
+  "layer": "read-back",
+  "action": "widget.setOption",
+  "check": "faces.watchlist re Shortlist",
+  "count": 1,
+  "requests": [
+   "u18-flagged-02"
+  ],
+  "sample": "u18-flagged-02"
+ },
+ {
+  "family": "interpretation|watchlist.arrangeColumns|nothing changed",
+  "layer": "interpretation",
+  "action": "watchlist.arrangeColumns",
+  "check": "nothing changed",
+  "count": 1,
+  "requests": [
+   "u18-cols-07"
+  ],
+  "sample": "u18-cols-07"
+ },
+ {
+  "family": "validation|watchlist.showList|written re watchKey\\W+user:lN",
+  "layer": "validation",
+  "action": "watchlist.showList",
+  "check": "written re watchKey\\W+user:l1",
+  "count": 1,
+  "requests": [
+   "u18-show-05"
+  ],
+  "sample": "u18-show-05"
+ },
+ {
+  "family": "read-back|watchlist.exportList|a receipt reports the change",
+  "layer": "read-back",
+  "action": "watchlist.exportList",
+  "check": "a receipt reports the change",
+  "count": 1,
+  "requests": [
+   "u18-export-04"
+  ],
+  "sample": "u18-export-04"
+ }
+]

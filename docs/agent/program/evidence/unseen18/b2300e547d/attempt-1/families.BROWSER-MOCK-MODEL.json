@@ -1,0 +1,318 @@
+[
+ {
+  "family": "validation|widget.setOption|scanGets.byRoute./api/scans/ipo-Ny changed",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "scanGets.byRoute./api/scans/ipo-1y changed",
+  "count": 3,
+  "requests": [
+   "u18-refresh-01",
+   "u18-refresh-02",
+   "u18-refresh-06"
+  ],
+  "sample": "u18-refresh-01"
+ },
+ {
+  "family": "validation|widget.setOption|scanGets.period changed",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "scanGets.period changed",
+  "count": 3,
+  "requests": [
+   "u18-refresh-03",
+   "u18-refresh-04",
+   "u18-refresh-05"
+  ],
+  "sample": "u18-refresh-03"
+ },
+ {
+  "family": "capability|watchlist.exportList|a receipt reports the change",
+  "layer": "capability",
+  "action": "watchlist.exportList",
+  "check": "a receipt reports the change",
+  "count": 3,
+  "requests": [
+   "u18-export-01",
+   "u18-export-02",
+   "u18-export-04"
+  ],
+  "sample": "u18-export-01"
+ },
+ {
+  "family": "interpretation|widget.setOption|it asked",
+  "layer": "interpretation",
+  "action": "widget.setOption",
+  "check": "it asked",
+  "count": 2,
+  "requests": [
+   "u18-refresh-10",
+   "u18-look-07"
+  ],
+  "sample": "u18-refresh-10"
+ },
+ {
+  "family": "validation|widget.setOption|written re showLogos\\W+false",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re showLogos\\W+false",
+  "count": 2,
+  "requests": [
+   "u18-look-01",
+   "u18-look-08"
+  ],
+  "sample": "u18-look-01"
+ },
+ {
+  "family": "validation|widget.setOption|written re scanKey\\W+null",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re scanKey\\W+null",
+  "count": 1,
+  "requests": [
+   "u18-refresh-08"
+  ],
+  "sample": "u18-refresh-08"
+ },
+ {
+  "family": "validation|widget.setOption|scanGets.byRoute./api/scans/top-gainers-Nd changed",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "scanGets.byRoute./api/scans/top-gainers-30d changed",
+  "count": 1,
+  "requests": [
+   "u18-refresh-09"
+  ],
+  "sample": "u18-refresh-09"
+ },
+ {
+  "family": "validation|widget.setOption|written re tint\\w*\\W+false",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re tint\\w*\\W+false",
+  "count": 1,
+  "requests": [
+   "u18-look-02"
+  ],
+  "sample": "u18-look-02"
+ },
+ {
+  "family": "validation|widget.setOption|written re #N",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re #000000",
+  "count": 1,
+  "requests": [
+   "u18-look-03"
+  ],
+  "sample": "u18-look-03"
+ },
+ {
+  "family": "validation|widget.setOption|written re #cccccc",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re #cccccc",
+  "count": 1,
+  "requests": [
+   "u18-look-04"
+  ],
+  "sample": "u18-look-04"
+ },
+ {
+  "family": "composition|widget.setOption|written re #NcN",
+  "layer": "composition",
+  "action": "widget.setOption",
+  "check": "written re #00c853",
+  "count": 1,
+  "requests": [
+   "u18-look-05"
+  ],
+  "sample": "u18-look-05"
+ },
+ {
+  "family": "validation|widget.setOption|written re Desk Dark",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re Desk Dark",
+  "count": 1,
+  "requests": [
+   "u18-looks-01"
+  ],
+  "sample": "u18-looks-01"
+ },
+ {
+  "family": "validation|widget.setOption|written re NfN",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re 1f2328",
+  "count": 1,
+  "requests": [
+   "u18-looks-02"
+  ],
+  "sample": "u18-looks-02"
+ },
+ {
+  "family": "validation|widget.setOption|written re watchlist_templates\\W+\\[\\]",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "written re watchlist_templates\\W+\\[\\]",
+  "count": 1,
+  "requests": [
+   "u18-looks-03"
+  ],
+  "sample": "u18-looks-03"
+ },
+ {
+  "family": "validation|widget.setOption|faces.watchlist re Top Ideas",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "faces.watchlist re Top Ideas",
+  "count": 1,
+  "requests": [
+   "u18-flagged-01"
+  ],
+  "sample": "u18-flagged-01"
+ },
+ {
+  "family": "validation|widget.setOption|faces.watchlist re Shortlist",
+  "layer": "validation",
+  "action": "widget.setOption",
+  "check": "faces.watchlist re Shortlist",
+  "count": 1,
+  "requests": [
+   "u18-flagged-02"
+  ],
+  "sample": "u18-flagged-02"
+ },
+ {
+  "family": "capability|watchlist.arrangeColumns|wlCols re \"order\":\\[\"flag\",\"sym\",\"chg\",\"price\",\"vol\"\\]",
+  "layer": "capability",
+  "action": "watchlist.arrangeColumns",
+  "check": "wlCols re \"order\":\\[\"flag\",\"sym\",\"chg\",\"price\",\"vol\"\\]",
+  "count": 1,
+  "requests": [
+   "u18-cols-01"
+  ],
+  "sample": "u18-cols-01"
+ },
+ {
+  "family": "capability|watchlist.arrangeColumns|wlCols re \"order\":\\[\"flag\",\"sym\",\"price\",\"chg\",\"vol\"\\]",
+  "layer": "capability",
+  "action": "watchlist.arrangeColumns",
+  "check": "wlCols re \"order\":\\[\"flag\",\"sym\",\"price\",\"chg\",\"vol\"\\]",
+  "count": 1,
+  "requests": [
+   "u18-cols-02"
+  ],
+  "sample": "u18-cols-02"
+ },
+ {
+  "family": "capability|watchlist.arrangeColumns|wlCols re \"sym\":N",
+  "layer": "capability",
+  "action": "watchlist.arrangeColumns",
+  "check": "wlCols re \"sym\":150",
+  "count": 1,
+  "requests": [
+   "u18-cols-03"
+  ],
+  "sample": "u18-cols-03"
+ },
+ {
+  "family": "capability|watchlist.arrangeColumns|wlCols re \"price\":N",
+  "layer": "capability",
+  "action": "watchlist.arrangeColumns",
+  "check": "wlCols re \"price\":70",
+  "count": 1,
+  "requests": [
+   "u18-cols-04"
+  ],
+  "sample": "u18-cols-04"
+ },
+ {
+  "family": "capability|watchlist.arrangeColumns|wlCols re \"order\":\\[\"flag\",\"sym\",\"vol\",\"price\",\"chg\"\\]",
+  "layer": "capability",
+  "action": "watchlist.arrangeColumns",
+  "check": "wlCols re \"order\":\\[\"flag\",\"sym\",\"vol\",\"price\",\"chg\"\\]",
+  "count": 1,
+  "requests": [
+   "u18-cols-06"
+  ],
+  "sample": "u18-cols-06"
+ },
+ {
+  "family": "capability|watchlist.arrangeColumns|it asked",
+  "layer": "capability",
+  "action": "watchlist.arrangeColumns",
+  "check": "it asked",
+  "count": 1,
+  "requests": [
+   "u18-cols-07"
+  ],
+  "sample": "u18-cols-07"
+ },
+ {
+  "family": "capability|watchlist.showList|written re watchKey\\W+user:sN",
+  "layer": "capability",
+  "action": "watchlist.showList",
+  "check": "written re watchKey\\W+user:s1",
+  "count": 1,
+  "requests": [
+   "u18-show-01"
+  ],
+  "sample": "u18-show-01"
+ },
+ {
+  "family": "capability|watchlist.showList|written re watchKey\\W+flagged",
+  "layer": "capability",
+  "action": "watchlist.showList",
+  "check": "written re watchKey\\W+flagged",
+  "count": 1,
+  "requests": [
+   "u18-show-02"
+  ],
+  "sample": "u18-show-02"
+ },
+ {
+  "family": "capability|watchlist.showList|written re watchKey\\W+null",
+  "layer": "capability",
+  "action": "watchlist.showList",
+  "check": "written re watchKey\\W+null",
+  "count": 1,
+  "requests": [
+   "u18-show-03"
+  ],
+  "sample": "u18-show-03"
+ },
+ {
+  "family": "capability|watchlist.showList|written re watchKey\\W+user:lN",
+  "layer": "capability",
+  "action": "watchlist.showList",
+  "check": "written re watchKey\\W+user:l1",
+  "count": 1,
+  "requests": [
+   "u18-show-05"
+  ],
+  "sample": "u18-show-05"
+ },
+ {
+  "family": "capability|watchlist.showList|it asked",
+  "layer": "capability",
+  "action": "watchlist.showList",
+  "check": "it asked",
+  "count": 1,
+  "requests": [
+   "u18-show-06"
+  ],
+  "sample": "u18-show-06"
+ },
+ {
+  "family": "capability|watchlist.exportList|it asked",
+  "layer": "capability",
+  "action": "watchlist.exportList",
+  "check": "it asked",
+  "count": 1,
+  "requests": [
+   "u18-export-03"
+  ],
+  "sample": "u18-export-03"
+ }
+]
