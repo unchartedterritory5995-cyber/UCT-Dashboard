@@ -54,7 +54,7 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|2nd|3rd|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph|neighbou?r)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph|neighbou?r)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
@@ -556,7 +556,7 @@ function lineFrom(charts, s, side) {
   for (let i = 0; i < charts.length; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) break; out.push(next[0]); at = next[0] }
   return side === 'left' || side === 'above' ? out.reverse() : out
 }
-const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, second: 2, third: 3, '2nd': 2, '3rd': 3 }
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, second: 2, third: 3 }
 const COUNT_NOUN = '(?:chart|one|cell|pane|panel|graph)'
 // AUDIT #988 probe 13: the unit a count may carry ("two PLACES to the left", "2 charts over to the right")
 const COUNT_UNIT = '(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)'
@@ -566,7 +566,7 @@ function relationCount(s, m) {
   const scope = `${s.slice(0, m.index)}${m[0]}`
   const at = (re) => re.exec(scope)
   const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|five|[1-9])\\s+(?:${COUNT_UNIT}\\s+)?(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
-    || at(new RegExp(`\\b(second|third|2nd|3rd)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+    || at(new RegExp(`\\b(second|third)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
     // unseen10: the count with its unit and no noun before it ("the chart two charts below this one")
     || at(new RegExp(`\\b(two|three|four|five|[2-9])\\s+${COUNT_UNIT}\\s+(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
   if (c) return NUM_WORD[c[1].toLowerCase()] || 1
