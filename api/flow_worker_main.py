@@ -249,6 +249,12 @@ import time
 import logging
 from contextlib import asynccontextmanager
 
+
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod's httpx/Massive clients log URLs carrying the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 from fastapi import FastAPI
 import uvicorn
 

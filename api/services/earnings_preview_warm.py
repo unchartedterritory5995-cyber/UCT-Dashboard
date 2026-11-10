@@ -406,9 +406,29 @@ def _safe_companions(sym: str) -> None:
                 continue
             if sym in getattr(svc, "_generating", ()):   # a viewer already kicked it
                 continue
-            svc._generate_and_store(sym)
+            if not _ai_budget_ok():
+                return
+            with _door():
+                svc._generate_and_store(sym)
         except Exception as e:
             _logger.debug("[earn-warm] %s gen failed %s: %s", label, sym, e)
+
+
+_WARM_DOOR = "api/services/earnings_preview_warm.py"
+
+
+def _door():
+    from api.services import llm_usage
+    return llm_usage.door(_WARM_DOOR)
+
+
+def _ai_budget_ok() -> bool:
+    """The AI-spend budget for the warm (/admin/ai-spend; also `*background`). Fails open."""
+    try:
+        from api.services import llm_budget
+        return llm_budget.allows(_WARM_DOOR)
+    except Exception:  # noqa: BLE001 -- llm_budget may not exist yet / a metering fault
+        return True
 
 
 _COST_CAP_ENV = "EARNINGS_WARM_COST_CAP_DAILY"
@@ -542,7 +562,14 @@ def _safe_gen(generator, sym: str, row: dict) -> None:
     try:
         if _cost_cap_reached():             # a queued job re-asks: a pass can queue hundreds of names
             return
-        generator(sym, row, force_fresh_check=True)
+        if not _ai_budget_ok():
+            return
+        # Attribute the warm's model calls to THIS module in the AI-spend ledger, so the
+        # warm (background) and a member's click (engine.py) are separate lines with
+        # separate budgets. A thread-pool job does not inherit the caller's context,
+        # so the label is set here, inside the job.
+        with _door():
+            generator(sym, row, force_fresh_check=True)
     except Exception as e:
         _logger.warning("[earn-warm] gen failed %s: %s", sym, e)
 

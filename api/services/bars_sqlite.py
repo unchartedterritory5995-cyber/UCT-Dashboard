@@ -1431,3 +1431,28 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     if last_lock_err is not None:
         raise last_lock_err
     return 0  # unreachable
+
+
+def iter_ts_close(ticker: str, tf: str, batch: int = 20_000):
+    """Yield ``(ts, c)`` for every stored row of (ticker, tf), oldest first, paged by
+    primary-key seeks of ``batch`` rows. O(batch) memory however deep the series is —
+    the intraday split detector only needs closes, never a materialised bar list."""
+    ticker = ticker.upper()
+    last = None
+    while True:
+        if last is None:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(batch))).fetchall()
+        else:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(last), int(batch))).fetchall()
+        if not rows:
+            return
+        yield from rows
+        last = rows[-1][0]
+        if len(rows) < batch:
+            return
+
+

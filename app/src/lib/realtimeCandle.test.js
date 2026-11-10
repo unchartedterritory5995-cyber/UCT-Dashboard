@@ -40,3 +40,53 @@ describe('applyTick volume — the tick carries the bar CUMULATIVE, not a delta'
     expect(c).toMatchObject({ o: 105.0, h: 106.0, l: 104.0, c: 104.0, v: 300 })
   })
 })
+
+describe('applyBarClose — D1: the 1m bar_close payload carries {t,c,v} and NO o/h/l', () => {
+  beforeEach(() => rc._reset())
+
+  it('merges with the developing candle so o/h/l are never undefined', () => {
+    rc.applyTick('SYN', 50.0, 100, inMinute(1))
+    rc.applyTick('SYN', 51.0, 200, inMinute(10))
+    rc.applyTick('SYN', 49.5, 300, inMinute(40))
+    rc.applyBarClose('SYN', '1', { t: T, c: 50.2, v: 350 })   // server shape, stream.py:243-249
+    const c = rc.getCandle('SYN', '1')
+    expect(c).toMatchObject({ t: T, o: 50.0, h: 51.0, l: 49.5, c: 50.2, v: 350 })
+    for (const k of ['o', 'h', 'l', 'c']) expect(Number.isFinite(c[k])).toBe(true)
+  })
+
+  it('with nothing to merge from, the close stands in for missing extremes (never undefined)', () => {
+    rc.applyBarClose('SYN', '1', { t: T, c: 50.2, v: 10 })
+    const c = rc.getCandle('SYN', '1')
+    expect(c).toMatchObject({ o: 50.2, h: 50.2, l: 50.2, c: 50.2 })
+  })
+
+  it('a close for an OLDER minute never clobbers the developing one', () => {
+    rc.applyTick('SYN', 50.0, 100, T + 60 + 2)
+    rc.applyBarClose('SYN', '1', { t: T, c: 49.0, v: 999 })
+    expect(rc.getCandle('SYN', '1')).toMatchObject({ t: T + 60, c: 50.0, v: 100 })
+  })
+
+  it('payload fields that ARE present win (full bar / correction)', () => {
+    rc.applyTick('SYN', 50.0, 100, inMinute(1))
+    rc.applyCorrection('SYN', '1', { t: T, o: 49.9, h: 50.6, l: 49.8, c: 50.1, v: 400 })
+    expect(rc.getCandle('SYN', '1')).toMatchObject({ o: 49.9, h: 50.6, l: 49.8, c: 50.1, v: 400 })
+  })
+})
+
+describe('applyTick — late prior-minute print at the boundary', () => {
+  beforeEach(() => rc._reset())
+
+  it('does not reset the developing minute back to the older bucket', () => {
+    rc.applyTick('SYN', 50.0, 100, T + 60 + 1)       // new minute opened
+    rc.applyTick('SYN', 49.0, 5_000, inMinute(59))   // late print from the previous minute
+    const c = rc.getCandle('SYN', '1')
+    expect(c.t).toBe(T + 60)
+    expect(c).toMatchObject({ o: 50.0, h: 50.0, l: 50.0, c: 50.0, v: 100 })
+  })
+
+  it('records the tick receipt time per symbol for fallback arbitration', () => {
+    expect(rc.getLastTickAt('syn')).toBe(0)
+    rc.applyTick('SYN', 50.0, 1, inMinute(1))
+    expect(rc.getLastTickAt('syn')).toBeGreaterThan(0)
+  })
+})

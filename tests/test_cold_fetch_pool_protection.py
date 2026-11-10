@@ -44,6 +44,8 @@ def test_cold_fetch_NEVER_runs_the_provider_on_the_request_thread(monkeypatch):
 
     assert resp.status_code == 503, "a cold request must return 503 (warming), never hang"
     assert resp.headers.get("Retry-After") == "3", "client must be told to re-poll fast"
+    # names the shed so the edge passes it through instead of re-asking web
+    assert resp.headers.get("X-Bars-Shed") == "warming"
     assert calls["fetch"] == 0, "the provider fetch must NEVER run on the request thread"
     assert kicked == {"t": "ZSQR", "tf": "D", "bars": 300}, "a bounded bg warm must be kicked"
     assert bars_fetch.get_serve_layer() == "cold-bg"
