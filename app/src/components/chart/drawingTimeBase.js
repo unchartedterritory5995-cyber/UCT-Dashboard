@@ -11,7 +11,7 @@
 // residue only at 09:30 UTC (04:30 EST / 05:30 EDT pre-market), so a drawing WITHOUT the `tb` stamp
 // whose point sits exactly there is read as a legacy chart time. Residual: a hand-drawn point on that
 // exact pre-market minute reads 4-5h late (documented; the overlay could stamp `tb` to retire it).
-import { fromChartTime } from './barTime'
+import { fromChartTime, toChartTime } from './barTime'
 
 const LEGACY_AGENT_RESIDUE = 9 * 3600 + 30 * 60   // 09:30 wall clock as a chart time
 
@@ -32,4 +32,30 @@ export function pointUnixTime(t, drawing = null) {
 export function toUnixTimeBase(drawing) {
   if (!drawing || !Array.isArray(drawing.points)) return drawing
   return { ...drawing, tb: 'unix', points: drawing.points.map(p => (p && isLegacyChartTimePoint(p.time, drawing) ? { ...p, time: fromChartTime(p.time) } : p)) }
+}
+
+/** The overlay's working copy: every unstamped legacy Agent drawing re-expressed in raw unix (and
+ *  stamped), every other drawing the SAME object (no identity churn). Display/hit-test only — it
+ *  reaches storage only through a real edit, which is exactly when a rewrite is allowed. */
+export function toRawUnixView(drawings) {
+  if (!Array.isArray(drawings)) return drawings
+  let changed = false
+  const out = drawings.map((d) => {
+    if (!d || d.tb === 'unix' || !Array.isArray(d.points)) return d
+    if (!d.points.some(p => isLegacyChartTimePoint(p?.time, d))) return d
+    changed = true
+    return toUnixTimeBase(d)
+  })
+  return changed ? out : drawings
+}
+
+/** Stamp a create/update payload whose points carry numeric (intraday) times. */
+export function stampTimeBase(obj) {
+  if (!obj || !Array.isArray(obj.points) || obj.tb === 'unix') return obj
+  return obj.points.some(p => typeof p?.time === 'number') ? { ...obj, tb: 'unix' } : obj
+}
+
+/** A stored (raw unix) point time → the time LWC's series is keyed by (strings pass through). */
+export function pointChartTime(t) {
+  return typeof t === 'number' && Number.isFinite(t) ? toChartTime(t) : t
 }

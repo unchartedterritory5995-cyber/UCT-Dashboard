@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest'
 import { anchorsForDrawing } from './drawingAlertAnchors'
 import { drawingTimeFor } from './drawingTools'
 import { toChartTime, fromChartTime } from './barTime'
-import { isLegacyChartTimePoint, pointUnixTime, toUnixTimeBase } from './drawingTimeBase'
+import { isLegacyChartTimePoint, pointUnixTime, toUnixTimeBase, toRawUnixView, stampTimeBase, pointChartTime } from './drawingTimeBase'
 
 const open = (y, mo, d) => {   // 09:30 ET as unix
   for (const off of [4, 5]) {
@@ -53,5 +53,26 @@ describe('stored intraday drawing points share one time base', () => {
     const d = toUnixTimeBase({ type: 'trendline', points: [{ time: toChartTime(a), price: 1 }, { time: lastBar, price: 2 }] })
     expect(d.tb).toBe('unix')
     expect(d.points.map(p => p.time)).toEqual([a, lastBar])
+  })
+})
+
+describe('the overlay working copy (toRawUnixView / stampTimeBase / pointChartTime)', () => {
+  const u = Date.UTC(2026, 9, 29, 13, 30) / 1000          // 09:30 EDT
+  it('re-expresses only legacy agent drawings, keeps identity otherwise', () => {
+    const manual = { id: 'm', type: 'vertical', points: [{ time: u }] }
+    const legacy = { id: 'a', type: 'vertical', points: [{ time: toChartTime(u) }] }
+    const list = [manual, legacy]
+    const view = toRawUnixView(list)
+    expect(view[0]).toBe(manual)
+    expect(view[1]).toEqual({ ...legacy, tb: 'unix', points: [{ time: u }] })
+    const clean = [manual]
+    expect(toRawUnixView(clean)).toBe(clean)
+  })
+  it('stamps numeric-point writes; LWC is asked in chart time', () => {
+    expect(stampTimeBase({ points: [{ time: u, price: 1 }] }).tb).toBe('unix')
+    expect(stampTimeBase({ points: [{ time: '2026-10-29', price: 1 }] }).tb).toBeUndefined()
+    expect(stampTimeBase({ color: 'red' })).toEqual({ color: 'red' })
+    expect(pointChartTime(u)).toBe(toChartTime(u))
+    expect(pointChartTime('2026-10-29')).toBe('2026-10-29')
   })
 })
