@@ -3,8 +3,9 @@
 Status: written by pl-auto, 2026-11-10. **No paid call was made to produce this document.** Nothing here writes or reads
 the owner's `C:/UCT/agent-autotest-authorization.json`. The only files the owner writes are the two in section 1.
 
-Harness commit: `86d446a3f9` on `agent/pl/autotest-2` (the fix in section 3). The commit that adds this document changes only
-`docs/`; the set hashes below were recomputed there and they match.
+Harness commits on `agent/pl/autotest-2`: `86d446a3f9` (atomic ceilings, §3) and `5ad6acf02d` (AUDIT F1 scratch-world
+rail §2a, F2 post-reply naming call §5). The commit that adds this revision changes only `docs/`. The set hashes below were
+recomputed at `86d446a3f9` and at the doc commit, and they match: no request file changed.
 
 ## 0. Summary
 
@@ -65,9 +66,10 @@ State today (from the read-only command in §6): the ledger, cap file, authoriza
 
 - **File:** `tools/agent_eval_ledger.py` holds `WINDOWS_LEDGER = C:\UCT\agent-eval-ledger.db`. The cap file is the sibling
   `agent-eval-cap.json`. There is no fallback path (not HOME, not the repo), so no worktree or session can start its own ledger.
-- **No relocation:** the `UCT_AGENT_EVAL_LEDGER` override is honoured only when `PYTEST_CURRENT_TEST` is set. Anywhere else it
+- **No relocation, part 1:** the `UCT_AGENT_EVAL_LEDGER` override is honoured only when `PYTEST_CURRENT_TEST` is set. Anywhere else it
   raises `LedgerRefused("unavailable")`. An explicit `Ledger(path)` is refused outside pytest unless it is `readonly=True`,
   and a read-only handle refuses `reserve`.
+- **No relocation, part 2 (AUDIT F1, `5ad6acf02d`): see §2a.**
 - **Every paid caller goes through it.** The audit was a grep of `Anthropic(` across `tools/*.py` at `86d446a3f9`:
   - `agent_autotest_gate.py` (serve → `Session.caller` → `guarded_call`; production → `reserve_turn` → `reserve`)
   - `agent_eval_run.py`, `agent_live_batch.py`, `agent_latency_probe.py`, `agent_live_chain.py` and `agent_smoke_context_breadth.py`:
@@ -78,6 +80,35 @@ State today (from the read-only command in §6): the ledger, cap file, authoriza
   request and `gate settle` after it. `isGranted()` WeakSet: neither relay can be built without the grant object.
 - **Scope:** the ledger is global per machine. CI and other machines have no `C:/UCT/agent-autotest-authorization.json`
   (on POSIX the Windows `AUTH_PATH` is never a file), so the gate refuses there and no autotest paid run can happen anywhere else.
+
+## 2a. AUDIT F1: a scratch ledger can never carry a paid call
+
+**The hole.** `under_pytest()` is only `bool(PYTEST_CURRENT_TEST)`, so any plain process can set it. It can then point
+`UCT_AGENT_EVAL_LEDGER` at a new file. The cap file is that file's sibling, and `UCT_AGENT_AUTOTEST_AUTH` / `_STOP` move the
+authorization and STOP file the same way. The result is a fresh ledger with a fresh cap.
+
+**The rail.** `ledger.refuse_paid_in_scratch(path, production=...)` (in `tools/agent_eval_ledger.py`) checks whether ANY
+override is in force: one of `OVERRIDE_ENVS` = (`UCT_AGENT_EVAL_LEDGER`, `UCT_AGENT_AUTOTEST_AUTH`, `UCT_AGENT_AUTOTEST_STOP`),
+or a ledger handle on a file other than the pinned one. If so:
+- `Ledger.guarded_call` (every metered SDK call of every paid tool, and the gate's local `serve`) raises
+  `LedgerRefused("unavailable")` **before reserving or calling** when `UCT_AGENT_EVAL_API_KEY` or `ANTHROPIC_API_KEY` is
+  present. It checks presence only and never reads the value into anything.
+- `gate.reserve_turn` (production, which is the `reserve` CLI) raises `Refused` **always**, with or without a key.
+- `PYTEST_CURRENT_TEST` plays no part in either check. A scratch ledger is only ever used with a fake client and no key, and
+  the pytest fixtures (`led`, `env`) now delete both key variables.
+
+**Rail test:** `bypass()` in `tests/test_agent_autotest_cap_race.py`. It is a plain `python -c` subprocess, not under
+pytest, that fakes `PYTEST_CURRENT_TEST`, sets all three overrides to a temp dir and sets a real-looking
+`UCT_AGENT_EVAL_API_KEY`. The fake client raises without touching the network.
+
+| case | guarded_call | reserve_turn (production) | fake client reached |
+|---|---|---|---|
+| rail in place, key set | refused | refused | 0 |
+| rail in place, no key (control) | allowed | refused | 1 |
+| **mutation:** both rail calls removed, key set | **ALLOWED** | **ALLOWED** | **1** → rail FAILS |
+
+The mutation was run by editing the two call sites out, running the rail, then `git checkout --` the files. The no-key
+control shows that the fake client is reachable, so the refusal in row 1 can only come from the rail.
 
 ## 3. Concurrency: atomic reserve
 
@@ -134,6 +165,21 @@ files are in a temp dir, and the children spin on a start file so they reserve a
 
 ## 5. The production target
 
+- **AUDIT F2: calls after the reply.** Yes, there is one. When a chat is still unnamed and the turn gave no title, the
+  router queues `background.add_task(_name_unnamed, uid, cid, request_id)` (`api/routers/uct_agent.py:675`). It runs AFTER
+  the response is sent and makes one naming model call (`turn.name_conversation` → `meter.call(..., "title", ...)`,
+  `api/services/uct_agent/turn.py:1852-1870`) through `budget.Meter(user_id, request_id)` (`budget.py:490`, `reserve` at
+  `budget.py:360`).
+  - That call belongs to the SAME request: it sits inside the request's $0.25 turn cap and its 2-call ceiling, both checked
+    in the reserve transaction (`budget.py` header).
+  - The other post-reply tasks (`_set_title`, `record_telemetry`) make no model call.
+  - **Fix (`5ad6acf02d`):** after the b1 read, `productionTarget` waits `SETTLE_DELAY_MS` (10 s), reads b2 and settles at
+    `max(b1 − b0, b2 − b0)`. A missing b2, or b2 < b1, settles at the worst case.
+  - Because the server counts an open reservation in `committed_usd`, a naming call that has started by b2 is counted at its
+    worst case even if it has not finished.
+  - Residual: a naming call that has not even reserved 10 s after the reply would be missed. That miss is bounded by the
+    request's own $0.25 turn cap, which is the harness's reservation, and any such miss is also covered by the server's own
+    daily cap.
 - **Per-request bound.** The server caps each turn at `DEFAULT_TURN_USD = 0.25` with at most 2 calls (`api/services/uct_agent/budget.py`).
   The harness reserves `0.25 × turns` per request in the eval ledger (`86d446a3f9`; it was a flat $0.25, which under-reserved
   multi-turn requests). Every canary request is single-turn: 12 requests, all with 1 turn.
@@ -159,6 +205,9 @@ files are in a temp dir, and the children spin on a start file so they reserve a
 - **Note:** a crash or timeout now settles at the worst case and so STOPs the canary. That is deliberate (fail closed), but a
   flaky Chrome start will end the run early.
 
+- **AUDIT F3 (accepted):** the STOP-file check runs before the reserve transaction, not inside it. A reservation already
+  in flight when a STOP is written is still bounded by the atomic ceilings of §3.
+
 ## 6. Read-only total
 
 ```
@@ -175,6 +224,13 @@ python tools/agent_autotest_cap_status.py
 ## 7. Not done (deliberately)
 
 - No paid call. No `C:/UCT` file was written.
-- pytest was not run under this worker's rules. The new test was run directly (`python tests/test_agent_autotest_cap_race.py` → PASS).
-  The existing `tests/test_agent_autotest_gate.py` cases use the unchanged signatures (`limits` defaults to `()`). A
-  `Session.caller` sanity call against a scratch ledger was run by hand and passed.
+- pytest was not run under this worker's rules. The new test was run directly at `5ad6acf02d`:
+  `python tests/test_agent_autotest_cap_race.py` → race 32 / 32 / 2, overrun STOP, bypass rail, then PASS.
+- Existing pytest files edited without running them:
+  - Fixtures `led` (`tests/test_uct_agent_eval_ledger.py`) and `env` (`tests/test_agent_autotest_gate.py`) now delete the
+    key variables.
+  - `test_production_reservation_holds_a_whole_turn...` now books through `Ledger.reserve(limits=Ceilings.limits())`,
+    because `reserve_turn` refuses in a scratch world.
+  - New `test_production_never_books_into_a_scratch_ledger`.
+  - The env-read rail (`PROD_KEY_ENV` read once) still holds: the new presence check reads through a loop variable over
+    `KEY_ENVS`. **AUDIT should run these pytest files.**
