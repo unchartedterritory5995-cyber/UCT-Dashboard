@@ -55,6 +55,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
+- Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
 - How: no generator exists. A script took the base `origin/master` `dfc645ccb3`, applied the union of the packets' row changes (and the multichart packet's note corrections), checked that no row or line was changed by two packets, recounted the "All actions" table into "Counts by area", "The number" and the runtime-only bullet, and kept every line's line ending. The 2026-11-05 sections below are left as that run wrote them, apart from the stale-note correction.
 
 ## Rules used
