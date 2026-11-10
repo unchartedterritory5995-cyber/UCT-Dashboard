@@ -21,7 +21,7 @@ export default function GroupHeatHeader({ groupName, total, shown, holdings, als
   const { green, count, avg, leader } = summarizeHeat(holdings)
   const switches = (Array.isArray(alsoIn) ? alsoIn : []).filter(g => g && g.id && g.name).slice(0, 5)
   return (
-    <div className="groupHeatHeader" style={heaterStyle}>
+    <div className="groupHeatHeader" data-guide="multiChart.groupHeader" style={heaterStyle}>
       <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}>{groupName}</strong>
       {count > 0 && (
         <>
