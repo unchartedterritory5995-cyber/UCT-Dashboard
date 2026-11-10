@@ -146,3 +146,27 @@ def test_the_python_lane_reproduces_the_rally_window(case):
         else:
             assert a is not None and abs(a - b) <= 1e-9 * max(1.0, abs(b)), f"{case['name']} bar {i}: {a} vs {b}"
     assert sorted(sink) == case["codes"], case["name"]
+
+
+def test_an_arm_an_input_switches_off_is_no_path():
+    """r2 (review VAR-OFF N-b) -- ``interpret.js::prunedUpdate``, this lane: keltner's
+    ``trend`` compares with ``jz ? dn[1] : na`` and ``jz`` is an input that is off, so the
+    direction never flips and is its seed. Gated by the input (not folded to ``na``) it must
+    be served exactly as the folded tree is."""
+    doc = _doc()
+    case = {c["name"]: c for c in doc["cases"]}[
+        "a direction whose levels an input turns off \u00b7 var origin \u00b7 off the listing"]
+
+    def gate(n):
+        if isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/" and all(
+                isinstance(a, dict) and a.get("type") == "num" and a.get("value") == 0 for a in n.get("args", [])):
+            return {"type": "op", "name": "?:", "args": [
+                {"type": "series", "name": "jz"},
+                {"type": "offset", "value": 1, "args": [{"type": "series", "name": "close"}]}, n]}
+        if isinstance(n, dict) and isinstance(n.get("args"), list):
+            return dict(n, args=[gate(a) for a in n["args"]])
+        return n
+    sink: dict = {}
+    got = ai.interpret(gate(case["ast"]), doc["bars"], {"jz": 0}, opts=dict(case["opts"], chartClockSink=sink))
+    assert [g is None for g in got] == [e is None for e in case["expected"]]
+    assert sorted(sink) == []

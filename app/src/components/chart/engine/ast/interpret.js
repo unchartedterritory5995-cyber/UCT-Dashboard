@@ -5981,6 +5981,57 @@ function probeSeedsOf(real, body, bind) {
  *  proof over every seed: a state TradingView held before the loaded bars that
  *  never occurs inside them is not among the probes. The held and switched kinds
  *  are exact. */
+/** ⭐⭐ r2 (review VAR-OFF N-b) — THE UPDATE AS IT RUNS ON EVERY BAR OF THIS DOCUMENT.
+ *  A branch whose test reads only inputs, scalars and numbers (`seedBarInvariant`)
+ *  takes the SAME arm on every bar TradingView ever ran — so the other arm is not a
+ *  path, and neither is a comparison with a literal `na` (false on both platforms,
+ *  C29 rule 6) nor an `&&` holding one. ⚰️ MEASURED: keltner-cog's `trend` reads
+ *  `close > (naz ? dn[1] : na)` with `naz` an input that is off, so it never flips
+ *  and IS its seed 1 on every bar; read with the dead arms it looked like a latch,
+ *  was probed from a state it can never take, and 1,750 bars the window drew right
+ *  (`out19`, AGEN 1D) were withheld. Only the SHAPE is simplified, for deciding the
+ *  kind and its seeds; every run still evaluates the real node. A test is evaluated
+ *  on the first bar (it is the same number on all of them); one that is `na` is
+ *  left alone. A nested recurrence is not entered. */
+function prunedUpdate(body, bars, inputs, budget, scalars, opts) {
+  const NA = () => ({ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] })
+  const isNa = (n) => !!n && n.type === 'op' && n.name === '/' && Array.isArray(n.args) && n.args.length === 2
+    && n.args.every((a) => a && a.type === 'num' && a.value === 0)
+  const isNum = (n) => !!n && n.type === 'num' && Number.isFinite(n.value)
+  const n0 = Array.isArray(bars) ? bars.length : 0
+  const valueOf = (t) => {
+    if (!n0) return NaN
+    const c = interpretOnce(t, bars.slice(0, 1), inputs, budget, scalars,
+      { ...(opts || {}), crossMemo: undefined, probeBase: undefined, chartClockSink: undefined })
+    const v = typeof c === 'number' ? c : c && c.length ? c[0] : NaN
+    return typeof v === 'number' ? v : NaN
+  }
+  const walk = (n, depth) => {
+    if (!n || typeof n !== 'object' || depth > 200) return n
+    if (n.type === 'call' && (own(RECURRENCES, n.name) || own(MULTI_STATES, n.name))) return n
+    if (!Array.isArray(n.args)) return n
+    const args = n.args.map((a) => walk(a, depth + 1))
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) {
+      const t = args[0]
+      const v = isNum(t) ? t.value : (!isNa(t) && seedBarInvariant(t, inputs) ? valueOf(t) : NaN)
+      if (Number.isFinite(v)) return v !== 0 ? args[1] : args[2]
+    }
+    if (n.type === 'op' && ['>', '<', '>=', '<=', '==', '!='].includes(n.name) && args.some(isNa)) {
+      return { type: 'num', value: 0 }
+    }
+    if (n.type === 'op' && n.name === '&&' && args.some((a) => isNum(a) && a.value === 0)) return { type: 'num', value: 0 }
+    if (n.type === 'op' && args.some(isNa) && ['+', '-', '*', '/'].includes(n.name)) return NA()
+    return { ...n, args }
+  }
+  return walk(body, 0)
+}
+
+/** Is this update the value kept as it is — `self`, or `nz(self, k)` with `k` the same on every bar? */
+const keepsItself = (body, bind, inputs) => !!body && ((body.type === 'series' && body.name === bind)
+  || (body.type === 'call' && body.name === 'nz' && Array.isArray(body.args) && body.args[0]
+    && body.args[0].type === 'series' && body.args[0].name === bind
+    && (body.args.length < 2 || seedBarInvariant(body.args[1], inputs))))
+
 export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
   if (!opts || opts.varOriginAbsolute !== true || opts.historyFromListing === true) return null
   const n = Array.isArray(bars) ? bars.length : 0
@@ -5996,9 +6047,13 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
       const seed = node.args[rec.seed]
       const body = node.args[rec.body]
       if (switchedSeedOf(seed)) found.push({ node, under, kind: 'switched' })
-      else if (bodyHoldsSeed(body, rec.binds) || selfDecidesBranch(body, rec.binds)) {
-        const bare = !!body && body.type === 'series' && body.name === rec.binds
-        if (!(bare && seedBarInvariant(seed, inputs))) found.push({ node, under, kind: bare ? 'held' : 'probe' })
+      else {
+        const shape = prunedUpdate(body, bars, inputs, budget, scalars, opts)
+        if (keepsItself(shape, rec.binds, inputs)) {
+          if (!seedBarInvariant(seed, inputs)) found.push({ node, under, kind: 'held' })
+        } else if (bodyHoldsSeed(shape, rec.binds) || selfDecidesBranch(shape, rec.binds)) {
+          found.push({ node, under, kind: 'probe', shape })
+        }
       }
     }
     const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
@@ -6026,7 +6081,7 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
   // tree asked the same seeded runs again. The pass memo holds the unknown bars,
   // keyed on the recurrence's structure (a seeded run never depends on the tree around it).
   const memo = opts.crossMemo instanceof Map ? opts.crossMemo : null
-  for (const { node, kind } of found) {
+  for (const { node, kind, shape } of found) {
     const reach = Math.max(0, rootReach - maxLookback(node))
     const memoKey = memo ? `varorigin\u0001${JSON.stringify(node)}` : null
     let unknown = memoKey && memo.has(memoKey) ? memo.get(memoKey) : null
@@ -6040,7 +6095,7 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
       const at = RECURRENCES[node.name].seed
       const seeded = (p) => ({ ...node, args: node.args.map((a, k) => (k === at ? { type: 'num', value: p } : a)) })
       const real = run(node)
-      const runs = probeSeedsOf(real, node.args[RECURRENCES[node.name].body], RECURRENCES[node.name].binds)
+      const runs = probeSeedsOf(real, shape, RECURRENCES[node.name].binds)
         .map(({ p, dist }) => ({ col: run(seeded(p)), dist }))
       unknown = (i) => runs.some((r) => !seedRunsAgree(real[i], r.col[i], r.dist))
     }

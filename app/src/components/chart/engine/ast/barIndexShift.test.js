@@ -116,6 +116,16 @@ export const ORIGIN = {
   // factor): only the numbers compared with the value ITSELF are states, so 1.2 is no seed
   'a direction with a threshold factor': [['var int dir = 1',
     'dir := dir == 1 and open - close > 1.2 ? -1 : dir == -1 and close - open > 1.2 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r2 (review VAR-OFF N-a) — an admitted contraction reached through a rare hold arm: from a FAR
+  // seed ~0.9^230 of 1e12 is left, under the residual of THAT seed's distance, not of the spread
+  'a contraction past a rare hold': [['var float e = na',
+    'e := na(e[1]) ? close : close - open > 1.45 ? e[1] : 0.9 * e[1] + 0.1 * close', 'plot(e)'], 'inv', 0],
+  // ⭐ r2 (review VAR-OFF N-b) — keltner's shape: the direction's levels are `na` under an input
+  // that is off, so it never flips and IS its seed; its dead arms are no states
+  'a direction whose levels an input turns off': [['jz = input.bool(false)', 'bz = input.bool(false)',
+    'lvl = jz or bz ? close[1] : na',
+    'var int t = 1', 't := t == 1 and close < lvl ? -1 : t == -1 and close > lvl ? 1 : t', 'plot(t + close * 0)'], 'inv', 0,
+  { jz: 0, bz: 0 }],
   // ⭐ r1 — a state-gated hold: its TradingView state can lie outside every value this window takes
   'a state-gated hold': [['var float s = close', 's := s > 115 ? s : low', 'plot(s)'], 'inv', 0],
   // ⭐ r1 — a hold beside an admitted contraction: the seed survives ~0.94^125, above the residual

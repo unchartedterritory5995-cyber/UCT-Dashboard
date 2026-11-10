@@ -41,8 +41,8 @@ const nulls = (key, where) => col(key, where).filter((v) => v === null).length
 const KEYS = [...new Set(PARITY.cases.filter((c) => c.name.includes(' · var origin · ')).map((c) => c.pine))]
 
 describe('the fixture holds the var-origin trees', () => {
-  it('seventeen trees, each off the listing, with controls from the listing and in the formula language', () => {
-    expect(KEYS.length).toBe(17)
+  it('nineteen trees, each off the listing, with controls from the listing and in the formula language', () => {
+    expect(KEYS.length).toBe(19)
     expect(PARITY.cases.filter((c) => c.name.endsWith('· var origin · from the listing')).length).toBe(4)
     expect(PARITY.cases.filter((c) => c.name.endsWith("· var origin · the formula language's own accum")).length).toBe(3)
   })
@@ -207,6 +207,33 @@ describe('⭐ r1 — the three shapes the first probe let through (review VAR-OF
     // 1.2, held it, and was withheld (633 RIGHT bars on two SuperTrend scripts, census r1)
     expect(codes('a direction with a threshold factor')).toEqual([])
     expect(nulls('a direction with a threshold factor')).toBe(250)
+  })
+
+  it('CONTROL — a far seed is graded against ITS OWN distance: a contraction past a rare hold stays served', () => {
+    // ~0.9^230 x 1e12 (about 30) is left from a far seed: within 1e-6 of that seed's distance,
+    // and far outside 1e-6 of 1 — graded against a fixed distance it would be withheld
+    expect(codes('a contraction past a rare hold')).toEqual([])
+    expect(nulls('a contraction past a rare hold')).toBe(250)
+  })
+
+  it('CONTROL — an arm an input switches off is no path: the direction it never takes is no seed (keltner `out19`)', () => {
+    expect(codes('a direction whose levels an input turns off')).toEqual([])
+    expect(nulls('a direction whose levels an input turns off')).toBe(250)
+  })
+
+  it('…and gated by the INPUT itself (not folded to `na`, as keltner reaches the door) it is served the same', () => {
+    const gate = (x) => {
+      if (x && x.type === 'op' && x.name === '/' && Array.isArray(x.args) && x.args.every((a) => a && a.type === 'num' && a.value === 0)) {
+        return { type: 'op', name: '?:', args: [{ type: 'series', name: 'jz' },
+          { type: 'offset', value: 1, args: [{ type: 'series', name: 'close' }] }, x] }
+      }
+      return x && Array.isArray(x.args) ? { ...x, args: x.args.map(gate) } : x
+    }
+    const c = kase('a direction whose levels an input turns off')
+    const sink = new Map()
+    const got = Array.from(interpret(gate(c.ast), BARS, { jz: 0 }, undefined, undefined, { ...VAR_DOC, chartClockSink: sink }))
+    expect(got.map(Number.isNaN)).toEqual(c.expected.map((v) => v === null))
+    expect([...sink.keys()]).toEqual([])
   })
 
   it('a state-gated hold is probed from far seeds as well, and is withheld where its state may lie outside', () => {

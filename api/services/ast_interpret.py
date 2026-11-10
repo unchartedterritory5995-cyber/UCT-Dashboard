@@ -4911,6 +4911,72 @@ def _var_origin_self_decides_branch(body: Any, bind: Any) -> bool:
     return False
 
 
+def _var_origin_pruned(body: Any, bars: List[dict], inputs, budget, scalars, opts) -> Any:
+    """``interpret.js::prunedUpdate`` -- the update as it runs on every bar of this
+    document: a ``?:`` whose test is bar-invariant (``_var_origin_seed_invariant``)
+    takes its one arm; a comparison with a literal ``na`` is false; an ``&&`` holding
+    a false is false. Only the SHAPE, for deciding the kind and its seeds."""
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+    comparisons = (">", "<", ">=", "<=", "==", "!=")
+
+    def na_node() -> dict:
+        return {"type": "op", "name": "/", "args": [{"type": "num", "value": 0}, {"type": "num", "value": 0}]}
+
+    def is_na(n: Any) -> bool:
+        a = n.get("args") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/" and isinstance(a, list)
+                and len(a) == 2 and all(isinstance(x, dict) and x.get("type") == "num" and x.get("value") == 0 for x in a))
+
+    def is_num(n: Any) -> bool:
+        v = n.get("value") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "num" and isinstance(v, (int, float))
+                and not isinstance(v, bool) and math.isfinite(v))
+
+    def value_of(t: Any) -> float:
+        if not bars:
+            return math.nan
+        col = _interpret_column(t, bars[:1], inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
+        v = col[0] if col else math.nan
+        return v if isinstance(v, (int, float)) and v is not None else math.nan
+
+    def walk(n: Any, depth: int) -> Any:
+        if not isinstance(n, dict) or depth > 200:
+            return n
+        if n.get("type") == "call" and n.get("name") in stateful:
+            return n
+        a = n.get("args")
+        if not isinstance(a, list):
+            return n
+        args = [walk(x, depth + 1) for x in a]
+        kind, name = n.get("type"), n.get("name")
+        if kind == "op" and name == "?:" and len(args) == 3:
+            t = args[0]
+            v = t["value"] if is_num(t) else (value_of(t) if not is_na(t) and _var_origin_seed_invariant(t, inputs)
+                                              else math.nan)
+            if isinstance(v, (int, float)) and math.isfinite(v):
+                return args[1] if v != 0 else args[2]
+        if kind == "op" and name in comparisons and any(is_na(x) for x in args):
+            return {"type": "num", "value": 0}
+        if kind == "op" and name == "&&" and any(is_num(x) and x["value"] == 0 for x in args):
+            return {"type": "num", "value": 0}
+        if kind == "op" and name in ("+", "-", "*", "/") and any(is_na(x) for x in args):
+            return na_node()
+        return dict(n, args=args)
+    return walk(body, 0)
+
+
+def _var_origin_keeps_itself(body: Any, bind: Any, inputs) -> bool:
+    """``interpret.js::keepsItself`` -- ``self``, or ``nz(self, k)`` with ``k`` bar-invariant."""
+    if not isinstance(body, dict):
+        return False
+    if body.get("type") == "series" and body.get("name") == bind:
+        return True
+    a = body.get("args")
+    return (body.get("type") == "call" and body.get("name") == "nz" and isinstance(a, list) and bool(a)
+            and isinstance(a[0], dict) and a[0].get("type") == "series" and a[0].get("name") == bind
+            and (len(a) < 2 or _var_origin_seed_invariant(a[1], inputs)))
+
+
 def var_origin_mask(tree: Any, bars: List[dict],
                     inputs: Optional[Mapping[str, Any]] = None,
                     budget: Optional[Mapping[str, Any]] = None,
@@ -4940,25 +5006,28 @@ def var_origin_mask(tree: Any, bars: List[dict],
             if isinstance(seed_at, int) and isinstance(body_at, int) and max(seed_at, body_at) < len(args):
                 body = args[body_at]
                 if switched_seed_of(args[seed_at]):
-                    found.append((node, under, "switched"))
-                elif _var_origin_holds(body, bind) or _var_origin_self_decides_branch(body, bind):
-                    bare = isinstance(body, dict) and body.get("type") == "series" and body.get("name") == bind
-                    if not (bare and _var_origin_seed_invariant(args[seed_at], inputs)):
-                        found.append((node, under, "held" if bare else "probe"))
+                    found.append((node, under, "switched", None))
+                else:
+                    shape = _var_origin_pruned(body, bars, inputs, budget, scalars, opts)
+                    if _var_origin_keeps_itself(shape, bind, inputs):
+                        if not _var_origin_seed_invariant(args[seed_at], inputs):
+                            found.append((node, under, "held", None))
+                    elif _var_origin_holds(shape, bind) or _var_origin_self_decides_branch(shape, bind):
+                        found.append((node, under, "probe", shape))
         into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
     if not found:
         return None
-    if any(under or kind == "held" for _node, under, kind in found):
+    if any(under or kind == "held" for _node, under, kind, _shape in found):
         _name_chart_clock(opts, ["var-origin:window"])
         return [1] * n
     inner = dict(o, chartClockSink=None)
     root_reach = max_lookback(tree)
     mask = [0] * n
     held = False
-    for node, _under, kind in found:
+    for node, _under, kind, shape in found:
         reach = max(0, root_reach - max_lookback(node))
         if kind == "switched":
             a = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=PREFIX_PROBE))
@@ -4969,7 +5038,7 @@ def var_origin_mask(tree: Any, bars: List[dict],
             real = _interpret_column(node, bars, inputs, budget, scalars, inner)
             runs = []
             rec = RECURRENCES[node["name"]]
-            for p, dist in _var_origin_probe_seeds(real, node["args"][rec["body"]], rec.get("binds")):
+            for p, dist in _var_origin_probe_seeds(real, shape, rec.get("binds")):
                 args = list(node["args"])
                 args[seed_at] = {"type": "num", "value": p}
                 runs.append((_interpret_column(dict(node, args=args), bars, inputs, budget, scalars, inner), dist))
