@@ -49,9 +49,12 @@ export const COV3_HELD_OUT = [
 // ⛔ THE ROWS ABOVE ARE NOT EDITED. Three of them miss what this file named, for reasons recorded here (2026-11-09, after the
 // entries): each is asserted to reach what it reaches today, so a change in either direction shows. Counted in the PR doc.
 export const COV3_MISSES = {
-  // the Options Flow catalog control is more specific than the row this file named ("Flow filters")
-  'how do I only see call options with a big premium': 'Options Flow: minimum premium',
-  'how do I open the options flow then filter it to puts': 'Options Flow: calls or puts',
+  // the Options Flow catalog control is more specific than the row this file named ("Flow filters").
+  // 2026-11-10 (teach-widget-ops 5a831e7c22, the Flow filters one button at a time): both now reach the one-sided button
+  // walkthrough (Calls / Puts) instead of 'Options Flow: minimum premium' / 'Options Flow: calls or puts'. The premium
+  // ask is two-sided (calls AND a big premium); it now walks the Calls half. Master 292983f4bc still pins the old values.
+  'how do I only see call options with a big premium': 'Showing only calls in the flow',
+  'how do I open the options flow then filter it to puts': 'Showing only puts in the flow',
   // a two-part walkthrough's title lowercases its second part: "…, then locking a drawing"
   'how do I add a horizontal line and then lock it': 'then locking a drawing',
 }
