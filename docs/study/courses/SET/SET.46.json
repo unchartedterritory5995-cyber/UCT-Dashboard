@@ -566,7 +566,7 @@
   {
    "id": "c23",
    "source": "c1",
-   "quote": "Name the line. A Remount takes back a moving average or a flat price level the stock held before; an AVWAP reclaim takes back the volume-weighted average cost since one named event (a high, an earnings gap day, the IPO day). If the line starts at an event day and bends with volume, it is the AVWAP.",
+   "quote": "Name the line. A Remount takes back a moving average or a flat price level the stock held before; an AVWAP reclaim takes back the volume-weighted average cost since one named event",
    "claim": "A Remount takes back a moving average or flat level; the AVWAP reclaim takes back the average cost since one event."
   },
   {
@@ -1539,7 +1539,7 @@
    "wrong": {
     "Sell at the open, 48.70": "The gap rule gives it the first 30 minutes. The 30-minute low is the decision.",
     "No stop until it regains 49.00": "There is always a stop. The new one is the 30-minute low.",
-    "Out; the loss is past 2R": "48.40 is a 1.6R loss, inside the 2R ceiling."
+    "Out; the loss is past 2R": "The loss from 50.00 to 48.40 stays inside the 2R ceiling."
    },
    "house": true,
    "calc": {

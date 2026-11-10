@@ -1032,7 +1032,8 @@
     "h32",
     "c03",
     "h05",
-    "h20"
+    "h20",
+    "c01"
    ]
   }
  ],
@@ -1225,7 +1226,7 @@
     "A gap that must fill"
    ],
    "answer": "A bottom, and a new uptrend",
-   "why": "A bottom, and a new uptrend. It signals that a stock has bottomed and is starting a new uptrend. Kell's QQQ pop in 2023 confirmed the low that way.",
+   "why": "A bottom, and a new uptrend. It signals that a stock has bottomed and is starting a new uptrend. Kell's QQQ pop confirmed the low that way.",
    "lesson_line": "The pop is the market telling you the low is in. Then you have a line to risk against.",
    "facts": [
     "k01",
@@ -1785,7 +1786,7 @@
     "A flat base breakout": "A flat base is weeks in a box under a flat top. This is a dip to a rising line."
    },
    "house": true,
-   "story": "Fourteen sessions ago the stock popped back over its averages. Every close since held above the 20 EMA. Today it dips to the average and holds."
+   "story": "A May 2024 chart. Fourteen sessions ago the stock popped back over its averages. Every close since held above the 20 EMA. Today it dips to the average and holds."
   },
   {
    "key": "q32",
@@ -1839,7 +1840,7 @@
     "Take it at half size": "A hard rule has no half size. Under the 200-day there is no long."
    },
    "house": true,
-   "story": "A 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day."
+   "story": "A January 2019 chart. A 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day."
   },
   {
    "key": "q34",
@@ -1882,7 +1883,7 @@
     "They grade the same"
    ],
    "answer": "The close near the high",
-   "why": "The close near the high. In our scan a close back under the pivot on the pop day cut the rate of reaching 3R to 23.1% against 46.5%, the biggest cut of any single mark.",
+   "why": "The close near the high. In our scan a close back under the pivot on the pop day cut the hit rate to 23.1% against 46.5%, the biggest cut of any single mark.",
    "lesson_line": "Where the pop day closes tells you if the pop is real.",
    "facts": [
     "d27",
