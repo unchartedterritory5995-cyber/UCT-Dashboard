@@ -76,6 +76,24 @@ describe('teach coverage probe (inventory phrasings, routing only)', () => {
       if (r.a || r.b) byStatus[k].reached++
     }
     if (process.env.GUIDE_PROBE_OUT) fs.writeFileSync(process.env.GUIDE_PROBE_OUT, JSON.stringify({ reached, total: rows.length, byStatus, report }, null, 1))
+    // ⭐ the browser runner's cases (app/src/testing/agent/guide/teach.mjs). A row is a case only when one of its two phrasings
+    // reaches the walkthrough a PERSON decided is right for it (testing/agent/guide/expected.json: the 11-05 matrix's "Guide
+    // feature" column, and catalog controls reviewed by hand 2026-11-07). The browser then has to ring its last control.
+    if (process.env.GUIDE_CASES_OUT) {
+      const want = JSON.parse(read('app/src/testing/agent/guide/expected.json'))
+      const cases = []
+      for (const r of report) {
+        const exp = want[r.id]
+        if (!exp) continue
+        for (const [k, say] of [['a', `how do I ${lower(r.action)}`], ['b', r.example && r.example !== 'none' ? `show me how to ${lower(r.example)}` : null]]) {
+          const got = r[k]
+          if (!say || !got || got.feature !== exp.feature || (exp.title && got.title !== exp.title)) continue
+          cases.push({ id: r.id, say, feature: got.feature, title: got.title })
+          break
+        }
+      }
+      fs.writeFileSync(process.env.GUIDE_CASES_OUT, JSON.stringify(cases, null, 1))
+    }
     console.log(`teach probe: ${reached}/${rows.length} rows reach a walkthrough`, JSON.stringify(byStatus))
   })
 })

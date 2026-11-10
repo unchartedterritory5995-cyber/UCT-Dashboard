@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { GROUP_HUES, UNCLASSIFIED } from './scanDeckModel'
 import ws from '../../../charts/ChartsWorkspace.module.css'
@@ -12,7 +12,7 @@ const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
 // stocks come from (the sector mix).
 export function ScanHeader({
   label, count, live, drillCols, colKey, onPickMetric,
-  dateNav, ctx, summary, mode, onMode, modes, onClose, children,
+  dateNav, ctx, onWantDays, summary, mode, onMode, modes, onClose, children,
 }) {
   const metricId = useId()
   return (
@@ -34,7 +34,7 @@ export function ScanHeader({
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
       </div>
 
-      <CountHistory count={count} ctx={ctx} />
+      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} />
 
       <SectorMix sectors={summary?.sectors} />
 
@@ -77,10 +77,15 @@ const fmtDay = (d) => {
   return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function CountHistory({ count, ctx }) {
+function CountHistory({ count, ctx, onWantDays }) {
   const [range, setRange] = useState(readRange)
   const [hover, setHover] = useState(null)
   const r = RANGES.find(x => x.key === range) || RANGES[1]
+  // A range longer than the history on hand asks the window for more.
+  const have = ctx?.series?.length || 0
+  useEffect(() => {
+    if (have && r.n > have) onWantDays?.(r.n)
+  }, [r.n, have, onWantDays])
   const all = ctx?.series || []
   const dates = ctx?.seriesDates || []
   const start = Math.max(0, all.length - r.n)

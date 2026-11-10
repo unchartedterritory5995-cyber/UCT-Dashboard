@@ -65,7 +65,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -132,7 +132,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {

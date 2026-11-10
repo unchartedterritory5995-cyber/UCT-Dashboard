@@ -51,18 +51,55 @@ function MaintenancePage() {
   )
 }
 
+// ⛔ THE MAINTENANCE ANSWER LIVES OUT HERE BECAUSE THIS COMPONENT DOES NOT SURVIVE A CLICK.
+// RouteErrorBoundary is keyed by pathname above <Routes>, so every sidebar click remounts AuthGuard.
+// When this was component state, every remount began unanswered and held the page at the splash until
+// /api/maintenance came back: 72-418 ms of splash on 6 of 6 measured clicks.
+//
+// Only the FIRST load waits. After that a mount paints from the last answer, and past
+// MAINTENANCE_FRESH_MS it re-asks in the background, so turning maintenance on still lands on the next
+// navigation. A `true` is never treated as fresh: a member on the maintenance screen re-asks every time.
+// A failed check or a body with no boolean is not an answer and is never recorded.
+const MAINTENANCE_FRESH_MS = 15_000
+const MAINTENANCE_TIMEOUT_MS = 8_000
+let maintenanceAnswer = null   // { value: boolean, at: ms } | null
+let maintenanceInFlight = null
+
+function askMaintenance() {
+  if (maintenanceInFlight) return maintenanceInFlight
+  // Bounded, or a hung request holds the first-load splash and blocks every later re-ask. A timeout
+  // rejects into the catch below, so it is "no answer", never "maintenance on".
+  maintenanceInFlight = fetch('/api/maintenance', { signal: AbortSignal.timeout?.(MAINTENANCE_TIMEOUT_MS) })
+    .then(r => r.json())
+    .then(d => {
+      if (typeof d?.maintenance === 'boolean') maintenanceAnswer = { value: d.maintenance, at: Date.now() }
+    })
+    .catch(() => {})
+    .finally(() => { maintenanceInFlight = null })
+  return maintenanceInFlight
+}
+
 export default function AuthGuard() {
   const { user, isPaid, loading, authTransient, retryAuth } = useAuth()
   const location = useLocation()
-  const [maintenance, setMaintenance] = useState(false)
-  const [maintenanceChecked, setMaintenanceChecked] = useState(false)
+  const [maintenance, setMaintenance] = useState(() => maintenanceAnswer?.value === true)
+  const [maintenanceChecked, setMaintenanceChecked] = useState(() => maintenanceAnswer !== null)
 
   useEffect(() => {
-    fetch('/api/maintenance')
-      .then(r => r.json())
-      .then(d => setMaintenance(!!d.maintenance))
-      .catch(() => {})
-      .finally(() => setMaintenanceChecked(true))
+    const known = maintenanceAnswer
+    // A request already out can land between this mount's render and this effect, so the state from
+    // render may be behind `known`. Both setters are no-ops when the render already had it.
+    if (known) {
+      setMaintenance(known.value === true)
+      setMaintenanceChecked(true)
+    }
+    if (known && !known.value && Date.now() - known.at < MAINTENANCE_FRESH_MS) return
+    askMaintenance().then(() => {
+      // Set only what changed, so a re-check that agrees with the screen commits nothing.
+      const isOn = maintenanceAnswer?.value === true
+      if (isOn !== (known?.value === true)) setMaintenance(isOn)
+      if (!known) setMaintenanceChecked(true)
+    })
   }, [])
 
   // R2 (2026-08-22 stress repro): when the initial /api/auth/me failed

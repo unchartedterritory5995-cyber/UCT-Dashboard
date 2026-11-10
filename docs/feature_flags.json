@@ -3180,6 +3180,24 @@
       "since": "2026-11-08",
       "where": [],
       "note": "PR #958 (feat/ticker-types-replica): the RECEIVE half on flow-worker. Read in api/ticker_types_replica.py, default '0'. Ships DARK on purpose per #958: arming is a separate owner decision; arm off-hours (a flow-worker restart drops the Q-pool and resets curated in-memory state). When armed, an install DELETEs local tickers absent from the payload (deliberate; guarded by the shrink guard, default 90%). Pairs with TICKER_TYPES_REPLICA_PUSH_ENABLED on web. Entry added 2026-11-08 because the gate merged without one."
+    },
+    "SCHWAB_AUTO_REFRESH_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "note": "PR #1012 (feat/schwab-token-replication, commit faf762f0a5): starts schwab_service.start_auto_refresh() (25-min proactive refresh) from web's async lifespan in api/main.py, default '0'. The loop previously had zero callers. Ships DARK on purpose: arm together with SCHWAB_TOKEN_PUSH_ENABLED (web) and SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED (flow-worker), since its only purpose here is keeping the replicated access token fresh (the pusher refuses to ship an expired token). Does not remove the weekly manual Schwab re-auth (the refresh token is capped at 7 days). Entry added 2026-11-10 because the gate merged without one."
+    },
+    "SCHWAB_TOKEN_PUSH_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "note": "PR #1012 (feat/schwab-token-replication, commit 25e78dbf2d): the SEND half of the Schwab ACCESS-token replica, web -> flow-worker. Read in api/services/schwab_token_push.py (push_enabled), default '0'. Sends only the access token on every save_tokens() plus a 5-min self-healing cadence; requires PUSH_SECRET. Ships DARK on purpose: arm together with SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED on flow-worker and SCHWAB_AUTO_REFRESH_ENABLED on web. Telemetry: GET /api/flow/schwab-token-status (admin). Entry added 2026-11-10 because the gate merged without one."
+    },
+    "SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "note": "PR #1012 (feat/schwab-token-replication, commit 25e78dbf2d): the RECEIVE half on flow-worker. Read in api/schwab_token_replica.py (receive_enabled), default '0'; POST /api/flow/schwab-token/install (admin-gated). Strips the refresh token unconditionally so flow-worker can never refresh or invalidate web's grant; refuses a replay, a token already expired on arrival, and a future saved_at. Ships DARK on purpose; pairs with SCHWAB_TOKEN_PUSH_ENABLED on web. While dark, flow-worker keeps its own (stale) token and falls back to Massive OI as before. Entry added 2026-11-10 because the gate merged without one."
     }
   },
   "retired": {

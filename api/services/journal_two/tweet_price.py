@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -36,6 +37,9 @@ EXTENDED_RANGE_PAD = 0.12
 FETCH_BARS_CAP = 5000
 REFRESH_POLL_S = 1.0
 REFRESH_WINDOW_S = 86400
+FETCH_POOL_WORKERS = 4
+
+_FETCH_POOL = ThreadPoolExecutor(max_workers=FETCH_POOL_WORKERS, thread_name_prefix="tweet-price")
 
 LABELS = ("posted", "premarket", "after_hours", "close")
 
@@ -85,6 +89,23 @@ def _fetch_bars(symbol: str, tf: str, count: int) -> list:
             t = int(t[:10].replace("-", ""))
         out.append((int(t), b["o"], b["h"], b["l"], b["c"], b.get("v") or 0))
     return out
+
+
+def _read_bars(symbol: str, tf: str, count: int, wait_until: Optional[float]) -> list:
+    """`_fetch_bars`, abandoned at `wait_until`: a read of a cold ticker can block on the vendor,
+    and an import must not. The abandoned read finishes on its own pool thread and still fills the
+    store. Without `wait_until` it runs here, unbounded."""
+    if wait_until is None:
+        return _fetch_bars(symbol, tf, count)
+    remaining = wait_until - time.monotonic()
+    if remaining <= 0:
+        return []
+    future = _FETCH_POOL.submit(_fetch_bars, symbol, tf, count)
+    try:
+        return future.result(timeout=remaining)
+    except FutureTimeout:
+        future.cancel()
+        return []
 
 
 def _label_for(ts: int) -> Optional[str]:
@@ -150,19 +171,20 @@ def awaits_refresh(posted_at: int) -> bool:
             and _label_for(posted_at) is not None)
 
 
-def start_refresh(symbol: str) -> None:
+def start_refresh(symbol: str, wait_until: Optional[float] = None) -> None:
     """Ask for `symbol`'s bars so a stale store starts refreshing. Serving a ticker nobody has
     charted lately answers with what is stored and refreshes behind the answer (5-10 s, measured
     on production 2026-11-09), so the read that starts it cannot be the read that uses it."""
     try:
-        _fetch_bars(_norm(symbol), "5", 200)
+        _read_bars(_norm(symbol), "5", 200, wait_until)
     except Exception:
         log.warning("tweet_price: start_refresh failed", exc_info=True)
 
 
 def price_at_post(symbol: str, posted_at: int, wait_until: Optional[float] = None) -> Optional[PricePoint]:
     """`wait_until` (a `time.monotonic()` instant, shared across one import) lets a recent post
-    wait for its ticker's refresh. Without it, one read decides."""
+    wait for its ticker's refresh, and is the limit on every read of the bars door: past it, only
+    the local store answers. Without it, one read decides."""
     try:
         sym = _norm(symbol)
         posted_at = int(posted_at)
@@ -181,11 +203,11 @@ def price_at_post(symbol: str, posted_at: int, wait_until: Optional[float] = Non
             fetched = True
             age_days = max(0.0, (time.time() - posted_at) / 86400)
             count = min(FETCH_BARS_CAP, int(age_days * 80) + 200)
-            picked = _intraday_pick(_fetch_bars(sym, "5", count), 300, posted_at)
+            picked = _intraday_pick(_read_bars(sym, "5", count, wait_until), 300, posted_at)
             while (not picked and wait_until is not None and awaits_refresh(posted_at)
                    and time.monotonic() < wait_until):
                 time.sleep(REFRESH_POLL_S)
-                picked = _intraday_pick(_fetch_bars(sym, "5", count), 300, posted_at)
+                picked = _intraday_pick(_read_bars(sym, "5", count, wait_until), 300, posted_at)
         if picked:
             label = _label_for(int(picked[0]))
             if label:
@@ -195,7 +217,7 @@ def price_at_post(symbol: str, posted_at: int, wait_until: Optional[float] = Non
         daily = _daily_pick(bars_sqlite.get_bars_before(sym, "D", DAILY_LOOKBACK, key), key)
         if not daily and fetchable and not fetched:
             age_days = max(0.0, (time.time() - posted_at) / 86400)
-            daily = _daily_pick(_fetch_bars(sym, "D", int(age_days) + 20), key)
+            daily = _daily_pick(_read_bars(sym, "D", int(age_days) + 20, wait_until), key)
         if not daily:
             return None
         d = _parse_ymd(int(daily[0]))

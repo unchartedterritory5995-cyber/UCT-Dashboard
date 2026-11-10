@@ -30,6 +30,11 @@ def held():
     return slots, open_rows
 
 
+# The timeout handed down is (deadline - a later monotonic()). On a long-uptime box monotonic() is large, and that
+# subtraction can round above the deadline span by ~1e-13 s. Compare spans with this tolerance, never exactly.
+EPS = 1e-6
+
+
 def until(condition, seconds=10.0):
     end = time.monotonic() + seconds
     while time.monotonic() < end:
@@ -244,7 +249,7 @@ def test_WAIT_a_model_timeout_is_capped_to_what_is_left(monkeypatch):
     with call_deadline.until(time.monotonic() + 5):
         turn._default_caller(model="m")
     turn._default_caller(model="m")
-    assert 0 < seen[0]["timeout"] <= 5 and seen[1]["timeout"] == 60
+    assert 0 < seen[0]["timeout"] <= 5 + EPS and seen[1]["timeout"] == 60
 
 
 def test_WAIT_a_trickling_stream_stops_at_the_deadline(monkeypatch):
@@ -310,7 +315,7 @@ def test_WAIT_a_lookup_makes_no_further_billed_attempt_past_it(monkeypatch):
     monkeypatch.setattr(pplx.requests, "post", post)
     with call_deadline.until(time.monotonic() + 0.1):
         out = pplx.web_search(query="deadline-q", cost_surface="deadlinetest")
-    assert len(posts) == 1 and posts[0] <= 0.1 and out["error"]
+    assert len(posts) == 1 and posts[0] <= 0.1 + EPS and out["error"]
 
 
 def test_WAIT_nothing_changes_outside_a_turn():

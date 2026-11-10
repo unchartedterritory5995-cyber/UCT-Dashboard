@@ -310,3 +310,86 @@ describe('PopoutWindow', () => {
     }
   })
 })
+
+describe('PopoutWindow names and placement', () => {
+  let openSpy
+  const FEATURES = 'width=1200,height=800,left=0,top=0,popup=yes,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes'
+  const SHELL_FEATURES = 'width=1200,height=800,popup=yes,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes'
+
+  function makeOverhangingFake() {
+    const fake = makeFakeWindow()
+    return Object.assign(fake, { screen: { availHeight: 1000 }, outerHeight: 1100, outerWidth: 800, screenY: 0, resizeTo: vi.fn() })
+  }
+  const inShell = () => { window.uctDesktop = { bridgeVersion: 1, capabilities: ['before-quit', 'window-state'] } }
+
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => {
+    vi.useRealTimers()
+    openSpy?.mockRestore()
+    delete window.uctDesktop
+  })
+
+  it('default props open exactly what a browser opens today', () => {
+    const fake = makeOverhangingFake()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+    render(<PopoutWindow><p>x</p></PopoutWindow>)
+    expect(openSpy).toHaveBeenCalledWith('', '', FEATURES)
+    expect(fake.resizeTo).toHaveBeenCalled()
+  })
+
+  it('a named window in a browser is still anonymous and still anchored', () => {
+    const fake = makeOverhangingFake()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+    render(<PopoutWindow windowName="uct-board-pl-1"><p>x</p></PopoutWindow>)
+    expect(openSpy).toHaveBeenCalledWith('', '', FEATURES)
+    expect(fake.resizeTo).toHaveBeenCalled()
+  })
+
+  it('in the app a named window keeps its name and leaves placement to the shell', () => {
+    inShell()
+    const fake = makeOverhangingFake()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+    render(<PopoutWindow windowName="uct-board-pl-1"><p>x</p></PopoutWindow>)
+    expect(openSpy).toHaveBeenCalledWith('', 'uct-board-pl-1', SHELL_FEATURES)
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(fake.resizeTo, 'fitToWorkArea would fight the saved bounds').not.toHaveBeenCalled()
+  })
+
+  it('in the app an unnamed window is treated as today', () => {
+    inShell()
+    const fake = makeOverhangingFake()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+    render(<PopoutWindow><p>x</p></PopoutWindow>)
+    expect(openSpy).toHaveBeenCalledWith('', '', FEATURES)
+    expect(fake.resizeTo).toHaveBeenCalled()
+  })
+
+  it('a null window.open with a name still reports blocked', () => {
+    inShell()
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const onBlocked = vi.fn()
+    render(<PopoutWindow windowName="uct-board-pl-1" onBlocked={onBlocked}><p>x</p></PopoutWindow>)
+    expect(onBlocked).toHaveBeenCalledTimes(1)
+  })
+
+  it('a named window handed back still holding the last root is cleared, not doubled', () => {
+    inShell()
+    const fake = makeFakeWindow()
+    const stale = fake.document.createElement('div')
+    stale.className = 'uct-popout-root'
+    stale.textContent = 'the window this name had a tick ago'
+    fake.document.body.appendChild(stale)
+    const staleStyle = fake.document.createElement('style')
+    staleStyle.id = 'stale-style'
+    fake.document.head.appendChild(staleStyle)
+    openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+
+    render(<PopoutWindow windowName="uct-board-pl-1"><p>fresh</p></PopoutWindow>)
+
+    const roots = fake.document.querySelectorAll('.uct-popout-root')
+    expect(roots).toHaveLength(1)
+    expect(roots[0].textContent).toBe('fresh')
+    expect(fake.document.body.textContent).not.toContain('a tick ago')
+    expect(fake.document.getElementById('stale-style'), 'the mirrored styles of the last mount go too').toBeNull()
+  })
+})

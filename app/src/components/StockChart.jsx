@@ -1478,7 +1478,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -3290,6 +3290,11 @@ export default function StockChart({
   // explicit user choice always wins over this. The phone shell passes true so
   // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
   toolbarDefaultCollapsed = false,
+  legendFlush = false,       // a card with no drawing toolbar (breadth drill grid): the crosshair legend sits flush at the pane's top instead of under the toolbar's reserved band.
+  // A small card (breadth drill grid): axis text one size down, the price axis
+  // only as wide as its labels (hugging the right edge, no 76px floor; the
+  // width ratchet still stops it oscillating), and small A/L/% chips.
+  compactAxes = false,
   // Phone chart shell (wave 8): present the drawing tools as MobileDrawBar —
   // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
   // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
@@ -9543,16 +9548,9 @@ export default function StockChart({
   const sessionBars = useMemo(() => {
     if (!bars || !_intradayLike || showExtended) return bars
 
-    const getETMins = (t) => {
-      const d = new Date(t * 1000)
-      const etStr = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-      const [h, m] = etStr.split(':').map(Number)
-      return h * 60 + m
-    }
-
     return bars.filter(b => {
       if (typeof b.t !== 'number') return true
-      const mins = getETMins(b.t)
+      const mins = etMinutesOfUnix(b.t)
       // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
       return mins >= 570 && mins < 960
     })
@@ -12214,7 +12212,7 @@ export default function StockChart({
     try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
     if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
     const _axisMinWidth = Math.max(
-      Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
+      compactAxes ? 0 : Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
       axisWidthRatchetRef.current,
     )
     const chartOpts = {
@@ -12231,7 +12229,7 @@ export default function StockChart({
         // last-value chips) are equal-width and their boxes line up; falls back to
         // the proportional face for any non-latin glyph. See index.html @font-face.
         fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
-        fontSize: cs.textSize ?? 11,
+        fontSize: compactAxes ? Math.min(cs.textSize ?? 11, 10) : (cs.textSize ?? 11),
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
         //
@@ -15416,7 +15414,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -20879,7 +20877,7 @@ export default function StockChart({
           26px allows for the time axis below the price-pane drawing area. */}
       {!showFatalError && chartReady && !hideScaleToggle && (
         <div
-          className={styles.scaleToggle}
+          className={`${styles.scaleToggle}${compactAxes ? ' ' + styles.scaleToggleCompact : ''}`}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
              it just clear of the SE corner resize handle).
              ⭐ MASTER'S `ee1de33e` DECIDED THIS AND THE MERGE KEEPS IT. Phase B's
@@ -21194,7 +21192,7 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{
