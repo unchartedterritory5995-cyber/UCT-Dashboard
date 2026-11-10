@@ -1,0 +1,75 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:09:39.973Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C3-198",
+   "say": "show me how to save that answer",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This saves the answer so you can reopen it later from Saved answers.",
+     "onPrimary": true,
+     "pr": [
+      636,
+      203,
+      45,
+      20
+     ],
+     "rr": [
+      632,
+      199,
+      53,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-203",
+   "say": "how do I edit a note's title or body",
+   "feature": "control",
+   "title": "Editing a note",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the title or the text and type: the note saves as you go.",
+     "onPrimary": true,
+     "pr": [
+      509,
+      135,
+      389,
+      34
+     ],
+     "rr": [
+      505,
+      131,
+      397,
+      42
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

@@ -376,11 +376,19 @@ export const GRID_ACTIONS = [
 // ── the Formula Builder (components/chart/builder/BuilderSheet.jsx), through the indicator library ──
 const LIBRARY = { target: 'chart.plot', name: 'the chart', text: 'Click the chart, then press Alt+Shift+A to open the indicator library.', waitFor: 'indicators.newFormula' }
 const BUILDER_OPEN = [LIBRARY, { target: 'indicators.newFormula', name: 'New formula', text: 'Click New formula.', waitFor: 'builder.modes' }]
+// ⭐ A SIGNAL'S OWN STEPS, inside the sheet the walkthrough opened (New formula opens it empty): its options show only once the
+// formula gives a yes or no and it is used as a Signal (BuilderSheet: intent SIGNAL + a truth-typed output). Shared by every
+// row whose last control is a signal's (markers, candle and background colours)
+const SIGNAL_IN_SHEET = [
+  { target: 'builder.formula', name: 'the formula box', text: 'Type a yes-or-no formula, such as close > open.' },
+  // the choice's own label, as a member clicks it (authoringIntent.js INTENT_LABELS.signal; agentGuideGapFamilies rails the copy)
+  { target: { within: '@chart', label: 'Signal — mark when it is true' }, name: 'Signal', text: 'Choose Signal — mark when it is true.', waitFor: 'builder.signalLook' },
+]
 const modeTab = (text, more = {}) => ({ within: 'builder.modes', attr: 'role', value: 'tab', text, ...more })
 const inMode = (text, target, name, say) => [...BUILDER_OPEN, { target: modeTab(text), name: text, text: `Click ${text}.`, waitFor: modeTab(text, { on: true }) }, { target, name, text: say }]
 export const BUILDER_ACTIONS = [
   { id: 'pine', label: 'Importing a script', re: /\b(pine|thinkscript|import\w*|paste)\b/, steps: inMode('Import', { within: 'builder.modes', attr: 'role', value: 'tab', text: 'Import', on: true }, 'Import', 'Paste your Pine or thinkScript in the box below. It’s translated into a formula you can save.') },
-  { id: 'marker', label: 'Signal markers and colours', re: /\b(markers?|signal|colou?r (the )?(candles?|background))\b|\b(paint|shade|tint)\b.*\b(candles?|bars?|background)\b|\b(dots?|arrows?|shapes?|triangles?)\b.*\bwhen\b/, steps: [...BUILDER_OPEN, { target: ['builder.signalLook', 'builder.placement'], name: 'the signal options', text: 'Marker draws a shape where the signal is true. The options beside it colour the candles or the background.', altText: 'These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.' }] },
+  { id: 'marker', label: 'Signal markers and colours', re: /\b(markers?|signal|colou?r (the )?(candles?|background))\b|\b(paint|shade|tint)\b.*\b(candles?|bars?|background)\b|\b(dots?|arrows?|shapes?|triangles?)\b.*\bwhen\b/, steps: [...BUILDER_OPEN, ...SIGNAL_IN_SHEET, { target: ['builder.signalLook', 'builder.placement'], name: 'the signal options', text: 'Marker draws a shape where the signal is true. The options beside it colour the candles or the background.', altText: 'These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.' }] },
   { id: 'conditions', label: 'Building by conditions', re: /\bconditions?\b/, steps: inMode('Conditions', modeTab('Conditions', { on: true }), 'Conditions', 'Pick conditions below. Each one you add builds the formula.') },
   { id: 'placement', label: 'A formula’s placement and levels', re: /\b(placement|levels?)\b/, steps: [...BUILDER_OPEN, { target: 'builder.placement', name: 'Placement', text: 'Placement chooses where it draws. The Levels box beside it adds guide lines.' }] },
   { id: 'alert', label: 'Asking for an alert from the builder', re: /\balerts?\b/, steps: [...BUILDER_OPEN, { target: 'builder.conversation', name: 'the conversation box', text: 'Describe the alert here, for example “alert me when it crosses 70”. It’s armed when you save.' }] },
@@ -395,6 +403,9 @@ export const BUILDER_ACTIONS = [
 
 const COMPARE_WORDS = /\bcompar\w+\b|\boverlays?\b|\b(main|same|own|new|separate) scale\b|\bits own scale\b/
 const needsAny = (re) => (q) => re.test(q)
+// ⭐ "which line / plot / series / output an alert watches", or a named indicator line with an alert: one of an INDICATOR's
+// lines, so the alert form's Plot list, never a drawn line's "Set alert…" (HG-12's family)
+export const ALERT_LINE_ASK = /\bwhich (lines?|plots?|series|outputs?)\b.*\balerts?\b|\balerts?\b.*\bwhich (lines?|plots?|series|outputs?)\b|\b(signal|macd|histogram) lines?\b.*\balerts?\b|\balerts?\b.*\b(signal|macd) lines?\b/
 const LIST_WORDS = /\b(watch ?lists?|lists?|rows?|flagged)\b/
 const LAYOUT_WORDS = /\blayouts?\b/
 const TAB_WORDS = /\btabs?\b/
@@ -405,7 +416,7 @@ const INDICATOR_WORDS = /\b(indicators?|legend|chips?|study|studies|rsi|macd|mov
 export const ACTION_FAMILIES = [
   { id: 'builderAction', slot: 'builderAct', rows: BUILDER_ACTIONS, when: needsAny(/\b(formulas?|builder|pine|thinkscript|script|drafts?)\b|\bwhen\b.*\b(is |are |it's |its )?true\b/), control: 'the chart', title: '{builderAct.label}', topic: 'indicators', caps: [], explain: 'The Formula Builder opens from the indicator library: Alt+Shift+A on the chart, then New formula.' },
   { id: 'gridAction', slot: 'gridAct', rows: GRID_ACTIONS, when: needsAny(/\b(grids?|multi[- ]?charts?|cells?)\b|\bsync\w*\b.*\b(crosshairs?|time ?ranges?|charts)\b|\b(crosshairs?|time ?ranges?)\b.*\b(across|all|every)\b.*\bcharts\b|\b(all|every)\b.*\bcharts\b.*\bsame time ?range\b|\b(next|previous|prev|exit|leave|refresh)\b.*\bgroups?\b|\bgroups? mode\b|\bout of groups\b/), except: /\bgrid ?lines?\b/, control: 'the Layouts menu', title: '{gridAct.label}', topic: 'layouts', caps: [], explain: 'Multi Chart’s options are under Layouts ▾ → Multi Chart, and each chart in the grid has its own style, timeframe and maximize button.' },
-  { id: 'drawingEdit', slot: 'drawAct', rows: DRAWING_ACTIONS, when: needsAny(/\bdrawings?\b|\blines?\b|\bfib\w*\b|\beraser\b|\btrend ?lines?\b|\b(rectangles?|boxes|pitch ?forks?|channels?|arrows?|circles?|anchors?)\b/), except: /\b(crosshair|grid|watermark|prev|indicators?|moving average)\b/, control: 'the drawing toolbar', title: '{drawAct.label}', topic: 'drawings', caps: [], explain: 'Click a drawing to select it. A small bar appears on it, with style, duplicate, lock and delete.' },
+  { id: 'drawingEdit', slot: 'drawAct', rows: DRAWING_ACTIONS, when: needsAny(/\bdrawings?\b|\blines?\b|\bfib\w*\b|\beraser\b|\btrend ?lines?\b|\b(rectangles?|boxes|pitch ?forks?|channels?|arrows?|circles?|anchors?)\b/), except: new RegExp(`\\b(crosshair|grid|watermark|prev|indicators?|moving average)\\b|${ALERT_LINE_ASK.source}`), control: 'the drawing toolbar', title: '{drawAct.label}', topic: 'drawings', caps: [], explain: 'Click a drawing to select it. A small bar appears on it, with style, duplicate, lock and delete.' },
   { id: 'indicatorManage', slot: 'indAct', slots: ['ind', 'indAct'], rows: INDICATOR_ACTIONS, when: needsAny(INDICATOR_WORDS), control: 'the chart’s settings gear', title: '{indAct.label}', topic: 'indicators', caps: [], explain: 'Chart settings → Indicators lists what is on the chart, with its settings, templates, pane order and Create Indicator.' },
   { id: 'layoutAction', slot: 'layoutAct', rows: LAYOUT_ACTIONS, when: needsAny(LAYOUT_WORDS), control: 'your layouts bar', title: '{layoutAct.label}', topic: 'layouts', caps: [], explain: 'Right-click a layout on the bar for its menu: rename, duplicate, version history and close.' },
   { id: 'tabAction', slot: 'tabAct', rows: TAB_ACTIONS, when: needsAny(TAB_WORDS), control: 'the tabs', title: '{tabAct.label}', topic: 'widgets', caps: [], explain: 'A tab sits in the strip above its chart or widget: click to switch, double-click to rename, and its × closes it.' },

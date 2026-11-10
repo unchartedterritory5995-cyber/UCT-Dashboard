@@ -1,0 +1,62 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:28:48.122Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "HG-16",
+   "say": "how do I find out why my alert won't fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "note": "added after the alert AFTER run: HG-14/15 never reached the guide (why-questions are not routed), so blockedAlert had no held-out coverage",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "None of your alerts for this symbol are blocked. A blocked one says why under its name here.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      174,
+      210,
+      328,
+      311
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: None of your alerts for this symbol are blocked. A blocked one says why under its name here.",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-17",
+   "say": "show me why my indicator alert can't fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "note": "added after the alert AFTER run, same reason",
+   "given": [],
+   "pass": false,
+   "steps": [],
+   "why": "no walkthrough: Harness\n2:28 AM\nshow me why my indicator alert can't fire // UCT Agent\n2:28 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  }
+ ]
+}
