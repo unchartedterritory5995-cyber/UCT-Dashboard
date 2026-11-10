@@ -34,6 +34,11 @@ from api.services.alert_destination import ops_webhook as _ops_webhook
 from fastapi import FastAPI
 import uvicorn
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod runs bars_fetch/httpx, whose URLs carry the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s",
