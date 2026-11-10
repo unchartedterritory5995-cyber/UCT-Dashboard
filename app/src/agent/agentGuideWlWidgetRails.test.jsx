@@ -65,12 +65,12 @@ const CASES = [
   ['how do I change the colours of my watchlist', 'Changing a watchlist’s look', /⚙/],
   ['how do I see the attention facts for a ticker in my watchlist', 'A ticker’s attention facts', /Right-click/],
   ['how do I drag columns around in my list', 'Reordering a list’s columns', /Drag/],
-  // the list's own menu from its title (#1005): the member right-clicks the title or presses ⋯ List actions
-  ['how do I change the name of my watchlist', 'Renaming a list', /Right-click the list’s title, or click ⋯/],
-  ['how do I download my watchlist as a spreadsheet', 'Exporting a list', /Right-click the list’s title, or click ⋯/],
-  ['how do I get back an older version of my watchlist', 'A list’s version history', /Right-click the list’s title, or click ⋯/],
-  ['how do I share my watchlist with everyone', 'Sharing a list with the community', /Right-click the list’s title, or click ⋯/],
-  ['how do I clear out all the starred tickers in my watchlist', 'Removing the starred tickers from a list', /Right-click the list’s title, or click ⋯/],
+  // the list's own menu from its title (#1005): the member presses ⋯ List actions (the title's right-click is taught once it is fixed)
+  ['how do I change the name of my watchlist', 'Renaming a list', /Click ⋯ \(List actions\)/],
+  ['how do I download my watchlist as a spreadsheet', 'Exporting a list', /Click ⋯ \(List actions\)/],
+  ['how do I get back an older version of my watchlist', 'A list’s version history', /Click ⋯ \(List actions\)/],
+  ['how do I share my watchlist with everyone', 'Sharing a list with the community', /Click ⋯ \(List actions\)/],
+  ['how do I clear out all the starred tickers in my watchlist', 'Removing the starred tickers from a list', /Click ⋯ \(List actions\)/],
 ]
 
 describe('watchlist rows in the Charts widget: highlight, instruction, cancel, no write', () => {

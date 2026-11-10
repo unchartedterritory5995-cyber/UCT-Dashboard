@@ -63,6 +63,10 @@ export function givenFor(c) {
   const g = {}
   // words that name one of the member's own lists ("add NVDA to Momentum"): the harness's fixture lists are on (?watchlists=1)
   if (withListRefs(c.say || '', FIXTURE_NAMES) !== (c.say || '')) g.lists = true
+  // a list action on the list's own menu (#1005, from the widget's title) needs one of the member's OWN lists open in the widget
+  if (/^(Renaming a list|Removing the starred tickers from a list|Copying a list to the clipboard|Exporting a list|Importing tickers into a list|A list’s version history|Sharing a list with the community|Publishing a list to Prebuilt)$/.test(c.title || '')) g.lists = true
+  // a list's Version history shows only while the server's version store says it is on (ArtifactHistory probeArtifactVersions)
+  if (/^A list’s version history$/.test(c.title || '')) g.versions = true
   if (NEEDS_DRAWING(c)) g.drawing = drawingFor(c)
   if (NEEDS_ALERTS(c)) g.alerts = [{ sym: 'SPY', target_price: 200, direction: 'above' }, { sym: 'NVDA', target_price: 150, direction: 'below' }]
   // every Multi Chart row: the grid's own flyout shows its saved-grid controls only while the board IS a grid
