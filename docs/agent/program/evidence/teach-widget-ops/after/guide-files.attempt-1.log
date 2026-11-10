@@ -1,0 +1,611 @@
+
+ RUN  v4.0.18 C:/w/pl-teach-wops/app
+
+stderr | src/agent/agentGuideSystem.test.jsx > the overlay > 🔴 Skip on a step the next depends on stays put and says why: never the lost notice
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > a pressed control finishes its step, even when it stays on screen > a middle step moves on, and the last step ends the walkthrough: no ring is left behind
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > a pressed control finishes its step, even when it stays on screen > a right-click on the control does not count as the click the step asked for
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > a walkthrough stays on ITS chart and ends when it should > P2 another chart opening its settings window does not advance this chart’s step; its own gear does
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a press on its own chart does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a press on a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on) does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a press on a menu outside any board cell does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a board-level walkthrough (no chart) is not ended by pressing a chart
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a board-level walkthrough (no chart) is not ended by pressing a chart
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > the walkthrough chart loads another symbol from outside > a walkthrough whose own steps change the symbol (the symbol search) carries on
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart on a six-chart board ends the walkthrough > a press on its own chart (top-left) does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js (14 tests | 5 failed) 37ms
+     ✓ "how do I rerun the scan in my scanner widget" → Refresh scan 4ms
+     ✓ "show me how to refresh the scanner results" → Refresh scan 1ms
+     ✓ "how do I refresh the period sort widget" → Refresh 6ms
+     ✓ "how do I get fresh results in period sort" → Refresh 3ms
+     ✓ "how do I make a watchlist column wider" → Drag to resize column 1ms
+     ✓ "show me how to resize the columns in my watchlist" → Drag to resize column 0ms
+     ✓ "how do I rename my flagged list" → Rename 0ms
+     ✓ "show me how to give the flagged list a different name" → Rename 0ms
+     ✓ "how do I show only calls in options flow" → Calls 1ms
+     × "how do I filter the options flow to puts" → Puts 5ms
+     × "show me how to see just sweeps in the flow widget" → Sweep 1ms
+     × "how do I show only block trades in options flow" → Block 1ms
+     × "how do I see only bullish flow" → Bull 1ms
+     × "how do I filter options flow to bearish prints" → Bear 1ms
+ ✓ src/agent/agentGuideSystem.test.jsx (50 tests) 8091ms
+     ✓ anywhere on the screen, at any card height, in a normal window  446ms
+     ✓ 🔴 Skip on a step the next depends on stays put and says why: never the lost notice  1082ms
+     ✓ a middle step moves on, and the last step ends the walkthrough: no ring is left behind  1066ms
+     ✓ a right-click on the control does not count as the click the step asked for  519ms
+     ✓ P2 another chart opening its settings window does not advance this chart’s step; its own gear does  636ms
+     ✓ a press on its own chart does not end it  427ms
+     ✓ a press on a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on) does not end it  420ms
+     ✓ a press on a menu outside any board cell does not end it  421ms
+     ✓ a board-level walkthrough (no chart) is not ended by pressing a chart  376ms
+     ✓ a walkthrough whose own steps change the symbol (the symbol search) carries on  528ms
+     ✓ a press on its own chart (top-left) does not end it  402ms
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > a selected drawing (it deselects): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideAbsentRow.test.jsx > a menu row that is not offered here > a step without `absent` keeps waiting when its menu opens without the row
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideAbsentRow.test.jsx > a menu row that is not offered here > a step without `absent` keeps waiting when its menu opens without the row
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > an open menu (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideAbsentRow.test.jsx (4 tests) 3939ms
+     ✓ menu open, row absent: said and ended (no ring, no waiting)  1781ms
+     ✓ a step without `absent` keeps waiting when its menu opens without the row  1992ms
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > an open dialog (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideP3.test.jsx (14 tests) 7999ms
+     ✓ "how do I link my charts?"  1239ms
+     ✓ "how do i hide my drawings"  1054ms
+     ✓ "where do I change the chart background?"  990ms
+     ✓ the Canvas walkthrough starts at the Canvas tab when Chart Settings is already open  1021ms
+     ✓ "how do I link my charts?" → "do it for me" → which colour? → Blue: the chart's link colour is set; Undo puts it back  1552ms
+     ✓ hiding drawings says what to ask for — nothing runs on a guess  1103ms
+     ✓ through the panel: "What does the bar-close countdown do?" — instant, and nothing changes  1017ms
+ ✓ src/agent/agentGuideControls.test.js (112 tests) 6159ms
+stderr | src/agent/agentGuideDesktopSelection.test.jsx > a drawing selected on desktop owns Escape > selected: Escape leaves the walkthrough on screen, and the chart still deselects
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideDesktopSelection.test.jsx (3 tests) 2390ms
+     ✓ selected: Escape leaves the walkthrough on screen, and the chart still deselects  1312ms
+     ✓ nothing selected (the bin disabled): Escape ends the walkthrough  1070ms
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 2 · send() → endForNewRequest: a new request ends the walkthrough once, and never the one it starts > a new how-to ends the old walkthrough once and keeps the one it starts
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideLifecycleRails.test.jsx (11 tests) 11450ms
+     ✓ plain Escape on the board ends the walkthrough, and no handler prevented or stopped the key  1298ms
+     ✓ a selected drawing (it deselects): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1123ms
+     ✓ an armed drawing tool (it disarms): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1047ms
+     ✓ an open menu (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1088ms
+     ✓ an open dialog (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1169ms
+     ✓ focus in an input: the walkthrough stays and the field still acts (it clears)  1083ms
+     ✓ focus in a textarea: the walkthrough stays and the field still acts (it clears)  1093ms
+     ✓ a command ends the walkthrough exactly once: no step, ring or card left  1297ms
+     ✓ a new how-to ends the old walkthrough once and keeps the one it starts  1207ms
+     ✓ with no walkthrough on screen it is called once and ends nothing  1037ms
+ ✓ src/agent/agentGuideWlWidgetRails.test.jsx (11 tests) 11863ms
+     ✓ how do I start a new watchlist from one of my templates → Creating a list from a template: rings a real control, names the member's step, and writes nothing  1236ms
+     ✓ how do I save my watchlist look as a template → A saved watchlist look: rings a real control, names the member's step, and writes nothing  1072ms
+     ✓ how do I change the colours of my watchlist → Changing a watchlist’s look: rings a real control, names the member's step, and writes nothing  1035ms
+     ✓ how do I see the attention facts for a ticker in my watchlist → A ticker’s attention facts: rings a real control, names the member's step, and writes nothing  1039ms
+     ✓ how do I drag columns around in my list → Reordering a list’s columns: rings a real control, names the member's step, and writes nothing  1016ms
+     ✓ how do I change the name of my watchlist → Renaming a list: rings a real control, names the member's step, and writes nothing  1018ms
+     ✓ how do I download my watchlist as a spreadsheet → Exporting a list: rings a real control, names the member's step, and writes nothing  1032ms
+     ✓ how do I get back an older version of my watchlist → A list’s version history: rings a real control, names the member's step, and writes nothing  1046ms
+     ✓ how do I share my watchlist with everyone → Sharing a list with the community: rings a real control, names the member's step, and writes nothing  1065ms
+     ✓ Escape on the board ends it, with nothing left on screen  1134ms
+     ✓ a new request ends it  1167ms
+ ✓ src/agent/agentGuideTarget.test.jsx (4 tests) 182ms
+ ✓ src/agent/agentGuidePages.test.jsx (18 tests) 1779ms
+ ✓ src/agent/agentGuideNamed.test.jsx (292 tests) 1238ms
+stdout | src/agent/agentGuideInventory.test.js > teach coverage probe (inventory phrasings, routing only) > asks every inventory row and reports what it reaches
+teach probe: 439/499 rows reach a walkthrough {"VERIFIED":{"rows":314,"reached":314},"ASSIGNED / NOT REACHED":{"rows":53,"reached":33},"NO WALKTHROUGH":{"rows":39,"reached":0},"NO ASSIGNED WALKTHROUGH":{"rows":63,"reached":63},"ROUTED / BROWSER FAILED":{"rows":24,"reached":24},"NOT IN PRODUCT":{"rows":6,"reached":5}}
+
+ ✓ src/agent/agentGuideInventory.test.js (1 test) 403ms
+     ✓ asks every inventory row and reports what it reaches  389ms
+ ✓ src/agent/agentGuideRelational.test.jsx (69 tests) 130ms
+ ✓ src/agent/agentGuideHeldOutControls.test.js (59 tests) 114ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · the whole path, every step on the real control > a failed create is not called a success: the form says so and the card stays on Create
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideHeldOut.test.js (40 tests) 100ms
+ ✓ src/agent/agentGuideHeldOutCov3.test.js (21 tests) 76ms
+ ✓ src/agent/agentGuideSequence.test.js (6 tests) 75ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · the whole path, every step on the real control > a picker already on the board: it starts at ＋ New and says so; "do it for me" asks for the name and creates nothing
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideFamilies.test.js (54 tests) 156ms
+ ✓ src/agent/agentGuideHeldOutListNames.test.js (11 tests) 85ms
+ ✓ src/agent/agentGuideHeldOutWlWidget.test.js (19 tests) 66ms
+ ✓ src/agent/agentGuideHeldOutCov2.test.js (26 tests) 116ms
+ ❯ src/agent/agentGuideHeldOutWlTitleMenu.test.js (13 tests | 1 failed) 115ms
+     ✓ how do I change the name of my watchlist → Renaming a list 9ms
+     × how do I rename my flagged list → Renaming a list 14ms
+     ✓ how do I copy my watchlist tickers to the clipboard → Copying a list 3ms
+     ✓ how do I download my watchlist as a spreadsheet → Exporting a list 2ms
+     ✓ how do I export my list to csv → Exporting a list 1ms
+     ✓ how do I paste a bunch of tickers into my list → Importing tickers 1ms
+     ✓ how do I get back an older version of my watchlist → A list’s version history 0ms
+     ✓ how do I share my watchlist with everyone → Sharing a list 1ms
+     ✓ how do I make my watchlist private again → Sharing a list 0ms
+     ✓ how do I publish my list as a UCT prebuilt list → Publishing a list to Prebuilt 0ms
+     ✓ how do I save someone else’s watchlist to my lists → Saving a community list 16ms
+     ✓ how do I share my flagged list → Sharing a list 3ms
+     ✓ a KNOWN MISS: how do I clear out all the starred tickers in my watchlist (named Removing the starred tickers) 52ms
+ ✓ src/agent/agentGuideTargets.test.js (71 tests) 20102ms
+     ✓ gridAction: each target is rendered by the product  686ms
+     ✓ watchlistAction: each target is rendered by the product  4809ms
+     ✓ widgetAction: each target is rendered by the product  4506ms
+     ✓ compareAction: each target is rendered by the product  348ms
+     ✓ chartMenu: each target is rendered by the product  832ms
+     ✓ legendChip: each target is rendered by the product  1926ms
+     ✓ indicatorEdit: each target is rendered by the product  349ms
+     ✓ multiChart: each target is rendered by the product  373ms
+     ✓ widgetSettings: each target is rendered by the product  2012ms
+     ✓ widgetAdd: each target is rendered by the product  617ms
+     ✓ chartSetting: each target is rendered by the product  705ms
+     ✓ drawing: each target is rendered by the product  550ms
+ ✓ src/agent/agentGuideHeldOutListColumns.test.js (8 tests) 55ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · the whole path, every step on the real control > 🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideHeldOutCov5.test.js (18 tests) 129ms
+ ✓ src/agent/agentGuideHeldOutCov4b.test.js (9 tests) 66ms
+ ✓ src/agent/agentGuideHeldOutCov4.test.js (12 tests) 66ms
+ ✓ src/agent/agentGuideRelease.test.jsx (20 tests) 102ms
+ ✓ src/agent/agentGuideHeldOutCov1.test.js (27 tests) 95ms
+ ✓ src/agent/agentGuideHeldOutControls2.test.js (15 tests) 44ms
+ ✓ src/agent/agentGuideHeldOutFlow.test.js (8 tests) 18ms
+ ✓ src/agent/agentGuideHeldOutPriceScale.test.js (5 tests) 40ms
+ ✓ src/agent/agentGuideHeldOutRowColumn.test.js (9 tests | 8 skipped) 2ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · Back and Next > after Back, the step still moves by itself once its waitFor goes away and comes back
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a sheet owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a popup that closes on Escape owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > after the layer has gone, the next Escape ends the guide
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuide.test.jsx (42 tests) 49519ms
+     ✓ What's the difference between a chart indicator and a condition?  1098ms
+     ✓ what is a layout?  1011ms
+     ✓ what are link colours  989ms
+     ✓ explain the drawing tools  974ms
+     ✓ What is RSI?  1016ms
+     ✓ Explain RSI  994ms
+     ✓ What does ADR mean?  1010ms
+     ✓ What is MACD?  981ms
+     ✓ What is an EMA?  1008ms
+     ✓ rsi vs macd  1004ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is the difference between an ema and an sma  1045ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what does a dead cat bounce mean?  996ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is rsi telling me about nvda right now  1012ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what's a good setting for rsi on the 5 minute  1013ms
+     ✓ the model can ask for UCT's own catalog wording (guide.explain) — a query: an answer, no receipt, no change  1085ms
+     ✓ S1 "Where do I change the timeframe?" — the real timeframe bar, two steps, Next / Done; the board is untouched  1418ms
+     ✓ S2 several charts: the walkthrough is on the chart the member clicked, and says which  1008ms
+     ✓ S3 a control that is NOT on screen is never claimed — it says so and explains instead  1021ms
+     ✓ S4 a step that needs the member: "open the gear" waits for THEIR click (the settings opening), then moves on by itself  1317ms
+     ✓ S4b context-aware: with Chart settings ALREADY open on the Indicators tab, the walkthrough starts at its search box — never "open the gear"  1016ms
+     ✓ S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing)  5641ms
+     ✓ a new command typed to the Agent mid-walkthrough ends the walkthrough  1129ms
+       ✓ with nothing else open, it ends the guide  1011ms
+       ✓ with focus still in the Agent's message box after asking, it ends the guide  1012ms
+       ✓ Ctrl, Alt, Meta or Shift + Escape is not the guide's  1034ms
+       ✓ a text field's Escape is the field's  1059ms
+       ✓ a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase  1032ms
+       ✓ a sheet owns the press, whether or not it stays open  1105ms
+       ✓ the palette or a dialog owns the press, whether or not it stays open  1072ms
+       ✓ a popup that closes on Escape owns the press, whether or not it stays open  1078ms
+       ✓ a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide  998ms
+       ✓ an armed drawing tool owns the press: the guide stays  1051ms
+       ✓ a menu the press closed had it: the Widgets menu goes, the guide stays  1031ms
+       ✓ a menu that ignores Escape does not keep the guide from ending  1020ms
+       ✓ after the layer has gone, the next Escape ends the guide  1193ms
+     ✓ S6 Escape and Exit end it; a new walkthrough replaces the old one  1420ms
+     ✓ S7 the card never takes a click away from the board: the ring is pointer-events none, the card is not modal  987ms
+     ✓ D1 "Where do I change the timeframe?" → "Now do it for me" → which timeframe? → Weekly: changed, receipted, undoable  1330ms
+     ✓ D2 a feature whose action needs the member's words says what to say — nothing runs on a guess  1054ms
+     ✓ D3 "do it for me" with no walkthrough shown is NOT a guide action — nothing changes  978ms
+     ✓ D4 a direct command is just done — "Change my chart to the weekly timeframe" (no walkthrough)  1025ms
+     ✓ D5 the indicator walkthrough → do it for me → RSI: added through indicator.add (receipt, Undo)  1242ms
+ ✓ src/agent/agentGuideWatchlistCreate.test.jsx (45 tests) 64418ms
+     ✓ Show me how to create a watchlist  1203ms
+     ✓ show me how to make a watchlist  1005ms
+     ✓ how do I create a watchlist?  991ms
+     ✓ how can i make a new watchlist  971ms
+     ✓ how do I add a new watchlist  993ms
+     ✓ walk me through creating a watchlist  993ms
+     ✓ teach me how to make my own watchlist  1009ms
+     ✓ guide me through building a watch list  996ms
+     ✓ how do I start a new list  1023ms
+     ✓ where do I create a watchlist  1039ms
+     ✓ from a board with no Watchlist widget: Widgets ▾ → Watchlist → ＋ New → name → Create → the list; only the member creates it  2078ms
+     ✓ pressing Enter in the name box creates it too: the walkthrough follows, it does not report a lost control  1583ms
+     ✓ a failed create is not called a success: the form says so and the card stays on Create  2013ms
+     ✓ a picker already on the board: it starts at ＋ New and says so; "do it for me" asks for the name and creates nothing  1131ms
+     ✓ a Watchlist widget already showing a list: ‹ Lists opens the picker and the walkthrough carries on from ＋ New  1356ms
+     ✓ …or Next takes the Widgets route instead  1108ms
+     ✓ 🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps  2302ms
+     ✓ Next and Back move between steps; 🔴 Back onto a step whose waitFor is already met stays there  2080ms
+     ✓ after Back, the step still moves by itself once its waitFor goes away and comes back  1867ms
+     ✓ 🔴 Back passes over a step whose control has gone (the closed menu) to the nearest one on screen  1289ms
+     ✓ 🔴 the Widgets menu closing on mouse-leave returns to "Open Widgets ▾" and reopening it carries on  3472ms
+     ✓ 🔴 Cancel on the form returns to ＋ New rather than reporting a lost control  3868ms
+     ✓ Exit on Open Widgets  1004ms
+     ✓ Exit on Click Watchlist  1110ms
+     ✓ Exit on ＋ New  1336ms
+     ✓ Exit on the name  1484ms
+     ✓ Exit on Create  1890ms
+     ✓ Exit on the finished list  1660ms
+     ✓ 🔴 Escape on Open Widgets, with focus anywhere  993ms
+     ✓ 🔴 Escape on Click Watchlist, with focus anywhere  1109ms
+     ✓ 🔴 Escape on ＋ New, with focus anywhere  1332ms
+     ✓ 🔴 Escape on the name, with focus anywhere  1376ms
+     ✓ 🔴 Escape on Create, with focus anywhere  1454ms
+     ✓ 🔴 Escape on the finished list, with focus anywhere  1597ms
+     ✓ a finished or cancelled walkthrough leaves nothing bound: the next one starts and Escape ends it  1105ms
+     ✓ 🔴 Escape in the name box is the field's: the form closes and the walkthrough steps back to ＋ New  3631ms
+     ✓ Escape does nothing of the guide's once no walkthrough is on screen  1003ms
+     ✓ the widget is closed while ＋ New is highlighted → it returns to Widgets ▾ rather than stopping  3491ms
+     ✓ the widget is closed on the name step: no earlier control left to return to but Widgets ▾, so it returns there  3489ms
+     ✓ the Widgets menu is not on screen at all (grid mode) → it says so and explains, and starts nothing  977ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I filter the options flow to puts" → Puts
+AssertionError: expected 'Options Flow: calls or puts | {"widge…' to contain 'Puts'
+
+Expected: "Puts"
+Received: "Options Flow: calls or puts | {"widgetType":"optionsflow","guide":"flow.filter.cp"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "show me how to see just sweeps in the flow widget" → Sweep
+AssertionError: expected 'Options Flow: sweeps or blocks | {"wi…' to contain 'Sweep'
+
+Expected: "Sweep"
+Received: "Options Flow: sweeps or blocks | {"widgetType":"optionsflow","guide":"flow.filter.type"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I show only block trades in options flow" → Block
+AssertionError: expected 'Options Flow: sweeps or blocks | {"wi…' to contain 'Block'
+
+Expected: "Block"
+Received: "Options Flow: sweeps or blocks | {"widgetType":"optionsflow","guide":"flow.filter.type"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I see only bullish flow" → Bull
+AssertionError: expected 'Options Flow: bullish or bearish | {"…' to contain 'Bull'
+
+Expected: "Bull"
+Received: "Options Flow: bullish or bearish | {"widgetType":"optionsflow","guide":"flow.filter.dir"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I filter options flow to bearish prints" → Bear
+AssertionError: expected 'Options Flow: bullish or bearish | {"…' to contain 'Bear'
+
+Expected: "Bear"
+Received: "Options Flow: bullish or bearish | {"widgetType":"optionsflow","guide":"flow.filter.dir"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWlTitleMenu.test.js > held-out: the list actions on the widget's title menu > how do I rename my flagged list → Renaming a list
+AssertionError: expected 'Renaming the Flagged list | {"within"…' to contain 'Renaming a list'
+
+Expected: "Renaming a list"
+Received: "Renaming the Flagged list | {"within":"watchlist.rowMenu","label":"Rename"}"
+
+ ❯ src/agent/agentGuideHeldOutWlTitleMenu.test.js:40:119
+     38| }
+     39| describe('held-out: the list actions on the widget\'s title menu', () …
+     40|   it.each(WL_TITLE_MENU_HELD_OUT.filter(([q]) => !WL_TITLE_MENU_MISSES…
+       |                                                                                                                       ^
+     41|   it.each(WL_TITLE_MENU_HELD_OUT.filter(([q]) => WL_TITLE_MENU_MISSES[…
+     42|     expect(seen(q)).not.toContain(want)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  2 failed | 33 passed (35)
+      Tests  6 failed | 1127 passed | 8 skipped (1141)
+   Start at  14:09:51
+   Duration  76.42s (transform 53.09s, setup 8.10s, import 112.86s, tests 191.22s, environment 31.30s)
+
