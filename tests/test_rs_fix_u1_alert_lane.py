@@ -246,10 +246,13 @@ def test_v2_lit_offers_the_eleven_and_the_rating_waits_for_its_table(monkeypatch
     monkeypatch.setenv("RS_HISTORY_ENABLED", "0")
     entry = {e["indicator"]: e for e in ev.alert_catalog()}["rs_line"]
     values = [p["value"] for p in entry["plots"]]
-    assert len(values) == 11 and ars.RS_RATING_ADDRESS not in values
+    # 2026-11-10 (RS split, S2): 11 -> 8, the three Mansfield addresses are withheld from the offer
+    assert len(values) == 8 and ars.RS_RATING_ADDRESS not in values
+    assert not set(values) & set(ars.RS_WITHHELD_ADDRESSES)
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
     entry = {e["indicator"]: e for e in ev.alert_catalog()}["rs_line"]
-    assert [p["value"] for p in entry["plots"]] == list(ev.RS_ADDRESSES)
+    assert [p["value"] for p in entry["plots"]] == [
+        a for a in ev.RS_ADDRESSES if a.startswith("rs_line.") and a not in ars.RS_WITHHELD_ADDRESSES]
 
 
 def test_the_rating_gate_reads_rs_history_enabled_and_needs_v2(monkeypatch):
@@ -266,7 +269,10 @@ def test_the_door_refuses_every_rs_address_while_dark_in_a_sentence(dark):
     for a in ev.RS_ADDRESSES:
         cond = ev.ALERT_CONDITIONS[a][0]
         why = ias.refusal_for(a, cond["value"], "D", 0.0)
-        assert why is not None and ias.REFUSAL_RS_NOT_OFFERED in why, a
+        # 2026-11-10 (RS split, S2): a withheld Mansfield address is refused with its own
+        # sentence whatever the flags say (the withheld gate answers first).
+        anchor = ias.REFUSAL_RS_WITHHELD if a in ars.RS_WITHHELD_ADDRESSES else ias.REFUSAL_RS_NOT_OFFERED
+        assert why is not None and anchor in why, a
     assert "rating" in ias.refusal_for(ars.RS_RATING_ADDRESS, "above", "D", 90.0)
     assert ias.refusal_for("rsi", "above", "D", 70.0) is None, "every other address is unmoved"
 

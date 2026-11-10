@@ -33,6 +33,8 @@ _FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 def _rs_alert_flags_lit(monkeypatch):
     from api.services.signature import registry_defs as _rs_flag_defs
     monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
@@ -333,7 +335,10 @@ def test_catalog_offers_exactly_what_can_be_evaluated():
     """
     ev = evaluator
     addresses = _catalog_addresses()
-    assert set(addresses) == set(ev.all_addresses())
+    # 2026-11-10 (RS split, S2): the three Mansfield addresses stay registered (so
+    # `all_addresses()` holds them) and are WITHHELD from the offer; the rest is the offer.
+    assert set(addresses) == set(ev.all_addresses()) - set(_ars.RS_WITHHELD_ADDRESSES)
+    assert set(_ars.RS_WITHHELD_ADDRESSES) <= set(ev.all_addresses())
     # …and no address is served twice, which a grouping bug could do silently.
     assert len(addresses) == len(set(addresses))
     # …and the partitions are pairwise DISJOINT, or "which table answers for
@@ -656,8 +661,8 @@ def test_on_the_CLOSED_lane_exactly_one_offered_address_produces_nothing():
         "closed lane cannot answer — one of them is refusing the wrong thing")
     # the non-vacuity floor: the loop really did drive the whole catalog (minus
     # the eleven RS addresses it skips by declaration, counted here).
-    assert len(evaluator.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
-    assert len(evaluator.RS_ADDRESSES) == 12  # 2026-11-07 (RS 2b-06): +rs_line.rating
+    assert len(evaluator.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(evaluator.RS_ADDRESSES) == 16  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
 
 
 def test_every_plot_address_resolves_to_the_column_it_names():
@@ -1021,6 +1026,11 @@ def test_the_operand_table_is_the_only_place_a_relation_is_declared():
                for e in evaluator.alert_catalog() for p in e["plots"]}
     assert evaluator.THRESHOLD_OPERAND, "no relation is declared at all"
     for (address, condition), spec in evaluator.THRESHOLD_OPERAND.items():
+        if address in _ars.RS_WITHHELD_ADDRESSES:
+            # 2026-11-10 (RS split, S2): withheld from the offer, still evaluating -- the
+            # row must stay so a stored alert keeps its declared operand.
+            assert address not in offered
+            continue
         assert address in offered, f"{address} is declared and not offered"
         assert condition in offered[address], (
             f"{address}/{condition} is declared and the address does not offer it")
@@ -1146,7 +1156,8 @@ def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
     ]
     # 2026-11-04: `ma_cross` is a SEVENTEENTH group, appended after `close`.
     # 2026-11-06 (RS 2b-05): `rs_line` is an EIGHTEENTH group, appended after `ma_cross`.
-    assert served[15:] == ["close", "ma_cross", "rs_line"]
+    # 2026-11-10 (RS split, S2): `rs_phases` and `rs_vs_ema` are the NINETEENTH and TWENTIETH groups.
+    assert served[15:] == ["close", "ma_cross", "rs_line", "rs_phases", "rs_vs_ema"]
     # …and the three legacy multi-plot bases still open on their legacy address,
     # so the pre-selected plot is the one the bare spelling has always meant.
     by_base = {e["indicator"]: e for e in evaluator.alert_catalog()}
@@ -1952,8 +1963,8 @@ def test_the_rs_partition_is_the_fifth_disjoint_from_the_other_four_and_exactly_
     assert ev.ADDRESS_PARTITIONS[-1] is ev.RS_FUNCS
     assert len(ev.ADDRESS_PARTITIONS) == 5
     assert list(ev.RS_FUNCS) == list(ev.RS_ADDRESSES) == list(_ars.RS_ADDRESSES)
-    assert len(ev.RS_ADDRESSES) == 12  # 2026-11-07 (RS 2b-06): +rs_line.rating
-    assert all(ev.plot_base(a) == "rs_line" for a in ev.RS_ADDRESSES)
+    assert len(ev.RS_ADDRESSES) == 16  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
+    assert {ev.plot_base(a) for a in ev.RS_ADDRESSES} == {"rs_line", "rs_phases", "rs_vs_ema"}
     others = set().union(*(set(p) for p in ev.ADDRESS_PARTITIONS[:-1]))
     assert not (others & set(ev.RS_ADDRESSES)), "an RS address is in two partitions"
     # the base-set rail on `EVENT_ADDRESSES` still reads {sar}: RS is not an event member
@@ -1990,7 +2001,7 @@ def test_every_rs_address_is_closed_only_by_its_columns_own_declaration():
         # the rollback lever does not reach it
         assert ev._lane_for(a, "forming") == "closed"
     assert ev.CLOSED_ONLY_ADDRESSES == frozenset(ev.CROSS_ADDRESSES) | frozenset(ev.RS_ADDRESSES)
-    assert len(ev.CLOSED_ONLY_ADDRESSES) == 13  # 2026-11-07 (RS 2b-06): +rs_line.rating
+    assert len(ev.CLOSED_ONLY_ADDRESSES) == 17  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
 
 
 def test_resolve_address_folds_an_rs_address_to_its_camelcase_spelling():
@@ -2005,8 +2016,13 @@ def test_the_rs_catalog_rows_labels_decimals_and_declared_operands():
     entry = served["rs_line"]
     assert entry["label"] == "UCT Relative Strength" == ev.ALERT_BASE_LABELS["rs_line"]
     plots = {p["value"]: p for p in entry["plots"]}
-    assert list(plots) == list(ev.RS_ADDRESSES)
-    for a in ev.RS_ADDRESSES:
+    # 2026-11-10 (RS split, S2): the offer is the registered list minus the withheld
+    # Mansfield three; the split families are their own catalogue groups.
+    rs_line_offered = [a for a in ev.RS_ADDRESSES
+                       if a.startswith("rs_line.") and a not in _ars.RS_WITHHELD_ADDRESSES]
+    assert list(plots) == rs_line_offered
+    assert not (set(plots) & set(_ars.RS_WITHHELD_ADDRESSES))
+    for a in rs_line_offered:
         p = plots[a]
         assert ev.ALERT_LABELS[a].strip() and ev.ALERT_LABELS[a] != a
         assert p["label"] == ev.ALERT_LABELS[a]
@@ -2030,13 +2046,30 @@ def test_the_rs_catalog_rows_labels_decimals_and_declared_operands():
             if c["needs_threshold"] is False:
                 assert c["value"] == "cross_zero" or (a, c["value"]) in ev.THRESHOLD_OPERAND, (a, c)
     events = ("rs_line.above", "rs_line.crossUp", "rs_line.crossDown", "rs_line.newHigh",
-              "rs_line.newHighBeforePrice", "rs_line.newHighRed",
-              "rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown")
+              "rs_line.newHighBeforePrice", "rs_line.newHighRed")
     for a in events:
         assert [c["value"] for c in plots[a]["conditions"]] == ["above"], a
         assert plots[a]["conditions"][0]["needs_threshold"] is False
         assert ev.THRESHOLD_OPERAND[(a, "above")] == {"kind": "const", "value": 0.5}
-    assert [c["value"] for c in plots["rs_line.mansfield"]["conditions"]] == ["cross_zero", "above", "below"]
+    # the withheld Mansfield three: not offered, but their conditions and operands
+    # stay declared so a stored alert keeps evaluating
+    for a in ("rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown"):
+        assert [c["value"] for c in ev.ALERT_CONDITIONS[a]] == ["above"]
+        assert ev.THRESHOLD_OPERAND[(a, "above")] == {"kind": "const", "value": 0.5}
+    assert [c["value"] for c in ev.ALERT_CONDITIONS["rs_line.mansfield"]] == ["cross_zero", "above", "below"]
+    # 2026-11-10 (RS split, S2): the two new catalogue groups, one event rule each
+    for base, label, plot_values in (
+            ("rs_phases", "UCT RS Phases", ["rs_phases.flipBlue", "rs_phases.flipRed"]),
+            ("rs_vs_ema", "UCT RS vs 21 EMA", ["rs_vs_ema.crossUp", "rs_vs_ema.crossDown"])):
+        group = served[base]
+        assert group["label"] == label == ev.ALERT_BASE_LABELS[base]
+        assert [p["value"] for p in group["plots"]] == plot_values
+        for p in group["plots"]:
+            assert p["instance_defs"] == [{"rs_phases": "rsPhases", "rs_vs_ema": "rsVsEma"}[base]]
+            assert [c["value"] for c in p["conditions"]] == ["above"] and p["conditions"][0]["needs_threshold"] is False
+            assert ev.THRESHOLD_OPERAND[(p["value"], "above")] == {"kind": "const", "value": 0.5}
+            assert p["default_threshold"] is None and "INDUSTRY" not in p["input_options"]["benchmark"]
+            assert p["instance_label"].startswith(f"{ev.ALERT_LABELS[p['value']]} (vs SPY")
     assert ev.THRESHOLD_OPERAND[("rs_line.mansfield", "above")] == {"kind": "const", "value": 0.0}
     assert ev.THRESHOLD_OPERAND[("rs_line.mansfield", "below")] == {"kind": "const", "value": 0.0}
     for a in ("rs_line.value", "rs_line.ma"):
@@ -2068,6 +2101,12 @@ def test_the_door_refuses_an_intraday_rs_create_with_the_lanes_own_sentence():
     for a in ev.RS_ADDRESSES:
         cond = ev.ALERT_CONDITIONS[a][0]
         thr = 0.0 if cond["needs_threshold"] else None
+        if a in _ars.RS_WITHHELD_ADDRESSES:
+            # 2026-11-10 (RS split, S2): the offer gate comes first, so a new Mansfield
+            # alert is refused with the withheld sentence on every timeframe.
+            for tf in ("5", "D", "W"):
+                assert _ias.REFUSAL_RS_WITHHELD in _ias.refusal_for(a, cond["value"], tf, thr), (a, tf)
+            continue
         why = _ias.refusal_for(a, cond["value"], "5", thr)
         assert why is not None and why == _ars.timeframe_refusal("5", a), a
         assert _ias.REFUSAL_RS_TIMEFRAME in why
