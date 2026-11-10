@@ -48215,13 +48215,14 @@
    "objects": {
     "verdict": "DIVERGE",
     "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 50,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -48373,13 +48374,14 @@
    "objects": {
     "verdict": "DIVERGE",
     "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 55,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -55208,15 +55210,16 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 710 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:collector",
+    "reason": "our lines are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 504,
-      "ours": 500,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -55261,8 +55264,8 @@
      {
       "family": "lines colour",
       "agree": true,
-      "slots": 452,
-      "agreeing": 452,
+      "slots": 412,
+      "agreeing": 412,
       "themeRelative": 0,
       "differing": 0,
       "undecodable": 0,
@@ -55286,13 +55289,12 @@
      }
     ],
     "colourUnpaired": {
-     "ours": 48,
-     "vendor": 52
+     "ours": 0,
+     "vendor": 92
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
